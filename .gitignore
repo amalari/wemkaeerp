@@ -17,3 +17,11 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Agent secrets (API keys, tokens)
+.agents/agents/brainstorm/.env
+**/.env
+
+# Python virtual environments
+.venv/
+**/.venv/
