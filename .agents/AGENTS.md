@@ -15,30 +15,36 @@
 Gunakan struktur modular berikut:
 
 ```
-EventVerse/
-├── core/                        # Shared primitives & types (no dependency ke app)
+EventVerse / AchmadPorto/
+├── core/                        # PURE KOTLIN DOMAIN LAYER (Zero external dependencies)
 │   └── src/commonMain/kotlin/com/eventverse/app/
-│       ├── domain/              # Domain types murni (Entity, ValueObject, DomainEvent)
-│       └── shared/              # Shared utilities (Result, Either, extensions)
+│       ├── domain/player/       # Player Entities, Enums, Value Objects & UseCases
+│       ├── domain/portfolio/    # Portfolio, Projects, Skills & UseCases
+│       ├── domain/interaction/  # Dialogue, Interaction Entities & UseCases
+│       └── domain/world/        # Farm Buildings, Props, Shipping & UseCases
 │
 ├── app/
-│   ├── shared/                  # Shared UI + application layer (Compose UI)
-│   │   └── src/commonMain/kotlin/com/eventverse/app/
-│   │       ├── presentation/    # ViewModel, UiState, UiEvent
-│   │       ├── navigation/      # Screen routing
-│   │       └── di/              # Dependency injection setup
-│   │
+│   ├── shared/                  # Shared UI + application layer (Compose UI & Repositories)
 │   ├── androidApp/              # Android entry point saja
 │   ├── iosApp/                  # iOS entry point saja
 │   ├── desktopApp/              # Desktop entry point saja
-│   └── webApp/                  # Web entry point saja
+│   └── webApp/                  # Kotlin/JS Web bridge entry point (PortfolioJsRuntimeBridge.kt)
+│
+├── src/                         # TYPESCRIPT & THREE.JS 3D PRESENTATION LAYER (DDD / Vertical Slices)
+│   ├── core/                    # Shared Kernel (engine, physics, audio, bridge, constants, styles)
+│   ├── features/                # Bounded Contexts / Domain Feature Slices
+│   │   ├── maps/                # Spatial Maps: outside/, farmhouse/ (inside), shared/
+│   │   ├── player/              # 3D Farmer rig, CharacterController, Joystick, PlayerSfx
+│   │   ├── portfolio/           # Rucksack Bag modal, project showcase data, MenuSfx, CSS
+│   │   ├── calendar/            # Calendar modal, festival data, calendar.css
+│   │   ├── television/          # CRT TV modal, broadcast data, tv.css
+│   │   ├── diary/               # Save Diary modal, slot logic, diary.css
+│   │   ├── dialogue/            # Dialogue window, Avatar portraits, DialogueSfx, CSS
+│   │   └── hud/                 # Top status bar, real-time clock, toast notifications
+│   ├── main.ts                  # Clean Composition Root & Scene Orchestrator
+│   └── style.css                # Master CSS barrel importing all domain stylesheets
 │
 └── server/                      # Ktor server (REST/GraphQL)
-    └── src/main/kotlin/com/eventverse/app/
-        ├── domain/              # Business logic (Use Cases, Repositories interfaces)
-        ├── application/         # Application services
-        ├── infrastructure/      # DB, external APIs, implementations
-        └── api/                 # Route handlers, request/response DTOs
 ```
 
 ---
@@ -188,12 +194,13 @@ sealed interface EventListUiEvent {
 
 ---
 
-### 8. File Organization
+### 8. File Organization (Domain & Vertical Slice Colocation)
 
 - Satu file = satu konsep utama
 - Boleh ada file gabungan untuk value objects kecil: `EventValueObjects.kt`
-- Kelompokkan berdasarkan **fitur/domain**, bukan berdasarkan layer di level file
+- Kelompokkan berdasarkan **fitur/domain/peta**, bukan berdasarkan layer teknis di level file (Dilarang memisahkan folder `css/`, `audio/`, `ui/`, `world/` secara horizontal)
 
+#### A. Kotlin Domain & Feature Organization:
 ```
 feature/event/
 ├── domain/
@@ -208,6 +215,24 @@ feature/event/
     ├── EventListViewModel.kt
     ├── EventListScreen.kt
     └── EventListUiModel.kt
+```
+
+#### B. TypeScript / Three.js Frontend Feature Organization:
+```
+src/features/maps/farmhouse/
+├── FarmhouseInterior.ts        # 3D Low-poly room diorama meshes & colliders
+└── audio/
+    └── FarmhouseSfx.ts         # Clock ticking, door creak, room synthesizers
+
+src/features/portfolio/
+├── domain/
+│   ├── portfolio.ts            # Project showcase item data
+│   └── profile.ts              # Farmer attributes & timeline data
+├── presentation/
+│   ├── RucksackMenu.ts         # 2D Rucksack Bag modal controller
+│   └── rucksack.css            # Scoped rucksack stylesheet
+└── audio/
+    └── MenuSfx.ts              # Bag open/close & item equip synthesizers
 ```
 
 ---
@@ -237,9 +262,10 @@ fun `publish event when already published should throw exception`() { ... }
 
 ## Anti-Patterns yang Dilarang
 
-- Anemic Domain Model — Entity hanya data, logika di service
-- God UseCase — satu use case menangani banyak operasi
-- Repository sebagai DAO generik — hindari findAll(), deleteById() tanpa konteks domain
-- Domain bergantung pada framework — tidak ada Ktor/Android/Compose import di domain
-- Business logic di ViewModel atau Composable
-- String primitives untuk domain concepts — gunakan Value Objects
+- **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
+- **Anemic Domain Model** — Entity hanya data tanpa behavior, logika tersebar di service
+- **God UseCase / God Orchestrator** — Satu use case / satu file `main.ts` menangani seluruh operasi tanpa delegasi modul
+- **Repository sebagai DAO generik** — Hindari findAll(), deleteById() tanpa konteks domain
+- **Domain bergantung pada framework** — Tidak ada import Ktor/Android/Compose/Three.js di pure Kotlin domain
+- **Business logic di ViewModel atau Composable**
+- **String primitives untuk domain concepts** — Gunakan Value Objects
