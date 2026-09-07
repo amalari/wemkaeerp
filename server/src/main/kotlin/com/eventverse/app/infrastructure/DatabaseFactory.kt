@@ -78,5 +78,5 @@ object DatabaseFactory {
     }
 
     private fun getEnvOrDefault(name: String, default: String): String =
-        System.getenv(name) ?: default
+        EnvLoader.get(name, default)
 }

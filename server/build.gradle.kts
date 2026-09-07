@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
+    implementation("com.auth0:java-jwt:4.4.0")
 
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
