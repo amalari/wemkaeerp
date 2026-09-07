@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: wemade-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wemade_erp}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - wemade_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-wemade_erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wemade_pgdata:
+    name: wemade_pgdata

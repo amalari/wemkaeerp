@@ -1,3 +1,8 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.gradle.wrapper.enabled": true,
+    "java.import.gradle.version": "9.1.0",
+    "gradle.wrapperScript": "./gradlew",
+    "gradle.useGradleDaemon": true
 }

@@ -260,6 +260,19 @@ fun `publish event when already published should throw exception`() { ... }
 
 ---
 
+### 11. Post-Task Teaching Documentation (Wajib)
+
+Setiap kali menyelesaikan pengerjaan sebuah task, issue, atau modul:
+- **Wajib men-generate modul dokumentasi pembelajaran (teaching)** menggunakan skill `teaching` ke dalam direktori `docs/teaching/teaching-[task/issue-id]-[slug].md`.
+- Konten ditulis dengan gaya **Senior Lead Developer membimbing Junior Developer**:
+  1. **Start dari mana?**: Urutan menulis (order of operations) dari nol.
+  2. **Bedah kode blok per blok**: Penjelasan baris per baris dan mental model di baliknya.
+  3. **Technology & Approach ("The Why")**: Mengapa teknologi ini yang dipilih dan risiko jika menggunakan cara lain.
+  4. **Jebakan Pemula (Common Pitfalls)**: Kesalahan fatal yang dihindari.
+  5. **Verifikasi & Tantangan Mandiri**: Cara menguji kebenaran kodenya.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!

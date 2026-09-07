@@ -1,0 +1,138 @@
+package com.eventverse.app.domain.auth
+
+import kotlin.jvm.JvmInline
+
+@JvmInline
+value class UserId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "UserId cannot be blank" }
+        require(value.length in 3..64) { "UserId must be between 3 and 64 characters" }
+    }
+}
+
+@JvmInline
+value class Username(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Username cannot be blank" }
+        require(value.length in 3..30) { "Username must be between 3 and 30 characters" }
+        require(USERNAME_REGEX.matches(value)) { 
+            "Username can only contain alphanumeric characters, underscores, and dots: $value" 
+        }
+    }
+
+    companion object {
+        private val USERNAME_REGEX = Regex("^[a-zA-Z0-9._]+$")
+    }
+}
+
+@JvmInline
+value class EmailAddress(val value: String) {
+    init {
+        val trimmed = value.trim()
+        require(trimmed.isNotBlank()) { "EmailAddress cannot be blank" }
+        require(EMAIL_REGEX.matches(trimmed)) { "Invalid email address format: $value" }
+    }
+
+    companion object {
+        private val EMAIL_REGEX = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")
+    }
+}
+
+enum class Permission {
+    // Platform Superadmin
+    MANAGE_PLATFORM,
+    IMPERSONATE_TENANT,
+
+    // Tenant Administration
+    MANAGE_TENANT,
+    MANAGE_USERS,
+    VIEW_BILLING,
+
+    // CRM & Sales
+    VIEW_LEADS,
+    MANAGE_LEADS,
+    MANAGE_SAMPLING_ORDERS,
+
+    // Inventory & PLM
+    VIEW_INVENTORY,
+    MANAGE_INVENTORY,
+    VIEW_PLM,
+    MANAGE_PLM,
+    CALCULATE_COSTING,
+
+    // Production & MRP
+    APPROVE_SPK,
+    MANAGE_PRODUCTION_SCHEDULE,
+    INPUT_SHOPFLOOR_OUTPUT,
+
+    // QC & Fulfillment
+    PERFORM_QC,
+    MANAGE_FULFILLMENT;
+}
+
+enum class Role(val defaultPermissions: Set<Permission>) {
+    PLATFORM_SUPERADMIN(
+        Permission.entries.toSet()
+    ),
+    TENANT_ADMIN(
+        setOf(
+            Permission.MANAGE_TENANT,
+            Permission.MANAGE_USERS,
+            Permission.VIEW_BILLING,
+            Permission.VIEW_LEADS,
+            Permission.MANAGE_LEADS,
+            Permission.MANAGE_SAMPLING_ORDERS,
+            Permission.VIEW_INVENTORY,
+            Permission.MANAGE_INVENTORY,
+            Permission.VIEW_PLM,
+            Permission.MANAGE_PLM,
+            Permission.CALCULATE_COSTING,
+            Permission.APPROVE_SPK,
+            Permission.MANAGE_PRODUCTION_SCHEDULE,
+            Permission.INPUT_SHOPFLOOR_OUTPUT,
+            Permission.PERFORM_QC,
+            Permission.MANAGE_FULFILLMENT
+        )
+    ),
+    SALES(
+        setOf(
+            Permission.VIEW_LEADS,
+            Permission.MANAGE_LEADS,
+            Permission.MANAGE_SAMPLING_ORDERS,
+            Permission.VIEW_INVENTORY,
+            Permission.VIEW_PLM,
+            Permission.CALCULATE_COSTING
+        )
+    ),
+    PPIC_SUPERVISOR(
+        setOf(
+            Permission.VIEW_INVENTORY,
+            Permission.MANAGE_INVENTORY,
+            Permission.VIEW_PLM,
+            Permission.MANAGE_PLM,
+            Permission.APPROVE_SPK,
+            Permission.MANAGE_PRODUCTION_SCHEDULE,
+            Permission.INPUT_SHOPFLOOR_OUTPUT,
+            Permission.PERFORM_QC,
+            Permission.MANAGE_FULFILLMENT
+        )
+    ),
+    OPERATOR(
+        setOf(
+            Permission.INPUT_SHOPFLOOR_OUTPUT
+        )
+    ),
+    QC_INSPECTOR(
+        setOf(
+            Permission.PERFORM_QC,
+            Permission.VIEW_PLM
+        )
+    ),
+    WAREHOUSE(
+        setOf(
+            Permission.VIEW_INVENTORY,
+            Permission.MANAGE_INVENTORY,
+            Permission.MANAGE_FULFILLMENT
+        )
+    );
+}
