@@ -8,17 +8,32 @@
     <!-- Google Identity Services SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body style="text-align: center; align-content: center">
-    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
-        <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
-        <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
-                stroke-dasharray="90 125">
-            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
-                              repeatCount="indefinite"/>
-        </circle>
-    </svg>
+<body>
+    <div id="app-loader" style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f8fafc; z-index: 99999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 50 50" role="presentation">
+            <circle cx="25" cy="25" r="20" stroke="#e2e8f0" stroke-width="4" fill="none"/>
+            <circle cx="25" cy="25" r="20" stroke="#2563eb" stroke-width="4" fill="none" stroke-linecap="round"
+                    stroke-dasharray="90 125">
+                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
+                                  repeatCount="indefinite"/>
+            </circle>
+        </svg>
+        <p style="margin-top: 16px; font-size: 14px; font-weight: 600; color: #475569;">Memuat WeMade ERP...</p>
+    </div>
 
     <script>
+        window.hideAppLoader = function() {
+            var loader = document.getElementById('app-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.transition = 'opacity 0.25s ease-out';
+                setTimeout(function() {
+                    if (loader.parentNode) {
+                        loader.parentNode.removeChild(loader);
+                    }
+                }, 250);
+            }
+        };
         window.GOOGLE_CLIENT_ID = "647282996110-mik622aj16qo935rcqqf84ecgs282om8.apps.googleusercontent.com";
         window.authenticatedGoogleEmail = "";
         window.authenticatedGoogleName = "";

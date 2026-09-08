@@ -12,6 +12,10 @@ external fun openGooglePopupJs(): Unit
 @JsFun("(callback) => { window.onGoogleAuthCallback = (email, name) => callback(email, name); }")
 external fun registerGoogleCallbackJs(callback: (String, String) -> Unit): Unit
 
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => { if (window.hideAppLoader) { window.hideAppLoader(); } }")
+external fun hideAppLoaderJs(): Unit
+
 @OptIn(ExperimentalComposeUiApi::class, kotlin.js.ExperimentalWasmJsInterop::class)
 fun main() {
     GoogleAuthBridge.onSignInTrigger = {
@@ -23,6 +27,9 @@ fun main() {
     }
 
     ComposeViewport {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            hideAppLoaderJs()
+        }
         App()
     }
 }

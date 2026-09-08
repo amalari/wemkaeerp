@@ -470,12 +470,15 @@ private fun AuthenticatedSessionCard(
                 .background(WeMadeColors.SuccessBg),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "✓",
-                color = WeMadeColors.Success,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Canvas(modifier = Modifier.size(22.dp)) {
+                val strokeWidth = 2.5f * density
+                val path = Path().apply {
+                    moveTo(size.width * 0.2f, size.height * 0.52f)
+                    lineTo(size.width * 0.44f, size.height * 0.76f)
+                    lineTo(size.width * 0.82f, size.height * 0.28f)
+                }
+                drawPath(path, color = WeMadeColors.Success, style = Stroke(width = strokeWidth))
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -579,7 +582,7 @@ private fun FooterSecurityNotice() {
         horizontalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "🔒 Isolasi Data Multi-Tenant & PostgreSQL Row-Level Security Aktif",
+            text = "Isolasi Data Multi-Tenant & PostgreSQL Row-Level Security Aktif",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
             color = WeMadeColors.OnSurfaceMuted,
             textAlign = TextAlign.Center
