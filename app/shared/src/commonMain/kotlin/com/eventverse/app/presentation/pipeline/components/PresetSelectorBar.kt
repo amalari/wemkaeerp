@@ -1,0 +1,220 @@
+package com.eventverse.app.presentation.pipeline.components
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.presentation.theme.WeMadeColors
+
+@Composable
+fun PresetSelectorBar(
+    selectedPreset: GarmentBusinessPreset,
+    isPresentationMode: Boolean,
+    isSimulating: Boolean,
+    onSelectPreset: (GarmentBusinessPreset) -> Unit,
+    onTogglePresentationMode: () -> Unit,
+    onToggleSimulation: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPresentationMode) Color(0xFF0F172A) else WeMadeColors.Surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left: Business Preset Pills
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Model Bisnis:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
+                    )
+
+                    GarmentBusinessPreset.entries.forEach { preset ->
+                        val isSelected = preset == selectedPreset
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    when {
+                                        isSelected && isPresentationMode -> WeMadeColors.Primary
+                                        isSelected -> WeMadeColors.PrimaryContainer
+                                        isPresentationMode -> Color(0xFF1E293B)
+                                        else -> Color(0xFFF1F5F9)
+                                    }
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 0.dp,
+                                    color = if (isSelected) WeMadeColors.Primary else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onSelectPreset(preset) }
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = preset.shortBadge,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = when {
+                                    isSelected && isPresentationMode -> Color.White
+                                    isSelected -> WeMadeColors.Primary
+                                    isPresentationMode -> Color(0xFFCBD5E1)
+                                    else -> WeMadeColors.OnSurface
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Right: Action Buttons (Presentation Mode + Live Simulation)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Live Simulation Status Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isPresentationMode) Color(0xFF1E293B) else WeMadeColors.SuccessBg
+                            )
+                            .clickable { onToggleSimulation() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSimulating) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted)
+                            )
+                            Text(
+                                text = if (isSimulating) "Live Stream Aktif" else "Monitoring Pause",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSimulating) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
+                            )
+                        }
+                    }
+
+                    // Client Presentation Mode Toggle
+                    Button(
+                        onClick = onTogglePresentationMode,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPresentationMode) WeMadeColors.Purple else Color(0xFF4F46E5)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            IconPresentation(modifier = Modifier.size(15.dp), color = Color.White)
+                            Text(
+                                text = if (isPresentationMode) "Keluar Mode Presentasi" else "Mode Presentasi Klien",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Subtitle Description of Active Preset
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF8FAFC))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (isPresentationMode) Color(0xFF334155) else WeMadeColors.PrimaryContainer
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "KARAKTERISTIK ALUR",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isPresentationMode) Color(0xFF93C5FD) else WeMadeColors.Primary
+                        )
+                    }
+                    Text(
+                        text = selectedPreset.description,
+                        fontSize = 11.sp,
+                        color = if (isPresentationMode) Color(0xFFE2E8F0) else WeMadeColors.OnSurface,
+                        maxLines = 2
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border.copy(alpha = 0.5f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Sasaran: ${selectedPreset.targetClientProfile}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted
+                    )
+                }
+            }
+        }
+    }
+}

@@ -63,6 +63,27 @@ enum class DataScope(
 }
 
 /**
+ * Dynamic Scope Capability defining whether a module's data boundary
+ * can be scoped per individual/hierarchy or must remain enterprise-wide (global).
+ */
+enum class ScopeCapability(
+    val displayName: String,
+    val shortLabel: String,
+    val description: String
+) {
+    GLOBAL_ONLY(
+        displayName = "Seluruh Pabrik (Data Kolektif)",
+        shortLabel = "Seluruh Pabrik",
+        description = "Data inventaris, kalkulasi HPP, dan mesin dikelola kolektif untuk seluruh pabrik tanpa partisi kepemilikan."
+    ),
+    HIERARCHICAL(
+        displayName = "Hirarkis (Sendiri & Bawahan)",
+        shortLabel = "Hirarkis",
+        description = "Mendukung isolasi data dokumen per pembuat (Data Sendiri) dan atasan komando (Data Bawahan)."
+    );
+}
+
+/**
  * Value object configuring access for a single module.
  */
 data class ModuleAccessConfig(
@@ -72,4 +93,16 @@ data class ModuleAccessConfig(
     val isAccessible: Boolean get() = level != AccessLevel.NONE
     val canWrite: Boolean get() = level.isAtLeast(AccessLevel.OPERATE)
     val canManage: Boolean get() = level.isAtLeast(AccessLevel.MANAGE)
+
+    /**
+     * Sanitizes data scope according to the module's capability.
+     * If the module is GLOBAL_ONLY, force scope to ALL_TENANT_DATA.
+     */
+    fun sanitizeFor(module: BusinessModule): ModuleAccessConfig {
+        return if (module.isGlobalOnly && scope != DataScope.ALL_TENANT_DATA) {
+            copy(scope = DataScope.ALL_TENANT_DATA)
+        } else {
+            this
+        }
+    }
 }

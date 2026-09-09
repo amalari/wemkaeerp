@@ -1,9 +1,18 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.*
 
+enum class RbacViewMode(val label: String, val iconKey: String) {
+    PER_MODULE("1 Modul 1 Card", "cards"),
+    PER_ROLE("Matriks Jabatan", "roles")
+}
+
 data class DynamicRbacUiState(
+    val viewMode: RbacViewMode = RbacViewMode.PER_MODULE,
     val roles: List<CustomRole> = emptyList(),
+    val departments: List<Department> = emptyList(),
+    val moduleAssignments: Map<BusinessModule, List<DepartmentModuleAssignment>> = emptyMap(),
     val selectedRoleId: String? = null,
     val draftRole: CustomRole? = null,
     val isDirty: Boolean = false,
@@ -11,6 +20,9 @@ data class DynamicRbacUiState(
     val searchQuery: String = "",
     val selectedCategoryFilter: ModuleCategory? = null,
     val isCreateModalOpen: Boolean = false,
+    val isAssignModalOpen: Boolean = false,
+    val activeAssignModule: BusinessModule? = null,
+    val editingAssignment: DepartmentModuleAssignment? = null,
     val newRoleNameInput: String = "",
     val newRoleDescInput: String = "",
     val selectedTemplateRoleId: String? = null,
@@ -28,6 +40,7 @@ data class DynamicRbacUiState(
 }
 
 sealed interface DynamicRbacUiEvent {
+    data class SetViewMode(val mode: RbacViewMode) : DynamicRbacUiEvent
     data class SelectRole(val roleId: String) : DynamicRbacUiEvent
     data class UpdateRoleMetadata(val name: String, val description: String) : DynamicRbacUiEvent
     data class ChangeModuleAccess(
@@ -44,6 +57,10 @@ sealed interface DynamicRbacUiEvent {
     data class UpdateNewRoleInputs(val name: String, val desc: String, val templateId: String?) : DynamicRbacUiEvent
     data object ConfirmCreateRole : DynamicRbacUiEvent
     data class DeleteRole(val roleId: String) : DynamicRbacUiEvent
+    data class OpenAssignModal(val module: BusinessModule, val existing: DepartmentModuleAssignment? = null) : DynamicRbacUiEvent
+    data object CloseAssignModal : DynamicRbacUiEvent
+    data class SaveDepartmentAssignment(val module: BusinessModule, val assignment: DepartmentModuleAssignment) : DynamicRbacUiEvent
+    data class RemoveDepartmentAssignment(val module: BusinessModule, val departmentId: String) : DynamicRbacUiEvent
     data object DismissToast : DynamicRbacUiEvent
 }
 

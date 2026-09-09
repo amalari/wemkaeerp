@@ -98,11 +98,14 @@ class AuthViewModel(
                 _uiState.update { it.copy(otpCode = event.otp, errorMessage = null) }
             }
             is LoginUiEvent.SubmitDemoLogin -> {
-                handleDemoLogin()
+                handleDemoLogin(Role.TENANT_ADMIN)
+            }
+            is LoginUiEvent.SubmitDemoSuperAdminLogin -> {
+                handleDemoLogin(Role.PLATFORM_SUPERADMIN)
             }
             is LoginUiEvent.SubmitGoogleLogin -> {
                 if (event.idToken == "demo-token") {
-                    handleDemoLogin()
+                    handleDemoLogin(Role.TENANT_ADMIN)
                 } else {
                     handleGoogleLogin(event.idToken, event.email, event.name)
                 }
@@ -130,12 +133,12 @@ class AuthViewModel(
         }
     }
 
-    private fun handleDemoLogin() {
+    private fun handleDemoLogin(targetRole: Role = Role.TENANT_ADMIN) {
         val currentSlug = _uiState.value.tenantSlug.ifBlank { "wemade-demo" }
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         scope.launch {
-            val result = authApiClient.loginDemo(currentSlug)
+            val result = authApiClient.loginDemo(currentSlug, role = targetRole.name)
             result.onSuccess { session ->
                 // 1. Simpan session token & profil ke PlatformLocalStorage (browser localStorage)
                 PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
@@ -145,7 +148,7 @@ class AuthViewModel(
                     TenantSession(
                         tenantId = session.user.tenantId ?: TenantId("ten-default"),
                         slug = TenantSlug(session.tenantSlug ?: currentSlug),
-                        name = "Pabrik ${session.tenantSlug ?: currentSlug}",
+                        name = if (targetRole == Role.PLATFORM_SUPERADMIN) "WeMade Platform Admin" else "Pabrik ${session.tenantSlug ?: currentSlug}",
                         tier = SubscriptionTier.PRO
                     )
                 )
@@ -160,12 +163,48 @@ class AuthViewModel(
                 }
                 _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
             }.onFailure { error ->
+                // Fallback offline session jika backend offline
+                val fallbackUser = if (targetRole == Role.PLATFORM_SUPERADMIN) {
+                    User(
+                        id = UserId("usr-superadmin-001"),
+                        tenantId = TenantId("ten-$currentSlug"),
+                        username = Username("superadmin_apps"),
+                        email = EmailAddress("superadmin@wemade.id"),
+                        role = Role.PLATFORM_SUPERADMIN,
+                        isActive = true
+                    )
+                } else {
+                    User(
+                        id = UserId("usr-owner-001"),
+                        tenantId = TenantId("ten-$currentSlug"),
+                        username = Username("achmad_owner"),
+                        email = EmailAddress("student.achmad@gmail.com"),
+                        role = Role.TENANT_ADMIN,
+                        isActive = true
+                    )
+                }
+                val offlineSession = UserSession(
+                    user = fallbackUser,
+                    token = AuthToken("jwt-offline-token-${kotlin.random.Random.nextInt(100000, 999999)}"),
+                    tenantSlug = currentSlug
+                )
+                PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(offlineSession))
+                sessionStorage.setSession(
+                    TenantSession(
+                        tenantId = fallbackUser.tenantId ?: TenantId("ten-default"),
+                        slug = TenantSlug(currentSlug),
+                        name = if (targetRole == Role.PLATFORM_SUPERADMIN) "WeMade Platform Admin" else "Pabrik $currentSlug",
+                        tier = SubscriptionTier.PRO
+                    )
+                )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Gagal terhubung ke database backend"
+                        authenticatedSession = offlineSession,
+                        successMessage = "Mode Demo Offline: ${fallbackUser.username.value} (${fallbackUser.role.name})"
                     )
                 }
+                _uiEffect.emit(LoginUiEffect.NavigateToDashboard(offlineSession))
             }
         }
     }

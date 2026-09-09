@@ -123,6 +123,9 @@ fun LoginScreen(
                                     },
                                     onDemoLoginClick = {
                                         viewModel.onEvent(LoginUiEvent.SubmitDemoLogin)
+                                    },
+                                    onDemoSuperAdminLoginClick = {
+                                        viewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
                                     }
                                 )
                             }
@@ -273,7 +276,8 @@ private fun LoginTabSelector(
 private fun GoogleLoginContent(
     isLoading: Boolean,
     onGoogleClick: () -> Unit,
-    onDemoLoginClick: () -> Unit
+    onDemoLoginClick: () -> Unit,
+    onDemoSuperAdminLoginClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -326,13 +330,13 @@ private fun GoogleLoginContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Quick Demo Login Button for instant access
+        // Quick Demo Login Button (Owner Pabrik / Tenant Admin)
         FilledTonalButton(
             onClick = onDemoLoginClick,
             enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp),
+                .height(38.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.filledTonalButtonColors(
                 containerColor = WeMadeColors.PrimaryContainer.copy(alpha = 0.6f),
@@ -346,10 +350,32 @@ private fun GoogleLoginContent(
             )
         }
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Quick Demo Login Button (Superadmin Apps / Platform Admin)
+        FilledTonalButton(
+            onClick = onDemoSuperAdminLoginClick,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(38.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = Color(0xFFF3E8FF),
+                contentColor = Color(0xFF7E22CE)
+            )
+        ) {
+            Text(
+                text = "⚡ Demo Mode: Masuk Cepat (Superadmin Apps)",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
         Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-            text = "Direkomendasikan untuk: Owner, Admin, Sales, dan PPIC",
+            text = "Direkomendasikan untuk: Owner, Admin Apps, Sales, dan PPIC",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
             color = WeMadeColors.OnSurfaceMuted,
             textAlign = TextAlign.Center

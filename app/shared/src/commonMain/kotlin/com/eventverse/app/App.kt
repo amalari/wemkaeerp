@@ -28,11 +28,13 @@ import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
+import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
 import com.eventverse.app.presentation.rbac.DynamicRbacScreen
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
 
 enum class AppNavScreen {
+    FACTORY_FLOW,
     DYNAMIC_RBAC,
     ORG_CHART,
     LOGIN
@@ -111,12 +113,21 @@ fun App() {
                                     .background(WeMadeColors.PrimaryContainer)
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
-                                Text(
-                                    text = "🏢 ${session.tenantSlug}",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = WeMadeColors.Primary
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    com.eventverse.app.presentation.pipeline.components.IconBuilding(
+                                        modifier = Modifier.size(11.dp),
+                                        color = WeMadeColors.Primary
+                                    )
+                                    Text(
+                                        text = session.tenantSlug ?: "tenant",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = WeMadeColors.Primary
+                                    )
+                                }
                             }
                         }
                     }
@@ -162,6 +173,31 @@ fun App() {
                                         text = "Hak Akses (RBAC)",
                                         fontSize = 12.sp,
                                         fontWeight = if (currentScreen == AppNavScreen.DYNAMIC_RBAC) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        )
+
+                        FilterChip(
+                            selected = currentScreen == AppNavScreen.FACTORY_FLOW,
+                            onClick = { currentScreen = AppNavScreen.FACTORY_FLOW },
+                            label = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    if (!isAuthenticated) {
+                                        LockIcon(modifier = Modifier.size(12.dp))
+                                    } else {
+                                        com.eventverse.app.presentation.pipeline.components.IconLightning(
+                                            modifier = Modifier.size(12.dp),
+                                            color = if (currentScreen == AppNavScreen.FACTORY_FLOW) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
+                                        )
+                                    }
+                                    Text(
+                                        text = "Alur Pabrik (Pipeline)",
+                                        fontSize = 12.sp,
+                                        fontWeight = if (currentScreen == AppNavScreen.FACTORY_FLOW) FontWeight.Bold else FontWeight.Medium
                                     )
                                 }
                             }
@@ -261,7 +297,7 @@ fun App() {
             Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                 when (screen) {
                     AppNavScreen.ORG_CHART -> {
-                        if (isAuthenticated && session != null) {
+                        if (session != null) {
                             OrgChartScreen(tenantSlug = session.tenantSlug ?: "wemade-demo")
                         } else {
                             AuthGuardCard(
@@ -278,6 +314,16 @@ fun App() {
                         } else {
                             AuthGuardCard(
                                 targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
+                                onLoginClick = { currentScreen = AppNavScreen.LOGIN }
+                            )
+                        }
+                    }
+                    AppNavScreen.FACTORY_FLOW -> {
+                        if (isAuthenticated) {
+                            FactoryFlowScreen()
+                        } else {
+                            AuthGuardCard(
+                                targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
                                 onLoginClick = { currentScreen = AppNavScreen.LOGIN }
                             )
                         }

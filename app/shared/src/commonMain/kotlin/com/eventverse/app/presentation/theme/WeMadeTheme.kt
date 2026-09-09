@@ -28,8 +28,14 @@ object WeMadeColors {
     val BorderFocus = Color(0xFF2563EB)     // Accessible Focus Ring
     val Success = Color(0xFF16A34A)         // Emerald-600
     val SuccessBg = Color(0xFFF0FDF4)
+    val Warning = Color(0xFFD97706)         // Amber-600 Bottleneck Warning
+    val WarningBg = Color(0xFFFFFBEB)
     val Error = Color(0xFFDC2626)           // Red-600
     val ErrorBg = Color(0xFFFEF2F2)
+    val Purple = Color(0xFF7C3AED)          // Violet-600
+    val PurpleBg = Color(0xFFF5F3FF)
+    val Teal = Color(0xFF0D9488)            // Teal-600
+    val TealBg = Color(0xFFF0FDFA)
 }
 
 val WeMadeLightColorScheme = lightColorScheme(

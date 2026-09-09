@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.*
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CoroutineScope
@@ -24,15 +25,146 @@ class DynamicRbacViewModel(
 
     private fun loadInitialRoles() {
         val presets = CustomRole.createFactoryPresets(tenantId)
+        val defaultDepts = Department.defaultPresets()
+        val initialAssignments = createDefaultModuleAssignments(defaultDepts)
         val initialSelected = presets.firstOrNull()
         _uiState.update {
             it.copy(
                 roles = presets,
+                departments = defaultDepts,
+                moduleAssignments = initialAssignments,
                 selectedRoleId = initialSelected?.id?.value,
                 draftRole = initialSelected,
                 isDirty = false
             )
         }
+    }
+
+    private fun createDefaultModuleAssignments(depts: List<Department>): Map<BusinessModule, List<DepartmentModuleAssignment>> {
+        val salesDept = depts.find { it.code == "SALES" }
+        val whDept = depts.find { it.code == "WAREHOUSE" }
+        val cutDept = depts.find { it.code == "CUTTING" }
+        val sewDept = depts.find { it.code == "SEWING" }
+        val qcDept = depts.find { it.code == "QUALITY_CONTROL" }
+        val finishDept = depts.find { it.code == "FINISHING" }
+        val mgmtDept = depts.find { it.code == "MANAGEMENT" }
+
+        return mapOf(
+            BusinessModule.CRM_SALES to listOfNotNull(
+                salesDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.SUBORDINATE_DATA
+                    )
+                }
+            ),
+            BusinessModule.SAMPLING_ORDER to listOfNotNull(
+                salesDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.SUBORDINATE_DATA
+                    )
+                },
+                cutDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.OPERATE,
+                        scope = DataScope.OWN_DATA_ONLY
+                    )
+                }
+            ),
+            BusinessModule.INVENTORY to listOfNotNull(
+                whDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
+            BusinessModule.TECH_PACK_BOM to listOfNotNull(
+                cutDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                },
+                sewDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.VIEW,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
+            BusinessModule.COSTING_HPP to listOfNotNull(
+                mgmtDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
+            BusinessModule.PRODUCTION_MRP to listOfNotNull(
+                sewDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
+            BusinessModule.OPERATOR_EXEC to listOfNotNull(
+                sewDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.OPERATE,
+                        scope = DataScope.OWN_DATA_ONLY
+                    )
+                }
+            ),
+            BusinessModule.QUALITY_CONTROL to listOfNotNull(
+                qcDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
+            BusinessModule.FULFILLMENT to listOfNotNull(
+                finishDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                },
+                whDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.OPERATE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            )
+        )
     }
 
     fun onEvent(event: DynamicRbacUiEvent) {
@@ -122,6 +254,59 @@ class DynamicRbacViewModel(
 
             is DynamicRbacUiEvent.DeleteRole -> {
                 handleDeleteRole(event.roleId)
+            }
+
+            is DynamicRbacUiEvent.SetViewMode -> {
+                _uiState.update { it.copy(viewMode = event.mode) }
+            }
+
+            is DynamicRbacUiEvent.OpenAssignModal -> {
+                _uiState.update {
+                    it.copy(
+                        isAssignModalOpen = true,
+                        activeAssignModule = event.module,
+                        editingAssignment = event.existing
+                    )
+                }
+            }
+
+            is DynamicRbacUiEvent.CloseAssignModal -> {
+                _uiState.update {
+                    it.copy(
+                        isAssignModalOpen = false,
+                        activeAssignModule = null,
+                        editingAssignment = null
+                    )
+                }
+            }
+
+            is DynamicRbacUiEvent.SaveDepartmentAssignment -> {
+                _uiState.update { state ->
+                    val currentList = state.moduleAssignments[event.module] ?: emptyList()
+                    val filtered = currentList.filter { it.departmentId != event.assignment.departmentId }
+                    val updatedMap = state.moduleAssignments + (event.module to (filtered + event.assignment))
+                    state.copy(
+                        moduleAssignments = updatedMap,
+                        isAssignModalOpen = false,
+                        activeAssignModule = null,
+                        editingAssignment = null,
+                        isDirty = true,
+                        successToast = "Akses modul ${event.module.displayName} untuk ${event.assignment.departmentName} berhasil diperbarui."
+                    )
+                }
+            }
+
+            is DynamicRbacUiEvent.RemoveDepartmentAssignment -> {
+                _uiState.update { state ->
+                    val currentList = state.moduleAssignments[event.module] ?: emptyList()
+                    val updatedList = currentList.filter { it.departmentId != event.departmentId }
+                    val updatedMap = state.moduleAssignments + (event.module to updatedList)
+                    state.copy(
+                        moduleAssignments = updatedMap,
+                        isDirty = true,
+                        successToast = "Akses divisi berhasil dicabut dari modul ${event.module.displayName}."
+                    )
+                }
             }
 
             is DynamicRbacUiEvent.DismissToast -> {

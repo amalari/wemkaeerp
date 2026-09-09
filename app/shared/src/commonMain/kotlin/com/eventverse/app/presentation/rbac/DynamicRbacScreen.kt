@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +25,9 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.domain.rbac.ModuleCategory
+import com.eventverse.app.presentation.rbac.components.AssignDepartmentModal
 import com.eventverse.app.presentation.rbac.components.CreateRoleModal
+import com.eventverse.app.presentation.rbac.components.ModuleCardList
 import com.eventverse.app.presentation.rbac.components.ModuleMatrixRow
 import com.eventverse.app.presentation.rbac.components.RoleListSidebar
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -64,53 +67,161 @@ fun DynamicRbacScreen(
                 onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.DismissToast) }
             )
 
-            // 2. Main Master-Detail Work Area
+            // 2. View Mode Switcher Bar
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left Sidebar: Role List
-                RoleListSidebar(
-                    roles = state.roles,
-                    selectedRoleId = state.selectedRoleId,
-                    onSelectRole = { viewModel.onEvent(DynamicRbacUiEvent.SelectRole(it)) },
-                    onOpenCreateModal = { viewModel.onEvent(DynamicRbacUiEvent.OpenCreateModal()) },
-                    modifier = Modifier.width(320.dp)
-                )
+                // Segmented Switcher (1 Modul 1 Card vs Matriks Jabatan)
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RbacViewMode.entries.forEach { mode ->
+                        val isSelected = state.viewMode == mode
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) WeMadeColors.Surface else Color.Transparent)
+                                .clickable { viewModel.onEvent(DynamicRbacUiEvent.SetViewMode(mode)) }
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = when (mode) {
+                                    RbacViewMode.PER_MODULE -> "🗂️ 1 Modul 1 Card (Berdasarkan Modul)"
+                                    RbacViewMode.PER_ROLE -> "👤 Matriks Jabatan"
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) WeMadeColors.PrimaryDark else Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
 
-                // Right Panel: Selected Role Permissions Matrix
-                val activeRole = state.selectedRole
-                if (activeRole != null) {
-                    RoleMatrixDetailPanel(
-                        role = activeRole,
-                        isDirty = state.isDirty,
-                        isSaving = state.isSaving,
+                // Filter kategori jika mode 1 Modul 1 Card
+                if (state.viewMode == RbacViewMode.PER_MODULE) {
+                    CategoryFilterBar(
                         selectedCategory = state.selectedCategoryFilter,
-                        searchQuery = state.searchQuery,
-                        onCategorySelect = { viewModel.onEvent(DynamicRbacUiEvent.SetModuleCategoryFilter(it)) },
-                        onSearchChange = { viewModel.onEvent(DynamicRbacUiEvent.UpdateSearchQuery(it)) },
-                        onAccessChanged = { module, level, scope ->
-                            viewModel.onEvent(DynamicRbacUiEvent.ChangeModuleAccess(module, level, scope))
-                        },
-                        onReset = { viewModel.onEvent(DynamicRbacUiEvent.ResetChanges) },
-                        onSave = { viewModel.onEvent(DynamicRbacUiEvent.SaveChanges) },
-                        onDeleteRole = { viewModel.onEvent(DynamicRbacUiEvent.DeleteRole(activeRole.id.value)) },
-                        modifier = Modifier.weight(1f)
+                        onCategorySelect = { viewModel.onEvent(DynamicRbacUiEvent.SetModuleCategoryFilter(it)) }
                     )
-                } else {
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3. Main Work Area
+            if (state.viewMode == RbacViewMode.PER_MODULE) {
+                // 1 Modul 1 Card Workspace
+                val filteredModules = BusinessModule.entries.filter { module ->
+                    (state.selectedCategoryFilter == null || module.category == state.selectedCategoryFilter) &&
+                    (state.searchQuery.isBlank() || module.displayName.contains(state.searchQuery, ignoreCase = true) ||
+                     module.description.contains(state.searchQuery, ignoreCase = true))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    // Educational Banner for 1 Modul 1 Card
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF0FDF4))
+                            .border(1.dp, Color(0xFFBBF7D0), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
-                        Text(
-                            text = "Pilih jabatan di sebelah kiri untuk melihat hak akses",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = WeMadeColors.OnSurfaceMuted
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "💡 Desain 1 Modul 1 Card & Jangkauan Dinamis:",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF166534)
+                            )
+                            Text(
+                                text = "Tugaskan modul ke divisi pabrik. Modul inventaris, kalkulasi HPP, dan mesin otomatis berlaku seragam satu pabrik (Shared Resource), sedangkan modul CRM, sampling, dan operator mendukung isolasi hirarkis (Sendiri / Bawahan / Semua Data).",
+                                fontSize = 12.sp,
+                                color = Color(0xFF15803D)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    ModuleCardList(
+                        modules = filteredModules,
+                        assignments = state.moduleAssignments,
+                        departments = state.departments,
+                        roles = state.roles,
+                        onOpenAssignModal = { module, existing ->
+                            viewModel.onEvent(DynamicRbacUiEvent.OpenAssignModal(module, existing))
+                        },
+                        onRemoveAssignment = { module, deptId ->
+                            viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, deptId))
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                // Matriks Jabatan Workspace
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Left Sidebar: Role List
+                    RoleListSidebar(
+                        roles = state.roles,
+                        selectedRoleId = state.selectedRoleId,
+                        onSelectRole = { viewModel.onEvent(DynamicRbacUiEvent.SelectRole(it)) },
+                        onOpenCreateModal = { viewModel.onEvent(DynamicRbacUiEvent.OpenCreateModal()) },
+                        modifier = Modifier.width(320.dp)
+                    )
+
+                    // Right Panel: Selected Role Permissions Matrix
+                    val activeRole = state.selectedRole
+                    if (activeRole != null) {
+                        RoleMatrixDetailPanel(
+                            role = activeRole,
+                            isDirty = state.isDirty,
+                            isSaving = state.isSaving,
+                            selectedCategory = state.selectedCategoryFilter,
+                            searchQuery = state.searchQuery,
+                            onCategorySelect = { viewModel.onEvent(DynamicRbacUiEvent.SetModuleCategoryFilter(it)) },
+                            onSearchChange = { viewModel.onEvent(DynamicRbacUiEvent.UpdateSearchQuery(it)) },
+                            onAccessChanged = { module, level, scope ->
+                                viewModel.onEvent(DynamicRbacUiEvent.ChangeModuleAccess(module, level, scope))
+                            },
+                            onReset = { viewModel.onEvent(DynamicRbacUiEvent.ResetChanges) },
+                            onSave = { viewModel.onEvent(DynamicRbacUiEvent.SaveChanges) },
+                            onDeleteRole = { viewModel.onEvent(DynamicRbacUiEvent.DeleteRole(activeRole.id.value)) },
+                            modifier = Modifier.weight(1f)
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Pilih jabatan di sebelah kiri untuk melihat hak akses",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = WeMadeColors.OnSurfaceMuted
+                            )
+                        }
                     }
                 }
             }
@@ -128,6 +239,20 @@ fun DynamicRbacScreen(
             },
             onConfirm = { viewModel.onEvent(DynamicRbacUiEvent.ConfirmCreateRole) },
             onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.CloseCreateModal) }
+        )
+
+        // Assign Department Modal Dialog (1 Modul 1 Card)
+        AssignDepartmentModal(
+            isOpen = state.isAssignModalOpen,
+            module = state.activeAssignModule,
+            departments = state.departments,
+            roles = state.roles,
+            initialAssignment = state.editingAssignment,
+            onConfirm = { assignment ->
+                val activeMod = state.activeAssignModule ?: return@AssignDepartmentModal
+                viewModel.onEvent(DynamicRbacUiEvent.SaveDepartmentAssignment(activeMod, assignment))
+            },
+            onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.CloseAssignModal) }
         )
     }
 }

@@ -173,22 +173,43 @@ fun Application.module(
                     return@post
                 }
 
-                // Query real user from DB for this tenant
-                val user = userRepo.findAllByTenant(tenant.id)
-                    .firstOrNull { it.role == Role.TENANT_ADMIN }
-                    ?: userRepo.findByEmail(EmailAddress("student.achmad@gmail.com"))
-                    ?: run {
-                        val fallback = User(
-                            id = UserId("usr-owner-001"),
-                            tenantId = tenant.id,
-                            username = Username("achmad_owner"),
-                            email = EmailAddress("student.achmad@gmail.com"),
-                            role = Role.TENANT_ADMIN,
-                            isActive = true
-                        )
-                        userRepo.save(fallback)
-                        fallback
-                    }
+                val requestedRole = params?.get("role")?.ifBlank { null }
+                    ?: call.request.queryParameters["role"]?.ifBlank { null }
+                val isSuperAdmin = requestedRole.equals("PLATFORM_SUPERADMIN", ignoreCase = true) ||
+                    requestedRole.equals("superadmin", ignoreCase = true)
+
+                // Query real user from DB for this tenant or create fallback
+                val user = if (isSuperAdmin) {
+                    userRepo.findByEmail(EmailAddress("superadmin@wemade.id"))
+                        ?: run {
+                            val superadmin = User(
+                                id = UserId("usr-superadmin-001"),
+                                tenantId = tenant.id,
+                                username = Username("superadmin_apps"),
+                                email = EmailAddress("superadmin@wemade.id"),
+                                role = Role.PLATFORM_SUPERADMIN,
+                                isActive = true
+                            )
+                            userRepo.save(superadmin)
+                            superadmin
+                        }
+                } else {
+                    userRepo.findAllByTenant(tenant.id)
+                        .firstOrNull { it.role == Role.TENANT_ADMIN }
+                        ?: userRepo.findByEmail(EmailAddress("student.achmad@gmail.com"))
+                        ?: run {
+                            val fallback = User(
+                                id = UserId("usr-owner-001"),
+                                tenantId = tenant.id,
+                                username = Username("achmad_owner"),
+                                email = EmailAddress("student.achmad@gmail.com"),
+                                role = Role.TENANT_ADMIN,
+                                isActive = true
+                            )
+                            userRepo.save(fallback)
+                            fallback
+                        }
+                }
 
                 val sessionToken = jwtTokenService.generateToken(user, tenantSlug)
                 val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }

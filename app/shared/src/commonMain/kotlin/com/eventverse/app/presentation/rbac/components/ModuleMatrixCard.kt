@@ -94,7 +94,8 @@ fun ModuleMatrixRow(
 
                 // Data Scope Selector (Only visible if module is accessible)
                 if (config.isAccessible) {
-                    DataScopeSelector(
+                    DynamicDataScopeSelector(
+                        module = module,
                         currentScope = config.scope,
                         onSelectScope = { newScope ->
                             onAccessChanged(config.level, newScope)
@@ -176,7 +177,8 @@ private fun SegmentedAccessControl(
 }
 
 @Composable
-private fun DataScopeSelector(
+private fun DynamicDataScopeSelector(
+    module: BusinessModule,
     currentScope: DataScope,
     onSelectScope: (DataScope) -> Unit
 ) {
@@ -191,22 +193,51 @@ private fun DataScopeSelector(
             fontWeight = FontWeight.Medium
         )
 
-        DataScope.entries.forEach { scope ->
-            val isSelected = scope == currentScope
-
+        if (module.isGlobalOnly) {
+            // Informative fixed badge for shared enterprise resource
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (isSelected) WeMadeColors.PrimaryDark else Color(0xFFF1F5F9))
-                    .clickable { onSelectScope(scope) }
+                    .background(Color(0xFFEFF6FF))
+                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 5.dp)
             ) {
-                Text(
-                    text = scope.shortLabel,
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isSelected) Color.White else Color(0xFF475569)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "🌐 Seluruh Pabrik",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1D4ED8)
+                    )
+                    Text(
+                        text = "(Data Bersama)",
+                        fontSize = 10.sp,
+                        color = Color(0xFF64748B)
+                    )
+                }
+            }
+        } else {
+            // Hierarchical selectable scopes (Sendiri, Bawahan, Semua)
+            module.supportedScopes.forEach { scope ->
+                val isSelected = scope == currentScope
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isSelected) WeMadeColors.PrimaryDark else Color(0xFFF1F5F9))
+                        .clickable { onSelectScope(scope) }
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = scope.shortLabel,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) Color.White else Color(0xFF475569)
+                    )
+                }
             }
         }
     }

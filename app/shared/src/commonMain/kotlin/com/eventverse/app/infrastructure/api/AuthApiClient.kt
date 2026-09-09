@@ -23,8 +23,11 @@ class AuthApiClient(
      * Mengautentikasi pengguna demo langsung ke database PostgreSQL melalui backend Ktor,
      * mengembalikan real signed JWT token dan User data.
      */
-    suspend fun loginDemo(tenantSlug: String = "wemade-demo"): Result<UserSession> = runCatching {
-        val response = httpClient.post(resolveUrl("/api/public/auth/demo?tenantSlug=$tenantSlug")) {
+    suspend fun loginDemo(
+        tenantSlug: String = "wemade-demo",
+        role: String = "TENANT_ADMIN"
+    ): Result<UserSession> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/public/auth/demo?tenantSlug=$tenantSlug&role=$role")) {
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
