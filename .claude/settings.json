@@ -32,7 +32,10 @@
       "Bash(grep*)",
       "Bash(rg*)",
       "Bash(mkdir*)",
-      "Bash(touch*)"
+      "Bash(touch*)",
+      "Bash(./gradlew :core:jvmTest :app:shared:jvmTest --console=plain)",
+      "Bash(./gradlew :server:test --console=plain)",
+      "Bash(./gradlew :app:shared:jvmTest --console=plain)"
     ],
     "deny": [
       "Edit(*.env)",

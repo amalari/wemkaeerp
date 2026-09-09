@@ -14,17 +14,23 @@ enum class HierarchyLevel(
         rank = 1
     ),
     HEAD_OF_DEPARTMENT(
-        displayName = "Kepala Divisi / Supervisor",
+        displayName = "Kepala Divisi",
         shortLabel = "Kepala Divisi",
         rank = 2
+    ),
+    TEAM_LEAD(
+        displayName = "Kepala Tim / Supervisor",
+        shortLabel = "Kepala Tim",
+        rank = 3
     ),
     STAFF_OPERATOR(
         displayName = "Staf Pelaksana / Operator",
         shortLabel = "Staf",
-        rank = 3
+        rank = 4
     );
 
     val isExecutive: Boolean get() = this == EXECUTIVE
     val isHead: Boolean get() = this == HEAD_OF_DEPARTMENT
+    val isTeamLead: Boolean get() = this == TEAM_LEAD
     val isStaff: Boolean get() = this == STAFF_OPERATOR
 }

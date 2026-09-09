@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.orgchart
 
+import com.eventverse.app.domain.tenant.TenantId
 import kotlin.jvm.JvmInline
 
 @JvmInline
@@ -28,9 +29,38 @@ data class Department(
     val displayName: String,
     val shortName: String,
     val colorHex: Long,
-    val isCustom: Boolean = false
+    val isCustom: Boolean = false,
+    val tenantId: TenantId? = null,
+    /** Null = divisi aktif. Non-null = sudah diarsipkan (pola Odoo). Format: ISO-8601 string. */
+    val archivedAt: String? = null,
+    /** Daftar tingkatan wewenang dinamis di divisi ini. */
+    val tiers: List<DepartmentTier> = defaultTiers()
 ) {
+    /** True jika divisi sudah diarsipkan dan tidak aktif. */
+    val isArchived: Boolean get() = archivedAt != null
+
+    /** Tambah tingkatan wewenang dinamis baru di divisi ini */
+    fun addTier(name: String): Department {
+        val trimmed = name.trim()
+        require(trimmed.isNotBlank()) { "Nama tingkat wewenang tidak boleh kosong" }
+        if (tiers.any { it.name.equals(trimmed, ignoreCase = true) }) return this
+        val slug = trimmed.lowercase().replace("[^a-z0-9]+".toRegex(), "_").trim('_')
+        val newTier = DepartmentTier(id = slug, name = trimmed, rank = tiers.size + 1)
+        return copy(tiers = tiers + newTier)
+    }
+
     companion object {
+        fun defaultTiers(): List<DepartmentTier> = listOf(
+            DepartmentTier(id = "head", name = "Kepala Divisi", rank = 1),
+            DepartmentTier(id = "staff", name = "Staf Pelaksana / Operator", rank = 2)
+        )
+
+        fun productionTiers(): List<DepartmentTier> = listOf(
+            DepartmentTier(id = "head", name = "Kepala Divisi", rank = 1),
+            DepartmentTier(id = "team_lead", name = "Kepala Tim / Mandor", rank = 2),
+            DepartmentTier(id = "staff", name = "Operator / Staf", rank = 3)
+        )
+
         val SALES = Department(
             id = DepartmentId("dept-sales"),
             code = "sales",
@@ -44,7 +74,8 @@ data class Department(
             code = "production_ppic",
             displayName = "Produksi & PPIC",
             shortName = "Produksi",
-            colorHex = 0xFFEA580C // Garment Orange
+            colorHex = 0xFFEA580C, // Garment Orange
+            tiers = productionTiers()
         )
 
         val WAREHOUSE = Department(
@@ -63,13 +94,16 @@ data class Department(
             colorHex = 0xFF16A34A // Emerald
         )
 
-        val FINANCE_EXECUTIVE = Department(
-            id = DepartmentId("dept-exec"),
-            code = "finance_executive",
-            displayName = "Keuangan & Direksi",
-            shortName = "Direksi",
+        val FINANCE = Department(
+            id = DepartmentId("dept-finance"),
+            code = "finance",
+            displayName = "Keuangan & Akuntansi",
+            shortName = "Keuangan",
             colorHex = 0xFF7C3AED // Purple
         )
+
+        /** Aliased for backwards compatibility */
+        val FINANCE_EXECUTIVE = FINANCE
 
         /**
          * Master palette of curated, accessible factory department colors.
@@ -79,7 +113,7 @@ data class Department(
             DepartmentColor(0xFFEA580C, "Oranye Produksi"),
             DepartmentColor(0xFF0D9488, "Teal Gudang"),
             DepartmentColor(0xFF16A34A, "Hijau QC"),
-            DepartmentColor(0xFF7C3AED, "Ungu Direksi"),
+            DepartmentColor(0xFF7C3AED, "Ungu Keuangan"),
             DepartmentColor(0xFFE11D48, "Rose Bordir"),
             DepartmentColor(0xFFD97706, "Amber Sablon"),
             DepartmentColor(0xFF4F46E5, "Indigo Desain"),
@@ -95,14 +129,54 @@ data class Department(
 
         /**
          * Starter presets loaded during initial registration/onboarding demo.
+         * Scoped by tenantId to prevent primary key collision across multi-tenant database.
          */
-        fun defaultPresets(): List<Department> = listOf(
-            SALES,
-            PRODUCTION_PPIC,
-            WAREHOUSE,
-            QUALITY_CONTROL,
-            FINANCE_EXECUTIVE
-        )
+        fun defaultPresets(tenantId: TenantId? = null): List<Department> {
+            val prefix = if (tenantId == null || tenantId.value == "ten-demo-001") "" else "${tenantId.value}-"
+            return listOf(
+                Department(
+                    id = DepartmentId("dept-${prefix}sales"),
+                    code = "sales",
+                    displayName = "Penjualan & CRM",
+                    shortName = "Sales",
+                    colorHex = 0xFF2563EB,
+                    tenantId = tenantId
+                ),
+                Department(
+                    id = DepartmentId("dept-${prefix}ppic"),
+                    code = "production_ppic",
+                    displayName = "Produksi & PPIC",
+                    shortName = "Produksi",
+                    colorHex = 0xFFEA580C,
+                    tenantId = tenantId,
+                    tiers = productionTiers()
+                ),
+                Department(
+                    id = DepartmentId("dept-${prefix}warehouse"),
+                    code = "warehouse",
+                    displayName = "Gudang & Logistik",
+                    shortName = "Gudang",
+                    colorHex = 0xFF0D9488,
+                    tenantId = tenantId
+                ),
+                Department(
+                    id = DepartmentId("dept-${prefix}qc"),
+                    code = "qc",
+                    displayName = "Quality Control (QC)",
+                    shortName = "QC",
+                    colorHex = 0xFF16A34A,
+                    tenantId = tenantId
+                ),
+                Department(
+                    id = DepartmentId("dept-${prefix}finance"),
+                    code = "finance",
+                    displayName = "Keuangan & Akuntansi",
+                    shortName = "Keuangan",
+                    colorHex = 0xFF7C3AED,
+                    tenantId = tenantId
+                )
+            )
+        }
 
         /**
          * Returns only the colors that have not been assigned to any existing department yet.
@@ -120,7 +194,8 @@ data class Department(
         fun createCustom(
             name: String,
             shortName: String,
-            colorHex: Long
+            colorHex: Long,
+            tenantId: TenantId? = null
         ): Department {
             val trimmedName = name.trim()
             val trimmedShortName = shortName.trim().ifBlank { trimmedName.take(8) }
@@ -129,13 +204,16 @@ data class Department(
                 .trim('-')
                 .ifBlank { "custom" }
 
+            val prefix = if (tenantId == null || tenantId.value == "ten-demo-001") "" else "${tenantId.value}-"
+
             return Department(
-                id = DepartmentId("dept-$slug-${(100..999).random()}"),
+                id = DepartmentId("dept-${prefix}$slug-${(100..999).random()}"),
                 code = slug,
                 displayName = trimmedName,
                 shortName = trimmedShortName,
                 colorHex = colorHex,
-                isCustom = true
+                isCustom = true,
+                tenantId = tenantId
             )
         }
     }

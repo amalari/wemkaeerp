@@ -73,8 +73,9 @@ fun TShapeChartView(
         // ─── 2. KASUS A: FOCUS NODE ADALAH STAF (OPERATOR) ───
         // Staf berada SEJAJAR bersama rekan kerja satu divisi di bawah Atasan Langsung
         if (result.focusNode.level == HierarchyLevel.STAFF_OPERATOR) {
+            val deptName = result.focusNode.department?.displayName ?: "Perusahaan"
             Text(
-                text = "Rekan Kerja Sejajar — Seluruh Tim Divisi ${result.focusNode.department.displayName} (${result.peersInDepartment.size + 1} Orang)",
+                text = "Rekan Kerja Sejajar — Seluruh Tim Divisi $deptName (${result.peersInDepartment.size + 1} Orang)",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted
@@ -140,17 +141,18 @@ fun TShapeChartView(
                         color = WeMadeColors.OnSurfaceMuted
                     )
                     result.peerHeads.forEach { peer ->
+                        val peerDeptColor = Color(peer.department?.colorHex ?: 0xFF6366F1)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(peer.department.colorHex).copy(alpha = 0.12f))
+                                .background(peerDeptColor.copy(alpha = 0.12f))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "${peer.department.shortName}: ${peer.name}",
+                                text = "${peer.department?.shortName ?: "Direksi"}: ${peer.name}",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(peer.department.colorHex)
+                                color = peerDeptColor
                             )
                         }
                     }

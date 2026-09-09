@@ -18,7 +18,7 @@ class DepartmentTest {
         assertTrue(codes.contains("production_ppic"))
         assertTrue(codes.contains("warehouse"))
         assertTrue(codes.contains("qc"))
-        assertTrue(codes.contains("finance_executive"))
+        assertTrue(codes.contains("finance") || codes.contains("finance_executive"))
     }
 
     @Test

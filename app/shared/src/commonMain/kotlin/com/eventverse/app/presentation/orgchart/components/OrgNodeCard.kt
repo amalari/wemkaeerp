@@ -30,7 +30,7 @@ fun OrgNodeCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val deptColor = Color(node.department.colorHex)
+    val deptColor = node.department?.let { Color(it.colorHex) } ?: Color(0xFF6366F1)
 
     val cardBorder = if (isHighlighted) {
         BorderStroke(2.dp, WeMadeColors.Accent)
@@ -136,7 +136,7 @@ fun OrgNodeCard(
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = node.department.shortName,
+                        text = node.department?.shortName ?: "DIREKSI",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = deptColor
@@ -150,6 +150,7 @@ fun OrgNodeCard(
                             when (node.level) {
                                 HierarchyLevel.EXECUTIVE -> Color(0xFF6366F1).copy(alpha = 0.12f)
                                 HierarchyLevel.HEAD_OF_DEPARTMENT -> Color(0xFFF59E0B).copy(alpha = 0.12f)
+                                HierarchyLevel.TEAM_LEAD -> Color(0xFF10B981).copy(alpha = 0.12f)
                                 HierarchyLevel.STAFF_OPERATOR -> Color(0xFF64748B).copy(alpha = 0.12f)
                             }
                         )
@@ -162,6 +163,7 @@ fun OrgNodeCard(
                         color = when (node.level) {
                             HierarchyLevel.EXECUTIVE -> Color(0xFF4338CA)
                             HierarchyLevel.HEAD_OF_DEPARTMENT -> Color(0xFFB45309)
+                            HierarchyLevel.TEAM_LEAD -> Color(0xFF047857)
                             HierarchyLevel.STAFF_OPERATOR -> Color(0xFF475569)
                         }
                     )

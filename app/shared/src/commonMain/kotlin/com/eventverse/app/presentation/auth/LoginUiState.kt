@@ -30,6 +30,7 @@ sealed interface LoginUiEvent {
         val email: String? = null,
         val name: String? = null
     ) : LoginUiEvent
+    data object SubmitDemoLogin : LoginUiEvent
     data object SendWhatsAppOtp : LoginUiEvent
     data object VerifyWhatsAppOtp : LoginUiEvent
     data object DismissMessage : LoginUiEvent

@@ -45,7 +45,7 @@ object AccountCreationPolicy {
         // 2. If creator is a Department Head
         if (creatorNode != null && creatorNode.level == HierarchyLevel.HEAD_OF_DEPARTMENT) {
             require(target.department == creatorNode.department) {
-                "Kepala Divisi hanya diizinkan membuat akun untuk divisinya sendiri (${creatorNode.department.displayName}), bukan ${target.department.displayName}."
+                "Kepala Divisi hanya diizinkan membuat akun untuk divisinya sendiri (${creatorNode.department?.displayName ?: ""}), bukan ${target.department?.displayName ?: ""}."
             }
             require(target.level == HierarchyLevel.STAFF_OPERATOR) {
                 "Kepala Divisi hanya diizinkan membuat akun untuk tingkat Staf Pelaksana, bukan ${target.level.displayName}."

@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+# ==============================================================================
+# WeMade ERP — Fullstack Development Runner
+# Menjalankan Ktor Backend Server & Wasm Compose Web App dengan Auto-Watch/Reload
+# ==============================================================================
+
+# Warna ANSI untuk terminal
+BOLD="\033[1m"
+GREEN="\033[0;32m"
+CYAN="\033[0;36m"
+YELLOW="\033[1;33m"
+RED="\033[0;31m"
+PURPLE="\033[0;35m"
+RESET="\033[0m"
+
+# Direktori proyek root
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_DIR"
+
+print_banner() {
+    echo -e "${CYAN}${BOLD}"
+    echo "========================================================================"
+    echo "            🚀 WeMade ERP — Development Environment                     "
+    echo "========================================================================"
+    echo -e "${RESET}"
+    echo -e "  🌐 ${BOLD}Frontend (Wasm Compose)${RESET} : ${GREEN}http://localhost:3000${RESET}"
+    echo -e "  🔌 ${BOLD}Backend API (Ktor)${RESET}     : ${GREEN}http://localhost:8080${RESET}"
+    echo -e "  🔄 ${BOLD}Webpack Proxy API${RESET}      : ${PURPLE}/api -> http://localhost:8080${RESET}"
+    echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:5432 (wemade_erp)${RESET}"
+    echo -e "${CYAN}------------------------------------------------------------------------${RESET}"
+}
+
+# Fungsi cek port aktif
+check_port() {
+    local port=$1
+    local name=$2
+    if lsof -Pi :"$port" -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+        echo -e "${YELLOW}⚠️  Port $port ($name) sedang digunakan oleh proses lain.${RESET}"
+        read -p "   Apakah ingin menghentikan proses di port $port otomatis? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            lsof -ti :"$port" | xargs kill -9 2>/dev/null || true
+            echo -e "${GREEN}   Proses di port $port berhasil dihentikan.${RESET}"
+        fi
+    fi
+}
+
+# Cek apakah docker postgres perlu dijalankan
+check_postgres() {
+    if ! nc -z localhost 5432 >/dev/null 2>&1; then
+        echo -e "${YELLOW}ℹ️  PostgreSQL di port 5432 belum aktif.${RESET}"
+        if command -v docker &> /dev/null && docker compose ps >/dev/null 2>&1; then
+            read -p "   Nyalakan container database via docker compose? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo -e "${GREEN}🐘 Menjalankan PostgreSQL via docker compose...${RESET}"
+                docker compose up -d postgres
+                sleep 2
+            fi
+        else
+            echo -e "${YELLOW}   Pastikan service PostgreSQL lokal aktif untuk fitur database.${RESET}"
+        fi
+    else
+        echo -e "${GREEN}✅ PostgreSQL aktif di port 5432.${RESET}"
+    fi
+}
+
+# Handler cleanup saat Ctrl+C ditekan
+SERVER_PID=""
+WASM_PID=""
+
+cleanup() {
+    echo -e "\n${YELLOW}🛑 Menghentikan seluruh proses development...${RESET}"
+    if [ -n "$SERVER_PID" ]; then
+        kill "$SERVER_PID" 2>/dev/null || true
+    fi
+    if [ -n "$WASM_PID" ]; then
+        kill "$WASM_PID" 2>/dev/null || true
+    fi
+    # Hentikan background jobs terkait gradle jika ada
+    kill $(jobs -p) 2>/dev/null || true
+    echo -e "${GREEN}✅ Seluruh proses dev server berhasil dihentikan secara bersih.${RESET}"
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM EXIT
+
+# Parsing parameter perintah
+MODE="${1:-all}"
+
+case "$MODE" in
+    wasm)
+        print_banner
+        check_port 3000 "Wasm Webpack Dev Server"
+        echo -e "${CYAN}${BOLD}[WASM]${RESET} Memulai Wasm Development Server (Auto-Watching & Hot Reload)..."
+        ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous
+        ;;
+
+    server)
+        print_banner
+        check_postgres
+        check_port 8080 "Ktor Backend Server"
+        echo -e "${GREEN}${BOLD}[SERVER]${RESET} Memulai Ktor Backend Server pada port 8080..."
+        ./gradlew :server:run
+        ;;
+
+    docker)
+        echo -e "${GREEN}🐘 Menjalankan PostgreSQL container...${RESET}"
+        docker compose up -d postgres
+        echo -e "${GREEN}✅ Database siap di port 5432.${RESET}"
+        trap - SIGINT SIGTERM EXIT
+        exit 0
+        ;;
+
+    help|--help|-h)
+        echo -e "${BOLD}Panduan Penggunaan dev.sh:${RESET}"
+        echo "  ./dev.sh         : Menjalankan Server Backend (8080) dan Wasm Watcher (3000) sekaligus"
+        echo "  ./dev.sh wasm    : Hanya menjalankan Wasm Dev Server dengan auto-watching/hot-reload"
+        echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server"
+        echo "  ./dev.sh docker  : Menyalakan container database PostgreSQL"
+        echo "  ./dev.sh help    : Menampilkan bantuan ini"
+        trap - SIGINT SIGTERM EXIT
+        exit 0
+        ;;
+
+    all|*)
+        print_banner
+        check_postgres
+        check_port 8080 "Ktor Backend Server"
+        check_port 3000 "Wasm Webpack Dev Server"
+
+        echo -e "\n${GREEN}${BOLD}▶ [1/2] Menjalankan Ktor Backend Server (Port 8080)...${RESET}"
+        ./gradlew :server:run 2>&1 | sed -e "s/^/[SERVER] /" &
+        SERVER_PID=$!
+
+        # Beri jeda singkat agar Ktor sempat binding port sebelum webpack proxy aktif
+        sleep 2
+
+        echo -e "\n${CYAN}${BOLD}▶ [2/2] Menjalankan Wasm Compose Dev Server dengan Continuous Watcher (Port 3000)...${RESET}"
+        ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous 2>&1 | sed -e "s/^/[WASM] /" &
+        WASM_PID=$!
+
+        echo -e "\n${BOLD}${GREEN}✨ Keduanya sedang berjalan! Tekan Ctrl+C untuk menghentikan.${RESET}\n"
+
+        # Tunggu hingga salah satu proses berhenti
+        wait
+        ;;
+esac

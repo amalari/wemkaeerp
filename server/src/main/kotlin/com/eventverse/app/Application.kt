@@ -18,6 +18,16 @@ import com.eventverse.app.infrastructure.PostgresUserRepository
 import com.eventverse.app.infrastructure.auth.GoogleAuthService
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 
+import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.domain.orgchart.DepartmentRepository
+import com.eventverse.app.domain.orgchart.EmployeeRepository
+import com.eventverse.app.infrastructure.PostgresRoleRepository
+import com.eventverse.app.infrastructure.PostgresDepartmentRepository
+import com.eventverse.app.infrastructure.PostgresEmployeeRepository
+import com.eventverse.app.routes.rbacRoutes
+import com.eventverse.app.routes.departmentRoutes
+import com.eventverse.app.routes.employeeRoutes
+
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -25,13 +35,19 @@ fun main() {
 
 fun Application.module(
     tenantRepository: TenantRepository? = null,
-    userRepository: UserRepository? = null
+    userRepository: UserRepository? = null,
+    roleRepository: RoleRepository? = null,
+    departmentRepository: DepartmentRepository? = null,
+    employeeRepository: EmployeeRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
         PostgresTenantRepository()
     }
     val userRepo = userRepository ?: PostgresUserRepository()
+    val roleRepo = roleRepository ?: PostgresRoleRepository()
+    val deptRepo = departmentRepository ?: PostgresDepartmentRepository()
+    val empRepo = employeeRepository ?: PostgresEmployeeRepository()
 
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
@@ -144,6 +160,81 @@ fun Application.module(
                     )
                 }
             }
+
+            post("/demo") {
+                val params = runCatching { call.receiveParameters() }.getOrNull()
+                val tenantSlug = params?.get("tenantSlug")?.ifBlank { null }
+                    ?: call.request.queryParameters["tenantSlug"]?.ifBlank { null }
+                    ?: "wemade-demo"
+
+                val tenant = repository.findBySlug(TenantSlug(tenantSlug))
+                if (tenant == null) {
+                    call.respond(HttpStatusCode.NotFound, "Tenant dengan slug '$tenantSlug' tidak ditemukan")
+                    return@post
+                }
+
+                // Query real user from DB for this tenant
+                val user = userRepo.findAllByTenant(tenant.id)
+                    .firstOrNull { it.role == Role.TENANT_ADMIN }
+                    ?: userRepo.findByEmail(EmailAddress("student.achmad@gmail.com"))
+                    ?: run {
+                        val fallback = User(
+                            id = UserId("usr-owner-001"),
+                            tenantId = tenant.id,
+                            username = Username("achmad_owner"),
+                            email = EmailAddress("student.achmad@gmail.com"),
+                            role = Role.TENANT_ADMIN,
+                            isActive = true
+                        )
+                        userRepo.save(fallback)
+                        fallback
+                    }
+
+                val sessionToken = jwtTokenService.generateToken(user, tenantSlug)
+                val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
+
+                val responseJson = "{\"token\":\"${sessionToken.value}\",\"user\":{\"id\":\"${user.id.value}\",\"tenantId\":\"${user.tenantId?.value ?: ""}\",\"username\":\"${user.username.value}\",\"email\":\"${user.email.value}\",\"role\":\"${user.role.name}\",\"permissions\":[$permissionsJson]},\"tenantSlug\":\"$tenantSlug\"}"
+
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
+            }
+
+            get("/me") {
+                val authHeader = call.request.header("Authorization") ?: ""
+                val token = if (authHeader.startsWith("Bearer ")) authHeader.removePrefix("Bearer ").trim() else authHeader.trim()
+                if (token.isBlank()) {
+                    call.respond(HttpStatusCode.Unauthorized, "No token provided")
+                    return@get
+                }
+
+                val verifyResult = jwtTokenService.verifyToken(token)
+                if (verifyResult.isFailure) {
+                    call.respond(HttpStatusCode.Unauthorized, "Token expired or invalid")
+                    return@get
+                }
+
+                val jwt = verifyResult.getOrThrow()
+                val userId = jwt.subject ?: ""
+                val tenantSlug = jwt.getClaim("tenant_slug").asString() ?: "wemade-demo"
+                val username = jwt.getClaim("username").asString() ?: ""
+                val email = jwt.getClaim("email").asString() ?: ""
+                val roleName = jwt.getClaim("role").asString() ?: Role.TENANT_ADMIN.name
+                val role = runCatching { Role.valueOf(roleName) }.getOrDefault(Role.TENANT_ADMIN)
+                val tenantIdStr = jwt.getClaim("tenant_id").asString()
+
+                val user = userRepo.findById(UserId(userId)) ?: User(
+                    id = UserId(userId),
+                    tenantId = tenantIdStr?.let { TenantId(it) },
+                    username = Username(username),
+                    email = EmailAddress(email),
+                    role = role,
+                    isActive = true
+                )
+
+                val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
+                val responseJson = "{\"token\":\"$token\",\"user\":{\"id\":\"${user.id.value}\",\"tenantId\":\"${user.tenantId?.value ?: ""}\",\"username\":\"${user.username.value}\",\"email\":\"${user.email.value}\",\"role\":\"${user.role.name}\",\"permissions\":[$permissionsJson]},\"tenantSlug\":\"$tenantSlug\"}"
+
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
+            }
         }
 
         // Protected tenant-scoped route
@@ -160,5 +251,9 @@ fun Application.module(
                 }
             }
         }
+
+        rbacRoutes(roleRepo)
+        departmentRoutes(deptRepo, empRepo)
+        employeeRoutes(empRepo, deptRepo)
     }
 }

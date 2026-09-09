@@ -33,9 +33,18 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel = remember { AuthViewModel() },
+    onNavigateToDashboard: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            if (effect is LoginUiEffect.NavigateToDashboard) {
+                onNavigateToDashboard?.invoke()
+            }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -79,7 +88,8 @@ fun LoginScreen(
                     if (state.authenticatedSession != null) {
                         AuthenticatedSessionCard(
                             session = state.authenticatedSession!!,
-                            onLogout = { viewModel.onEvent(LoginUiEvent.Logout) }
+                            onLogout = { viewModel.onEvent(LoginUiEvent.Logout) },
+                            onNavigateToDashboard = onNavigateToDashboard
                         )
                     } else {
                         // Subdomain / Tenant Slug Input
@@ -110,6 +120,9 @@ fun LoginScreen(
                                         } else {
                                             viewModel.onEvent(LoginUiEvent.SubmitGoogleLogin(""))
                                         }
+                                    },
+                                    onDemoLoginClick = {
+                                        viewModel.onEvent(LoginUiEvent.SubmitDemoLogin)
                                     }
                                 )
                             }
@@ -259,7 +272,8 @@ private fun LoginTabSelector(
 @Composable
 private fun GoogleLoginContent(
     isLoading: Boolean,
-    onGoogleClick: () -> Unit
+    onGoogleClick: () -> Unit,
+    onDemoLoginClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -310,7 +324,29 @@ private fun GoogleLoginContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Quick Demo Login Button for instant access
+        FilledTonalButton(
+            onClick = onDemoLoginClick,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = WeMadeColors.PrimaryContainer.copy(alpha = 0.6f),
+                contentColor = WeMadeColors.Primary
+            )
+        ) {
+            Text(
+                text = "Demo Mode: Masuk Cepat (Owner Pabrik)",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
 
         Text(
             text = "Direkomendasikan untuk: Owner, Admin, Sales, dan PPIC",
@@ -453,7 +489,8 @@ private fun WhatsAppLoginContent(
 @Composable
 private fun AuthenticatedSessionCard(
     session: com.eventverse.app.domain.auth.UserSession,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToDashboard: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -508,12 +545,34 @@ private fun AuthenticatedSessionCard(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (onNavigateToDashboard != null) {
+            Button(
+                onClick = onNavigateToDashboard,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary)
+            ) {
+                Text(
+                    text = "Lanjutkan ke Bagan Organisasi ➔",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         OutlinedButton(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.Error),
+            border = BorderStroke(1.dp, WeMadeColors.Error.copy(alpha = 0.5f))
         ) {
-            Text("Keluar (Logout)")
+            Text("Keluar (Logout)", fontWeight = FontWeight.SemiBold)
         }
     }
 }

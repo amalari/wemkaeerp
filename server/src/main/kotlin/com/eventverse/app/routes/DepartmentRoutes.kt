@@ -1,0 +1,212 @@
+package com.eventverse.app.routes
+
+import com.eventverse.app.domain.orgchart.DepartmentId
+import com.eventverse.app.domain.orgchart.DepartmentRepository
+import com.eventverse.app.domain.orgchart.EmployeeRepository
+import com.eventverse.app.domain.orgchart.usecases.*
+import com.eventverse.app.plugins.tenantContextOrNull
+import com.eventverse.app.routes.dto.CreateDepartmentRequestDto
+import com.eventverse.app.routes.dto.DepartmentDto
+import com.eventverse.app.routes.dto.UpdateDepartmentRequestDto
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+
+fun Route.departmentRoutes(
+    departmentRepository: DepartmentRepository,
+    employeeRepository: EmployeeRepository? = null
+) {
+    val getDepartmentsUseCase = GetDepartmentsUseCase(departmentRepository)
+    val createDepartmentUseCase = CreateDepartmentUseCase(departmentRepository)
+    val updateDepartmentUseCase = UpdateDepartmentUseCase(departmentRepository)
+    val archiveDepartmentUseCase = ArchiveDepartmentUseCase(departmentRepository, employeeRepository)
+    val restoreDepartmentUseCase = RestoreDepartmentUseCase(departmentRepository)
+    val restoreDefaultDepartmentsUseCase = RestoreDefaultDepartmentsUseCase(departmentRepository)
+
+    route("/api/tenant/departments") {
+        get {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@get
+            }
+
+            val result = getDepartmentsUseCase.getAll(tenant.tenantId)
+            if (result.isSuccess) {
+                call.respondText(DepartmentDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, result.exceptionOrNull()?.message ?: "Failed to load departments")
+            }
+        }
+
+        get("/{id}") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@get
+            }
+            val deptId = call.parameters["id"]?.let { DepartmentId(it) } ?: run {
+                call.respond(HttpStatusCode.BadRequest, "Missing department id")
+                return@get
+            }
+
+            val result = getDepartmentsUseCase.getById(tenant.tenantId, deptId)
+            if (result.isSuccess) {
+                val dept = result.getOrThrow()
+                if (dept != null) {
+                    call.respondText(DepartmentDto.toJson(dept), contentType = ContentType.Application.Json)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, "Department not found")
+                }
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, result.exceptionOrNull()?.message ?: "Failed to find department")
+            }
+        }
+
+        post {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@post
+            }
+
+            val rawBody = call.receiveText()
+            val req = if (rawBody.isNotBlank()) {
+                CreateDepartmentRequestDto.fromJson(rawBody)
+            } else {
+                val params = call.receiveParameters()
+                CreateDepartmentRequestDto(
+                    displayName = params["displayName"] ?: params["name"] ?: "",
+                    shortName = params["shortName"] ?: "",
+                    colorHex = params["colorHex"]?.toLongOrNull() ?: 0xFF2563EB
+                )
+            }
+
+            val result = createDepartmentUseCase(
+                CreateDepartmentCommand(
+                    tenantId = tenant.tenantId,
+                    displayName = req.displayName,
+                    shortName = req.shortName,
+                    colorHex = req.colorHex
+                )
+            )
+
+            if (result.isSuccess) {
+                val created = result.getOrThrow()
+                call.respondText(
+                    text = DepartmentDto.toJson(created),
+                    status = HttpStatusCode.Created,
+                    contentType = ContentType.Application.Json
+                )
+            } else {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    result.exceptionOrNull()?.message ?: "Failed to create department"
+                )
+            }
+        }
+
+        put("/{id}") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@put
+            }
+            val deptId = call.parameters["id"]?.let { DepartmentId(it) } ?: run {
+                call.respond(HttpStatusCode.BadRequest, "Missing department id")
+                return@put
+            }
+
+            val rawBody = call.receiveText()
+            val req = UpdateDepartmentRequestDto.fromJson(rawBody)
+
+            val result = updateDepartmentUseCase(
+                UpdateDepartmentCommand(
+                    tenantId = tenant.tenantId,
+                    id = deptId,
+                    displayName = req.displayName,
+                    shortName = req.shortName,
+                    colorHex = req.colorHex
+                )
+            )
+
+            if (result.isSuccess) {
+                call.respondText(DepartmentDto.toJson(result.getOrThrow()), contentType = ContentType.Application.Json)
+            } else {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    result.exceptionOrNull()?.message ?: "Failed to update department"
+                )
+            }
+        }
+
+        delete("/{id}") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@delete
+            }
+            val deptId = call.parameters["id"]?.let { DepartmentId(it) } ?: run {
+                call.respond(HttpStatusCode.BadRequest, "Missing department id")
+                return@delete
+            }
+
+            // Soft archive — data tidak dihapus dari DB (pola Odoo)
+            val result = archiveDepartmentUseCase(tenant.tenantId, deptId)
+            if (result.isSuccess) {
+                call.respondText("{\"success\":true,\"message\":\"Divisi berhasil diarsipkan\"}", contentType = ContentType.Application.Json)
+            } else {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    result.exceptionOrNull()?.message ?: "Gagal mengarsipkan divisi"
+                )
+            }
+        }
+
+        // GET /api/tenant/departments/archived — daftar divisi yang sudah diarsipkan
+        get("/archived") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@get
+            }
+            val result = departmentRepository.findAllArchived(tenant.tenantId)
+            call.respondText(DepartmentDto.toJsonList(result), contentType = ContentType.Application.Json)
+        }
+
+        // POST /api/tenant/departments/{id}/restore — pulihkan divisi dari arsip
+        post("/{id}/restore") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@post
+            }
+            val deptId = call.parameters["id"]?.let { DepartmentId(it) } ?: run {
+                call.respond(HttpStatusCode.BadRequest, "Missing department id")
+                return@post
+            }
+
+            val result = restoreDepartmentUseCase(tenant.tenantId, deptId)
+            if (result.isSuccess) {
+                call.respondText("{\"success\":true,\"message\":\"Divisi berhasil dipulihkan\"}", contentType = ContentType.Application.Json)
+            } else {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    result.exceptionOrNull()?.message ?: "Gagal memulihkan divisi"
+                )
+            }
+        }
+
+        post("/restore-presets") {
+            val tenant = call.tenantContextOrNull ?: run {
+                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+                return@post
+            }
+
+            val result = restoreDefaultDepartmentsUseCase(tenant.tenantId)
+            if (result.isSuccess) {
+                call.respondText(DepartmentDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)
+            } else {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    result.exceptionOrNull()?.message ?: "Failed to restore default departments"
+                )
+            }
+        }
+    }
+}

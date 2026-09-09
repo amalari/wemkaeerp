@@ -4,6 +4,8 @@ import com.eventverse.app.domain.auth.*
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantSlug
+import com.eventverse.app.infrastructure.api.AuthApiClient
+import com.eventverse.app.infrastructure.storage.PlatformLocalStorage
 import com.eventverse.app.presentation.tenant.InMemoryTenantSessionStorage
 import com.eventverse.app.presentation.tenant.TenantSession
 import com.eventverse.app.presentation.tenant.TenantSessionStorage
@@ -18,12 +20,18 @@ object GoogleAuthBridge {
 }
 
 /**
- * MVI State-Holder for authentication and Google Sign-In orchestration.
+ * MVI State-Holder for authentication, persistent session restoration,
+ * and database-backed demo login orchestration.
  */
 class AuthViewModel(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
-    private val sessionStorage: TenantSessionStorage = InMemoryTenantSessionStorage()
+    private val sessionStorage: TenantSessionStorage = InMemoryTenantSessionStorage(),
+    private val authApiClient: AuthApiClient = AuthApiClient()
 ) {
+    companion object {
+        const val STORAGE_KEY = "wemade_auth_session"
+    }
+
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
@@ -33,6 +41,45 @@ class AuthViewModel(
     init {
         GoogleAuthBridge.onAuthenticated = { email, name ->
             onEvent(LoginUiEvent.SubmitGoogleLogin(idToken = "", email = email, name = name))
+        }
+
+        // 1. Auto-restore session from PlatformLocalStorage on startup / reload
+        val savedJson = PlatformLocalStorage.getItem(STORAGE_KEY)
+        val restoredSession = AuthApiClient.deserializeSession(savedJson)
+        if (restoredSession != null) {
+            _uiState.update {
+                it.copy(
+                    authenticatedSession = restoredSession,
+                    tenantSlug = restoredSession.tenantSlug ?: it.tenantSlug
+                )
+            }
+            sessionStorage.setSession(
+                TenantSession(
+                    tenantId = restoredSession.user.tenantId ?: TenantId("ten-default"),
+                    slug = TenantSlug(restoredSession.tenantSlug ?: "wemade-demo"),
+                    name = "Pabrik ${restoredSession.tenantSlug ?: "wemade-demo"}",
+                    tier = SubscriptionTier.PRO
+                )
+            )
+
+            // 2. Asynchronously verify token validity against backend DB
+            scope.launch {
+                val verifyResult = authApiClient.verifySession(restoredSession.token.value)
+                verifyResult.onSuccess { verifiedSession ->
+                    _uiState.update { it.copy(authenticatedSession = verifiedSession) }
+                    PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(verifiedSession))
+                }.onFailure {
+                    // Token expired or invalid: clear session
+                    PlatformLocalStorage.removeItem(STORAGE_KEY)
+                    sessionStorage.clearSession()
+                    _uiState.update {
+                        it.copy(
+                            authenticatedSession = null,
+                            errorMessage = "Sesi telah kedaluwarsa. Silakan masuk kembali."
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -50,8 +97,15 @@ class AuthViewModel(
             is LoginUiEvent.UpdateOtpCode -> {
                 _uiState.update { it.copy(otpCode = event.otp, errorMessage = null) }
             }
+            is LoginUiEvent.SubmitDemoLogin -> {
+                handleDemoLogin()
+            }
             is LoginUiEvent.SubmitGoogleLogin -> {
-                handleGoogleLogin(event.idToken, event.email, event.name)
+                if (event.idToken == "demo-token") {
+                    handleDemoLogin()
+                } else {
+                    handleGoogleLogin(event.idToken, event.email, event.name)
+                }
             }
             is LoginUiEvent.SendWhatsAppOtp -> {
                 handleSendWhatsAppOtp()
@@ -63,12 +117,53 @@ class AuthViewModel(
                 _uiState.update { it.copy(errorMessage = null, successMessage = null) }
             }
             is LoginUiEvent.Logout -> {
+                PlatformLocalStorage.removeItem(STORAGE_KEY)
                 sessionStorage.clearSession()
                 _uiState.update {
                     it.copy(
                         authenticatedSession = null,
                         errorMessage = null,
                         successMessage = "Berhasil keluar dari sistem."
+                    )
+                }
+            }
+        }
+    }
+
+    private fun handleDemoLogin() {
+        val currentSlug = _uiState.value.tenantSlug.ifBlank { "wemade-demo" }
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        scope.launch {
+            val result = authApiClient.loginDemo(currentSlug)
+            result.onSuccess { session ->
+                // 1. Simpan session token & profil ke PlatformLocalStorage (browser localStorage)
+                PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
+
+                // 2. Simpan ke tenant session storage
+                sessionStorage.setSession(
+                    TenantSession(
+                        tenantId = session.user.tenantId ?: TenantId("ten-default"),
+                        slug = TenantSlug(session.tenantSlug ?: currentSlug),
+                        name = "Pabrik ${session.tenantSlug ?: currentSlug}",
+                        tier = SubscriptionTier.PRO
+                    )
+                )
+
+                // 3. Update state & navigasi
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        authenticatedSession = session,
+                        successMessage = "Selamat datang, ${session.user.username.value}! (${session.user.email.value}) — Terkoneksi ke DB & JWT Aktif"
+                    )
+                }
+                _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Gagal terhubung ke database backend"
                     )
                 }
             }
@@ -104,7 +199,9 @@ class AuthViewModel(
                     tenantSlug = currentSlug
                 )
 
-                // Save to tenant storage
+                // Persist session
+                PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
+
                 sessionStorage.setSession(
                     TenantSession(
                         tenantId = user.tenantId ?: TenantId("ten-default"),
@@ -178,6 +275,8 @@ class AuthViewModel(
                 token = AuthToken("jwt-wa-token-${kotlin.random.Random.nextInt(100000, 999999)}"),
                 tenantSlug = currentSlug
             )
+
+            PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
 
             _uiState.update {
                 it.copy(
