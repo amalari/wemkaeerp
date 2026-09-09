@@ -160,12 +160,43 @@ fun TShapeChartView(
             }
 
             // 2.2 Focus Node Card (Head of Dept / Executive)
-            OrgNodeCard(
-                node = result.focusNode,
-                isHighlighted = true,
-                badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
-                modifier = Modifier.width(240.dp)
-            )
+            if (result.focusNode.level == HierarchyLevel.EXECUTIVE && result.peersInDepartment.isNotEmpty()) {
+                Text(
+                    text = "Jajaran Dewan Direksi / Pimpinan Puncak (${result.peersInDepartment.size + 1} Orang)",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    result.peersInDepartment.forEach { peer ->
+                        OrgNodeCard(
+                            node = peer,
+                            onClick = { onSelectNode(peer.id.value) },
+                            modifier = Modifier.width(240.dp)
+                        )
+                    }
+                    OrgNodeCard(
+                        node = result.focusNode,
+                        isHighlighted = true,
+                        badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
+                        modifier = Modifier.width(240.dp)
+                    )
+                }
+            } else {
+                OrgNodeCard(
+                    node = result.focusNode,
+                    isHighlighted = true,
+                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
+                    modifier = Modifier.width(240.dp)
+                )
+            }
 
             // 2.3 Bawahan Langsung (Subordinates) di bawah Head
             if (result.subordinates.isNotEmpty()) {

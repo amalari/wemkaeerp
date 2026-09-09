@@ -26,3 +26,5 @@ node_modules/
 # Python virtual environments
 .venv/
 **/.venv/
+
+graphify-out/

@@ -295,15 +295,18 @@ data class OrgNode(
                 }
 
                 HierarchyLevel.EXECUTIVE -> {
+                    val peerExecutives = nodes.filter {
+                        it.level == HierarchyLevel.EXECUTIVE && it.id != focusNode.id
+                    }
                     val allDirectReports = nodes.filter {
-                        it.level == HierarchyLevel.HEAD_OF_DEPARTMENT || it.reportsToId == focusNode.id
+                        it.level == HierarchyLevel.HEAD_OF_DEPARTMENT || (it.reportsToId == focusNode.id && it.level != HierarchyLevel.EXECUTIVE)
                     }
                     TShapeHierarchyResult(
                         superior = null,
                         peerHeads = emptyList(),
                         focusNode = focusNode,
                         subordinates = allDirectReports,
-                        peersInDepartment = emptyList(),
+                        peersInDepartment = peerExecutives,
                         isDraft = isDraft
                     )
                 }
