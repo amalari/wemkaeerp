@@ -7,7 +7,6 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import kotlinx.coroutines.runBlocking
 import kotlin.test.*
 
 class GoogleAuthIntegrationTest {
@@ -50,26 +49,24 @@ class GoogleAuthIntegrationTest {
         val userRepo = TestUserRepository()
 
         // Seed demo tenant and user
-        runBlocking {
-            val tenant = Tenant(
-                id = TenantId("ten-demo"),
-                slug = TenantSlug("berkah-konveksi"),
-                name = TenantName("Konveksi Berkah"),
-                status = TenantStatus.ACTIVE,
-                tier = SubscriptionTier.PRO
-            )
-            tenantRepo.save(tenant)
+        val tenant = Tenant(
+            id = TenantId("ten-demo"),
+            slug = TenantSlug("berkah-konveksi"),
+            name = TenantName("Konveksi Berkah"),
+            status = TenantStatus.ACTIVE,
+            tier = SubscriptionTier.PRO
+        )
+        tenantRepo.save(tenant)
 
-            val user = User(
-                id = UserId("usr-owner-01"),
-                tenantId = TenantId("ten-demo"),
-                username = Username("owner_berkah"),
-                email = EmailAddress("owner@berkah.com"),
-                role = Role.TENANT_ADMIN,
-                isActive = true
-            )
-            userRepo.save(user)
-        }
+        val user = User(
+            id = UserId("usr-owner-01"),
+            tenantId = TenantId("ten-demo"),
+            username = Username("owner_berkah"),
+            email = EmailAddress("owner@berkah.com"),
+            role = Role.TENANT_ADMIN,
+            isActive = true
+        )
+        userRepo.save(user)
 
         application {
             module(tenantRepository = tenantRepo, userRepository = userRepo)
@@ -92,16 +89,14 @@ class GoogleAuthIntegrationTest {
         val tenantRepo = InMemoryTenantRepository()
         val userRepo = TestUserRepository()
 
-        runBlocking {
-            val tenant = Tenant(
-                id = TenantId("ten-demo"),
-                slug = TenantSlug("berkah-konveksi"),
-                name = TenantName("Konveksi Berkah"),
-                status = TenantStatus.ACTIVE,
-                tier = SubscriptionTier.PRO
-            )
-            tenantRepo.save(tenant)
-        }
+        val tenant = Tenant(
+            id = TenantId("ten-demo"),
+            slug = TenantSlug("berkah-konveksi"),
+            name = TenantName("Konveksi Berkah"),
+            status = TenantStatus.ACTIVE,
+            tier = SubscriptionTier.PRO
+        )
+        tenantRepo.save(tenant)
 
         application {
             module(tenantRepository = tenantRepo, userRepository = userRepo)

@@ -11,7 +11,7 @@ import java.util.*
  * Service for issuing and verifying WeMade ERP internal JWT session tokens.
  */
 class JwtTokenService(
-    private val secret: String = System.getenv("JWT_SECRET") ?: "wemade-erp-default-development-secret-key-32-chars-long!",
+    secret: String = System.getenv("JWT_SECRET") ?: "wemade-erp-default-development-secret-key-32-chars-long!",
     private val issuer: String = "wemade-erp",
     private val validityDurationMillis: Long = 7 * 24 * 60 * 60 * 1000L // 7 days
 ) {

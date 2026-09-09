@@ -8,6 +8,9 @@ plugins {
 
 dependencies {
     implementation(project(":app:shared"))
+    // Ensure IDE Language Server (without KMP support) can resolve shared & domain symbols from compiled jar
+    compileOnly(files(rootProject.file("app/shared/build/libs/shared-jvm.jar")))
+    compileOnly(files(rootProject.file("core/build/libs/core-jvm.jar")))
 
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.coroutinesSwing)
