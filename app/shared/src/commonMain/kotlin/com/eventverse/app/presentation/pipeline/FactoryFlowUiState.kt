@@ -20,10 +20,16 @@ data class FactoryFlowUiState(
     val selectedStageFilter: PipelineStage? = null,
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
-    val viewMode: PipelineViewMode = PipelineViewMode.SWIMLANE
+    val viewMode: PipelineViewMode = PipelineViewMode.SWIMLANE,
+    val hideBypassedNodes: Boolean = true
 ) {
+    val bypassedCount: Int get() = snapshot.nodes.count { it.isBypassed }
+
     val filteredNodes: List<PipelineNode>
         get() = snapshot.nodes
+            .filter { node ->
+                if (hideBypassedNodes) !node.isBypassed else true
+            }
             .filter { node ->
                 selectedStageFilter == null || node.stage == selectedStageFilter
             }
@@ -46,5 +52,7 @@ sealed interface FactoryFlowUiEvent {
     data class UpdateSearchQuery(val query: String) : FactoryFlowUiEvent
     data object ToggleSimulation : FactoryFlowUiEvent
     data class SetViewMode(val mode: PipelineViewMode) : FactoryFlowUiEvent
+    data object ToggleHideBypassed : FactoryFlowUiEvent
     data object ResetFilters : FactoryFlowUiEvent
 }
+

@@ -23,22 +23,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
+import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
 import com.eventverse.app.presentation.rbac.DynamicRbacScreen
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
-
-enum class AppNavScreen {
-    FACTORY_FLOW,
-    DYNAMIC_RBAC,
-    ORG_CHART,
-    LOGIN
-}
 
 @Composable
 fun App() {
@@ -47,15 +42,52 @@ fun App() {
     val session = authState.authenticatedSession
     val isAuthenticated = session != null
 
-    var currentScreen by remember {
-        mutableStateOf(if (isAuthenticated) AppNavScreen.ORG_CHART else AppNavScreen.LOGIN)
+    // Determine initial screen from browser URL or session status
+    val initialPath = remember { PlatformNavigation.getCurrentPath() }
+    val initialScreen = remember {
+        val matched = AppNavScreen.fromPath(initialPath)
+        when {
+            matched != null -> matched
+            isAuthenticated -> AppNavScreen.ORG_CHART
+            else -> AppNavScreen.LOGIN
+        }
     }
 
-    // Auto-navigate to dashboard when login succeeds
+    var currentScreen by remember { mutableStateOf(initialScreen) }
+    var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
+
+    // Centralized navigation action with browser history push
+    val navigateTo: (AppNavScreen) -> Unit = remember {
+        { target ->
+            if (currentScreen != target) {
+                currentScreen = target
+                PlatformNavigation.pushPath(target.route)
+            }
+        }
+    }
+
+    // Synchronize initial URL and listen to browser Back/Forward (popstate/hashchange)
+    LaunchedEffect(Unit) {
+        val current = PlatformNavigation.getCurrentPath()
+        if (AppNavScreen.fromPath(current) == null) {
+            PlatformNavigation.replacePath(currentScreen.route)
+        }
+
+        PlatformNavigation.listenToPathChanges { newPath ->
+            val matched = AppNavScreen.fromPath(newPath)
+            if (matched != null && matched != currentScreen) {
+                currentScreen = matched
+            }
+        }
+    }
+
+    // Auto-navigate when login succeeds: redirect to pending screen or default to ORG_CHART
     LaunchedEffect(authViewModel) {
         authViewModel.uiEffect.collect { effect ->
             if (effect is LoginUiEffect.NavigateToDashboard) {
-                currentScreen = AppNavScreen.ORG_CHART
+                val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
+                pendingRedirectScreen = null
+                navigateTo(destination)
             }
         }
     }
@@ -63,8 +95,8 @@ fun App() {
     // If logged out while viewing protected screen, redirect back to LOGIN
     var wasAuthenticated by remember { mutableStateOf(isAuthenticated) }
     LaunchedEffect(isAuthenticated) {
-        if (wasAuthenticated && !isAuthenticated) {
-            currentScreen = AppNavScreen.LOGIN
+        if (wasAuthenticated && !isAuthenticated && currentScreen.isProtected) {
+            navigateTo(AppNavScreen.LOGIN)
         }
         wasAuthenticated = isAuthenticated
     }
@@ -140,7 +172,7 @@ fun App() {
                         // Protected Navigation Chips
                         FilterChip(
                             selected = currentScreen == AppNavScreen.ORG_CHART,
-                            onClick = { currentScreen = AppNavScreen.ORG_CHART },
+                            onClick = { navigateTo(AppNavScreen.ORG_CHART) },
                             label = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -160,7 +192,7 @@ fun App() {
 
                         FilterChip(
                             selected = currentScreen == AppNavScreen.DYNAMIC_RBAC,
-                            onClick = { currentScreen = AppNavScreen.DYNAMIC_RBAC },
+                            onClick = { navigateTo(AppNavScreen.DYNAMIC_RBAC) },
                             label = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -180,7 +212,7 @@ fun App() {
 
                         FilterChip(
                             selected = currentScreen == AppNavScreen.FACTORY_FLOW,
-                            onClick = { currentScreen = AppNavScreen.FACTORY_FLOW },
+                            onClick = { navigateTo(AppNavScreen.FACTORY_FLOW) },
                             label = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -206,7 +238,7 @@ fun App() {
                         if (!isAuthenticated) {
                             FilterChip(
                                 selected = currentScreen == AppNavScreen.LOGIN,
-                                onClick = { currentScreen = AppNavScreen.LOGIN },
+                                onClick = { navigateTo(AppNavScreen.LOGIN) },
                                 label = {
                                     Text(
                                         text = "Login Akun",
@@ -269,7 +301,7 @@ fun App() {
                             OutlinedButton(
                                 onClick = {
                                     authViewModel.onEvent(LoginUiEvent.Logout)
-                                    currentScreen = AppNavScreen.LOGIN
+                                    navigateTo(AppNavScreen.LOGIN)
                                 },
                                 modifier = Modifier.height(34.dp),
                                 shape = RoundedCornerShape(8.dp),
@@ -302,19 +334,25 @@ fun App() {
                         } else {
                             AuthGuardCard(
                                 targetModuleName = "Bagan Struktur Organisasi & Karyawan",
-                                onLoginClick = { currentScreen = AppNavScreen.LOGIN }
+                                onLoginClick = {
+                                    pendingRedirectScreen = AppNavScreen.ORG_CHART
+                                    navigateTo(AppNavScreen.LOGIN)
+                                }
                             )
                         }
                     }
                     AppNavScreen.DYNAMIC_RBAC -> {
                         if (isAuthenticated) {
                             DynamicRbacScreen(
-                                onBackToLogin = { currentScreen = AppNavScreen.LOGIN }
+                                onBackToLogin = { navigateTo(AppNavScreen.LOGIN) }
                             )
                         } else {
                             AuthGuardCard(
                                 targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
-                                onLoginClick = { currentScreen = AppNavScreen.LOGIN }
+                                onLoginClick = {
+                                    pendingRedirectScreen = AppNavScreen.DYNAMIC_RBAC
+                                    navigateTo(AppNavScreen.LOGIN)
+                                }
                             )
                         }
                     }
@@ -324,14 +362,21 @@ fun App() {
                         } else {
                             AuthGuardCard(
                                 targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
-                                onLoginClick = { currentScreen = AppNavScreen.LOGIN }
+                                onLoginClick = {
+                                    pendingRedirectScreen = AppNavScreen.FACTORY_FLOW
+                                    navigateTo(AppNavScreen.LOGIN)
+                                }
                             )
                         }
                     }
                     AppNavScreen.LOGIN -> {
                         LoginScreen(
                             viewModel = authViewModel,
-                            onNavigateToDashboard = { currentScreen = AppNavScreen.ORG_CHART }
+                            onNavigateToDashboard = {
+                                val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
+                                pendingRedirectScreen = null
+                                navigateTo(destination)
+                            }
                         )
                     }
                 }

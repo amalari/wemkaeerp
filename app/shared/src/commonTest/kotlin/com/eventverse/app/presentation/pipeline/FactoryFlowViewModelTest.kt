@@ -86,4 +86,31 @@ class FactoryFlowViewModelTest {
         assertEquals("", viewModel.uiState.value.searchQuery)
         assertEquals(9, viewModel.uiState.value.filteredNodes.size)
     }
+
+    @Test
+    fun toggleHideBypassed_shouldFilterOutBypassedNodesInCmt() {
+        val viewModel = FactoryFlowViewModel()
+        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBusinessPreset.CMT_MAKLOON))
+
+        // Initial default has hideBypassedNodes = true
+        val initialCmtState = viewModel.uiState.value
+        assertTrue(initialCmtState.hideBypassedNodes)
+        assertEquals(2, initialCmtState.bypassedCount)
+        assertEquals(7, initialCmtState.filteredNodes.size)
+        assertTrue(initialCmtState.filteredNodes.none { it.isBypassed })
+
+        // Toggle to show bypassed nodes
+        viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed)
+        val showAllState = viewModel.uiState.value
+        assertFalse(showAllState.hideBypassedNodes)
+        assertEquals(9, showAllState.filteredNodes.size)
+        assertEquals(2, showAllState.filteredNodes.count { it.isBypassed })
+
+        // Toggle back to hide
+        viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed)
+        val hiddenAgainState = viewModel.uiState.value
+        assertTrue(hiddenAgainState.hideBypassedNodes)
+        assertEquals(7, hiddenAgainState.filteredNodes.size)
+    }
 }
+

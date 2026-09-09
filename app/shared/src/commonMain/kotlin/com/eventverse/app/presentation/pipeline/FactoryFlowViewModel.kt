@@ -47,7 +47,11 @@ class FactoryFlowViewModel(
             is FactoryFlowUiEvent.SetViewMode -> {
                 _uiState.update { it.copy(viewMode = event.mode) }
             }
+            is FactoryFlowUiEvent.ToggleHideBypassed -> {
+                _uiState.update { it.copy(hideBypassedNodes = !it.hideBypassedNodes) }
+            }
             is FactoryFlowUiEvent.ResetFilters -> {
+
                 _uiState.update {
                     it.copy(
                         selectedStageFilter = null,

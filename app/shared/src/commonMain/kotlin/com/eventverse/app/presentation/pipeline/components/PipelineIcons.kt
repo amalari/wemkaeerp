@@ -458,3 +458,52 @@ fun IconBuilding(modifier: Modifier = Modifier, color: Color = WeMadeColors.Prim
         }
     }
 }
+
+@Composable
+fun IconEye(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.5f * density
+
+        val eyePath = Path().apply {
+            moveTo(w * 0.1f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.15f, w * 0.9f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.85f, w * 0.1f, h * 0.5f)
+            close()
+        }
+        drawPath(eyePath, color = color, style = Stroke(width = stroke, join = StrokeJoin.Round))
+
+        drawCircle(
+            color = color,
+            radius = w * 0.16f,
+            center = Offset(w * 0.5f, h * 0.5f)
+        )
+    }
+}
+
+@Composable
+fun IconEyeOff(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.5f * density
+
+        val eyePath = Path().apply {
+            moveTo(w * 0.1f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.15f, w * 0.9f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.85f, w * 0.1f, h * 0.5f)
+            close()
+        }
+        drawPath(eyePath, color = color.copy(alpha = 0.55f), style = Stroke(width = stroke, join = StrokeJoin.Round))
+
+        drawLine(
+            color = color,
+            start = Offset(w * 0.15f, h * 0.15f),
+            end = Offset(w * 0.85f, h * 0.85f),
+            strokeWidth = stroke * 1.25f,
+            cap = StrokeCap.Round
+        )
+    }
+}
+

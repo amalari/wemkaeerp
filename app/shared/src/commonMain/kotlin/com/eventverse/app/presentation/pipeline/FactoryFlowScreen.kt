@@ -117,13 +117,17 @@ fun FactoryFlowScreen(
                 searchQuery = state.searchQuery,
                 viewMode = state.viewMode,
                 isPresentationMode = isPresentationMode,
+                hideBypassedNodes = state.hideBypassedNodes,
+                bypassedCount = state.bypassedCount,
                 onSelectNode = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
                 onSearchChange = { viewModel.onEvent(FactoryFlowUiEvent.UpdateSearchQuery(it)) },
                 onSetViewMode = { viewModel.onEvent(FactoryFlowUiEvent.SetViewMode(it)) },
+                onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) },
                 onResetFilters = { viewModel.onEvent(FactoryFlowUiEvent.ResetFilters) },
                 modifier = Modifier.weight(1f)
             )
+
         }
 
         // Side Sheet Inspector (Drawer) for Selected Node

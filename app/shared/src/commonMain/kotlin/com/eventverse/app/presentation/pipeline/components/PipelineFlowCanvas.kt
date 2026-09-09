@@ -34,10 +34,13 @@ fun PipelineFlowCanvas(
     searchQuery: String,
     viewMode: PipelineViewMode,
     isPresentationMode: Boolean,
+    hideBypassedNodes: Boolean,
+    bypassedCount: Int,
     onSelectNode: (PipelineNode) -> Unit,
     onFilterStage: (PipelineStage?) -> Unit,
     onSearchChange: (String) -> Unit,
     onSetViewMode: (PipelineViewMode) -> Unit,
+    onToggleHideBypassed: () -> Unit,
     onResetFilters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -45,16 +48,16 @@ fun PipelineFlowCanvas(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Control Bar: View Mode Switcher + Search Field
+        // Control Bar: View Mode Switcher + Bypass Filter + Search Field
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // View Mode Switcher Pills
+            // Left: View Mode Switcher Pills & Hide Bypassed Toggle
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Layout:",
@@ -108,6 +111,52 @@ fun PipelineFlowCanvas(
                         }
                     }
                 }
+
+                // Toggle Hide Bypassed Modules
+                if (bypassedCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                when {
+                                    hideBypassedNodes && isPresentationMode -> Color(0xFF1E293B)
+                                    hideBypassedNodes -> WeMadeColors.PrimaryContainer.copy(alpha = 0.7f)
+                                    isPresentationMode -> Color(0xFF0F172A)
+                                    else -> Color(0xFFF8FAFC)
+                                }
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (hideBypassedNodes) WeMadeColors.Primary else if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onToggleHideBypassed() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (hideBypassedNodes) {
+                                IconEyeOff(
+                                    modifier = Modifier.size(13.dp),
+                                    color = WeMadeColors.Primary
+                                )
+                            } else {
+                                IconEye(
+                                    modifier = Modifier.size(13.dp),
+                                    color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
+                                )
+                            }
+                            Text(
+                                text = if (hideBypassedNodes) "Bypass Disembunyikan ($bypassedCount)" else "Sembunyikan Bypass ($bypassedCount)",
+                                fontSize = 11.sp,
+                                fontWeight = if (hideBypassedNodes) FontWeight.Bold else FontWeight.Medium,
+                                color = if (hideBypassedNodes) WeMadeColors.Primary else if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface
+                            )
+                        }
+                    }
+                }
             }
 
             // Search Bar
@@ -128,6 +177,7 @@ fun PipelineFlowCanvas(
                 )
             )
         }
+
 
         // Macro Process Flow Ribbon (Left-to-Right Progress Stepper)
         MacroProcessStepper(
@@ -176,6 +226,7 @@ fun PipelineFlowCanvas(
                         nodes = nodes,
                         selectedNode = selectedNode,
                         isPresentationMode = isPresentationMode,
+                        hideBypassedNodes = hideBypassedNodes,
                         onSelectNode = onSelectNode
                     )
                 }
@@ -228,6 +279,7 @@ private fun MacroProcessStepper(
             val totalWipInStage = stageNodes.sumOf { it.wipPieces }
             val hasBottleneck = stageNodes.any { it.isBottleneck }
             val isSelected = selectedStageFilter == stage
+            val isStageBypassed = stageNodes.isEmpty()
 
             // Stage Step Pill
             Row(
@@ -282,31 +334,33 @@ private fun MacroProcessStepper(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "${stageNodes.size} Modul",
+                            text = if (isStageBypassed) "Di-bypass (Buyer)" else "${stageNodes.size} Modul",
                             fontSize = 10.sp,
                             color = if (isSelected) Color.White.copy(alpha = 0.85f) else WeMadeColors.OnSurfaceMuted
                         )
-                        Text(
-                            text = "•",
-                            fontSize = 9.sp,
-                            color = if (isSelected) Color.White.copy(alpha = 0.85f) else WeMadeColors.OnSurfaceMuted
-                        )
-                        if (hasBottleneck) {
-                            IconWarning(
-                                modifier = Modifier.size(10.dp),
-                                color = if (isSelected) Color.White else WeMadeColors.Warning
+                        if (!isStageBypassed) {
+                            Text(
+                                text = "•",
+                                fontSize = 9.sp,
+                                color = if (isSelected) Color.White.copy(alpha = 0.85f) else WeMadeColors.OnSurfaceMuted
+                            )
+                            if (hasBottleneck) {
+                                IconWarning(
+                                    modifier = Modifier.size(10.dp),
+                                    color = if (isSelected) Color.White else WeMadeColors.Warning
+                                )
+                            }
+                            Text(
+                                text = "$totalWipInStage Pcs",
+                                fontSize = 10.sp,
+                                fontWeight = if (hasBottleneck) FontWeight.Bold else FontWeight.Medium,
+                                color = when {
+                                    isSelected -> Color.White
+                                    hasBottleneck -> WeMadeColors.Warning
+                                    else -> WeMadeColors.Success
+                                }
                             )
                         }
-                        Text(
-                            text = "$totalWipInStage Pcs",
-                            fontSize = 10.sp,
-                            fontWeight = if (hasBottleneck) FontWeight.Bold else FontWeight.Medium,
-                            color = when {
-                                isSelected -> Color.White
-                                hasBottleneck -> WeMadeColors.Warning
-                                else -> WeMadeColors.Success
-                            }
-                        )
                     }
                 }
             }
@@ -330,11 +384,18 @@ private fun HorizontalSwimlaneLayout(
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
+    hideBypassedNodes: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
     val scrollState = rememberScrollState()
+
+    val visibleStages = if (hideBypassedNodes) {
+        PipelineStage.entries.filter { stage -> (groupedByStage[stage] ?: emptyList()).isNotEmpty() }
+    } else {
+        PipelineStage.entries
+    }
 
     Row(
         modifier = modifier
@@ -344,7 +405,7 @@ private fun HorizontalSwimlaneLayout(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.Top
     ) {
-        PipelineStage.entries.forEachIndexed { stageIndex, stage ->
+        visibleStages.forEachIndexed { stageIndex, stage ->
             val stageNodes = groupedByStage[stage] ?: emptyList()
 
             Row(
@@ -362,7 +423,7 @@ private fun HorizontalSwimlaneLayout(
                 )
 
                 // Visual Stage-to-Stage Handoff Bridge Arrow
-                if (stageIndex < PipelineStage.entries.size - 1) {
+                if (stageIndex < visibleStages.size - 1) {
                     StageTransitionBridge(
                         isPresentationMode = isPresentationMode,
                         modifier = Modifier.padding(top = 80.dp)
