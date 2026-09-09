@@ -122,6 +122,6 @@ class PostgresDepartmentRepository : DepartmentRepository {
         colorHex = row[DepartmentsTable.colorHex],
         isCustom = row[DepartmentsTable.isCustom],
         tenantId = TenantId(row[DepartmentsTable.tenantId]),
-        archivedAt = row[DepartmentsTable.archivedAt]?.toString()
+        archivedAt = row[DepartmentsTable.archivedAt]
     )
 }

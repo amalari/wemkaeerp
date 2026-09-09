@@ -182,6 +182,28 @@ class OrgChartApiClient(
     }
 
     /**
+     * PUT /api/tenant/departments/{id} — perbarui nama, nama singkat, dan warna divisi
+     */
+    suspend fun updateDepartment(
+        tenantSlug: String,
+        department: Department
+    ): Result<Department> = runCatching {
+        val escapedName = escapeJson(department.displayName)
+        val escapedShort = escapeJson(department.shortName)
+        val jsonBody = "{\"displayName\":\"$escapedName\",\"shortName\":\"$escapedShort\",\"colorHex\":${department.colorHex}}"
+
+        val response = httpClient.put(resolveUrl("/api/tenant/departments/${department.id.value}")) {
+            header("X-Tenant-Slug", tenantSlug)
+            contentType(ContentType.Application.Json)
+            setBody(jsonBody)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal memperbarui divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        parseDepartment(response.bodyAsText())
+    }
+
+    /**
      * DELETE /api/tenant/departments/{id}  — server melakukan soft-archive, bukan hard delete
      */
     suspend fun deleteDepartment(tenantSlug: String, departmentId: String): Result<Unit> = runCatching {

@@ -37,11 +37,9 @@ class EmployeeApiTest {
         val empRepo = InMemoryEmployeeRepository()
 
         // Seed preset depts & employees
-        runBlocking {
-            deptRepo.restoreDefaultPresets(tenantId)
-            val depts = deptRepo.findAllByTenant(tenantId)
-            empRepo.restoreDefaultPresets(tenantId, depts)
-        }
+        deptRepo.restoreDefaultPresets(tenantId)
+        val depts = deptRepo.findAllByTenant(tenantId)
+        empRepo.restoreDefaultPresets(tenantId, depts)
 
         application {
             module(
@@ -107,11 +105,9 @@ class EmployeeApiTest {
         val deptRepo = InMemoryDepartmentRepository()
         val empRepo = InMemoryEmployeeRepository()
 
-        runBlocking {
-            deptRepo.restoreDefaultPresets(tenantId)
-            val depts = deptRepo.findAllByTenant(tenantId)
-            empRepo.restoreDefaultPresets(tenantId, depts)
-        }
+        deptRepo.restoreDefaultPresets(tenantId)
+        val depts = deptRepo.findAllByTenant(tenantId)
+        empRepo.restoreDefaultPresets(tenantId, depts)
 
         application {
             module(
@@ -146,11 +142,9 @@ class EmployeeApiTest {
         val deptRepo = InMemoryDepartmentRepository()
         val empRepo = InMemoryEmployeeRepository()
 
-        runBlocking {
-            deptRepo.restoreDefaultPresets(tenantId)
-            val depts = deptRepo.findAllByTenant(tenantId)
-            empRepo.restoreDefaultPresets(tenantId, depts)
-        }
+        deptRepo.restoreDefaultPresets(tenantId)
+        val depts = deptRepo.findAllByTenant(tenantId)
+        empRepo.restoreDefaultPresets(tenantId, depts)
 
         application {
             module(
@@ -160,7 +154,7 @@ class EmployeeApiTest {
             )
         }
 
-        val activeBudi = runBlocking { empRepo.findAllByTenant(tenantId).find { it.name.contains("Budi") }!! }
+        val activeBudi = requireNotNull(empRepo.findAllByTenant(tenantId).find { it.name.contains("Budi") }) { "Active Budi not found" }
         val res = client.post("/api/tenant/employees") {
             header("X-Tenant-Slug", tenantSlug)
             contentType(ContentType.Application.Json)

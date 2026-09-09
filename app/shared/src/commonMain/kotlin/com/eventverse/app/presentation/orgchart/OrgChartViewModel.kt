@@ -91,16 +91,31 @@ class OrgChartViewModel(
                     val defaultSuperior = resolveDefaultSuperior(
                         employees = state.employees,
                         dept = event.dept,
-                        level = state.selectedLevel
+                        level = if (state.selectedLevel == HierarchyLevel.EXECUTIVE) HierarchyLevel.HEAD_OF_DEPARTMENT else state.selectedLevel
                     )
-                    val tier = event.dept.tiers.find { it.isHead && state.selectedLevel == HierarchyLevel.HEAD_OF_DEPARTMENT }
-                        ?: event.dept.tiers.firstOrNull { state.selectedLevel == HierarchyLevel.TEAM_LEAD && it.id == "team_lead" }
+                    val newLevel = if (state.selectedLevel == HierarchyLevel.EXECUTIVE) HierarchyLevel.HEAD_OF_DEPARTMENT else state.selectedLevel
+                    val tier = event.dept.tiers.find { it.isHead && newLevel == HierarchyLevel.HEAD_OF_DEPARTMENT }
+                        ?: event.dept.tiers.firstOrNull { newLevel == HierarchyLevel.TEAM_LEAD && it.id == "team_lead" }
                         ?: event.dept.tiers.lastOrNull()
 
                     state.copy(
                         selectedDepartment = event.dept,
+                        selectedLevel = newLevel,
                         selectedTierName = tier?.name ?: state.selectedTierName,
-                        selectedReportsToId = defaultSuperior
+                        selectedReportsToId = defaultSuperior,
+                        isDepartmentLocked = false
+                    )
+                }
+            }
+
+            is OrgChartUiEvent.SelectDireksi -> {
+                _uiState.update { state ->
+                    state.copy(
+                        selectedDepartment = null,
+                        selectedLevel = HierarchyLevel.EXECUTIVE,
+                        selectedTierName = "Direksi",
+                        selectedReportsToId = null,
+                        isDepartmentLocked = false
                     )
                 }
             }
@@ -123,7 +138,8 @@ class OrgChartViewModel(
                     state.copy(
                         selectedLevel = event.level,
                         selectedTierName = tier,
-                        selectedReportsToId = defaultSuperior
+                        selectedReportsToId = defaultSuperior,
+                        isDepartmentLocked = false
                     )
                 }
             }
@@ -141,9 +157,11 @@ class OrgChartViewModel(
                     val defaultSuperior = resolveDefaultSuperior(state.employees, targetDept, level)
 
                     state.copy(
+                        selectedDepartment = targetDept,
                         selectedLevel = level,
                         selectedTierName = event.tier.name,
-                        selectedReportsToId = defaultSuperior
+                        selectedReportsToId = defaultSuperior,
+                        isDepartmentLocked = false
                     )
                 }
             }
@@ -151,11 +169,11 @@ class OrgChartViewModel(
             is OrgChartUiEvent.SelectReportsTo -> {
                 _uiState.update { state ->
                     if (event.superiorId == null) {
-                        // Memilih tanpa atasan -> otomatis tingkat wewenang menjadi Direksi (Executive), tanpa divisi & terkunci
+                        // Memilih tanpa atasan -> otomatis tingkat wewenang menjadi Direksi (Executive), tanpa divisi
                         state.copy(
                             selectedReportsToId = null,
                             selectedDepartment = null,
-                            isDepartmentLocked = true,
+                            isDepartmentLocked = false,
                             selectedLevel = HierarchyLevel.EXECUTIVE,
                             selectedTierName = "Direksi"
                         )
@@ -163,7 +181,7 @@ class OrgChartViewModel(
                         val superior = state.employees.find { it.id.value == event.superiorId }
                         if (superior != null) {
                             if (superior.level == HierarchyLevel.EXECUTIVE || superior.department == null) {
-                                // Upper adalah Direksi (tidak punya divisi) -> user tetap harus pilih divisi, tidak di-lock!
+                                // Upper adalah Direksi (tidak punya divisi) -> user bebas pilih divisi
                                 val targetDept = state.selectedDepartment ?: state.departments.firstOrNull()
                                 val headTier = targetDept?.tiers?.find { it.isHead }
                                 state.copy(
@@ -174,7 +192,7 @@ class OrgChartViewModel(
                                     selectedTierName = headTier?.name ?: "Kepala Divisi"
                                 )
                             } else {
-                                // Upper memiliki divisi -> otomatis keisi divisi itu dan DISABLED / LOCKED!
+                                // Upper memiliki divisi -> sarankan divisi itu, tapi tetap editable
                                 val dept = superior.department
                                 val deptTiers = dept?.tiers ?: emptyList()
                                 val autoTier = if (superior.level == HierarchyLevel.HEAD_OF_DEPARTMENT) {
@@ -186,13 +204,13 @@ class OrgChartViewModel(
                                 state.copy(
                                     selectedReportsToId = superior.id.value,
                                     selectedDepartment = dept,
-                                    isDepartmentLocked = true,
+                                    isDepartmentLocked = false,
                                     selectedLevel = autoLevel,
                                     selectedTierName = autoTier?.name ?: "Staf Pelaksana / Operator"
                                 )
                             }
                         } else {
-                            state.copy(selectedReportsToId = event.superiorId)
+                            state.copy(selectedReportsToId = event.superiorId, isDepartmentLocked = false)
                         }
                     }
                 }
@@ -216,7 +234,7 @@ class OrgChartViewModel(
                         emailInput = emp.email,
                         phoneInput = emp.phone,
                         selectedDepartment = emp.department,
-                        isDepartmentLocked = (emp.reportsToId != null && emp.department != null),
+                        isDepartmentLocked = false,
                         selectedLevel = emp.level,
                         selectedTierName = emp.tierName ?: (if (emp.level == HierarchyLevel.EXECUTIVE) "Direksi" else if (emp.level == HierarchyLevel.HEAD_OF_DEPARTMENT) "Kepala Divisi" else "Staf"),
                         selectedReportsToId = emp.reportsToId?.value,
@@ -242,7 +260,7 @@ class OrgChartViewModel(
                         emailInput = "",
                         phoneInput = "",
                         selectedDepartment = currentDept,
-                        isDepartmentLocked = true,
+                        isDepartmentLocked = false,
                         selectedLevel = HierarchyLevel.STAFF_OPERATOR,
                         selectedTierName = tier,
                         selectedReportsToId = defaultSuperior,
@@ -351,6 +369,83 @@ class OrgChartViewModel(
                 }
             }
 
+            // Edit Department Event Handlers
+            is OrgChartUiEvent.OpenEditDeptModal -> {
+                _uiState.update {
+                    it.copy(
+                        isEditDeptModalOpen = true,
+                        editDeptId = event.dept.id.value,
+                        editDeptNameInput = event.dept.displayName,
+                        editDeptShortNameInput = event.dept.shortName,
+                        editDeptColorHex = event.dept.colorHex
+                    )
+                }
+            }
+
+            is OrgChartUiEvent.CloseEditDeptModal -> {
+                _uiState.update { it.copy(isEditDeptModalOpen = false) }
+            }
+
+            is OrgChartUiEvent.UpdateEditDeptName -> {
+                _uiState.update { it.copy(editDeptNameInput = event.name) }
+            }
+
+            is OrgChartUiEvent.UpdateEditDeptShortName -> {
+                _uiState.update { it.copy(editDeptShortNameInput = event.shortName) }
+            }
+
+            is OrgChartUiEvent.SelectEditDeptColor -> {
+                _uiState.update { it.copy(editDeptColorHex = event.colorHex) }
+            }
+
+            is OrgChartUiEvent.SaveEditedDepartment -> {
+                val current = _uiState.value
+                val deptId = current.editDeptId
+                val name = current.editDeptNameInput.trim()
+                val shortName = current.editDeptShortNameInput.trim()
+                if (name.isBlank()) {
+                    _uiState.update { it.copy(toastMessage = "Nama divisi tidak boleh kosong.") }
+                    return
+                }
+
+                val existingDept = current.departments.find { it.id.value == deptId }
+                val updatedDept = (existingDept ?: Department.SALES).copy(
+                    displayName = name,
+                    shortName = shortName.ifBlank { name.take(8) },
+                    colorHex = current.editDeptColorHex
+                )
+
+                _uiState.update { state ->
+                    val updatedList = state.departments.map { if (it.id.value == deptId) updatedDept else it }
+                    state.copy(
+                        departments = updatedList,
+                        selectedDepartment = if (state.selectedDepartment?.id?.value == deptId) updatedDept else state.selectedDepartment,
+                        isEditDeptModalOpen = false,
+                        toastMessage = "Divisi '${updatedDept.displayName}' berhasil diperbarui!"
+                    )
+                }
+
+                val client = apiClient ?: return
+                coroutineScope.launch {
+                    try {
+                        val result = client.updateDepartment(tenantSlug, updatedDept)
+                        if (result.isSuccess) {
+                            val serverDepts = client.getDepartments(tenantSlug).getOrNull()
+                            if (serverDepts != null && serverDepts.isNotEmpty()) {
+                                _uiState.update { state ->
+                                    state.copy(
+                                        departments = serverDepts,
+                                        selectedDepartment = serverDepts.find { it.id.value == deptId } ?: state.selectedDepartment
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        println("API Update Department exception: ${e.message}")
+                    }
+                }
+            }
+
             // Dynamic Department Tier Event Handlers
             is OrgChartUiEvent.OpenAddTierModal -> {
                 _uiState.update {
@@ -392,6 +487,57 @@ class OrgChartViewModel(
                         selectedTierName = newTier?.name ?: tierName,
                         isAddTierModalOpen = false,
                         toastMessage = "Tingkat wewenang '${tierName}' berhasil ditambahkan ke divisi ${updatedDept.displayName}!"
+                    )
+                }
+            }
+
+            // Edit Department Tier Event Handlers
+            is OrgChartUiEvent.OpenEditTierModal -> {
+                _uiState.update {
+                    it.copy(
+                        isEditTierModalOpen = true,
+                        editTierDeptId = event.deptId,
+                        editTierId = event.tier.id,
+                        editTierNameInput = event.tier.name
+                    )
+                }
+            }
+
+            is OrgChartUiEvent.CloseEditTierModal -> {
+                _uiState.update { it.copy(isEditTierModalOpen = false) }
+            }
+
+            is OrgChartUiEvent.UpdateEditTierName -> {
+                _uiState.update { it.copy(editTierNameInput = event.name) }
+            }
+
+            is OrgChartUiEvent.SaveEditedDepartmentTier -> {
+                val current = _uiState.value
+                val deptId = current.editTierDeptId
+                val tierId = current.editTierId
+                val newTierName = current.editTierNameInput.trim()
+
+                if (newTierName.isBlank()) {
+                    _uiState.update { it.copy(toastMessage = "Nama tingkat wewenang tidak boleh kosong.") }
+                    return
+                }
+
+                val targetDept = current.departments.find { it.id.value == deptId }
+                    ?: current.selectedDepartment
+                    ?: current.activeDepartment
+                val updatedDept = targetDept.updateTier(tierId, newTierName)
+
+                _uiState.update { state ->
+                    val updatedList = state.departments.map { dept ->
+                        if (dept.id.value == targetDept.id.value) updatedDept else dept
+                    }
+                    val isCurrentSelectedTier = state.selectedTierName == targetDept.tiers.find { it.id == tierId }?.name
+                    state.copy(
+                        departments = updatedList,
+                        selectedDepartment = if (state.selectedDepartment?.id?.value == targetDept.id.value) updatedDept else state.selectedDepartment,
+                        selectedTierName = if (isCurrentSelectedTier) newTierName else state.selectedTierName,
+                        isEditTierModalOpen = false,
+                        toastMessage = "Tingkat wewenang berhasil diperbarui menjadi '$newTierName'!"
                     )
                 }
             }

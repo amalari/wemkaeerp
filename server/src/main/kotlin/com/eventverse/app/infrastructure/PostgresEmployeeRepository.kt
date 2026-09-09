@@ -154,7 +154,7 @@ class PostgresEmployeeRepository : EmployeeRepository {
                 colorHex = row[DepartmentsTable.colorHex],
                 isCustom = row[DepartmentsTable.isCustom],
                 tenantId = TenantId(row[DepartmentsTable.tenantId]),
-                archivedAt = row[DepartmentsTable.archivedAt]?.toString()
+                archivedAt = row[DepartmentsTable.archivedAt]
             )
         } else {
             null
@@ -170,7 +170,7 @@ class PostgresEmployeeRepository : EmployeeRepository {
             reportsToId = row[EmployeesTable.reportsToId]?.let { OrgNodeId(it) },
             phone = row[EmployeesTable.phone],
             tenantId = TenantId(row[EmployeesTable.tenantId]),
-            archivedAt = row[EmployeesTable.archivedAt]?.toString()
+            archivedAt = row[EmployeesTable.archivedAt]
         )
     }
 }

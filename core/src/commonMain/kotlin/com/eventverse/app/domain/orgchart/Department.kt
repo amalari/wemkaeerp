@@ -49,6 +49,16 @@ data class Department(
         return copy(tiers = tiers + newTier)
     }
 
+    /** Ubah nama tingkatan wewenang di divisi ini */
+    fun updateTier(tierId: String, newName: String): Department {
+        val trimmed = newName.trim()
+        require(trimmed.isNotBlank()) { "Nama tingkat wewenang tidak boleh kosong" }
+        val updatedTiers = tiers.map {
+            if (it.id == tierId) it.copy(name = trimmed) else it
+        }
+        return copy(tiers = updatedTiers)
+    }
+
     companion object {
         fun defaultTiers(): List<DepartmentTier> = listOf(
             DepartmentTier(id = "head", name = "Kepala Divisi", rank = 1),

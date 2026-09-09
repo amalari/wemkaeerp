@@ -56,7 +56,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
         val stateA = viewModel.uiState.value
         assertEquals(joko.id.value, stateA.selectedReportsToId)
         assertEquals(Department.PRODUCTION_PPIC.id, stateA.selectedDepartment?.id)
-        assertTrue(stateA.isDepartmentLocked) // Superior has dept -> locked!
+        assertFalse(stateA.isDepartmentLocked) // Superior has dept -> auto-filled, but kept editable!
 
         // Case B: Select Siti Rahma (Kepala Gudang & Logistik)
         val siti = viewModel.uiState.value.employees.find {
@@ -69,7 +69,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
         assertEquals(siti.id.value, stateB.selectedReportsToId)
         assertEquals(Department.WAREHOUSE.id, stateB.selectedDepartment?.id)
         assertEquals(HierarchyLevel.STAFF_OPERATOR, stateB.selectedLevel)
-        assertTrue(stateB.isDepartmentLocked)
+        assertFalse(stateB.isDepartmentLocked) // Kept editable!
 
         // Case C: Select Hendra Setiawan (Direksi / Executive - no department)
         val hendra = viewModel.uiState.value.employees.find { it.level == HierarchyLevel.EXECUTIVE }
@@ -87,8 +87,42 @@ class OrgChartViewModelSuperiorAutoFillTest {
         val stateD = viewModel.uiState.value
         assertNull(stateD.selectedReportsToId)
         assertNull(stateD.selectedDepartment)
-        assertTrue(stateD.isDepartmentLocked)
+        assertFalse(stateD.isDepartmentLocked)
         assertEquals(HierarchyLevel.EXECUTIVE, stateD.selectedLevel)
+    }
+
+    @Test
+    fun editDepartmentAndTiers_shouldUpdateStateCorrectly() {
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+
+        // 1. Edit Department
+        val dept = Department.SALES
+        viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(dept))
+        assertTrue(viewModel.uiState.value.isEditDeptModalOpen)
+        assertEquals(dept.displayName, viewModel.uiState.value.editDeptNameInput)
+
+        viewModel.onEvent(OrgChartUiEvent.UpdateEditDeptName("Penjualan & Digital Marketing"))
+        viewModel.onEvent(OrgChartUiEvent.UpdateEditDeptShortName("Sales-DM"))
+        viewModel.onEvent(OrgChartUiEvent.SaveEditedDepartment)
+
+        assertFalse(viewModel.uiState.value.isEditDeptModalOpen)
+        val updatedDept = viewModel.uiState.value.departments.find { it.id == dept.id }
+        assertNotNull(updatedDept)
+        assertEquals("Penjualan & Digital Marketing", updatedDept.displayName)
+        assertEquals("Sales-DM", updatedDept.shortName)
+
+        // 2. Edit Tier
+        val tierToEdit = updatedDept.tiers.first()
+        viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(updatedDept.id.value, tierToEdit))
+        assertTrue(viewModel.uiState.value.isEditTierModalOpen)
+
+        viewModel.onEvent(OrgChartUiEvent.UpdateEditTierName("General Manager Sales"))
+        viewModel.onEvent(OrgChartUiEvent.SaveEditedDepartmentTier)
+
+        assertFalse(viewModel.uiState.value.isEditTierModalOpen)
+        val refreshedDept = viewModel.uiState.value.departments.find { it.id == dept.id }
+        assertNotNull(refreshedDept)
+        assertTrue(refreshedDept.tiers.any { it.name == "General Manager Sales" })
     }
 
     @Test

@@ -50,7 +50,7 @@ class RbacApiTest {
     fun getRoles_withValidTenant_shouldReturnEmptyOrPresetRoles() = testApplication {
         val tenantRepo = setupTestTenantRepo()
         val roleRepo = InMemoryRoleRepository()
-        runBlocking { roleRepo.restoreDefaultPresets(tenantId) }
+        roleRepo.restoreDefaultPresets(tenantId)
 
         application {
             module(

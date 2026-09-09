@@ -24,8 +24,17 @@ data class OrgChartUiState(
     val newDeptNameInput: String = "",
     val newDeptShortNameInput: String = "",
     val newDeptColorHex: Long = 0xFF2563EB,
+    val isEditDeptModalOpen: Boolean = false,
+    val editDeptId: String = "",
+    val editDeptNameInput: String = "",
+    val editDeptShortNameInput: String = "",
+    val editDeptColorHex: Long = 0xFF2563EB,
     val isAddTierModalOpen: Boolean = false,
     val newTierNameInput: String = "",
+    val isEditTierModalOpen: Boolean = false,
+    val editTierDeptId: String = "",
+    val editTierId: String = "",
+    val editTierNameInput: String = "",
     val isResetMenuOpen: Boolean = false,
     // Feedback & Filter
     val toastMessage: String? = null,
@@ -150,6 +159,7 @@ sealed interface OrgChartUiEvent {
     data class UpdateEmail(val email: String) : OrgChartUiEvent
     data class UpdatePhone(val phone: String) : OrgChartUiEvent
     data class SelectDepartment(val dept: Department) : OrgChartUiEvent
+    data object SelectDireksi : OrgChartUiEvent
     data class SelectLevel(val level: HierarchyLevel) : OrgChartUiEvent
     data class SelectTier(val tier: DepartmentTier) : OrgChartUiEvent
     data class SelectReportsTo(val superiorId: String?) : OrgChartUiEvent
@@ -168,11 +178,25 @@ sealed interface OrgChartUiEvent {
     data class SelectNewDeptColor(val colorHex: Long) : OrgChartUiEvent
     data object SaveNewDepartment : OrgChartUiEvent
 
+    // Edit Department Events
+    data class OpenEditDeptModal(val dept: Department) : OrgChartUiEvent
+    data object CloseEditDeptModal : OrgChartUiEvent
+    data class UpdateEditDeptName(val name: String) : OrgChartUiEvent
+    data class UpdateEditDeptShortName(val shortName: String) : OrgChartUiEvent
+    data class SelectEditDeptColor(val colorHex: Long) : OrgChartUiEvent
+    data object SaveEditedDepartment : OrgChartUiEvent
+
     // Dynamic Department Tier Events
     data object OpenAddTierModal : OrgChartUiEvent
     data object CloseAddTierModal : OrgChartUiEvent
     data class UpdateNewTierName(val name: String) : OrgChartUiEvent
     data object SaveNewDepartmentTier : OrgChartUiEvent
+
+    // Edit Department Tier Events
+    data class OpenEditTierModal(val deptId: String, val tier: DepartmentTier) : OrgChartUiEvent
+    data object CloseEditTierModal : OrgChartUiEvent
+    data class UpdateEditTierName(val name: String) : OrgChartUiEvent
+    data object SaveEditedDepartmentTier : OrgChartUiEvent
 
     // Reset / Blank Slate & Preset Restores
     data object ToggleResetMenu : OrgChartUiEvent

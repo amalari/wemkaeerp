@@ -95,6 +95,7 @@ fun OrgChartScreen(
                     onEmailChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEmail(it)) },
                     onPhoneChange = { viewModel.onEvent(OrgChartUiEvent.UpdatePhone(it)) },
                     onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
+                    onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
                     onTierChange = { viewModel.onEvent(OrgChartUiEvent.SelectTier(it)) },
                     onLevelChange = { viewModel.onEvent(OrgChartUiEvent.SelectLevel(it)) },
                     onSuperiorChange = { viewModel.onEvent(OrgChartUiEvent.SelectReportsTo(it)) },
@@ -103,7 +104,9 @@ fun OrgChartScreen(
                     onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEmployee) },
                     onReset = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                     onAddDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
+                    onEditDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(it)) },
                     onAddTierClick = { viewModel.onEvent(OrgChartUiEvent.OpenAddTierModal) },
+                    onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
                     onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
                     onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
                     modifier = Modifier.width(420.dp)
@@ -144,6 +147,29 @@ fun OrgChartScreen(
             onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateNewTierName(it)) },
             onSave = { viewModel.onEvent(OrgChartUiEvent.SaveNewDepartmentTier) },
             onDismiss = { viewModel.onEvent(OrgChartUiEvent.CloseAddTierModal) }
+        )
+
+        // Modal Dialog: Edit Divisi
+        EditDepartmentDialog(
+            isOpen = state.isEditDeptModalOpen,
+            nameInput = state.editDeptNameInput,
+            shortNameInput = state.editDeptShortNameInput,
+            selectedColorHex = state.editDeptColorHex,
+            availableColors = state.availableColorsForNewDept,
+            onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEditDeptName(it)) },
+            onShortNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEditDeptShortName(it)) },
+            onColorSelect = { viewModel.onEvent(OrgChartUiEvent.SelectEditDeptColor(it)) },
+            onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEditedDepartment) },
+            onDismiss = { viewModel.onEvent(OrgChartUiEvent.CloseEditDeptModal) }
+        )
+
+        // Modal Dialog: Edit Tingkat Wewenang
+        EditTierDialog(
+            isOpen = state.isEditTierModalOpen,
+            tierNameInput = state.editTierNameInput,
+            onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEditTierName(it)) },
+            onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEditedDepartmentTier) },
+            onDismiss = { viewModel.onEvent(OrgChartUiEvent.CloseEditTierModal) }
         )
 
         // Modal Dialog: Konfirmasi Arsip Karyawan / Divisi
@@ -445,6 +471,7 @@ private fun EmployeeFormPanel(
     onEmailChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onDeptChange: (Department) -> Unit,
+    onSelectDireksi: () -> Unit,
     onTierChange: (DepartmentTier) -> Unit,
     onLevelChange: (HierarchyLevel) -> Unit,
     onSuperiorChange: (String?) -> Unit,
@@ -453,7 +480,9 @@ private fun EmployeeFormPanel(
     onSave: () -> Unit,
     onReset: () -> Unit,
     onAddDepartmentClick: () -> Unit,
+    onEditDepartmentClick: (Department) -> Unit,
     onAddTierClick: () -> Unit,
+    onEditTierClick: (String, DepartmentTier) -> Unit,
     onDeleteEmployee: (String) -> Unit = {},
     onDeleteDepartment: (Department) -> Unit = {},
     modifier: Modifier = Modifier
@@ -702,251 +731,209 @@ private fun EmployeeFormPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "Divisi Penempatan:",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurface
+                )
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "Divisi Penempatan:",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurface
-                    )
-                    if (state.isDepartmentLocked) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                    val currentDept = state.selectedDepartment
+                    if (currentDept != null) {
+                        TextButton(
+                            onClick = { onEditDepartmentClick(currentDept) },
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF2563EB))
                         ) {
-                            Text(
-                                text = "🔒 Terkunci",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF475569)
-                            )
+                            Text("✏️ Edit Divisi", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
-                    }
-                }
-
-                if (!state.isDepartmentLocked) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val currentDept = state.selectedDepartment
-                        if (currentDept != null && state.departments.size > 1) {
+                        if (state.departments.size > 1) {
                             TextButton(
                                 onClick = { onDeleteDepartment(currentDept) },
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                                 colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD97706))
                             ) {
-                                Text("📦 Arsipkan Divisi", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Text("📦 Arsipkan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
-                        TextButton(
-                            onClick = onAddDepartmentClick,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                        ) {
-                            Text("+ Divisi Baru", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
+                    }
+                    TextButton(
+                        onClick = onAddDepartmentClick,
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text("+ Divisi Baru", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
 
-            if (state.isDepartmentLocked) {
-                // Tampilan Terkunci
+            // Tampilan Pilihan Divisi (Selalu Aktif & Editable)
+            if (state.departments.isEmpty()) {
                 Card(
                     shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        val dept = state.selectedDepartment
-                        val deptColor = dept?.let { Color(it.colorHex) } ?: Color(0xFF6366F1)
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(deptColor.copy(alpha = 0.15f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        Text(
+                            text = "Belum ada divisi terdaftar.",
+                            fontSize = 11.sp,
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedButton(
+                            onClick = onAddDepartmentClick,
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text(
-                                text = dept?.shortName ?: "DIREKSI",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = deptColor
-                            )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = dept?.displayName ?: "Tanpa Divisi (Level Direksi)",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.OnSurface
-                            )
-                            val note = if (dept != null) {
-                                "Mengikuti divisi atasan langsung (${currentSuperiorNode?.name ?: "Atasan"})."
-                            } else {
-                                "Direksi berada di tingkat eksekutif perusahaan (tanpa ikatan divisi tunggal)."
-                            }
-                            Text(
-                                text = note,
-                                fontSize = 10.sp,
-                                color = Color(0xFF64748B)
-                            )
+                            Text("+ Buat Divisi Pertama", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             } else {
-                // Tampilan Bebas Pilih
-                if (state.departments.isEmpty()) {
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                val deptScrollState = rememberScrollState()
+                val coroutineScope = rememberCoroutineScope()
+                val canScrollBack = deptScrollState.canScrollBackward
+                val canScrollFwd = deptScrollState.canScrollForward
+                val showArrows = canScrollBack || canScrollFwd || state.departments.size > 4
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (showArrows) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (canScrollBack) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
+                                .border(
+                                    1.dp,
+                                    if (canScrollBack) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
+                                    CircleShape
+                                )
+                                .clickable(enabled = canScrollBack) {
+                                    coroutineScope.launch {
+                                        deptScrollState.animateScrollTo(
+                                            (deptScrollState.value - 140).coerceAtLeast(0)
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Belum ada divisi terdaftar.",
-                                fontSize = 11.sp,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedButton(
-                                onClick = onAddDepartmentClick,
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text("+ Buat Divisi Pertama", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Canvas(modifier = Modifier.size(10.dp)) {
+                                val strokeColor = if (canScrollBack) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                val path = Path().apply {
+                                    moveTo(size.width * 0.65f, 0f)
+                                    lineTo(size.width * 0.25f, size.height * 0.5f)
+                                    lineTo(size.width * 0.65f, size.height)
+                                }
+                                drawPath(
+                                    path = path,
+                                    color = strokeColor,
+                                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                )
                             }
                         }
                     }
-                } else {
-                    val deptScrollState = rememberScrollState()
-                    val coroutineScope = rememberCoroutineScope()
-                    val canScrollBack = deptScrollState.canScrollBackward
-                    val canScrollFwd = deptScrollState.canScrollForward
-                    val showArrows = canScrollBack || canScrollFwd || state.departments.size > 4
 
+                    // Deretan Chip Divisi
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(deptScrollState),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (showArrows) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(if (canScrollBack) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
-                                    .border(
-                                        1.dp,
-                                        if (canScrollBack) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
-                                        CircleShape
-                                    )
-                                    .clickable(enabled = canScrollBack) {
-                                        coroutineScope.launch {
-                                            deptScrollState.animateScrollTo(
-                                                (deptScrollState.value - 140).coerceAtLeast(0)
-                                            )
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Canvas(modifier = Modifier.size(10.dp)) {
-                                    val strokeColor = if (canScrollBack) Color(0xFF334155) else Color(0xFFCBD5E1)
-                                    val path = Path().apply {
-                                        moveTo(size.width * 0.65f, 0f)
-                                        lineTo(size.width * 0.25f, size.height * 0.5f)
-                                        lineTo(size.width * 0.65f, size.height)
-                                    }
-                                    drawPath(
-                                        path = path,
-                                        color = strokeColor,
-                                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Deretan Chip Divisi
-                        Row(
+                        // Chip Opsi: Direksi (Tanpa Divisi)
+                        val isDireksiSelected = state.selectedDepartment == null && state.selectedLevel == HierarchyLevel.EXECUTIVE
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .horizontalScroll(deptScrollState),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isDireksiSelected) Color(0xFF4338CA) else Color(0xFFF1F5F9))
+                                .border(
+                                    1.dp,
+                                    if (isDireksiSelected) Color(0xFF4338CA) else Color(0xFFE2E8F0),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onSelectDireksi() }
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            state.departments.forEach { dept ->
-                                val isSelected = dept.id == (state.selectedDepartment?.id ?: state.activeDepartment.id)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) Color(dept.colorHex) else Color(0xFFF1F5F9))
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) Color(dept.colorHex) else Color(0xFFE2E8F0),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { onDeptChange(dept) }
-                                        .padding(horizontal = 12.dp, vertical = 7.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = dept.shortName,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Color.White else Color(0xFF475569)
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Direksi (Non-Divisi)",
+                                fontSize = 11.sp,
+                                fontWeight = if (isDireksiSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isDireksiSelected) Color.White else Color(0xFF475569)
+                            )
                         }
 
-                        if (showArrows) {
+                        state.departments.forEach { dept ->
+                            val isSelected = !isDireksiSelected && dept.id == (state.selectedDepartment?.id ?: state.activeDepartment.id)
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(if (canScrollFwd) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color(dept.colorHex) else Color(0xFFF1F5F9))
                                     .border(
                                         1.dp,
-                                        if (canScrollFwd) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
-                                        CircleShape
+                                        if (isSelected) Color(dept.colorHex) else Color(0xFFE2E8F0),
+                                        RoundedCornerShape(8.dp)
                                     )
-                                    .clickable(enabled = canScrollFwd) {
-                                        coroutineScope.launch {
-                                            deptScrollState.animateScrollTo(
-                                                (deptScrollState.value + 140).coerceAtMost(deptScrollState.maxValue)
-                                            )
-                                        }
-                                    },
+                                    .clickable { onDeptChange(dept) }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Canvas(modifier = Modifier.size(10.dp)) {
-                                    val strokeColor = if (canScrollFwd) Color(0xFF334155) else Color(0xFFCBD5E1)
-                                    val path = Path().apply {
-                                        moveTo(size.width * 0.35f, 0f)
-                                        lineTo(size.width * 0.75f, size.height * 0.5f)
-                                        lineTo(size.width * 0.35f, size.height)
+                                Text(
+                                    text = dept.shortName,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF475569)
+                                )
+                            }
+                        }
+                    }
+
+                    if (showArrows) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (canScrollFwd) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
+                                .border(
+                                    1.dp,
+                                    if (canScrollFwd) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
+                                    CircleShape
+                                )
+                                .clickable(enabled = canScrollFwd) {
+                                    coroutineScope.launch {
+                                        deptScrollState.animateScrollTo(
+                                            (deptScrollState.value + 140).coerceAtMost(deptScrollState.maxValue)
+                                        )
                                     }
-                                    drawPath(
-                                        path = path,
-                                        color = strokeColor,
-                                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.size(10.dp)) {
+                                val strokeColor = if (canScrollFwd) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                val path = Path().apply {
+                                    moveTo(size.width * 0.35f, 0f)
+                                    lineTo(size.width * 0.75f, size.height * 0.5f)
+                                    lineTo(size.width * 0.35f, size.height)
                                 }
+                                drawPath(
+                                    path = path,
+                                    color = strokeColor,
+                                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                )
                             }
                         }
                     }
@@ -955,50 +942,23 @@ private fun EmployeeFormPanel(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ─── 4. TINGKAT WEWENANG DINAMIS (PER-DIVISI) ───
-            if (state.selectedLevel == HierarchyLevel.EXECUTIVE || (state.selectedReportsToId == null && state.selectedDepartment == null)) {
-                // Tampilan Tingkat Direksi
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEEF2FF)),
-                    border = BorderStroke(1.dp, Color(0xFFC7D2FE)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF4338CA))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("DIR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Column {
-                            Text("Direksi (Level Puncak Organisasi)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF312E81))
-                            Text("Membawahi seluruh jajaran divisi dan manajemen pabrik.", fontSize = 10.sp, color = Color(0xFF4338CA))
-                        }
-                    }
-                }
-            } else {
-                // Pilihan Tingkat Wewenang Dinamis dari Divisi Terpilih
-                val currentDept = state.selectedDepartment ?: state.activeDepartment
-                val availableTiers = state.availableTiersForSelectedDept
+            // ─── 4. TINGKAT WEWENANG DINAMIS (SELALU EDITABLE) ───
+            val currentDept = state.selectedDepartment ?: state.activeDepartment
+            val availableTiers = state.availableTiersForSelectedDept
+            val isDireksiSelected = state.selectedLevel == HierarchyLevel.EXECUTIVE
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Tingkat Wewenang (${currentDept.shortName}):",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurface
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (state.selectedDepartment != null) "Tingkat Wewenang (${currentDept.shortName}):" else "Tingkat Wewenang (Direksi):",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurface
+                )
+                if (state.selectedDepartment != null) {
                     TextButton(
                         onClick = onAddTierClick,
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
@@ -1006,52 +966,119 @@ private fun EmployeeFormPanel(
                         Text("+ Tambah Tingkat", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+            }
+            Spacer(modifier = Modifier.height(6.dp))
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    availableTiers.forEach { tier ->
-                        val isSelected = state.selectedTierName == tier.name
-                        Row(
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Opsi 1: Direksi (Level Puncak Organisasi)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isDireksiSelected) WeMadeColors.PrimaryContainer else Color(0xFFFAFAFA))
+                        .border(1.dp, if (isDireksiSelected) WeMadeColors.Primary else WeMadeColors.Border, RoundedCornerShape(8.dp))
+                        .clickable { onSelectDireksi() }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) WeMadeColors.PrimaryContainer else Color(0xFFFAFAFA))
-                                .border(1.dp, if (isSelected) WeMadeColors.Primary else WeMadeColors.Border, RoundedCornerShape(8.dp))
-                                .clickable { onTierChange(tier) }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF4338CA).copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                val badgeColor = when {
-                                    tier.isHead -> Color(0xFFF59E0B)
-                                    tier.id == "team_lead" || tier.rank == 2 -> Color(0xFF10B981)
-                                    else -> Color(0xFF64748B)
-                                }
-                                val badgeLabel = when {
-                                    tier.isHead -> "KEPALA"
-                                    tier.id == "team_lead" || tier.rank == 2 -> "LEAD / SPV"
-                                    else -> "STAF"
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(badgeColor.copy(alpha = 0.15f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = badgeLabel,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = badgeColor
-                                    )
-                                }
+                            Text(
+                                text = "DIREKSI",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4338CA)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Direksi (Level Puncak Organisasi)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isDireksiSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = WeMadeColors.OnSurface
+                            )
+                            Text(
+                                text = "Membawahi seluruh jajaran divisi dan manajemen pabrik.",
+                                fontSize = 10.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                    RadioButton(selected = isDireksiSelected, onClick = { onSelectDireksi() })
+                }
+
+                // Opsi Tingkat Wewenang Divisi
+                availableTiers.forEach { tier ->
+                    val isSelected = !isDireksiSelected && state.selectedTierName == tier.name
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) WeMadeColors.PrimaryContainer else Color(0xFFFAFAFA))
+                            .border(1.dp, if (isSelected) WeMadeColors.Primary else WeMadeColors.Border, RoundedCornerShape(8.dp))
+                            .clickable { onTierChange(tier) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val badgeColor = when {
+                                tier.isHead -> Color(0xFFF59E0B)
+                                tier.id == "team_lead" || tier.rank == 2 -> Color(0xFF10B981)
+                                else -> Color(0xFF64748B)
+                            }
+                            val badgeLabel = when {
+                                tier.isHead -> "KEPALA"
+                                tier.id == "team_lead" || tier.rank == 2 -> "LEAD / SPV"
+                                else -> "STAF"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(badgeColor.copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
                                 Text(
-                                    text = tier.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = WeMadeColors.OnSurface
+                                    text = badgeLabel,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = badgeColor
                                 )
+                            }
+                            Text(
+                                text = tier.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = WeMadeColors.OnSurface
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onEditTierClick(currentDept.id.value, tier) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✏️", fontSize = 11.sp)
                             }
                             RadioButton(selected = isSelected, onClick = { onTierChange(tier) })
                         }
@@ -1901,6 +1928,229 @@ private fun EmailConflictDialog(
                 ) {
                     Text("Gunakan Email Lain")
                 }
+            }
+        },
+        shape = RoundedCornerShape(16.dp),
+        containerColor = WeMadeColors.Surface
+    )
+}
+
+@Composable
+private fun EditDepartmentDialog(
+    isOpen: Boolean,
+    nameInput: String,
+    shortNameInput: String,
+    selectedColorHex: Long,
+    availableColors: List<DepartmentColor>,
+    onNameChange: (String) -> Unit,
+    onShortNameChange: (String) -> Unit,
+    onColorSelect: (Long) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!isOpen) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Edit Divisi",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Text(
+                    text = "Perbarui nama, nama singkat, dan warna tema divisi",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = onNameChange,
+                    label = { Text("Nama Lengkap Divisi") },
+                    placeholder = { Text("Cth: Penjualan & Pemasaran") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                OutlinedTextField(
+                    value = shortNameInput,
+                    onValueChange = onShortNameChange,
+                    label = { Text("Nama Singkat / Label Badge") },
+                    placeholder = { Text("Cth: Sales") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                // Palet Pilihan Warna
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Pilih Warna Divisi:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WeMadeColors.OnSurface
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        availableColors.forEach { deptColor ->
+                            val isColorSelected = selectedColorHex == deptColor.hex
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(deptColor.hex))
+                                    .border(
+                                        width = if (isColorSelected) 3.dp else 1.dp,
+                                        color = if (isColorSelected) WeMadeColors.OnSurface else Color(0x33000000),
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onColorSelect(deptColor.hex) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isColorSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Live Preview Badge
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Pratinjau Tampilan Badge:",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(selectedColorHex))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = shortNameInput.ifBlank { "Label" },
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = nameInput.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Simpan Perubahan", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal")
+            }
+        },
+        shape = RoundedCornerShape(16.dp),
+        containerColor = WeMadeColors.Surface
+    )
+}
+
+@Composable
+private fun EditTierDialog(
+    isOpen: Boolean,
+    tierNameInput: String,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!isOpen) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Edit Tingkat Wewenang",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Text(
+                    text = "Ubah nama tingkat wewenang / jabatan di divisi ini",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = tierNameInput,
+                    onValueChange = onNameChange,
+                    label = { Text("Nama Tingkat Wewenang") },
+                    placeholder = { Text("Cth: Mandor Jahit / QC Lead") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Text(
+                    text = "💡 Perubahan nama tingkat wewenang akan diterapkan pada struktur hirarki divisi ini.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748B),
+                    lineHeight = 16.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = tierNameInput.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Simpan Perubahan", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal")
             }
         },
         shape = RoundedCornerShape(16.dp),
