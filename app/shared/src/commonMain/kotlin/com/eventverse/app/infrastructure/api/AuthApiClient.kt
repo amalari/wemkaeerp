@@ -38,6 +38,37 @@ class AuthApiClient(
     }
 
     /**
+     * POST /api/public/auth/google
+     *
+     * Menukar Google ID token dengan sesi WeMade. Server memverifikasi token itu langsung
+     * ke Google (termasuk pencocokan audience/client id) lalu menerbitkan JWT bertanda
+     * tangan, jadi identitas pengguna tidak pernah ditentukan di sisi client.
+     */
+    suspend fun loginWithGoogle(
+        idToken: String,
+        tenantSlug: String
+    ): Result<UserSession> = runCatching {
+        require(idToken.isNotBlank()) { "Google ID token tidak boleh kosong" }
+        require(tenantSlug.isNotBlank()) { "Subdomain perusahaan wajib diisi" }
+
+        val response = httpClient.post(resolveUrl("/api/public/auth/google")) {
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(
+                listOf(
+                    "idToken" to idToken,
+                    "tenantSlug" to tenantSlug
+                ).formUrlEncode()
+            )
+        }
+        if (!response.status.isSuccess()) {
+            error("Login Google gagal (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        val text = response.bodyAsText()
+        parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
+    }
+
+    /**
      * GET /api/public/auth/me
      * Memverifikasi JWT token ke backend dan mengambil profil user aktif dari DB.
      */
@@ -54,6 +85,13 @@ class AuthApiClient(
     }
 
     companion object {
+        /**
+         * Key the persisted auth session lives under. Declared here, beside the
+         * (de)serialisation that owns the format, so infrastructure need not reach into
+         * the presentation layer to read the token.
+         */
+        const val SESSION_STORAGE_KEY = "wemade_auth_session"
+
         fun serializeSession(session: UserSession): String {
             val user = session.user
             val escapedToken = escapeJson(session.token.value)

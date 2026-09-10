@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.tables.TenantsTable
 import org.jetbrains.exposed.sql.*
@@ -37,6 +38,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[status] = tenant.status.name
                     it[tier] = tenant.tier.name
                     it[activeMachineCount] = tenant.activeMachineCount
+                    it[businessPreset] = tenant.businessPreset.code
                 }
             } else {
                 TenantsTable.insert {
@@ -46,6 +48,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[status] = tenant.status.name
                     it[tier] = tenant.tier.name
                     it[activeMachineCount] = tenant.activeMachineCount
+                    it[businessPreset] = tenant.businessPreset.code
                 }
             }
             tenant
@@ -68,6 +71,7 @@ class PostgresTenantRepository : TenantRepository {
         name = TenantName(row[TenantsTable.name]),
         status = TenantStatus.valueOf(row[TenantsTable.status]),
         tier = SubscriptionTier.valueOf(row[TenantsTable.tier]),
-        activeMachineCount = row[TenantsTable.activeMachineCount]
+        activeMachineCount = row[TenantsTable.activeMachineCount],
+        businessPreset = GarmentBusinessPreset.fromCode(row[TenantsTable.businessPreset])
     )
 }

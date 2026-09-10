@@ -1,14 +1,31 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.FactoryPipelineSnapshot
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
+import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
 import com.eventverse.app.domain.pipeline.PipelineStage
+import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 
 data class FactoryFlowUiState(
     val selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
     val snapshot: FactoryPipelineSnapshot = PipelinePresetFactory.createSnapshot(selectedPreset),
+    /**
+     * The tenant's persisted topology. Null while loading, or when the server is unreachable
+     * and the screen is showing the preset template as a fallback.
+     */
+    val pipeline: CustomTenantPipeline? = null,
+    val moduleCatalog: TenantModuleCatalogSnapshot = TenantModuleCatalogSnapshot.EMPTY,
+    val isLoading: Boolean = true,
+    val isSaving: Boolean = false,
+    val error: String? = null,
+    /** Set when the topology shown is the preset template rather than persisted tenant data. */
+    val isOfflineFallback: Boolean = false,
+    val statusMessage: String? = null,
+    val isModulePanelVisible: Boolean = false,
+    val renamingNode: PipelineNode? = null,
     val selectedNode: PipelineNode? = null,
     val inspectingInputNode: PipelineNode? = null,
     val isPresentationMode: Boolean = false,
@@ -16,9 +33,16 @@ data class FactoryFlowUiState(
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
     val hideBypassedNodes: Boolean = true,
-    val activeScenario: com.eventverse.app.domain.pipeline.PipelineSimulationScenario = com.eventverse.app.domain.pipeline.PipelineSimulationScenario.NORMAL
+    val activeScenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
 ) {
     val bypassedCount: Int get() = snapshot.nodes.count { it.isBypassed }
+
+    /** True once persisted tenant data is on screen, as opposed to the preset template. */
+    val isTenantDataLoaded: Boolean get() = pipeline != null && !isOfflineFallback
+
+    val pipelineName: String? get() = pipeline?.pipelineName
+
+    val customPluginCount: Int get() = snapshot.nodes.count { it.isCustomPlugin }
 
     val filteredNodes: List<PipelineNode>
         get() = snapshot.nodes
@@ -32,16 +56,44 @@ data class FactoryFlowUiState(
                 if (searchQuery.isBlank()) true
                 else {
                     node.title.contains(searchQuery, ignoreCase = true) ||
-                    node.assignedDepartment.contains(searchQuery, ignoreCase = true) ||
-                    node.inputContract.contains(searchQuery, ignoreCase = true) ||
-                    node.outputContract.contains(searchQuery, ignoreCase = true)
+                        node.assignedDepartment.contains(searchQuery, ignoreCase = true) ||
+                        node.inputContract.contains(searchQuery, ignoreCase = true) ||
+                        node.outputContract.contains(searchQuery, ignoreCase = true)
                 }
             }
 }
 
 sealed interface FactoryFlowUiEvent {
+    /** Loads the tenant's persisted pipeline and module catalogue from the server. */
+    data class LoadTenantPipeline(val tenantSlug: String) : FactoryFlowUiEvent
+    data class Retry(val tenantSlug: String) : FactoryFlowUiEvent
+
+    /** Resets the tenant's topology back to a standard starter preset. */
+    data class ResetToPreset(
+        val tenantSlug: String,
+        val preset: GarmentBusinessPreset
+    ) : FactoryFlowUiEvent
+
+    /** Switches one module on or off for this tenant. */
+    data class SetModuleActive(
+        val tenantSlug: String,
+        val moduleId: String,
+        val isActive: Boolean
+    ) : FactoryFlowUiEvent
+
+    /** Renames a module for this tenant only. */
+    data class RenameModule(
+        val tenantSlug: String,
+        val nodeId: String,
+        val displayName: String
+    ) : FactoryFlowUiEvent
+
+    data class StartRenamingModule(val node: PipelineNode?) : FactoryFlowUiEvent
+    data object ToggleModulePanel : FactoryFlowUiEvent
+    data object DismissStatusMessage : FactoryFlowUiEvent
+
     data class SelectPreset(val preset: GarmentBusinessPreset) : FactoryFlowUiEvent
-    data class SelectScenario(val scenario: com.eventverse.app.domain.pipeline.PipelineSimulationScenario) : FactoryFlowUiEvent
+    data class SelectScenario(val scenario: PipelineSimulationScenario) : FactoryFlowUiEvent
     data class SelectNode(val node: PipelineNode?) : FactoryFlowUiEvent
     data class InspectNodeInputs(val node: PipelineNode?) : FactoryFlowUiEvent
     data object TogglePresentationMode : FactoryFlowUiEvent
@@ -51,4 +103,3 @@ sealed interface FactoryFlowUiEvent {
     data object ToggleHideBypassed : FactoryFlowUiEvent
     data object ResetFilters : FactoryFlowUiEvent
 }
-

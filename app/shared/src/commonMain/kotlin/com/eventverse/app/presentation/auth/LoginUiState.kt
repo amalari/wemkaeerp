@@ -2,9 +2,20 @@ package com.eventverse.app.presentation.auth
 
 import com.eventverse.app.domain.auth.UserSession
 
-enum class LoginTab(val label: String) {
+enum class LoginTab(val label: String, val isAvailable: Boolean = true) {
     GOOGLE("Akun Google"),
-    WHATSAPP("WhatsApp OTP")
+
+    /**
+     * Hidden for now: the OTP screen is a UI mock with no server-side flow behind it, so it
+     * could only hand out a session that every authenticated endpoint rejects. Flip this
+     * back to `true` together with a real OTP endpoint.
+     */
+    WHATSAPP("WhatsApp OTP", isAvailable = false);
+
+    companion object {
+        /** Tabs a user may actually pick. */
+        val available: List<LoginTab> get() = entries.filter { it.isAvailable }
+    }
 }
 
 data class LoginUiState(
@@ -25,11 +36,12 @@ sealed interface LoginUiEvent {
     data class UpdateTenantSlug(val slug: String) : LoginUiEvent
     data class UpdatePhoneNumber(val phone: String) : LoginUiEvent
     data class UpdateOtpCode(val otp: String) : LoginUiEvent
-    data class SubmitGoogleLogin(
-        val idToken: String,
-        val email: String? = null,
-        val name: String? = null
-    ) : LoginUiEvent
+    /**
+     * Carries the Google ID token only. Email and name are no longer accepted from the
+     * client: the server derives them from the verified token, so a caller cannot assert
+     * who it is.
+     */
+    data class SubmitGoogleLogin(val idToken: String) : LoginUiEvent
     data object SubmitDemoLogin : LoginUiEvent
     data object SubmitDemoSuperAdminLogin : LoginUiEvent
     data object SendWhatsAppOtp : LoginUiEvent

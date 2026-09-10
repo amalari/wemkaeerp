@@ -11,7 +11,8 @@ import io.ktor.http.*
 
 class RbacApiClient(
     private val httpClient: HttpClient = HttpClient(),
-    private val baseUrl: String = ""
+    private val baseUrl: String = "",
+    private val tokenProvider: SessionTokenProvider = StoredSessionTokenProvider
 ) {
 
     private fun resolveUrl(path: String): String =
@@ -22,7 +23,7 @@ class RbacApiClient(
      */
     suspend fun getDepartments(tenantSlug: String): Result<List<Department>> = runCatching {
         val response = httpClient.get(resolveUrl("/api/tenant/departments")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -36,7 +37,7 @@ class RbacApiClient(
      */
     suspend fun getRoles(tenantSlug: String): Result<List<CustomRole>> = runCatching {
         val response = httpClient.get(resolveUrl("/api/tenant/roles")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -55,7 +56,7 @@ class RbacApiClient(
             resolveUrl("/api/tenant/employees")
         }
         val response = httpClient.get(url) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -79,7 +80,7 @@ class RbacApiClient(
         val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\",\"modulePermissions\":$permJson}"
 
         val response = httpClient.post(resolveUrl("/api/tenant/roles")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -102,7 +103,7 @@ class RbacApiClient(
         val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\",\"modulePermissions\":$permJson}"
 
         val response = httpClient.put(resolveUrl("/api/tenant/roles/${role.id.value}")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -117,7 +118,7 @@ class RbacApiClient(
      */
     suspend fun deleteRole(tenantSlug: String, roleId: String): Result<Unit> = runCatching {
         val response = httpClient.delete(resolveUrl("/api/tenant/roles/$roleId")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal menghapus jabatan (HTTP ${response.status.value}): ${response.bodyAsText()}")

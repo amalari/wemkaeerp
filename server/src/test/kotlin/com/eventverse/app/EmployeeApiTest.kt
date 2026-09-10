@@ -51,7 +51,7 @@ class EmployeeApiTest {
 
         // 1. Check list of employees
         val listRes = client.get("/api/tenant/employees") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, listRes.status)
         val listBody = listRes.bodyAsText()
@@ -60,7 +60,7 @@ class EmployeeApiTest {
 
         // 2. Query T-Shape view for Budi (Head of Sales)
         val tShapeRes = client.get("/api/tenant/employees/emp-budi/t-shape") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, tShapeRes.status)
         val tShapeBody = tShapeRes.bodyAsText()
@@ -73,7 +73,7 @@ class EmployeeApiTest {
 
         // 3. Create a new employee in Sales
         val createRes = client.post("/api/tenant/employees") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Ilham Pratama\",\"email\":\"ilham@wemade.id\",\"departmentId\":\"dept-sales\",\"level\":\"STAFF_OPERATOR\",\"roleTitle\":\"Sales Canvassing\",\"reportsToId\":\"emp-budi\",\"phone\":\"081234567\"}")
         }
@@ -84,7 +84,7 @@ class EmployeeApiTest {
 
         // 4. Update employee
         val updateRes = client.put("/api/tenant/employees/$empId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Ilham Pratama Putra\",\"roleTitle\":\"Senior Sales Canvassing\"}")
         }
@@ -94,7 +94,7 @@ class EmployeeApiTest {
 
         // 5. Delete employee
         val delRes = client.delete("/api/tenant/employees/$empId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, delRes.status)
     }
@@ -119,7 +119,7 @@ class EmployeeApiTest {
 
         // Appoint new Head of Sales with DEMOTE_TO_STAFF succession
         val res = client.post("/api/tenant/employees") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Sultan Akbar\",\"email\":\"sultan.sales@wemade.id\",\"departmentId\":\"dept-sales\",\"level\":\"HEAD_OF_DEPARTMENT\",\"roleTitle\":\"General Manager Sales\",\"successionAction\":\"DEMOTE_TO_STAFF\"}")
         }
@@ -128,7 +128,7 @@ class EmployeeApiTest {
 
         // Verify previous head Budi is now staff and reports to Sultan
         val budiRes = client.get("/api/tenant/employees/emp-budi") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, budiRes.status)
         val budiBody = budiRes.bodyAsText()
@@ -156,7 +156,7 @@ class EmployeeApiTest {
 
         val activeBudi = requireNotNull(empRepo.findAllByTenant(tenantId).find { it.name.contains("Budi") }) { "Active Budi not found" }
         val res = client.post("/api/tenant/employees") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Budi Duplikat\",\"email\":\"${activeBudi.email}\",\"departmentId\":\"${activeBudi.department?.id?.value}\",\"level\":\"STAFF_OPERATOR\"}")
         }

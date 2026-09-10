@@ -28,6 +28,7 @@ import com.eventverse.app.routes.rbacRoutes
 import com.eventverse.app.routes.departmentRoutes
 import com.eventverse.app.routes.employeeRoutes
 import com.eventverse.app.routes.pipelineRoutes
+import com.eventverse.app.infrastructure.PostgresTenantEntitlementRepository
 import com.eventverse.app.infrastructure.PostgresTenantPipelineRepository
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 
@@ -42,7 +43,8 @@ fun Application.module(
     roleRepository: RoleRepository? = null,
     departmentRepository: DepartmentRepository? = null,
     employeeRepository: EmployeeRepository? = null,
-    pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null
+    pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null,
+    entitlementRepository: com.eventverse.app.domain.pipeline.TenantEntitlementRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -53,6 +55,7 @@ fun Application.module(
     val deptRepo = departmentRepository ?: PostgresDepartmentRepository()
     val empRepo = employeeRepository ?: PostgresEmployeeRepository()
     val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
+    val entitlementRepo = entitlementRepository ?: PostgresTenantEntitlementRepository()
 
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
@@ -63,6 +66,7 @@ fun Application.module(
 
     install(TenantResolutionPlugin) {
         this.tenantRepository = repository
+        this.jwtTokenService = jwtTokenService
         this.publicRoutePrefixes = listOf("/api/public", "/health")
     }
 
@@ -281,6 +285,6 @@ fun Application.module(
         rbacRoutes(roleRepo)
         departmentRoutes(deptRepo, empRepo)
         employeeRoutes(empRepo, deptRepo)
-        pipelineRoutes(pipeRepo)
+        pipelineRoutes(pipeRepo, entitlementRepo)
     }
 }

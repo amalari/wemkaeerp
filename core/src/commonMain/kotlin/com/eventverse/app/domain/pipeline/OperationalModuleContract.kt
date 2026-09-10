@@ -168,6 +168,60 @@ enum class ModuleArchetype(
         defaultExpectedInputType = "AnyOperationalPayload",
         defaultProducedOutputType = "AnyOperationalPayload"
     );
+
+    /**
+     * Built-in module that best represents this capability slot. Custom plugin nodes borrow
+     * it for icon selection and access scoping, since they have no [BusinessModule] of their own.
+     */
+    val representativeModule: BusinessModule
+        get() = when (this) {
+            ORDER_INGESTION -> BusinessModule.CRM_SALES
+            RAW_MATERIAL -> BusinessModule.INVENTORY
+            COSTING_HPP -> BusinessModule.COSTING_HPP
+            CUTTING -> BusinessModule.PRODUCTION_MRP
+            SEWING -> BusinessModule.OPERATOR_EXEC
+            FINISHING -> BusinessModule.OPERATOR_EXEC
+            QUALITY_CONTROL -> BusinessModule.QUALITY_CONTROL
+            FULFILLMENT -> BusinessModule.FULFILLMENT
+            CUSTOM_EXTENSION -> BusinessModule.PRODUCTION_MRP
+        }
+
+    /** Macro stage a node of this archetype belongs to on the factory canvas. */
+    val defaultStage: PipelineStage
+        get() = when (this) {
+            ORDER_INGESTION -> PipelineStage.COMMERCIAL
+            COSTING_HPP -> PipelineStage.ENGINEERING
+            RAW_MATERIAL -> PipelineStage.SUPPLY_CHAIN
+            CUTTING, SEWING, FINISHING, CUSTOM_EXTENSION -> PipelineStage.MANUFACTURING
+            QUALITY_CONTROL, FULFILLMENT -> PipelineStage.ASSURANCE_DELIVERY
+        }
+
+    companion object {
+        fun fromCode(code: String?): ModuleArchetype? =
+            entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
+
+        /**
+         * Single source of truth mapping a standard [BusinessModule] to the capability
+         * slot it fills. Previously duplicated in two places that could drift apart.
+         */
+        fun forModule(module: BusinessModule): ModuleArchetype = when (module) {
+            BusinessModule.CRM_SALES -> ORDER_INGESTION
+            BusinessModule.SAMPLING_ORDER -> ORDER_INGESTION
+            BusinessModule.INVENTORY -> RAW_MATERIAL
+            BusinessModule.TECH_PACK_BOM -> COSTING_HPP
+            BusinessModule.COSTING_HPP -> COSTING_HPP
+            BusinessModule.PRODUCTION_MRP -> CUTTING
+            BusinessModule.OPERATOR_EXEC -> SEWING
+            BusinessModule.QUALITY_CONTROL -> QUALITY_CONTROL
+            BusinessModule.FULFILLMENT -> FULFILLMENT
+        }
+
+        /** Resolves the archetype for a persisted module code, standard or custom. */
+        fun forModuleCode(moduleCode: String): ModuleArchetype {
+            val standard = BusinessModule.entries.firstOrNull { it.code == moduleCode }
+            return standard?.let { forModule(it) } ?: CUSTOM_EXTENSION
+        }
+    }
 }
 
 /**
@@ -176,17 +230,7 @@ enum class ModuleArchetype(
  */
 interface OperationalModuleSpecification {
     val module: BusinessModule
-    val archetype: ModuleArchetype get() = when (module) {
-        BusinessModule.CRM_SALES -> ModuleArchetype.ORDER_INGESTION
-        BusinessModule.SAMPLING_ORDER -> ModuleArchetype.ORDER_INGESTION
-        BusinessModule.INVENTORY -> ModuleArchetype.RAW_MATERIAL
-        BusinessModule.TECH_PACK_BOM -> ModuleArchetype.COSTING_HPP
-        BusinessModule.COSTING_HPP -> ModuleArchetype.COSTING_HPP
-        BusinessModule.PRODUCTION_MRP -> ModuleArchetype.CUTTING
-        BusinessModule.OPERATOR_EXEC -> ModuleArchetype.SEWING
-        BusinessModule.QUALITY_CONTROL -> ModuleArchetype.QUALITY_CONTROL
-        BusinessModule.FULFILLMENT -> ModuleArchetype.FULFILLMENT
-    }
+    val archetype: ModuleArchetype get() = ModuleArchetype.forModule(module)
 
     /**
      * Presets where this module is recommended as starter default.
@@ -200,6 +244,12 @@ interface OperationalModuleSpecification {
     val upstreamPrerequisites: List<String>
     val downstreamHandoffs: List<String>
 
+    /**
+     * Who carries the cost when this module detects a defect. Null for modules that do not
+     * make a quality judgement.
+     */
+    val defectLiability: DefectLiability? get() = null
+
     fun getExecutionPolicy(preset: GarmentBusinessPreset): ModuleExecutionPolicy {
         return if (supportedPresets.contains(preset)) {
             ModuleExecutionPolicy.MANDATORY
@@ -207,6 +257,19 @@ interface OperationalModuleSpecification {
             ModuleExecutionPolicy.BYPASSED
         }
     }
+
+    /**
+     * Costing rules can legitimately differ per business model — the same HPP module bills a
+     * full package under FOB but only a service fee under CMT makloon. Modules that behave
+     * identically everywhere inherit [costingBehavior].
+     */
+    fun costingBehaviorFor(preset: GarmentBusinessPreset): CostingBehavior = costingBehavior
+
+    /** Likewise, stock semantics differ: owned fabric under FOB, consigned under CMT. */
+    fun stockOwnershipFor(preset: GarmentBusinessPreset): StockOwnershipSemantics = stockOwnership
+
+    /** Liability attribution can also depend on who supplied the material. */
+    fun defectLiabilityFor(preset: GarmentBusinessPreset): DefectLiability? = defectLiability
 }
 
 /**
@@ -222,7 +285,49 @@ data class DynamicModuleDescriptor(
     val producedOutputDataType: String,
     val isCustomTenantPlugin: Boolean = false,
     val customConfigSchemaJson: String? = null
-)
+) {
+    init {
+        require(moduleId.isNotBlank()) { "DynamicModuleDescriptor.moduleId cannot be blank" }
+        require(name.isNotBlank()) { "DynamicModuleDescriptor.name cannot be blank" }
+    }
+
+    /**
+     * Materialises this descriptor as a node that can be inserted into a tenant's
+     * pipeline graph and persisted. This is what turns the descriptor from a type
+     * declaration into a usable extension point.
+     */
+    fun toPipelineNode(
+        nodeId: String = "node-$moduleId",
+        stepOrderIndex: Int = 0,
+        isBypassed: Boolean = false,
+        formulaParameters: Map<String, String> = emptyMap()
+    ): CustomPipelineNode = CustomPipelineNode(
+        nodeId = nodeId,
+        moduleId = moduleId,
+        customDisplayName = name,
+        archetype = archetype,
+        isBypassed = isBypassed,
+        stepOrderIndex = stepOrderIndex,
+        customFormulaParameters = formulaParameters,
+        isCustomPlugin = isCustomTenantPlugin,
+        configSchemaJson = customConfigSchemaJson
+    )
+
+    companion object {
+        /** Reconstructs a descriptor from a persisted custom node. */
+        fun fromPipelineNode(node: CustomPipelineNode): DynamicModuleDescriptor =
+            DynamicModuleDescriptor(
+                moduleId = node.moduleId,
+                archetype = node.archetype,
+                name = node.customDisplayName,
+                description = node.archetype.displayName,
+                acceptedInputDataTypes = setOf(node.archetype.defaultExpectedInputType),
+                producedOutputDataType = node.archetype.defaultProducedOutputType,
+                isCustomTenantPlugin = node.isCustomPlugin,
+                customConfigSchemaJson = node.configSchemaJson
+            )
+    }
+}
 
 /**
  * Dynamic tenant pipeline graph representing a custom, "puzzled" workflow.
@@ -235,6 +340,76 @@ data class CustomTenantPipeline(
     val nodes: List<CustomPipelineNode>,
     val edges: List<CustomPipelineEdge>
 ) {
+    /** Nodes in execution order, as the tenant arranged them. */
+    val orderedNodes: List<CustomPipelineNode>
+        get() = nodes.sortedBy { it.stepOrderIndex }
+
+    val activeNodes: List<CustomPipelineNode> get() = nodes.filterNot { it.isBypassed }
+
+    val bypassedNodes: List<CustomPipelineNode> get() = nodes.filter { it.isBypassed }
+
+    val customPluginNodes: List<CustomPipelineNode> get() = nodes.filter { it.isCustomPlugin }
+
+    /**
+     * True when the graph carries no operational node. A tenant row can legitimately
+     * exist in this state (e.g. seeded before its topology was written), and callers
+     * must treat it as "needs provisioning" rather than as a valid empty workflow.
+     */
+    val isEmpty: Boolean get() = nodes.isEmpty()
+
+    fun findNode(nodeId: String): CustomPipelineNode? = nodes.firstOrNull { it.nodeId == nodeId }
+
+    /** Renames one module for this tenant only, leaving every other tenant untouched. */
+    fun renameNode(nodeId: String, newDisplayName: String): CustomTenantPipeline {
+        require(newDisplayName.isNotBlank()) { "Module display name cannot be blank" }
+        requireNotNull(findNode(nodeId)) { "Node not found in pipeline: $nodeId" }
+        return copy(nodes = nodes.map { if (it.nodeId == nodeId) it.rename(newDisplayName) else it })
+    }
+
+    /** Switches a module on or off without severing the surrounding wiring. */
+    fun setNodeBypassed(nodeId: String, isBypassed: Boolean): CustomTenantPipeline {
+        requireNotNull(findNode(nodeId)) { "Node not found in pipeline: $nodeId" }
+        return copy(nodes = nodes.map { if (it.nodeId == nodeId) it.withBypassed(isBypassed) else it })
+    }
+
+    /** Overrides tenant-specific calculation parameters (sewing tariff, secret margin, …). */
+    fun updateNodeFormulaParameters(
+        nodeId: String,
+        parameters: Map<String, String>
+    ): CustomTenantPipeline {
+        requireNotNull(findNode(nodeId)) { "Node not found in pipeline: $nodeId" }
+        return copy(
+            nodes = nodes.map {
+                if (it.nodeId == nodeId) it.copy(customFormulaParameters = parameters) else it
+            }
+        )
+    }
+
+    /** Appends a module (standard or custom plugin) at the end of the flow. */
+    fun addNode(node: CustomPipelineNode): CustomTenantPipeline {
+        require(findNode(node.nodeId) == null) { "Duplicate node ID: ${node.nodeId}" }
+        val nextIndex = (nodes.maxOfOrNull { it.stepOrderIndex } ?: 0) + 1
+        return copy(nodes = nodes + node.copy(stepOrderIndex = nextIndex))
+    }
+
+    /** Removes a module and every edge that referenced it, keeping the graph consistent. */
+    fun removeNode(nodeId: String): CustomTenantPipeline = copy(
+        nodes = nodes.filterNot { it.nodeId == nodeId },
+        edges = edges.filterNot { it.fromNodeId == nodeId || it.toNodeId == nodeId }
+    )
+
+    fun connect(edge: CustomPipelineEdge): CustomTenantPipeline {
+        requireNotNull(findNode(edge.fromNodeId)) { "Unknown source node: ${edge.fromNodeId}" }
+        requireNotNull(findNode(edge.toNodeId)) { "Unknown target node: ${edge.toNodeId}" }
+        require(edges.none { it.edgeId == edge.edgeId }) { "Duplicate edge ID: ${edge.edgeId}" }
+        return copy(edges = edges + edge)
+    }
+
+    fun rename(newName: String): CustomTenantPipeline {
+        require(newName.isNotBlank()) { "Pipeline name cannot be blank" }
+        return copy(pipelineName = newName)
+    }
+
     companion object {
         fun fromPreset(tenantId: TenantId, preset: GarmentBusinessPreset): CustomTenantPipeline {
             val snapshot = PipelinePresetFactory.createSnapshot(preset)
@@ -243,43 +418,49 @@ data class CustomTenantPipeline(
                     nodeId = node.id,
                     moduleId = node.module.code,
                     customDisplayName = node.title,
-                    archetype = when (node.module) {
-                        BusinessModule.CRM_SALES -> ModuleArchetype.ORDER_INGESTION
-                        BusinessModule.SAMPLING_ORDER -> ModuleArchetype.ORDER_INGESTION
-                        BusinessModule.INVENTORY -> ModuleArchetype.RAW_MATERIAL
-                        BusinessModule.TECH_PACK_BOM -> ModuleArchetype.COSTING_HPP
-                        BusinessModule.COSTING_HPP -> ModuleArchetype.COSTING_HPP
-                        BusinessModule.PRODUCTION_MRP -> ModuleArchetype.CUTTING
-                        BusinessModule.OPERATOR_EXEC -> ModuleArchetype.SEWING
-                        BusinessModule.QUALITY_CONTROL -> ModuleArchetype.QUALITY_CONTROL
-                        BusinessModule.FULFILLMENT -> ModuleArchetype.FULFILLMENT
-                    },
+                    archetype = ModuleArchetype.forModule(node.module),
                     isBypassed = node.isBypassed,
                     stepOrderIndex = node.stepNumber,
                     customFormulaParameters = emptyMap()
                 )
             }
 
+            val nodesByModuleCode = snapshot.nodes.associateBy { it.module.code }
             val customEdges = snapshot.nodes.flatMap { sourceNode ->
                 sourceNode.downstreamModuleCodes.mapNotNull { targetCode ->
-                    val targetNode = snapshot.nodes.firstOrNull { it.module.code == targetCode }
-                    if (targetNode != null) {
+                    nodesByModuleCode[targetCode]?.let { targetNode ->
                         CustomPipelineEdge(
                             edgeId = "edge-${sourceNode.id}-to-${targetNode.id}",
                             fromNodeId = sourceNode.id,
                             toNodeId = targetNode.id,
                             expectedDataType = "StandardHandoffPayload"
                         )
-                    } else null
+                    }
+                }
+            }
+
+            // Rework/defect feedback routes are part of the tenant topology, not decoration:
+            // persist them so a restored graph still knows where rejects flow back to.
+            val feedbackEdges = snapshot.nodes.flatMap { sourceNode ->
+                sourceNode.feedbackRoutes.mapNotNull { route ->
+                    nodesByModuleCode[route.targetModuleCode]?.let { targetNode ->
+                        CustomPipelineEdge(
+                            edgeId = "rework-${sourceNode.id}-to-${targetNode.id}",
+                            fromNodeId = sourceNode.id,
+                            toNodeId = targetNode.id,
+                            expectedDataType = "DefectReworkPayload",
+                            isFeedbackReworkLoop = true
+                        )
+                    }
                 }
             }
 
             return CustomTenantPipeline(
                 tenantId = tenantId,
-                pipelineName = "Alur Operasional Tenant",
+                pipelineName = "Alur Operasional ${preset.shortBadge}",
                 baseStarterPreset = preset,
                 nodes = customNodes,
-                edges = customEdges
+                edges = (customEdges + feedbackEdges).distinctBy { it.edgeId }
             )
         }
     }
@@ -292,8 +473,30 @@ data class CustomPipelineNode(
     val archetype: ModuleArchetype,
     val isBypassed: Boolean = false,
     val stepOrderIndex: Int = 0,
-    val customFormulaParameters: Map<String, String> = emptyMap()
-)
+    val customFormulaParameters: Map<String, String> = emptyMap(),
+    /** True when this node comes from a tenant/third-party plugin rather than a built-in module. */
+    val isCustomPlugin: Boolean = false,
+    /** Opaque JSON config schema for a custom plugin; passed through untouched. */
+    val configSchemaJson: String? = null
+) {
+    init {
+        require(nodeId.isNotBlank()) { "CustomPipelineNode.nodeId cannot be blank" }
+        require(moduleId.isNotBlank()) { "CustomPipelineNode.moduleId cannot be blank" }
+    }
+
+    /** The built-in module this node maps to, or null when it is a custom plugin. */
+    val standardModule: BusinessModule?
+        get() = BusinessModule.entries.firstOrNull { it.code == moduleId }
+
+    fun rename(newDisplayName: String): CustomPipelineNode {
+        require(newDisplayName.isNotBlank()) { "Module display name cannot be blank" }
+        return copy(customDisplayName = newDisplayName)
+    }
+
+    fun withBypassed(isBypassed: Boolean): CustomPipelineNode = copy(isBypassed = isBypassed)
+
+    fun formulaParameter(key: String): String? = customFormulaParameters[key]
+}
 
 data class CustomPipelineEdge(
     val edgeId: String,

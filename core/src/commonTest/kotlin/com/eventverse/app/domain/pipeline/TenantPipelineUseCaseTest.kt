@@ -91,6 +91,66 @@ class TenantPipelineUseCaseTest {
     }
 
     @Test
+    fun getPipeline_whenStoredRowHasNoNodes_shouldProvisionFromPreset() = runTest {
+        // Regression: a row seeded without a topology (as the demo tenants were) is an
+        // unprovisioned tenant, not a valid empty workflow. Returning it as-is left the
+        // factory canvas with zero modules.
+        repository.save(
+            CustomTenantPipeline(
+                tenantId = testTenantId,
+                pipelineName = "Alur Operasional PT WeMade Garmen Ekspor",
+                baseStarterPreset = GarmentBusinessPreset.CMT_MAKLOON,
+                nodes = emptyList(),
+                edges = emptyList()
+            )
+        )
+
+        val pipeline = getUseCase(testTenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+
+        assertTrue(pipeline.nodes.isNotEmpty(), "Pipeline kosong harus di-provision ulang")
+        assertTrue(pipeline.edges.isNotEmpty())
+        // The stored row's own preset and curated name win over the caller's fallback.
+        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, pipeline.baseStarterPreset)
+        assertEquals("Alur Operasional PT WeMade Garmen Ekspor", pipeline.pipelineName)
+
+        // And the repaired topology is persisted, so the next read is stable.
+        val stored = repository.findByTenantId(testTenantId)
+        assertNotNull(stored)
+        assertEquals(pipeline.nodes.size, stored.nodes.size)
+    }
+
+    @Test
+    fun getPipeline_whenAlreadyProvisioned_shouldNotOverwriteCustomisations() = runTest {
+        val initial = getUseCase(testTenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        val renamedNodeId = initial.nodes.first { it.moduleId == "inventory" }.nodeId
+        saveUseCase(initial.renameNode(renamedNodeId, "Gudang Kain Roll Impor")).getOrThrow()
+
+        val fetched = getUseCase(testTenantId, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+
+        assertEquals(
+            "Gudang Kain Roll Impor",
+            fetched.nodes.first { it.nodeId == renamedNodeId }.customDisplayName
+        )
+        assertEquals(GarmentBusinessPreset.FOB_FULL_PACKAGE, fetched.baseStarterPreset)
+    }
+
+    @Test
+    fun savePipeline_withAllModulesBypassed_shouldFail() = runTest {
+        val initial = getUseCase(testTenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        val allBypassed = initial.nodes.fold(initial) { acc, node ->
+            acc.setNodeBypassed(node.nodeId, true)
+        }
+
+        val result = saveUseCase(allBypassed)
+
+        assertTrue(result.isFailure)
+        assertTrue(
+            result.exceptionOrNull()?.message?.contains("at least one active") == true,
+            "Pesan: ${result.exceptionOrNull()?.message}"
+        )
+    }
+
+    @Test
     fun resetPipeline_shouldRestoreSpecifiedPreset() = runTest {
         // Initial setup as FOB
         getUseCase(testTenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE)

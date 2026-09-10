@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
@@ -229,21 +230,26 @@ fun App() {
                                     .background(WeMadeColors.Border)
                             )
 
-                            // GCP-Style Company Switcher Dropdown for Superadmin
-                            com.eventverse.app.presentation.navigation.CompanySwitcherDropdown(
-                                currentSlug = session.tenantSlug ?: "wemade-demo",
-                                onSelectCompany = { company ->
-                                    authViewModel.switchTenant(company)
-                                }
-                            )
+                            // GCP-Style Company Switcher Dropdown, for platform superadmins
+                            // only: the server authorises acting on another tenant purely by
+                            // role, so offering it to a tenant-bound account would just
+                            // produce 403s on every request after the switch.
+                            if (session.user.role == Role.PLATFORM_SUPERADMIN) {
+                                com.eventverse.app.presentation.navigation.CompanySwitcherDropdown(
+                                    currentSlug = session.tenantSlug ?: "wemade-demo",
+                                    onSelectCompany = { company ->
+                                        authViewModel.switchTenant(company)
+                                    }
+                                )
 
-                            // Divider
-                            Box(
-                                modifier = Modifier
-                                    .height(24.dp)
-                                    .width(1.dp)
-                                    .background(WeMadeColors.Border)
-                            )
+                                // Divider
+                                Box(
+                                    modifier = Modifier
+                                        .height(24.dp)
+                                        .width(1.dp)
+                                        .background(WeMadeColors.Border)
+                                )
+                            }
 
                             // User Profile Capsule
                             Row(

@@ -1,0 +1,75 @@
+package com.eventverse.app.shared.pipeline
+
+import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.pipeline.TenantModuleAvailability
+import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
+import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
+import com.eventverse.app.domain.rbac.BusinessModule
+import com.eventverse.app.domain.tenant.SubscriptionTier
+import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonArrayOf
+import com.eventverse.app.shared.json.jsonObjectOf
+import com.eventverse.app.shared.json.jsonOf
+
+/**
+ * Wire format for the per-tenant module catalogue, shared by the Ktor server that produces
+ * it and the Compose client that consumes it.
+ */
+object TenantModuleCatalogCodec {
+
+    fun encode(
+        entitlement: TenantModuleEntitlement,
+        modules: List<TenantModuleAvailability>
+    ): String = jsonObjectOf(
+        "tier" to jsonOf(entitlement.tier.name),
+        "maxActiveModules" to jsonOf(entitlement.maxActiveModules),
+        "allowsCustomPlugins" to jsonOf(entitlement.allowsCustomPlugins),
+        "activeModuleCount" to jsonOf(modules.count { it.isActive }),
+        "modules" to jsonArrayOf(modules.map(::encodeModule))
+    ).encode()
+
+    fun decode(rawJson: String): TenantModuleCatalogSnapshot {
+        val root = JsonParser.parseObject(rawJson)
+        return TenantModuleCatalogSnapshot(
+            tier = root.string("tier")
+                ?.let { name -> SubscriptionTier.entries.firstOrNull { it.name == name } }
+                ?: SubscriptionTier.PRO,
+            maxActiveModules = root.int("maxActiveModules") ?: 0,
+            allowsCustomPlugins = root.boolean("allowsCustomPlugins") ?: false,
+            modules = root.objectArray("modules").mapNotNull(::decodeModule)
+        )
+    }
+
+    private fun encodeModule(module: TenantModuleAvailability): JsonValue = jsonObjectOf(
+        "moduleId" to jsonOf(module.moduleId),
+        "displayName" to jsonOf(module.displayName),
+        "tenantDisplayName" to jsonOf(module.tenantDisplayName),
+        "archetype" to jsonOf(module.archetype.code),
+        "isCustomPlugin" to jsonOf(module.isCustomPlugin),
+        "isInstalled" to jsonOf(module.isInstalled),
+        "isActive" to jsonOf(module.isActive),
+        "isGrantedByPlan" to jsonOf(module.isGrantedByPlan),
+        "isRecommendedForPreset" to jsonOf(module.isRecommendedForPreset),
+        "nodeId" to jsonOf(module.nodeId)
+    )
+
+    private fun decodeModule(module: JsonValue.Obj): TenantModuleAvailability? {
+        val moduleId = module.string("moduleId")?.takeIf { it.isNotBlank() } ?: return null
+        val archetype = ModuleArchetype.fromCode(module.string("archetype"))
+            ?: ModuleArchetype.forModuleCode(moduleId)
+        return TenantModuleAvailability(
+            moduleId = moduleId,
+            displayName = module.string("displayName") ?: moduleId,
+            tenantDisplayName = module.string("tenantDisplayName"),
+            archetype = archetype,
+            standardModule = BusinessModule.entries.firstOrNull { it.code == moduleId },
+            isCustomPlugin = module.boolean("isCustomPlugin") ?: false,
+            isInstalled = module.boolean("isInstalled") ?: false,
+            isActive = module.boolean("isActive") ?: false,
+            isGrantedByPlan = module.boolean("isGrantedByPlan") ?: false,
+            isRecommendedForPreset = module.boolean("isRecommendedForPreset") ?: false,
+            nodeId = module.string("nodeId")
+        )
+    }
+}

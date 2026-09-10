@@ -44,7 +44,7 @@ class TenantIsolationApiTest {
 
         // 1. Tenant Alpha creates custom role
         val createRoleRes = client.post("/api/tenant/roles") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Alpha Unique Specialist Role\"}")
         }
@@ -52,14 +52,14 @@ class TenantIsolationApiTest {
 
         // Tenant Beta lists roles -> Must NOT contain Alpha's role
         val betaRolesRes = client.get("/api/tenant/roles") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
         assertEquals(HttpStatusCode.OK, betaRolesRes.status)
         assertFalse(betaRolesRes.bodyAsText().contains("Alpha Unique Specialist Role"))
 
         // 2. Tenant Alpha creates department
         val createDeptRes = client.post("/api/tenant/departments") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
             contentType(ContentType.Application.Json)
             setBody("{\"displayName\":\"Divisi Khusus Alpha\",\"shortName\":\"AlphaDept\"}")
         }
@@ -67,7 +67,7 @@ class TenantIsolationApiTest {
 
         // Tenant Beta lists departments -> Must NOT contain Alpha's department
         val betaDeptsRes = client.get("/api/tenant/departments") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
         assertEquals(HttpStatusCode.OK, betaDeptsRes.status)
         assertFalse(betaDeptsRes.bodyAsText().contains("Divisi Khusus Alpha"))
@@ -86,43 +86,43 @@ class TenantIsolationApiTest {
 
         // 1. Both tenants restore default departments
         val alphaRestoreDept = client.post("/api/tenant/departments/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
         }
         assertEquals(HttpStatusCode.OK, alphaRestoreDept.status)
 
         val betaRestoreDept = client.post("/api/tenant/departments/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
         assertEquals(HttpStatusCode.OK, betaRestoreDept.status)
 
         // 2. Both tenants restore default roles
         val alphaRestoreRole = client.post("/api/tenant/roles/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
         }
         assertEquals(HttpStatusCode.OK, alphaRestoreRole.status)
 
         val betaRestoreRole = client.post("/api/tenant/roles/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
         assertEquals(HttpStatusCode.OK, betaRestoreRole.status)
 
         // 3. Both tenants restore default employees
         val alphaRestoreEmp = client.post("/api/tenant/employees/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
         }
         assertEquals(HttpStatusCode.OK, alphaRestoreEmp.status)
 
         val betaRestoreEmp = client.post("/api/tenant/employees/restore-presets") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
         assertEquals(HttpStatusCode.OK, betaRestoreEmp.status)
 
         // 4. Verify distinct tenant-scoped department IDs
         val alphaDepts = client.get("/api/tenant/departments") {
-            header("X-Tenant-Slug", "pabrik-alpha")
+            asTenant("pabrik-alpha")
         }
         val betaDepts = client.get("/api/tenant/departments") {
-            header("X-Tenant-Slug", "pabrik-beta")
+            asTenant("pabrik-beta")
         }
 
         val alphaText = alphaDepts.bodyAsText()

@@ -43,7 +43,7 @@ class DepartmentApiTest {
         }
 
         val res = client.post("/api/tenant/departments") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"displayName\":\"Bordir & Sablon Printing\",\"shortName\":\"Bordir\",\"colorHex\":4292976968}")
         }
@@ -56,7 +56,7 @@ class DepartmentApiTest {
 
         val deptId = body.substringAfter("\"id\":\"").substringBefore("\"")
         val getRes = client.get("/api/tenant/departments/$deptId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, getRes.status)
         assertTrue(getRes.bodyAsText().contains("Bordir & Sablon Printing"))
@@ -75,14 +75,14 @@ class DepartmentApiTest {
         }
 
         val createRes = client.post("/api/tenant/departments") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"displayName\":\"Desain Pola Baju\",\"shortName\":\"Pola\"}")
         }
         val deptId = createRes.bodyAsText().substringAfter("\"id\":\"").substringBefore("\"")
 
         val updateRes = client.put("/api/tenant/departments/$deptId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"displayName\":\"Desain Pola & Tech Pack Marker\",\"shortName\":\"TechPack\"}")
         }
@@ -107,31 +107,31 @@ class DepartmentApiTest {
         }
 
         val createRes = client.post("/api/tenant/departments") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"displayName\":\"Divisi Uji Coba\",\"shortName\":\"Uji\"}")
         }
         val deptId = createRes.bodyAsText().substringAfter("\"id\":\"").substringBefore("\"")
 
         val delRes = client.delete("/api/tenant/departments/$deptId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, delRes.status)
 
         // Archived departments no longer show up in the active list...
         val listRes = client.get("/api/tenant/departments") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertFalse(listRes.bodyAsText().contains(deptId))
 
         // ...but remain findable by id (so it can be restored) and appear in the archived list.
         val getRes = client.get("/api/tenant/departments/$deptId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, getRes.status)
 
         val archivedRes = client.get("/api/tenant/departments/archived") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertTrue(archivedRes.bodyAsText().contains(deptId))
     }
@@ -149,7 +149,7 @@ class DepartmentApiTest {
         }
 
         val res = client.post("/api/tenant/departments/restore-presets") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, res.status)
         val body = res.bodyAsText()

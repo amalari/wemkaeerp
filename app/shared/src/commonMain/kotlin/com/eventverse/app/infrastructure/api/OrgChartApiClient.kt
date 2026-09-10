@@ -9,7 +9,8 @@ import io.ktor.http.*
 
 class OrgChartApiClient(
     private val httpClient: HttpClient = HttpClient(),
-    private val baseUrl: String = ""
+    private val baseUrl: String = "",
+    private val tokenProvider: SessionTokenProvider = StoredSessionTokenProvider
 ) {
 
     private fun resolveUrl(path: String): String =
@@ -20,7 +21,7 @@ class OrgChartApiClient(
      */
     suspend fun getDepartments(tenantSlug: String): Result<List<Department>> = runCatching {
         val response = httpClient.get(resolveUrl("/api/tenant/departments")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -44,7 +45,7 @@ class OrgChartApiClient(
         val jsonBody = "{\"displayName\":\"$escapedName\",\"shortName\":\"$escapedShort\",\"colorHex\":$colorHex}"
 
         val response = httpClient.post(resolveUrl("/api/tenant/departments")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -67,7 +68,7 @@ class OrgChartApiClient(
             resolveUrl("/api/tenant/employees")
         }
         val response = httpClient.get(url) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -95,7 +96,7 @@ class OrgChartApiClient(
         val jsonBody = "{\"name\":\"$escapedName\",\"email\":\"$escapedEmail\",\"departmentId\":$deptIdStr,\"level\":\"${employee.level.name}\",\"roleTitle\":\"$escapedTitle\",\"reportsToId\":$reportsToStr,\"phone\":\"$escapedPhone\",\"successionAction\":\"${successionAction.name}\"}"
 
         val response = httpClient.post(resolveUrl("/api/tenant/employees")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -128,7 +129,7 @@ class OrgChartApiClient(
         val jsonBody = "{\"name\":\"$escapedName\",\"email\":\"$escapedEmail\",\"departmentId\":$deptIdStr,\"level\":\"${employee.level.name}\",\"roleTitle\":\"$escapedTitle\",\"reportsToId\":$reportsToStr,\"phone\":\"$escapedPhone\",\"successionAction\":\"${successionAction.name}\"}"
 
         val response = httpClient.put(resolveUrl("/api/tenant/employees/${employee.id.value}")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -148,7 +149,7 @@ class OrgChartApiClient(
      */
     suspend fun deleteEmployee(tenantSlug: String, employeeId: String): Result<Unit> = runCatching {
         val response = httpClient.delete(resolveUrl("/api/tenant/employees/$employeeId")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal mengarsipkan karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -160,7 +161,7 @@ class OrgChartApiClient(
      */
     suspend fun getArchivedEmployees(tenantSlug: String): Result<List<OrgNode>> = runCatching {
         val response = httpClient.get(resolveUrl("/api/tenant/employees/archived")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -174,7 +175,7 @@ class OrgChartApiClient(
      */
     suspend fun restoreEmployee(tenantSlug: String, employeeId: String): Result<Unit> = runCatching {
         val response = httpClient.post(resolveUrl("/api/tenant/employees/$employeeId/restore")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal memulihkan karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -193,7 +194,7 @@ class OrgChartApiClient(
         val jsonBody = "{\"displayName\":\"$escapedName\",\"shortName\":\"$escapedShort\",\"colorHex\":${department.colorHex}}"
 
         val response = httpClient.put(resolveUrl("/api/tenant/departments/${department.id.value}")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             setBody(jsonBody)
         }
@@ -208,7 +209,7 @@ class OrgChartApiClient(
      */
     suspend fun deleteDepartment(tenantSlug: String, departmentId: String): Result<Unit> = runCatching {
         val response = httpClient.delete(resolveUrl("/api/tenant/departments/$departmentId")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal mengarsipkan divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -220,7 +221,7 @@ class OrgChartApiClient(
      */
     suspend fun getArchivedDepartments(tenantSlug: String): Result<List<Department>> = runCatching {
         val response = httpClient.get(resolveUrl("/api/tenant/departments/archived")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
         if (!response.status.isSuccess()) {
@@ -234,7 +235,7 @@ class OrgChartApiClient(
      */
     suspend fun restoreDepartment(tenantSlug: String, departmentId: String): Result<Unit> = runCatching {
         val response = httpClient.post(resolveUrl("/api/tenant/departments/$departmentId/restore")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal memulihkan divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -246,7 +247,7 @@ class OrgChartApiClient(
      */
     suspend fun restoreEmployeePresets(tenantSlug: String): Result<Unit> = runCatching {
         val response = httpClient.post(resolveUrl("/api/tenant/employees/restore-presets")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal memulihkan preset karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -258,7 +259,7 @@ class OrgChartApiClient(
      */
     suspend fun restoreDepartmentPresets(tenantSlug: String): Result<Unit> = runCatching {
         val response = httpClient.post(resolveUrl("/api/tenant/departments/restore-presets")) {
-            header("X-Tenant-Slug", tenantSlug)
+            tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
             error("Gagal memulihkan preset divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")

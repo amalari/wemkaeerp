@@ -100,13 +100,16 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Tab Segment Switcher
-                        LoginTabSelector(
-                            selectedTab = state.selectedTab,
-                            onTabSelected = { viewModel.onEvent(LoginUiEvent.SelectTab(it)) }
-                        )
+                        // Tab Segment Switcher — hidden entirely when only one login
+                        // method is available, so the UI does not show a one-option picker.
+                        if (LoginTab.available.size > 1) {
+                            LoginTabSelector(
+                                selectedTab = state.selectedTab,
+                                onTabSelected = { viewModel.onEvent(LoginUiEvent.SelectTab(it)) }
+                            )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
 
                         // Tab Content
                         when (state.selectedTab) {
@@ -114,6 +117,10 @@ fun LoginScreen(
                                 GoogleLoginContent(
                                     isLoading = state.isLoading,
                                     onGoogleClick = {
+                                        // Platforms without a Google bridge (desktop) fall
+                                        // through with a blank token, which the state holder
+                                        // reports as "not available here" rather than
+                                        // fabricating a session.
                                         val trigger = GoogleAuthBridge.onSignInTrigger
                                         if (trigger != null) {
                                             trigger()
@@ -250,7 +257,7 @@ private fun LoginTabSelector(
             .background(Color(0xFFF1F5F9))
             .padding(4.dp)
     ) {
-        LoginTab.entries.forEach { tab ->
+        LoginTab.available.forEach { tab ->
             val isSelected = tab == selectedTab
             Box(
                 modifier = Modifier

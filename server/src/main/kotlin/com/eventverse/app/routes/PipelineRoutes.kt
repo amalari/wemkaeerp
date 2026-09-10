@@ -1,10 +1,20 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
+import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
+import com.eventverse.app.domain.pipeline.usecases.GetTenantEntitlementUseCase
+import com.eventverse.app.domain.pipeline.usecases.GetTenantModuleCatalogUseCase
 import com.eventverse.app.domain.pipeline.usecases.GetTenantPipelineUseCase
+import com.eventverse.app.domain.pipeline.usecases.InstallCustomModuleUseCase
+import com.eventverse.app.domain.pipeline.usecases.RenameTenantModuleUseCase
 import com.eventverse.app.domain.pipeline.usecases.ResetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.SaveTenantPipelineUseCase
+import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseCase
+import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.PipelineDto
 import io.ktor.http.*
@@ -14,41 +24,32 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.pipelineRoutes(
-    pipelineRepository: TenantPipelineRepository
+    pipelineRepository: TenantPipelineRepository,
+    entitlementRepository: TenantEntitlementRepository
 ) {
+    val getEntitlementUseCase = GetTenantEntitlementUseCase(entitlementRepository)
     val getPipelineUseCase = GetTenantPipelineUseCase(pipelineRepository)
     val savePipelineUseCase = SaveTenantPipelineUseCase(pipelineRepository)
     val resetPipelineUseCase = ResetTenantPipelineUseCase(pipelineRepository)
+    val getModuleCatalogUseCase = GetTenantModuleCatalogUseCase(pipelineRepository)
+    val setModuleActivationUseCase = SetTenantModuleActivationUseCase(pipelineRepository)
+    val renameModuleUseCase = RenameTenantModuleUseCase(pipelineRepository)
+    val installCustomModuleUseCase = InstallCustomModuleUseCase(pipelineRepository, entitlementRepository)
 
     route("/api/tenant/pipeline") {
 
         // 1. GET active pipeline for tenant
         get {
-            val tenant = call.tenantContextOrNull ?: run {
-                call.respond(HttpStatusCode.NotFound, "No tenant context found")
-                return@get
-            }
+            val tenant = call.requireTenant() ?: return@get
 
-            val result = getPipelineUseCase(tenant.tenantId, GarmentBusinessPreset.DEFAULT)
-            if (result.isSuccess) {
-                call.respondText(
-                    text = PipelineDto.toJson(result.getOrThrow()),
-                    contentType = ContentType.Application.Json
-                )
-            } else {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    result.exceptionOrNull()?.message ?: "Failed to load tenant pipeline"
-                )
-            }
+            getPipelineUseCase(tenant.tenantId, tenant.starterPreset)
+                .onSuccess { call.respondPipeline(it) }
+                .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it, "Gagal memuat alur tenant") }
         }
 
         // 2. PUT update / save customized pipeline topology
         put {
-            val tenant = call.tenantContextOrNull ?: run {
-                call.respond(HttpStatusCode.NotFound, "No tenant context found")
-                return@put
-            }
+            val tenant = call.requireTenant() ?: return@put
 
             val body = call.receiveText()
             if (body.isBlank()) {
@@ -56,55 +57,183 @@ fun Route.pipelineRoutes(
                 return@put
             }
 
-            val parsedPipeline = runCatching {
-                PipelineDto.fromJson(tenant.tenantId, body)
-            }.getOrElse {
-                call.respond(HttpStatusCode.BadRequest, "Malformed pipeline JSON: ${it.message}")
-                return@put
-            }
+            val parsedPipeline = runCatching { PipelineDto.fromJson(tenant.tenantId, body) }
+                .getOrElse {
+                    call.respond(HttpStatusCode.BadRequest, "Malformed pipeline JSON: ${it.message}")
+                    return@put
+                }
 
-            val saveResult = savePipelineUseCase(parsedPipeline)
-            if (saveResult.isSuccess) {
-                call.respondText(
-                    text = PipelineDto.toJson(saveResult.getOrThrow()),
-                    status = HttpStatusCode.OK,
-                    contentType = ContentType.Application.Json
-                )
-            } else {
-                call.respond(
-                    HttpStatusCode.BadRequest,
-                    saveResult.exceptionOrNull()?.message ?: "Failed to save pipeline"
-                )
-            }
+            savePipelineUseCase(parsedPipeline, getEntitlementUseCase.forTenant(tenant))
+                .onSuccess { call.respondPipeline(it) }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it, "Gagal menyimpan alur") }
         }
 
         // 3. POST reset pipeline back to a standard starter preset
         post("/reset") {
-            val tenant = call.tenantContextOrNull ?: run {
-                call.respond(HttpStatusCode.NotFound, "No tenant context found")
+            val tenant = call.requireTenant() ?: return@post
+
+            val presetCode = PipelineDto.readPresetCode(call.receiveText())
+            val targetPreset = presetCode?.let { GarmentBusinessPreset.fromCode(it) }
+                ?: tenant.starterPreset
+
+            resetPipelineUseCase(tenant.tenantId, targetPreset)
+                .onSuccess { call.respondPipeline(it) }
+                .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it, "Gagal mereset alur") }
+        }
+
+        // 4. GET the module catalogue for this tenant, annotated with plan entitlements.
+        get("/modules") {
+            val tenant = call.requireTenant() ?: return@get
+
+            val entitlement = getEntitlementUseCase.forTenant(tenant)
+            getModuleCatalogUseCase(tenant.tenantId, entitlement, tenant.starterPreset)
+                .onSuccess {
+                    call.respondText(
+                        text = PipelineDto.catalogToJson(entitlement, it),
+                        contentType = ContentType.Application.Json
+                    )
+                }
+                .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it, "Gagal memuat katalog modul") }
+        }
+
+        // 5. POST switch one module on or off for this tenant.
+        post("/modules/activation") {
+            val tenant = call.requireTenant() ?: return@post
+
+            val request = PipelineDto.readModuleActivation(call.receiveText())
+            if (request == null) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Body harus berisi {\"moduleId\":\"...\",\"isActive\":true|false}"
+                )
                 return@post
             }
 
-            val rawBody = call.receiveText()
-            val presetCode = if (rawBody.contains("\"preset\":")) {
-                "\"preset\"\\s*:\\s*\"([^\"]*)\"".toRegex().find(rawBody)?.groupValues?.get(1)
-            } else null
+            setModuleActivationUseCase(
+                tenantId = tenant.tenantId,
+                moduleId = request.moduleId,
+                isActive = request.isActive,
+                entitlement = getEntitlementUseCase.forTenant(tenant),
+                fallbackPreset = tenant.starterPreset
+            )
+                .onSuccess { call.respondPipeline(it) }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it, "Gagal mengubah status modul") }
+        }
 
-            val targetPreset = GarmentBusinessPreset.fromCode(presetCode)
-
-            val resetResult = resetPipelineUseCase(tenant.tenantId, targetPreset)
-            if (resetResult.isSuccess) {
-                call.respondText(
-                    text = PipelineDto.toJson(resetResult.getOrThrow()),
-                    status = HttpStatusCode.OK,
-                    contentType = ContentType.Application.Json
-                )
-            } else {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    resetResult.exceptionOrNull()?.message ?: "Failed to reset pipeline"
-                )
+        // 6. PUT rename a module (and optionally its tenant-specific formula parameters).
+        put("/modules/{nodeId}") {
+            val tenant = call.requireTenant() ?: return@put
+            val nodeId = call.parameters["nodeId"]
+            if (nodeId.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "Parameter nodeId wajib diisi")
+                return@put
             }
+
+            val request = PipelineDto.readModuleRename(call.receiveText())
+            if (request == null) {
+                call.respond(HttpStatusCode.BadRequest, "Body harus berisi {\"displayName\":\"...\"}")
+                return@put
+            }
+
+            renameModuleUseCase(
+                tenantId = tenant.tenantId,
+                nodeId = nodeId,
+                newDisplayName = request.displayName,
+                formulaParameters = request.formulaParameters,
+                entitlement = getEntitlementUseCase.forTenant(tenant),
+                fallbackPreset = tenant.starterPreset
+            )
+                .onSuccess { call.respondPipeline(it) }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it, "Gagal mengubah nama modul") }
+        }
+
+        // 7. POST install a custom / third-party plugin module (Enterprise plans only).
+        post("/modules/custom") {
+            val tenant = call.requireTenant() ?: return@post
+
+            val request = PipelineDto.readCustomModule(call.receiveText())
+            if (request == null) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Body harus berisi {\"moduleId\":\"...\",\"name\":\"...\"}"
+                )
+                return@post
+            }
+
+            val archetype = ModuleArchetype.fromCode(request.archetypeCode)
+                ?: ModuleArchetype.CUSTOM_EXTENSION
+
+            val descriptor = runCatching {
+                DynamicModuleDescriptor(
+                    moduleId = request.moduleId,
+                    archetype = archetype,
+                    name = request.name,
+                    description = request.description,
+                    acceptedInputDataTypes = setOf(archetype.defaultExpectedInputType),
+                    producedOutputDataType = archetype.defaultProducedOutputType,
+                    isCustomTenantPlugin = true,
+                    customConfigSchemaJson = request.configSchemaJson
+                )
+            }.getOrElse {
+                call.respond(HttpStatusCode.BadRequest, it.message ?: "Deskriptor modul kustom tidak valid")
+                return@post
+            }
+
+            installCustomModuleUseCase(
+                tenantId = tenant.tenantId,
+                descriptor = descriptor,
+                entitlement = getEntitlementUseCase.forTenant(tenant),
+                attachAfterNodeId = request.attachAfterNodeId,
+                formulaParameters = request.formulaParameters,
+                fallbackPreset = tenant.starterPreset
+            )
+                .onSuccess { call.respondPipeline(it, HttpStatusCode.Created) }
+                .onFailure { call.respondFailure(HttpStatusCode.Forbidden, it, "Gagal memasang modul kustom") }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared request/response plumbing
+// ---------------------------------------------------------------------------
+
+/**
+ * Modules a tenant may run come from its plan tier COMBINED with grants provisioned for it
+ * specifically. Resolving from the tier alone drops custom plugin grants, which would make
+ * every edit fail for a tenant that runs one.
+ */
+private suspend fun GetTenantEntitlementUseCase.forTenant(
+    tenant: TenantContext
+): TenantModuleEntitlement =
+    invoke(tenant.tenantId, tenant.tier).getOrDefault(tenant.moduleEntitlement)
+
+/** Preset used to provision a tenant that has no pipeline yet: its own business model. */
+private val TenantContext.starterPreset: GarmentBusinessPreset
+    get() = businessPreset
+
+private suspend fun ApplicationCall.requireTenant(): TenantContext? {
+    val tenant = tenantContextOrNull
+    if (tenant == null) {
+        respond(HttpStatusCode.NotFound, "No tenant context found")
+    }
+    return tenant
+}
+
+private suspend fun ApplicationCall.respondPipeline(
+    pipeline: com.eventverse.app.domain.pipeline.CustomTenantPipeline,
+    status: HttpStatusCode = HttpStatusCode.OK
+) {
+    respondText(
+        text = PipelineDto.toJson(pipeline),
+        status = status,
+        contentType = ContentType.Application.Json
+    )
+}
+
+private suspend fun ApplicationCall.respondFailure(
+    status: HttpStatusCode,
+    cause: Throwable,
+    fallbackMessage: String
+) {
+    respond(status, cause.message ?: fallbackMessage)
 }

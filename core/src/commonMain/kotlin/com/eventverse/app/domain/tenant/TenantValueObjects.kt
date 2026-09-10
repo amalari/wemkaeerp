@@ -58,7 +58,15 @@ enum class SubscriptionTier(
     val allowUnlimitedOperators: Boolean,
     val allowAdvancedGantt: Boolean,
     val allowQrDefectTracking: Boolean,
-    val storageLimitMb: Long
+    val storageLimitMb: Long,
+    /**
+     * How many operational modules a tenant on this plan may keep active in its pipeline.
+     * This is what makes the plan actually gate the module catalogue instead of only
+     * counting machines.
+     */
+    val maxActivePipelineModules: Int,
+    /** Whether the plan may install custom / third-party plugin modules. */
+    val allowCustomPluginModules: Boolean
 ) {
     STARTER(
         maxActiveMachines = 5,
@@ -66,7 +74,9 @@ enum class SubscriptionTier(
         allowUnlimitedOperators = false,
         allowAdvancedGantt = false,
         allowQrDefectTracking = false,
-        storageLimitMb = 2048 // 2 GB
+        storageLimitMb = 2048, // 2 GB
+        maxActivePipelineModules = 5,
+        allowCustomPluginModules = false
     ),
     PRO(
         maxActiveMachines = 15, // Optimal for 10-machine convection setup
@@ -74,7 +84,9 @@ enum class SubscriptionTier(
         allowUnlimitedOperators = true,
         allowAdvancedGantt = true,
         allowQrDefectTracking = true,
-        storageLimitMb = 15360 // 15 GB
+        storageLimitMb = 15360, // 15 GB
+        maxActivePipelineModules = 9, // every built-in module
+        allowCustomPluginModules = false
     ),
     ENTERPRISE(
         maxActiveMachines = Int.MAX_VALUE,
@@ -82,6 +94,8 @@ enum class SubscriptionTier(
         allowUnlimitedOperators = true,
         allowAdvancedGantt = true,
         allowQrDefectTracking = true,
-        storageLimitMb = 102400 // 100 GB
+        storageLimitMb = 102400, // 100 GB
+        maxActivePipelineModules = Int.MAX_VALUE,
+        allowCustomPluginModules = true
     );
 }

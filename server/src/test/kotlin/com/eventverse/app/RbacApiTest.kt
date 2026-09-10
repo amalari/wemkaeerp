@@ -31,7 +31,7 @@ class RbacApiTest {
     }
 
     @Test
-    fun getRoles_withoutTenantHeader_shouldReturn404() = testApplication {
+    fun getRoles_withoutCredentials_shouldReturn401() = testApplication {
         val tenantRepo = setupTestTenantRepo()
         val roleRepo = InMemoryRoleRepository()
 
@@ -42,8 +42,10 @@ class RbacApiTest {
             )
         }
 
+        // Naming a tenant is not authentication: an unauthenticated call is rejected
+        // before any tenant is resolved.
         val response = client.get("/api/tenant/roles")
-        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
@@ -60,7 +62,7 @@ class RbacApiTest {
         }
 
         val response = client.get("/api/tenant/roles") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -82,7 +84,7 @@ class RbacApiTest {
         }
 
         val response = client.post("/api/tenant/roles") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Quality Assurance Lead\",\"description\":\"Memimpin inspeksi defect\",\"modulePermissions\":{\"QUALITY_CONTROL\":{\"level\":\"MANAGE\",\"scope\":\"ALL_TENANT_DATA\"}}}")
         }
@@ -95,7 +97,7 @@ class RbacApiTest {
         // Check it can be retrieved via GET /api/tenant/roles/{id}
         val roleId = body.substringAfter("\"id\":\"").substringBefore("\"")
         val getDetail = client.get("/api/tenant/roles/$roleId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, getDetail.status)
         assertTrue(getDetail.bodyAsText().contains("Quality Assurance Lead"))
@@ -115,7 +117,7 @@ class RbacApiTest {
 
         // Create
         val createRes = client.post("/api/tenant/roles") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Staf Gudang Bahan\",\"description\":\"Bahan mentah\"}")
         }
@@ -123,7 +125,7 @@ class RbacApiTest {
 
         // Update
         val updateRes = client.put("/api/tenant/roles/$roleId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Staf Gudang Bahan & Aksesoris\",\"description\":\"Bahan baku dan kancing\"}")
         }
@@ -147,7 +149,7 @@ class RbacApiTest {
 
         // Create custom role
         val createRes = client.post("/api/tenant/roles") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"name\":\"Role Sementara\",\"description\":\"Untuk dihapus\"}")
         }
@@ -155,13 +157,13 @@ class RbacApiTest {
 
         // Delete
         val delRes = client.delete("/api/tenant/roles/$roleId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, delRes.status)
 
         // Ensure not found now
         val getRes = client.get("/api/tenant/roles/$roleId") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.NotFound, getRes.status)
     }
@@ -179,7 +181,7 @@ class RbacApiTest {
         }
 
         val res = client.post("/api/tenant/roles/restore-presets") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertEquals(HttpStatusCode.OK, res.status)
         val body = res.bodyAsText()

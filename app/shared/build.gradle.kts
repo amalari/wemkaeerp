@@ -76,6 +76,11 @@ kotlin {
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
         }
+        jvmTest.dependencies {
+            // Lets the API-client tests assert the outgoing request headers (the session
+            // token in particular) without standing up a server.
+            implementation(libs.ktor.client.mock)
+        }
     }
 }
 

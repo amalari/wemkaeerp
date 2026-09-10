@@ -21,6 +21,10 @@ import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
 import com.eventverse.app.presentation.pipeline.components.PipelineFlowCanvas
+import com.eventverse.app.presentation.pipeline.components.RenameModuleDialog
+import com.eventverse.app.presentation.pipeline.components.TenantModuleActionBar
+import com.eventverse.app.presentation.pipeline.components.TenantModulePanel
+import com.eventverse.app.presentation.pipeline.components.TenantPipelineStatusBanner
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -36,9 +40,10 @@ fun FactoryFlowScreen(
         com.eventverse.app.presentation.navigation.CompanyTenantProfile.findBySlug(tenantSlug)
     }
 
-    // Sync pipeline automatically with the active company tenant selected in GCP switcher
+    // Load the tenant's persisted topology whenever the active company changes. The canvas
+    // renders what this tenant actually has in the database, not a hardcoded preset.
     LaunchedEffect(tenantSlug) {
-        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(activeCompany.preset))
+        viewModel.onEvent(FactoryFlowUiEvent.LoadTenantPipeline(tenantSlug))
     }
 
     val screenBg = if (isPresentationMode) Color(0xFF020617) else WeMadeColors.Background
@@ -111,12 +116,43 @@ fun FactoryFlowScreen(
                         }
 
                         Text(
-                            text = "Visualisasi alur kerja modul dari order hingga pengiriman, dilengkapi deteksi bottleneck dan kontrak data antar divisi.",
+                            text = state.pipelineName
+                                ?: "Visualisasi alur kerja modul dari order hingga pengiriman, dilengkapi deteksi bottleneck dan kontrak data antar divisi.",
                             fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                     }
                 }
+
+                // Entry point to per-tenant module provisioning.
+                TenantModuleActionBar(
+                    state = state,
+                    onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) }
+                )
+            }
+
+            // Data provenance / progress / failure feedback
+            TenantPipelineStatusBanner(
+                state = state,
+                onRetry = { viewModel.onEvent(FactoryFlowUiEvent.Retry(tenantSlug)) },
+                onDismiss = { viewModel.onEvent(FactoryFlowUiEvent.DismissStatusMessage) }
+            )
+
+            // Per-tenant module provisioning panel
+            AnimatedVisibility(visible = state.isModulePanelVisible) {
+                TenantModulePanel(
+                    catalog = state.moduleCatalog,
+                    isSaving = state.isSaving,
+                    onSetModuleActive = { moduleId, isActive ->
+                        viewModel.onEvent(
+                            FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, isActive)
+                        )
+                    },
+                    onResetToPreset = { preset ->
+                        viewModel.onEvent(FactoryFlowUiEvent.ResetToPreset(tenantSlug, preset))
+                    },
+                    activePreset = state.selectedPreset
+                )
             }
 
             // Main Interactive Flow Canvas
@@ -145,7 +181,14 @@ fun FactoryFlowScreen(
             NodeInspectorDrawer(
                 node = state.selectedNode,
                 isPresentationMode = isPresentationMode,
-                onClose = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(null)) }
+                onClose = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(null)) },
+                // Renaming writes to persisted tenant data, so it is only offered when the
+                // canvas is showing that data rather than the preset template.
+                onRenameRequest = state.selectedNode
+                    ?.takeIf { state.isTenantDataLoaded }
+                    ?.let { node ->
+                        { viewModel.onEvent(FactoryFlowUiEvent.StartRenamingModule(node)) }
+                    }
             )
         }
 
@@ -162,6 +205,20 @@ fun FactoryFlowScreen(
                     onClose = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(null)) }
                 )
             }
+        }
+
+        // Per-tenant module renaming
+        state.renamingNode?.let { node ->
+            RenameModuleDialog(
+                node = node,
+                isSaving = state.isSaving,
+                onConfirm = { newName ->
+                    viewModel.onEvent(
+                        FactoryFlowUiEvent.RenameModule(tenantSlug, node.id, newName)
+                    )
+                },
+                onDismiss = { viewModel.onEvent(FactoryFlowUiEvent.StartRenamingModule(null)) }
+            )
         }
     }
 }

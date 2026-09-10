@@ -14,8 +14,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+/**
+ * Bridge to each platform's Google sign-in.
+ *
+ * [onAuthenticated] carries the Google **ID token**, not an email/name pair: the server
+ * verifies that token against Google and derives the identity itself. Passing a profile
+ * would mean the client decides who it is.
+ */
 object GoogleAuthBridge {
-    var onAuthenticated: ((email: String, name: String) -> Unit)? = null
+    var onAuthenticated: ((idToken: String) -> Unit)? = null
     var onSignInTrigger: (() -> Unit)? = null
 }
 
@@ -29,7 +36,7 @@ class AuthViewModel(
     private val authApiClient: AuthApiClient = AuthApiClient()
 ) {
     companion object {
-        const val STORAGE_KEY = "wemade_auth_session"
+        const val STORAGE_KEY = AuthApiClient.SESSION_STORAGE_KEY
     }
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -39,8 +46,8 @@ class AuthViewModel(
     val uiEffect: SharedFlow<LoginUiEffect> = _uiEffect.asSharedFlow()
 
     init {
-        GoogleAuthBridge.onAuthenticated = { email, name ->
-            onEvent(LoginUiEvent.SubmitGoogleLogin(idToken = "", email = email, name = name))
+        GoogleAuthBridge.onAuthenticated = { idToken ->
+            onEvent(LoginUiEvent.SubmitGoogleLogin(idToken = idToken))
         }
 
         // 1. Auto-restore session from PlatformLocalStorage on startup / reload
@@ -104,11 +111,7 @@ class AuthViewModel(
                 handleDemoLogin(Role.PLATFORM_SUPERADMIN)
             }
             is LoginUiEvent.SubmitGoogleLogin -> {
-                if (event.idToken == "demo-token") {
-                    handleDemoLogin(Role.TENANT_ADMIN)
-                } else {
-                    handleGoogleLogin(event.idToken, event.email, event.name)
-                }
+                handleGoogleLogin(event.idToken)
             }
             is LoginUiEvent.SendWhatsAppOtp -> {
                 handleSendWhatsAppOtp()
@@ -209,122 +212,98 @@ class AuthViewModel(
         }
     }
 
-    private fun handleGoogleLogin(idToken: String, email: String? = null, name: String? = null) {
+    /**
+     * Exchanges a Google ID token for a real WeMade session.
+     *
+     * The identity is decided by the server, which verifies the token directly against
+     * Google. Previously this method minted a session and a token locally, which meant the
+     * "logged in" user was whatever the client claimed — and the fabricated token was
+     * rejected by every authenticated endpoint.
+     */
+    private fun handleGoogleLogin(idToken: String) {
         val currentSlug = _uiState.value.tenantSlug
         if (currentSlug.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Subdomain perusahaan wajib diisi") }
             return
         }
+        if (idToken.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = "Login Google belum tersedia di platform ini. " +
+                        "Gunakan Login Demo, atau buka aplikasi versi web."
+                )
+            }
+            return
+        }
 
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         scope.launch {
-            try {
-                val userEmail = email?.ifBlank { null } ?: "student.achmad@gmail.com"
-                val userName = if (userEmail.contains("achmad")) "achmad_owner" else (name?.ifBlank { null } ?: "user_${userEmail.substringBefore("@")}")
-
-                val user = User(
-                    id = UserId("usr-owner-001"),
-                    tenantId = TenantId("ten-$currentSlug"),
-                    username = Username(userName.replace(" ", "_").lowercase()),
-                    email = EmailAddress(userEmail),
-                    role = Role.TENANT_ADMIN,
-                    isActive = true
-                )
-
-                val session = UserSession(
-                    user = user,
-                    token = AuthToken("jwt-session-token-${kotlin.random.Random.nextInt(100000, 999999)}"),
-                    tenantSlug = currentSlug
-                )
-
-                // Persist session
-                PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
-
-                sessionStorage.setSession(
-                    TenantSession(
-                        tenantId = user.tenantId ?: TenantId("ten-default"),
-                        slug = TenantSlug(currentSlug),
-                        name = "Pabrik $currentSlug",
-                        tier = SubscriptionTier.PRO
+            authApiClient.loginWithGoogle(idToken = idToken, tenantSlug = currentSlug)
+                .onSuccess { session ->
+                    val user = session.user
+                    PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
+                    sessionStorage.setSession(
+                        TenantSession(
+                            tenantId = user.tenantId ?: TenantId("ten-default"),
+                            slug = TenantSlug(session.tenantSlug ?: currentSlug),
+                            name = "Pabrik ${session.tenantSlug ?: currentSlug}",
+                            tier = SubscriptionTier.PRO
+                        )
                     )
-                )
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        authenticatedSession = session,
-                        successMessage = "Selamat datang kembali, ${user.username.value}! (${user.email.value}) — Role: ${user.role.name}"
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            authenticatedSession = session,
+                            tenantSlug = session.tenantSlug ?: currentSlug,
+                            successMessage = "Selamat datang, ${user.username.value} " +
+                                "(${user.email.value}) — Role: ${user.role.name}"
+                        )
+                    }
+                    _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
                 }
-                _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = e.message ?: "Autentikasi Google gagal"
-                    )
+                .onFailure { cause ->
+                    // No local fallback session here: a session the API would reject is
+                    // worse than a clear failure, because it fails later and elsewhere.
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = cause.message ?: "Autentikasi Google gagal"
+                        )
+                    }
                 }
-            }
         }
     }
 
+    /** See [handleVerifyWhatsAppOtp]: no OTP is actually sent, so do not claim one was. */
     private fun handleSendWhatsAppOtp() {
-        val phone = _uiState.value.phoneNumber.trim()
-        if (phone.length < 9) {
-            _uiState.update { it.copy(errorMessage = "Nomor WhatsApp tidak valid (minimal 9 digit)") }
-            return
-        }
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-        scope.launch {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    isOtpSent = true,
-                    otpCountdown = 60,
-                    successMessage = "Kode OTP 6-digit berhasil dikirim ke WhatsApp $phone"
-                )
-            }
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                isOtpSent = false,
+                errorMessage = "Pengiriman OTP WhatsApp belum tersedia. " +
+                    "Silakan gunakan Login Google atau Login Demo."
+            )
         }
     }
 
+    /**
+     * WhatsApp OTP has no server-side flow behind it yet.
+     *
+     * This used to mint an OPERATOR session with a locally fabricated token, which every
+     * authenticated endpoint rejects — the user appeared logged in, then nothing worked.
+     * Until a real OTP endpoint exists, refuse explicitly. The tab is hidden
+     * ([LoginTab.isAvailable]); this guard keeps the fake session from coming back if it is
+     * ever re-enabled.
+     */
     private fun handleVerifyWhatsAppOtp() {
-        val otp = _uiState.value.otpCode.trim()
-        if (otp.length != 6) {
-            _uiState.update { it.copy(errorMessage = "Kode OTP harus 6 digit angka") }
-            return
-        }
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-        scope.launch {
-            val currentSlug = _uiState.value.tenantSlug
-            val randomId = kotlin.random.Random.nextInt(100, 999)
-            val operatorUser = User(
-                id = UserId("usr-op-$randomId"),
-                tenantId = TenantId("ten-$currentSlug"),
-                username = Username("operator_lapangan"),
-                email = EmailAddress("operator@${currentSlug}.id"),
-                role = Role.OPERATOR,
-                isActive = true
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                errorMessage = "Login WhatsApp OTP belum tersedia. " +
+                    "Silakan gunakan Login Google atau Login Demo."
             )
-
-            val session = UserSession(
-                user = operatorUser,
-                token = AuthToken("jwt-wa-token-${kotlin.random.Random.nextInt(100000, 999999)}"),
-                tenantSlug = currentSlug
-            )
-
-            PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    authenticatedSession = session,
-                    successMessage = "Login WhatsApp berhasil sebagai Operator Mesin"
-                )
-            }
-            _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
         }
     }
 

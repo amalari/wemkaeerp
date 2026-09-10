@@ -1,6 +1,8 @@
 package com.eventverse.app.plugins
 
+import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.tenant.*
+import com.eventverse.app.infrastructure.auth.JwtTokenService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -11,57 +13,119 @@ val TenantContextAttributeKey = AttributeKey<TenantContext>("TenantContext")
 
 class TenantResolutionConfig {
     var tenantRepository: TenantRepository? = null
+
+    /** Verifies session tokens. Required: without it no route could be authenticated. */
+    var jwtTokenService: JwtTokenService? = null
+
     var publicRoutePrefixes: List<String> = listOf("/api/public", "/health", "/favicon.ico")
 }
 
+/**
+ * Authenticates the caller and resolves which tenant the request acts on.
+ *
+ * Tenant identity comes from the **verified** JWT, not from a request header. A tenant-bound
+ * caller can only ever act on its own tenant; naming another tenant is refused rather than
+ * silently honoured. Only a platform superadmin may target a different tenant, via
+ * `X-Tenant-Slug` / `X-Tenant-ID` — which is what makes the workspace switcher legitimate
+ * instead of a hole.
+ */
 val TenantResolutionPlugin = createApplicationPlugin(
     name = "TenantResolutionPlugin",
     createConfiguration = ::TenantResolutionConfig
 ) {
-    val repository = pluginConfig.tenantRepository 
+    val repository = pluginConfig.tenantRepository
         ?: error("TenantRepository must be configured in TenantResolutionPlugin")
+    val jwtTokenService = pluginConfig.jwtTokenService
+        ?: error("JwtTokenService must be configured in TenantResolutionPlugin")
     val publicPrefixes = pluginConfig.publicRoutePrefixes
 
     onCall { call ->
         val path = call.request.path()
 
-        // Root path ("/") or public routes are bypassed
+        // Root path ("/") or public routes (login, registration, health) are bypassed.
         if (path == "/" || publicPrefixes.any { path.startsWith(it) }) {
             return@onCall
         }
 
-        // 1. Check Header: X-Tenant-Slug or X-Tenant-ID
-        val headerSlug = call.request.header("X-Tenant-Slug")
-        val headerId = call.request.header("X-Tenant-ID")
+        // --- 1. Authenticate -------------------------------------------------
+        val bearerToken = call.request.bearerToken()
+        if (bearerToken.isNullOrBlank()) {
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                "Authentication required: sertakan header 'Authorization: Bearer <token>'."
+            )
+            return@onCall
+        }
 
-        // 2. Check Host / Subdomain
-        val host = call.request.host()
-        val subdomain = extractSubdomain(host)
+        val decoded = jwtTokenService.verifyToken(bearerToken).getOrNull()
+        if (decoded == null) {
+            call.respond(HttpStatusCode.Unauthorized, "Sesi tidak valid atau sudah kedaluwarsa.")
+            return@onCall
+        }
+
+        val principal = CallerPrincipal(
+            userId = decoded.subject ?: "",
+            role = decoded.getClaim("role").asString()
+                ?.let { name -> runCatching { Role.valueOf(name) }.getOrNull() }
+                ?: Role.TENANT_ADMIN,
+            tenantId = decoded.getClaim("tenant_id").asString()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { TenantId(it) },
+            tenantSlug = decoded.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
+        )
+        call.attributes.put(CallerPrincipalAttributeKey, principal)
+
+        // --- 2. Decide which tenant this request may act on ------------------
+        val requestedSlug = call.request.header("X-Tenant-Slug")?.trim()?.lowercase()
+            ?.takeIf { it.isNotBlank() }
+        val requestedId = call.request.header("X-Tenant-ID")?.trim()?.takeIf { it.isNotBlank() }
+
+        if (principal.isTenantBound) {
+            // Refuse loudly instead of quietly serving the caller's own tenant: a client
+            // asking for another tenant's data is a bug or an attack, and either way the
+            // caller must not be told the request succeeded against something else.
+            val mismatchedSlug = requestedSlug != null &&
+                principal.tenantSlug != null &&
+                requestedSlug != principal.tenantSlug.lowercase()
+            val mismatchedId = requestedId != null &&
+                principal.tenantId != null &&
+                requestedId != principal.tenantId.value
+
+            if (mismatchedSlug || mismatchedId) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    "Akun ini terikat pada tenant '${principal.tenantSlug ?: principal.tenantId?.value}' " +
+                        "dan tidak boleh mengakses tenant lain."
+                )
+                return@onCall
+            }
+        }
 
         val resolvedTenant = when {
-            !headerSlug.isNullOrBlank() -> {
-                runCatching { TenantSlug(headerSlug.trim().lowercase()) }
-                    .getOrNull()
-                    ?.let { repository.findBySlug(it) }
-            }
-            !headerId.isNullOrBlank() -> {
-                runCatching { TenantId(headerId.trim()) }
-                    .getOrNull()
-                    ?.let { repository.findById(it) }
-            }
-            !subdomain.isNullOrBlank() -> {
-                runCatching { TenantSlug(subdomain) }
-                    .getOrNull()
-                    ?.let { repository.findBySlug(it) }
-            }
-            else -> null
+            // A platform superadmin may act as any tenant it explicitly names.
+            principal.isPlatformSuperadmin && requestedSlug != null ->
+                repository.findBySlugOrNull(requestedSlug)
+
+            principal.isPlatformSuperadmin && requestedId != null ->
+                repository.findById(TenantId(requestedId))
+
+            // Otherwise the token itself decides.
+            principal.tenantId != null -> repository.findById(principal.tenantId)
+
+            principal.tenantSlug != null -> repository.findBySlugOrNull(principal.tenantSlug)
+
+            // Fall back to the subdomain, which a superadmin token without a tenant claim
+            // still needs in order to address a workspace.
+            else -> extractSubdomain(call.request.host())?.let { repository.findBySlugOrNull(it) }
         }
 
         if (resolvedTenant == null) {
-            call.respond(
-                HttpStatusCode.NotFound,
-                "Tenant could not be resolved from request headers or subdomain"
-            )
+            val message = if (principal.isPlatformSuperadmin) {
+                "Tenant tidak ditemukan. Sertakan header 'X-Tenant-Slug' berisi workspace tujuan."
+            } else {
+                "Tenant pada sesi ini tidak ditemukan."
+            }
+            call.respond(HttpStatusCode.NotFound, message)
             return@onCall
         }
 
@@ -76,6 +140,19 @@ val TenantResolutionPlugin = createApplicationPlugin(
         call.attributes.put(TenantContextAttributeKey, TenantContext.fromTenant(resolvedTenant))
     }
 }
+
+private fun ApplicationRequest.bearerToken(): String? {
+    val header = header(HttpHeaders.Authorization) ?: return null
+    return if (header.startsWith("Bearer ", ignoreCase = true)) {
+        header.removePrefix("Bearer ").removePrefix("bearer ").trim()
+    } else {
+        header.trim()
+    }
+}
+
+/** A malformed slug is "not found" rather than an exception at this boundary. */
+private suspend fun TenantRepository.findBySlugOrNull(rawSlug: String): Tenant? =
+    runCatching { TenantSlug(rawSlug.trim().lowercase()) }.getOrNull()?.let { findBySlug(it) }
 
 private fun extractSubdomain(host: String): String? {
     val cleanHost = host.substringBefore(":") // strip port if any

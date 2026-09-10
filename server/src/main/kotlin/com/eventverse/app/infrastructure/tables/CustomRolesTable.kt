@@ -8,7 +8,8 @@ object CustomRolesTable : Table("custom_roles") {
     val name = varchar("name", 100)
     val description = text("description").default("")
     val isSystemDefault = bool("is_system_default").default(false)
-    val modulePermissions = text("module_permissions").default("{}")
+    /** RBAC matrix. `JSONB` in the schema — see [jsonbText]. */
+    val modulePermissions = jsonbText("module_permissions").default("{}")
     val userCount = integer("user_count").default(0)
 
     override val primaryKey = PrimaryKey(id)

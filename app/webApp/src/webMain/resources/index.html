@@ -36,68 +36,94 @@
             }
         };
         window.GOOGLE_CLIENT_ID = "647282996110-mik622aj16qo935rcqqf84ecgs282om8.apps.googleusercontent.com";
-        window.authenticatedGoogleEmail = "";
-        window.authenticatedGoogleName = "";
+
+        // The app exchanges a Google ID TOKEN (a signed JWT) for a WeMade session, and the
+        // server verifies that token against Google. The previous flow used an OAuth
+        // access_token and read the profile in the browser, which meant the identity was
+        // asserted client-side and could not be verified by the backend at all.
+        function deliverGoogleIdToken(idToken) {
+            if (!idToken) { return; }
+            if (window.onGoogleAuthCallback) {
+                window.onGoogleAuthCallback(idToken);
+            }
+        }
+
+        function googleIdTokenRedirect() {
+            // Fallback when One Tap cannot be shown (third-party cookies blocked, cooldown,
+            // unsupported browser). Uses the implicit id_token flow.
+            var redirectUri = window.location.origin + window.location.pathname;
+            var nonce = String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+            try { window.sessionStorage.setItem("google_nonce", nonce); } catch (e) {}
+
+            window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" +
+                "client_id=" + encodeURIComponent(window.GOOGLE_CLIENT_ID) +
+                "&response_type=id_token" +
+                "&redirect_uri=" + encodeURIComponent(redirectUri) +
+                "&scope=" + encodeURIComponent("openid email profile") +
+                "&nonce=" + encodeURIComponent(nonce);
+        }
+
+        var googleIdInitialized = false;
+        function initGoogleIdentity() {
+            if (googleIdInitialized) { return true; }
+            if (!(window.google && window.google.accounts && window.google.accounts.id)) {
+                return false;
+            }
+            window.google.accounts.id.initialize({
+                client_id: window.GOOGLE_CLIENT_ID,
+                callback: function(response) {
+                    // response.credential is the ID token.
+                    deliverGoogleIdToken(response && response.credential);
+                },
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+            googleIdInitialized = true;
+            return true;
+        }
 
         window.openGoogleLoginPopup = function() {
-            if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-                const client = google.accounts.oauth2.initTokenClient({
-                    client_id: window.GOOGLE_CLIENT_ID,
-                    scope: 'email profile openid',
-                    callback: function(tokenResponse) {
-                        if (tokenResponse && tokenResponse.access_token) {
-                            fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                                headers: { 'Authorization': 'Bearer ' + tokenResponse.access_token }
-                            })
-                            .then(function(res) { return res.json(); })
-                            .then(function(profile) {
-                                window.authenticatedGoogleEmail = profile.email || "";
-                                window.authenticatedGoogleName = profile.name || profile.email || "";
-                                if (window.onGoogleAuthCallback) {
-                                    window.onGoogleAuthCallback(window.authenticatedGoogleEmail, window.authenticatedGoogleName);
-                                }
-                            })
-                            .catch(function(err) {
-                                alert("Gagal mengambil profil akun Google: " + err.message);
-                            });
-                        }
-                    },
-                    error_callback: function(err) {
-                        console.warn("Google popup closed or canceled", err);
+            if (!initGoogleIdentity()) {
+                googleIdTokenRedirect();
+                return;
+            }
+
+            try {
+                window.google.accounts.id.prompt(function(notification) {
+                    var notDisplayed = notification &&
+                        typeof notification.isNotDisplayed === "function" &&
+                        notification.isNotDisplayed();
+                    var skipped = notification &&
+                        typeof notification.isSkippedMoment === "function" &&
+                        notification.isSkippedMoment();
+                    if (notDisplayed || skipped) {
+                        googleIdTokenRedirect();
                     }
                 });
-                client.requestAccessToken();
-            } else {
-                // Fallback: Redirect langsung ke endpoint OAuth Google
-                const redirectUri = window.location.origin + window.location.pathname;
-                const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
-                    "client_id=" + encodeURIComponent(window.GOOGLE_CLIENT_ID) +
-                    "&response_type=token" +
-                    "&redirect_uri=" + encodeURIComponent(redirectUri) +
-                    "&scope=openid%20email%20profile" +
-                    "&nonce=" + Date.now();
-                window.location.href = authUrl;
+            } catch (err) {
+                googleIdTokenRedirect();
             }
         };
 
-        // Check if returning from redirect with #access_token=...
-        if (window.location.hash && window.location.hash.indexOf('access_token=') !== -1) {
-            var hash = window.location.hash.substring(1);
-            var params = new URLSearchParams(hash);
-            var accessToken = params.get('access_token');
-            if (accessToken) {
-                fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { 'Authorization': 'Bearer ' + accessToken }
-                })
-                .then(function(res) { return res.json(); })
-                .then(function(profile) {
-                    window.authenticatedGoogleEmail = profile.email || "";
-                    window.authenticatedGoogleName = profile.name || profile.email || "";
-                    window.history.replaceState(null, null, window.location.pathname);
+        // Returning from the redirect fallback with #id_token=...
+        if (window.location.hash && window.location.hash.indexOf("id_token=") !== -1) {
+            var params = new URLSearchParams(window.location.hash.substring(1));
+            var returnedIdToken = params.get("id_token");
+            if (returnedIdToken) {
+                window.history.replaceState(null, null, window.location.pathname);
+                // The Compose app registers its callback during start-up, so hold the token
+                // until it is ready rather than dropping it.
+                window.pendingGoogleIdToken = returnedIdToken;
+                var deliverWhenReady = function() {
                     if (window.onGoogleAuthCallback) {
-                        window.onGoogleAuthCallback(window.authenticatedGoogleEmail, window.authenticatedGoogleName);
+                        var pending = window.pendingGoogleIdToken;
+                        window.pendingGoogleIdToken = null;
+                        deliverGoogleIdToken(pending);
+                    } else {
+                        window.setTimeout(deliverWhenReady, 100);
                     }
-                });
+                };
+                deliverWhenReady();
             }
         }
     </script>

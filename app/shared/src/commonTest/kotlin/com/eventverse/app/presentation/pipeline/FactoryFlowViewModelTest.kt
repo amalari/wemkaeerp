@@ -11,9 +11,17 @@ import kotlin.test.assertTrue
 
 class FactoryFlowViewModelTest {
 
+    /**
+     * These cases cover purely local canvas state (filters, presentation mode, preset
+     * preview), so the remote is a stub that never serves a tenant topology.
+     */
+    private fun localOnlyViewModel() = FactoryFlowViewModel(
+        apiClient = FakePipelineRemoteDataSource()
+    )
+
     @Test
     fun initialState_shouldHaveDefaultFobPresetAndFullNodes() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
         val state = viewModel.uiState.value
 
         assertEquals(GarmentBusinessPreset.FOB_FULL_PACKAGE, state.selectedPreset)
@@ -26,7 +34,7 @@ class FactoryFlowViewModelTest {
 
     @Test
     fun selectPreset_shouldSwitchSnapshotAndResetSelectedNode() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
 
         // Select first node
         val initialFirstNode = viewModel.uiState.value.filteredNodes.first()
@@ -44,7 +52,7 @@ class FactoryFlowViewModelTest {
 
     @Test
     fun togglePresentationMode_shouldToggleFlag() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
         assertFalse(viewModel.uiState.value.isPresentationMode)
 
         viewModel.onEvent(FactoryFlowUiEvent.TogglePresentationMode)
@@ -56,7 +64,7 @@ class FactoryFlowViewModelTest {
 
     @Test
     fun filterByStage_shouldFilterFilteredNodes() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
 
         // Filter to COMMERCIAL stage (CRM + Sampling = 2 nodes)
         viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(PipelineStage.COMMERCIAL))
@@ -73,7 +81,7 @@ class FactoryFlowViewModelTest {
 
     @Test
     fun updateSearchQuery_shouldFilterNodesByQuery() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
 
         viewModel.onEvent(FactoryFlowUiEvent.UpdateSearchQuery("kain"))
         val state = viewModel.uiState.value
@@ -89,7 +97,7 @@ class FactoryFlowViewModelTest {
 
     @Test
     fun toggleHideBypassed_shouldFilterOutBypassedNodesInCmt() {
-        val viewModel = FactoryFlowViewModel()
+        val viewModel = localOnlyViewModel()
         viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBusinessPreset.CMT_MAKLOON))
 
         // Initial default has hideBypassedNodes = true

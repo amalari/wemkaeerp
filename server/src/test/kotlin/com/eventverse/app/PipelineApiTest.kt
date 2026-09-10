@@ -2,6 +2,7 @@ package com.eventverse.app
 
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.*
+import com.eventverse.app.infrastructure.InMemoryTenantEntitlementRepository
 import com.eventverse.app.infrastructure.InMemoryTenantPipelineRepository
 import com.eventverse.app.infrastructure.InMemoryTenantRepository
 import io.ktor.client.request.*
@@ -41,12 +42,13 @@ class PipelineApiTest {
         application {
             module(
                 tenantRepository = tenantRepo,
-                pipelineRepository = pipeRepo
+                pipelineRepository = pipeRepo,
+                entitlementRepository = InMemoryTenantEntitlementRepository()
             )
         }
 
         val res = client.get("/api/tenant/pipeline") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
 
         assertEquals(HttpStatusCode.OK, res.status)
@@ -64,20 +66,21 @@ class PipelineApiTest {
         application {
             module(
                 tenantRepository = tenantRepo,
-                pipelineRepository = pipeRepo
+                pipelineRepository = pipeRepo,
+                entitlementRepository = InMemoryTenantEntitlementRepository()
             )
         }
 
         // 1. Fetch current
         val initialRes = client.get("/api/tenant/pipeline") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         val initialBody = initialRes.bodyAsText()
 
         // 2. Modify name
         val modifiedBody = initialBody.replace("Alur Operasional", "Alur Khusus Modifikasi")
         val putRes = client.put("/api/tenant/pipeline") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody(modifiedBody)
         }
@@ -88,7 +91,7 @@ class PipelineApiTest {
 
         // 3. Verify get returns modified
         val getRes = client.get("/api/tenant/pipeline") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
         }
         assertTrue(getRes.bodyAsText().contains("Alur Khusus Modifikasi"))
     }
@@ -101,12 +104,13 @@ class PipelineApiTest {
         application {
             module(
                 tenantRepository = tenantRepo,
-                pipelineRepository = pipeRepo
+                pipelineRepository = pipeRepo,
+                entitlementRepository = InMemoryTenantEntitlementRepository()
             )
         }
 
         val resetRes = client.post("/api/tenant/pipeline/reset") {
-            header("X-Tenant-Slug", tenantSlug)
+            asTenant(tenantSlug)
             contentType(ContentType.Application.Json)
             setBody("{\"preset\":\"brand_d2c\"}")
         }

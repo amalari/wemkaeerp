@@ -24,7 +24,12 @@ fun NodeInspectorDrawer(
     node: PipelineNode?,
     isPresentationMode: Boolean,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Opens per-tenant renaming for this module. Null when the screen is showing preset
+     * template data, where there is no persisted node to rename.
+     */
+    onRenameRequest: (() -> Unit)? = null
 ) {
     if (node == null) return
 
@@ -93,11 +98,27 @@ fun NodeInspectorDrawer(
                     }
                 }
 
-                IconButton(onClick = onClose) {
-                    IconClose(
-                        modifier = Modifier.size(14.dp),
-                        color = if (isPresentationMode) Color.White else WeMadeColors.OnSurfaceMuted
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (onRenameRequest != null && !isPresentationMode) {
+                        TextButton(onClick = onRenameRequest) {
+                            Text(
+                                text = "Ubah Nama",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.Primary
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onClose) {
+                        IconClose(
+                            modifier = Modifier.size(14.dp),
+                            color = if (isPresentationMode) Color.White else WeMadeColors.OnSurfaceMuted
+                        )
+                    }
                 }
             }
 

@@ -34,8 +34,20 @@ data class PipelineNode(
     /**
      * Branch paths this module can also take besides its normal forward hand-off.
      */
-    val conditionalPaths: List<PipelineConditionalPath> = emptyList()
+    val conditionalPaths: List<PipelineConditionalPath> = emptyList(),
+    /**
+     * Set when this node came from a tenant/third-party plugin rather than a built-in
+     * [BusinessModule]. [module] then holds the representative module for its capability
+     * slot, which is what drives icons and access scoping.
+     */
+    val customModuleCode: String? = null,
+    /**
+     * Tenant-specific calculation overrides projected from the persisted graph
+     * (sewing tariff per minute, secret margin, …).
+     */
+    val formulaParameters: Map<String, String> = emptyMap()
 ) {
+    val isCustomPlugin: Boolean get() = customModuleCode != null
     val isBypassed: Boolean get() = healthStatus == FlowHealthStatus.BYPASSED
     val isBottleneck: Boolean get() = healthStatus == FlowHealthStatus.BOTTLENECK || healthStatus == FlowHealthStatus.CRITICAL
     val hasActiveFeedback: Boolean get() = activeFeedbackBadge != null || feedbackRoutes.any { it.isActive }

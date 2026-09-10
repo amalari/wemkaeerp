@@ -10,5 +10,11 @@ object TenantsTable : Table("tenants") {
     val tier = varchar("tier", 20).default("PRO")
     val activeMachineCount = integer("active_machine_count").default(0)
 
+    /**
+     * The tenant's garment business model (FOB / CMT / Brand D2C). Drives which pipeline
+     * preset a tenant is provisioned with, so it has to be persisted rather than defaulted.
+     */
+    val businessPreset = varchar("business_preset", 50).default("fob_full_package")
+
     override val primaryKey = PrimaryKey(id)
 }
