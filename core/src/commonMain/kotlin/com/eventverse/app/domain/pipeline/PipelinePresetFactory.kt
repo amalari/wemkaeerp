@@ -8,23 +8,32 @@ import com.eventverse.app.domain.rbac.BusinessModule
  */
 object PipelinePresetFactory {
 
-    fun createSnapshot(preset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT): FactoryPipelineSnapshot {
-        val nodes = buildNodesForPreset(preset)
+    fun createSnapshot(
+        preset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+        scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
+    ): FactoryPipelineSnapshot {
+        val nodes = buildNodesForPreset(preset, scenario)
         val activeNodes = nodes.filterNot { it.isBypassed }
         val bypassedCount = nodes.count { it.isBypassed }
         val bottlenecksCount = nodes.count { it.isBottleneck }
         val totalWip = activeNodes.sumOf { it.wipPieces }
 
-        // Average lead time calculated from cumulative active cycle times
+        // Average lead time calculated from cumulative active cycle times + scenario penalty
         val totalHours = activeNodes.sumOf { it.cycleTimeHours }
         // Assuming 8 operating hours/day
-        val avgLeadDays = (totalHours / 8.0 * 10.0).let { kotlin.math.round(it) / 10.0 }
+        val baseLeadDays = totalHours / 8.0
+        val avgLeadDays = ((baseLeadDays + scenario.leadTimeImpactDays) * 10.0).let { kotlin.math.round(it) / 10.0 }
 
         // Dynamic health score: 100% minus penalties for bottlenecks & critical nodes
         val baseScore = 100
         val bottleneckPenalty = nodes.count { it.healthStatus == FlowHealthStatus.BOTTLENECK } * 7
         val criticalPenalty = nodes.count { it.healthStatus == FlowHealthStatus.CRITICAL } * 15
-        val healthScore = (baseScore - bottleneckPenalty - criticalPenalty).coerceIn(40, 100)
+        val scenarioPenalty = when (scenario) {
+            PipelineSimulationScenario.NORMAL -> 0
+            PipelineSimulationScenario.QC_FABRIC_DEFECT -> 10
+            PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT -> 6
+        }
+        val healthScore = (baseScore - bottleneckPenalty - criticalPenalty - scenarioPenalty).coerceIn(40, 100)
 
         return FactoryPipelineSnapshot(
             preset = preset,
@@ -38,15 +47,20 @@ object PipelinePresetFactory {
         )
     }
 
-    private fun buildNodesForPreset(preset: GarmentBusinessPreset): List<PipelineNode> {
+    private fun buildNodesForPreset(
+        preset: GarmentBusinessPreset,
+        scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
+    ): List<PipelineNode> {
         return when (preset) {
-            GarmentBusinessPreset.FOB_FULL_PACKAGE -> buildFobNodes()
-            GarmentBusinessPreset.CMT_MAKLOON -> buildCmtNodes()
-            GarmentBusinessPreset.BRAND_D2C -> buildBrandD2cNodes()
+            GarmentBusinessPreset.FOB_FULL_PACKAGE -> buildFobNodes(scenario)
+            GarmentBusinessPreset.CMT_MAKLOON -> buildCmtNodes(scenario)
+            GarmentBusinessPreset.BRAND_D2C -> buildBrandD2cNodes(scenario)
         }
     }
 
-    private fun buildFobNodes(): List<PipelineNode> {
+    private fun buildFobNodes(scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL): List<PipelineNode> {
+        val isFabricDefect = scenario == PipelineSimulationScenario.QC_FABRIC_DEFECT
+        val isWorkmanshipDefect = scenario == PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT
         return listOf(
             PipelineNode(
                 id = "fob-crm-sales",
@@ -167,10 +181,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF0D9488,
                 inputContract = "Lembar Kebutuhan BOM Kain & Surat Jalan Suplier Tekstil",
                 outputContract = "Kain Rol Teruji Shading + Aksesoris Siap Alokasi Potong",
-                wipPieces = 2100,
-                cycleTimeHours = 8.0,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Stok kain Cotton Combed 24s & 30s aman di rak penerimaan.",
+                wipPieces = if (isFabricDefect) 2100 + 180 else 2100,
+                cycleTimeHours = if (isFabricDefect) 11.0 else 8.0,
+                healthStatus = if (isFabricDefect) FlowHealthStatus.BOTTLENECK else FlowHealthStatus.HEALTHY,
+                healthMessage = if (isFabricDefect) {
+                    "Menerima tiket retur kain dari QC: Menunggu 180 yard kain pengganti dari suplier tekstil (Shortage PO)."
+                } else {
+                    "Stok kain Cotton Combed 24s & 30s aman di rak penerimaan."
+                },
+                activeFeedbackBadge = "Titik Balik: Penerimaan Retur Kain dari QC",
                 downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code, BusinessModule.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -293,10 +312,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFFEA580C,
                 inputContract = "Kain Tergelar, Bundel Pola Bertiket Barcode, & SPK Line",
                 outputContract = "Pakaian Jadi Belum Diinspeksi (Grey Goods) + Catatan Target Harian",
-                wipPieces = 1350,
-                cycleTimeHours = 18.0,
+                wipPieces = if (isWorkmanshipDefect) 1350 + 95 else 1350,
+                cycleTimeHours = if (isWorkmanshipDefect) 21.0 else 18.0,
                 healthStatus = FlowHealthStatus.BOTTLENECK,
-                healthMessage = "WIP menumpuk 1.350 pcs di Line Jahit B karena pergantian benang warna navy.",
+                healthMessage = if (isWorkmanshipDefect) {
+                    "WIP bertambah 95 pcs pakaian jadi dari QC untuk stasiun rework/alterasi benang dan jahitan loncat."
+                } else {
+                    "WIP menumpuk 1.350 pcs di Line Jahit B karena pergantian benang warna navy."
+                },
+                activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahit dari QC",
                 downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -329,11 +353,54 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF16A34A,
                 inputContract = "Pakaian Jadi dari Line Jahit & Toleransi Ukuran Tech Pack",
                 outputContract = "Pakaian Lolos QC Grade A Bertiket + Laporan Cacat (Reject Rate)",
-                wipPieces = 280,
-                cycleTimeHours = 3.5,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Tingkat cacat terkendali di 1.2% (standar toleransi ekspor < 2.5%).",
+                wipPieces = when {
+                    isFabricDefect -> 420
+                    isWorkmanshipDefect -> 375
+                    else -> 280
+                },
+                cycleTimeHours = when {
+                    isFabricDefect -> 5.5
+                    isWorkmanshipDefect -> 4.5
+                    else -> 3.5
+                },
+                healthStatus = when {
+                    isFabricDefect -> FlowHealthStatus.CRITICAL
+                    isWorkmanshipDefect -> FlowHealthStatus.BOTTLENECK
+                    else -> FlowHealthStatus.HEALTHY
+                },
+                healthMessage = when {
+                    isFabricDefect -> "Lonjakan cacat kain (Reject rate 4.8%). Mengaktifkan loop balik klaim retur ke Gudang Bahan Baku."
+                    isWorkmanshipDefect -> "Cacat jahitan loncat & obras miring (Reject rate 3.6%). 95 pcs dialihkan ke stasiun permak/rework."
+                    else -> "Tingkat cacat terkendali di 1.2% (standar toleransi ekspor < 2.5%)."
+                },
+                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                feedbackRoutes = listOf(
+                    PipelineFeedbackRoute(
+                        id = "fob-qc-fb-inventory",
+                        targetModuleCode = BusinessModule.INVENTORY.code,
+                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
+                        triggerReason = "QC Gagal: Cacat Bahan Baku (Fabric Defect / Shading Belang)",
+                        actionContract = "Retur ke Rantai Pasok: Klaim Suplier Tekstil & Penggantian Kain (+3 Hari)",
+                        isActive = true
+                    ),
+                    PipelineFeedbackRoute(
+                        id = "fob-qc-fb-operator",
+                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_REWORK,
+                        triggerReason = "QC Gagal: Cacat Pengerjaan Jahitan (Workmanship Defect)",
+                        actionContract = "Rework ke Lantai Jahit: Bongkar Jahitan & Alterasi Operator (+1 Hari)",
+                        isActive = true
+                    )
+                ),
+                conditionalPaths = listOf(
+                    PipelineConditionalPath(
+                        targetModuleCode = BusinessModule.PRODUCTION_MRP.code,
+                        label = "Jika Reject: Jadwal Ulang Produksi"
+                    )
+                ),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-qc-1",
@@ -402,7 +469,9 @@ object PipelinePresetFactory {
         )
     }
 
-    private fun buildCmtNodes(): List<PipelineNode> {
+    private fun buildCmtNodes(scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL): List<PipelineNode> {
+        val isFabricDefect = scenario == PipelineSimulationScenario.QC_FABRIC_DEFECT
+        val isWorkmanshipDefect = scenario == PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT
         return listOf(
             PipelineNode(
                 id = "cmt-crm-sales",
@@ -513,10 +582,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF94A3B8,
                 inputContract = "Kain Disediakan Brand Buyer",
                 outputContract = "Kain Titipan Buyer Terverifikasi Kuantitasnya",
-                wipPieces = 0,
-                cycleTimeHours = 0.0,
-                healthStatus = FlowHealthStatus.BYPASSED,
-                healthMessage = "Tahapan ini di-bypass pada model makloon CMT (Kain tidak dibeli pabrik).",
+                wipPieces = if (isFabricDefect) 85 else 0,
+                cycleTimeHours = if (isFabricDefect) 4.0 else 0.0,
+                healthStatus = if (isFabricDefect) FlowHealthStatus.BOTTLENECK else FlowHealthStatus.BYPASSED,
+                healthMessage = if (isFabricDefect) {
+                    "Menerima komplain kain cacat dari QC: Menunggu konfirmasi buyer untuk kirim rol kain pengganti."
+                } else {
+                    "Tahapan ini di-bypass pada model makloon CMT (Kain tidak dibeli pabrik)."
+                },
+                activeFeedbackBadge = "Titik Balik: Klaim Kain Cacat ke Klien Buyer",
                 downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -620,10 +694,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFFEA580C,
                 inputContract = "Kain Potongan Siap Jahit + Benang Sesuai Permintaan Buyer",
                 outputContract = "Baju Jadi Selesai Jahit Siap Disortir",
-                wipPieces = 980,
-                cycleTimeHours = 14.0,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Output jahit harian mencapai 220 pcs/hari dengan 6 operator.",
+                wipPieces = if (isWorkmanshipDefect) 980 + 60 else 980,
+                cycleTimeHours = if (isWorkmanshipDefect) 16.0 else 14.0,
+                healthStatus = if (isWorkmanshipDefect) FlowHealthStatus.BOTTLENECK else FlowHealthStatus.HEALTHY,
+                healthMessage = if (isWorkmanshipDefect) {
+                    "WIP bertambah 60 pcs dari QC untuk alterasi jahitan miring dan ganti kancing."
+                } else {
+                    "Output jahit harian mencapai 220 pcs/hari dengan 6 operator."
+                },
+                activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahitan Makloon",
                 downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -656,11 +735,48 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF16A34A,
                 inputContract = "Baju Jadi Hasil Jahit",
                 outputContract = "Laporan Sortir Lolos & Kain Sisa Potong untuk Dikembalikan",
-                wipPieces = 140,
-                cycleTimeHours = 2.5,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Kerapihan jahitan lolos audit perwakilan brand.",
+                wipPieces = when {
+                    isFabricDefect -> 195
+                    isWorkmanshipDefect -> 180
+                    else -> 140
+                },
+                cycleTimeHours = when {
+                    isFabricDefect -> 4.0
+                    isWorkmanshipDefect -> 3.5
+                    else -> 2.5
+                },
+                healthStatus = when {
+                    isFabricDefect -> FlowHealthStatus.CRITICAL
+                    isWorkmanshipDefect -> FlowHealthStatus.BOTTLENECK
+                    else -> FlowHealthStatus.HEALTHY
+                },
+                healthMessage = when {
+                    isFabricDefect -> "Ditemukan cacat kain bawaan buyer (shading belang). Feedback aktif ke logistik buyer."
+                    isWorkmanshipDefect -> "Cacat jahitan melebihi toleransi brand (Reject rate 3.4%). 60 pcs dikembalikan ke meja alterasi."
+                    else -> "Kerapihan jahitan lolos audit perwakilan brand."
+                },
+                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan Buyer (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                feedbackRoutes = listOf(
+                    PipelineFeedbackRoute(
+                        id = "cmt-qc-fb-inventory",
+                        targetModuleCode = BusinessModule.INVENTORY.code,
+                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
+                        triggerReason = "QC Makloon: Cacat Bahan Titipan Buyer",
+                        actionContract = "Retur Bahan Buyer: Klaim Defect Kain & Drop Rol Pengganti (+3 Hari)",
+                        isActive = true
+                    ),
+                    PipelineFeedbackRoute(
+                        id = "cmt-qc-fb-operator",
+                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_REWORK,
+                        triggerReason = "QC Makloon: Cacat Jahitan Operator",
+                        actionContract = "Rework Jahit: Perintah Bongkar Jahit & Alterasi Operator (+1 Hari)",
+                        isActive = true
+                    )
+                ),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-qc-1",
@@ -720,7 +836,9 @@ object PipelinePresetFactory {
         )
     }
 
-    private fun buildBrandD2cNodes(): List<PipelineNode> {
+    private fun buildBrandD2cNodes(scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL): List<PipelineNode> {
+        val isFabricDefect = scenario == PipelineSimulationScenario.QC_FABRIC_DEFECT
+        val isWorkmanshipDefect = scenario == PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT
         return listOf(
             PipelineNode(
                 id = "d2c-crm-sales",
@@ -840,10 +958,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF0D9488,
                 inputContract = "Kain Heavyweight Cotton 16s & Label Woven Masuk",
                 outputContract = "Bahan Siap Potong Terverifikasi Kualitasnya",
-                wipPieces = 1800,
-                cycleTimeHours = 6.0,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Kain Heavyweight Cotton aman tersedia untuk 2 batch produksi.",
+                wipPieces = if (isFabricDefect) 1800 + 120 else 1800,
+                cycleTimeHours = if (isFabricDefect) 9.0 else 6.0,
+                healthStatus = if (isFabricDefect) FlowHealthStatus.BOTTLENECK else FlowHealthStatus.HEALTHY,
+                healthMessage = if (isFabricDefect) {
+                    "QC menemukan cacat wash/shading kain heavyweight. Mengalokasikan 120 yard buffer kain baru."
+                } else {
+                    "Kain Heavyweight Cotton aman tersedia untuk 2 batch produksi."
+                },
+                activeFeedbackBadge = "Titik Balik: Alokasi Buffer Bahan Baku Pengganti",
                 downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -957,10 +1080,15 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFFEA580C,
                 inputContract = "Potongan Kain Berlabel + Sablon / Bordir Jadi",
                 outputContract = "Kaos / Hoodie Selesai Jahit",
-                wipPieces = 1100,
-                cycleTimeHours = 15.0,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Operator jahit rantai leher bekerja sesuai standar kerapihan brand.",
+                wipPieces = if (isWorkmanshipDefect) 1100 + 75 else 1100,
+                cycleTimeHours = if (isWorkmanshipDefect) 17.5 else 15.0,
+                healthStatus = if (isWorkmanshipDefect) FlowHealthStatus.BOTTLENECK else FlowHealthStatus.HEALTHY,
+                healthMessage = if (isWorkmanshipDefect) {
+                    "WIP bertambah 75 pcs dari QC untuk perbaikan sablon miring dan jahitan rantai leher."
+                } else {
+                    "Operator jahit rantai leher bekerja sesuai standar kerapihan brand."
+                },
+                activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahit In-House",
                 downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
@@ -993,11 +1121,48 @@ object PipelinePresetFactory {
                 deptColorHex = 0xFF16A34A,
                 inputContract = "Kaos Hasil Jahit dari Line Produksi",
                 outputContract = "Kaos Siap Pasang Tag Barcode SKU Retail",
-                wipPieces = 190,
-                cycleTimeHours = 3.0,
-                healthStatus = FlowHealthStatus.HEALTHY,
-                healthMessage = "Inspeksi teliti, 100% item dipastikan bebas noda dan benang sisa.",
+                wipPieces = when {
+                    isFabricDefect -> 260
+                    isWorkmanshipDefect -> 245
+                    else -> 190
+                },
+                cycleTimeHours = when {
+                    isFabricDefect -> 4.5
+                    isWorkmanshipDefect -> 4.0
+                    else -> 3.0
+                },
+                healthStatus = when {
+                    isFabricDefect -> FlowHealthStatus.CRITICAL
+                    isWorkmanshipDefect -> FlowHealthStatus.BOTTLENECK
+                    else -> FlowHealthStatus.HEALTHY
+                },
+                healthMessage = when {
+                    isFabricDefect -> "Cacat shading kain pada 120 pcs kaos (Reject 4.2%). Memicu feedback loop ke Gudang Stok Bahan."
+                    isWorkmanshipDefect -> "Cacat jahitan rantai leher pada 75 pcs kaos (Reject 3.2%). Dialihkan ke stasiun rework."
+                    else -> "Inspeksi teliti, 100% item dipastikan bebas noda dan benang sisa."
+                },
+                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Gudang Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                feedbackRoutes = listOf(
+                    PipelineFeedbackRoute(
+                        id = "d2c-qc-fb-inventory",
+                        targetModuleCode = BusinessModule.INVENTORY.code,
+                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
+                        triggerReason = "QC Brand: Cacat Shading Kain Heavyweight",
+                        actionContract = "Retur Gudang Bahan: Alokasi Buffer Rol Kain Pengganti (+3 Hari)",
+                        isActive = true
+                    ),
+                    PipelineFeedbackRoute(
+                        id = "d2c-qc-fb-operator",
+                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        edgeType = PipelineEdgeType.FEEDBACK_REWORK,
+                        triggerReason = "QC Brand: Cacat Jahitan Rantai Leher",
+                        actionContract = "Rework Jahit In-House: Perintah Bongkar Jahit & Alterasi (+1 Hari)",
+                        isActive = true
+                    )
+                ),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-qc-1",

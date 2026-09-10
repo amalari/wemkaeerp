@@ -88,6 +88,19 @@ class FactoryFlowViewModelTest {
     }
 
     @Test
+    fun setViewMode_nodeGraph_shouldSwitchWithoutTouchingFilters() {
+        val viewModel = FactoryFlowViewModel()
+        assertEquals(PipelineViewMode.SWIMLANE, viewModel.uiState.value.viewMode)
+
+        viewModel.onEvent(FactoryFlowUiEvent.SetViewMode(PipelineViewMode.NODE_GRAPH))
+        val state = viewModel.uiState.value
+
+        assertEquals(PipelineViewMode.NODE_GRAPH, state.viewMode)
+        assertEquals(9, state.filteredNodes.size)
+        assertNull(state.selectedStageFilter)
+    }
+
+    @Test
     fun toggleHideBypassed_shouldFilterOutBypassedNodesInCmt() {
         val viewModel = FactoryFlowViewModel()
         viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBusinessPreset.CMT_MAKLOON))

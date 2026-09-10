@@ -35,7 +35,10 @@
       "Bash(touch*)",
       "Bash(./gradlew :core:jvmTest :app:shared:jvmTest --console=plain)",
       "Bash(./gradlew :server:test --console=plain)",
-      "Bash(./gradlew :app:shared:jvmTest --console=plain)"
+      "Bash(./gradlew :app:shared:jvmTest --console=plain)",
+      "Bash(./gradlew :app:shared:compileKotlinJvm --console=plain)",
+      "Bash(./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs --console=plain)",
+      "Bash(node cdp.mjs 4CCAF4D8452000AA47F081D7D0955370 '[{\"op\":\"wait\",\"ms\":500},{\"op\":\"shot\",\"file\":\"clean1.png\"}]')"
     ],
     "deny": [
       "Edit(*.env)",

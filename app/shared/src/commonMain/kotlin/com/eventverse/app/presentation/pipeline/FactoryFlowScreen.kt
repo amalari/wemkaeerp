@@ -94,21 +94,23 @@ fun FactoryFlowScreen(
                 }
             }
 
-            // Preset Selector Bar (FOB vs CMT vs Brand D2C + Presentation Button)
+            // Preset Selector Bar (FOB vs CMT vs Brand D2C + Presentation Button + Dynamic Scenarios)
             PresetSelectorBar(
                 selectedPreset = state.selectedPreset,
                 isPresentationMode = isPresentationMode,
                 isSimulating = state.isSimulatingRealtime,
+                activeScenario = state.activeScenario,
                 onSelectPreset = { viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(it)) },
+                onSelectScenario = { viewModel.onEvent(FactoryFlowUiEvent.SelectScenario(it)) },
                 onTogglePresentationMode = { viewModel.onEvent(FactoryFlowUiEvent.TogglePresentationMode) },
                 onToggleSimulation = { viewModel.onEvent(FactoryFlowUiEvent.ToggleSimulation) }
             )
 
             // Executive KPI Cards Ribbon
-            ExecutiveKpiHeader(
-                snapshot = state.snapshot,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // ExecutiveKpiHeader(
+            //     snapshot = state.snapshot,
+            //     modifier = Modifier.fillMaxWidth()
+            // )
 
             // Main Interactive Flow Canvas
             PipelineFlowCanvas(
@@ -181,7 +183,10 @@ private fun ExecutivePresentationBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            com.eventverse.app.presentation.pipeline.components.IconPresentation(modifier = Modifier.size(18.dp), color = Color.White)
+            com.eventverse.app.presentation.pipeline.components.IconPresentation(
+                modifier = Modifier.size(18.dp),
+                color = Color.White
+            )
             Column {
                 Text(
                     text = "MODE PRESENTASI KLIEN & DEMO EKSEKUTIF AKTIF",

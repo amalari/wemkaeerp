@@ -20,12 +20,23 @@ class FactoryFlowViewModel(
     fun onEvent(event: FactoryFlowUiEvent) {
         when (event) {
             is FactoryFlowUiEvent.SelectPreset -> {
-                val newSnapshot = PipelinePresetFactory.createSnapshot(event.preset)
-                _uiState.update {
-                    it.copy(
+                _uiState.update { current ->
+                    val newSnapshot = PipelinePresetFactory.createSnapshot(event.preset, current.activeScenario)
+                    current.copy(
                         selectedPreset = event.preset,
                         snapshot = newSnapshot,
                         selectedNode = null, // reset selection when preset changes
+                        inspectingInputNode = null
+                    )
+                }
+            }
+            is FactoryFlowUiEvent.SelectScenario -> {
+                _uiState.update { current ->
+                    val newSnapshot = PipelinePresetFactory.createSnapshot(current.selectedPreset, event.scenario)
+                    current.copy(
+                        activeScenario = event.scenario,
+                        snapshot = newSnapshot,
+                        selectedNode = null,
                         inspectingInputNode = null
                     )
                 }

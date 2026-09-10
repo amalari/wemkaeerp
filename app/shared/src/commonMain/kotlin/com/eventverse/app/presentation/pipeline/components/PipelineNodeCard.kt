@@ -304,6 +304,108 @@ fun PipelineNodeCard(
                 }
             }
 
+            // Failure Feedback Loop Branching on QC Nodes (Always visible in unified flow)
+            if (node.feedbackRoutes.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isPresentationMode) Color(0xFF3B0D0D) else Color(0xFFFFF1F2))
+                        .border(1.dp, Color(0xFFFDA4AF), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 9.dp, vertical = 7.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconWarning(
+                                modifier = Modifier.size(11.dp),
+                                color = Color(0xFFE11D48)
+                            )
+                            Text(
+                                text = "KETIKA GAGAL QC (PUTUS MERAH):",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFE11D48)
+                            )
+                        }
+
+                        node.feedbackRoutes.forEach { route ->
+                            val isDefect = route.edgeType == com.eventverse.app.domain.pipeline.PipelineEdgeType.FEEDBACK_DEFECT
+                            val routeColor = if (isDefect) Color(0xFFE11D48) else Color(0xFFD97706)
+                            val bgChip = if (isPresentationMode) Color(0xFF450A0A) else Color.White
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(bgChip)
+                                    .border(0.5.dp, routeColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 7.dp, vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Text(
+                                        text = "⤶ ◀- -",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = routeColor
+                                    )
+                                    Column {
+                                        Text(
+                                            text = route.triggerReason,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = routeColor
+                                        )
+                                        Text(
+                                            text = route.actionContract,
+                                            fontSize = 9.sp,
+                                            color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                val inboundBadge = node.activeFeedbackBadge
+                if (inboundBadge != null) {
+                    // Inbound reception badge for upstream target nodes (e.g. Inventory or Sewing)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isPresentationMode) Color(0xFF2A1515) else Color(0xFFFEF2F2))
+                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "📥 ◀╌╌",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                            Text(
+                                text = inboundBadge,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Footer: Live Metrics
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -584,6 +584,50 @@ fun IconNodePort(modifier: Modifier = Modifier, color: Color = WeMadeColors.Prim
 }
 
 @Composable
+fun IconNodeGraph(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.4f * density
+
+        // Two boxes joined by a bezier cable, mirroring the node canvas itself
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.04f, h * 0.30f),
+            size = Size(w * 0.30f, h * 0.40f),
+            cornerRadius = CornerRadius(w * 0.06f, w * 0.06f),
+            style = Stroke(width = stroke)
+        )
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.66f, h * 0.08f),
+            size = Size(w * 0.30f, h * 0.34f),
+            cornerRadius = CornerRadius(w * 0.06f, w * 0.06f),
+            style = Stroke(width = stroke)
+        )
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.66f, h * 0.58f),
+            size = Size(w * 0.30f, h * 0.34f),
+            cornerRadius = CornerRadius(w * 0.06f, w * 0.06f),
+            style = Stroke(width = stroke)
+        )
+
+        val cablePath = Path().apply {
+            moveTo(w * 0.34f, h * 0.50f)
+            cubicTo(w * 0.50f, h * 0.50f, w * 0.50f, h * 0.25f, w * 0.66f, h * 0.25f)
+            moveTo(w * 0.34f, h * 0.50f)
+            cubicTo(w * 0.50f, h * 0.50f, w * 0.50f, h * 0.75f, w * 0.66f, h * 0.75f)
+        }
+        drawPath(
+            cablePath,
+            color = color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
+@Composable
 fun IconArrowRightFlow(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
     Canvas(modifier = modifier) {
         val w = size.width

@@ -1,6 +1,8 @@
 package com.eventverse.app.presentation.pipeline.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -25,7 +28,9 @@ fun PresetSelectorBar(
     selectedPreset: GarmentBusinessPreset,
     isPresentationMode: Boolean,
     isSimulating: Boolean,
+    activeScenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL,
     onSelectPreset: (GarmentBusinessPreset) -> Unit,
+    onSelectScenario: (PipelineSimulationScenario) -> Unit = {},
     onTogglePresentationMode: () -> Unit,
     onToggleSimulation: () -> Unit,
     modifier: Modifier = Modifier
@@ -48,6 +53,7 @@ fun PresetSelectorBar(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Row 1: Business Preset Pills + Mode Toggles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -161,54 +167,89 @@ fun PresetSelectorBar(
                 }
             }
 
-            // Subtitle Description of Active Preset
+            // Row 2: Unified Monitoring Legend & Flow Characteristics
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF8FAFC))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .border(
+                        width = 1.dp,
+                        color = if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Left: Flow Line Meaning Indicators
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                if (isPresentationMode) Color(0xFF334155) else WeMadeColors.PrimaryContainer
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    Text(
+                        text = "Jalur Monitoring Terpadu:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface
+                    )
+
+                    // Forward Edge Indicator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(3.dp)
+                                .background(WeMadeColors.Primary, RoundedCornerShape(2.dp))
+                        )
                         Text(
-                            text = "KARAKTERISTIK ALUR",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isPresentationMode) Color(0xFF93C5FD) else WeMadeColors.Primary
+                            text = "──▶ Alur Produksi Normal (Forward)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
                         )
                     }
-                    Text(
-                        text = selectedPreset.description,
-                        fontSize = 11.sp,
-                        color = if (isPresentationMode) Color(0xFFE2E8F0) else WeMadeColors.OnSurface,
-                        maxLines = 2
-                    )
+
+                    // Backward QC Feedback Edge Indicator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFDC2626).copy(alpha = 0.14f))
+                                .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "⤶ - - - ◀",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                        Text(
+                            text = "Garis Putus Merah: Jika QC Gagal ➔ Balik ke Rantai Pasok / Lantai Jahit",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
-
+                // Right: Target Profile Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border.copy(alpha = 0.5f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = "Sasaran: ${selectedPreset.targetClientProfile}",
+                        text = "Profil: ${selectedPreset.targetClientProfile}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted

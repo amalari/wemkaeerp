@@ -8,6 +8,7 @@ import com.eventverse.app.domain.pipeline.PipelineStage
 
 enum class PipelineViewMode(val displayName: String) {
     SWIMLANE("Kolom Alur (Kiri-ke-Kanan)"),
+    NODE_GRAPH("Kanvas Node"),
     FLOW_GRAPH("Diagram Alur Linier"),
     VERTICAL_LIST("Daftar Detail");
 }
@@ -22,7 +23,8 @@ data class FactoryFlowUiState(
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
     val viewMode: PipelineViewMode = PipelineViewMode.SWIMLANE,
-    val hideBypassedNodes: Boolean = true
+    val hideBypassedNodes: Boolean = true,
+    val activeScenario: com.eventverse.app.domain.pipeline.PipelineSimulationScenario = com.eventverse.app.domain.pipeline.PipelineSimulationScenario.NORMAL
 ) {
     val bypassedCount: Int get() = snapshot.nodes.count { it.isBypassed }
 
@@ -47,6 +49,7 @@ data class FactoryFlowUiState(
 
 sealed interface FactoryFlowUiEvent {
     data class SelectPreset(val preset: GarmentBusinessPreset) : FactoryFlowUiEvent
+    data class SelectScenario(val scenario: com.eventverse.app.domain.pipeline.PipelineSimulationScenario) : FactoryFlowUiEvent
     data class SelectNode(val node: PipelineNode?) : FactoryFlowUiEvent
     data class InspectNodeInputs(val node: PipelineNode?) : FactoryFlowUiEvent
     data object TogglePresentationMode : FactoryFlowUiEvent

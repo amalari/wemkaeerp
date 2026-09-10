@@ -22,13 +22,36 @@ data class PipelineNode(
     val healthStatus: FlowHealthStatus,
     val healthMessage: String,
     val downstreamModuleCodes: List<String> = emptyList(),
-    val inputs: List<PipelineInputPort> = emptyList()
+    val inputs: List<PipelineInputPort> = emptyList(),
+    /**
+     * Feedback & rework routes triggered when an exception or defect occurs (e.g. QC failure).
+     * These are resolved into [PipelineEdge]s of kind [PipelineEdgeType.FEEDBACK_DEFECT] or
+     * [PipelineEdgeType.FEEDBACK_REWORK] and never influence column layering.
+     */
+    val feedbackRoutes: List<PipelineFeedbackRoute> = emptyList(),
+    /** Active feedback notification or badge message for dynamic simulation. */
+    val activeFeedbackBadge: String? = null,
+    /**
+     * Branch paths this module can also take besides its normal forward hand-off.
+     */
+    val conditionalPaths: List<PipelineConditionalPath> = emptyList()
 ) {
     val isBypassed: Boolean get() = healthStatus == FlowHealthStatus.BYPASSED
     val isBottleneck: Boolean get() = healthStatus == FlowHealthStatus.BOTTLENECK || healthStatus == FlowHealthStatus.CRITICAL
+    val hasActiveFeedback: Boolean get() = activeFeedbackBadge != null || feedbackRoutes.any { it.isActive }
 
     val manualInputs: List<PipelineInputPort> get() = inputs.filter { it.isManual }
     val automatedInputs: List<PipelineInputPort> get() = inputs.filter { it.isAutomated }
     val manualInputCount: Int get() = manualInputs.size
     val automatedInputCount: Int get() = automatedInputs.size
 }
+
+/**
+ * A conditional branch out of a module, referenced by module code (resolved the same way as
+ * [PipelineNode.downstreamModuleCodes]) — e.g. "if QC rejects a piece, it goes back to
+ * production scheduling for rework" rather than the module's normal forward hand-off.
+ */
+data class PipelineConditionalPath(
+    val targetModuleCode: String,
+    val label: String
+)

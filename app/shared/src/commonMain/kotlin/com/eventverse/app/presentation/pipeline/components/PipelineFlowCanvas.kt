@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.pipeline.PipelineGraph
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelineStage
 import com.eventverse.app.presentation.pipeline.PipelineViewMode
@@ -100,6 +102,7 @@ fun PipelineFlowCanvas(
                             }
                             when (mode) {
                                 PipelineViewMode.SWIMLANE -> IconSwimlane(modifier = Modifier.size(13.dp), color = iconColor)
+                                PipelineViewMode.NODE_GRAPH -> IconNodeGraph(modifier = Modifier.size(13.dp), color = iconColor)
                                 PipelineViewMode.FLOW_GRAPH -> IconFlowGraph(modifier = Modifier.size(13.dp), color = iconColor)
                                 PipelineViewMode.VERTICAL_LIST -> IconList(modifier = Modifier.size(13.dp), color = iconColor)
                             }
@@ -228,6 +231,16 @@ fun PipelineFlowCanvas(
                         selectedNode = selectedNode,
                         isPresentationMode = isPresentationMode,
                         hideBypassedNodes = hideBypassedNodes,
+                        onSelectNode = onSelectNode,
+                        onInspectInputs = onInspectInputs
+                    )
+                }
+                PipelineViewMode.NODE_GRAPH -> {
+                    // n8n-style node canvas with real data-derived edges, pan & zoom
+                    PipelineNodeGraphLayout(
+                        nodes = nodes,
+                        selectedNode = selectedNode,
+                        isPresentationMode = isPresentationMode,
                         onSelectNode = onSelectNode,
                         onInspectInputs = onInspectInputs
                     )
@@ -394,48 +407,61 @@ private fun HorizontalSwimlaneLayout(
     modifier: Modifier = Modifier
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
-    val scrollState = rememberScrollState()
-
     val visibleStages = if (hideBypassedNodes) {
         PipelineStage.entries.filter { stage -> (groupedByStage[stage] ?: emptyList()).isNotEmpty() }
     } else {
         PipelineStage.entries
     }
 
-    Row(
+    val scrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+
+    // Real connectors, resolved from the module data — the same graph the node canvas uses.
+    val graph = remember(nodes) { PipelineGraph.from(nodes) }
+    val bounds = remember { SwimlaneBounds() }
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(verticalScrollState)
             .horizontalScroll(scrollState)
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.Top
+            .padding(vertical = 4.dp)
     ) {
-        visibleStages.forEachIndexed { stageIndex, stage ->
-            val stageNodes = groupedByStage[stage] ?: emptyList()
-
-            Row(
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Individual Stage Column
-                StageSwimlaneColumn(
-                    stage = stage,
-                    nodes = stageNodes,
-                    selectedNode = selectedNode,
-                    isPresentationMode = isPresentationMode,
-                    onSelectNode = onSelectNode,
-                    onInspectInputs = onInspectInputs,
-                    modifier = Modifier.width(305.dp)
-                )
-
-                // Visual Stage-to-Stage Handoff Bridge Arrow
-                if (stageIndex < visibleStages.size - 1) {
-                    StageTransitionBridge(
-                        isPresentationMode = isPresentationMode,
-                        modifier = Modifier.padding(top = 80.dp)
-                    )
+        Box(modifier = Modifier.swimlaneRoot(bounds)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    // Wide enough for the connectors between columns to breathe.
+                    horizontalArrangement = Arrangement.spacedBy(72.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    visibleStages.forEach { stage ->
+                        StageSwimlaneColumn(
+                            stage = stage,
+                            nodes = groupedByStage[stage] ?: emptyList(),
+                            selectedNode = selectedNode,
+                            isPresentationMode = isPresentationMode,
+                            bounds = bounds,
+                            onSelectNode = onSelectNode,
+                            onInspectInputs = onInspectInputs,
+                            modifier = Modifier.width(305.dp)
+                        )
+                    }
                 }
+
+                // Reserved routing corridor for stage skips and feedback loops.
+                Spacer(modifier = Modifier.height(SWIMLANE_CORRIDOR_HEIGHT))
             }
+
+            // Drawn last so connectors stay visible over the stage columns' own background;
+            // the routing keeps them off the node cards themselves. A plain Canvas takes no
+            // pointer input, so cards underneath stay clickable.
+            SwimlaneConnectionCanvas(
+                graph = graph,
+                bounds = bounds,
+                selectedNodeId = selectedNode?.id,
+                isPresentationMode = isPresentationMode,
+                modifier = Modifier.matchParentSize()
+            )
         }
     }
 }
@@ -446,6 +472,7 @@ private fun StageSwimlaneColumn(
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
+    bounds: SwimlaneBounds,
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
@@ -469,63 +496,69 @@ private fun StageSwimlaneColumn(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Stage Column Header
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(stage.colorHex).copy(alpha = if (isPresentationMode) 0.25f else 0.12f))
                     .padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clip(CircleShape)
-                            .background(Color(stage.colorHex)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = "${stage.stepOrder}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(Color(stage.colorHex)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${stage.stepOrder}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = stage.displayName.substringAfter(". "),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPresentationMode) Color.White else Color(stage.colorHex)
+                            )
+                            Text(
+                                text = stage.subtitle,
+                                fontSize = 10.sp,
+                                color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
+                                maxLines = 1
+                            )
+                        }
                     }
 
-                    Column {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(stage.colorHex).copy(alpha = 0.2f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
-                            text = stage.displayName.substringAfter(". "),
-                            fontSize = 12.sp,
+                            text = "${nodes.size}",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isPresentationMode) Color.White else Color(stage.colorHex)
                         )
-                        Text(
-                            text = stage.subtitle,
-                            fontSize = 10.sp,
-                            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
-                            maxLines = 1
-                        )
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(stage.colorHex).copy(alpha = 0.2f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "${nodes.size}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPresentationMode) Color.White else Color(stage.colorHex)
-                    )
-                }
             }
 
             // Stacked Nodes within this Stage Column
@@ -545,104 +578,26 @@ private fun StageSwimlaneColumn(
                     )
                 }
             } else {
-                nodes.forEachIndexed { nodeIndex, node ->
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        PipelineNodeCard(
-                            node = node,
-                            isSelected = selectedNode?.id == node.id,
-                            isPresentationMode = isPresentationMode,
-                            onClick = { onSelectNode(node) },
-                            onInspectInputs = onInspectInputs,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Vertical connector between nodes in the same stage
-                        if (nodeIndex < nodes.size - 1) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(2.dp)
-                                        .height(10.dp)
-                                        .background(if (isPresentationMode) Color(0xFF475569) else WeMadeColors.Border)
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    IconArrowDown(
-                                        modifier = Modifier.size(9.dp),
-                                        color = WeMadeColors.Primary
-                                    )
-                                    Text(
-                                        text = "Diteruskan",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WeMadeColors.Primary
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .width(2.dp)
-                                        .height(10.dp)
-                                        .background(if (isPresentationMode) Color(0xFF475569) else WeMadeColors.Border)
-                                )
-                            }
-                        }
-                    }
+                // Spaced apart so the real vertical connector between them has room to draw.
+                nodes.forEach { node ->
+                    PipelineNodeCard(
+                        node = node,
+                        isSelected = selectedNode?.id == node.id,
+                        isPresentationMode = isPresentationMode,
+                        onClick = { onSelectNode(node) },
+                        onInspectInputs = onInspectInputs,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 18.dp)
+                            .swimlaneCard(node.id, bounds)
+                    )
                 }
             }
+
         }
     }
 }
 
-/**
- * Directional Arrow Bridge connecting adjacent Stage Swimlanes
- */
-@Composable
-private fun StageTransitionBridge(
-    isPresentationMode: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isPresentationMode) Color(0xFF1E293B)
-                    else WeMadeColors.PrimaryContainer
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (isPresentationMode) Color(0xFF475569) else WeMadeColors.Primary.copy(alpha = 0.3f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            IconArrowRight(
-                modifier = Modifier.size(13.dp),
-                color = WeMadeColors.Primary
-            )
-        }
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            text = "Handoff",
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
-        )
-    }
-}
 
 /**
  * Linear Horizontal Chain Layout (Step-by-Step Chain)
@@ -658,50 +613,59 @@ private fun LinearFlowGraphLayout(
 ) {
     val scrollState = rememberScrollState()
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
             .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        nodes.forEachIndexed { index, node ->
-            PipelineNodeCard(
-                node = node,
-                isSelected = selectedNode?.id == node.id,
-                isPresentationMode = isPresentationMode,
-                onClick = { onSelectNode(node) },
-                onInspectInputs = onInspectInputs,
-                modifier = Modifier.width(290.dp)
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            nodes.forEachIndexed { index, node ->
+                PipelineNodeCard(
+                    node = node,
+                    isSelected = selectedNode?.id == node.id,
+                    isPresentationMode = isPresentationMode,
+                    onClick = { onSelectNode(node) },
+                    onInspectInputs = onInspectInputs,
+                    modifier = Modifier.width(290.dp)
+                )
 
-            if (index < nodes.size - 1) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.PrimaryContainer),
-                        contentAlignment = Alignment.Center
+                if (index < nodes.size - 1) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     ) {
-                        IconArrowRight(
-                            modifier = Modifier.size(12.dp),
-                            color = WeMadeColors.Primary
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(WeMadeColors.PrimaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconArrowRight(
+                                modifier = Modifier.size(12.dp),
+                                color = WeMadeColors.Primary
+                            )
+                        }
+                        Text(
+                            text = "Ke Tahap ${node.stepNumber + 1}",
+                            fontSize = 9.sp,
+                            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
                         )
                     }
-                    Text(
-                        text = "Ke Tahap ${node.stepNumber + 1}",
-                        fontSize = 9.sp,
-                        color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
-                    )
                 }
             }
         }
+
+        // Backward Feedback Highway Ribbon
+        StageFeedbackHighwayTrack(
+            isPresentationMode = isPresentationMode
+        )
     }
 }
 
@@ -737,3 +701,206 @@ private fun VerticalListLayout(
         }
     }
 }
+
+
+
+
+/**
+ * Continuous Backward Exception Highway Track spanning the width of all stage columns
+ */
+@Composable
+private fun StageFeedbackHighwayTrack(
+    isPresentationMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPresentationMode) Color(0xFF1E1417) else Color(0xFFFFF5F5)
+        ),
+        border = BorderStroke(
+            1.5.dp,
+            if (isPresentationMode) Color(0xFF5C2229) else Color(0xFFFECDD3)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Highway Title Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFE11D48))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "JALUR PENGECUALIAN (PUTUS MERAH)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Text(
+                        text = "Alur Putar-Balik Ketika Gagal QC (Monitoring 1 Alur Terpadu)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isPresentationMode) Color.White else Color(0xFF9F1239)
+                    )
+                }
+
+                Text(
+                    text = "Arah Aliran: Dari Kanan (Tahap 5 QC) Balik ke Kiri (Tahap 3 & 4)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isPresentationMode) Color(0xFFFDA4AF) else Color(0xFFBE123C)
+                )
+            }
+
+            // Lane 1: Cacat Kain ➔ Balik ke Tahap 3 (Rantai Pasok & Gudang Kain)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isPresentationMode) Color(0xFF2C1014) else Color.White)
+                    .border(1.dp, Color(0xFFFDA4AF), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left Target: Tahap 3
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFE11D48))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "◀╌╌ MASUK TAHAP 3: RANTAI PASOK",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                        Text(
+                            text = "Gudang Bahan Baku menerima klaim retur kain",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface
+                        )
+                    }
+
+                    // Middle Connector Track (Red Dashed Line with arrows)
+                    Text(
+                        text = "◀╌╌╌╌╌╌╌╌ [ KASUS CACAT KAIN / LOT SUSUT: Retur Suplier Tekstil & PO Kain Baru (+3-4 Hari) ] ╌╌╌╌╌╌╌╌⤶",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE11D48)
+                    )
+
+                    // Right Origin: Tahap 5
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE11D48).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFFE11D48), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "SUMBER: TAHAP 5 (QC FINIS)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE11D48)
+                        )
+                    }
+                }
+            }
+
+            // Lane 2: Cacat Jahit ➔ Balik ke Tahap 4 (Lantai Produksi / Jahit)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isPresentationMode) Color(0xFF2C1910) else Color.White)
+                    .border(1.dp, Color(0xFFFDE68A), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left Target: Tahap 4
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFD97706))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "◀╌╌ MASUK TAHAP 4: LANTAI PRODUKSI",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                        Text(
+                            text = "Meja Alterasi menerima baju reject jahit",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface
+                        )
+                    }
+
+                    // Middle Connector Track (Orange Dashed Line with arrows)
+                    Text(
+                        text = "◀╌╌╌╌╌╌╌╌ [ KASUS CACAT JAHITAN / UKURAN: Bongkar Jahitan & Alterasi Operator (+1-2 Hari) ] ╌╌╌╌╌╌╌╌⤶",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD97706)
+                    )
+
+                    // Right Origin: Tahap 5
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFD97706).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFFD97706), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "SUMBER: TAHAP 5 (QC FINIS)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
