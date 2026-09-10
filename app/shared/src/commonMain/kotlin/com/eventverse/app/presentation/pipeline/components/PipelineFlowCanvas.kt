@@ -37,6 +37,7 @@ fun PipelineFlowCanvas(
     hideBypassedNodes: Boolean,
     bypassedCount: Int,
     onSelectNode: (PipelineNode) -> Unit,
+    onInspectInputs: (PipelineNode) -> Unit = {},
     onFilterStage: (PipelineStage?) -> Unit,
     onSearchChange: (String) -> Unit,
     onSetViewMode: (PipelineViewMode) -> Unit,
@@ -227,7 +228,8 @@ fun PipelineFlowCanvas(
                         selectedNode = selectedNode,
                         isPresentationMode = isPresentationMode,
                         hideBypassedNodes = hideBypassedNodes,
-                        onSelectNode = onSelectNode
+                        onSelectNode = onSelectNode,
+                        onInspectInputs = onInspectInputs
                     )
                 }
                 PipelineViewMode.FLOW_GRAPH -> {
@@ -236,7 +238,8 @@ fun PipelineFlowCanvas(
                         nodes = nodes,
                         selectedNode = selectedNode,
                         isPresentationMode = isPresentationMode,
-                        onSelectNode = onSelectNode
+                        onSelectNode = onSelectNode,
+                        onInspectInputs = onInspectInputs
                     )
                 }
                 PipelineViewMode.VERTICAL_LIST -> {
@@ -245,7 +248,8 @@ fun PipelineFlowCanvas(
                         nodes = nodes,
                         selectedNode = selectedNode,
                         isPresentationMode = isPresentationMode,
-                        onSelectNode = onSelectNode
+                        onSelectNode = onSelectNode,
+                        onInspectInputs = onInspectInputs
                     )
                 }
             }
@@ -386,6 +390,7 @@ private fun HorizontalSwimlaneLayout(
     isPresentationMode: Boolean,
     hideBypassedNodes: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
+    onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
@@ -419,6 +424,7 @@ private fun HorizontalSwimlaneLayout(
                     selectedNode = selectedNode,
                     isPresentationMode = isPresentationMode,
                     onSelectNode = onSelectNode,
+                    onInspectInputs = onInspectInputs,
                     modifier = Modifier.width(305.dp)
                 )
 
@@ -441,6 +447,7 @@ private fun StageSwimlaneColumn(
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
+    onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -548,6 +555,7 @@ private fun StageSwimlaneColumn(
                             isSelected = selectedNode?.id == node.id,
                             isPresentationMode = isPresentationMode,
                             onClick = { onSelectNode(node) },
+                            onInspectInputs = onInspectInputs,
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -645,6 +653,7 @@ private fun LinearFlowGraphLayout(
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
+    onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -663,6 +672,7 @@ private fun LinearFlowGraphLayout(
                 isSelected = selectedNode?.id == node.id,
                 isPresentationMode = isPresentationMode,
                 onClick = { onSelectNode(node) },
+                onInspectInputs = onInspectInputs,
                 modifier = Modifier.width(290.dp)
             )
 
@@ -704,6 +714,7 @@ private fun VerticalListLayout(
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
+    onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -720,6 +731,7 @@ private fun VerticalListLayout(
                 isSelected = selectedNode?.id == node.id,
                 isPresentationMode = isPresentationMode,
                 onClick = { onSelectNode(node) },
+                onInspectInputs = onInspectInputs,
                 modifier = Modifier.fillMaxWidth()
             )
         }

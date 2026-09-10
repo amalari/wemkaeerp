@@ -25,12 +25,16 @@ class FactoryFlowViewModel(
                     it.copy(
                         selectedPreset = event.preset,
                         snapshot = newSnapshot,
-                        selectedNode = null // reset selection when preset changes
+                        selectedNode = null, // reset selection when preset changes
+                        inspectingInputNode = null
                     )
                 }
             }
             is FactoryFlowUiEvent.SelectNode -> {
                 _uiState.update { it.copy(selectedNode = event.node) }
+            }
+            is FactoryFlowUiEvent.InspectNodeInputs -> {
+                _uiState.update { it.copy(inspectingInputNode = event.node) }
             }
             is FactoryFlowUiEvent.TogglePresentationMode -> {
                 _uiState.update { it.copy(isPresentationMode = !it.isPresentationMode) }

@@ -94,10 +94,8 @@ fun NodeInspectorDrawer(
                 }
 
                 IconButton(onClick = onClose) {
-                    Text(
-                        text = "✕",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                    IconClose(
+                        modifier = Modifier.size(14.dp),
                         color = if (isPresentationMode) Color.White else WeMadeColors.OnSurfaceMuted
                     )
                 }

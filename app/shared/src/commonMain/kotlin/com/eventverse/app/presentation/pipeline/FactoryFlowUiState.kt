@@ -16,6 +16,7 @@ data class FactoryFlowUiState(
     val selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
     val snapshot: FactoryPipelineSnapshot = PipelinePresetFactory.createSnapshot(selectedPreset),
     val selectedNode: PipelineNode? = null,
+    val inspectingInputNode: PipelineNode? = null,
     val isPresentationMode: Boolean = false,
     val selectedStageFilter: PipelineStage? = null,
     val searchQuery: String = "",
@@ -47,6 +48,7 @@ data class FactoryFlowUiState(
 sealed interface FactoryFlowUiEvent {
     data class SelectPreset(val preset: GarmentBusinessPreset) : FactoryFlowUiEvent
     data class SelectNode(val node: PipelineNode?) : FactoryFlowUiEvent
+    data class InspectNodeInputs(val node: PipelineNode?) : FactoryFlowUiEvent
     data object TogglePresentationMode : FactoryFlowUiEvent
     data class FilterByStage(val stage: PipelineStage?) : FactoryFlowUiEvent
     data class UpdateSearchQuery(val query: String) : FactoryFlowUiEvent

@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.pipeline.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,7 @@ fun PipelineNodeCard(
     isSelected: Boolean,
     isPresentationMode: Boolean,
     onClick: () -> Unit,
+    onInspectInputs: ((PipelineNode) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isBypassed = node.isBypassed
@@ -147,34 +149,111 @@ fun PipelineNodeCard(
                 maxLines = 2
             )
 
-            // Input / Output Compact Contracts
-            Column(
+            // n8n-Style Interactive Node Input Port Box
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
                         if (isPresentationMode) Color(0xFF1E293B)
-                        else Color(0xFFF1F5F9)
+                        else Color(0xFFEFF6FF)
                     )
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        IconInlet(modifier = Modifier.size(10.dp), color = WeMadeColors.Primary)
-                        Text(
-                            text = "IN:",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.Primary
-                        )
+                    .border(
+                        1.dp,
+                        if (isPresentationMode) Color(0xFF334155) else Color(0xFFBFDBFE),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .clickable {
+                        if (onInspectInputs != null) {
+                            onInspectInputs(node)
+                        } else {
+                            onClick()
+                        }
                     }
+                    .padding(horizontal = 9.dp, vertical = 7.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Port Socket Handle (n8n dot) + "IN" label
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconNodePort(
+                                modifier = Modifier.size(11.dp),
+                                color = WeMadeColors.Primary
+                            )
+                            Text(
+                                text = "IN",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = WeMadeColors.Primary
+                            )
+                        }
+
+                        // Badges: Automated vs Manual indicators
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (node.automatedInputCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF0284C7).copy(alpha = 0.16f))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        IconZap(modifier = Modifier.size(9.dp), color = Color(0xFF0284C7))
+                                        Text(
+                                            text = "${node.automatedInputCount}",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0284C7)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (node.manualInputCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFFEA580C).copy(alpha = 0.18f))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        IconPerson(modifier = Modifier.size(10.dp), color = Color(0xFFEA580C))
+                                        Text(
+                                            text = "${node.manualInputCount} Manual",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFEA580C)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = "Mapping ↗",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.Primary
+                            )
+                        }
+                    }
+
+                    // Compact preview of input contract
                     Text(
                         text = node.inputContract,
                         fontSize = 10.sp,
@@ -182,6 +261,24 @@ fun PipelineNodeCard(
                         maxLines = 1
                     )
                 }
+            }
+
+            // OUT Deliverable Box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        if (isPresentationMode) Color(0xFF0F172A)
+                        else Color(0xFFF0FDF4)
+                    )
+                    .border(
+                        0.5.dp,
+                        if (isPresentationMode) Color(0xFF334155) else Color(0xFFBBF7D0),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)

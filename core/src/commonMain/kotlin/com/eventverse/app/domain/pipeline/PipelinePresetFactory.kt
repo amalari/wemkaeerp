@@ -63,7 +63,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Target prospek berjalan normal, 3 PO menunggu persetujuan sample.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code)
+                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-crm-1",
+                        name = "Form Permintaan Penawaran (RFQ)",
+                        isManual = true,
+                        operatorRole = "Merchandiser / Sales Lead",
+                        inputMethod = "Form Digital ERP",
+                        description = "Negosiasi kuota minimum order (MOQ), target harga klien, dan kesepakatan lead time pengiriman."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-crm-2",
+                        name = "Sketsa & Referensi Desain Buyer",
+                        isManual = true,
+                        operatorRole = "Klien Buyer / Akun Sales",
+                        inputMethod = "Upload File (PDF / JPG)",
+                        description = "Moodboard dan panduan spesifikasi model baju yang diinginkan pembeli.",
+                        isRequired = false
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-sampling",
@@ -80,7 +99,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 12.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample kemeja & polo batch ini telah lolos fitting buyer.",
-                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code)
+                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-samp-1",
+                        name = "Purchase Order (PO) Induk Terverifikasi",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.CRM_SALES.code,
+                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceOutputContract = "Purchase Order (PO) Induk & Kesepakatan Spesifikasi Awal",
+                        description = "Data kontrak kuantiti dan spesifikasi dasar yang telah disetujui sales."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-samp-2",
+                        name = "Konstruksi Pola Dasar & Lembar Fitting",
+                        isManual = true,
+                        operatorRole = "Pattern Maker (Tukang Pola)",
+                        inputMethod = "Upload Pola CAD DXF & Lembar Kerja",
+                        description = "Pengembangan pola 1 size percontohan untuk pengujian bahan susut dan fitting buyer."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-tech-pack",
@@ -97,7 +135,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 6.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Grading ukuran selesai, konsumsi kain rata-rata 1.45 yard/pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code)
+                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-tp-1",
+                        name = "Golden Sample Disetujui Buyer",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
+                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceOutputContract = "Golden Sample Terverifikasi & Lembar Komentar Fitting Buyer",
+                        description = "Sampel fisik dan lembar revisi fitting yang telah di-ACC oleh pihak pembeli."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-tp-2",
+                        name = "Tabel Konsumsi BOM & Grading Ukuran",
+                        isManual = true,
+                        operatorRole = "Spesialis Teknikal & R&D",
+                        inputMethod = "Matrix Input BOM Digital",
+                        description = "Perhitungan konsumsi kain per yard, aksesoris kancing/zipper, serta toleransi ukuran S/M/L/XL."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-inventory",
@@ -114,7 +171,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 8.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Stok kain Cotton Combed 24s & 30s aman di rak penerimaan.",
-                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code, BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code, BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-inv-1",
+                        name = "Daftar Kebutuhan Rol Kain BOM",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
+                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
+                        description = "Jumlah yard kain dan jenis aksesoris yang dipesan sesuai rincian BOM."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-inv-2",
+                        name = "Uji Shading Lot & Surat Jalan Tekstil",
+                        isManual = true,
+                        operatorRole = "Inspektur Gudang & QC Bahan Baku",
+                        inputMethod = "Scan Barcode Rol & Form Lot",
+                        description = "Pemeriksaan visual konsistensi celupan warna (shading) dan cacat tenun kain masuk."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-costing-hpp",
@@ -131,7 +207,35 @@ object PipelinePresetFactory {
                 cycleTimeHours = 3.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "HPP tervalidasi Rp 48.500/pcs dengan proyeksi margin 24.5%.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-cost-1",
+                        name = "Spesifikasi BOM & Konsumsi Kain",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
+                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
+                        description = "Total konsumsi material per potong baju untuk dasar biaya pokok."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-cost-2",
+                        name = "Harga Pembelian Aktual Rol Kain",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.INVENTORY.code,
+                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceOutputContract = "Kain Rol Teruji Shading + Aksesoris Siap Alokasi Potong",
+                        description = "Faktur harga riil pembelian dari pabrik tekstil."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-cost-3",
+                        name = "Tarif SAM Jahit & Target Margin",
+                        isManual = true,
+                        operatorRole = "Akuntan Biaya & Finance Manager",
+                        inputMethod = "Form Tarif Upah & Matrix Margin",
+                        description = "Standard Allowed Minute jahit, estimasi overhead listrik pabrik, dan target profit margin."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-mrp-spk",
@@ -148,7 +252,35 @@ object PipelinePresetFactory {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Line A dan Line B terjadwal penuh untuk pesanan 2.500 pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code)
+                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-mrp-1",
+                        name = "Persetujuan HPP & Kuota Produksi",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
+                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceOutputContract = "Kalkulasi HPP Bersih per Pcs & Batas Margin Laba Pabrik",
+                        description = "Status kelayakan margin biaya sebelum produksi massal dijalankan."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-mrp-2",
+                        name = "Kain Ready di Gudang Siap Potong",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.INVENTORY.code,
+                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceOutputContract = "Kain Rol Teruji Shading + Aksesoris Siap Alokasi Potong",
+                        description = "Verifikasi fisik kain sudah berada di rak antrean potong pabrik."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-mrp-3",
+                        name = "Alokasi Mesin & Kapasitas Line",
+                        isManual = true,
+                        operatorRole = "PPIC Planner / Kepala Pabrik",
+                        inputMethod = "Form Line Balancing & Mesin",
+                        description = "Penetapan jadwal giliran operator, line potong, dan target kuota harian."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-operator-exec",
@@ -165,7 +297,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 18.0,
                 healthStatus = FlowHealthStatus.BOTTLENECK,
                 healthMessage = "WIP menumpuk 1.350 pcs di Line Jahit B karena pergantian benang warna navy.",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code)
+                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-op-1",
+                        name = "Surat Perintah Kerja (SPK) Potong & Jahit",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
+                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceOutputContract = "Surat Perintah Kerja (SPK) Potong & Matriks Penugasan Line Jahit",
+                        description = "Rincian urutan pengerjaan potong dan susunan assembly line penjahit."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-op-2",
+                        name = "Scan Tiket Bundel Potong & Tally Gelar",
+                        isManual = true,
+                        operatorRole = "Operator Meja Potong & Mandor Jahit",
+                        inputMethod = "Scan Barcode Tiket Bundel",
+                        description = "Pencatatan nomor bundel hasil potong sebelum diserahkan ke meja jahit."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-qc-defect",
@@ -182,7 +333,35 @@ object PipelinePresetFactory {
                 cycleTimeHours = 3.5,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Tingkat cacat terkendali di 1.2% (standar toleransi ekspor < 2.5%).",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code)
+                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-qc-1",
+                        name = "Garmen Grey Goods dari Lantai Jahit",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceOutputContract = "Pakaian Jadi Belum Diinspeksi (Grey Goods) + Catatan Target Harian",
+                        description = "Kumpulan pakaian jadi hasil rakitan operator yang siap diinspeksi."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-qc-2",
+                        name = "Spesifikasi Toleransi Ukuran Tech Pack",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
+                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
+                        description = "Batas deviasi dimensi ukuran baju yang diperbolehkan buyer."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-qc-3",
+                        name = "Ceklis Audit Cacat & Pengukuran Dimensi",
+                        isManual = true,
+                        operatorRole = "Pemeriksa QC Line & Inspector",
+                        inputMethod = "Form Ceklis Cacat & Meteran Fisik",
+                        description = "Pengujian kerapihan jahitan, deteksi noda minyak mesin, dan sortir reject."
+                    )
+                )
             ),
             PipelineNode(
                 id = "fob-fulfillment",
@@ -199,7 +378,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.5,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "50 karton box siap di-pickup oleh armada logistik besok pagi.",
-                downstreamModuleCodes = emptyList()
+                downstreamModuleCodes = emptyList(),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-fob-ful-1",
+                        name = "Garmen Grade A Lolos QC Bertiket",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
+                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceOutputContract = "Pakaian Lolos QC Grade A Bertiket + Laporan Cacat (Reject Rate)",
+                        description = "Pakaian yang telah tervalidasi bersih dari cacat produksi."
+                    ),
+                    PipelineInputPort(
+                        id = "in-fob-ful-2",
+                        name = "Pemeriksaan Karton & Nomor Segel Ekspedisi",
+                        isManual = true,
+                        operatorRole = "Staff Finishing & Packing",
+                        inputMethod = "Packing List & Verifikasi Kontainer",
+                        description = "Penyusunan per karton ekspor dan penempelan barcode shipping."
+                    )
+                )
             )
         )
     }
@@ -221,7 +419,25 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kontrak makloon 3 brand lokal aktif berjalan.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code)
+                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-crm-1",
+                        name = "Purchase Order (PO) Makloon Brand",
+                        isManual = true,
+                        operatorRole = "Akun Makloon / Merchandiser",
+                        inputMethod = "Form Kontrak Jasa Makloon",
+                        description = "Target kuantiti jahit, tanggal serah terima baju jadi, dan spesifikasi ongkos makloon."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-crm-2",
+                        name = "Konfirmasi Jadwal Drop Kain Buyer",
+                        isManual = true,
+                        operatorRole = "Perwakilan Brand Buyer",
+                        inputMethod = "Surat Jalan Pengiriman Kain",
+                        description = "Jadwal truk pengantar bahan kain tiba di bengkel makloon."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-sampling",
@@ -238,7 +454,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 6.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample fitting disetujui tanpa revisi jahitan.",
-                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code)
+                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-samp-1",
+                        name = "Kontrak Kerja Jasa Makloon",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.CRM_SALES.code,
+                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceOutputContract = "Kontrak Kerja Jasa Makloon & Perjanjian Waktu Selesai Jahit",
+                        description = "PO dan kesepakatan jahit resmi dari klien brand."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-samp-2",
+                        name = "Bahan Sample & Lembar Panduan Jahit",
+                        isManual = true,
+                        operatorRole = "Staff Percontohan / Sample Maker",
+                        inputMethod = "Penerimaan Fisik Kain dari Brand",
+                        description = "Kain potong sample dan lembar panduan spesifikasi setikan jarum."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-tech-pack",
@@ -255,7 +490,17 @@ object PipelinePresetFactory {
                 cycleTimeHours = 0.0,
                 healthStatus = FlowHealthStatus.BYPASSED,
                 healthMessage = "Tahapan ini di-bypass pada model makloon CMT (Disediakan Brand Buyer).",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-tp-1",
+                        name = "Pola Jadi Cetak Plotter dari Brand",
+                        isManual = true,
+                        operatorRole = "Pihak Brand Eksternal",
+                        inputMethod = "Kertas Pola Fisik / File Plotter",
+                        description = "Pola potong yang sudah jadi 100% disediakan oleh pihak luar."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-inventory",
@@ -272,7 +517,17 @@ object PipelinePresetFactory {
                 cycleTimeHours = 0.0,
                 healthStatus = FlowHealthStatus.BYPASSED,
                 healthMessage = "Tahapan ini di-bypass pada model makloon CMT (Kain tidak dibeli pabrik).",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-inv-1",
+                        name = "Kain Titipan Drop dari Truk Buyer",
+                        isManual = true,
+                        operatorRole = "Logistik & Ekspedisi Buyer",
+                        inputMethod = "Surat Jalan Kirim Titip Kain",
+                        description = "Pabrik tidak membeli bahan baku; hanya menerima drop rol kain dari buyer."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-costing-hpp",
@@ -289,7 +544,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Ongkos makloon disepakati Rp 13.500/pcs untuk polo shirt.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-cost-1",
+                        name = "Approval Jahit Percontohan Brand",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
+                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceOutputContract = "Approval Jahit Percontohan dari Brand",
+                        description = "Hasil uji coba tingkat kesulitan jahit dan kerapihan setikan."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-cost-2",
+                        name = "Penetapan Tarif Jasa Makloon per Pcs",
+                        isManual = true,
+                        operatorRole = "Finance & Akuntan Makloon",
+                        inputMethod = "Form Tarif Upah Borongan / Pcs",
+                        description = "Perhitungan upah potong + jahit + utilitas listrik per potong baju."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-mrp-spk",
@@ -306,7 +580,34 @@ object PipelinePresetFactory {
                 cycleTimeHours = 3.5,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kain titipan buyer sudah masuk antrean meja potong.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code)
+                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-mrp-1",
+                        name = "Tarif Ongkos Jahit Disepakati",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
+                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceOutputContract = "Tarif Ongkos Jahit Bersih (misal Rp 14.000/pcs)",
+                        description = "Biaya jasa makloon terverifikasi oleh manajemen."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-mrp-2",
+                        name = "Verifikasi Kedatangan Kain Drop Buyer",
+                        isManual = true,
+                        operatorRole = "Mandor Gudang Makloon",
+                        inputMethod = "Ceklis Kuantiti Rol Masuk",
+                        description = "Penghitungan fisik jumlah yard kain yang dititipkan oleh buyer."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-mrp-3",
+                        name = "Jadwal Meja Potong & Mesin Jahit",
+                        isManual = true,
+                        operatorRole = "Kepala Bengkel Makloon",
+                        inputMethod = "Papan Jadwal Antrean Produksi",
+                        description = "Pengaturan giliran jahit sesuai prioritas deadline brand."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-operator-exec",
@@ -323,7 +624,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 14.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Output jahit harian mencapai 220 pcs/hari dengan 6 operator.",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code)
+                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-op-1",
+                        name = "SPK Meja Potong & Pembagian Mesin",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
+                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceOutputContract = "SPK Meja Potong & Pembagian Mesin Jahit Makloon",
+                        description = "Instruksi alokasi potongan bahan per penjahit."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-op-2",
+                        name = "Tally Output Jahit Harian Operator",
+                        isManual = true,
+                        operatorRole = "Operator Jahit Makloon",
+                        inputMethod = "Lembar Catatan Tally Fisik",
+                        description = "Pencatatan jumlah setelan baju yang selesai dijahit setiap jam."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-qc-defect",
@@ -340,7 +660,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.5,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kerapihan jahitan lolos audit perwakilan brand.",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code)
+                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-qc-1",
+                        name = "Baju Jadi Selesai Jahit dari Operator",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceOutputContract = "Baju Jadi Selesai Jahit Siap Disortir",
+                        description = "Setelan pakaian siap inspeksi benang dan kerapihan setikan."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-qc-2",
+                        name = "Ceklis Standar Mutu Buyer Makloon",
+                        isManual = true,
+                        operatorRole = "Pemeriksa QC Makloon",
+                        inputMethod = "Form Audit Kerapihan Jahit",
+                        description = "Pemisahan barang reject dan pembersihan sisa benang jahit."
+                    )
+                )
             ),
             PipelineNode(
                 id = "cmt-fulfillment",
@@ -357,7 +696,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Siap serah terima dengan tanda tangan berita acara penyerahan.",
-                downstreamModuleCodes = emptyList()
+                downstreamModuleCodes = emptyList(),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-cmt-ful-1",
+                        name = "Baju Jadi Lolos Sortir & Kain Perca Sisa",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
+                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceOutputContract = "Laporan Sortir Lolos & Kain Sisa Potong untuk Dikembalikan",
+                        description = "Pakaian yang siap dipack lusinan beserta sisa kain milik buyer."
+                    ),
+                    PipelineInputPort(
+                        id = "in-cmt-ful-2",
+                        name = "Berita Acara Serah Terima Barang Makloon",
+                        isManual = true,
+                        operatorRole = "Staff Ekspedisi & Serah Terima",
+                        inputMethod = "Form Surat Jalan & Tanda Tangan Buyer",
+                        description = "Konfirmasi penyerahan barang kembali ke gudang brand pembeli."
+                    )
+                )
             )
         )
     }
@@ -379,7 +737,25 @@ object PipelinePresetFactory {
                 cycleTimeHours = 5.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Koleksi Ramadhan siap diproduksi sebanyak 3.000 pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code)
+                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-crm-1",
+                        name = "Data Penjualan Marketplace & Wishlist",
+                        isManual = true,
+                        operatorRole = "E-Commerce Lead / Brand Strategist",
+                        inputMethod = "Dashboard Analytics ERP",
+                        description = "Analisis tren konversi toko online dan saran audiens medsos."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-crm-2",
+                        name = "Rencana Rilis Drop Collection",
+                        isManual = true,
+                        operatorRole = "Creative Director",
+                        inputMethod = "Form Peluncuran Season Baru",
+                        description = "Jadwal peluncuran baju baru untuk teaser media sosial."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-sampling",
@@ -396,7 +772,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 10.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample disetujui tim kreatif untuk konten TikTok & Reels.",
-                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code)
+                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-samp-1",
+                        name = "Rencana Peluncuran Koleksi Baru",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.CRM_SALES.code,
+                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceOutputContract = "Rencana Peluncuran Koleksi Baru (Drop Collection)",
+                        description = "Target tema model dan kuota batch drop koleksi."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-samp-2",
+                        name = "Moodboard Kreatif & Sketsa 3D Digital",
+                        isManual = true,
+                        operatorRole = "Fashion Designer & Tim Kreatif",
+                        inputMethod = "Upload Sketsa Digital / AI Prompt Asset",
+                        description = "Desain visual tampak depan/belakang dan inspirasi warna kain."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-tech-pack",
@@ -413,7 +808,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Pola cutting oversize grade S, M, L, XL tersimpan di arsip digital.",
-                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code)
+                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-tp-1",
+                        name = "Sample Fitting Disetujui Tim Kreatif",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
+                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceOutputContract = "Sample Terpilih untuk Fotoshoot & Pola Produksi Massal",
+                        description = "Baju contoh yang telah dites kenyamanan jatuhnya di badan model."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-tp-2",
+                        name = "Grading Pola Master CAD Brand In-House",
+                        isManual = true,
+                        operatorRole = "Tukang Pola In-House",
+                        inputMethod = "CAD Software & Digital Grading",
+                        description = "Pola paten khas brand (drop shoulder, rib leher tebal, panjang lengan)."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-inventory",
@@ -430,7 +844,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 6.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kain Heavyweight Cotton aman tersedia untuk 2 batch produksi.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-inv-1",
+                        name = "Kebutuhan Material dari Pola Master CAD",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
+                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceOutputContract = "Pola Master CAD Brand Sendiri",
+                        description = "Kalkulasi rol kain dan aksesoris tag brand."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-inv-2",
+                        name = "Penerimaan Kain Heavyweight & Label Woven",
+                        isManual = true,
+                        operatorRole = "Staff Gudang Internal",
+                        inputMethod = "Barcode Penerimaan Bahan",
+                        description = "Inspeksi gramasi kain 16s/20s dan kerapihan label satin/woven."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-costing-hpp",
@@ -447,7 +880,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Margin e-commerce ditetapkan di angka 62% pasca biaya packaging.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code)
+                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-cost-1",
+                        name = "Konsumsi Kain Master CAD",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
+                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceOutputContract = "Pola Master CAD Brand Sendiri",
+                        description = "Rincian biaya modal kain per kaos."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-cost-2",
+                        name = "Biaya Packaging Mewah & Penetapan MSRP",
+                        isManual = true,
+                        operatorRole = "Retail Finance Specialist",
+                        inputMethod = "Form Penetapan Harga Retail & Margin",
+                        description = "Kalkulasi margin 60%+ untuk menutup biaya iklan (ROAS) dan diskon payday."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-mrp-spk",
@@ -464,7 +916,35 @@ object PipelinePresetFactory {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Batch restock warna Black & Washed Grey berjalan sesuai jadwal.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code)
+                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-mrp-1",
+                        name = "Batas Margin HPP & MSRP Resmi",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
+                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceOutputContract = "Harga Retail Resmi & Batas Diskon Promo Flash Sale",
+                        description = "Target volume produksi batch baru."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-mrp-2",
+                        name = "Stok Kain Gudang Internal Ready",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.INVENTORY.code,
+                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceOutputContract = "Bahan Siap Potong Terverifikasi Kualitasnya",
+                        description = "Ketersediaan kain ready di lantai workshop."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-mrp-3",
+                        name = "Trigger Alert Restock SKU Terlaris",
+                        isManual = true,
+                        operatorRole = "Production Planner Brand",
+                        inputMethod = "Matrix Restock Order",
+                        description = "Penetapan jadwal pemotongan kain untuk size L & XL yang cepat habis."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-operator-exec",
@@ -481,7 +961,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 15.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Operator jahit rantai leher bekerja sesuai standar kerapihan brand.",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code)
+                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-op-1",
+                        name = "SPK Restock Batch Baru per Warna",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
+                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceOutputContract = "SPK Restock Batch Baru per Warna & Ukuran",
+                        description = "Instruksi potong dan assembly jahit in-house."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-op-2",
+                        name = "Verifikasi Hasil Sablon & Jahit Rantai",
+                        isManual = true,
+                        operatorRole = "Mandor Konveksi Brand",
+                        inputMethod = "Checksheet Pengerjaan Sablon/Jahit",
+                        description = "Pemeriksaan presisi letak grafis sablon dan jahitan rantai bahu."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-qc-defect",
@@ -498,7 +997,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 3.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Inspeksi teliti, 100% item dipastikan bebas noda dan benang sisa.",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code)
+                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-qc-1",
+                        name = "Kaos / Hoodie Selesai Jahit",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
+                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceOutputContract = "Kaos / Hoodie Selesai Jahit",
+                        description = "Pakaian jadi dari lantai workshop in-house."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-qc-2",
+                        name = "Ceklis Zero-Defect Customer Policy",
+                        isManual = true,
+                        operatorRole = "Inspector QC Tim Brand",
+                        inputMethod = "Form Audit Standar Brand Premium",
+                        description = "Pemeriksaan 100% item bebas sisa benang, noda minyak, atau cacat sablon."
+                    )
+                )
             ),
             PipelineNode(
                 id = "d2c-fulfillment",
@@ -515,7 +1033,26 @@ object PipelinePresetFactory {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Paket pre-order siap di-pickup ekspedisi harian jam 16:00.",
-                downstreamModuleCodes = emptyList()
+                downstreamModuleCodes = emptyList(),
+                inputs = listOf(
+                    PipelineInputPort(
+                        id = "in-d2c-ful-1",
+                        name = "Kaos Siap Pasang Barcode SKU Retail",
+                        isManual = false,
+                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
+                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceOutputContract = "Kaos Siap Pasang Tag Barcode SKU Retail",
+                        description = "Item terverifikasi siap dibungkus kemasan ritel."
+                    ),
+                    PipelineInputPort(
+                        id = "in-d2c-ful-2",
+                        name = "Kemas Ziplock, Stiker & Cetak Resi Kurir",
+                        isManual = true,
+                        operatorRole = "Staff Packing & Pengiriman Retail",
+                        inputMethod = "Scan Barcode Resi & Packing Ekspedisi",
+                        description = "Penyemprotan pewangi pakaian, penyisipan free gift stiker, dan serah terima kurir."
+                    )
+                )
             )
         )
     }

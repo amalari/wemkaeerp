@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.pipeline.components.ExecutiveKpiHeader
+import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
 import com.eventverse.app.presentation.pipeline.components.PipelineFlowCanvas
 import com.eventverse.app.presentation.pipeline.components.PresetSelectorBar
@@ -120,6 +121,7 @@ fun FactoryFlowScreen(
                 hideBypassedNodes = state.hideBypassedNodes,
                 bypassedCount = state.bypassedCount,
                 onSelectNode = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(it)) },
+                onInspectInputs = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
                 onSearchChange = { viewModel.onEvent(FactoryFlowUiEvent.UpdateSearchQuery(it)) },
                 onSetViewMode = { viewModel.onEvent(FactoryFlowUiEvent.SetViewMode(it)) },
@@ -142,6 +144,21 @@ fun FactoryFlowScreen(
                 isPresentationMode = isPresentationMode,
                 onClose = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(null)) }
             )
+        }
+
+        // n8n-Style Node Input & Upstream Mapping Inspector Modal
+        AnimatedVisibility(
+            visible = state.inspectingInputNode != null,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            state.inspectingInputNode?.let { node ->
+                NodeInputInspectorModal(
+                    node = node,
+                    isPresentationMode = isPresentationMode,
+                    onClose = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(null)) }
+                )
+            }
         }
     }
 }
