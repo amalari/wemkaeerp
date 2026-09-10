@@ -68,7 +68,7 @@ object PipelinePresetFactory {
                 stage = PipelineStage.COMMERCIAL,
                 stepNumber = 1,
                 title = BusinessModule.CRM_SALES.displayName,
-                description = "Negosiasi awal kontrak FOB, penentuan kuota minimum order (MOQ), dan kesepakatan lead time pengiriman.",
+                description = "Negosiasi pesanan produksi, penentuan kuota minimum order (MOQ), dan kesepakatan lead time pengiriman.",
                 assignedDepartment = "Marketing & Sales",
                 deptColorHex = 0xFF2563EB,
                 inputContract = "Permintaan Penawaran (RFQ), Desain Referensi Klien, & Target Harga",

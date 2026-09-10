@@ -27,6 +27,9 @@ import com.eventverse.app.infrastructure.PostgresEmployeeRepository
 import com.eventverse.app.routes.rbacRoutes
 import com.eventverse.app.routes.departmentRoutes
 import com.eventverse.app.routes.employeeRoutes
+import com.eventverse.app.routes.pipelineRoutes
+import com.eventverse.app.infrastructure.PostgresTenantPipelineRepository
+import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -38,7 +41,8 @@ fun Application.module(
     userRepository: UserRepository? = null,
     roleRepository: RoleRepository? = null,
     departmentRepository: DepartmentRepository? = null,
-    employeeRepository: EmployeeRepository? = null
+    employeeRepository: EmployeeRepository? = null,
+    pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -48,6 +52,7 @@ fun Application.module(
     val roleRepo = roleRepository ?: PostgresRoleRepository()
     val deptRepo = departmentRepository ?: PostgresDepartmentRepository()
     val empRepo = employeeRepository ?: PostgresEmployeeRepository()
+    val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
 
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
@@ -276,5 +281,6 @@ fun Application.module(
         rbacRoutes(roleRepo)
         departmentRoutes(deptRepo, empRepo)
         employeeRoutes(empRepo, deptRepo)
+        pipelineRoutes(pipeRepo)
     }
 }

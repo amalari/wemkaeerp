@@ -234,7 +234,56 @@ data class CustomTenantPipeline(
     val baseStarterPreset: GarmentBusinessPreset? = null,
     val nodes: List<CustomPipelineNode>,
     val edges: List<CustomPipelineEdge>
-)
+) {
+    companion object {
+        fun fromPreset(tenantId: TenantId, preset: GarmentBusinessPreset): CustomTenantPipeline {
+            val snapshot = PipelinePresetFactory.createSnapshot(preset)
+            val customNodes = snapshot.nodes.map { node ->
+                CustomPipelineNode(
+                    nodeId = node.id,
+                    moduleId = node.module.code,
+                    customDisplayName = node.title,
+                    archetype = when (node.module) {
+                        BusinessModule.CRM_SALES -> ModuleArchetype.ORDER_INGESTION
+                        BusinessModule.SAMPLING_ORDER -> ModuleArchetype.ORDER_INGESTION
+                        BusinessModule.INVENTORY -> ModuleArchetype.RAW_MATERIAL
+                        BusinessModule.TECH_PACK_BOM -> ModuleArchetype.COSTING_HPP
+                        BusinessModule.COSTING_HPP -> ModuleArchetype.COSTING_HPP
+                        BusinessModule.PRODUCTION_MRP -> ModuleArchetype.CUTTING
+                        BusinessModule.OPERATOR_EXEC -> ModuleArchetype.SEWING
+                        BusinessModule.QUALITY_CONTROL -> ModuleArchetype.QUALITY_CONTROL
+                        BusinessModule.FULFILLMENT -> ModuleArchetype.FULFILLMENT
+                    },
+                    isBypassed = node.isBypassed,
+                    stepOrderIndex = node.stepNumber,
+                    customFormulaParameters = emptyMap()
+                )
+            }
+
+            val customEdges = snapshot.nodes.flatMap { sourceNode ->
+                sourceNode.downstreamModuleCodes.mapNotNull { targetCode ->
+                    val targetNode = snapshot.nodes.firstOrNull { it.module.code == targetCode }
+                    if (targetNode != null) {
+                        CustomPipelineEdge(
+                            edgeId = "edge-${sourceNode.id}-to-${targetNode.id}",
+                            fromNodeId = sourceNode.id,
+                            toNodeId = targetNode.id,
+                            expectedDataType = "StandardHandoffPayload"
+                        )
+                    } else null
+                }
+            }
+
+            return CustomTenantPipeline(
+                tenantId = tenantId,
+                pipelineName = "Alur Operasional Tenant",
+                baseStarterPreset = preset,
+                nodes = customNodes,
+                edges = customEdges
+            )
+        }
+    }
+}
 
 data class CustomPipelineNode(
     val nodeId: String,

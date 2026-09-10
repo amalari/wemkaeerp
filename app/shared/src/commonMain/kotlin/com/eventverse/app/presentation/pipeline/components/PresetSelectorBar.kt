@@ -25,11 +25,12 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
 fun PresetSelectorBar(
-    selectedPreset: GarmentBusinessPreset,
+    selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+    companyName: String = "",
     isPresentationMode: Boolean,
     isSimulating: Boolean,
     activeScenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL,
-    onSelectPreset: (GarmentBusinessPreset) -> Unit,
+    onSelectPreset: (GarmentBusinessPreset) -> Unit = {},
     onSelectScenario: (PipelineSimulationScenario) -> Unit = {},
     onTogglePresentationMode: () -> Unit,
     onToggleSimulation: () -> Unit,
@@ -53,70 +54,46 @@ fun PresetSelectorBar(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Row 1: Business Preset Pills + Mode Toggles
+            // Row 1: Pipeline Status + Mode Toggles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Business Preset Pills
+                // Left: Active Operational Pipeline Profile Indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Model Bisnis:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
-                    )
-
-                    GarmentBusinessPreset.entries.forEach { preset ->
-                        val isSelected = preset == selectedPreset
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    when {
-                                        isSelected && isPresentationMode -> WeMadeColors.Primary
-                                        isSelected -> WeMadeColors.PrimaryContainer
-                                        isPresentationMode -> Color(0xFF1E293B)
-                                        else -> Color(0xFFF1F5F9)
-                                    }
-                                )
-                                .border(
-                                    width = if (isSelected) 1.5.dp else 0.dp,
-                                    color = if (isSelected) WeMadeColors.Primary else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable { onSelectPreset(preset) }
-                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isPresentationMode) Color(0xFF1E293B) else WeMadeColors.PrimaryContainer.copy(alpha = 0.6f)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.Start,
-                                verticalArrangement = Arrangement.spacedBy(1.dp)
-                            ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(WeMadeColors.Primary)
+                            )
+                            Column {
                                 Text(
-                                    text = preset.shortBadge,
+                                    text = if (companyName.isNotBlank()) "Alur Operasional: $companyName" else "Alur Modul Operasional",
                                     fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = when {
-                                        isSelected && isPresentationMode -> Color.White
-                                        isSelected -> WeMadeColors.Primary
-                                        isPresentationMode -> Color(0xFFCBD5E1)
-                                        else -> WeMadeColors.OnSurface
-                                    }
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPresentationMode) Color.White else WeMadeColors.Primary
                                 )
                                 Text(
-                                    text = preset.exampleCompanyName,
+                                    text = "Monitoring aliran modul, kontrak data antar divisi, dan status antrean",
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    color = when {
-                                        isSelected && isPresentationMode -> Color(0xFF93C5FD)
-                                        isSelected -> WeMadeColors.Primary.copy(alpha = 0.8f)
-                                        isPresentationMode -> Color(0xFF64748B)
-                                        else -> WeMadeColors.OnSurfaceMuted
-                                    }
+                                    color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
                                 )
                             }
                         }
@@ -257,7 +234,7 @@ fun PresetSelectorBar(
                     }
                 }
 
-                // Right: Target Profile Badge
+                // Right: System Topology Status Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
@@ -265,7 +242,7 @@ fun PresetSelectorBar(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = "Profil: ${selectedPreset.targetClientProfile}",
+                        text = "Multi-Lane Bezier Routing: Aktif",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted

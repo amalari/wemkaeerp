@@ -134,34 +134,7 @@ fun App() {
                         Text(
                             text = "Multi-Tenant Garment Platform",
                             fontSize = 12.sp,
-                            color = WeMadeColors.OnSurfaceMuted
                         )
-
-                        if (session != null) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(WeMadeColors.PrimaryContainer)
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    com.eventverse.app.presentation.pipeline.components.IconBuilding(
-                                        modifier = Modifier.size(11.dp),
-                                        color = WeMadeColors.Primary
-                                    )
-                                    Text(
-                                        text = session.tenantSlug ?: "tenant",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = WeMadeColors.Primary
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     // Right Navigation Controls & User Profile Bar
@@ -248,6 +221,22 @@ fun App() {
                                 }
                             )
                         } else {
+                            // Divider
+                            Box(
+                                modifier = Modifier
+                                    .height(24.dp)
+                                    .width(1.dp)
+                                    .background(WeMadeColors.Border)
+                            )
+
+                            // GCP-Style Company Switcher Dropdown for Superadmin
+                            com.eventverse.app.presentation.navigation.CompanySwitcherDropdown(
+                                currentSlug = session.tenantSlug ?: "wemade-demo",
+                                onSelectCompany = { company ->
+                                    authViewModel.switchTenant(company)
+                                }
+                            )
+
                             // Divider
                             Box(
                                 modifier = Modifier
@@ -358,7 +347,7 @@ fun App() {
                     }
                     AppNavScreen.FACTORY_FLOW -> {
                         if (isAuthenticated) {
-                            FactoryFlowScreen()
+                            FactoryFlowScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo")
                         } else {
                             AuthGuardCard(
                                 targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",

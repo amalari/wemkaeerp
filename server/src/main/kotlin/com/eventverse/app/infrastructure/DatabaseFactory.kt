@@ -58,6 +58,7 @@ object DatabaseFactory {
             .locations("classpath:db/migration")
             .baselineOnMigrate(true)
             .load()
+        flyway.repair()
         flyway.migrate()
     }
 
@@ -78,5 +79,5 @@ object DatabaseFactory {
     }
 
     private fun getEnvOrDefault(name: String, default: String): String =
-        EnvLoader.get(name, default)
+        System.getenv(name) ?: default
 }

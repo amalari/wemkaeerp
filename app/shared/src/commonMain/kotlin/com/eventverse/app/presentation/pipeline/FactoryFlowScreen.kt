@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.presentation.pipeline.components.ExecutiveKpiHeader
+import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
 import com.eventverse.app.presentation.pipeline.components.PipelineFlowCanvas
@@ -26,11 +26,21 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
 fun FactoryFlowScreen(
+    tenantSlug: String = "wemade-demo",
     viewModel: FactoryFlowViewModel = remember { FactoryFlowViewModel() },
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
     val isPresentationMode = state.isPresentationMode
+
+    val activeCompany = remember(tenantSlug) {
+        com.eventverse.app.presentation.navigation.CompanyTenantProfile.findBySlug(tenantSlug)
+    }
+
+    // Sync pipeline automatically with the active company tenant selected in GCP switcher
+    LaunchedEffect(tenantSlug) {
+        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(activeCompany.preset))
+    }
 
     val screenBg = if (isPresentationMode) Color(0xFF020617) else WeMadeColors.Background
 
@@ -52,34 +62,50 @@ fun FactoryFlowScreen(
                 )
             }
 
-            // Top Header & Title
-            if (!isPresentationMode) {
+            // Top Header: Title + Presentation Mode Pill
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(WeMadeColors.Primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconFlowGraph(
+                            modifier = Modifier.size(24.dp),
+                            color = WeMadeColors.Primary
+                        )
+                    }
+
+                    Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Alur Operasional & Monitoring Pabrik",
+                                text = "Alur Operasional Pabrik",
                                 fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.OnSurface
                             )
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(WeMadeColors.PrimaryContainer)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(WeMadeColors.Primary.copy(alpha = 0.12f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "Live Monitoring Pipeline",
+                                    text = activeCompany.name,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = WeMadeColors.Primary
                                 )
                             }
@@ -94,8 +120,9 @@ fun FactoryFlowScreen(
                 }
             }
 
-            // Preset Selector Bar (FOB vs CMT vs Brand D2C + Presentation Button + Dynamic Scenarios)
+            // Pipeline Control Bar
             PresetSelectorBar(
+                companyName = activeCompany.name,
                 selectedPreset = state.selectedPreset,
                 isPresentationMode = isPresentationMode,
                 isSimulating = state.isSimulatingRealtime,

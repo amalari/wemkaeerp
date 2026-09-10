@@ -327,4 +327,41 @@ class AuthViewModel(
             _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
         }
     }
+
+    fun switchTenant(company: com.eventverse.app.presentation.navigation.CompanyTenantProfile) {
+        val currentSession = _uiState.value.authenticatedSession
+        val updatedUser = currentSession?.user?.copy(
+            tenantId = TenantId(company.id)
+        ) ?: User(
+            id = UserId("usr-owner-001"),
+            tenantId = TenantId(company.id),
+            username = Username("superadmin"),
+            email = EmailAddress("student.achmad@gmail.com"),
+            role = Role.TENANT_ADMIN,
+            isActive = true
+        )
+        val newSession = UserSession(
+            user = updatedUser,
+            token = currentSession?.token ?: AuthToken("jwt-session-admin"),
+            tenantSlug = company.slug
+        )
+
+        PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(newSession))
+        sessionStorage.setSession(
+            TenantSession(
+                tenantId = TenantId(company.id),
+                slug = TenantSlug(company.slug),
+                name = company.name,
+                tier = SubscriptionTier.PRO
+            )
+        )
+
+        _uiState.update {
+            it.copy(
+                authenticatedSession = newSession,
+                tenantSlug = company.slug,
+                successMessage = "Beralih ke perusahaan: ${company.name}"
+            )
+        }
+    }
 }
