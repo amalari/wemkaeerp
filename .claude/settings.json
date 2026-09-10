@@ -60,7 +60,20 @@
       "Bash(./gradlew :core:jvmTest :app:shared:jvmTest :server:test)",
       "Bash(./gradlew :app:webApp:compileKotlinJs :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJvm)",
       "Bash(grep -o '<failure message=\"[^\"]\\\\{0,300\\\\}' app/shared/build/test-results/jvmTest/TEST-com.eventverse.app.presentation.auth.GoogleLoginTest.xml)",
-      "Bash(grep -o '<failure message=\"[^\"]\\\\{0,250\\\\}' app/shared/build/test-results/jvmTest/TEST-com.eventverse.app.presentation.auth.AuthViewModelTest.xml)"
+      "Bash(grep -o '<failure message=\"[^\"]\\\\{0,250\\\\}' app/shared/build/test-results/jvmTest/TEST-com.eventverse.app.presentation.auth.AuthViewModelTest.xml)",
+      "Bash(ls /Volumes/amalari/achmadjamaludin/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/ | grep -i datetime; echo \"---exit $?---\"; ls /Volumes/amalari/achmadjamaludin/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/ | wc -l)",
+      "Read(//Volumes/amalari/achmadjamaludin/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/**)",
+      "Bash(./gradlew :core:dependencies --configuration jvmCompileClasspath)",
+      "Bash(grep -n \"RoleId\\(\\\\|\\\\\"role-\\\\${\" server/src/main/kotlin/com/eventverse/app/routes/RbacRoutes.kt)",
+      "Bash(grep -n \"\\\\\"role-\\\\|role-\\\\${\" server/src/main/kotlin/com/eventverse/app/routes/RbacRoutes.kt)",
+      "Bash(grep -n \"\\\\\"dept-\\\\|dept-\\\\${\" server/src/main/kotlin/com/eventverse/app/routes/DepartmentRoutes.kt)",
+      "Bash(./gradlew :core:compileKotlinJvm :server:compileKotlin)",
+      "Bash(./gradlew :core:compileKotlinWasmJs :core:compileKotlinJs :core:compileKotlinIosSimulatorArm64 :app:shared:compileKotlinJvm)",
+      "Bash(./gradlew :core:jvmTest :server:test --rerun-tasks)",
+      "Bash(./gradlew :core:jvmTest --tests \"com.eventverse.app.domain.pipeline.UpdateTenantTierUseCaseTest\")",
+      "Bash(./gradlew :server:test --tests \"com.eventverse.app.AdminApiTest\" --rerun-tasks)",
+      "Bash(./gradlew :server:test --tests \"com.eventverse.app.infrastructure.PostgresAuditLogRepositoryIntegrationTest\" --rerun-tasks)",
+      "Bash(./gradlew :core:compileKotlinWasmJs :core:compileKotlinJs :core:compileKotlinIosSimulatorArm64 :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs :app:shared:compileKotlinIosSimulatorArm64 :app:webApp:compileKotlinJs :app:desktopApp:compileKotlin :server:compileKotlin)"
     ],
     "deny": [
       "Edit(*.env)",

@@ -26,6 +26,8 @@ dependencies {
     // Provides a real JSONB column binding, so JSON documents are sent to PostgreSQL as
     // jsonb rather than as varchar (which the server rejects on a jsonb column).
     implementation(libs.exposed.json)
+    // Real `timestamp()` column bound to kotlinx.datetime.Instant, for the audit log.
+    implementation(libs.exposed.kotlinDatetime)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
     implementation("com.auth0:java-jwt:4.4.0")

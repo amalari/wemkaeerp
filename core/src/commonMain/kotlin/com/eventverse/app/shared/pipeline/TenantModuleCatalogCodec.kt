@@ -21,13 +21,23 @@ object TenantModuleCatalogCodec {
     fun encode(
         entitlement: TenantModuleEntitlement,
         modules: List<TenantModuleAvailability>
-    ): String = jsonObjectOf(
+    ): String = encodeValue(entitlement, modules).encode()
+
+    /**
+     * As [encode], but returns the structured value rather than text — for a caller (the
+     * admin API) that needs to merge this catalogue into a larger response object without
+     * an encode-then-reparse round trip.
+     */
+    fun encodeValue(
+        entitlement: TenantModuleEntitlement,
+        modules: List<TenantModuleAvailability>
+    ): JsonValue.Obj = jsonObjectOf(
         "tier" to jsonOf(entitlement.tier.name),
         "maxActiveModules" to jsonOf(entitlement.maxActiveModules),
         "allowsCustomPlugins" to jsonOf(entitlement.allowsCustomPlugins),
         "activeModuleCount" to jsonOf(modules.count { it.isActive }),
         "modules" to jsonArrayOf(modules.map(::encodeModule))
-    ).encode()
+    )
 
     fun decode(rawJson: String): TenantModuleCatalogSnapshot {
         val root = JsonParser.parseObject(rawJson)

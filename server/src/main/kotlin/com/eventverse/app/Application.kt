@@ -28,9 +28,12 @@ import com.eventverse.app.routes.rbacRoutes
 import com.eventverse.app.routes.departmentRoutes
 import com.eventverse.app.routes.employeeRoutes
 import com.eventverse.app.routes.pipelineRoutes
+import com.eventverse.app.routes.adminRoutes
 import com.eventverse.app.infrastructure.PostgresTenantEntitlementRepository
 import com.eventverse.app.infrastructure.PostgresTenantPipelineRepository
+import com.eventverse.app.infrastructure.PostgresAuditLogRepository
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
+import com.eventverse.app.domain.audit.AuditLogRepository
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -44,7 +47,8 @@ fun Application.module(
     departmentRepository: DepartmentRepository? = null,
     employeeRepository: EmployeeRepository? = null,
     pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null,
-    entitlementRepository: com.eventverse.app.domain.pipeline.TenantEntitlementRepository? = null
+    entitlementRepository: com.eventverse.app.domain.pipeline.TenantEntitlementRepository? = null,
+    auditLogRepository: AuditLogRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -56,6 +60,7 @@ fun Application.module(
     val empRepo = employeeRepository ?: PostgresEmployeeRepository()
     val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
     val entitlementRepo = entitlementRepository ?: PostgresTenantEntitlementRepository()
+    val auditLogRepo = auditLogRepository ?: PostgresAuditLogRepository()
 
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
@@ -286,5 +291,6 @@ fun Application.module(
         departmentRoutes(deptRepo, empRepo)
         employeeRoutes(empRepo, deptRepo)
         pipelineRoutes(pipeRepo, entitlementRepo)
+        adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
     }
 }

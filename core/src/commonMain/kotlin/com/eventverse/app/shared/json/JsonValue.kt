@@ -50,6 +50,9 @@ sealed interface JsonValue {
 
         fun objectArray(key: String): List<Obj> = array(key).filterIsInstance<Obj>()
 
+        /** A `["a","b"]` array of strings, e.g. a set of granted module ids. */
+        fun stringArray(key: String): List<String> = array(key).filterIsInstance<Str>().map { it.value }
+
         /** Flat `{"k":"v"}` maps such as tenant-specific formula parameters. */
         fun stringMap(key: String): Map<String, String> =
             obj(key)?.entries

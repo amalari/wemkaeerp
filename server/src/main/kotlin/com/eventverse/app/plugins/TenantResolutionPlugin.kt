@@ -18,6 +18,15 @@ class TenantResolutionConfig {
     var jwtTokenService: JwtTokenService? = null
 
     var publicRoutePrefixes: List<String> = listOf("/api/public", "/health", "/favicon.ico")
+
+    /**
+     * Routes that act on a tenant named by a **path parameter** rather than the caller's
+     * own workspace — platform administration, where a superadmin manages a tenant it is
+     * not a member of. These still require authentication, and still require the
+     * `PLATFORM_SUPERADMIN` role, but skip automatic tenant-context resolution: the target
+     * tenant is whatever the route itself looks up from the path, not from a header.
+     */
+    var platformRoutePrefixes: List<String> = listOf("/api/admin")
 }
 
 /**
@@ -38,6 +47,7 @@ val TenantResolutionPlugin = createApplicationPlugin(
     val jwtTokenService = pluginConfig.jwtTokenService
         ?: error("JwtTokenService must be configured in TenantResolutionPlugin")
     val publicPrefixes = pluginConfig.publicRoutePrefixes
+    val platformPrefixes = pluginConfig.platformRoutePrefixes
 
     onCall { call ->
         val path = call.request.path()
@@ -74,6 +84,19 @@ val TenantResolutionPlugin = createApplicationPlugin(
             tenantSlug = decoded.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
         )
         call.attributes.put(CallerPrincipalAttributeKey, principal)
+
+        // --- 1b. Platform administration routes: authenticated superadmin only, no
+        //         automatic tenant context — the route decides its target tenant from a
+        //         path parameter instead. ------------------------------------------
+        if (platformPrefixes.any { path.startsWith(it) }) {
+            if (!principal.isPlatformSuperadmin) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    "Endpoint ini khusus untuk platform superadmin."
+                )
+            }
+            return@onCall
+        }
 
         // --- 2. Decide which tenant this request may act on ------------------
         val requestedSlug = call.request.header("X-Tenant-Slug")?.trim()?.lowercase()
