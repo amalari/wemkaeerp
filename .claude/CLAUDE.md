@@ -235,6 +235,54 @@ fun `publish event when already published should throw exception`() { ... }
 
 ---
 
+### 11. Modul Operasional (Composable "Lego/Puzzle" Architecture)
+
+WeMade ERP **tidak dibatasi** oleh enum model bisnis yang kaku (FOB/CMT/Brand D2C).
+Preset itu hanya starter template — setiap tenant bebas menyusun, menukar, atau
+menghibridkan node modul dalam alur pipeline-nya sendiri (`CustomTenantPipeline`).
+
+Sebelum membuat, memperluas, atau merefaktor modul operasional apa pun (Procurement,
+Sampling, Cutting SPK, Sewing Kanban, QC Inspection, Costing Engine, dll.), baca dan
+patuhi **[`.claude/rules/module-integration-rules.md`](.claude/rules/module-integration-rules.md)**
+secara penuh. Ringkasan kontrak wajibnya:
+
+1. Deklarasikan `ModuleArchetype` yang tepat (slot kemampuan modul dapat saling ditukar).
+2. Nyatakan tipe data Input/Output Port agar kompatibel disambung modul lain.
+3. Jangan campur `StockOwnershipSemantics` (`OWNED_RAW_MATERIAL` vs
+   `CONSIGNED_CLIENT_MATERIAL` vs `INTERNAL_FINISHED_GOODS`).
+4. Pisahkan rumus `CostingBehavior` dari core engine (parameter dinamis per tenant,
+   bukan hardcode).
+5. Sediakan jalur `DefectLiability` & rework loop untuk modul lantai produksi.
+6. Sediakan telemetri (`wipPieces`, `cycleTimeHours`, `healthStatus`) agar node bisa
+   dipantau di kanvas.
+7. Isolasi konfigurasi pipeline per `TenantId` — modifikasi satu tenant tidak boleh
+   berdampak ke tenant lain.
+8. Deklarasikan `ScopeCapability` (`GLOBAL_ONLY` vs `HIERARCHICAL`) untuk kapabilitas
+   jangkauan data modul.
+
+Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap modul selesai.
+
+---
+
+### 12. Dokumentasi Wajib Pasca-Fitur (Teaching Skill)
+
+**Setiap kali sebuah task, issue, modul, atau fitur baru selesai diimplementasikan**
+(termasuk perubahan signifikan pada fitur yang sudah ada), panggil skill `teaching`
+untuk menghasilkan dokumentasi mentoring teknis di `docs/teaching/teaching-[slug].md`,
+lalu tautkan file tersebut di respons akhir ke user. Ini berlaku otomatis — tidak perlu
+menunggu user memintanya secara eksplisit.
+
+Skill dokumentasi lain yang tersedia dan boleh dipakai sesuai konteks (tidak wajib
+otomatis seperti `teaching`):
+- `task-resolution-doc` — ringkasan penyelesaian task terhubung ke GitHub Issue, di
+  `docs/tasks/`. Pakai saat task punya issue GitHub yang jelas.
+- `trd-generator` — Technical Requirements Document 5-bagian untuk fitur/servis baru
+  yang cukup besar, di `docs/trd/`. Pakai di awal perencanaan fitur besar, bukan pasca-implementasi.
+- `task-to-github-projects` — mengonversi rencana/breakdown task menjadi GitHub
+  Issues & Project items via `gh` CLI.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - Anemic Domain Model — Entity hanya data, logika di service

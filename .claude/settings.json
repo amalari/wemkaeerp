@@ -73,7 +73,13 @@
       "Bash(./gradlew :core:jvmTest --tests \"com.eventverse.app.domain.pipeline.UpdateTenantTierUseCaseTest\")",
       "Bash(./gradlew :server:test --tests \"com.eventverse.app.AdminApiTest\" --rerun-tasks)",
       "Bash(./gradlew :server:test --tests \"com.eventverse.app.infrastructure.PostgresAuditLogRepositoryIntegrationTest\" --rerun-tasks)",
-      "Bash(./gradlew :core:compileKotlinWasmJs :core:compileKotlinJs :core:compileKotlinIosSimulatorArm64 :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs :app:shared:compileKotlinIosSimulatorArm64 :app:webApp:compileKotlinJs :app:desktopApp:compileKotlin :server:compileKotlin)"
+      "Bash(./gradlew :core:compileKotlinWasmJs :core:compileKotlinJs :core:compileKotlinIosSimulatorArm64 :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs :app:shared:compileKotlinIosSimulatorArm64 :app:webApp:compileKotlinJs :app:desktopApp:compileKotlin :server:compileKotlin)",
+      "Bash(mkdir -p .claude/skills/teaching .claude/skills/task-resolution-doc .claude/skills/trd-generator .claude/skills/task-to-github-projects .claude/rules)",
+      "Bash(cp .agents/skills/teaching/SKILL.md .claude/skills/teaching/SKILL.md)",
+      "Bash(cp .agents/skills/task-resolution-doc/SKILL.md .claude/skills/task-resolution-doc/SKILL.md)",
+      "Bash(cp .agents/skills/trd-generator/SKILL.md .claude/skills/trd-generator/SKILL.md)",
+      "Bash(cp .agents/rules/module-integration-rules.md .claude/rules/module-integration-rules.md)",
+      "Edit(/.claude/skills/task-to-github-projects/**)"
     ],
     "deny": [
       "Edit(*.env)",
