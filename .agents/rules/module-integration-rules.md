@@ -74,9 +74,31 @@ Setiap modul lantai produksi wajib memiliki jalur penanganan jika terjadi cacat/
 Agar node modul dapat berkedip hijau/kuning/merah di visualisasi kanvas:
 - Modul wajib menyediakan: `wipPieces` (antrean potong/baju yang sedang tertahan), `cycleTimeHours` (kecepatan kerja), dan `healthStatus` (`HEALTHY`, `WARNING`, `BOTTLENECK`, `CRITICAL`).
 
-### Kontrak 7: Isolasi Multi-Tenant & RBAC Dinamis
+### Kontrak 7: Isolasi Multi-Tenant & Konfigurasi Pipeline
 - Data konfigurasi alur kustom disimpan pada entitas `CustomTenantPipeline` berdasar `TenantId`.
-- Operator hanya mengeksekusi tugas pada node yang sesuai divisinya dan hak aksesnya (`ScopeCapability`).
+- Alur pipeline diisolasi per tenant sehingga modifikasi node oleh satu pabrik tidak berdampak ke tenant lain.
+
+### Kontrak 8: Aturan Baku Kapabilitas Jangkauan Data Modul (`ScopeCapability` & `DataScope`)
+Setiap modul baru **WAJIB** mendeklarasikan salah satu dari dua kapabilitas jangkauan data (`ScopeCapability`):
+
+#### 1. `ScopeCapability.GLOBAL_ONLY` (Kolektif / Shared Factory)
+- **Karakteristik**: Digunakan untuk modul yang datanya merupakan aset bersama pabrik dan tidak logis dipartisi per individu pembuat.
+- **Daftar Modul Contoh**: Bahan Baku Gudang (`INVENTORY`), Spesifikasi BOM (`TECH_PACK_BOM`), Kalkulasi HPP (`COSTING_HPP`), Jadwal Mesin (`PRODUCTION_MRP`), Inspeksi QC (`QUALITY_CONTROL`), Packing & Surat Jalan (`FULFILLMENT`).
+- **Aturan Opsi Wewenang**:
+  - Pilihan scope **otomatis terkunci 100% pada `DataScope.ALL_TENANT_DATA`** ("Seluruh Data Pabrik").
+  - Opsi *Data Sendiri* (`OWN_DATA_ONLY`) dan *Data Bawahan* (`SUBORDINATE_DATA`) **TIDAK TERSEDIA** (disembunyikan dari UI modal wewenang) untuk mencegah kesalahan staf yang mengira sistem rusak saat data kain/mesin kosong.
+  - Tampilan UI: Menampilkan badge informatif tunggal `🌐 Seluruh Pabrik (Shared)`.
+- **Proteksi Domain**: Otomatis dilindungi oleh method `ModuleAccessConfig.sanitizeFor(module)` yang memaksa scope kembali ke `ALL_TENANT_DATA` jika ada request payload ilegal.
+
+#### 2. `ScopeCapability.HIERARCHICAL` (Hirarkis / Per-Karyawan & Tim)
+- **Karakteristik**: Digunakan untuk modul transaksional di mana dokumen dimiliki oleh staf pembuat (*maker*) dan diawasi oleh kepala divisinya (*checker/leader*).
+- **Daftar Modul Contoh**: Pelanggan & Prospek Sales (`CRM_SALES`), Order Sampling Desain (`SAMPLING_ORDER`), Catatan Kerja Operator (`OPERATOR_EXEC`).
+- **Aturan Opsi Wewenang**:
+  - Tersedia **3 pilihan lengkap** yang dapat dipilih oleh admin pabrik:
+    1. `DataScope.OWN_DATA_ONLY` ("Data Sendiri"): Pengguna hanya melihat dokumen miliknya sendiri.
+    2. `DataScope.SUBORDINATE_DATA` ("Data Bawahan"): Pengguna melihat data miliknya dan seluruh staf bawahannya di divisi yang sama.
+    3. `DataScope.ALL_TENANT_DATA` ("Semua Data"): Pengguna melihat seluruh data lintas cabang/pabrik.
+  - Tampilan UI: Menampilkan segment selector 3 tab `[Data Sendiri | Data Bawahan | Semua Data]`.
 
 ---
 
@@ -86,5 +108,8 @@ Agar node modul dapat berkedip hijau/kuning/merah di visualisasi kanvas:
 - [ ] Apakah tipe data Input Port dan Output Port telah terdokumentasi dan kompatibel?
 - [ ] Apakah modul mendukung parameter kustom per tenant tanpa perlu mengubah kode `core`?
 - [ ] Jika memproses kain titipan, apakah status persediaan ditandai `CONSIGNED_CLIENT_MATERIAL` (Rp 0 di neraca)?
+- [ ] **Apakah `scopeCapability` modul sudah ditentukan dengan benar?**
+  - Jika data kolektif pabrik (kain/HPP/mesin) ➔ set `ScopeCapability.GLOBAL_ONLY` (hanya 1 opsi: Semua Data).
+  - Jika data transaksi perorangan/sales/operator ➔ set `ScopeCapability.HIERARCHICAL` (tersedia 3 opsi: Sendiri / Bawahan / Semua Data).
 - [ ] Apakah modul telah diuji berjalan pada alur bawaan (FOB/CMT/D2C) maupun alur custom hasil utak-atik (*puzzled*)?
 - [ ] Apakah modul menyertakan dokumentasi pengajaran (*teaching*) di `docs/teaching/`?

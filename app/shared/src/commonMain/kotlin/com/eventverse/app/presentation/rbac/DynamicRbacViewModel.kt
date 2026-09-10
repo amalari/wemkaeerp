@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 
 class DynamicRbacViewModel(
     private val tenantId: TenantId = TenantId("tenant-wemade-demo"),
+    private val tenantSlug: String = "wemade-demo",
+    private val apiClient: com.eventverse.app.infrastructure.api.RbacApiClient? = com.eventverse.app.infrastructure.api.RbacApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(DynamicRbacUiState())
@@ -21,6 +23,32 @@ class DynamicRbacViewModel(
 
     init {
         loadInitialRoles()
+        fetchRemoteData()
+    }
+
+    private fun fetchRemoteData() {
+        val client = apiClient ?: return
+        scope.launch {
+            val deptsResult = client.getDepartments(tenantSlug)
+            val rolesResult = client.getRoles(tenantSlug)
+
+            val remoteDepts = deptsResult.getOrNull()
+            val remoteRoles = rolesResult.getOrNull()
+
+            if (!remoteRoles.isNullOrEmpty() || !remoteDepts.isNullOrEmpty()) {
+                _uiState.update { state ->
+                    val finalDepts = if (!remoteDepts.isNullOrEmpty()) remoteDepts else state.departments
+                    val finalRoles = if (!remoteRoles.isNullOrEmpty()) remoteRoles else state.roles
+                    val selected = finalRoles.find { it.id.value == state.selectedRoleId } ?: finalRoles.firstOrNull()
+                    state.copy(
+                        departments = finalDepts,
+                        roles = finalRoles,
+                        selectedRoleId = selected?.id?.value,
+                        draftRole = selected
+                    )
+                }
+            }
+        }
     }
 
     private fun loadInitialRoles() {
@@ -319,21 +347,25 @@ class DynamicRbacViewModel(
         val draft = _uiState.value.draftRole ?: return
         scope.launch {
             _uiState.update { it.copy(isSaving = true) }
-            delay(300) // Brief feedback
+            
+            // Asynchronous remote persistence to backend (graceful failover to local state)
+            val apiResult = apiClient?.updateRole(tenantSlug, draft)
+            val finalRole = apiResult?.getOrNull() ?: draft
 
+            delay(200) // Brief feedback
             _uiState.update { state ->
                 val updatedRoles = state.roles.map { role ->
-                    if (role.id == draft.id) draft else role
+                    if (role.id == finalRole.id) finalRole else role
                 }
                 state.copy(
                     roles = updatedRoles,
-                    draftRole = draft,
+                    draftRole = finalRole,
                     isDirty = false,
                     isSaving = false,
-                    successToast = "Hak akses jabatan '${draft.name}' berhasil disimpan!"
+                    successToast = "Hak akses jabatan '${finalRole.name}' berhasil disimpan!"
                 )
             }
-            _uiEffect.emit(DynamicRbacUiEffect.ShowToast("Hak akses jabatan '${draft.name}' disimpan."))
+            _uiEffect.emit(DynamicRbacUiEffect.ShowToast("Hak akses jabatan '${finalRole.name}' disimpan."))
         }
     }
 
@@ -351,7 +383,7 @@ class DynamicRbacViewModel(
         val permissions = templateRole?.modulePermissions ?: emptyMap()
 
         val newId = RoleId("role-custom-${name.lowercase().replace("\\s+".toRegex(), "-")}-${(100..999).random()}")
-        val newRole = CustomRole(
+        val initialNewRole = CustomRole(
             id = newId,
             tenantId = tenantId,
             name = name,
@@ -361,16 +393,27 @@ class DynamicRbacViewModel(
             userCount = 0
         )
 
-        _uiState.update { state ->
-            val updatedList = state.roles + newRole
-            state.copy(
-                roles = updatedList,
-                selectedRoleId = newRole.id.value,
-                draftRole = newRole,
-                isDirty = false,
-                isCreateModalOpen = false,
-                successToast = "Jabatan baru '${newRole.name}' berhasil dibuat!"
+        scope.launch {
+            // Asynchronous backend persistence
+            val apiResult = apiClient?.createRole(
+                tenantSlug = tenantSlug,
+                name = initialNewRole.name,
+                description = initialNewRole.description,
+                modulePermissions = initialNewRole.modulePermissions
             )
+            val savedRole = apiResult?.getOrNull() ?: initialNewRole
+
+            _uiState.update { state ->
+                val updatedList = state.roles + savedRole
+                state.copy(
+                    roles = updatedList,
+                    selectedRoleId = savedRole.id.value,
+                    draftRole = savedRole,
+                    isDirty = false,
+                    isCreateModalOpen = false,
+                    successToast = "Jabatan baru '${savedRole.name}' berhasil dibuat!"
+                )
+            }
         }
     }
 
@@ -381,16 +424,21 @@ class DynamicRbacViewModel(
             return
         }
 
-        _uiState.update { state ->
-            val filtered = state.roles.filterNot { it.id.value == roleId }
-            val fallback = filtered.firstOrNull()
-            state.copy(
-                roles = filtered,
-                selectedRoleId = fallback?.id?.value,
-                draftRole = fallback,
-                isDirty = false,
-                successToast = "Jabatan '${targetRole.name}' berhasil dihapus."
-            )
+        scope.launch {
+            // Asynchronous backend deletion
+            apiClient?.deleteRole(tenantSlug, roleId)
+
+            _uiState.update { state ->
+                val filtered = state.roles.filterNot { it.id.value == roleId }
+                val fallback = filtered.firstOrNull()
+                state.copy(
+                    roles = filtered,
+                    selectedRoleId = fallback?.id?.value,
+                    draftRole = fallback,
+                    isDirty = false,
+                    successToast = "Jabatan '${targetRole.name}' berhasil dihapus."
+                )
+            }
         }
     }
 }
