@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.tenant
 
+import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+
 /**
  * Core domain entity representing a tenant (Factory / Convection business account).
  * Follows DDD immutability rules: mutations return a new copy.
@@ -10,7 +12,8 @@ data class Tenant(
     val name: TenantName,
     val status: TenantStatus = TenantStatus.TRIAL,
     val tier: SubscriptionTier = SubscriptionTier.PRO,
-    val activeMachineCount: Int = 0
+    val activeMachineCount: Int = 0,
+    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
 ) {
     val isAccessible: Boolean
         get() = status.isAccessible
@@ -36,4 +39,6 @@ data class Tenant(
     }
 
     fun canAddMachine(): Boolean = activeMachineCount < tier.maxActiveMachines
+
+    fun updateBusinessPreset(newPreset: GarmentBusinessPreset): Tenant = copy(businessPreset = newPreset)
 }

@@ -1,26 +1,52 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * In-memory thread-safe implementation of TenantRepository.
- * Useful for development, testing, and initial bootstrapping.
+ * Pre-seeded with 3 reference companies covering FOB, CMT, and Brand D2C.
  */
 class InMemoryTenantRepository : TenantRepository {
     private val tenants = ConcurrentHashMap<TenantId, Tenant>()
 
     init {
-        // Seed default demo tenant for initial development
-        val demoTenant = Tenant(
+        // 1. Perusahaan FOB (Full Package / OEM)
+        val fobTenant = Tenant(
             id = TenantId("ten-demo-001"),
-            slug = TenantSlug("wemade-demo"),
-            name = TenantName("PT WeMade Convection Demo"),
+            slug = TenantSlug("wemade-demo"), // keep wemade-demo as default for backward compatibility
+            name = TenantName("PT WeMade Garmen Ekspor (FOB)"),
             status = TenantStatus.ACTIVE,
             tier = SubscriptionTier.PRO,
-            activeMachineCount = 10
+            activeMachineCount = 12,
+            businessPreset = GarmentBusinessPreset.FOB_FULL_PACKAGE
         )
-        tenants[demoTenant.id] = demoTenant
+        tenants[fobTenant.id] = fobTenant
+
+        // 2. Perusahaan CMT (Cut, Make, Trim / Makloon Jahit)
+        val cmtTenant = Tenant(
+            id = TenantId("ten-demo-cmt"),
+            slug = TenantSlug("cv-berkah-makloon"),
+            name = TenantName("CV Berkah Makloon Jahit (CMT)"),
+            status = TenantStatus.ACTIVE,
+            tier = SubscriptionTier.PRO,
+            activeMachineCount = 8,
+            businessPreset = GarmentBusinessPreset.CMT_MAKLOON
+        )
+        tenants[cmtTenant.id] = cmtTenant
+
+        // 3. Perusahaan Brand D2C (Direct-to-Consumer / Distro Mandiri)
+        val d2cTenant = Tenant(
+            id = TenantId("ten-demo-d2c"),
+            slug = TenantSlug("urbanwear-d2c"),
+            name = TenantName("UrbanWear Studio Apparel (Brand D2C)"),
+            status = TenantStatus.ACTIVE,
+            tier = SubscriptionTier.PRO,
+            activeMachineCount = 15,
+            businessPreset = GarmentBusinessPreset.BRAND_D2C
+        )
+        tenants[d2cTenant.id] = d2cTenant
     }
 
     override suspend fun findById(id: TenantId): Tenant? = tenants[id]

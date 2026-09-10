@@ -92,17 +92,33 @@ fun PresetSelectorBar(
                                 .clickable { onSelectPreset(preset) }
                                 .padding(horizontal = 12.dp, vertical = 7.dp)
                         ) {
-                            Text(
-                                text = preset.shortBadge,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = when {
-                                    isSelected && isPresentationMode -> Color.White
-                                    isSelected -> WeMadeColors.Primary
-                                    isPresentationMode -> Color(0xFFCBD5E1)
-                                    else -> WeMadeColors.OnSurface
-                                }
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                Text(
+                                    text = preset.shortBadge,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = when {
+                                        isSelected && isPresentationMode -> Color.White
+                                        isSelected -> WeMadeColors.Primary
+                                        isPresentationMode -> Color(0xFFCBD5E1)
+                                        else -> WeMadeColors.OnSurface
+                                    }
+                                )
+                                Text(
+                                    text = preset.exampleCompanyName,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = when {
+                                        isSelected && isPresentationMode -> Color(0xFF93C5FD)
+                                        isSelected -> WeMadeColors.Primary.copy(alpha = 0.8f)
+                                        isPresentationMode -> Color(0xFF64748B)
+                                        else -> WeMadeColors.OnSurfaceMuted
+                                    }
+                                )
+                            }
                         }
                     }
                 }
