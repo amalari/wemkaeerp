@@ -59,9 +59,6 @@ class FactoryFlowViewModel(
             is FactoryFlowUiEvent.ToggleSimulation -> {
                 _uiState.update { it.copy(isSimulatingRealtime = !it.isSimulatingRealtime) }
             }
-            is FactoryFlowUiEvent.SetViewMode -> {
-                _uiState.update { it.copy(viewMode = event.mode) }
-            }
             is FactoryFlowUiEvent.ToggleHideBypassed -> {
                 _uiState.update { it.copy(hideBypassedNodes = !it.hideBypassedNodes) }
             }

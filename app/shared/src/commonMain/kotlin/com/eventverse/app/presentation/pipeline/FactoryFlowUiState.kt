@@ -6,13 +6,6 @@ import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.pipeline.PipelineStage
 
-enum class PipelineViewMode(val displayName: String) {
-    SWIMLANE("Kolom Alur (Kiri-ke-Kanan)"),
-    NODE_GRAPH("Kanvas Node"),
-    FLOW_GRAPH("Diagram Alur Linier"),
-    VERTICAL_LIST("Daftar Detail");
-}
-
 data class FactoryFlowUiState(
     val selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
     val snapshot: FactoryPipelineSnapshot = PipelinePresetFactory.createSnapshot(selectedPreset),
@@ -22,7 +15,6 @@ data class FactoryFlowUiState(
     val selectedStageFilter: PipelineStage? = null,
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
-    val viewMode: PipelineViewMode = PipelineViewMode.SWIMLANE,
     val hideBypassedNodes: Boolean = true,
     val activeScenario: com.eventverse.app.domain.pipeline.PipelineSimulationScenario = com.eventverse.app.domain.pipeline.PipelineSimulationScenario.NORMAL
 ) {
@@ -56,7 +48,6 @@ sealed interface FactoryFlowUiEvent {
     data class FilterByStage(val stage: PipelineStage?) : FactoryFlowUiEvent
     data class UpdateSearchQuery(val query: String) : FactoryFlowUiEvent
     data object ToggleSimulation : FactoryFlowUiEvent
-    data class SetViewMode(val mode: PipelineViewMode) : FactoryFlowUiEvent
     data object ToggleHideBypassed : FactoryFlowUiEvent
     data object ResetFilters : FactoryFlowUiEvent
 }
