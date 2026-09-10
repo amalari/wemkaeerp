@@ -32,96 +32,18 @@ fun PipelineFlowCanvas(
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
     selectedStageFilter: PipelineStage?,
-    searchQuery: String,
     isPresentationMode: Boolean,
-    hideBypassedNodes: Boolean,
-    bypassedCount: Int,
+    hideBypassedNodes: Boolean = true,
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit = {},
     onFilterStage: (PipelineStage?) -> Unit,
-    onSearchChange: (String) -> Unit,
-    onToggleHideBypassed: () -> Unit,
-    onResetFilters: () -> Unit,
+    onResetFilters: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Control Bar: Bypass Filter + Search Field
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left: Hide Bypassed Toggle (if any bypassed modules exist)
-            if (bypassedCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            when {
-                                hideBypassedNodes && isPresentationMode -> Color(0xFF1E293B)
-                                hideBypassedNodes -> WeMadeColors.PrimaryContainer.copy(alpha = 0.7f)
-                                isPresentationMode -> Color(0xFF0F172A)
-                                else -> Color(0xFFF8FAFC)
-                            }
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = if (hideBypassedNodes) WeMadeColors.Primary else if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .clickable { onToggleHideBypassed() }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (hideBypassedNodes) {
-                            IconEyeOff(
-                                modifier = Modifier.size(13.dp),
-                                color = WeMadeColors.Primary
-                            )
-                        } else {
-                            IconEye(
-                                modifier = Modifier.size(13.dp),
-                                color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
-                            )
-                        }
-                        Text(
-                            text = if (hideBypassedNodes) "Tampilkan $bypassedCount Modul Di-Bypass" else "Sembunyikan $bypassedCount Modul Di-Bypass",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (hideBypassedNodes) WeMadeColors.Primary else if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface
-                        )
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.width(1.dp))
-            }
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                placeholder = { Text("Cari modul, divisi, atau kontrak data...", fontSize = 12.sp) },
-                singleLine = true,
-                modifier = Modifier
-                    .width(300.dp)
-                    .height(42.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = WeMadeColors.Primary,
-                    unfocusedBorderColor = if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border,
-                    focusedTextColor = if (isPresentationMode) Color.White else WeMadeColors.OnSurface,
-                    unfocusedTextColor = if (isPresentationMode) Color.White else WeMadeColors.OnSurface
-                )
-            )
-        }
-
-
         // Macro Process Flow Ribbon (Left-to-Right Progress Stepper)
         MacroProcessStepper(
             nodes = nodes,

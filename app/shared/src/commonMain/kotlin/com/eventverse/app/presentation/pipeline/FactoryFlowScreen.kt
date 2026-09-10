@@ -21,7 +21,6 @@ import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
 import com.eventverse.app.presentation.pipeline.components.PipelineFlowCanvas
-import com.eventverse.app.presentation.pipeline.components.PresetSelectorBar
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -120,39 +119,16 @@ fun FactoryFlowScreen(
                 }
             }
 
-            // Pipeline Control Bar
-            PresetSelectorBar(
-                companyName = activeCompany.name,
-                selectedPreset = state.selectedPreset,
-                isPresentationMode = isPresentationMode,
-                isSimulating = state.isSimulatingRealtime,
-                activeScenario = state.activeScenario,
-                onSelectPreset = { viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(it)) },
-                onSelectScenario = { viewModel.onEvent(FactoryFlowUiEvent.SelectScenario(it)) },
-                onTogglePresentationMode = { viewModel.onEvent(FactoryFlowUiEvent.TogglePresentationMode) },
-                onToggleSimulation = { viewModel.onEvent(FactoryFlowUiEvent.ToggleSimulation) }
-            )
-
-            // Executive KPI Cards Ribbon
-            // ExecutiveKpiHeader(
-            //     snapshot = state.snapshot,
-            //     modifier = Modifier.fillMaxWidth()
-            // )
-
             // Main Interactive Flow Canvas
             PipelineFlowCanvas(
                 nodes = state.filteredNodes,
                 selectedNode = state.selectedNode,
                 selectedStageFilter = state.selectedStageFilter,
-                searchQuery = state.searchQuery,
                 isPresentationMode = isPresentationMode,
                 hideBypassedNodes = state.hideBypassedNodes,
-                bypassedCount = state.bypassedCount,
                 onSelectNode = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(it)) },
                 onInspectInputs = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
-                onSearchChange = { viewModel.onEvent(FactoryFlowUiEvent.UpdateSearchQuery(it)) },
-                onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) },
                 onResetFilters = { viewModel.onEvent(FactoryFlowUiEvent.ResetFilters) },
                 modifier = Modifier.weight(1f)
             )
