@@ -28,7 +28,11 @@ import com.eventverse.app.domain.pipeline.PipelineGraph
  * Vertical space reserved under the stage columns as a routing corridor. Long connectors
  * (stage skips and feedback loops) run through here instead of cutting across the columns.
  */
-internal val SWIMLANE_CORRIDOR_HEIGHT = 96.dp
+/**
+ * Vertical space reserved under the stage columns as a routing corridor. Long connectors
+ * (stage skips and feedback loops) run through here instead of cutting across the columns.
+ */
+internal val SWIMLANE_CORRIDOR_HEIGHT = 108.dp
 
 /**
  * Card rectangles measured in the swimlane content's own coordinate space.
@@ -80,22 +84,23 @@ internal fun Modifier.swimlaneCard(nodeId: String, bounds: SwimlaneBounds): Modi
 
 private data class RoutedEdge(
     val edge: PipelineEdge,
-    val points: List<Offset>,
+    val path: Path,
     val color: Color,
-    val isFeedback: Boolean
+    val isFeedback: Boolean,
+    val startPoint: Offset,
+    val tip: Offset,
+    val tipPrev: Offset
 )
 
 /**
- * Draws every connector in the swimlane from resolved [PipelineGraph] edges — replacing the
- * decorative hand-off arrows, which were never tied to the data.
- *
- * Routing rules, all derived from the measured card rectangles so nothing is hardcoded per
- * stage, and none of them can cross a card:
- * - Same column, next card down: a straight vertical drop between the two cards.
- * - Neighbouring columns: out of the right edge, through the (always empty) column gap, into
- *   the target's left edge.
- * - Skipping a column, or looping backwards (a QC-failure rework route): down into the
- *   corridor reserved beneath the columns, along it, and back up into the target.
+ * Draws every connector in the swimlane from resolved [PipelineGraph] edges using n8n-style
+ * smooth cubic Bézier curves and multi-lane collision-free corridor routing:
+ * - Same column, next card down: straight vertical drop between cards with downward arrow.
+ * - Forward connections (left-to-right columns): smooth horizontal cubic Bézier curves (S-curves)
+ *   that fan out gracefully so parallel links never collapse into a single vertical line.
+ * - Feedback loops & column skips: multi-lane dedicated channel allocation (unique vertical drops,
+ *   unique horizontal corridor tracks, and unique vertical entries) with rounded fillet corners
+ *   so lines never overlap.
  */
 @Composable
 internal fun SwimlaneConnectionCanvas(
@@ -111,46 +116,113 @@ internal fun SwimlaneConnectionCanvas(
         val allRects = bounds.allCardRects()
         val contentH = bounds.contentSize.height
         val corridorReserve = SWIMLANE_CORRIDOR_HEIGHT.toPx()
-        val laneOffset = 13.dp.toPx()
         val dash = PathEffect.dashPathEffect(floatArrayOf(7.dp.toPx(), 6.dp.toPx()))
 
         // Attachment points are spread down each card's edge so several connectors sharing a
         // card don't stack on the exact same pixel.
-        val outIndex = mutableMapOf<String, Int>()
-        val inIndex = mutableMapOf<String, Int>()
         val outCount = graph.edges.groupingBy { it.fromNodeId }.eachCount()
         val inCount = graph.edges.groupingBy { it.toNodeId }.eachCount()
+        val outIndex = mutableMapOf<String, Int>()
+        val inIndex = mutableMapOf<String, Int>()
 
-        val routed = graph.edges.mapIndexedNotNull { edgeIndex, edge ->
-            val from = bounds.cardRect(edge.fromNodeId) ?: return@mapIndexedNotNull null
-            val to = bounds.cardRect(edge.toNodeId) ?: return@mapIndexedNotNull null
+        data class EdgeGeometry(
+            val edge: PipelineEdge,
+            val from: Rect,
+            val to: Rect,
+            val exitY: Float,
+            val entryY: Float,
+            val isSameColumn: Boolean,
+            val isUnobstructedForward: Boolean
+        )
+
+        val resolved = graph.edges.mapNotNull { edge ->
+            val from = bounds.cardRect(edge.fromNodeId) ?: return@mapNotNull null
+            val to = bounds.cardRect(edge.toNodeId) ?: return@mapNotNull null
 
             val oi = outIndex.getOrElse(edge.fromNodeId) { 0 }
             val ii = inIndex.getOrElse(edge.toNodeId) { 0 }
             outIndex[edge.fromNodeId] = oi + 1
             inIndex[edge.toNodeId] = ii + 1
 
-            val exitY = from.top + from.height * (oi + 1f) / ((outCount[edge.fromNodeId] ?: 1) + 1f)
-            val entryY = to.top + to.height * (ii + 1f) / ((inCount[edge.toNodeId] ?: 1) + 1f)
-            val jitter = ((edgeIndex % 5) - 2) * 5.dp.toPx()
+            val totalOut = outCount[edge.fromNodeId] ?: 1
+            val totalIn = inCount[edge.toNodeId] ?: 1
+            val exitY = from.top + from.height * (oi + 1f) / (totalOut + 1f)
+            val entryY = to.top + to.height * (ii + 1f) / (totalIn + 1f)
 
-            val isFeedback = edge.isFeedback
-            val corridorY = if (isFeedback) {
-                contentH - corridorReserve * 0.34f + jitter
-            } else {
-                contentH - corridorReserve * 0.74f + jitter
-            }
+            val sameCol = kotlin.math.abs(from.left - to.left) < 4f && to.top >= from.bottom - 1f
+            val goesRight = to.left >= from.right - 1f
 
-            val points = routeSwimlaneEdge(
+            val blocked = if (goesRight && !sameCol) {
+                // Check if an actual card physically sits between the two horizontally and overlaps vertically
+                allRects.any { card ->
+                    card.right > from.right + 2f &&
+                    card.left < to.left - 2f &&
+                    card.bottom > minOf(exitY, entryY) - 10f &&
+                    card.top < maxOf(exitY, entryY) + 10f
+                }
+            } else false
+
+            val isUnobstructed = goesRight && !sameCol && !blocked
+
+            EdgeGeometry(
+                edge = edge,
                 from = from,
                 to = to,
                 exitY = exitY,
                 entryY = entryY,
-                allRects = allRects,
-                corridorY = corridorY,
-                laneOffset = laneOffset,
-                jitter = jitter
+                isSameColumn = sameCol,
+                isUnobstructedForward = isUnobstructed
             )
+        }
+
+        // Corridor edges are those that loop backwards (feedback) or skip obstructed columns
+        val corridorEdges = resolved.filter { !it.isSameColumn && !it.isUnobstructedForward }
+
+        // Dynamic Column-Level Vertical Lane Allocation:
+        // A) Entry lanes: group corridor edges by destination COLUMN (using to.left bucket).
+        // Cards in the same stage column share the column's left edge.
+        // Sort by entryY descending so lower cards (closer to corridor) get inner lanes (closer to card),
+        // while higher cards get outer lanes (further to the left). This guarantees vertical runs NEVER cross or overlap!
+        val entrySlotByEdgeId = mutableMapOf<String, Int>()
+        corridorEdges
+            .groupBy { (it.to.left / 10f).toInt() }
+            .forEach { (_, colEdges) ->
+                val sorted = colEdges.sortedByDescending { it.entryY }
+                sorted.forEachIndexed { slot, eg ->
+                    entrySlotByEdgeId[eg.edge.id] = slot
+                }
+            }
+
+        // B) Exit lanes: group corridor edges by source COLUMN (using from.right bucket).
+        // Sort by exitY descending so lower cards get inner lanes, higher cards get outer lanes.
+        val exitSlotByEdgeId = mutableMapOf<String, Int>()
+        corridorEdges
+            .groupBy { (it.from.right / 10f).toInt() }
+            .forEach { (_, colEdges) ->
+                val sorted = colEdges.sortedByDescending { it.exitY }
+                sorted.forEachIndexed { slot, eg ->
+                    exitSlotByEdgeId[eg.edge.id] = slot
+                }
+            }
+
+        // C) Horizontal Corridor Tracks: dedicated altitude Y per corridor edge.
+        // Sort by direction (feedback loops first) and span length (shorter spans on upper tracks).
+        val sortedCorridorEdges = corridorEdges.sortedWith(
+            compareBy<EdgeGeometry> { !it.edge.isFeedback }
+                .thenBy { kotlin.math.abs(it.to.left - it.from.right) }
+                .thenBy { it.edge.id }
+        )
+        val corridorTrackByEdgeId = sortedCorridorEdges.mapIndexed { index, eg ->
+            eg.edge.id to index
+        }.toMap()
+
+        val routed = resolved.map { eg ->
+            val edge = eg.edge
+            val from = eg.from
+            val to = eg.to
+            val exitY = eg.exitY
+            val entryY = eg.entryY
+            val isFeedback = edge.isFeedback
 
             val color = if (isFeedback) {
                 Color(edge.edgeType.colorHex)
@@ -159,7 +231,87 @@ internal fun SwimlaneConnectionCanvas(
                     ?.let { Color(it.stage.colorHex) } ?: Color(0xFF2563EB)
             }
 
-            RoutedEdge(edge, points, color, isFeedback)
+            when {
+                eg.isSameColumn -> {
+                    // Straight vertical drop to the next card in the same stage column
+                    val x = from.center.x
+                    val start = Offset(x, from.bottom)
+                    val end = Offset(x, to.top)
+                    val path = Path().apply {
+                        moveTo(start.x, start.y)
+                        lineTo(end.x, end.y)
+                    }
+                    RoutedEdge(
+                        edge = edge,
+                        path = path,
+                        color = color,
+                        isFeedback = isFeedback,
+                        startPoint = start,
+                        tip = end,
+                        tipPrev = Offset(x, end.y - 8.dp.toPx())
+                    )
+                }
+                eg.isUnobstructedForward -> {
+                    // n8n-style smooth cubic Bézier curve: tangent leaves horizontally to the right,
+                    // and arrives horizontally from the left. Each curve has its own unique S-shape.
+                    val p0 = Offset(from.right, exitY)
+                    val p3 = Offset(to.left, entryY)
+                    val dx = p3.x - p0.x
+                    val curvature = (dx * 0.45f).coerceIn(36.dp.toPx(), 180.dp.toPx())
+                    val cp1 = Offset(p0.x + curvature, p0.y)
+                    val cp2 = Offset(p3.x - curvature, p3.y)
+
+                    val path = Path().apply {
+                        moveTo(p0.x, p0.y)
+                        cubicTo(cp1.x, cp1.y, cp2.x, cp2.y, p3.x, p3.y)
+                    }
+                    RoutedEdge(
+                        edge = edge,
+                        path = path,
+                        color = color,
+                        isFeedback = isFeedback,
+                        startPoint = p0,
+                        tip = p3,
+                        tipPrev = Offset(p3.x - 8.dp.toPx(), p3.y)
+                    )
+                }
+                else -> {
+                    // Multi-lane corridor routing: dynamically assigned vertical exit channels,
+                    // dedicated horizontal altitude tracks, and dedicated vertical entry channels.
+                    val exitSlot = exitSlotByEdgeId[edge.id] ?: 0
+                    val exitX = from.right + 14.dp.toPx() + exitSlot * 14.dp.toPx()
+
+                    val entrySlot = entrySlotByEdgeId[edge.id] ?: 0
+                    val entryX = to.left - 14.dp.toPx() - entrySlot * 14.dp.toPx()
+
+                    val trackIndex = corridorTrackByEdgeId[edge.id] ?: 0
+                    val corridorBaseY = contentH - corridorReserve + 16.dp.toPx()
+                    val corridorY = corridorBaseY + trackIndex * 16.dp.toPx()
+
+                    val waypoints = listOf(
+                        Offset(from.right, exitY),
+                        Offset(exitX, exitY),
+                        Offset(exitX, corridorY),
+                        Offset(entryX, corridorY),
+                        Offset(entryX, entryY),
+                        Offset(to.left, entryY)
+                    )
+
+                    val path = Path().apply {
+                        addRoundedPolyline(waypoints, radius = 10.dp.toPx())
+                    }
+                    val tip = Offset(to.left, entryY)
+                    RoutedEdge(
+                        edge = edge,
+                        path = path,
+                        color = color,
+                        isFeedback = isFeedback,
+                        startPoint = Offset(from.right, exitY),
+                        tip = tip,
+                        tipPrev = Offset(tip.x - 8.dp.toPx(), tip.y)
+                    )
+                }
+            }
         }
 
         routed.forEach { route ->
@@ -177,12 +329,8 @@ internal fun SwimlaneConnectionCanvas(
                 else -> 1.7.dp.toPx()
             }
 
-            val path = Path().apply {
-                moveTo(route.points[0].x, route.points[0].y)
-                for (i in 1 until route.points.size) lineTo(route.points[i].x, route.points[i].y)
-            }
             drawPath(
-                path,
+                route.path,
                 color = color,
                 style = Stroke(
                     width = width,
@@ -192,64 +340,54 @@ internal fun SwimlaneConnectionCanvas(
                 )
             )
 
-            val tip = route.points.last()
-            val prev = route.points[route.points.size - 2]
-            drawDirectionalArrow(tip, prev, color, 4.6.dp.toPx())
+            drawDirectionalArrow(route.tip, route.tipPrev, color, 4.6.dp.toPx())
 
-            // A dot at the source end reads as "leaves here", mirroring the node canvas.
-            drawCircle(color = color, radius = 3.dp.toPx(), center = route.points.first())
+            // Dot at the source end reads as "leaves here", mirroring n8n port sockets
+            drawCircle(color = color, radius = 3.dp.toPx(), center = route.startPoint)
         }
     }
 }
 
 /**
- * Waypoints for one swimlane connector. Vertical runs stay inside column gaps and horizontal
- * runs stay inside the corridor beneath the columns, so no segment can land on a card.
+ * Appends a polyline with smooth quadratic fillet corners of the given [radius].
  */
-private fun routeSwimlaneEdge(
-    from: Rect,
-    to: Rect,
-    exitY: Float,
-    entryY: Float,
-    allRects: List<Rect>,
-    corridorY: Float,
-    laneOffset: Float,
-    jitter: Float
-): List<Offset> {
-    val sameColumn = kotlin.math.abs(from.left - to.left) < 4f
-
-    // Straight drop to the next card in the same stage column.
-    if (sameColumn && to.top >= from.bottom - 1f) {
-        val x = from.center.x + jitter * 0.4f
-        return listOf(Offset(x, from.bottom), Offset(x, to.top))
-    }
-
-    val goesRight = to.left >= from.right - 1f
-    if (goesRight) {
-        // Any card sitting horizontally between the two means a column is being skipped.
-        val blocked = allRects.any { it.right > from.right + 1f && it.left < to.left - 1f }
-        if (!blocked) {
-            val laneX = (from.right + to.left) / 2f + jitter * 0.5f
-            return listOf(
-                Offset(from.right, exitY),
-                Offset(laneX, exitY),
-                Offset(laneX, entryY),
-                Offset(to.left, entryY)
-            )
+private fun Path.addRoundedPolyline(points: List<Offset>, radius: Float) {
+    if (points.size < 2) return
+    if (points.size == 2 || radius <= 0f) {
+        moveTo(points[0].x, points[0].y)
+        for (i in 1 until points.size) {
+            lineTo(points[i].x, points[i].y)
         }
+        return
     }
 
-    // Column skip or a backward feedback loop: drop into the corridor and travel there.
-    val exitX = from.right + laneOffset
-    val entryX = to.left - laneOffset
-    return listOf(
-        Offset(from.right, exitY),
-        Offset(exitX, exitY),
-        Offset(exitX, corridorY),
-        Offset(entryX, corridorY),
-        Offset(entryX, entryY),
-        Offset(to.left, entryY)
-    )
+    moveTo(points[0].x, points[0].y)
+    for (i in 1 until points.size - 1) {
+        val pPrev = points[i - 1]
+        val pCurr = points[i]
+        val pNext = points[i + 1]
+
+        val vIn = pCurr - pPrev
+        val lenIn = kotlin.math.hypot(vIn.x.toDouble(), vIn.y.toDouble()).toFloat()
+        val vOut = pNext - pCurr
+        val lenOut = kotlin.math.hypot(vOut.x.toDouble(), vOut.y.toDouble()).toFloat()
+
+        if (lenIn < 0.01f || lenOut < 0.01f) {
+            lineTo(pCurr.x, pCurr.y)
+            continue
+        }
+
+        val uIn = Offset(vIn.x / lenIn, vIn.y / lenIn)
+        val uOut = Offset(vOut.x / lenOut, vOut.y / lenOut)
+
+        val r = minOf(radius, lenIn / 2f, lenOut / 2f)
+        val pBefore = pCurr - uIn * r
+        val pAfter = pCurr + uOut * r
+
+        lineTo(pBefore.x, pBefore.y)
+        quadraticTo(pCurr.x, pCurr.y, pAfter.x, pAfter.y)
+    }
+    lineTo(points.last().x, points.last().y)
 }
 
 /** Filled arrowhead pointing along the connector's final segment, whatever its direction. */

@@ -430,8 +430,8 @@ private fun HorizontalSwimlaneLayout(
         Box(modifier = Modifier.swimlaneRoot(bounds)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(
-                    // Wide enough for the connectors between columns to breathe.
-                    horizontalArrangement = Arrangement.spacedBy(72.dp),
+                    // Wide enough for multi-lane vertical corridor connectors between columns to breathe freely.
+                    horizontalArrangement = Arrangement.spacedBy(80.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     visibleStages.forEach { stage ->

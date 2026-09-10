@@ -126,8 +126,6 @@ internal data class GraphGeometry(
         val adjacent = target.band == source.band && target.col == source.col + 1
         if (adjacent && sameRow) return listOf(start, end)
 
-        // Small per-edge jitter so edges sharing a lane or a margin don't sit perfectly on
-        // top of one another.
         val jitter = ((edge.id.hashCode() % 5) - 2) * 7f
 
         if (adjacent) {
@@ -446,14 +444,27 @@ private fun GraphEdgeCanvas(
             val edgeColor = if (edge.isFeedback) Color(edge.edgeType.colorHex) else Color(source.stage.colorHex)
             val color = edgeColor.copy(alpha = alpha)
             val width = if (isHighlighted) 2.6.dp.toPx() else if (edge.isFeedback) 2.2.dp.toPx() else 1.8.dp.toPx()
-
             val waypoints = geometry.routePath(edge, start, end)
             val pxPoints = waypoints.map { Offset(it.x.dp.toPx(), it.y.dp.toPx()) }
-            val p3 = pxPoints.last()
+            val p3 = Offset(end.x.dp.toPx(), end.y.dp.toPx())
+
+            val sourceGeom = geometry.byNodeId[edge.fromNodeId]
+            val targetGeom = geometry.byNodeId[edge.toNodeId]
+            val isAdjacent = sourceGeom != null && targetGeom != null &&
+                targetGeom.band == sourceGeom.band && targetGeom.col == sourceGeom.col + 1
 
             val path = Path().apply {
-                moveTo(pxPoints[0].x, pxPoints[0].y)
-                for (i in 1 until pxPoints.size) lineTo(pxPoints[i].x, pxPoints[i].y)
+                if (isAdjacent) {
+                    val p0 = Offset(start.x.dp.toPx(), start.y.dp.toPx())
+                    val dx = p3.x - p0.x
+                    val curvature = (dx * 0.45f).coerceIn(30.dp.toPx(), 160.dp.toPx())
+                    val cp1 = Offset(p0.x + curvature, p0.y)
+                    val cp2 = Offset(p3.x - curvature, p3.y)
+                    moveTo(p0.x, p0.y)
+                    cubicTo(cp1.x, cp1.y, cp2.x, cp2.y, p3.x, p3.y)
+                } else {
+                    addRoundedPolyline(pxPoints, radius = 10.dp.toPx())
+                }
             }
             drawPath(
                 path,
@@ -464,6 +475,13 @@ private fun GraphEdgeCanvas(
                     join = StrokeJoin.Round,
                     pathEffect = if (edge.isFeedback) dashed else null
                 )
+            )
+
+            // Source terminal dot (n8n port style)
+            drawCircle(
+                color = color,
+                radius = 3.dp.toPx(),
+                center = Offset(start.x.dp.toPx(), start.y.dp.toPx())
             )
 
             // Solid filled arrowhead at the landing port. Every routed path's final leg
@@ -944,4 +962,46 @@ private fun ZoomButton(label: String, color: Color, onClick: () -> Unit) {
     ) {
         Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
     }
+}
+
+/**
+ * Appends a polyline with smooth quadratic fillet corners of the given [radius].
+ */
+private fun Path.addRoundedPolyline(points: List<Offset>, radius: Float) {
+    if (points.size < 2) return
+    if (points.size == 2 || radius <= 0f) {
+        moveTo(points[0].x, points[0].y)
+        for (i in 1 until points.size) {
+            lineTo(points[i].x, points[i].y)
+        }
+        return
+    }
+
+    moveTo(points[0].x, points[0].y)
+    for (i in 1 until points.size - 1) {
+        val pPrev = points[i - 1]
+        val pCurr = points[i]
+        val pNext = points[i + 1]
+
+        val vIn = pCurr - pPrev
+        val lenIn = kotlin.math.hypot(vIn.x.toDouble(), vIn.y.toDouble()).toFloat()
+        val vOut = pNext - pCurr
+        val lenOut = kotlin.math.hypot(vOut.x.toDouble(), vOut.y.toDouble()).toFloat()
+
+        if (lenIn < 0.01f || lenOut < 0.01f) {
+            lineTo(pCurr.x, pCurr.y)
+            continue
+        }
+
+        val uIn = Offset(vIn.x / lenIn, vIn.y / lenIn)
+        val uOut = Offset(vOut.x / lenOut, vOut.y / lenOut)
+
+        val r = minOf(radius, lenIn / 2f, lenOut / 2f)
+        val pBefore = pCurr - uIn * r
+        val pAfter = pCurr + uOut * r
+
+        lineTo(pBefore.x, pBefore.y)
+        quadraticTo(pCurr.x, pCurr.y, pAfter.x, pAfter.y)
+    }
+    lineTo(points.last().x, points.last().y)
 }
