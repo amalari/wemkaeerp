@@ -276,7 +276,8 @@ private fun HorizontalSwimlaneLayout(
                 Row(
                     // Wide enough for multi-lane vertical corridor connectors between columns to breathe freely.
                     horizontalArrangement = Arrangement.spacedBy(80.dp),
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.padding(end = SWIMLANE_CORRIDOR_END_PADDING)
                 ) {
                     visibleStages.forEach { stage ->
                         StageSwimlaneColumn(

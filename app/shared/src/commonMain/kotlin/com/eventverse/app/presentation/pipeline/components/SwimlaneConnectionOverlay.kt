@@ -28,11 +28,14 @@ import com.eventverse.app.domain.pipeline.PipelineGraph
  * Vertical space reserved under the stage columns as a routing corridor. Long connectors
  * (stage skips and feedback loops) run through here instead of cutting across the columns.
  */
-/**
- * Vertical space reserved under the stage columns as a routing corridor. Long connectors
- * (stage skips and feedback loops) run through here instead of cutting across the columns.
- */
 internal val SWIMLANE_CORRIDOR_HEIGHT = 108.dp
+
+/**
+ * Horizontal space reserved to the right of the final stage column as a routing corridor.
+ * Multi-lane feedback loops and defect return lines exiting the last stage drop down
+ * through here into the bottom corridor without being clipped at the canvas edge.
+ */
+internal val SWIMLANE_CORRIDOR_END_PADDING = 96.dp
 
 /**
  * Card rectangles measured in the swimlane content's own coordinate space.
@@ -279,10 +282,10 @@ internal fun SwimlaneConnectionCanvas(
                     // Multi-lane corridor routing: dynamically assigned vertical exit channels,
                     // dedicated horizontal altitude tracks, and dedicated vertical entry channels.
                     val exitSlot = exitSlotByEdgeId[edge.id] ?: 0
-                    val exitX = from.right + 14.dp.toPx() + exitSlot * 14.dp.toPx()
+                    val exitX = from.right + 20.dp.toPx() + exitSlot * 16.dp.toPx()
 
                     val entrySlot = entrySlotByEdgeId[edge.id] ?: 0
-                    val entryX = to.left - 14.dp.toPx() - entrySlot * 14.dp.toPx()
+                    val entryX = to.left - 20.dp.toPx() - entrySlot * 16.dp.toPx()
 
                     val trackIndex = corridorTrackByEdgeId[edge.id] ?: 0
                     val corridorBaseY = contentH - corridorReserve + 16.dp.toPx()

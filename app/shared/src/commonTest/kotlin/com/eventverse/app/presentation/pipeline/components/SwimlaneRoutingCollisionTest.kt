@@ -111,5 +111,28 @@ class SwimlaneRoutingCollisionTest {
         val allX = listOf(orangeEntryX, grayEntryX, purpleEntryX)
         assertEquals(3, allX.distinct().size, "All 3 corridor entry X coordinates must be strictly distinct")
     }
+
+    @Test
+    fun corridorFeedbackEdges_exitingLastColumn_fitWithinEndPadding() {
+        val col5Width = 324f
+        val cardPadding = 12f
+        val cardRight = col5Width - cardPadding // 312f
+        val colRight = col5Width // 324f
+        val endPadding = SWIMLANE_CORRIDOR_END_PADDING.value // 96f
+
+        val nodes = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.FOB_FULL_PACKAGE).nodes
+        val graph = PipelineGraph.from(nodes)
+        val qcNode = nodes.first { it.id == "fob-qc-defect" }
+        val feedbackEdges = graph.edges.filter { it.fromNodeId == qcNode.id && it.isFeedback }
+
+        assertTrue(feedbackEdges.isNotEmpty(), "Expected feedback edges from QC")
+
+        feedbackEdges.forEachIndexed { slot, _ ->
+            val exitX = cardRight + 20f + slot * 16f
+            assertTrue(exitX > colRight, "Exit lane $slot must be outside column right border")
+            assertTrue(exitX - colRight >= 8f, "Exit lane $slot must clear the column shadow")
+            assertTrue(exitX < colRight + endPadding, "Exit lane $slot must be within end corridor padding")
+        }
+    }
 }
 
