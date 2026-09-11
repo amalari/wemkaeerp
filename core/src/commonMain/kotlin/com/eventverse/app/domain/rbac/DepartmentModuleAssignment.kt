@@ -12,9 +12,13 @@ data class DepartmentModuleAssignment(
     val departmentName: String,
     val accessLevel: AccessLevel = AccessLevel.OPERATE,
     val specificRoleIds: Set<String> = emptySet(),
-    val scope: DataScope = DataScope.ALL_TENANT_DATA
+    val scope: DataScope = DataScope.ALL_TENANT_DATA,
+    val id: String = ""
 ) {
     val appliesToAllRoles: Boolean get() = specificRoleIds.isEmpty()
+
+    val assignmentKey: String
+        get() = if (id.isNotBlank()) id else "${departmentId}_${if (appliesToAllRoles) "all" else specificRoleIds.sorted().joinToString("_")}"
 
     fun updateAccess(
         level: AccessLevel,

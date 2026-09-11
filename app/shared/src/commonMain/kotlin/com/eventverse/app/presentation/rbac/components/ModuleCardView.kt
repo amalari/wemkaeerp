@@ -1,26 +1,35 @@
 package com.eventverse.app.presentation.rbac.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.orgchart.Department
-import com.eventverse.app.domain.rbac.*
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.BusinessModule
+import com.eventverse.app.domain.rbac.CustomRole
+import com.eventverse.app.domain.rbac.DepartmentModuleAssignment
+import com.eventverse.app.domain.rbac.ModuleCategory
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
+
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.remember
 
 @Composable
 fun ModuleCardList(
@@ -32,23 +41,78 @@ fun ModuleCardList(
     onRemoveAssignment: (BusinessModule, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        items(modules, key = { it.code }) { module ->
-            val moduleAssignments = assignments[module] ?: emptyList()
-
-            SingleModuleCard(
-                module = module,
-                assignments = moduleAssignments,
-                departments = departments,
-                roles = roles,
-                onAddDepartmentClick = { onOpenAssignModal(module, null) },
-                onEditAssignmentClick = { assignment -> onOpenAssignModal(module, assignment) },
-                onRemoveAssignmentClick = { deptId -> onRemoveAssignment(module, deptId) }
-            )
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val columns = when {
+            maxWidth >= 1400.dp -> 4
+            maxWidth >= 1000.dp -> 3
+            maxWidth >= 650.dp -> 2
+            else -> 1
         }
+
+        val rows = remember(modules, columns) {
+            modules.chunked(columns)
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg),
+            contentPadding = PaddingValues(bottom = ClaySpacing.Xxl)
+        ) {
+            items(rows, key = { row -> row.joinToString("-") { it.code } }) { rowModules ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Max),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                ) {
+                    rowModules.forEach { module ->
+                        val moduleAssignments = assignments[module] ?: emptyList()
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        ) {
+                            SingleModuleCard(
+                                module = module,
+                                assignments = moduleAssignments,
+                                departments = departments,
+                                roles = roles,
+                                onAddDepartmentClick = { onOpenAssignModal(module, null) },
+                                onEditAssignmentClick = { assignment -> onOpenAssignModal(module, assignment) },
+                                onRemoveAssignmentClick = { assignKey -> onRemoveAssignment(module, assignKey) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
+                    // Isi sisa kolom jika baris terakhir tidak genap penuh
+                    val remaining = columns - rowModules.size
+                    if (remaining > 0) {
+                        repeat(remaining) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Memetakan iconKey dari BusinessModule ke Clay Canvas icon yang sesuai. */
+@Composable
+private fun ModuleIcon(iconKey: String, modifier: Modifier = Modifier, color: Color) {
+    when (iconKey) {
+        "handshake"   -> IconHandshake(modifier = modifier, color = color)
+        "ruler"       -> IconRuler(modifier = modifier, color = color)
+        "package"     -> IconPackage(modifier = modifier, color = color)
+        "clipboard"   -> IconClipboard(modifier = modifier, color = color)
+        "calculator"  -> IconCalculator(modifier = modifier, color = color)
+        "calendar"    -> IconCalendarGrid(modifier = modifier, color = color)
+        "activity"    -> IconActivity(modifier = modifier, color = color)
+        "check_circle"-> IconCheckCircle(modifier = modifier, color = color)
+        "truck"       -> IconTruck(modifier = modifier, color = color)
+        else          -> IconLayers(modifier = modifier, color = color)
     }
 }
 
@@ -63,235 +127,348 @@ fun SingleModuleCard(
     onRemoveAssignmentClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ClayCard(
+        modifier = modifier.fillMaxWidth().fillMaxHeight(),
+        shape = ClayShapes.Card,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        shadowColor = WeMadeColors.Outline,
+        offset = ClayOffset.Small,
+        borderWidth = ClayBorder.Thick,
+        contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp)
+        // Top Row: Icon Tile + Module Name/Desc + Scope Tag
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+            verticalAlignment = Alignment.Top
         ) {
-            // Top Row: Category Badge + Module Name + Dynamic Scope Capability Chip
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Icon Tile (category-tinted clay tile)
+            val categoryColor = when (module.category) {
+                ModuleCategory.SALES      -> WeMadeColors.Primary
+                ModuleCategory.LOGISTICS  -> WeMadeColors.Warning
+                ModuleCategory.TECHNICAL  -> WeMadeColors.Info
+                ModuleCategory.PRODUCTION -> WeMadeColors.Accent
+                ModuleCategory.QUALITY    -> WeMadeColors.Success
+            }
+            val categoryBg = when (module.category) {
+                ModuleCategory.SALES      -> WeMadeColors.PrimaryContainer
+                ModuleCategory.LOGISTICS  -> WeMadeColors.WarningBg
+                ModuleCategory.TECHNICAL  -> WeMadeColors.TealBg
+                ModuleCategory.PRODUCTION -> WeMadeColors.AccentLight
+                ModuleCategory.QUALITY    -> WeMadeColors.SuccessBg
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clayFlat(
+                        shape = ClayShapes.Tile,
+                        background = categoryBg,
+                        outline = categoryColor,
+                        borderWidth = ClayBorder.Medium
+                    ),
+                contentAlignment = Alignment.Center
             ) {
+                ModuleIcon(
+                    iconKey = module.iconKey,
+                    modifier = Modifier.size(22.dp),
+                    color = categoryColor
+                )
+            }
+
+            // Name & description
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(WeMadeColors.PrimaryContainer)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = module.category.displayName.take(3).uppercase(),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.PrimaryDark
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = module.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        Text(
-                            text = module.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-
-                // Dynamic Scope Capability Badge
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (module.isGlobalOnly) Color(0xFFEFF6FF) else Color(0xFFF0FDF4))
-                        .border(
-                            1.dp,
-                            if (module.isGlobalOnly) Color(0xFFBFDBFE) else Color(0xFFBBF7D0),
-                            RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = if (module.isGlobalOnly) "🌐 Seluruh Pabrik" else "👥 Multi-Jangkauan",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (module.isGlobalOnly) Color(0xFF1D4ED8) else Color(0xFF15803D)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Middle Section: Assigned Departments
-            Text(
-                text = "Divisi Yang Memiliki Akses (${assignments.size}):",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (assignments.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    contentAlignment = Alignment.CenterStart
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Belum ada divisi yang ditugaskan ke modul ini. Klik tombol di bawah untuk menambahkan hak akses.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WeMadeColors.OnSurfaceMuted
+                        text = module.displayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    // Scope Tag (top-right)
+                    if (module.isGlobalOnly) {
+                        ClayTag(text = "Seluruh Pabrik", tint = WeMadeColors.Primary, fontSize = 9.sp)
+                    } else {
+                        ClayTag(text = "Multi-Jangkauan", tint = WeMadeColors.Success, fontSize = 9.sp)
+                    }
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    assignments.forEach { assign ->
-                        val dept = departments.find { it.id.value == assign.departmentId }
-                        val deptColor = Color(dept?.colorHex ?: 0xFF475569)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = module.description,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                    color = WeMadeColors.OnSurfaceMuted,
+                    lineHeight = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF8FAFC))
-                                .border(1.dp, WeMadeColors.Border, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Left: Dept info & role scope
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(deptColor)
-                                )
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
-                                Text(
-                                    text = assign.departmentName,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.OnSurface
-                                )
+        // Middle Section: 2 Separate Assignment Lists (Divisi vs Jabatan Spesifik)
+        val divisiAssignments = assignments.filter { it.appliesToAllRoles }
+        val jabatanAssignments = assignments.filter { !it.appliesToAllRoles }
 
-                                // Access Level Pill
-                                val (bgLevel, textLevel) = when (assign.accessLevel) {
-                                    AccessLevel.NONE -> Color(0xFFE2E8F0) to Color(0xFF475569)
-                                    AccessLevel.VIEW -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
-                                    AccessLevel.OPERATE -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-                                    AccessLevel.MANAGE -> Color(0xFFD1FAE5) to Color(0xFF047857)
-                                }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+        ) {
+            // ── Section 1: Hak Akses Divisi (Semua Jabatan) ───────────────────
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Hak Akses Divisi (${divisiAssignments.size}):",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    ClayTag(text = "Full Divisi", tint = WeMadeColors.Primary, fontSize = 8.5.sp)
+                }
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(bgLevel)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = assign.accessLevel.displayName,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textLevel
-                                    )
-                                }
-
-                                // Role Specificity info
-                                val roleText = if (assign.appliesToAllRoles) {
-                                    "Semua Jabatan"
-                                } else {
-                                    val count = assign.specificRoleIds.size
-                                    "$count Jabatan Spesifik"
-                                }
-
-                                Text(
-                                    text = "• $roleText",
-                                    fontSize = 11.sp,
-                                    color = WeMadeColors.OnSurfaceMuted
-                                )
-
-                                // Scope info
-                                val scopeText = if (module.isGlobalOnly) "Semua Data Pabrik" else assign.scope.shortLabel
-                                Text(
-                                    text = "• Jangkauan: $scopeText",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-
-                            // Right: Edit & Remove actions
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                TextButton(
-                                    onClick = { onEditAssignmentClick(assign) },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text("Edit", fontSize = 11.sp, color = WeMadeColors.Primary)
-                                }
-
-                                TextButton(
-                                    onClick = { onRemoveAssignmentClick(assign.departmentId) },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text("Hapus", fontSize = 11.sp, color = WeMadeColors.Error)
-                                }
-                            }
-                        }
+                if (divisiAssignments.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.SurfaceMuted,
+                                outline = WeMadeColors.Border,
+                                borderWidth = ClayBorder.Hairline
+                            )
+                            .padding(horizontal = ClaySpacing.Md, vertical = 6.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = "Belum ada divisi penuh yang ditugaskan.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                } else {
+                    divisiAssignments.forEach { assign ->
+                        AssignmentRowItem(
+                            assign = assign,
+                            departments = departments,
+                            subtitle = "Semua Jabatan (Full Divisi)",
+                            onEdit = { onEditAssignmentClick(assign) },
+                            onRemove = { onRemoveAssignmentClick(assign.assignmentKey) }
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Action Button to Add Division
-            OutlinedButton(
-                onClick = onAddDepartmentClick,
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, WeMadeColors.Primary.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.Primary),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            // ── Section 2: Hak Akses Jabatan Spesifik ─────────────────────────
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Hak Akses Jabatan Spesifik (${jabatanAssignments.size}):",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    ClayTag(text = "Per Jabatan", tint = WeMadeColors.Accent, fontSize = 8.5.sp)
+                }
+
+                if (jabatanAssignments.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.SurfaceMuted,
+                                outline = WeMadeColors.Border,
+                                borderWidth = ClayBorder.Hairline
+                            )
+                            .padding(horizontal = ClaySpacing.Md, vertical = 6.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = "Belum ada jabatan khusus yang ditugaskan.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                } else {
+                    jabatanAssignments.forEach { assign ->
+                        val roleTitle = resolveSpecificRoleTitle(assign.specificRoleIds, roles)
+                        AssignmentRowItem(
+                            assign = assign,
+                            departments = departments,
+                            subtitle = roleTitle,
+                            onEdit = { onEditAssignmentClick(assign) },
+                            onRemove = { onRemoveAssignmentClick(assign.assignmentKey) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Spacer weight(1f) mendorong footer selalu ke bawah card
+        Spacer(modifier = Modifier.weight(1f))
+
+        // ── Sticky Bottom Footer ─────────────────────────────────────────────
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+        ClayButton(
+            text = "+ Tambahkan Akses",
+            onClick = onAddDepartmentClick,
+            style = ClayButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+            fontSize = 12.sp,
+            contentPadding = PaddingValues(vertical = ClaySpacing.Sm),
+        )
+    }
+}
+
+private fun resolveSpecificRoleTitle(roleIds: Set<String>, roles: List<CustomRole>): String {
+    if (roleIds.isEmpty()) return "Semua Jabatan"
+    return roleIds.mapNotNull { roleId ->
+        roles.find { it.id.value == roleId }?.name ?: when (roleId) {
+            "role-sales-head" -> "Kepala Penjualan & CRM"
+            "role-sales-staff" -> "Staff Sales"
+            "role-qc-head" -> "Kepala Quality Control (QC)"
+            "role-qc-inspector" -> "QC Inspector"
+            "role-finance-head" -> "Kepala Keuangan & Akuntansi"
+            "role-finance-staff" -> "Staff Akuntansi & Kasir"
+            "role-warehouse-head" -> "Kepala Gudang & Logistik"
+            "role-sewing-head" -> "Kepala Produksi & Jahit"
+            "role-operator" -> "Operator Jahit"
+            else -> roleId.removePrefix("role-").replace("-", " ")
+        }
+    }.joinToString(", ")
+}
+
+@Composable
+private fun AssignmentRowItem(
+    assign: DepartmentModuleAssignment,
+    departments: List<Department>,
+    subtitle: String,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val dept = departments.find { it.id.value == assign.departmentId }
+    val deptColor = dept?.let { Color(it.colorHex) } ?: WeMadeColors.OnSurfaceMuted
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.BackgroundWarm,
+                outline = WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = ClaySpacing.Sm, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Left: Dept info & role scope
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .background(deptColor)
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = assign.departmentName,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // Access Level Tag
+                    val levelTint = when (assign.accessLevel) {
+                        AccessLevel.NONE    -> WeMadeColors.OnSurfaceMuted
+                        AccessLevel.VIEW    -> WeMadeColors.Info
+                        AccessLevel.OPERATE -> WeMadeColors.Warning
+                        AccessLevel.MANAGE  -> WeMadeColors.Success
+                    }
+
+                    ClayTag(
+                        text = assign.accessLevel.displayName,
+                        tint = levelTint,
+                        fontSize = 8.5.sp
+                    )
+                }
+
+                // Subtitle: nama jabatan atau "Semua Jabatan"
                 Text(
-                    text = "+ Tambah Divisi ke Modul Ini",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = subtitle,
+                    fontSize = 10.sp,
+                    color = WeMadeColors.PrimaryDark,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+
+        // Right: Edit & Remove actions
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            ClayActionSurface(
+                onClick = onEdit,
+                containerColor = WeMadeColors.PrimaryContainer,
+                outlineColor = WeMadeColors.Primary,
+                offset = ClayOffset.Flat,
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 3.dp)
+            ) {
+                IconEdit(modifier = Modifier.size(10.dp), color = WeMadeColors.Primary)
+                Text("Edit", fontSize = 10.5.sp, color = WeMadeColors.Primary, fontWeight = FontWeight.Bold)
+            }
+
+            ClayActionSurface(
+                onClick = onRemove,
+                containerColor = WeMadeColors.ErrorBg,
+                outlineColor = WeMadeColors.Error,
+                offset = ClayOffset.Flat,
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 3.dp)
+            ) {
+                IconTrash(modifier = Modifier.size(10.dp), color = WeMadeColors.Error)
+                Text("Hapus", fontSize = 10.5.sp, color = WeMadeColors.Error, fontWeight = FontWeight.Bold)
             }
         }
     }

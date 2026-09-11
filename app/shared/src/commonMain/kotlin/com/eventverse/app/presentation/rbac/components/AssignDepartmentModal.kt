@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.*
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 // Helper to resolve dynamic roles for a selected department
@@ -138,6 +139,8 @@ fun AssignDepartmentModal(
         )
     }
 
+    var showConfirmationView by remember(initialAssignment, isOpen) { mutableStateOf(false) }
+
     val selectedDept = departments.find { it.id.value == selectedDeptId }
     val rolesScrollState = rememberScrollState()
 
@@ -147,21 +150,48 @@ fun AssignDepartmentModal(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        ClayCard(
             modifier = Modifier
-                .widthIn(max = 540.dp)
+                .widthIn(max = 560.dp)
                 .fillMaxWidth(0.95f)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-            border = BorderStroke(1.dp, WeMadeColors.Border),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            shape = ClayShapes.Panel,
+            containerColor = WeMadeColors.Surface,
+            outlineColor = WeMadeColors.Outline,
+            shadowColor = WeMadeColors.Outline,
+            offset = ClayOffset.Rest,
+            borderWidth = ClayBorder.Thick,
+            contentPadding = PaddingValues(ClaySpacing.Xl)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(22.dp)
-            ) {
+            if (showConfirmationView && initialAssignment != null) {
+                EditConfirmationContent(
+                    module = module,
+                    initial = initialAssignment,
+                    newDeptName = selectedDept?.displayName ?: initialAssignment.departmentName,
+                    newDeptId = selectedDeptId,
+                    newAccessLevel = selectedAccessLevel,
+                    newScope = selectedScope,
+                    newIsSpecificRoles = isSpecificRolesMode,
+                    newRoleIds = selectedRoleIds,
+                    allRoles = roles,
+                    onBackToEdit = { showConfirmationView = false },
+                    onConfirmChanges = {
+                        val deptName = selectedDept?.displayName ?: initialAssignment.departmentName
+                        val assignment = initialAssignment.copy(
+                            departmentId = selectedDeptId,
+                            departmentName = deptName,
+                            accessLevel = selectedAccessLevel,
+                            specificRoleIds = if (isSpecificRolesMode) selectedRoleIds else emptySet(),
+                            scope = selectedScope
+                        )
+                        showConfirmationView = false
+                        onConfirm(assignment)
+                    }
+                )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 // Header Dialog (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -175,6 +205,7 @@ fun AssignDepartmentModal(
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurface
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Modul: ${module.displayName}",
                             style = MaterialTheme.typography.bodySmall,
@@ -183,24 +214,16 @@ fun AssignDepartmentModal(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(WeMadeColors.PrimaryContainer)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = module.category.displayName,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.PrimaryDark
-                        )
-                    }
+                    ClayTag(
+                        text = module.category.displayName,
+                        tint = WeMadeColors.Primary,
+                        fontSize = 11.sp
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = WeMadeColors.Border, thickness = 1.dp)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Md))
+                HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+                Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
                 // 1. Pilih Divisi Pabrik
                 Text(
@@ -219,27 +242,25 @@ fun AssignDepartmentModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) Color(0xFFEFF6FF) else Color(0xFFF8FAFC))
-                                .border(
-                                    1.dp,
-                                    if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
-                                    RoundedCornerShape(8.dp)
+                                .clayFlat(
+                                    shape = ClayShapes.Card,
+                                    background = if (isSelected) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                                    outline = if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                                    borderWidth = if (isSelected) ClayBorder.Thick else ClayBorder.Medium
                                 )
                                 .clickable {
                                     if (selectedDeptId != dept.id.value) {
                                         selectedDeptId = dept.id.value
-                                        // Dynamically reset selected roles when changing department
                                         selectedRoleIds = emptySet()
                                     }
                                 }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -256,11 +277,10 @@ fun AssignDepartmentModal(
                             }
 
                             if (isSelected) {
-                                Text(
-                                    text = "Terpilih ✓",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.PrimaryDark
+                                ClayTag(
+                                    text = "Terpilih",
+                                    tint = WeMadeColors.Primary,
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -300,25 +320,23 @@ fun AssignDepartmentModal(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (!isSpecificRolesMode) WeMadeColors.PrimaryContainer else Color(0xFFF1F5F9))
-                            .border(
-                                1.dp,
-                                if (!isSpecificRolesMode) WeMadeColors.Primary else Color.Transparent,
-                                RoundedCornerShape(8.dp)
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = if (!isSpecificRolesMode) WeMadeColors.PrimaryContainer else WeMadeColors.SurfaceMuted,
+                                outline = if (!isSpecificRolesMode) WeMadeColors.Primary else WeMadeColors.Border
                             )
                             .clickable {
                                 isSpecificRolesMode = false
                                 selectedRoleIds = emptySet()
                             }
-                            .padding(9.dp),
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Semua Jabatan (Full Divisi)",
                             fontSize = 12.sp,
-                            fontWeight = if (!isSpecificRolesMode) FontWeight.Bold else FontWeight.Normal,
-                            color = if (!isSpecificRolesMode) WeMadeColors.PrimaryDark else Color(0xFF475569)
+                            fontWeight = if (!isSpecificRolesMode) FontWeight.Bold else FontWeight.Medium,
+                            color = if (!isSpecificRolesMode) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
                         )
                     }
 
@@ -326,22 +344,20 @@ fun AssignDepartmentModal(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSpecificRolesMode) WeMadeColors.PrimaryContainer else Color(0xFFF1F5F9))
-                            .border(
-                                1.dp,
-                                if (isSpecificRolesMode) WeMadeColors.Primary else Color.Transparent,
-                                RoundedCornerShape(8.dp)
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = if (isSpecificRolesMode) WeMadeColors.PrimaryContainer else WeMadeColors.SurfaceMuted,
+                                outline = if (isSpecificRolesMode) WeMadeColors.Primary else WeMadeColors.Border
                             )
                             .clickable { isSpecificRolesMode = true }
-                            .padding(9.dp),
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Pilih Jabatan Spesifik",
                             fontSize = 12.sp,
-                            fontWeight = if (isSpecificRolesMode) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSpecificRolesMode) WeMadeColors.PrimaryDark else Color(0xFF475569)
+                            fontWeight = if (isSpecificRolesMode) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSpecificRolesMode) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
                         )
                     }
                 }
@@ -352,9 +368,11 @@ fun AssignDepartmentModal(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(1.dp, WeMadeColors.Border, RoundedCornerShape(8.dp))
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.Surface,
+                                outline = WeMadeColors.Border
+                            )
                             .padding(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 4.dp)
                     ) {
                         // Quick Action Toolbar: Count, Scrollable Badge, and Select All / Reset
@@ -375,19 +393,11 @@ fun AssignDepartmentModal(
                                     fontWeight = FontWeight.SemiBold,
                                     color = WeMadeColors.OnSurfaceMuted
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFFE2E8F0))
-                                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
-                                ) {
-                                    Text(
-                                        text = "↕ Scrollable",
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF475569)
-                                    )
-                                }
+                                ClayTag(
+                                    text = "↕ Scrollable",
+                                    tint = WeMadeColors.Secondary,
+                                    fontSize = 9.5.sp
+                                )
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -407,7 +417,7 @@ fun AssignDepartmentModal(
                                     text = "Reset",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFEF4444),
+                                    color = WeMadeColors.Error,
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable {
@@ -437,8 +447,18 @@ fun AssignDepartmentModal(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isChecked) Color(0xFFEFF6FF) else Color.Transparent)
+                                        .then(
+                                            if (isChecked) {
+                                                Modifier.clayFlat(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    background = WeMadeColors.PrimaryContainer,
+                                                    outline = WeMadeColors.Primary,
+                                                    borderWidth = 1.dp
+                                                )
+                                            } else {
+                                                Modifier.clip(RoundedCornerShape(6.dp))
+                                            }
+                                        )
                                         .clickable {
                                             selectedRoleIds = if (isChecked) {
                                                 selectedRoleIds - role.id.value
@@ -459,6 +479,10 @@ fun AssignDepartmentModal(
                                                 selectedRoleIds - role.id.value
                                             }
                                         },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = WeMadeColors.Primary,
+                                            checkmarkColor = WeMadeColors.Surface
+                                        ),
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
@@ -476,8 +500,12 @@ fun AssignDepartmentModal(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFEFF6FF))
+                                    .clayFlat(
+                                        shape = RoundedCornerShape(4.dp),
+                                        background = WeMadeColors.PrimaryContainer,
+                                        outline = WeMadeColors.Primary,
+                                        borderWidth = 1.dp
+                                    )
                                     .padding(vertical = 3.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
@@ -513,27 +541,40 @@ fun AssignDepartmentModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF1F5F9))
+                                .clayFlat(
+                                    shape = ClayShapes.Chip,
+                                    background = WeMadeColors.SurfaceMuted,
+                                    outline = WeMadeColors.Border
+                                )
                                 .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             listOf(AccessLevel.VIEW, AccessLevel.OPERATE, AccessLevel.MANAGE).forEach { level ->
                                 val isSelected = level == selectedAccessLevel
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) WeMadeColors.PrimaryDark else Color.Transparent)
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier.clayFlat(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    background = WeMadeColors.Primary,
+                                                    outline = WeMadeColors.PrimaryDark,
+                                                    borderWidth = 1.5.dp
+                                                )
+                                            } else {
+                                                Modifier.clip(RoundedCornerShape(6.dp))
+                                            }
+                                        )
                                         .clickable { selectedAccessLevel = level }
-                                        .padding(vertical = 6.dp),
+                                        .padding(vertical = 7.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = level.displayName,
                                         fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Color.White else Color(0xFF475569)
+                                        color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
                                     )
                                 }
                             }
@@ -554,44 +595,65 @@ fun AssignDepartmentModal(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFEFF6FF))
-                                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(8.dp))
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = WeMadeColors.PrimaryContainer,
+                                        outline = WeMadeColors.Primary
+                                    )
                                     .padding(vertical = 7.dp, horizontal = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "🌐 Seluruh Pabrik (Shared)",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1D4ED8)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    IconGlobe(modifier = Modifier.size(13.dp), color = WeMadeColors.PrimaryDark)
+                                    Text(
+                                        text = "Seluruh Pabrik (Shared)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = WeMadeColors.PrimaryDark
+                                    )
+                                }
                             }
                         } else {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFF1F5F9))
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = WeMadeColors.SurfaceMuted,
+                                        outline = WeMadeColors.Border
+                                    )
                                     .padding(3.dp),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 module.supportedScopes.forEach { scope ->
                                     val isSelected = scope == selectedScope
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) WeMadeColors.PrimaryDark else Color.Transparent)
+                                            .then(
+                                                if (isSelected) {
+                                                    Modifier.clayFlat(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        background = WeMadeColors.Primary,
+                                                        outline = WeMadeColors.PrimaryDark,
+                                                        borderWidth = 1.5.dp
+                                                    )
+                                                } else {
+                                                    Modifier.clip(RoundedCornerShape(6.dp))
+                                                }
+                                            )
                                             .clickable { selectedScope = scope }
-                                            .padding(vertical = 6.dp),
+                                            .padding(vertical = 7.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = scope.shortLabel,
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else Color(0xFF475569)
+                                            color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
                                         )
                                     }
                                 }
@@ -610,13 +672,18 @@ fun AssignDepartmentModal(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Batal", color = WeMadeColors.OnSurfaceMuted)
-                    }
+                    ClayButton(
+                        text = "Batal",
+                        onClick = onDismiss,
+                        style = ClayButtonStyle.Ghost,
+                        fontSize = 12.sp,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                    )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                    Button(
+                    ClayButton(
+                        text = if (initialAssignment != null) "Simpan Perubahan" else "Tugaskan Divisi",
                         onClick = {
                             val deptName = selectedDept?.displayName ?: "Divisi $selectedDeptId"
                             val assignment = DepartmentModuleAssignment(
@@ -624,20 +691,370 @@ fun AssignDepartmentModal(
                                 departmentName = deptName,
                                 accessLevel = selectedAccessLevel,
                                 specificRoleIds = if (isSpecificRolesMode) selectedRoleIds else emptySet(),
-                                scope = selectedScope
+                                scope = selectedScope,
+                                id = initialAssignment?.id ?: ""
                             )
-                            onConfirm(assignment)
+
+                            if (initialAssignment != null) {
+                                val hasChanges = selectedDeptId != initialAssignment.departmentId ||
+                                    selectedAccessLevel != initialAssignment.accessLevel ||
+                                    selectedScope != initialAssignment.scope ||
+                                    isSpecificRolesMode != (initialAssignment.specificRoleIds.isNotEmpty()) ||
+                                    (isSpecificRolesMode && selectedRoleIds != initialAssignment.specificRoleIds)
+
+                                if (hasChanges) {
+                                    showConfirmationView = true
+                                } else {
+                                    onDismiss()
+                                }
+                            } else {
+                                onConfirm(assignment)
+                            }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = if (initialAssignment != null) "Simpan Perubahan" else "Tugaskan Divisi",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                        style = ClayButtonStyle.Primary,
+                        fontSize = 12.sp,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                    )
                 }
             }
+        }
+    }
+}
+}
+
+private fun formatRoleNames(roleIds: Set<String>, allRoles: List<CustomRole>): String {
+    if (roleIds.isEmpty()) return "Semua Jabatan"
+    return roleIds.mapNotNull { roleId ->
+        allRoles.find { it.id.value == roleId }?.name ?: when (roleId) {
+            "role-sales-head" -> "Kepala Penjualan & CRM"
+            "role-sales-staff" -> "Staff Sales"
+            "role-qc-head" -> "Kepala Quality Control (QC)"
+            "role-qc-inspector" -> "QC Inspector"
+            "role-finance-head" -> "Kepala Keuangan & Akuntansi"
+            "role-finance-staff" -> "Staff Akuntansi & Kasir"
+            "role-warehouse-head" -> "Kepala Gudang & Logistik"
+            "role-sewing-head" -> "Kepala Produksi & Jahit"
+            "role-operator" -> "Operator Jahit"
+            else -> roleId.removePrefix("role-").replace("-", " ")
+        }
+    }.joinToString(", ")
+}
+
+@Composable
+private fun EditConfirmationContent(
+    module: BusinessModule,
+    initial: DepartmentModuleAssignment,
+    newDeptName: String,
+    newDeptId: String,
+    newAccessLevel: AccessLevel,
+    newScope: DataScope,
+    newIsSpecificRoles: Boolean,
+    newRoleIds: Set<String>,
+    allRoles: List<CustomRole>,
+    onBackToEdit: () -> Unit,
+    onConfirmChanges: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Header Konfirmasi
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clayFlat(
+                            shape = ClayShapes.Tile,
+                            background = WeMadeColors.WarningBg,
+                            outline = WeMadeColors.Warning,
+                            borderWidth = ClayBorder.Medium
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconWarning(modifier = Modifier.size(20.dp), color = WeMadeColors.Warning)
+                }
+                Column {
+                    Text(
+                        text = "Konfirmasi Perubahan Hak Akses",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    Text(
+                        text = "Modul: ${module.displayName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WeMadeColors.PrimaryDark,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            ClayTag(
+                text = "Perlu Konfirmasi",
+                tint = WeMadeColors.Warning,
+                fontSize = 10.5.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+        Text(
+            text = "Anda akan mengubah konfigurasi hak akses berikut. Mohon periksa perbedaan sebelum dan sesudah perubahan di bawah ini:",
+            style = MaterialTheme.typography.bodySmall,
+            color = WeMadeColors.OnSurfaceMuted,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+        // Diff Container: Dua Card (Sebelumnya vs Diubah Menjadi)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Kolom Kiri: Kondisi Sebelumnya
+            val initialLevelTint = when (initial.accessLevel) {
+                AccessLevel.NONE    -> WeMadeColors.OnSurfaceMuted
+                AccessLevel.VIEW    -> WeMadeColors.Info
+                AccessLevel.OPERATE -> WeMadeColors.Warning
+                AccessLevel.MANAGE  -> WeMadeColors.Success
+            }
+            val initialRoleText = formatRoleNames(initial.specificRoleIds, allRoles)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clayFlat(
+                        shape = ClayShapes.Card,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Border,
+                        borderWidth = ClayBorder.Medium
+                    )
+                    .padding(ClaySpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Kondisi Sebelumnya",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    ClayTag(text = "Lama", tint = WeMadeColors.OnSurfaceMuted, fontSize = 9.sp)
+                }
+
+                HorizontalDivider(color = WeMadeColors.Border.copy(alpha = 0.5f), thickness = 1.dp)
+
+                // Divisi
+                Text(
+                    text = "Divisi:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Text(
+                    text = initial.departmentName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+
+                // Lingkup Jabatan
+                Text(
+                    text = "Lingkup Jabatan:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Text(
+                    text = if (initial.appliesToAllRoles) "Semua Jabatan (Full Divisi)" else initialRoleText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurface
+                )
+
+                // Level Akses
+                Text(
+                    text = "Level Akses:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                ClayTag(
+                    text = initial.accessLevel.displayName,
+                    tint = initialLevelTint,
+                    fontSize = 10.sp
+                )
+
+                // Jangkauan Data
+                Text(
+                    text = "Jangkauan Data:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Text(
+                    text = initial.scope.displayName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = WeMadeColors.OnSurface
+                )
+            }
+
+            // Kolom Kanan: Diubah Menjadi
+            val newLevelTint = when (newAccessLevel) {
+                AccessLevel.NONE    -> WeMadeColors.OnSurfaceMuted
+                AccessLevel.VIEW    -> WeMadeColors.Info
+                AccessLevel.OPERATE -> WeMadeColors.Warning
+                AccessLevel.MANAGE  -> WeMadeColors.Success
+            }
+            val newRoleText = formatRoleNames(newRoleIds, allRoles)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clayFlat(
+                        shape = ClayShapes.Card,
+                        background = WeMadeColors.PrimaryContainer,
+                        outline = WeMadeColors.Primary,
+                        borderWidth = ClayBorder.Thick
+                    )
+                    .padding(ClaySpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Diubah Menjadi",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.PrimaryDark
+                    )
+                    ClayTag(text = "Baru", tint = WeMadeColors.Primary, fontSize = 9.sp)
+                }
+
+                HorizontalDivider(color = WeMadeColors.Primary.copy(alpha = 0.3f), thickness = 1.dp)
+
+                // Divisi
+                Text(
+                    text = "Divisi:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.PrimaryDark
+                )
+                Text(
+                    text = newDeptName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+
+                // Lingkup Jabatan
+                Text(
+                    text = "Lingkup Jabatan:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.PrimaryDark
+                )
+                Text(
+                    text = if (!newIsSpecificRoles) "Semua Jabatan (Full Divisi)" else newRoleText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.PrimaryDark
+                )
+
+                // Level Akses
+                Text(
+                    text = "Level Akses:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.PrimaryDark
+                )
+                ClayTag(
+                    text = newAccessLevel.displayName,
+                    tint = newLevelTint,
+                    fontSize = 10.sp
+                )
+
+                // Jangkauan Data
+                Text(
+                    text = "Jangkauan Data:",
+                    fontSize = 10.5.sp,
+                    color = WeMadeColors.PrimaryDark
+                )
+                Text(
+                    text = newScope.displayName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+        // Question Alert Box
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clayFlat(
+                    shape = ClayShapes.Chip,
+                    background = WeMadeColors.WarningBg,
+                    outline = WeMadeColors.Warning,
+                    borderWidth = ClayBorder.Hairline
+                )
+                .padding(ClaySpacing.Md)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconWarning(modifier = Modifier.size(16.dp), color = WeMadeColors.Warning)
+                Text(
+                    text = "Apakah Anda yakin ingin mengubah hak akses ini?",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = WeMadeColors.Border.copy(alpha = 0.6f), thickness = 1.dp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Action Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ClayButton(
+                text = "Kembali Edit",
+                onClick = onBackToEdit,
+                style = ClayButtonStyle.Ghost,
+                fontSize = 12.sp,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            ClayButton(
+                text = "Ya, Ubah Sekarang",
+                onClick = onConfirmChanges,
+                style = ClayButtonStyle.Primary,
+                fontSize = 12.sp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 7.dp)
+            )
         }
     }
 }

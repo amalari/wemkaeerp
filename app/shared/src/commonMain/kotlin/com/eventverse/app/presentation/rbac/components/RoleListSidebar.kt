@@ -1,15 +1,14 @@
 package com.eventverse.app.presentation.rbac.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.CustomRole
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -30,72 +30,62 @@ fun RoleListSidebar(
     onOpenCreateModal: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Panel,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        shadowColor = WeMadeColors.Outline,
+        offset = ClayOffset.Rest,
+        borderWidth = ClayBorder.Thick,
+        contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
+        // Header: Section title & Add button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header: Section title & Add button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Daftar Jabatan",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.OnSurface
-                    )
-                    Text(
-                        text = "${roles.size} jabatan terdaftar",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-
-                Button(
-                    onClick = onOpenCreateModal,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = WeMadeColors.Primary
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "+ Tambah",
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+            Column {
+                Text(
+                    text = "Daftar Jabatan",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Text(
+                    text = "${roles.size} jabatan terdaftar",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = WeMadeColors.Border, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(12.dp))
+            ClayButton(
+                text = "Tambah",
+                onClick = onOpenCreateModal,
+                style = ClayButtonStyle.Primary,
+                contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                leading = { IconPlus(modifier = Modifier.size(13.dp), color = Color.White) }
+            )
+        }
 
-            // Role items list
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(roles, key = { it.id.value }) { role ->
-                    val isSelected = role.id.value == selectedRoleId
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
-                    RoleItemCard(
-                        role = role,
-                        isSelected = isSelected,
-                        onClick = { onSelectRole(role.id.value) }
-                    )
-                }
+        // Role items list
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
+            items(roles, key = { it.id.value }) { role ->
+                val isSelected = role.id.value == selectedRoleId
+
+                RoleItemCard(
+                    role = role,
+                    isSelected = isSelected,
+                    onClick = { onSelectRole(role.id.value) }
+                )
             }
         }
     }
@@ -107,23 +97,17 @@ private fun RoleItemCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgModifier = if (isSelected) {
-        Modifier
-            .background(WeMadeColors.PrimaryContainer)
-            .border(1.5.dp, WeMadeColors.Primary, RoundedCornerShape(10.dp))
-    } else {
-        Modifier
-            .background(Color(0xFFFAFAFA))
-            .border(1.dp, WeMadeColors.Border, RoundedCornerShape(10.dp))
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .then(bgModifier)
+            .clayFlat(
+                shape = ClayShapes.Card,
+                background = if (isSelected) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                outline = if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                borderWidth = if (isSelected) ClayBorder.Thick else ClayBorder.Medium
+            )
             .clickable { onClick() }
-            .padding(12.dp)
+            .padding(ClaySpacing.Md)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -142,33 +126,25 @@ private fun RoleItemCard(
                 )
 
                 if (role.isSystemDefault) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFFE2E8F0))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Bawaan",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569)
-                        )
-                    }
+                    ClayTag(
+                        text = "Bawaan",
+                        tint = WeMadeColors.OnSurfaceMuted,
+                        fontSize = 9.sp
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = role.description,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -176,14 +152,15 @@ private fun RoleItemCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(7.dp)
                         .clip(CircleShape)
-                        .background(if (role.userCount > 0) WeMadeColors.Success else Color(0xFF94A3B8))
+                        .background(if (role.userCount > 0) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted)
                 )
                 Text(
                     text = "${role.userCount} staf ditugaskan",
                     fontSize = 11.sp,
-                    color = WeMadeColors.OnSurfaceMuted
+                    color = WeMadeColors.OnSurfaceMuted,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

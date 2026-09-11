@@ -30,6 +30,7 @@ import com.eventverse.app.presentation.rbac.components.CreateRoleModal
 import com.eventverse.app.presentation.rbac.components.ModuleCardList
 import com.eventverse.app.presentation.rbac.components.ModuleMatrixRow
 import com.eventverse.app.presentation.rbac.components.RoleListSidebar
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -76,8 +77,11 @@ fun DynamicRbacScreen(
                 // Segmented Switcher (1 Modul 1 Card vs Matriks Jabatan)
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Border
+                        )
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -86,21 +90,47 @@ fun DynamicRbacScreen(
                         val isSelected = state.viewMode == mode
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) WeMadeColors.Surface else Color.Transparent)
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.clayFlat(
+                                            shape = RoundedCornerShape(8.dp),
+                                            background = WeMadeColors.Surface,
+                                            outline = WeMadeColors.Outline,
+                                            borderWidth = 1.5.dp
+                                        )
+                                    } else {
+                                        Modifier.clip(RoundedCornerShape(8.dp))
+                                    }
+                                )
                                 .clickable { viewModel.onEvent(DynamicRbacUiEvent.SetViewMode(mode)) }
                                 .padding(horizontal = 14.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = when (mode) {
-                                    RbacViewMode.PER_MODULE -> "🗂️ 1 Modul 1 Card (Berdasarkan Modul)"
-                                    RbacViewMode.PER_ROLE -> "👤 Matriks Jabatan"
-                                },
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) WeMadeColors.PrimaryDark else Color(0xFF64748B)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (mode == RbacViewMode.PER_MODULE) {
+                                    IconLayers(
+                                        modifier = Modifier.size(14.dp),
+                                        color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
+                                    )
+                                } else {
+                                    IconUser(
+                                        modifier = Modifier.size(14.dp),
+                                        color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
+                                    )
+                                }
+                                Text(
+                                    text = when (mode) {
+                                        RbacViewMode.PER_MODULE -> "1 Modul 1 Card"
+                                        RbacViewMode.PER_ROLE -> "Matriks Jabatan"
+                                    },
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
+                                )
+                            }
                         }
                     }
                 }
@@ -134,26 +164,31 @@ fun DynamicRbacScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF0FDF4))
-                            .border(1.dp, Color(0xFFBBF7D0), RoundedCornerShape(10.dp))
+                            .clayFlat(
+                                shape = ClayShapes.Card,
+                                background = WeMadeColors.SuccessBg,
+                                outline = WeMadeColors.Success
+                            )
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = "💡 Desain 1 Modul 1 Card & Jangkauan Dinamis:",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color(0xFF166534)
-                            )
-                            Text(
-                                text = "Tugaskan modul ke divisi pabrik. Modul inventaris, kalkulasi HPP, dan mesin otomatis berlaku seragam satu pabrik (Shared Resource), sedangkan modul CRM, sampling, dan operator mendukung isolasi hirarkis (Sendiri / Bawahan / Semua Data).",
-                                fontSize = 12.sp,
-                                color = Color(0xFF15803D)
-                            )
+                            IconShield(modifier = Modifier.size(18.dp), color = WeMadeColors.Success)
+                            Column {
+                                Text(
+                                    text = "Desain 1 Modul 1 Card & Jangkauan Dinamis:",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = WeMadeColors.Success
+                                )
+                                Text(
+                                    text = "Tugaskan modul ke divisi pabrik. Modul inventaris, kalkulasi HPP, dan mesin otomatis berlaku seragam satu pabrik (Shared Resource), sedangkan modul CRM, sampling, dan operator mendukung isolasi hirarkis (Sendiri / Bawahan / Semua Data).",
+                                    fontSize = 11.5.sp,
+                                    color = WeMadeColors.OnSurfaceMuted
+                                )
+                            }
                         }
                     }
 
@@ -167,8 +202,8 @@ fun DynamicRbacScreen(
                         onOpenAssignModal = { module, existing ->
                             viewModel.onEvent(DynamicRbacUiEvent.OpenAssignModal(module, existing))
                         },
-                        onRemoveAssignment = { module, deptId ->
-                            viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, deptId))
+                        onRemoveAssignment = { module, assignKey ->
+                            viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -250,7 +285,13 @@ fun DynamicRbacScreen(
             initialAssignment = state.editingAssignment,
             onConfirm = { assignment ->
                 val activeMod = state.activeAssignModule ?: return@AssignDepartmentModal
-                viewModel.onEvent(DynamicRbacUiEvent.SaveDepartmentAssignment(activeMod, assignment))
+                viewModel.onEvent(
+                    DynamicRbacUiEvent.SaveDepartmentAssignment(
+                        module = activeMod,
+                        assignment = assignment,
+                        existingAssignmentKey = state.editingAssignment?.assignmentKey
+                    )
+                )
             },
             onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.CloseAssignModal) }
         )
@@ -280,19 +321,11 @@ private fun ScreenHeader(
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurface
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFEFF6FF))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "Dynamic Module RBAC",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.PrimaryDark
-                    )
-                }
+                ClayTag(
+                    text = "Dynamic Module RBAC",
+                    tint = WeMadeColors.Primary,
+                    fontSize = 11.sp
+                )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -313,26 +346,29 @@ private fun ScreenHeader(
             HeaderStatChip(label = "Modul SaaS", value = "$totalModules")
             HeaderStatChip(label = "Total Karyawan", value = "$totalUsers")
 
-            OutlinedButton(
+            ClayButton(
+                text = "Ke Halaman Login",
                 onClick = onBackToLogin,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text("Ke Halaman Login", style = MaterialTheme.typography.labelLarge)
-            }
+                style = ClayButtonStyle.Ghost,
+                fontSize = 12.sp,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+            )
         }
     }
 }
 
 @Composable
 private fun HeaderStatChip(label: String, value: String) {
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border)
+    Box(
+        modifier = Modifier
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.Surface,
+                outline = WeMadeColors.Border
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -366,12 +402,14 @@ private fun RoleMatrixDetailPanel(
     onDeleteRole: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Panel,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        shadowColor = WeMadeColors.Outline,
+        offset = ClayOffset.Rest,
+        borderWidth = ClayBorder.Thick
     ) {
         Column(
             modifier = Modifier
@@ -397,19 +435,11 @@ private fun RoleMatrixDetailPanel(
                         )
 
                         if (role.isSystemDefault) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFE2E8F0))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Bawaan Sistem",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF475569)
-                                )
-                            }
+                            ClayTag(
+                                text = "Bawaan Sistem",
+                                tint = WeMadeColors.Secondary,
+                                fontSize = 10.sp
+                            )
                         }
                     }
 
@@ -423,13 +453,13 @@ private fun RoleMatrixDetailPanel(
                 }
 
                 if (!role.isSystemDefault) {
-                    OutlinedButton(
+                    ClayButton(
+                        text = "Hapus Jabatan",
                         onClick = onDeleteRole,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.Error),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Hapus Jabatan", fontSize = 12.sp)
-                    }
+                        style = ClayButtonStyle.Danger,
+                        fontSize = 12.sp,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                    )
                 }
             }
 
@@ -515,14 +545,17 @@ private fun NaturalLanguageSummaryCard(role: CustomRole) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF0FDF4))
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.SuccessBg,
+                outline = WeMadeColors.Success
+            )
             .padding(12.dp)
     ) {
         Text(
             text = summaryText,
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF166534),
+            color = WeMadeColors.Success,
             fontWeight = FontWeight.Medium,
             lineHeight = 18.sp
         )
@@ -536,21 +569,47 @@ private fun CategoryFilterBar(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilterChip(
-            selected = selectedCategory == null,
-            onClick = { onCategorySelect(null) },
-            label = { Text("Semua Modul") }
-        )
+        val isAllSelected = selectedCategory == null
+        Box(
+            modifier = Modifier
+                .clayFlat(
+                    shape = ClayShapes.Chip,
+                    background = if (isAllSelected) WeMadeColors.Primary else WeMadeColors.Surface,
+                    outline = if (isAllSelected) WeMadeColors.PrimaryDark else WeMadeColors.Border
+                )
+                .clickable { onCategorySelect(null) }
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "Semua Modul",
+                fontSize = 12.sp,
+                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isAllSelected) WeMadeColors.Surface else WeMadeColors.OnSurface
+            )
+        }
 
         ModuleCategory.entries.forEach { category ->
-            FilterChip(
-                selected = selectedCategory == category,
-                onClick = { onCategorySelect(category) },
-                label = { Text(category.displayName.substringBefore("&").trim()) }
-            )
+            val isSelected = selectedCategory == category
+            Box(
+                modifier = Modifier
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = if (isSelected) WeMadeColors.Primary else WeMadeColors.Surface,
+                        outline = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.Border
+                    )
+                    .clickable { onCategorySelect(category) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = category.displayName.substringBefore("&").trim(),
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurface
+                )
+            }
         }
     }
 }
@@ -594,32 +653,23 @@ private fun SaveActionBar(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
+            ClayButton(
+                text = "Batal",
                 onClick = onReset,
                 enabled = isDirty && !isSaving,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Batal")
-            }
+                style = ClayButtonStyle.Ghost,
+                fontSize = 12.sp,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+            )
 
-            Button(
+            ClayButton(
+                text = if (isSaving) "Menyimpan..." else "Simpan Perubahan",
                 onClick = onSave,
                 enabled = isDirty && !isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Menyimpan...")
-                } else {
-                    Text("Simpan Perubahan")
-                }
-            }
+                style = ClayButtonStyle.Primary,
+                fontSize = 12.sp,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+            )
         }
     }
 }
@@ -645,8 +695,11 @@ private fun ToastAlertBanner(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(bg)
+                .clayFlat(
+                    shape = ClayShapes.Card,
+                    background = bg,
+                    outline = textColor
+                )
                 .clickable { onDismiss() }
                 .padding(12.dp)
         ) {

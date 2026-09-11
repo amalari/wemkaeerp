@@ -293,3 +293,436 @@ fun IconPhone(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfa
         drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
+
+@Composable
+fun IconShield(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        val path = Path().apply {
+            moveTo(w * 0.50f, h * 0.12f)
+            lineTo(w * 0.84f, h * 0.24f)
+            cubicTo(w * 0.84f, h * 0.58f, w * 0.70f, h * 0.78f, w * 0.50f, h * 0.90f)
+            cubicTo(w * 0.30f, h * 0.78f, w * 0.16f, h * 0.58f, w * 0.16f, h * 0.24f)
+            close()
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun IconLayers(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Top diamond/parallelogram
+        val topPath = Path().apply {
+            moveTo(w * 0.50f, h * 0.15f)
+            lineTo(w * 0.85f, h * 0.32f)
+            lineTo(w * 0.50f, h * 0.48f)
+            lineTo(w * 0.15f, h * 0.32f)
+            close()
+        }
+        drawPath(topPath, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Middle downward chevron
+        val midPath = Path().apply {
+            moveTo(w * 0.15f, h * 0.52f)
+            lineTo(w * 0.50f, h * 0.68f)
+            lineTo(w * 0.85f, h * 0.52f)
+        }
+        drawPath(midPath, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Bottom downward chevron
+        val botPath = Path().apply {
+            moveTo(w * 0.15f, h * 0.72f)
+            lineTo(w * 0.50f, h * 0.88f)
+            lineTo(w * 0.85f, h * 0.72f)
+        }
+        drawPath(botPath, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun IconGlobe(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Outer circle
+        drawCircle(
+            color = color,
+            radius = w * 0.38f,
+            center = Offset(w * 0.50f, h * 0.50f),
+            style = Stroke(width = stroke)
+        )
+
+        // Equator horizontal line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.12f, h * 0.50f),
+            end = Offset(w * 0.88f, h * 0.50f),
+            strokeWidth = stroke * 0.8f,
+            cap = StrokeCap.Round
+        )
+
+        // Vertical meridian ellipse
+        val meridian = Path().apply {
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(w * 0.32f, h * 0.12f, w * 0.68f, h * 0.88f),
+                startAngleDegrees = 0f,
+                sweepAngleDegrees = 360f,
+                forceMoveTo = false
+            )
+        }
+        drawPath(meridian, color = color, style = Stroke(width = stroke * 0.8f))
+    }
+}
+
+@Composable
+fun IconTrash(modifier: Modifier = Modifier, color: Color = WeMadeColors.Error) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Lid bar
+        drawLine(
+            color = color,
+            start = Offset(w * 0.15f, h * 0.25f),
+            end = Offset(w * 0.85f, h * 0.25f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+
+        // Lid handle
+        val handle = Path().apply {
+            moveTo(w * 0.38f, h * 0.25f)
+            lineTo(w * 0.38f, h * 0.15f)
+            lineTo(w * 0.62f, h * 0.15f)
+            lineTo(w * 0.62f, h * 0.25f)
+        }
+        drawPath(handle, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Bin body
+        val bin = Path().apply {
+            moveTo(w * 0.24f, h * 0.28f)
+            lineTo(w * 0.28f, h * 0.85f)
+            lineTo(w * 0.72f, h * 0.85f)
+            lineTo(w * 0.76f, h * 0.28f)
+        }
+        drawPath(bin, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Vertical slat
+        drawLine(
+            color = color,
+            start = Offset(w * 0.50f, h * 0.38f),
+            end = Offset(w * 0.50f, h * 0.75f),
+            strokeWidth = stroke * 0.8f,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+fun IconPlus(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+
+        // Horizontal line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.20f, h * 0.50f),
+            end = Offset(w * 0.80f, h * 0.50f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+
+        // Vertical line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.50f, h * 0.20f),
+            end = Offset(w * 0.50f, h * 0.80f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+// ─── Module-specific Icons ────────────────────────────────────────────────────
+
+@Composable
+fun IconHandshake(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Left arm
+        val leftArm = Path().apply {
+            moveTo(w * 0.08f, h * 0.60f)
+            lineTo(w * 0.30f, h * 0.42f)
+            lineTo(w * 0.46f, h * 0.50f)
+        }
+        drawPath(leftArm, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Right arm
+        val rightArm = Path().apply {
+            moveTo(w * 0.92f, h * 0.60f)
+            lineTo(w * 0.70f, h * 0.42f)
+            lineTo(w * 0.54f, h * 0.50f)
+        }
+        drawPath(rightArm, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Clasped center
+        drawCircle(
+            color = color,
+            radius = w * 0.10f,
+            center = Offset(w * 0.50f, h * 0.52f),
+            style = Stroke(width = stroke)
+        )
+
+        // Grip bar
+        drawLine(
+            color = color,
+            start = Offset(w * 0.36f, h * 0.64f),
+            end = Offset(w * 0.64f, h * 0.64f),
+            strokeWidth = stroke * 0.8f,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+fun IconRuler(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Ruler body
+        val ruler = Path().apply {
+            moveTo(w * 0.15f, h * 0.55f)
+            lineTo(w * 0.45f, h * 0.85f)
+            lineTo(w * 0.85f, h * 0.45f)
+            lineTo(w * 0.55f, h * 0.15f)
+            close()
+        }
+        drawPath(ruler, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Tick marks
+        listOf(
+            Pair(Offset(w * 0.32f, h * 0.45f), Offset(w * 0.40f, h * 0.38f)),
+            Pair(Offset(w * 0.47f, h * 0.32f), Offset(w * 0.53f, h * 0.26f)),
+            Pair(Offset(w * 0.60f, h * 0.22f), Offset(w * 0.68f, h * 0.15f))
+        ).forEach { (s, e) ->
+            drawLine(color = color, start = s, end = e, strokeWidth = stroke * 0.8f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+@Composable
+fun IconPackage(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Box body
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.14f, h * 0.30f),
+            size = Size(w * 0.72f, h * 0.58f),
+            cornerRadius = CornerRadius(w * 0.04f),
+            style = Stroke(width = stroke)
+        )
+
+        // Top lid
+        val lid = Path().apply {
+            moveTo(w * 0.14f, h * 0.30f)
+            lineTo(w * 0.50f, h * 0.15f)
+            lineTo(w * 0.86f, h * 0.30f)
+        }
+        drawPath(lid, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Center seam
+        drawLine(color = color, start = Offset(w * 0.50f, h * 0.30f), end = Offset(w * 0.50f, h * 0.88f), strokeWidth = stroke * 0.7f, cap = StrokeCap.Round)
+
+        // Tape
+        drawLine(color = color, start = Offset(w * 0.28f, h * 0.56f), end = Offset(w * 0.72f, h * 0.56f), strokeWidth = stroke, cap = StrokeCap.Round)
+    }
+}
+
+@Composable
+fun IconClipboard(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.16f, h * 0.18f),
+            size = Size(w * 0.68f, h * 0.72f),
+            cornerRadius = CornerRadius(w * 0.05f),
+            style = Stroke(width = stroke)
+        )
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.36f, h * 0.10f),
+            size = Size(w * 0.28f, h * 0.16f),
+            cornerRadius = CornerRadius(w * 0.04f),
+            style = Stroke(width = stroke)
+        )
+
+        listOf(0.38f, 0.52f, 0.66f).forEach { y ->
+            drawLine(color = color, start = Offset(w * 0.28f, h * y), end = Offset(w * 0.72f, h * y), strokeWidth = stroke * 0.7f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+@Composable
+fun IconCalculator(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.16f, h * 0.10f),
+            size = Size(w * 0.68f, h * 0.80f),
+            cornerRadius = CornerRadius(w * 0.07f),
+            style = Stroke(width = stroke)
+        )
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.24f, h * 0.18f),
+            size = Size(w * 0.52f, h * 0.18f),
+            cornerRadius = CornerRadius(w * 0.03f),
+            style = Stroke(width = stroke * 0.7f)
+        )
+
+        listOf(0.28f, 0.50f, 0.72f).forEach { cx ->
+            listOf(0.50f, 0.63f, 0.76f).forEach { cy ->
+                drawCircle(color = color, radius = w * 0.05f, center = Offset(w * cx, h * cy), style = Stroke(width = stroke * 0.8f))
+            }
+        }
+    }
+}
+
+@Composable
+fun IconCalendarGrid(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.12f, h * 0.20f),
+            size = Size(w * 0.76f, h * 0.68f),
+            cornerRadius = CornerRadius(w * 0.05f),
+            style = Stroke(width = stroke)
+        )
+
+        drawLine(color = color, start = Offset(w * 0.12f, h * 0.38f), end = Offset(w * 0.88f, h * 0.38f), strokeWidth = stroke * 0.8f, cap = StrokeCap.Round)
+        drawLine(color = color, start = Offset(w * 0.32f, h * 0.12f), end = Offset(w * 0.32f, h * 0.28f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color = color, start = Offset(w * 0.68f, h * 0.12f), end = Offset(w * 0.68f, h * 0.28f), strokeWidth = stroke, cap = StrokeCap.Round)
+
+        listOf(0.30f, 0.50f, 0.70f).forEach { cx ->
+            listOf(0.53f, 0.68f, 0.80f).forEach { cy ->
+                drawCircle(color = color, radius = w * 0.04f, center = Offset(w * cx, h * cy))
+            }
+        }
+    }
+}
+
+@Composable
+fun IconActivity(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+
+        val path = Path().apply {
+            moveTo(w * 0.08f, h * 0.50f)
+            lineTo(w * 0.26f, h * 0.50f)
+            lineTo(w * 0.36f, h * 0.22f)
+            lineTo(w * 0.48f, h * 0.78f)
+            lineTo(w * 0.58f, h * 0.38f)
+            lineTo(w * 0.68f, h * 0.58f)
+            lineTo(w * 0.92f, h * 0.58f)
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun IconCheckCircle(modifier: Modifier = Modifier, color: Color = WeMadeColors.Success) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        drawCircle(
+            color = color,
+            radius = w * 0.38f,
+            center = Offset(w * 0.50f, h * 0.50f),
+            style = Stroke(width = stroke)
+        )
+
+        val check = Path().apply {
+            moveTo(w * 0.28f, h * 0.52f)
+            lineTo(w * 0.44f, h * 0.68f)
+            lineTo(w * 0.72f, h * 0.36f)
+        }
+        drawPath(check, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun IconTruck(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Cargo body
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.06f, h * 0.26f),
+            size = Size(w * 0.58f, h * 0.44f),
+            cornerRadius = CornerRadius(w * 0.03f),
+            style = Stroke(width = stroke)
+        )
+
+        // Cab
+        val cab = Path().apply {
+            moveTo(w * 0.64f, h * 0.40f)
+            lineTo(w * 0.64f, h * 0.70f)
+            lineTo(w * 0.92f, h * 0.70f)
+            lineTo(w * 0.92f, h * 0.52f)
+            lineTo(w * 0.80f, h * 0.40f)
+            close()
+        }
+        drawPath(cab, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Axle
+        drawLine(color = color, start = Offset(w * 0.06f, h * 0.70f), end = Offset(w * 0.64f, h * 0.70f), strokeWidth = stroke, cap = StrokeCap.Round)
+
+        // Wheels
+        drawCircle(color = color, radius = w * 0.09f, center = Offset(w * 0.24f, h * 0.78f), style = Stroke(width = stroke))
+        drawCircle(color = color, radius = w * 0.09f, center = Offset(w * 0.76f, h * 0.78f), style = Stroke(width = stroke))
+    }
+}
+

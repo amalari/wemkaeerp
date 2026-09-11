@@ -59,8 +59,12 @@ sealed interface DynamicRbacUiEvent {
     data class DeleteRole(val roleId: String) : DynamicRbacUiEvent
     data class OpenAssignModal(val module: BusinessModule, val existing: DepartmentModuleAssignment? = null) : DynamicRbacUiEvent
     data object CloseAssignModal : DynamicRbacUiEvent
-    data class SaveDepartmentAssignment(val module: BusinessModule, val assignment: DepartmentModuleAssignment) : DynamicRbacUiEvent
-    data class RemoveDepartmentAssignment(val module: BusinessModule, val departmentId: String) : DynamicRbacUiEvent
+    data class SaveDepartmentAssignment(
+        val module: BusinessModule,
+        val assignment: DepartmentModuleAssignment,
+        val existingAssignmentKey: String? = null
+    ) : DynamicRbacUiEvent
+    data class RemoveDepartmentAssignment(val module: BusinessModule, val assignmentKey: String) : DynamicRbacUiEvent
     data object DismissToast : DynamicRbacUiEvent
 }
 

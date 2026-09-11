@@ -69,13 +69,13 @@ class DynamicRbacViewModel(
     }
 
     private fun createDefaultModuleAssignments(depts: List<Department>): Map<BusinessModule, List<DepartmentModuleAssignment>> {
-        val salesDept = depts.find { it.code == "SALES" }
-        val whDept = depts.find { it.code == "WAREHOUSE" }
-        val cutDept = depts.find { it.code == "CUTTING" }
-        val sewDept = depts.find { it.code == "SEWING" }
-        val qcDept = depts.find { it.code == "QUALITY_CONTROL" }
-        val finishDept = depts.find { it.code == "FINISHING" }
-        val mgmtDept = depts.find { it.code == "MANAGEMENT" }
+        val salesDept = depts.find { it.code.equals("sales", ignoreCase = true) }
+        val whDept = depts.find { it.code.equals("warehouse", ignoreCase = true) }
+        val cutDept = depts.find { it.code.equals("cutting", ignoreCase = true) || it.code.contains("ppic", ignoreCase = true) }
+        val sewDept = depts.find { it.code.equals("sewing", ignoreCase = true) || it.code.contains("production", ignoreCase = true) || it.code.contains("ppic", ignoreCase = true) }
+        val qcDept = depts.find { it.code.equals("qc", ignoreCase = true) || it.code.contains("quality", ignoreCase = true) }
+        val finishDept = depts.find { it.code.equals("finishing", ignoreCase = true) || it.code.contains("warehouse", ignoreCase = true) }
+        val mgmtDept = depts.find { it.code.equals("management", ignoreCase = true) || it.code.contains("finance", ignoreCase = true) }
 
         return mapOf(
             BusinessModule.CRM_SALES to listOfNotNull(
@@ -83,8 +83,17 @@ class DynamicRbacViewModel(
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
                         departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
+                        accessLevel = AccessLevel.OPERATE,
                         scope = DataScope.SUBORDINATE_DATA
+                    )
+                },
+                salesDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.MANAGE,
+                        specificRoleIds = setOf("role-sales-head"),
+                        scope = DataScope.ALL_TENANT_DATA
                     )
                 }
             ),
@@ -311,7 +320,8 @@ class DynamicRbacViewModel(
             is DynamicRbacUiEvent.SaveDepartmentAssignment -> {
                 _uiState.update { state ->
                     val currentList = state.moduleAssignments[event.module] ?: emptyList()
-                    val filtered = currentList.filter { it.departmentId != event.assignment.departmentId }
+                    val keyToRemove = event.existingAssignmentKey ?: event.assignment.assignmentKey
+                    val filtered = currentList.filter { it.assignmentKey != keyToRemove }
                     val updatedMap = state.moduleAssignments + (event.module to (filtered + event.assignment))
                     state.copy(
                         moduleAssignments = updatedMap,
@@ -327,12 +337,12 @@ class DynamicRbacViewModel(
             is DynamicRbacUiEvent.RemoveDepartmentAssignment -> {
                 _uiState.update { state ->
                     val currentList = state.moduleAssignments[event.module] ?: emptyList()
-                    val updatedList = currentList.filter { it.departmentId != event.departmentId }
+                    val updatedList = currentList.filter { it.assignmentKey != event.assignmentKey }
                     val updatedMap = state.moduleAssignments + (event.module to updatedList)
                     state.copy(
                         moduleAssignments = updatedMap,
                         isDirty = true,
-                        successToast = "Akses divisi berhasil dicabut dari modul ${event.module.displayName}."
+                        successToast = "Akses berhasil dicabut dari modul ${event.module.displayName}."
                     )
                 }
             }

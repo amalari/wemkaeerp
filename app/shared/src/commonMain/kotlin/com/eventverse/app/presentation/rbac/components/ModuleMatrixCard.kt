@@ -1,16 +1,13 @@
 package com.eventverse.app.presentation.rbac.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,6 +16,7 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -28,100 +26,81 @@ fun ModuleMatrixRow(
     onAccessChanged: (AccessLevel, DataScope) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Card,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        shadowColor = WeMadeColors.Outline,
+        offset = ClayOffset.Small,
+        borderWidth = ClayBorder.Thick,
+        contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
+            // Left: Module Info & Description
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                // Left: Module Info & Description
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModuleCategoryBadge(category = module.category.displayName)
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = module.displayName,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.OnSurface
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = module.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Right/Bottom Controls: 4-Tier Segmented Access Selector & Scope
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 4-Tier Access Level Segmented Control
-                SegmentedAccessControl(
-                    currentLevel = config.level,
-                    onSelectLevel = { newLevel ->
-                        onAccessChanged(newLevel, config.scope)
-                    }
+                ClayTag(
+                    text = module.category.displayName.take(3).uppercase(),
+                    tint = WeMadeColors.Primary,
+                    fontSize = 10.sp
                 )
 
-                // Data Scope Selector (Only visible if module is accessible)
-                if (config.isAccessible) {
-                    DynamicDataScopeSelector(
-                        module = module,
-                        currentScope = config.scope,
-                        onSelectScope = { newScope ->
-                            onAccessChanged(config.level, newScope)
-                        }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = module.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = module.description,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = WeMadeColors.OnSurfaceMuted,
+                        lineHeight = 16.sp
                     )
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun ModuleCategoryBadge(category: String) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(WeMadeColors.PrimaryContainer)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = category.take(3).uppercase(),
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 10.sp),
-            fontWeight = FontWeight.Bold,
-            color = WeMadeColors.PrimaryDark
-        )
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+        // Right/Bottom Controls: 4-Tier Segmented Access Selector & Scope
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 4-Tier Access Level Segmented Control
+            SegmentedAccessControl(
+                currentLevel = config.level,
+                onSelectLevel = { newLevel ->
+                    onAccessChanged(newLevel, config.scope)
+                }
+            )
+
+            // Data Scope Selector (Only visible if module is accessible)
+            if (config.isAccessible) {
+                DynamicDataScopeSelector(
+                    module = module,
+                    currentScope = config.scope,
+                    onSelectScope = { newScope ->
+                        onAccessChanged(config.level, newScope)
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -132,44 +111,63 @@ private fun SegmentedAccessControl(
 ) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF1F5F9))
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.SurfaceMuted,
+                outline = WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
+            )
             .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AccessLevel.entries.forEach { level ->
             val isSelected = level == currentLevel
 
-            val (activeBg, activeText) = when (level) {
-                AccessLevel.NONE -> Color(0xFFE2E8F0) to Color(0xFF475569)
-                AccessLevel.VIEW -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
-                AccessLevel.OPERATE -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-                AccessLevel.MANAGE -> Color(0xFFD1FAE5) to Color(0xFF047857)
-            }
-
-            val itemModifier = if (isSelected) {
-                Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(activeBg)
-                    .border(1.dp, activeText.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-            } else {
-                Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color.Transparent)
+            val activeBg: Color
+            val activeTint: Color
+            when (level) {
+                AccessLevel.NONE -> {
+                    activeBg = WeMadeColors.Surface
+                    activeTint = WeMadeColors.OnSurfaceMuted
+                }
+                AccessLevel.VIEW -> {
+                    activeBg = WeMadeColors.PrimaryContainer
+                    activeTint = WeMadeColors.Primary
+                }
+                AccessLevel.OPERATE -> {
+                    activeBg = WeMadeColors.WarningBg
+                    activeTint = WeMadeColors.Warning
+                }
+                AccessLevel.MANAGE -> {
+                    activeBg = WeMadeColors.SuccessBg
+                    activeTint = WeMadeColors.Success
+                }
             }
 
             Box(
-                modifier = itemModifier
+                modifier = Modifier
+                    .then(
+                        if (isSelected) {
+                            Modifier.clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = activeBg,
+                                outline = activeTint,
+                                borderWidth = ClayBorder.Medium
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .clickable { onSelectLevel(level) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = ClaySpacing.Md, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = level.displayName,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) activeText else Color(0xFF64748B)
+                    color = if (isSelected) activeTint else WeMadeColors.OnSurfaceMuted
                 )
             }
         }
@@ -184,59 +182,51 @@ private fun DynamicDataScopeSelector(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
     ) {
         Text(
             text = "Jangkauan:",
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
             color = WeMadeColors.OnSurfaceMuted,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.SemiBold
         )
 
         if (module.isGlobalOnly) {
-            // Informative fixed badge for shared enterprise resource
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFFEFF6FF))
-                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "🌐 Seluruh Pabrik",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1D4ED8)
-                    )
-                    Text(
-                        text = "(Data Bersama)",
-                        fontSize = 10.sp,
-                        color = Color(0xFF64748B)
-                    )
-                }
+                IconGlobe(modifier = Modifier.size(13.dp), color = WeMadeColors.Primary)
+                ClayTag(
+                    text = "Seluruh Pabrik (Data Bersama)",
+                    tint = WeMadeColors.Primary,
+                    fontSize = 10.sp
+                )
             }
         } else {
             // Hierarchical selectable scopes (Sendiri, Bawahan, Semua)
-            module.supportedScopes.forEach { scope ->
-                val isSelected = scope == currentScope
+            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                module.supportedScopes.forEach { scope ->
+                    val isSelected = scope == currentScope
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isSelected) WeMadeColors.PrimaryDark else Color(0xFFF1F5F9))
-                        .clickable { onSelectScope(scope) }
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = scope.shortLabel,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) Color.White else Color(0xFF475569)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = if (isSelected) WeMadeColors.Primary else WeMadeColors.Surface,
+                                outline = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.Border,
+                                borderWidth = if (isSelected) ClayBorder.Thick else ClayBorder.Hairline
+                            )
+                            .clickable { onSelectScope(scope) }
+                            .padding(horizontal = ClaySpacing.Sm, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = scope.shortLabel,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else WeMadeColors.OnSurface
+                        )
+                    }
                 }
             }
         }
