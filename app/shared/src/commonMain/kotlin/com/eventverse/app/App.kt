@@ -29,6 +29,18 @@ import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
+import com.eventverse.app.presentation.designsystem.ClayActionSurface
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayIconButton
+import com.eventverse.app.presentation.designsystem.ClayNavDrawer
+import com.eventverse.app.presentation.designsystem.ClayNavItem
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.IconLayers
+import com.eventverse.app.presentation.designsystem.IconMenu
+import com.eventverse.app.presentation.designsystem.IconShield
+import com.eventverse.app.presentation.designsystem.IconZap
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
@@ -102,134 +114,105 @@ fun App() {
         wasAuthenticated = isAuthenticated
     }
 
+    var drawerOpen by remember { mutableStateOf(false) }
+
+    // Memilih item menutup drawer-nya, seperti panel produk Google Cloud Console.
+    val openScreen: (AppNavScreen) -> Unit = { target ->
+        navigateTo(target)
+        drawerOpen = false
+    }
+
+    val navItems = remember(currentScreen, isAuthenticated) {
+        listOf(
+            ClayNavItem(
+                key = AppNavScreen.ORG_CHART.route,
+                label = AppNavScreen.ORG_CHART.title,
+                selected = currentScreen == AppNavScreen.ORG_CHART,
+                onClick = { openScreen(AppNavScreen.ORG_CHART) },
+                icon = { tint ->
+                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
+                    else IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
+                }
+            ),
+            ClayNavItem(
+                key = AppNavScreen.DYNAMIC_RBAC.route,
+                label = AppNavScreen.DYNAMIC_RBAC.title,
+                selected = currentScreen == AppNavScreen.DYNAMIC_RBAC,
+                onClick = { openScreen(AppNavScreen.DYNAMIC_RBAC) },
+                icon = { tint ->
+                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
+                    else IconShield(modifier = Modifier.fillMaxSize(), color = tint)
+                }
+            ),
+            ClayNavItem(
+                key = AppNavScreen.FACTORY_FLOW.route,
+                label = AppNavScreen.FACTORY_FLOW.title,
+                selected = currentScreen == AppNavScreen.FACTORY_FLOW,
+                onClick = { openScreen(AppNavScreen.FACTORY_FLOW) },
+                icon = { tint ->
+                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
+                    else IconZap(modifier = Modifier.fillMaxSize(), color = tint)
+                }
+            )
+        )
+    }
+
     WeMadeTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top Navigation Switcher Bar
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = WeMadeColors.Surface,
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top Bar: Menu Trigger, Brand, Tenant Switcher & User Profile
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = WeMadeColors.Surface,
+                    shadowElevation = 1.dp
                 ) {
-                    // Left Brand & Workspace Tag
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "WeMade ERP",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = WeMadeColors.Primary
-                        )
-                        Text(
-                            text = "•",
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                        Text(
-                            text = "Multi-Tenant Garment Platform",
-                            fontSize = 12.sp,
-                        )
-                    }
-
-                    // Right Navigation Controls & User Profile Bar
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Protected Navigation Chips
-                        FilterChip(
-                            selected = currentScreen == AppNavScreen.ORG_CHART,
-                            onClick = { navigateTo(AppNavScreen.ORG_CHART) },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    if (!isAuthenticated) {
-                                        LockIcon(modifier = Modifier.size(12.dp))
-                                    }
-                                    Text(
-                                        text = "Bagan Organisasi",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (currentScreen == AppNavScreen.ORG_CHART) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
+                        // Hamburger Menu Trigger & Brand
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ClayIconButton(
+                                onClick = { drawerOpen = true },
+                                shape = ClayShapes.Tile,
+                                size = 34.dp,
+                                containerColor = WeMadeColors.SurfaceMuted
+                            ) {
+                                IconMenu(
+                                    modifier = Modifier.size(15.dp),
+                                    color = WeMadeColors.OnSurface
+                                )
                             }
-                        )
 
-                        FilterChip(
-                            selected = currentScreen == AppNavScreen.DYNAMIC_RBAC,
-                            onClick = { navigateTo(AppNavScreen.DYNAMIC_RBAC) },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    if (!isAuthenticated) {
-                                        LockIcon(modifier = Modifier.size(12.dp))
-                                    }
-                                    Text(
-                                        text = "Hak Akses (RBAC)",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (currentScreen == AppNavScreen.DYNAMIC_RBAC) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
-                            }
-                        )
+                            Spacer(modifier = Modifier.width(4.dp))
 
-                        FilterChip(
-                            selected = currentScreen == AppNavScreen.FACTORY_FLOW,
-                            onClick = { navigateTo(AppNavScreen.FACTORY_FLOW) },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    if (!isAuthenticated) {
-                                        LockIcon(modifier = Modifier.size(12.dp))
-                                    } else {
-                                        com.eventverse.app.presentation.pipeline.components.IconLightning(
-                                            modifier = Modifier.size(12.dp),
-                                            color = if (currentScreen == AppNavScreen.FACTORY_FLOW) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
-                                        )
-                                    }
-                                    Text(
-                                        text = "Alur Pabrik (Pipeline)",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (currentScreen == AppNavScreen.FACTORY_FLOW) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
-                            }
-                        )
-
-                        if (!isAuthenticated) {
-                            FilterChip(
-                                selected = currentScreen == AppNavScreen.LOGIN,
-                                onClick = { navigateTo(AppNavScreen.LOGIN) },
-                                label = {
-                                    Text(
-                                        text = "Login Akun",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (currentScreen == AppNavScreen.LOGIN) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
+                            Text(
+                                text = "WeMade ERP",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = WeMadeColors.Primary
                             )
-                        } else {
-                            // Divider
-                            Box(
-                                modifier = Modifier
-                                    .height(24.dp)
-                                    .width(1.dp)
-                                    .background(WeMadeColors.Border)
+                            Text(
+                                text = "•",
+                                color = WeMadeColors.OnSurfaceMuted
                             )
+                            Text(
+                                text = currentScreen.title,
+                                fontSize = 12.sp
+                            )
+                        }
 
+                        Row(
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                        if (isAuthenticated && session != null) {
                             // GCP-Style Company Switcher Dropdown, for platform superadmins
                             // only: the server authorises acting on another tenant purely by
                             // role, so offering it to a tenant-bound account would just
@@ -245,6 +228,7 @@ fun App() {
                                 // Divider
                                 Box(
                                     modifier = Modifier
+                                        .padding(horizontal = 10.dp)
                                         .height(24.dp)
                                         .width(1.dp)
                                         .background(WeMadeColors.Border)
@@ -256,8 +240,11 @@ fun App() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFF1F5F9))
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = WeMadeColors.SurfaceMuted,
+                                        outline = WeMadeColors.Border
+                                    )
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 val initial = session.user.username.value.take(2).uppercase()
@@ -292,88 +279,116 @@ fun App() {
                                 }
                             }
 
+                            Spacer(modifier = Modifier.width(10.dp))
+
                             // Distinct Logout Button
-                            OutlinedButton(
+                            ClayActionSurface(
                                 onClick = {
                                     authViewModel.onEvent(LoginUiEvent.Logout)
                                     navigateTo(AppNavScreen.LOGIN)
                                 },
-                                modifier = Modifier.height(34.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = WeMadeColors.Error,
-                                    containerColor = WeMadeColors.ErrorBg
-                                ),
-                                border = BorderStroke(1.dp, WeMadeColors.Error.copy(alpha = 0.35f)),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                containerColor = WeMadeColors.ErrorBg,
+                                outlineColor = WeMadeColors.Error,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
                             ) {
                                 LogoutIcon(modifier = Modifier.size(13.dp), color = WeMadeColors.Error)
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Logout",
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = WeMadeColors.Error
                                 )
                             }
+                        }
+                        }
+                    }
+                }
+
+                // Screen Content Area with Auth Guard
+                Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
+                    when (screen) {
+                        AppNavScreen.ORG_CHART -> {
+                            if (session != null) {
+                                OrgChartScreen(tenantSlug = session.tenantSlug ?: "wemade-demo")
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = "Bagan Struktur Organisasi & Karyawan",
+                                    onLoginClick = {
+                                        pendingRedirectScreen = AppNavScreen.ORG_CHART
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
+                        AppNavScreen.DYNAMIC_RBAC -> {
+                            if (isAuthenticated) {
+                                DynamicRbacScreen(
+                                    onBackToLogin = { navigateTo(AppNavScreen.LOGIN) }
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
+                                    onLoginClick = {
+                                        pendingRedirectScreen = AppNavScreen.DYNAMIC_RBAC
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
+                        AppNavScreen.FACTORY_FLOW -> {
+                            if (isAuthenticated) {
+                                FactoryFlowScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo")
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
+                                    onLoginClick = {
+                                        pendingRedirectScreen = AppNavScreen.FACTORY_FLOW
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
+                        AppNavScreen.LOGIN -> {
+                            LoginScreen(
+                                viewModel = authViewModel,
+                                onNavigateToDashboard = {
+                                    val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
+                                    pendingRedirectScreen = null
+                                    navigateTo(destination)
+                                }
+                            )
                         }
                     }
                 }
             }
 
-            // Screen Content Area with Auth Guard
-            Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
-                when (screen) {
-                    AppNavScreen.ORG_CHART -> {
-                        if (session != null) {
-                            OrgChartScreen(tenantSlug = session.tenantSlug ?: "wemade-demo")
-                        } else {
-                            AuthGuardCard(
-                                targetModuleName = "Bagan Struktur Organisasi & Karyawan",
-                                onLoginClick = {
-                                    pendingRedirectScreen = AppNavScreen.ORG_CHART
-                                    navigateTo(AppNavScreen.LOGIN)
-                                }
-                            )
-                        }
-                    }
-                    AppNavScreen.DYNAMIC_RBAC -> {
-                        if (isAuthenticated) {
-                            DynamicRbacScreen(
-                                onBackToLogin = { navigateTo(AppNavScreen.LOGIN) }
-                            )
-                        } else {
-                            AuthGuardCard(
-                                targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
-                                onLoginClick = {
-                                    pendingRedirectScreen = AppNavScreen.DYNAMIC_RBAC
-                                    navigateTo(AppNavScreen.LOGIN)
-                                }
-                            )
-                        }
-                    }
-                    AppNavScreen.FACTORY_FLOW -> {
-                        if (isAuthenticated) {
-                            FactoryFlowScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo")
-                        } else {
-                            AuthGuardCard(
-                                targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
-                                onLoginClick = {
-                                    pendingRedirectScreen = AppNavScreen.FACTORY_FLOW
-                                    navigateTo(AppNavScreen.LOGIN)
-                                }
-                            )
-                        }
-                    }
-                    AppNavScreen.LOGIN -> {
-                        LoginScreen(
-                            viewModel = authViewModel,
-                            onNavigateToDashboard = {
-                                val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
-                                pendingRedirectScreen = null
-                                navigateTo(destination)
-                            }
-                        )
-                    }
+            // Google Cloud Console–style product panel: floats over the content with a scrim,
+            // closes on ✕, on scrim click, or once a destination is chosen.
+            ClayNavDrawer(
+                open = drawerOpen,
+                onDismiss = { drawerOpen = false },
+                title = "WeMade ERP",
+                subtitle = "Multi-Tenant Garment Platform",
+                sectionLabel = "MODUL PABRIK",
+                items = navItems
+            ) {
+                if (isAuthenticated) {
+                    ClayButton(
+                        text = "Logout",
+                        onClick = {
+                            authViewModel.onEvent(LoginUiEvent.Logout)
+                            openScreen(AppNavScreen.LOGIN)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = ClayButtonStyle.Danger
+                    )
+                } else {
+                    ClayButton(
+                        text = "Login Akun",
+                        onClick = { openScreen(AppNavScreen.LOGIN) },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = ClayButtonStyle.Primary
+                    )
                 }
             }
         }

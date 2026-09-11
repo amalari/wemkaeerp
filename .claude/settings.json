@@ -145,7 +145,18 @@
       "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayButton\\\\n\\)/$1import com.eventverse.app.presentation.designsystem.ClayButtonStyle\\\\n/' RenameModuleDialog.kt)",
       "Bash(perl -pi -e ' *)",
       "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayIconButton\\\\n\\)/import com.eventverse.app.presentation.designsystem.ClayButton\\\\n$1/' NodeInputInspectorModal.kt)",
-      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayCard\\\\n\\)/$1import com.eventverse.app.presentation.designsystem.ClayButton\\\\n/' PipelineFlowCanvas.kt)"
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayCard\\\\n\\)/$1import com.eventverse.app.presentation.designsystem.ClayButton\\\\n/' PipelineFlowCanvas.kt)",
+      "Bash(./gradlew :app:shared:compileKotlinJvm -q)",
+      "Bash(./gradlew :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs -q)",
+      "Bash(nohup ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous > /tmp/wemade-web-dev.log 2>&1 & *)",
+      "Bash(./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous)",
+      "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(mkdir -p /tmp/wemade-shots)",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --screenshot=/tmp/wemade-shots/sidebar.png --window-size=1600,1000 --virtual-time-budget=8000 http://localhost:3000)",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist --screenshot=/tmp/wemade-shots/sidebar2.png --window-size=1600,1000 --virtual-time-budget=10000 http://localhost:3000)",
+      "Bash(node -e \"console.log\\(1\\)\")",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist --remote-debugging-port=9333 --window-size=1600,1000 --user-data-dir=/tmp/wemade-shots/chrome-profile http://localhost:3000)",
+      "Bash(node cdp.mjs \"ws://localhost:9333/devtools/page/86E65CC01BE64AE13A10812C67BBF3E3\")"
     ],
     "deny": [
       "Edit(*.env)",
@@ -166,6 +177,11 @@
       "Bash(git push --force*)",
       "Bash(git reset --hard*)",
       "Bash(./gradlew clean build)"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/tmp/wemade-shots",
+      "/private/tmp/wemade-shots"
     ]
   },
   "hooks": {

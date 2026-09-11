@@ -691,6 +691,25 @@ fun IconCheckCircle(modifier: Modifier = Modifier, color: Color = WeMadeColors.S
 }
 
 @Composable
+fun IconMenu(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+
+        listOf(0.28f, 0.50f, 0.72f).forEach { y ->
+            drawLine(
+                color = color,
+                start = Offset(w * 0.16f, h * y),
+                end = Offset(w * 0.84f, h * y),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
+@Composable
 fun IconTruck(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
     Canvas(modifier = modifier) {
         val w = size.width

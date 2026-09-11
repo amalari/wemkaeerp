@@ -65,6 +65,12 @@ object WeMadeColors {
     val OutlineInverse = Color(0xFF64748B)
 
     /**
+     * Lapisan peredup di balik panel melayang (drawer navigasi, modal). Selalu dipakai dengan
+     * `.copy(alpha = …)` di call site — pekat penuh hanya berguna untuk `colorScheme.scrim`.
+     */
+    val Scrim = Color(0xFF0F172A)
+
+    /**
      * Latar utama. Sedikit hangat, meminjam kehangatan `--bg-cream` (#fff9f5) dari referensi
      * desain tapi jauh lebih diredam agar tetap netral untuk layar kerja seharian.
      */
@@ -129,7 +135,7 @@ val WeMadeLightColorScheme = lightColorScheme(
     onError = Color.White,
     errorContainer = WeMadeColors.ErrorBg,
     onErrorContainer = WeMadeColors.Error,
-    scrim = Color(0xFF0F172A)
+    scrim = WeMadeColors.Scrim
 )
 
 @Composable
