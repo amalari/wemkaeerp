@@ -38,6 +38,7 @@ import com.eventverse.app.domain.orgchart.HeadSuccessionAction
 import com.eventverse.app.domain.orgchart.HierarchyLevel
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.infrastructure.api.OrgChartApiClient
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.orgchart.components.TShapeChartView
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -218,29 +219,56 @@ private fun ArchivedPanel(
         color = Color.Black.copy(alpha = 0.4f)
     ) {
         Box(contentAlignment = Alignment.CenterEnd) {
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(400.dp),
-                shape = RoundedCornerShape(0.dp),
-                colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface)
+                    .width(420.dp)
+                    .claySurface(
+                        shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
+                        background = WeMadeColors.Surface,
+                        outline = WeMadeColors.Outline,
+                        shadowX = -ClayOffset.Rest,
+                        shadowY = 0.dp,
+                        offset = ClayOffset.Rest,
+                        borderWidth = ClayBorder.Thick
+                    )
             ) {
-                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Column(modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xl)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("📦 Data Terarsip", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                        IconButton(onClick = onClose) { Text("✕") }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            IconArchive(modifier = Modifier.size(20.dp), color = WeMadeColors.OnSurface)
+                            Text(
+                                text = "Data Terarsip",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = WeMadeColors.OnSurface
+                            )
+                        }
+                        ClayIconButton(
+                            onClick = onClose,
+                            size = 32.dp,
+                            offset = ClayOffset.Pressed
+                        ) {
+                            IconClose(modifier = Modifier.size(14.dp), color = WeMadeColors.OnSurface)
+                        }
                     }
 
                     if (isLoading) {
-                        Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                        Box(Modifier.fillMaxWidth().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = WeMadeColors.Primary)
                         }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                        ) {
                             if (archivedEmployees.isNotEmpty()) {
                                 item {
                                     Text(
@@ -248,27 +276,41 @@ private fun ArchivedPanel(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.sp,
                                         color = WeMadeColors.OnSurfaceMuted,
-                                        modifier = Modifier.padding(top = 8.dp)
+                                        modifier = Modifier.padding(top = ClaySpacing.Md)
                                     )
                                 }
                                 items(archivedEmployees) { emp ->
-                                    Card(
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clayFlat(
+                                                shape = ClayShapes.Chip,
+                                                background = WeMadeColors.WarningBg,
+                                                outline = WeMadeColors.Warning.copy(alpha = 0.4f),
+                                                borderWidth = ClayBorder.Medium
+                                            )
+                                            .padding(ClaySpacing.Lg)
                                     ) {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                            modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(emp.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                Text(emp.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = WeMadeColors.OnSurface)
                                                 Text(emp.roleTitle, fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
                                                 Text(emp.department?.displayName ?: "Direksi", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
                                             }
-                                            TextButton(onClick = { onRestoreEmployee(emp.id.value) }) {
-                                                Text("Pulihkan", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
-                                            }
+                                            Spacer(Modifier.width(ClaySpacing.Md))
+                                            ClayButton(
+                                                text = "Pulihkan",
+                                                leading = { IconRestore(modifier = Modifier.size(12.dp), color = WeMadeColors.Primary) },
+                                                onClick = { onRestoreEmployee(emp.id.value) },
+                                                style = ClayButtonStyle.Secondary,
+                                                offset = ClayOffset.Pressed,
+                                                fontSize = 11.sp,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -281,26 +323,40 @@ private fun ArchivedPanel(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.sp,
                                         color = WeMadeColors.OnSurfaceMuted,
-                                        modifier = Modifier.padding(top = 16.dp)
+                                        modifier = Modifier.padding(top = ClaySpacing.Xl)
                                     )
                                 }
                                 items(archivedDepartments) { dept ->
-                                    Card(
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clayFlat(
+                                                shape = ClayShapes.Chip,
+                                                background = WeMadeColors.SuccessBg,
+                                                outline = WeMadeColors.Success.copy(alpha = 0.4f),
+                                                borderWidth = ClayBorder.Medium
+                                            )
+                                            .padding(ClaySpacing.Lg)
                                     ) {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                            modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(dept.displayName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                Text(dept.displayName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = WeMadeColors.OnSurface)
                                                 Text(dept.shortName, fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
                                             }
-                                            TextButton(onClick = { onRestoreDepartment(dept.id.value) }) {
-                                                Text("Pulihkan", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
-                                            }
+                                            Spacer(Modifier.width(ClaySpacing.Md))
+                                            ClayButton(
+                                                text = "Pulihkan",
+                                                leading = { IconRestore(modifier = Modifier.size(12.dp), color = WeMadeColors.Primary) },
+                                                onClick = { onRestoreDepartment(dept.id.value) },
+                                                style = ClayButtonStyle.Secondary,
+                                                offset = ClayOffset.Pressed,
+                                                fontSize = 11.sp,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -309,12 +365,12 @@ private fun ArchivedPanel(
                             if (archivedEmployees.isEmpty() && archivedDepartments.isEmpty()) {
                                 item {
                                     Box(
-                                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(ClaySpacing.Xxl),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("📭", fontSize = 40.sp)
-                                            Spacer(Modifier.height(8.dp))
+                                            IconArchive(modifier = Modifier.size(44.dp), color = WeMadeColors.OnSurfaceMuted)
+                                            Spacer(Modifier.height(ClaySpacing.Md))
                                             Text("Tidak ada data yang diarsipkan.", color = WeMadeColors.OnSurfaceMuted)
                                         }
                                     }
@@ -347,7 +403,7 @@ private fun OrgChartHeader(
         Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
                 Text(
                     text = "Bagan Struktur Organisasi & Karyawan",
@@ -355,21 +411,13 @@ private fun OrgChartHeader(
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurface
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFEFF6FF))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "T-Shape Dynamic Org",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.PrimaryDark
-                    )
-                }
+                ClayTag(
+                    text = "T-Shape Dynamic Org",
+                    tint = WeMadeColors.Primary,
+                    fontSize = 11.sp
+                )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
             Text(
                 text = "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik, atau mulai dari struktur kosong.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -379,22 +427,21 @@ private fun OrgChartHeader(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
             HeaderBadge(label = "Total Karyawan", value = "$totalEmployees Orang")
             HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
 
             // Tombol Opsi Preset / Mulai Kosong
             Box {
-                OutlinedButton(
+                ClayButton(
+                    text = "Opsi Struktur",
                     onClick = onToggleResetMenu,
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF475569)),
-                    border = BorderStroke(1.dp, WeMadeColors.Border),
+                    style = ClayButtonStyle.Secondary,
+                    offset = ClayOffset.Small,
+                    fontSize = 12.sp,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text("Opsi Struktur", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                }
+                )
 
                 DropdownMenu(
                     expanded = isResetMenuOpen,
@@ -403,18 +450,18 @@ private fun OrgChartHeader(
                     DropdownMenuItem(
                         text = {
                             Column {
-                                Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFDC2626))
-                                Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = Color(0xFF94A3B8))
+                                Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.Error)
+                                Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
                             }
                         },
                         onClick = onClearAllData
                     )
-                    HorizontalDivider()
+                    HorizontalDivider(color = WeMadeColors.Border)
                     DropdownMenuItem(
                         text = {
                             Column {
                                 Text("Muat Template Konveksi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-                                Text("Isi dengan 5 divisi & staf contoh", fontSize = 10.sp, color = Color(0xFF94A3B8))
+                                Text("Isi dengan 5 divisi & staf contoh", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
                             }
                         },
                         onClick = onRestorePresets
@@ -423,40 +470,41 @@ private fun OrgChartHeader(
             }
 
             // Tombol Tambah Divisi Baru
-            OutlinedButton(
+            ClayButton(
+                text = "+ Divisi Baru",
                 onClick = onAddNewDepartment,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.PrimaryDark),
-                border = BorderStroke(1.dp, WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp),
+                style = ClayButtonStyle.Secondary,
+                offset = ClayOffset.Small,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text("+ Divisi Baru", fontWeight = FontWeight.SemiBold)
-            }
+            )
 
             // Tombol Tambah Karyawan Baru
-            Button(
+            ClayButton(
+                text = "+ Tambah Karyawan",
                 onClick = onAddNewEmployee,
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp),
+                style = ClayButtonStyle.Primary,
+                offset = ClayOffset.Small,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Text("+ Tambah Karyawan", fontWeight = FontWeight.SemiBold)
-            }
+            )
         }
     }
 }
 
 @Composable
 private fun HeaderBadge(label: String, value: String) {
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border)
+    Box(
+        modifier = Modifier
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.Surface,
+                outline = WeMadeColors.Outline,
+                borderWidth = ClayBorder.Medium
+            )
+            .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
             Text(text = value, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
             Text(text = label, fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
@@ -487,19 +535,21 @@ private fun EmployeeFormPanel(
     onDeleteDepartment: (Department) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Panel,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        offset = ClayOffset.Rest,
+        contentPadding = PaddingValues(ClaySpacing.Xl)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            val activeDeptColor = state.selectedDepartment?.let { Color(it.colorHex) } ?: WeMadeColors.Primary
+
             // Header Form
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -514,61 +564,71 @@ private fun EmployeeFormPanel(
                 )
 
                 if (!state.isCreatingNew) {
-                    TextButton(onClick = onReset) {
-                        Text("+ Karyawan Baru", fontSize = 12.sp)
-                    }
+                    ClayButton(
+                        text = "+ Karyawan Baru",
+                        onClick = onReset,
+                        style = ClayButtonStyle.Secondary,
+                        offset = ClayOffset.Pressed,
+                        fontSize = 12.sp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
             // 1. Input Nama & Kontak
-            OutlinedTextField(
+            ClayTextField(
                 value = state.nameInput,
                 onValueChange = onNameChange,
-                label = { Text("Nama Lengkap Karyawan") },
-                placeholder = { Text("Contoh: Budi Santoso", color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
+                label = "Nama Lengkap Karyawan",
+                placeholder = "Contoh: Budi Santoso",
+                leadingIcon = { IconUser(modifier = Modifier.size(16.dp)) },
+                focusColor = activeDeptColor,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+                ClayTextField(
                     value = state.emailInput,
                     onValueChange = onEmailChange,
-                    label = { Text("Email Perusahaan") },
-                    placeholder = { Text("contoh@wemade.id", color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f)) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Email Perusahaan",
+                    placeholder = "contoh@wemade.id",
+                    leadingIcon = { IconMail(modifier = Modifier.size(16.dp)) },
+                    focusColor = activeDeptColor,
+                    modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                ClayTextField(
                     value = state.phoneInput,
                     onValueChange = onPhoneChange,
-                    label = { Text("No. WhatsApp") },
-                    placeholder = { Text("08123456789", color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f)) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "No. WhatsApp",
+                    placeholder = "08123456789",
+                    leadingIcon = { IconPhone(modifier = Modifier.size(16.dp)) },
+                    focusColor = activeDeptColor,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
             // ─── JALUR CEPAT: PILIH UNDER SIAPA (OTOMATIS ISI DIVISI & WEWENANG) ───
             var isUnderSiapaMenuOpen by remember { mutableStateOf(false) }
             val currentSuperiorNode = state.employees.find { it.id.value == state.selectedReportsToId }
 
-            Card(
-                shape = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Border,
+                        borderWidth = ClayBorder.Medium
+                    )
+                    .padding(ClaySpacing.Lg)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -576,9 +636,9 @@ private fun EmployeeFormPanel(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                         ) {
-                            Text("⚡", fontSize = 13.sp)
+                            IconZap(modifier = Modifier.size(14.dp), color = activeDeptColor)
                             Text(
                                 text = "Jalur Cepat: Under Siapa?",
                                 fontSize = 12.sp,
@@ -588,21 +648,25 @@ private fun EmployeeFormPanel(
                         }
                         Text(
                             text = "Otomatis isi divisi & wewenang",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
                     Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedButton(
-                            onClick = { isUnderSiapaMenuOpen = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, if (currentSuperiorNode != null) WeMadeColors.Accent else Color(0xFFCBD5E1)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clayFlat(
+                                    shape = ClayShapes.Chip,
+                                    background = WeMadeColors.Surface,
+                                    outline = if (currentSuperiorNode != null) activeDeptColor else WeMadeColors.Border,
+                                    borderWidth = ClayBorder.Medium
+                                )
+                                .clickable { isUnderSiapaMenuOpen = true }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -621,14 +685,14 @@ private fun EmployeeFormPanel(
                                         Text(
                                             text = "${currentSuperiorNode.roleTitle} • Divisi $supDeptLabel",
                                             fontSize = 10.sp,
-                                            color = WeMadeColors.Accent
+                                            color = activeDeptColor
                                         )
                                     } else if (state.selectedLevel == HierarchyLevel.EXECUTIVE) {
                                         Text(
                                             text = "Level Puncak (Tanpa Atasan / Direksi)",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF4338CA)
+                                            color = WeMadeColors.Primary
                                         )
                                         Text(
                                             text = "Berdiri sendiri di puncak hirarki (Tanpa Divisi)",
@@ -644,7 +708,7 @@ private fun EmployeeFormPanel(
                                         )
                                     }
                                 }
-                                Text("▼", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
+                                IconChevronDown(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurfaceMuted)
                             }
                         }
 
@@ -660,27 +724,19 @@ private fun EmployeeFormPanel(
                                         Column {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                                             ) {
                                                 Text(
                                                     leader.name,
                                                     fontWeight = if (isLeaderSelected) FontWeight.Bold else FontWeight.SemiBold,
                                                     fontSize = 12.sp,
-                                                    color = if (isLeaderSelected) WeMadeColors.Accent else WeMadeColors.OnSurface
+                                                    color = if (isLeaderSelected) activeDeptColor else WeMadeColors.OnSurface
                                                 )
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(4.dp))
-                                                        .background(if (isLeaderExec) Color(0xFFEEF2FF) else Color(0xFFFEF3C7))
-                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                                ) {
-                                                    Text(
-                                                        text = if (isLeaderExec) "DIREKSI" else (leader.department?.shortName ?: ""),
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isLeaderExec) Color(0xFF4338CA) else Color(0xFFB45309)
-                                                    )
-                                                }
+                                                ClayTag(
+                                                    text = if (isLeaderExec) "DIREKSI" else (leader.department?.shortName ?: ""),
+                                                    tint = if (isLeaderExec) WeMadeColors.Primary else WeMadeColors.Warning,
+                                                    fontSize = 9.sp
+                                                )
                                             }
                                             val subtitle = if (isLeaderExec) {
                                                 "${leader.roleTitle} → Melapor ke Direksi (Bebas pilih divisi)"
@@ -690,7 +746,7 @@ private fun EmployeeFormPanel(
                                             Text(
                                                 subtitle,
                                                 fontSize = 10.sp,
-                                                color = Color(0xFF64748B)
+                                                color = WeMadeColors.OnSurfaceMuted
                                             )
                                         }
                                     },
@@ -700,7 +756,7 @@ private fun EmployeeFormPanel(
                                     }
                                 )
                             }
-                            HorizontalDivider()
+                            HorizontalDivider(color = WeMadeColors.Border)
                             DropdownMenuItem(
                                 text = {
                                     Column {
@@ -708,9 +764,9 @@ private fun EmployeeFormPanel(
                                             "Tanpa Atasan (Direksi / Puncak)",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
-                                            color = Color(0xFF4338CA)
+                                            color = WeMadeColors.Primary
                                         )
-                                        Text("Otomatis ubah wewenang menjadi Direksi", fontSize = 10.sp, color = Color(0xFF64748B))
+                                        Text("Otomatis ubah wewenang menjadi Direksi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
                                     }
                                 },
                                 onClick = {
@@ -723,7 +779,7 @@ private fun EmployeeFormPanel(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
             // 3. Divisi Penempatan
             Row(
@@ -740,47 +796,58 @@ private fun EmployeeFormPanel(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
                 ) {
                     val currentDept = state.selectedDepartment
                     if (currentDept != null) {
-                        TextButton(
+                        ClayButton(
+                            text = "Edit Divisi",
+                            leading = { IconEdit(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface) },
                             onClick = { onEditDepartmentClick(currentDept) },
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF2563EB))
-                        ) {
-                            Text("✏️ Edit Divisi", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        }
+                            style = ClayButtonStyle.Secondary,
+                            offset = ClayOffset.Pressed,
+                            fontSize = 11.sp,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        )
                         if (state.departments.size > 1) {
-                            TextButton(
+                            ClayButton(
+                                text = "Arsipkan",
+                                leading = { IconArchive(modifier = Modifier.size(12.dp), color = WeMadeColors.Warning) },
                                 onClick = { onDeleteDepartment(currentDept) },
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD97706))
-                            ) {
-                                Text("📦 Arsipkan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
+                                style = ClayButtonStyle.Secondary,
+                                offset = ClayOffset.Pressed,
+                                fontSize = 11.sp,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
                     }
-                    TextButton(
+                    ClayButton(
+                        text = "+ Divisi Baru",
                         onClick = onAddDepartmentClick,
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text("+ Divisi Baru", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+                        style = ClayButtonStyle.Secondary,
+                        offset = ClayOffset.Pressed,
+                        fontSize = 11.sp,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
             // Tampilan Pilihan Divisi (Selalu Aktif & Editable)
             if (state.departments.isEmpty()) {
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.BackgroundWarm,
+                            outline = WeMadeColors.Border,
+                            borderWidth = ClayBorder.Hairline
+                        )
+                        .padding(ClaySpacing.Lg)
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -788,14 +855,15 @@ private fun EmployeeFormPanel(
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedButton(
+                        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                        ClayButton(
+                            text = "+ Buat Divisi Pertama",
                             onClick = onAddDepartmentClick,
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text("+ Buat Divisi Pertama", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
+                            style = ClayButtonStyle.Primary,
+                            offset = ClayOffset.Small,
+                            fontSize = 11.sp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        )
                     }
                 }
             } else {
@@ -808,18 +876,17 @@ private fun EmployeeFormPanel(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
                 ) {
                     if (showArrows) {
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(CircleShape)
-                                .background(if (canScrollBack) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
-                                .border(
-                                    1.dp,
-                                    if (canScrollBack) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
-                                    CircleShape
+                                .clayFlat(
+                                    shape = CircleShape,
+                                    background = if (canScrollBack) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                                    outline = if (canScrollBack) WeMadeColors.Outline else WeMadeColors.Border,
+                                    borderWidth = ClayBorder.Medium
                                 )
                                 .clickable(enabled = canScrollBack) {
                                     coroutineScope.launch {
@@ -831,7 +898,7 @@ private fun EmployeeFormPanel(
                             contentAlignment = Alignment.Center
                         ) {
                             Canvas(modifier = Modifier.size(10.dp)) {
-                                val strokeColor = if (canScrollBack) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                val strokeColor = if (canScrollBack) WeMadeColors.OnSurface else WeMadeColors.Border
                                 val path = Path().apply {
                                     moveTo(size.width * 0.65f, 0f)
                                     lineTo(size.width * 0.25f, size.height * 0.5f)
@@ -851,19 +918,18 @@ private fun EmployeeFormPanel(
                         modifier = Modifier
                             .weight(1f)
                             .horizontalScroll(deptScrollState),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Chip Opsi: Direksi (Tanpa Divisi)
                         val isDireksiSelected = state.selectedDepartment == null && state.selectedLevel == HierarchyLevel.EXECUTIVE
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isDireksiSelected) Color(0xFF4338CA) else Color(0xFFF1F5F9))
-                                .border(
-                                    1.dp,
-                                    if (isDireksiSelected) Color(0xFF4338CA) else Color(0xFFE2E8F0),
-                                    RoundedCornerShape(8.dp)
+                                .clayFlat(
+                                    shape = ClayShapes.Chip,
+                                    background = if (isDireksiSelected) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
+                                    outline = if (isDireksiSelected) WeMadeColors.Outline else WeMadeColors.Border,
+                                    borderWidth = ClayBorder.Medium
                                 )
                                 .clickable { onSelectDireksi() }
                                 .padding(horizontal = 12.dp, vertical = 7.dp),
@@ -873,20 +939,20 @@ private fun EmployeeFormPanel(
                                 text = "Direksi (Non-Divisi)",
                                 fontSize = 11.sp,
                                 fontWeight = if (isDireksiSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isDireksiSelected) Color.White else Color(0xFF475569)
+                                color = if (isDireksiSelected) Color.White else WeMadeColors.OnSurface
                             )
                         }
 
                         state.departments.forEach { dept ->
                             val isSelected = !isDireksiSelected && dept.id == (state.selectedDepartment?.id ?: state.activeDepartment.id)
+                            val deptColor = Color(dept.colorHex)
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Color(dept.colorHex) else Color(0xFFF1F5F9))
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) Color(dept.colorHex) else Color(0xFFE2E8F0),
-                                        RoundedCornerShape(8.dp)
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = if (isSelected) deptColor else WeMadeColors.SurfaceMuted,
+                                        outline = if (isSelected) WeMadeColors.Outline else WeMadeColors.Border,
+                                        borderWidth = ClayBorder.Medium
                                     )
                                     .clickable { onDeptChange(dept) }
                                     .padding(horizontal = 12.dp, vertical = 7.dp),
@@ -896,7 +962,7 @@ private fun EmployeeFormPanel(
                                     text = dept.shortName,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else Color(0xFF475569)
+                                    color = if (isSelected) Color.White else WeMadeColors.OnSurface
                                 )
                             }
                         }
@@ -906,12 +972,11 @@ private fun EmployeeFormPanel(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(CircleShape)
-                                .background(if (canScrollFwd) Color(0xFFF1F5F9) else Color(0xFFF8FAFC))
-                                .border(
-                                    1.dp,
-                                    if (canScrollFwd) Color(0xFFCBD5E1) else Color(0xFFE2E8F0),
-                                    CircleShape
+                                .clayFlat(
+                                    shape = CircleShape,
+                                    background = if (canScrollFwd) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                                    outline = if (canScrollFwd) WeMadeColors.Outline else WeMadeColors.Border,
+                                    borderWidth = ClayBorder.Medium
                                 )
                                 .clickable(enabled = canScrollFwd) {
                                     coroutineScope.launch {
@@ -923,7 +988,7 @@ private fun EmployeeFormPanel(
                             contentAlignment = Alignment.Center
                         ) {
                             Canvas(modifier = Modifier.size(10.dp)) {
-                                val strokeColor = if (canScrollFwd) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                val strokeColor = if (canScrollFwd) WeMadeColors.OnSurface else WeMadeColors.Border
                                 val path = Path().apply {
                                     moveTo(size.width * 0.35f, 0f)
                                     lineTo(size.width * 0.75f, size.height * 0.5f)
@@ -940,7 +1005,7 @@ private fun EmployeeFormPanel(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
             // ─── 4. TINGKAT WEWENANG DINAMIS (SELALU EDITABLE) ───
             val currentDept = state.selectedDepartment ?: state.activeDepartment
@@ -959,47 +1024,44 @@ private fun EmployeeFormPanel(
                     color = WeMadeColors.OnSurface
                 )
                 if (state.selectedDepartment != null) {
-                    TextButton(
+                    ClayButton(
+                        text = "+ Tambah Tingkat",
                         onClick = onAddTierClick,
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text("+ Tambah Tingkat", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+                        style = ClayButtonStyle.Secondary,
+                        offset = ClayOffset.Pressed,
+                        fontSize = 11.sp,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                 // Opsi 1: Direksi (Level Puncak Organisasi)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isDireksiSelected) WeMadeColors.PrimaryContainer else Color(0xFFFAFAFA))
-                        .border(1.dp, if (isDireksiSelected) WeMadeColors.Primary else WeMadeColors.Border, RoundedCornerShape(8.dp))
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = if (isDireksiSelected) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                            outline = if (isDireksiSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                            borderWidth = ClayBorder.Medium
+                        )
                         .clickable { onSelectDireksi() }
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF4338CA).copy(alpha = 0.15f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "DIREKSI",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4338CA)
-                            )
-                        }
+                        ClayTag(
+                            text = "DIREKSI",
+                            tint = WeMadeColors.Primary,
+                            fontSize = 9.sp
+                        )
                         Column {
                             Text(
                                 text = "Direksi (Level Puncak Organisasi)",
@@ -1009,56 +1071,59 @@ private fun EmployeeFormPanel(
                             )
                             Text(
                                 text = "Membawahi seluruh jajaran divisi dan manajemen pabrik.",
-                                fontSize = 10.sp,
-                                color = Color(0xFF64748B)
+                                fontSize = 11.sp,
+                                color = WeMadeColors.OnSurfaceMuted
                             )
                         }
                     }
-                    RadioButton(selected = isDireksiSelected, onClick = { onSelectDireksi() })
+                    RadioButton(
+                        selected = isDireksiSelected,
+                        onClick = { onSelectDireksi() },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = WeMadeColors.Primary,
+                            unselectedColor = WeMadeColors.Border
+                        )
+                    )
                 }
 
                 // Opsi Tingkat Wewenang Divisi
                 availableTiers.forEach { tier ->
                     val isSelected = !isDireksiSelected && state.selectedTierName == tier.name
+                    val badgeColor = when {
+                        tier.isHead -> WeMadeColors.Warning
+                        tier.id == "team_lead" || tier.rank == 2 -> WeMadeColors.Success
+                        else -> WeMadeColors.OnSurfaceMuted
+                    }
+                    val badgeLabel = when {
+                        tier.isHead -> "KEPALA"
+                        tier.id == "team_lead" || tier.rank == 2 -> "LEAD / SPV"
+                        else -> "STAF"
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) WeMadeColors.PrimaryContainer else Color(0xFFFAFAFA))
-                            .border(1.dp, if (isSelected) WeMadeColors.Primary else WeMadeColors.Border, RoundedCornerShape(8.dp))
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = if (isSelected) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                                outline = if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                                borderWidth = ClayBorder.Medium
+                            )
                             .clickable { onTierChange(tier) }
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f, fill = false),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                         ) {
-                            val badgeColor = when {
-                                tier.isHead -> Color(0xFFF59E0B)
-                                tier.id == "team_lead" || tier.rank == 2 -> Color(0xFF10B981)
-                                else -> Color(0xFF64748B)
-                            }
-                            val badgeLabel = when {
-                                tier.isHead -> "KEPALA"
-                                tier.id == "team_lead" || tier.rank == 2 -> "LEAD / SPV"
-                                else -> "STAF"
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(badgeColor.copy(alpha = 0.15f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = badgeLabel,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = badgeColor
-                                )
-                            }
+                            ClayTag(
+                                text = badgeLabel,
+                                tint = badgeColor,
+                                fontSize = 9.sp
+                            )
                             Text(
                                 text = tier.name,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -1069,99 +1134,106 @@ private fun EmployeeFormPanel(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onEditTierClick(currentDept.id.value, tier) },
-                                contentAlignment = Alignment.Center
+                            ClayIconButton(
+                                onClick = { onEditTierClick(currentDept.id.value, tier) },
+                                size = 26.dp,
+                                offset = ClayOffset.Pressed
                             ) {
-                                Text("✏️", fontSize = 11.sp)
+                                IconEdit(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface)
                             }
-                            RadioButton(selected = isSelected, onClick = { onTierChange(tier) })
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onTierChange(tier) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = WeMadeColors.Primary,
+                                    unselectedColor = WeMadeColors.Border
+                                )
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
             // ─── BANNER PERALIHAN SUKSESI KEPALA DIVISI (SINGLE ACTIVE HEAD CONSTRAINT) ───
             val existingHead = state.existingHeadOfSelectedDept
             if (existingHead != null && state.selectedLevel == HierarchyLevel.HEAD_OF_DEPARTMENT) {
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
-                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.WarningBg,
+                            outline = WeMadeColors.Warning,
+                            borderWidth = ClayBorder.Medium
+                        )
+                        .padding(ClaySpacing.Lg)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFF59E0B))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "PERHATIAN SUKSESI",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
+                            ClayTag(
+                                text = "PERHATIAN SUKSESI",
+                                tint = WeMadeColors.Warning,
+                                fontSize = 9.sp
+                            )
                             Text(
                                 text = "Hanya boleh ada 1 Kepala Divisi aktif",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF92400E)
+                                color = WeMadeColors.OnSurface
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
                         val currentDeptName = state.selectedDepartment?.displayName ?: state.activeDepartment.displayName
                         Text(
                             text = "Divisi $currentDeptName saat ini dipimpin oleh '${existingHead.name}'. Pilih tindakan suksesi:",
                             fontSize = 11.sp,
-                            color = Color(0xFF78350F)
+                            color = WeMadeColors.OnSurface
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
                             // Opsi 1: Turunkan ke Staf Senior
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (state.successionAction == HeadSuccessionAction.DEMOTE_TO_STAFF) Color(0xFFFEF3C7) else Color.Transparent)
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = if (state.successionAction == HeadSuccessionAction.DEMOTE_TO_STAFF) WeMadeColors.Surface else Color.Transparent,
+                                        outline = if (state.successionAction == HeadSuccessionAction.DEMOTE_TO_STAFF) WeMadeColors.Warning else Color.Transparent,
+                                        borderWidth = ClayBorder.Hairline
+                                    )
                                     .clickable { onSuccessionActionChange(HeadSuccessionAction.DEMOTE_TO_STAFF) }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = "Alihkan Jabatan Menjadi Staf Senior",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF92400E)
+                                        color = WeMadeColors.OnSurface
                                     )
                                     Text(
                                         text = "'${existingHead.name}' tetap di divisi ini dan melapor ke kepala divisi baru.",
                                         fontSize = 10.sp,
-                                        color = Color(0xFFB45309)
+                                        color = WeMadeColors.OnSurfaceMuted
                                     )
                                 }
                                 RadioButton(
                                     selected = state.successionAction == HeadSuccessionAction.DEMOTE_TO_STAFF,
-                                    onClick = { onSuccessionActionChange(HeadSuccessionAction.DEMOTE_TO_STAFF) }
+                                    onClick = { onSuccessionActionChange(HeadSuccessionAction.DEMOTE_TO_STAFF) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = WeMadeColors.Warning)
                                 )
                             }
 
@@ -1169,85 +1241,80 @@ private fun EmployeeFormPanel(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (state.successionAction == HeadSuccessionAction.DEACTIVATE) Color(0xFFFEF3C7) else Color.Transparent)
+                                    .clayFlat(
+                                        shape = ClayShapes.Chip,
+                                        background = if (state.successionAction == HeadSuccessionAction.DEACTIVATE) WeMadeColors.Surface else Color.Transparent,
+                                        outline = if (state.successionAction == HeadSuccessionAction.DEACTIVATE) WeMadeColors.Warning else Color.Transparent,
+                                        borderWidth = ClayBorder.Hairline
+                                    )
                                     .clickable { onSuccessionActionChange(HeadSuccessionAction.DEACTIVATE) }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = "Nonaktifkan / Lepas dari Jabatan",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF92400E)
+                                        color = WeMadeColors.OnSurface
                                     )
                                     Text(
                                         text = "'${existingHead.name}' dipensiunkan/dinonaktifkan dari bagan aktif.",
                                         fontSize = 10.sp,
-                                        color = Color(0xFFB45309)
+                                        color = WeMadeColors.OnSurfaceMuted
                                     )
                                 }
                                 RadioButton(
                                     selected = state.successionAction == HeadSuccessionAction.DEACTIVATE,
-                                    onClick = { onSuccessionActionChange(HeadSuccessionAction.DEACTIVATE) }
+                                    onClick = { onSuccessionActionChange(HeadSuccessionAction.DEACTIVATE) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = WeMadeColors.Warning)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Lg))
             }
 
             // 5. Judul Jabatan Operasional
-            OutlinedTextField(
+            ClayTextField(
                 value = state.roleTitleInput,
                 onValueChange = onRoleTitleChange,
-                label = { Text("Nama Jabatan / Posisi") },
-                placeholder = { Text("Contoh: Staff Penjualan & Sampling", color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
+                label = "Nama Jabatan / Posisi",
+                placeholder = "Contoh: Staff Penjualan & Sampling",
+                focusColor = activeDeptColor,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!state.isCreatingNew && state.selectedEmployeeId != null) {
-                    OutlinedButton(
+                    ClayButton(
+                        text = "Arsipkan",
+                        leading = { IconArchive(modifier = Modifier.size(14.dp), color = Color.White) },
                         onClick = { onDeleteEmployee(state.selectedEmployeeId) },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
-                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                        shape = RoundedCornerShape(8.dp),
+                        style = ClayButtonStyle.Danger,
+                        offset = ClayOffset.Small,
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "📦 Arsipkan",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD97706)
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = onSave,
-                    enabled = state.nameInput.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(if (!state.isCreatingNew && state.selectedEmployeeId != null) 1.2f else 1f)
-                ) {
-                    Text(
-                        text = if (state.isCreatingNew) "Simpan ke Bagan Organisasi" else "Perbarui Karyawan",
-                        fontWeight = FontWeight.Bold
                     )
                 }
+
+                ClayButton(
+                    text = if (state.isCreatingNew) "Simpan ke Bagan Organisasi" else "Perbarui Karyawan",
+                    onClick = onSave,
+                    enabled = state.nameInput.isNotBlank(),
+                    style = ClayButtonStyle.Primary,
+                    offset = ClayOffset.Small,
+                    modifier = Modifier.weight(if (!state.isCreatingNew && state.selectedEmployeeId != null) 1.2f else 1f)
+                )
             }
         }
     }
@@ -1263,14 +1330,15 @@ private fun ChartPreviewPanel(
     showArchivedPanel: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Panel,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = WeMadeColors.Outline,
+        offset = ClayOffset.Rest,
+        contentPadding = PaddingValues(ClaySpacing.Xl)
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             // Chart Panel Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1291,27 +1359,38 @@ private fun ChartPreviewPanel(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TextButton(onClick = onToggleArchived) { Text(if (showArchivedPanel) "Tutup Arsip" else "Lihat Arsip") }
-                    LegendTag("Direksi", Color(0xFF6366F1))
-                    LegendTag("Head", Color(0xFFF59E0B))
-                    LegendTag("Staf", Color(0xFF64748B))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ClayButton(
+                        text = if (showArchivedPanel) "Tutup Arsip" else "Lihat Arsip",
+                        leading = { IconArchive(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface) },
+                        onClick = onToggleArchived,
+                        style = ClayButtonStyle.Secondary,
+                        offset = ClayOffset.Pressed,
+                        fontSize = 11.sp,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    LegendTag("Direksi", WeMadeColors.Primary)
+                    LegendTag("Head", WeMadeColors.Warning)
+                    LegendTag("Staf", WeMadeColors.OnSurfaceMuted)
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = WeMadeColors.Border, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
+            HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
             // The Rendered T-Shape Tree View or Empty State
             if (state.employees.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xxl),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                     ) {
                         Text(
                             text = "Bagan Organisasi Masih Kosong",
@@ -1325,21 +1404,20 @@ private fun ChartPreviewPanel(
                             color = WeMadeColors.OnSurfaceMuted,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(
+                        Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+                        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+                            ClayButton(
+                                text = "Muat Template Konveksi (5 Divisi)",
                                 onClick = onRestorePresets,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Muat Template Konveksi (5 Divisi)")
-                            }
-                            Button(
+                                style = ClayButtonStyle.Secondary,
+                                offset = ClayOffset.Small
+                            )
+                            ClayButton(
+                                text = "+ Tambah Karyawan Pertama",
                                 onClick = onAddNewEmployee,
-                                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("+ Tambah Karyawan Pertama")
-                            }
+                                style = ClayButtonStyle.Primary,
+                                offset = ClayOffset.Small
+                            )
                         }
                     }
                 }
@@ -1389,32 +1467,28 @@ private fun CreateDepartmentDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
             ) {
                 // Input Nama Lengkap Divisi
-                OutlinedTextField(
+                ClayTextField(
                     value = nameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Nama Lengkap Divisi") },
-                    placeholder = { Text("Cth: Bordir & Sablon Printing") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Nama Lengkap Divisi",
+                    placeholder = "Cth: Bordir & Sablon Printing",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Input Nama Singkat / Label Badge
-                OutlinedTextField(
+                ClayTextField(
                     value = shortNameInput,
                     onValueChange = onShortNameChange,
-                    label = { Text("Label Singkat / Badge (Maks. 10 karakter)") },
-                    placeholder = { Text("Cth: Bordir") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Label Singkat / Badge (Maks. 10 karakter)",
+                    placeholder = "Cth: Bordir",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Palet Pilihan Warna Tema Divisi (Dinamis: warna yang sudah dipakai divisi lain tidak muncul)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1437,20 +1511,20 @@ private fun CreateDepartmentDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         availableColors.forEach { deptColor ->
                             val isColorSelected = selectedColorHex == deptColor.hex
+                            val col = Color(deptColor.hex)
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(deptColor.hex))
-                                    .border(
-                                        width = if (isColorSelected) 3.dp else 1.dp,
-                                        color = if (isColorSelected) WeMadeColors.OnSurface else Color(0x33000000),
-                                        shape = CircleShape
+                                    .clayFlat(
+                                        shape = CircleShape,
+                                        background = col,
+                                        outline = if (isColorSelected) WeMadeColors.Outline else col.copy(alpha = 0.5f),
+                                        borderWidth = if (isColorSelected) ClayBorder.Thick else ClayBorder.Hairline
                                     )
                                     .clickable { onColorSelect(deptColor.hex) },
                                 contentAlignment = Alignment.Center
@@ -1459,8 +1533,7 @@ private fun CreateDepartmentDialog(
                                     Box(
                                         modifier = Modifier
                                             .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
+                                            .clayFlat(shape = CircleShape, background = Color.White, outline = Color.White)
                                     )
                                 }
                             }
@@ -1472,8 +1545,12 @@ private fun CreateDepartmentDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Border,
+                            borderWidth = ClayBorder.Hairline
+                        )
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -1484,38 +1561,31 @@ private fun CreateDepartmentDialog(
                         color = WeMadeColors.OnSurfaceMuted
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(selectedColorHex))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = shortNameInput.ifBlank { "Label" },
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+                    ClayTag(
+                        text = shortNameInput.ifBlank { "Label" },
+                        tint = Color(selectedColorHex),
+                        fontSize = 11.sp
+                    )
                 }
             }
         },
         confirmButton = {
-            Button(
+            ClayButton(
+                text = "Buat Divisi",
                 onClick = onSave,
                 enabled = nameInput.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Buat Divisi", fontWeight = FontWeight.Bold)
-            }
+                style = ClayButtonStyle.Primary,
+                offset = ClayOffset.Small
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
+            ClayButton(
+                text = "Batal",
+                onClick = onDismiss,
+                style = ClayButtonStyle.Ghost,
+                offset = ClayOffset.Pressed
+            )
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }
@@ -1551,42 +1621,41 @@ private fun AddTierDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                OutlinedTextField(
+                ClayTextField(
                     value = tierNameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Nama Tingkat Wewenang") },
-                    placeholder = { Text("Cth: Mandor Jahit / QC Lead / Helper") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Nama Tingkat Wewenang",
+                    placeholder = "Cth: Mandor Jahit / QC Lead / Helper",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
                     text = "💡 Tingkat ini akan otomatis terdaftar sebagai opsi hirarki dinamis khusus pada divisi $departmentName.",
                     fontSize = 11.sp,
-                    color = Color(0xFF64748B),
+                    color = WeMadeColors.OnSurfaceMuted,
                     lineHeight = 16.sp
                 )
             }
         },
         confirmButton = {
-            Button(
+            ClayButton(
+                text = "Simpan Tingkat",
                 onClick = onSave,
                 enabled = tierNameInput.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Simpan Tingkat", fontWeight = FontWeight.Bold)
-            }
+                style = ClayButtonStyle.Primary,
+                offset = ClayOffset.Small
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
+            ClayButton(
+                text = "Batal",
+                onClick = onDismiss,
+                style = ClayButtonStyle.Ghost,
+                offset = ClayOffset.Pressed
+            )
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }
@@ -1611,26 +1680,30 @@ private fun DeleteConfirmationDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isBlocked) Color(0xFFFEF2F2) else Color(0xFFFEE2E2)),
+                        .clayFlat(
+                            shape = CircleShape,
+                            background = if (isBlocked) WeMadeColors.ErrorBg else WeMadeColors.WarningBg,
+                            outline = if (isBlocked) WeMadeColors.Error else WeMadeColors.Warning
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (isBlocked) "⚠️" else "📦",
-                        fontSize = 18.sp
-                    )
+                    if (isBlocked) {
+                        IconWarning(modifier = Modifier.size(20.dp), color = WeMadeColors.Error)
+                    } else {
+                        IconArchive(modifier = Modifier.size(20.dp), color = WeMadeColors.Warning)
+                    }
                 }
                 Column {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (isBlocked) Color(0xFFB91C1C) else WeMadeColors.OnSurface
+                        color = if (isBlocked) WeMadeColors.Error else WeMadeColors.OnSurface
                     )
                     Text(
                         text = if (isBlocked) "Tindakan Dibatasi Sistem" else "Konfirmasi Pengarsipan",
@@ -1641,7 +1714,7 @@ private fun DeleteConfirmationDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Text(
                     text = if (isEmployee) {
                         "Arsipkan data karyawan \"$targetName\"? Data tetap tersimpan dan bisa dipulihkan kapan saja."
@@ -1653,42 +1726,27 @@ private fun DeleteConfirmationDialog(
                 )
 
                 // Warning / Rule Box
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlocked) Color(0xFFFEF2F2) else Color(0xFFFFFBEB)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isBlocked) Color(0xFFFCA5A5) else Color(0xFFFDE68A)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = if (isBlocked) WeMadeColors.ErrorBg else WeMadeColors.WarningBg,
+                            outline = if (isBlocked) WeMadeColors.Error else WeMadeColors.Warning
+                        )
+                        .padding(ClaySpacing.Md)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (isBlocked) Color(0xFFDC2626) else Color(0xFFD97706))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isBlocked) "ATURAN INTEGRITAS ERP" else "POLA ODOO ARCHIVE",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                        ClayTag(
+                            text = if (isBlocked) "ATURAN INTEGRITAS ERP" else "POLA ODOO ARCHIVE",
+                            tint = if (isBlocked) WeMadeColors.Error else WeMadeColors.Warning,
+                            fontSize = 9.sp
+                        )
                         Text(
                             text = warningNote,
                             fontSize = 12.sp,
                             lineHeight = 17.sp,
-                            color = if (isBlocked) Color(0xFF7F1D1D) else Color(0xFF78350F)
+                            color = if (isBlocked) WeMadeColors.Error else WeMadeColors.Warning
                         )
                     }
                 }
@@ -1696,46 +1754,42 @@ private fun DeleteConfirmationDialog(
         },
         confirmButton = {
             if (!isBlocked) {
-                Button(
+                ClayButton(
                     onClick = onConfirm,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Ya, Arsipkan", fontWeight = FontWeight.Bold)
-                }
+                    text = "Ya, Arsipkan",
+                    style = ClayButtonStyle.Danger
+                )
             }
         },
         dismissButton = {
-            OutlinedButton(
+            ClayButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(if (isBlocked) "Tutup / Mengerti" else "Batal")
-            }
+                text = if (isBlocked) "Tutup / Mengerti" else "Batal",
+                style = ClayButtonStyle.Ghost
+            )
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }
 
 @Composable
 private fun LegendTag(text: String, dotColor: Color) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0xFFF1F5F9))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Text(text = text, fontSize = 10.sp, color = Color(0xFF475569), fontWeight = FontWeight.Medium)
-    }
+    ClayTag(
+        text = text,
+        tint = dotColor,
+        fontSize = 11.sp,
+        leading = {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clayFlat(
+                        shape = CircleShape,
+                        background = dotColor,
+                        outline = dotColor
+                    )
+            )
+        }
+    )
 }
 
 @Composable
@@ -1745,18 +1799,28 @@ private fun ToastBanner(message: String?, onDismiss: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(WeMadeColors.SuccessBg)
+                    .padding(bottom = ClaySpacing.Md)
+                    .claySurface(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.SuccessBg,
+                        outline = WeMadeColors.Success,
+                        offset = ClayOffset.Small
+                    )
                     .clickable { onDismiss() }
-                    .padding(12.dp)
+                    .padding(horizontal = ClaySpacing.Xl, vertical = ClaySpacing.Lg)
             ) {
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WeMadeColors.Success,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    IconCheck(modifier = Modifier.size(16.dp), color = WeMadeColors.Success)
+                    Text(
+                        text = message,
+                        color = WeMadeColors.Success,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
             }
         }
     }
@@ -1777,12 +1841,13 @@ private fun EmailConflictDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                Text(
-                    text = if (isArchived) "📦" else "⚠️",
-                    fontSize = 20.sp
-                )
+                if (isArchived) {
+                    IconArchive(modifier = Modifier.size(22.dp), color = WeMadeColors.Warning)
+                } else {
+                    IconWarning(modifier = Modifier.size(22.dp), color = WeMadeColors.Warning)
+                }
                 Text(
                     text = if (isArchived) "Email Terdaftar di Arsip" else "Email Sudah Digunakan",
                     fontWeight = FontWeight.Bold,
@@ -1794,7 +1859,7 @@ private fun EmailConflictDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
                 Text(
                     text = if (isArchived) {
@@ -1808,16 +1873,17 @@ private fun EmailConflictDialog(
                 )
 
                 // Kartu Profil Pemilik Email
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Card,
+                            background = WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Outline
+                        )
+                        .padding(ClaySpacing.Md)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1827,36 +1893,23 @@ private fun EmailConflictDialog(
                                 text = conflict.existingEmployeeName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                color = Color(0xFF0F172A)
+                                color = WeMadeColors.OnSurface
                             )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (isArchived) Color(0xFFFEF3C7) else Color(0xFFDCFCE7))
-                                    .border(
-                                        1.dp,
-                                        if (isArchived) Color(0xFFFCD34D) else Color(0xFF86EFAC),
-                                        RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isArchived) "📦 DIARSIPKAN" else "🟢 AKTIF",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isArchived) Color(0xFF92400E) else Color(0xFF166534)
-                                )
-                            }
+                            ClayTag(
+                                text = if (isArchived) "📦 DIARSIPKAN" else "🟢 AKTIF",
+                                tint = if (isArchived) WeMadeColors.Warning else WeMadeColors.Success,
+                                fontSize = 10.sp
+                            )
                         }
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = WeMadeColors.Border)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Bagian / Divisi:", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
-                            Text(conflict.existingDepartmentName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF334155))
+                            Text(conflict.existingDepartmentName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = WeMadeColors.OnSurface)
                         }
 
                         Row(
@@ -1864,29 +1917,27 @@ private fun EmailConflictDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Jabatan:", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
-                            Text(conflict.existingRoleTitle, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF334155))
+                            Text(conflict.existingRoleTitle, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = WeMadeColors.OnSurface)
                         }
                     }
                 }
 
                 // Kotak Saran / Petunjuk Tindakan
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isArchived) Color(0xFFFFFBEB) else Color(0xFFEFF6FF)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isArchived) Color(0xFFFDE68A) else Color(0xFFBFDBFE)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = if (isArchived) WeMadeColors.WarningBg else WeMadeColors.PrimaryContainer,
+                            outline = if (isArchived) WeMadeColors.Warning else WeMadeColors.Info
+                        )
+                        .padding(ClaySpacing.Md)
                 ) {
                     Row(
-                        modifier = Modifier.padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.Top
                     ) {
-                        Text(if (isArchived) "💡" else "ℹ️", fontSize = 14.sp)
+                        IconZap(modifier = Modifier.size(14.dp), color = if (isArchived) WeMadeColors.Warning else WeMadeColors.Info)
                         Text(
                             text = if (isArchived) {
                                 "Anda dapat langsung memulihkan karyawan ini kembali ke bagan organisasi, atau ganti email di formulir jika ini individu baru."
@@ -1895,7 +1946,7 @@ private fun EmailConflictDialog(
                             },
                             fontSize = 11.sp,
                             lineHeight = 16.sp,
-                            color = if (isArchived) Color(0xFF78350F) else Color(0xFF1E40AF)
+                            color = if (isArchived) WeMadeColors.Warning else WeMadeColors.Info
                         )
                     }
                 }
@@ -1903,34 +1954,29 @@ private fun EmailConflictDialog(
         },
         confirmButton = {
             if (isArchived) {
-                Button(
+                ClayButton(
                     onClick = { onRestore(conflict.existingEmployeeId) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("🔄 Pulihkan Karyawan Ini", fontWeight = FontWeight.Bold)
-                }
+                    text = "Pulihkan Karyawan Ini",
+                    leading = { IconRestore(modifier = Modifier.size(14.dp), color = Color.White) },
+                    style = ClayButtonStyle.Primary
+                )
             } else {
-                Button(
+                ClayButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.PrimaryDark),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Ganti Email Lain", fontWeight = FontWeight.Bold)
-                }
+                    text = "Ganti Email Lain",
+                    style = ClayButtonStyle.Primary
+                )
             }
         },
         dismissButton = {
             if (isArchived) {
-                OutlinedButton(
+                ClayButton(
                     onClick = onDismiss,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Gunakan Email Lain")
-                }
+                    text = "Gunakan Email Lain",
+                    style = ClayButtonStyle.Ghost
+                )
             }
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }
@@ -1970,30 +2016,26 @@ private fun EditDepartmentDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                OutlinedTextField(
+                ClayTextField(
                     value = nameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Nama Lengkap Divisi") },
-                    placeholder = { Text("Cth: Penjualan & Pemasaran") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Nama Lengkap Divisi",
+                    placeholder = "Cth: Penjualan & Pemasaran",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                ClayTextField(
                     value = shortNameInput,
                     onValueChange = onShortNameChange,
-                    label = { Text("Nama Singkat / Label Badge") },
-                    placeholder = { Text("Cth: Sales") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Nama Singkat / Label Badge",
+                    placeholder = "Cth: Sales",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Palet Pilihan Warna
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     Text(
                         text = "Pilih Warna Divisi:",
                         style = MaterialTheme.typography.bodySmall,
@@ -2005,7 +2047,7 @@ private fun EditDepartmentDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         availableColors.forEach { deptColor ->
@@ -2013,12 +2055,11 @@ private fun EditDepartmentDialog(
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(deptColor.hex))
-                                    .border(
-                                        width = if (isColorSelected) 3.dp else 1.dp,
-                                        color = if (isColorSelected) WeMadeColors.OnSurface else Color(0x33000000),
-                                        shape = CircleShape
+                                    .clayFlat(
+                                        shape = CircleShape,
+                                        background = Color(deptColor.hex),
+                                        outline = if (isColorSelected) WeMadeColors.OnSurface else WeMadeColors.Outline,
+                                        borderWidth = if (isColorSelected) ClayBorder.Thick else ClayBorder.Medium
                                     )
                                     .clickable { onColorSelect(deptColor.hex) },
                                 contentAlignment = Alignment.Center
@@ -2027,8 +2068,11 @@ private fun EditDepartmentDialog(
                                     Box(
                                         modifier = Modifier
                                             .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
+                                            .clayFlat(
+                                                shape = CircleShape,
+                                                background = WeMadeColors.Surface,
+                                                outline = WeMadeColors.Surface
+                                            )
                                     )
                                 }
                             }
@@ -2040,9 +2084,12 @@ private fun EditDepartmentDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF1F5F9))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Outline
+                        )
+                        .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -2052,38 +2099,29 @@ private fun EditDepartmentDialog(
                         color = WeMadeColors.OnSurfaceMuted
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(selectedColorHex))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = shortNameInput.ifBlank { "Label" },
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+                    ClayTag(
+                        text = shortNameInput.ifBlank { "Label" },
+                        tint = Color(selectedColorHex),
+                        fontSize = 11.sp
+                    )
                 }
             }
         },
         confirmButton = {
-            Button(
+            ClayButton(
                 onClick = onSave,
-                enabled = nameInput.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Simpan Perubahan", fontWeight = FontWeight.Bold)
-            }
+                text = "Simpan Perubahan",
+                style = ClayButtonStyle.Primary,
+                enabled = nameInput.isNotBlank()
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
+            ClayButton(
+                onClick = onDismiss,
+                text = "Batal",
+                style = ClayButtonStyle.Ghost
+            )
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }
@@ -2118,42 +2156,39 @@ private fun EditTierDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                OutlinedTextField(
+                ClayTextField(
                     value = tierNameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Nama Tingkat Wewenang") },
-                    placeholder = { Text("Cth: Mandor Jahit / QC Lead") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    label = "Nama Tingkat Wewenang",
+                    placeholder = "Cth: Mandor Jahit / QC Lead",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
                     text = "💡 Perubahan nama tingkat wewenang akan diterapkan pada struktur hirarki divisi ini.",
                     fontSize = 11.sp,
-                    color = Color(0xFF64748B),
+                    color = WeMadeColors.OnSurfaceMuted,
                     lineHeight = 16.sp
                 )
             }
         },
         confirmButton = {
-            Button(
+            ClayButton(
                 onClick = onSave,
-                enabled = tierNameInput.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Simpan Perubahan", fontWeight = FontWeight.Bold)
-            }
+                text = "Simpan Perubahan",
+                style = ClayButtonStyle.Primary,
+                enabled = tierNameInput.isNotBlank()
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
+            ClayButton(
+                onClick = onDismiss,
+                text = "Batal",
+                style = ClayButtonStyle.Ghost
+            )
         },
-        shape = RoundedCornerShape(16.dp),
         containerColor = WeMadeColors.Surface
     )
 }

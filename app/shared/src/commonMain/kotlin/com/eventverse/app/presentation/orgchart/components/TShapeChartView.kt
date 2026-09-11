@@ -1,26 +1,22 @@
 package com.eventverse.app.presentation.orgchart.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.orgchart.HierarchyLevel
 import com.eventverse.app.domain.orgchart.TShapeHierarchyResult
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -33,7 +29,7 @@ fun TShapeChartView(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(ClaySpacing.Xl),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // ─── 1. TOP LAYER: 1 TINGKAT KE ATAS (SUPERIOR) ───
@@ -43,7 +39,7 @@ fun TShapeChartView(
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurfaceMuted
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
         val superior = result.superior
         if (superior != null) {
@@ -53,16 +49,21 @@ fun TShapeChartView(
                 onClick = { onSelectNode(superior.id.value) }
             )
         } else {
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))
+            Box(
+                modifier = Modifier
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Border,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = "Posisi Puncak Pabrik (Tidak Memiliki Atasan)",
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B),
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    fontSize = 12.sp,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -80,22 +81,21 @@ fun TShapeChartView(
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
             // Seluruh staf (focus node + rekan sejajar) ditampilkan berdampingan (SEJAJAR)
             Row(
                 modifier = Modifier
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Tampilkan rekan-rekan yang sudah ada
                 result.peersInDepartment.forEach { peer ->
                     OrgNodeCard(
                         node = peer,
-                        onClick = { onSelectNode(peer.id.value) },
-                        modifier = Modifier.width(220.dp)
+                        onClick = { onSelectNode(peer.id.value) }
                     )
                 }
 
@@ -103,24 +103,27 @@ fun TShapeChartView(
                 OrgNodeCard(
                     node = result.focusNode,
                     isHighlighted = true,
-                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
-                    modifier = Modifier.width(240.dp)
+                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
 
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            Box(
+                modifier = Modifier
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.BackgroundWarm,
+                        outline = WeMadeColors.Border,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = "Posisi Staf Pelaksana adalah level operasional (tidak membawahi karyawan lain)",
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B),
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    fontSize = 12.sp,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    fontWeight = FontWeight.Medium
                 )
             }
         } else {
@@ -130,31 +133,23 @@ fun TShapeChartView(
                 Row(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(bottom = ClaySpacing.Md),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Rekan Sejajar (Kepala Divisi Lain):",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.OnSurfaceMuted
                     )
                     result.peerHeads.forEach { peer ->
-                        val peerDeptColor = Color(peer.department?.colorHex ?: 0xFF6366F1)
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(peerDeptColor.copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "${peer.department?.shortName ?: "Direksi"}: ${peer.name}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = peerDeptColor
-                            )
-                        }
+                        val peerDeptColor = peer.department?.let { Color(it.colorHex) } ?: WeMadeColors.Primary
+                        ClayTag(
+                            text = "${peer.department?.shortName ?: "Direksi"}: ${peer.name}",
+                            tint = peerDeptColor,
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
@@ -166,35 +161,32 @@ fun TShapeChartView(
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = WeMadeColors.OnSurfaceMuted,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = ClaySpacing.Md)
                 )
                 Row(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     result.peersInDepartment.forEach { peer ->
                         OrgNodeCard(
                             node = peer,
-                            onClick = { onSelectNode(peer.id.value) },
-                            modifier = Modifier.width(240.dp)
+                            onClick = { onSelectNode(peer.id.value) }
                         )
                     }
                     OrgNodeCard(
                         node = result.focusNode,
                         isHighlighted = true,
-                        badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
-                        modifier = Modifier.width(240.dp)
+                        badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
                     )
                 }
             } else {
                 OrgNodeCard(
                     node = result.focusNode,
                     isHighlighted = true,
-                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT",
-                    modifier = Modifier.width(240.dp)
+                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
                 )
             }
 
@@ -208,13 +200,13 @@ fun TShapeChartView(
                     fontWeight = FontWeight.SemiBold,
                     color = WeMadeColors.OnSurfaceMuted
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
                 Row(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
                 ) {
                     result.subordinates.forEach { sub ->
                         OrgNodeCard(
@@ -232,13 +224,13 @@ fun TShapeChartView(
 private fun ConnectorVerticalLine() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(vertical = 4.dp)
+        modifier = Modifier.padding(vertical = ClaySpacing.Xs)
     ) {
         Box(
             modifier = Modifier
-                .width(2.dp)
-                .height(20.dp)
-                .background(Color(0xFFCBD5E1))
+                .width(ClayBorder.Thick)
+                .height(24.dp)
+                .background(WeMadeColors.Outline)
         )
     }
 }

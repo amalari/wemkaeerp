@@ -64,7 +64,8 @@ fun ClayButton(
     // Tombol nonaktif kehilangan bayangannya sekalian, bukan cuma diredupkan. Tombol clay yang
     // masih "mengambang" tapi tidak bisa ditekan membaca sebagai bug, bukan sebagai disabled.
     val alpha = if (enabled) 1f else 0.45f
-    val effectiveOffset = if (enabled) offset else ClayOffset.Flat
+    val effectiveOffset = if (enabled && style != ClayButtonStyle.Ghost) offset else ClayOffset.Flat
+    val shadowColor = if (style == ClayButtonStyle.Ghost) Color.Transparent else WeMadeColors.Outline.copy(alpha = alpha)
 
     Row(
         modifier = modifier
@@ -72,6 +73,7 @@ fun ClayButton(
                 shape = ClayShapes.Button,
                 background = if (enabled) container else container.copy(alpha = container.alpha * alpha),
                 outline = WeMadeColors.Outline.copy(alpha = alpha),
+                shadowColor = shadowColor,
                 offset = effectiveOffset,
                 pressed = isPressed,
                 borderWidth = ClayBorder.Medium,

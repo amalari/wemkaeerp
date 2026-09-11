@@ -1,25 +1,21 @@
 package com.eventverse.app.presentation.orgchart.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.orgchart.HierarchyLevel
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -30,77 +26,67 @@ fun OrgNodeCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val deptColor = node.department?.let { Color(it.colorHex) } ?: Color(0xFF6366F1)
+    val deptColor = node.department?.let { Color(it.colorHex) } ?: WeMadeColors.Primary
 
-    val cardBorder = if (isHighlighted) {
-        BorderStroke(2.dp, WeMadeColors.Accent)
-    } else {
-        BorderStroke(1.dp, WeMadeColors.Border)
+    val levelTint = when (node.level) {
+        HierarchyLevel.EXECUTIVE -> WeMadeColors.Primary
+        HierarchyLevel.HEAD_OF_DEPARTMENT -> WeMadeColors.Warning
+        HierarchyLevel.TEAM_LEAD -> WeMadeColors.Success
+        HierarchyLevel.STAFF_OPERATOR -> WeMadeColors.OnSurfaceMuted
     }
 
-    val cardBg = if (isHighlighted) {
-        WeMadeColors.AccentLight
-    } else {
-        WeMadeColors.Surface
-    }
-
-    Card(
-        modifier = modifier
-            .width(220.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isHighlighted) 4.dp else 1.dp)
+    ClayCard(
+        modifier = modifier.width(236.dp),
+        shape = ClayShapes.Card,
+        containerColor = WeMadeColors.Surface,
+        outlineColor = if (isHighlighted) deptColor else WeMadeColors.Outline,
+        shadowColor = WeMadeColors.Outline,
+        offset = if (isHighlighted) ClayOffset.Rest else ClayOffset.Small,
+        borderWidth = if (isHighlighted) 3.5.dp else ClayBorder.Thick,
+        selected = false,
+        contentPadding = PaddingValues(ClaySpacing.Lg),
+        onClick = onClick
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Optional Badge Header (e.g. "POSISI BARU" or "ATASAN ANDA")
             if (badgeLabel != null || isHighlighted) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (isHighlighted) WeMadeColors.Accent else Color(0xFFE2E8F0))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = badgeLabel ?: "POSISI SEDANG DIEDIT",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isHighlighted) Color.White else Color(0xFF475569),
-                        textAlign = TextAlign.Center
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
+                ClayTag(
+                    text = badgeLabel ?: "POSISI SEDANG DIEDIT",
+                    tint = if (isHighlighted) deptColor else WeMadeColors.OnSurfaceMuted,
+                    fontSize = 10.sp
+                )
+                Spacer(modifier = Modifier.height(ClaySpacing.Sm))
             }
 
             // Avatar & Level Tag
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(deptColor.copy(alpha = 0.15f))
-                        .border(1.5.dp, deptColor, CircleShape),
+                        .size(38.dp)
+                        .clayFlat(
+                            shape = CircleShape,
+                            background = deptColor.copy(alpha = 0.15f),
+                            outline = deptColor,
+                            borderWidth = ClayBorder.Medium
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = node.avatarInitial,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = deptColor
                     )
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = node.name,
                         style = MaterialTheme.typography.bodyMedium,
@@ -119,9 +105,9 @@ fun OrgNodeCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = WeMadeColors.Border.copy(alpha = 0.6f), thickness = 0.5.dp)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
+            HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
 
             // Footer info: Department & Level indicator
             Row(
@@ -129,45 +115,17 @@ fun OrgNodeCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(deptColor.copy(alpha = 0.1f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = node.department?.shortName ?: "DIREKSI",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = deptColor
-                    )
-                }
+                ClayTag(
+                    text = node.department?.shortName ?: "DIREKSI",
+                    tint = deptColor,
+                    fontSize = 10.sp
+                )
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            when (node.level) {
-                                HierarchyLevel.EXECUTIVE -> Color(0xFF6366F1).copy(alpha = 0.12f)
-                                HierarchyLevel.HEAD_OF_DEPARTMENT -> Color(0xFFF59E0B).copy(alpha = 0.12f)
-                                HierarchyLevel.TEAM_LEAD -> Color(0xFF10B981).copy(alpha = 0.12f)
-                                HierarchyLevel.STAFF_OPERATOR -> Color(0xFF64748B).copy(alpha = 0.12f)
-                            }
-                        )
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = node.level.shortLabel.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (node.level) {
-                            HierarchyLevel.EXECUTIVE -> Color(0xFF4338CA)
-                            HierarchyLevel.HEAD_OF_DEPARTMENT -> Color(0xFFB45309)
-                            HierarchyLevel.TEAM_LEAD -> Color(0xFF047857)
-                            HierarchyLevel.STAFF_OPERATOR -> Color(0xFF475569)
-                        }
-                    )
-                }
+                ClayTag(
+                    text = node.level.shortLabel.uppercase(),
+                    tint = levelTint,
+                    fontSize = 10.sp
+                )
             }
         }
     }
