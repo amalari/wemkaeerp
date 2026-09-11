@@ -79,7 +79,17 @@
       "Bash(cp .agents/skills/task-resolution-doc/SKILL.md .claude/skills/task-resolution-doc/SKILL.md)",
       "Bash(cp .agents/skills/trd-generator/SKILL.md .claude/skills/trd-generator/SKILL.md)",
       "Bash(cp .agents/rules/module-integration-rules.md .claude/rules/module-integration-rules.md)",
-      "Edit(/.claude/skills/task-to-github-projects/**)"
+      "Edit(/.claude/skills/task-to-github-projects/**)",
+      "Bash(./gradlew :app:androidApp:assembleDebug --console=plain)",
+      "Bash(./gradlew tasks *)",
+      "Bash(./gradlew :app:shared:createFullJarAndroidMain :core:createFullJarAndroidMain :app:androidApp:bundleDebugClassesToCompileJar --console=plain)",
+      "Bash(./gradlew :app:androidApp:tasks --all --console=plain)",
+      "Read(//Volumes/amalari/achmadjamaludin/.gradle/**)",
+      "Bash(find / -iname \"gradle-*.jar\")",
+      "Bash(javap -p com/android/build/api/variant/HasUnitTestBuilder.class)",
+      "Bash(javap -p com/android/build/api/variant/ApplicationVariantBuilder.class)",
+      "Bash(javap -p com/android/build/api/variant/VariantBuilder.class)",
+      "Bash(javap -p -c gi2/com/android/build/api/extension/impl/OperationsRegistrar.class)"
     ],
     "deny": [
       "Edit(*.env)",

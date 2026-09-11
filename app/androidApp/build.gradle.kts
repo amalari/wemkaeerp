@@ -52,3 +52,10 @@ android {
         compose = true
     }
 }
+
+androidComponents {
+    beforeVariants { variantBuilder ->
+        variantBuilder.enableAndroidTest = false
+        (variantBuilder as? com.android.build.api.variant.HasUnitTestBuilder)?.enableUnitTest = false
+    }
+}
