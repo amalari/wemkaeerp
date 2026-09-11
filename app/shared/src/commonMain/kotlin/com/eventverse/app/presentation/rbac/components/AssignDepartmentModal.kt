@@ -521,23 +521,99 @@ fun AssignDepartmentModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // 3. Level Akses & Jangkauan Data (FIXED & FULL SELALU ADA - TIDAK IKUT TER-SCROLL)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Level Akses
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Level Akses",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        Spacer(modifier = Modifier.height(5.dp))
+                // 3. Level Akses (Full 1 Row)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Level Akses",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
 
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.SurfaceMuted,
+                                outline = WeMadeColors.Border
+                            )
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(AccessLevel.VIEW, AccessLevel.OPERATE, AccessLevel.MANAGE).forEach { level ->
+                            val isSelected = level == selectedAccessLevel
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(
+                                        if (isSelected) {
+                                            Modifier.clayFlat(
+                                                shape = RoundedCornerShape(6.dp),
+                                                background = WeMadeColors.Primary,
+                                                outline = WeMadeColors.PrimaryDark,
+                                                borderWidth = 1.5.dp
+                                            )
+                                        } else {
+                                            Modifier.clip(RoundedCornerShape(6.dp))
+                                        }
+                                    )
+                                    .clickable { selectedAccessLevel = level }
+                                    .padding(vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = level.displayName,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 4. Jangkauan Data (Full 1 Row di bawah Level Akses)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Jangkauan Data",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+
+                    if (module.isGlobalOnly) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clayFlat(
+                                    shape = ClayShapes.Chip,
+                                    background = WeMadeColors.PrimaryContainer,
+                                    outline = WeMadeColors.Primary
+                                )
+                                .padding(vertical = 7.dp, horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                IconGlobe(modifier = Modifier.size(13.dp), color = WeMadeColors.PrimaryDark)
+                                Text(
+                                    text = "Seluruh Pabrik (Shared)",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WeMadeColors.PrimaryDark
+                                )
+                            }
+                        }
+                    } else {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -547,10 +623,10 @@ fun AssignDepartmentModal(
                                     outline = WeMadeColors.Border
                                 )
                                 .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf(AccessLevel.VIEW, AccessLevel.OPERATE, AccessLevel.MANAGE).forEach { level ->
-                                val isSelected = level == selectedAccessLevel
+                            module.supportedScopes.forEach { scope ->
+                                val isSelected = scope == selectedScope
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -566,96 +642,16 @@ fun AssignDepartmentModal(
                                                 Modifier.clip(RoundedCornerShape(6.dp))
                                             }
                                         )
-                                        .clickable { selectedAccessLevel = level }
+                                        .clickable { selectedScope = scope }
                                         .padding(vertical = 7.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = level.displayName,
-                                        fontSize = 11.sp,
+                                        text = scope.shortLabel,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
                                     )
-                                }
-                            }
-                        }
-                    }
-
-                    // Jangkauan Data (Dynamic)
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Jangkauan Data",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        Spacer(modifier = Modifier.height(5.dp))
-
-                        if (module.isGlobalOnly) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clayFlat(
-                                        shape = ClayShapes.Chip,
-                                        background = WeMadeColors.PrimaryContainer,
-                                        outline = WeMadeColors.Primary
-                                    )
-                                    .padding(vertical = 7.dp, horizontal = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    IconGlobe(modifier = Modifier.size(13.dp), color = WeMadeColors.PrimaryDark)
-                                    Text(
-                                        text = "Seluruh Pabrik (Shared)",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WeMadeColors.PrimaryDark
-                                    )
-                                }
-                            }
-                        } else {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clayFlat(
-                                        shape = ClayShapes.Chip,
-                                        background = WeMadeColors.SurfaceMuted,
-                                        outline = WeMadeColors.Border
-                                    )
-                                    .padding(3.dp),
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                module.supportedScopes.forEach { scope ->
-                                    val isSelected = scope == selectedScope
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .then(
-                                                if (isSelected) {
-                                                    Modifier.clayFlat(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        background = WeMadeColors.Primary,
-                                                        outline = WeMadeColors.PrimaryDark,
-                                                        borderWidth = 1.5.dp
-                                                    )
-                                                } else {
-                                                    Modifier.clip(RoundedCornerShape(6.dp))
-                                                }
-                                            )
-                                            .clickable { selectedScope = scope }
-                                            .padding(vertical = 7.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = scope.shortLabel,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
-                                        )
-                                    }
                                 }
                             }
                         }

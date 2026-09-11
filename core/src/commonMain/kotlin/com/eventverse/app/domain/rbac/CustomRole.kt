@@ -21,7 +21,8 @@ data class CustomRole(
     val description: String,
     val isSystemDefault: Boolean = false,
     val modulePermissions: Map<BusinessModule, ModuleAccessConfig> = emptyMap(),
-    val userCount: Int = 0
+    val userCount: Int = 0,
+    val departmentId: String? = null
 ) {
     init {
         require(name.isNotBlank()) { "Role name cannot be blank" }
@@ -81,6 +82,7 @@ data class CustomRole(
                     description = "Merencanakan alokasi mesin jahit, SPK potong/jahit, memantau bahan baku, dan kontrol kualitas.",
                     isSystemDefault = true,
                     userCount = 2,
+                    departmentId = "dept-${prefix}ppic",
                     modulePermissions = mapOf(
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA),
@@ -100,6 +102,7 @@ data class CustomRole(
                     description = "Memantau target prospek seluruh sales bawahan, menyetujui sampling order, dan evaluasi komisi.",
                     isSystemDefault = true,
                     userCount = 1,
+                    departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
@@ -119,6 +122,7 @@ data class CustomRole(
                     description = "Mencatat prospek pelanggan, mengajukan sampling baju, dan memantau progres pesanan.",
                     isSystemDefault = true,
                     userCount = 4,
+                    departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
@@ -138,6 +142,7 @@ data class CustomRole(
                     description = "Menerima bahan baku kain, mengelola pengeluaran aksesoris, dan mencetak surat jalan packing.",
                     isSystemDefault = true,
                     userCount = 3,
+                    departmentId = "dept-${prefix}warehouse",
                     modulePermissions = mapOf(
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
@@ -157,6 +162,7 @@ data class CustomRole(
                     description = "Input pencapaian hasil jahitan harian pada antarmuka tablet tanpa akses dokumen lainnya.",
                     isSystemDefault = true,
                     userCount = 14,
+                    departmentId = "dept-${prefix}ppic",
                     modulePermissions = mapOf(
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),

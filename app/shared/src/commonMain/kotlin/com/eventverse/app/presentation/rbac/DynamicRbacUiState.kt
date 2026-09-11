@@ -4,8 +4,9 @@ import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.*
 
 enum class RbacViewMode(val label: String, val iconKey: String) {
-    PER_MODULE("1 Modul 1 Card", "cards"),
-    PER_ROLE("Matriks Jabatan", "roles")
+    PER_MODULE("Per Modul", "modules"),
+    PER_DEPARTMENT("Per Divisi", "departments"),
+    PER_ROLE("Per Jabatan", "roles")
 }
 
 data class DynamicRbacUiState(
@@ -23,6 +24,10 @@ data class DynamicRbacUiState(
     val isAssignModalOpen: Boolean = false,
     val activeAssignModule: BusinessModule? = null,
     val editingAssignment: DepartmentModuleAssignment? = null,
+    val isAssignModuleModalOpen: Boolean = false,
+    val activeAssignDepartment: Department? = null,
+    val activeAssignRole: CustomRole? = null,
+    val editingAssignModule: BusinessModule? = null,
     val newRoleNameInput: String = "",
     val newRoleDescInput: String = "",
     val selectedTemplateRoleId: String? = null,
@@ -59,6 +64,13 @@ sealed interface DynamicRbacUiEvent {
     data class DeleteRole(val roleId: String) : DynamicRbacUiEvent
     data class OpenAssignModal(val module: BusinessModule, val existing: DepartmentModuleAssignment? = null) : DynamicRbacUiEvent
     data object CloseAssignModal : DynamicRbacUiEvent
+    data class OpenAssignModuleModal(
+        val department: Department? = null,
+        val role: CustomRole? = null,
+        val existing: DepartmentModuleAssignment? = null,
+        val initialModule: BusinessModule? = null
+    ) : DynamicRbacUiEvent
+    data object CloseAssignModuleModal : DynamicRbacUiEvent
     data class SaveDepartmentAssignment(
         val module: BusinessModule,
         val assignment: DepartmentModuleAssignment,

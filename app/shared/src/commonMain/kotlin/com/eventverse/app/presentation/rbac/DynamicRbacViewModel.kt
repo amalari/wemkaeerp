@@ -317,6 +317,30 @@ class DynamicRbacViewModel(
                 }
             }
 
+            is DynamicRbacUiEvent.OpenAssignModuleModal -> {
+                _uiState.update {
+                    it.copy(
+                        isAssignModuleModalOpen = true,
+                        activeAssignDepartment = event.department,
+                        activeAssignRole = event.role,
+                        editingAssignment = event.existing,
+                        editingAssignModule = event.initialModule
+                    )
+                }
+            }
+
+            is DynamicRbacUiEvent.CloseAssignModuleModal -> {
+                _uiState.update {
+                    it.copy(
+                        isAssignModuleModalOpen = false,
+                        activeAssignDepartment = null,
+                        activeAssignRole = null,
+                        editingAssignment = null,
+                        editingAssignModule = null
+                    )
+                }
+            }
+
             is DynamicRbacUiEvent.SaveDepartmentAssignment -> {
                 _uiState.update { state ->
                     val currentList = state.moduleAssignments[event.module] ?: emptyList()
@@ -326,8 +350,12 @@ class DynamicRbacViewModel(
                     state.copy(
                         moduleAssignments = updatedMap,
                         isAssignModalOpen = false,
+                        isAssignModuleModalOpen = false,
                         activeAssignModule = null,
+                        activeAssignDepartment = null,
+                        activeAssignRole = null,
                         editingAssignment = null,
+                        editingAssignModule = null,
                         isDirty = true,
                         successToast = "Akses modul ${event.module.displayName} untuk ${event.assignment.departmentName} berhasil diperbarui."
                     )
@@ -448,6 +476,30 @@ class DynamicRbacViewModel(
                     isDirty = false,
                     successToast = "Jabatan '${targetRole.name}' berhasil dihapus."
                 )
+            }
+        }
+    }
+
+    companion object {
+        fun resolveDepartmentForRole(role: CustomRole, departments: List<Department>): Department? {
+            if (role.departmentId != null) {
+                val found = departments.find { it.id.value == role.departmentId }
+                if (found != null) return found
+            }
+            // Fallback matching by keyword
+            val rName = role.name.lowercase()
+            return when {
+                rName.contains("sales") || rName.contains("penjualan") ->
+                    departments.find { it.code.contains("sales") || it.displayName.contains("penjualan", ignoreCase = true) }
+                rName.contains("ppic") || rName.contains("produksi") || rName.contains("jahit") || rName.contains("operator") || rName.contains("mandor") ->
+                    departments.find { it.code.contains("ppic") || it.code.contains("production") || it.displayName.contains("produksi", ignoreCase = true) }
+                rName.contains("gudang") || rName.contains("logistik") || rName.contains("warehouse") ->
+                    departments.find { it.code.contains("warehouse") || it.displayName.contains("gudang", ignoreCase = true) }
+                rName.contains("qc") || rName.contains("quality") || rName.contains("kualitas") ->
+                    departments.find { it.code.contains("qc") || it.displayName.contains("quality", ignoreCase = true) }
+                rName.contains("keuangan") || rName.contains("akuntansi") || rName.contains("finance") ->
+                    departments.find { it.code.contains("finance") || it.displayName.contains("keuangan", ignoreCase = true) }
+                else -> null // e.g. Owner / Direktur yang merupakan lintas divisi / eksekutif
             }
         }
     }
