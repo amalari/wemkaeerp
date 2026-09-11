@@ -154,7 +154,7 @@ fun PipelineNodeCard(
             Text(
                 text = node.description,
                 fontSize = 12.sp,
-                color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
+                color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted,
                 lineHeight = 16.sp,
                 maxLines = 2
             )
@@ -241,7 +241,7 @@ fun PipelineNodeCard(
                     Text(
                         text = node.inputContract,
                         fontSize = 11.sp,
-                        color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface,
+                        color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurface,
                         maxLines = 1
                     )
                 }
@@ -280,7 +280,7 @@ fun PipelineNodeCard(
                     Text(
                         text = node.outputContract,
                         fontSize = 11.sp,
-                        color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface,
+                        color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurface,
                         maxLines = 1
                     )
                 }
@@ -293,7 +293,7 @@ fun PipelineNodeCard(
                         .fillMaxWidth()
                         .clayFlat(
                             shape = ClayShapes.Chip,
-                            background = if (isPresentationMode) Color(0xFF3B0D0D) else WeMadeColors.ErrorBg,
+                            background = if (isPresentationMode) WeMadeColors.ErrorBgDark else WeMadeColors.ErrorBg,
                             outline = WeMadeColors.Error.copy(alpha = 0.45f),
                             borderWidth = ClayBorder.Medium
                         )
@@ -306,20 +306,20 @@ fun PipelineNodeCard(
                         ) {
                             IconWarning(
                                 modifier = Modifier.size(11.dp),
-                                color = Color(0xFFE11D48)
+                                color = WeMadeColors.Defect
                             )
                             Text(
                                 text = "KETIKA GAGAL QC (PUTUS MERAH):",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFFE11D48)
+                                color = WeMadeColors.Defect
                             )
                         }
 
                         node.feedbackRoutes.forEach { route ->
                             val isDefect = route.edgeType == com.eventverse.app.domain.pipeline.PipelineEdgeType.FEEDBACK_DEFECT
-                            val routeColor = if (isDefect) Color(0xFFE11D48) else Color(0xFFD97706)
-                            val bgChip = if (isPresentationMode) Color(0xFF450A0A) else Color.White
+                            val routeColor = if (isDefect) WeMadeColors.Defect else WeMadeColors.Warning
+                            val bgChip = if (isPresentationMode) WeMadeColors.DefectBgDark else Color.White
 
                             Box(
                                 modifier = Modifier
@@ -352,7 +352,7 @@ fun PipelineNodeCard(
                                         Text(
                                             text = route.actionContract,
                                             fontSize = 10.sp,
-                                            color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted,
+                                            color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurfaceMuted,
                                             maxLines = 1
                                         )
                                     }
@@ -370,7 +370,7 @@ fun PipelineNodeCard(
                             .fillMaxWidth()
                             .clayFlat(
                                 shape = ClayShapes.Chip,
-                                background = if (isPresentationMode) Color(0xFF2A1515) else WeMadeColors.ErrorBg,
+                                background = if (isPresentationMode) WeMadeColors.ErrorBgDarkMuted else WeMadeColors.ErrorBg,
                                 outline = WeMadeColors.Error.copy(alpha = 0.4f),
                                 borderWidth = ClayBorder.Medium
                             )
@@ -384,13 +384,13 @@ fun PipelineNodeCard(
                                 text = "📥 ◀╌╌",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFDC2626)
+                                color = WeMadeColors.Error
                             )
                             Text(
                                 text = inboundBadge,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFDC2626)
+                                color = WeMadeColors.Error
                             )
                         }
                     }
@@ -422,7 +422,7 @@ fun PipelineNodeCard(
                             .clayFlat(
                                 shape = ClayShapes.Chip,
                                 background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
-                                else Color(0xFFF1F5F9),
+                                else WeMadeColors.SurfaceMuted,
                                 outline = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.30f),
                                 borderWidth = ClayBorder.Hairline
                             )
@@ -435,14 +435,14 @@ fun PipelineNodeCard(
                             if (!isBypassed) {
                                 IconClock(
                                     modifier = Modifier.size(10.dp),
-                                    color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted
+                                    color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurfaceMuted
                                 )
                             }
                             Text(
                                 text = if (isBypassed) "Bypassed" else "${node.cycleTimeHours}h",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted
+                                color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurfaceMuted
                             )
                         }
                     }

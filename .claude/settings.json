@@ -131,7 +131,21 @@
       "Bash(./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs :app:desktopApp:compileKotlin :app:shared:jvmTest --console=plain)",
       "Bash(./gradlew :app:shared:assembleDebug --console=plain)",
       "Bash(./gradlew :app:shared:tasks --all --console=plain)",
-      "Bash(./gradlew :app:shared:assembleAndroidMain --console=plain)"
+      "Bash(./gradlew :app:shared:assembleAndroidMain --console=plain)",
+      "Edit(/.claude/skills/compose-design-system/**)",
+      "Bash(cp .claude/rules/design-system-rules.md .agents/rules/)",
+      "Bash(mkdir -p .agents/skills/compose-design-system/references)",
+      "Bash(cp .claude/skills/compose-design-system/SKILL.md .agents/skills/compose-design-system/)",
+      "Bash(cp .claude/skills/compose-design-system/references/*.md .agents/skills/compose-design-system/references/)",
+      "Bash(./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs :app:shared:compileKotlinJs :app:shared:assembleAndroidMain :app:shared:jvmTest --console=plain)",
+      "Bash(perl -0pi -e 's/                TextButton\\\\\\(onClick = onDismiss\\\\\\) \\\\{\\\\n                    Text\\\\\\(\"Tutup\", fontSize = 11\\\\.sp, fontWeight = FontWeight\\\\.Bold\\\\\\)\\\\n                \\\\}/                ClayButton\\(\\\\n                    text = \"Tutup\",\\\\n                    onClick = onDismiss,\\\\n                    style = ClayButtonStyle.Ghost,\\\\n                    fontSize = 11.sp,\\\\n                    contentPadding = PaddingValues\\(horizontal = 12.dp, vertical = 5.dp\\)\\\\n                \\)/g' TenantPipelineStatusBanner.kt)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayBorder\\\\n\\)/import com.eventverse.app.presentation.designsystem.ClayButton\\\\nimport com.eventverse.app.presentation.designsystem.ClayButtonStyle\\\\nimport com.eventverse.app.presentation.designsystem.ClayOffset\\\\n$1/' TenantPipelineStatusBanner.kt)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayBorder\\\\n\\)/import com.eventverse.app.presentation.designsystem.ClayButton\\\\nimport com.eventverse.app.presentation.designsystem.ClayButtonStyle\\\\nimport com.eventverse.app.presentation.designsystem.ClayIconButton\\\\n$1/' NodeInspectorDrawer.kt)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayBorder\\\\n\\)/import com.eventverse.app.presentation.designsystem.ClayIconButton\\\\n$1/' NodeInputInspectorModal.kt)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayButton\\\\n\\)/$1import com.eventverse.app.presentation.designsystem.ClayButtonStyle\\\\n/' RenameModuleDialog.kt)",
+      "Bash(perl -pi -e ' *)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayIconButton\\\\n\\)/import com.eventverse.app.presentation.designsystem.ClayButton\\\\n$1/' NodeInputInspectorModal.kt)",
+      "Bash(perl -0pi -e 's/\\(import com\\\\.eventverse\\\\.app\\\\.presentation\\\\.designsystem\\\\.ClayCard\\\\n\\)/$1import com.eventverse.app.presentation.designsystem.ClayButton\\\\n/' PipelineFlowCanvas.kt)"
     ],
     "deny": [
       "Edit(*.env)",

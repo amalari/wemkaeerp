@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.clayFlat
@@ -55,9 +58,14 @@ fun TenantPipelineStatusBanner(
                 title = "Menampilkan template preset, bukan konfigurasi tersimpan tenant ini.",
                 subtitle = state.error
             ) {
-                TextButton(onClick = onRetry) {
-                    Text("Coba Lagi", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+                ClayButton(
+                    text = "Coba Lagi",
+                    onClick = onRetry,
+                    style = ClayButtonStyle.Secondary,
+                    fontSize = 11.sp,
+                    offset = ClayOffset.Pressed,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                )
             }
         }
 
@@ -69,9 +77,13 @@ fun TenantPipelineStatusBanner(
                 title = state.error ?: "",
                 subtitle = null
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Tutup", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+                ClayButton(
+                    text = "Tutup",
+                    onClick = onDismiss,
+                    style = ClayButtonStyle.Ghost,
+                    fontSize = 11.sp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                )
             }
         }
 
@@ -81,9 +93,13 @@ fun TenantPipelineStatusBanner(
                 title = state.statusMessage ?: "",
                 subtitle = null
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Tutup", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+                ClayButton(
+                    text = "Tutup",
+                    onClick = onDismiss,
+                    style = ClayButtonStyle.Ghost,
+                    fontSize = 11.sp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                )
             }
         }
     }

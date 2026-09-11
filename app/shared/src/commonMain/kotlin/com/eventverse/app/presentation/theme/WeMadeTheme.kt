@@ -21,6 +21,7 @@ object WeMadeColors {
     val PrimaryContainer = Color(0xFFEFF6FF)
     val Secondary = Color(0xFF3B82F6)
     val Accent = Color(0xFFEA580C)          // Garment Safety Orange
+    val AccentDark = Color(0xFFC2410C)      // Orange-700, untuk teks di atas AccentLight
     val AccentLight = Color(0xFFFFF7ED)
     val Background = Color(0xFFF8FAFC)      // Slate-50 Background
     val Surface = Color(0xFFFFFFFF)         // Pure Card Surface
@@ -38,6 +39,16 @@ object WeMadeColors {
     val PurpleBg = Color(0xFFF5F3FF)
     val Teal = Color(0xFF0D9488)            // Teal-600
     val TealBg = Color(0xFFF0FDFA)
+
+    /** Permukaan netral satu tingkat di bawah [Surface] — chip, segmented control, well. */
+    val SurfaceMuted = Color(0xFFF1F5F9)    // Slate-100
+
+    /** Aliran data otomatis / mesin-ke-mesin (berbeda dari [Primary] yang berarti aksi user). */
+    val Info = Color(0xFF0284C7)            // Sky-600
+    val InfoDark = Color(0xFF0369A1)        // Sky-700
+
+    /** Cacat produk & jalur rework mundur. Sengaja dibedakan dari [Error] (kegagalan sistem). */
+    val Defect = Color(0xFFE11D48)          // Rose-600
 
     // ── Token clay ───────────────────────────────────────────────────────────────────────────
     /**
@@ -62,7 +73,19 @@ object WeMadeColors {
     /** Permukaan kartu di presentation mode. */
     val SurfaceDark = Color(0xFF0F172A)
     val SurfaceDarkElevated = Color(0xFF1E293B)
+    val SurfaceDarkSunken = Color(0xFF090E1A)
     val BackgroundDark = Color(0xFF020617)
+
+    // Pasangan gelap dari token terang di atas. Ini adalah bahan baku `darkColorScheme` nanti;
+    // sampai itu ada, dipakai lewat ternary `isPresentationMode` yang sudah terdaftar sebagai
+    // utang teknis di design-system-rules.md — jangan menambah ternary baru.
+    val ErrorBgDark = Color(0xFF3B0D0D)
+    val ErrorBgDarkMuted = Color(0xFF2A1515)
+    val DefectBgDark = Color(0xFF450A0A)
+    val OnSurfaceInverse = Color(0xFFCBD5E1)      // Slate-300
+    val OnSurfaceMutedInverse = Color(0xFF94A3B8) // Slate-400
+    val BorderInverse = Color(0xFF334155)         // Slate-700
+    val PrimaryInverse = Color(0xFF93C5FD)        // Blue-300
 }
 
 /**

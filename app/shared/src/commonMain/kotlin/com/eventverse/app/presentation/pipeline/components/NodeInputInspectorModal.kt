@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineInputPort
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayOffset
@@ -46,11 +48,11 @@ fun NodeInputInspectorModal(
 ) {
     val scrollState = rememberScrollState()
 
-    val surfaceBg = if (isPresentationMode) Color(0xFF0F172A) else Color.White
-    val cardBg = if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val surfaceBg = if (isPresentationMode) WeMadeColors.SurfaceDark else Color.White
+    val cardBg = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated else WeMadeColors.Background
     val textPrimary = if (isPresentationMode) Color.White else WeMadeColors.OnSurface
-    val textMuted = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
-    val borderColor = if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
+    val textMuted = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted
+    val borderColor = if (isPresentationMode) WeMadeColors.BorderInverse else WeMadeColors.Border
 
     // Semi-transparent backdrop overlay
     Box(
@@ -127,7 +129,7 @@ fun NodeInputInspectorModal(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(ClayShapes.Chip)
                                         .background(Color(node.deptColorHex).copy(alpha = 0.15f))
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
                                 ) {
@@ -149,12 +151,11 @@ fun NodeInputInspectorModal(
                         }
                     }
 
-                    IconButton(
+                    ClayIconButton(
                         onClick = onClose,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(cardBg)
+                        containerColor = cardBg,
+                        outlineColor = if (isPresentationMode) WeMadeColors.OutlineInverse
+                        else WeMadeColors.Outline
                     ) {
                         IconClose(
                             modifier = Modifier.size(14.dp),
@@ -191,9 +192,9 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(ClayShapes.Chip)
                                 .background(cardBg)
-                                .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+                                .border(2.dp, borderColor, ClayShapes.Chip)
                                 .padding(10.dp)
                         ) {
                             Column {
@@ -211,23 +212,23 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF0284C7).copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
-                                .border(2.dp, Color(0xFF0284C7).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .clip(ClayShapes.Chip)
+                                .background(WeMadeColors.Info.copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
+                                .border(2.dp, WeMadeColors.Info.copy(alpha = 0.3f), ClayShapes.Chip)
                                 .padding(10.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                IconZap(modifier = Modifier.size(16.dp), color = Color(0xFF0284C7))
+                                IconZap(modifier = Modifier.size(16.dp), color = WeMadeColors.Info)
                                 Column {
-                                    Text("Aliran Otomatis", fontSize = 12.sp, color = Color(0xFF0284C7))
+                                    Text("Aliran Otomatis", fontSize = 12.sp, color = WeMadeColors.Info)
                                     Text(
                                         text = "${node.automatedInputCount} Dari Hulu",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isPresentationMode) Color.White else Color(0xFF0369A1)
+                                        color = if (isPresentationMode) Color.White else WeMadeColors.InfoDark
                                     )
                                 }
                             }
@@ -237,23 +238,23 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFEA580C).copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
-                                .border(2.dp, Color(0xFFEA580C).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .clip(ClayShapes.Chip)
+                                .background(WeMadeColors.Accent.copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
+                                .border(2.dp, WeMadeColors.Accent.copy(alpha = 0.3f), ClayShapes.Chip)
                                 .padding(10.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                IconPerson(modifier = Modifier.size(16.dp), color = Color(0xFFEA580C))
+                                IconPerson(modifier = Modifier.size(16.dp), color = WeMadeColors.Accent)
                                 Column {
-                                    Text("Input Manual (Operator)", fontSize = 12.sp, color = Color(0xFFEA580C))
+                                    Text("Input Manual (Operator)", fontSize = 12.sp, color = WeMadeColors.Accent)
                                     Text(
                                         text = "${node.manualInputCount} Oleh Manusia",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isPresentationMode) Color.White else Color(0xFFC2410C)
+                                        color = if (isPresentationMode) Color.White else WeMadeColors.AccentDark
                                     )
                                 }
                             }
@@ -267,7 +268,7 @@ fun NodeInputInspectorModal(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                IconZap(modifier = Modifier.size(14.dp), color = Color(0xFF0284C7))
+                                IconZap(modifier = Modifier.size(14.dp), color = WeMadeColors.Info)
                                 Text(
                                     text = "1. Alur Input Otomatis (Piped dari Output Modul Hulu)",
                                     fontSize = 13.sp,
@@ -276,15 +277,15 @@ fun NodeInputInspectorModal(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFF0284C7).copy(alpha = 0.15f))
+                                        .clip(ClayShapes.Chip)
+                                        .background(WeMadeColors.Info.copy(alpha = 0.15f))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "${node.automatedInputs.size} Terkoneksi",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0284C7)
+                                        color = WeMadeColors.Info
                                     )
                                 }
                             }
@@ -315,7 +316,7 @@ fun NodeInputInspectorModal(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                IconPerson(modifier = Modifier.size(15.dp), color = Color(0xFFEA580C))
+                                IconPerson(modifier = Modifier.size(15.dp), color = WeMadeColors.Accent)
                                 Text(
                                     text = "2. Input Manual oleh Operator (Intervensi Manusia)",
                                     fontSize = 13.sp,
@@ -324,15 +325,15 @@ fun NodeInputInspectorModal(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFEA580C).copy(alpha = 0.15f))
+                                        .clip(ClayShapes.Chip)
+                                        .background(WeMadeColors.Accent.copy(alpha = 0.15f))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "${node.manualInputs.size} Perlu Diisi",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFEA580C)
+                                        color = WeMadeColors.Accent
                                     )
                                 }
                             }
@@ -363,7 +364,7 @@ fun NodeInputInspectorModal(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(ClayShapes.Tile)
                         .background(cardBg)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -381,15 +382,12 @@ fun NodeInputInspectorModal(
                         )
                     }
 
-                    Button(
+                    ClayButton(
+                        text = "Tutup Dialog",
                         onClick = onClose,
-                        colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text("Tutup Dialog", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
+                        fontSize = 12.sp,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                    )
                 }
             }
         }
@@ -412,9 +410,9 @@ private fun NodeFlowVisualBanner(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isPresentationMode) Color(0xFF090E1A) else Color(0xFFF1F5F9))
-            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+            .clip(ClayShapes.Chip)
+            .background(if (isPresentationMode) WeMadeColors.SurfaceDarkSunken else WeMadeColors.SurfaceMuted)
+            .border(2.dp, borderColor, ClayShapes.Chip)
             .padding(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -455,9 +453,9 @@ private fun NodeFlowVisualBanner(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ClayShapes.Chip)
                         .background(cardBg)
-                        .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+                        .border(2.dp, borderColor, ClayShapes.Chip)
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -511,9 +509,9 @@ private fun NodeFlowVisualBanner(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ClayShapes.Chip)
                         .background(WeMadeColors.Primary.copy(alpha = if (isPresentationMode) 0.25f else 0.12f))
-                        .border(2.dp, WeMadeColors.Primary, RoundedCornerShape(12.dp))
+                        .border(2.dp, WeMadeColors.Primary, ClayShapes.Chip)
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -587,7 +585,7 @@ private fun AutomatedInputCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    IconZap(modifier = Modifier.size(13.dp), color = Color(0xFF0284C7))
+                    IconZap(modifier = Modifier.size(13.dp), color = WeMadeColors.Info)
                     Text(
                         text = port.name,
                         fontSize = 13.sp,
@@ -598,15 +596,15 @@ private fun AutomatedInputCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF0284C7).copy(alpha = 0.15f))
+                        .clip(ClayShapes.Tile)
+                        .background(WeMadeColors.Info.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "Otomatis (Zero Latency)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0284C7)
+                        color = WeMadeColors.Info
                     )
                 }
             }
@@ -623,9 +621,9 @@ private fun AutomatedInputCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (isPresentationMode) Color(0xFF090E1A) else Color.White)
-                    .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+                    .clip(ClayShapes.Chip)
+                    .background(if (isPresentationMode) WeMadeColors.SurfaceDarkSunken else Color.White)
+                    .border(2.dp, borderColor, ClayShapes.Chip)
                     .padding(10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -712,7 +710,7 @@ private fun ManualInputCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    IconPerson(modifier = Modifier.size(14.dp), color = Color(0xFFEA580C))
+                    IconPerson(modifier = Modifier.size(14.dp), color = WeMadeColors.Accent)
                     Text(
                         text = port.name,
                         fontSize = 13.sp,
@@ -723,15 +721,15 @@ private fun ManualInputCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFEA580C).copy(alpha = 0.15f))
+                        .clip(ClayShapes.Tile)
+                        .background(WeMadeColors.Accent.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "Input Operator",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFEA580C)
+                        color = WeMadeColors.Accent
                     )
                 }
             }
@@ -748,9 +746,9 @@ private fun ManualInputCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (isPresentationMode) Color(0xFF090E1A) else Color.White)
-                    .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+                    .clip(ClayShapes.Chip)
+                    .background(if (isPresentationMode) WeMadeColors.SurfaceDarkSunken else Color.White)
+                    .border(2.dp, borderColor, ClayShapes.Chip)
                     .padding(10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -774,15 +772,15 @@ private fun ManualInputCard(
                         )
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFEA580C).copy(alpha = 0.12f))
+                                .clip(ClayShapes.Chip)
+                                .background(WeMadeColors.Accent.copy(alpha = 0.12f))
                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = port.operatorRole ?: "Staf Terkait",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEA580C)
+                                color = WeMadeColors.Accent
                             )
                         }
                     }

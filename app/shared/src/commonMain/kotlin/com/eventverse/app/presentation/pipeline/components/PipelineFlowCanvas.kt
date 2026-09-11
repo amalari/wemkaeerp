@@ -27,6 +27,7 @@ import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelineStage
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -77,17 +78,18 @@ fun PipelineFlowCanvas(
                     ) {
                         IconSearch(
                             modifier = Modifier.size(16.dp),
-                            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
+                            color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted
                         )
                         Text(
                             text = "Tidak ada modul yang cocok dengan pencarian",
-                            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
+                            color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = onResetFilters) {
-                        Text("Reset Filter & Pencarian")
-                    }
+                    ClayButton(
+                        text = "Reset Filter & Pencarian",
+                        onClick = onResetFilters
+                    )
                 }
             }
         } else {
@@ -120,7 +122,7 @@ private fun MacroProcessStepper(
             .fillMaxWidth()
             .clayFlat(
                 shape = ClayShapes.Card,
-                background = if (isPresentationMode) WeMadeColors.SurfaceDark else Color(0xFFF1F5F9),
+                background = if (isPresentationMode) WeMadeColors.SurfaceDark else WeMadeColors.SurfaceMuted,
                 outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Border,
                 borderWidth = ClayBorder.Medium
             )
@@ -228,7 +230,7 @@ private fun MacroProcessStepper(
             if (index < PipelineStage.entries.size - 1) {
                 IconChevronRight(
                     modifier = Modifier.size(14.dp),
-                    color = if (isPresentationMode) Color(0xFF64748B) else WeMadeColors.Primary.copy(alpha = 0.6f)
+                    color = if (isPresentationMode) WeMadeColors.OnSurfaceMuted else WeMadeColors.Primary.copy(alpha = 0.6f)
                 )
             }
         }
@@ -384,7 +386,7 @@ private fun StageSwimlaneColumn(
                             Text(
                                 text = stage.subtitle,
                                 fontSize = 10.sp,
-                                color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
+                                color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted,
                                 maxLines = 1
                             )
                         }
@@ -408,7 +410,7 @@ private fun StageSwimlaneColumn(
                         .clayFlat(
                             shape = ClayShapes.Card,
                             background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
-                            else Color(0xFFF1F5F9),
+                            else WeMadeColors.SurfaceMuted,
                             outline = WeMadeColors.Border,
                             borderWidth = ClayBorder.Medium
                         ),

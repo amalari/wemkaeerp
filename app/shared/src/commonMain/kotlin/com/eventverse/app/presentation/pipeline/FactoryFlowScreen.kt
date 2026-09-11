@@ -264,7 +264,7 @@ private fun ExecutivePresentationBanner(
                 Text(
                     text = "Klik salah satu kartu modul di diagram alur untuk mendemonstrasikan kejelasan kontrak data antar divisi.",
                     fontSize = 11.sp,
-                    color = Color(0xFF94A3B8)
+                    color = WeMadeColors.OnSurfaceMutedInverse
                 )
             }
         }

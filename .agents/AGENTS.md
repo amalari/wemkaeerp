@@ -273,6 +273,45 @@ Setiap kali menyelesaikan pengerjaan sebuah task, issue, atau modul:
 
 ---
 
+### 12. Design System & UI Styling (Clay)
+
+Bahasa visual WeMade ERP adalah **Claymorphism + Neo-Brutalism**: outline tebal 3dp, hard
+shadow tanpa blur, sudut membulat besar, font Fredoka + Nunito — dengan **palet brand WeMade**
+(biru `#2563EB`, oranye `#EA580C`), bukan palet pastel.
+
+Sebelum menulis atau mengubah UI apa pun di `app/shared/**/presentation/`, baca dan patuhi
+**[`.agents/rules/design-system-rules.md`](rules/design-system-rules.md)** secara penuh, dan
+gunakan skill **`compose-design-system`** sebagai panduan kerjanya.
+
+Ringkasan kontrak wajibnya:
+
+1. **Nol literal `Color(0xFF……)` di luar `WeMadeTheme.kt`.** Satu-satunya pengecualian adalah
+   warna yang berasal dari domain (`node.stage.colorHex`, `status.badgeColorHex`,
+   `department.colorHex`) karena itu data tenant, bukan keputusan desain.
+2. **Butuh warna baru? Tambahkan token di `WeMadeColors`**, dinamai per *peran*
+   (`SurfaceMuted`, `Info`, `Defect`) bukan per *rupa* (`Slate100`, `SkyBlue`, `Rose600`).
+3. **`colorScheme` wajib terisi penuh.** Slot yang dilewat memakai ungu default M3 dan bocor ke
+   `AlertDialog`/`DropdownMenu`/`OutlinedTextField`.
+4. **Aturan Tiga Kali** — pola visual yang muncul ≥3 kali wajib diangkat ke
+   `presentation/designsystem/` sebelum pemakaian keempat ditulis.
+5. **Pakai katalog yang ada**: `ClayCard`, `ClayButton`, `ClayActionSurface`, `ClayBadge`,
+   `ClayTag`, `Modifier.claySurface`, `Modifier.clayFlat`. Dilarang `Card`/`Button` Material
+   mentah dan `Modifier.shadow()`.
+6. **Komponen `designsystem/` buta terhadap domain** — menerima `String`/`Color`/lambda, bukan
+   `PipelineNode`. Pembungkus berbasis domain tetap di package fiturnya.
+7. **Bentuk, ketebalan, dan spasi juga token** (`ClayShapes`, `ClayBorder`, `ClaySpacing`).
+   Ketebalan outline konsisten; state dibedakan lewat *warna*, bukan ketebalan.
+8. **Jangan tanam `color` ke dalam `TextStyle`** — itu mematikan `LocalContentColor`.
+9. **Clay memakan ruang** (~18dp/kartu) dan Nunito ber-x-height besar; tinjau lebar kontainer
+   dan tier ukuran font setiap kali mengkonversi layar padat.
+10. **Mode gelap lewat theme, bukan ternary.** Jangan menambah `if (isPresentationMode)` baru.
+
+Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap UI selesai —
+termasuk **menjalankan aplikasinya dan melihat dengan mata**, karena bug layout tidak tertangkap
+test mana pun.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
@@ -282,3 +321,6 @@ Setiap kali menyelesaikan pengerjaan sebuah task, issue, atau modul:
 - **Domain bergantung pada framework** — Tidak ada import Ktor/Android/Compose/Three.js di pure Kotlin domain
 - **Business logic di ViewModel atau Composable**
 - **String primitives untuk domain concepts** — Gunakan Value Objects
+- **Literal warna/radius/border di dalam Composable fitur** — Gunakan token (lihat §12)
+- **Menyalin blok styling** alih-alih mengangkatnya jadi komponen bersama
+- **`Modifier.shadow()` di `presentation/`** — Bayangannya selalu blur, berlawanan dengan bahasa visual

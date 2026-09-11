@@ -17,6 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -112,17 +115,24 @@ fun NodeInspectorDrawer(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (onRenameRequest != null && !isPresentationMode) {
-                        TextButton(onClick = onRenameRequest) {
-                            Text(
-                                text = "Ubah Nama",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Primary
-                            )
-                        }
+                        ClayButton(
+                            text = "Ubah Nama",
+                            onClick = onRenameRequest,
+                            style = ClayButtonStyle.Secondary,
+                            fontSize = 12.sp,
+                            offset = ClayOffset.Pressed,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        )
                     }
 
-                    IconButton(onClick = onClose) {
+                    ClayIconButton(
+                        onClick = onClose,
+                        size = 30.dp,
+                        containerColor = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
+                        else WeMadeColors.SurfaceMuted,
+                        outlineColor = if (isPresentationMode) WeMadeColors.OutlineInverse
+                        else WeMadeColors.Outline
+                    ) {
                         IconClose(
                             modifier = Modifier.size(14.dp),
                             color = if (isPresentationMode) Color.White else WeMadeColors.OnSurfaceMuted
@@ -170,12 +180,12 @@ fun NodeInspectorDrawer(
             Text(
                 text = node.description,
                 fontSize = 13.sp,
-                color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurface,
+                color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurface,
                 lineHeight = 18.sp
             )
 
             HorizontalDivider(
-                color = if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
+                color = if (isPresentationMode) WeMadeColors.BorderInverse else WeMadeColors.Border
             )
 
             // Input Contract Section
@@ -201,7 +211,7 @@ fun NodeInspectorDrawer(
             )
 
             HorizontalDivider(
-                color = if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
+                color = if (isPresentationMode) WeMadeColors.BorderInverse else WeMadeColors.Border
             )
 
             // Assigned Division & RBAC Scope
@@ -359,13 +369,13 @@ private fun SectionBox(
             text = content,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (isPresentationMode) Color(0xFF93C5FD) else WeMadeColors.Primary
+            color = if (isPresentationMode) WeMadeColors.PrimaryInverse else WeMadeColors.Primary
         )
 
         Text(
             text = explanation,
             fontSize = 12.sp,
-            color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
+            color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted,
             lineHeight = 15.sp
         )
     }
@@ -385,7 +395,7 @@ private fun MetricBox(
             .clayFlat(
                 shape = ClayShapes.Chip,
                 background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
-                else Color(0xFFF1F5F9),
+                else WeMadeColors.SurfaceMuted,
                 outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Border,
                 borderWidth = ClayBorder.Medium
             )
@@ -402,7 +412,7 @@ private fun MetricBox(
             Text(
                 text = title,
                 fontSize = 12.sp,
-                color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
+                color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted
             )
         }
         Text(
@@ -414,7 +424,7 @@ private fun MetricBox(
         Text(
             text = subtext,
             fontSize = 11.sp,
-            color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted
+            color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurfaceMuted
         )
     }
 }

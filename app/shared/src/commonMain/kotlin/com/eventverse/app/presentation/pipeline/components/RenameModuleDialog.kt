@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -63,8 +64,9 @@ fun RenameModuleDialog(
                     singleLine = true,
                     enabled = !isSaving,
                     isError = trimmedName.isBlank(),
-                    label = { Text("Nama modul", fontSize = 12.sp) },
-                    shape = RoundedCornerShape(8.dp)
+                    // Tanpa `shape`, field mewarisi MaterialTheme.shapes.extraSmall (ClayShapes 8dp).
+                    // Meng-override-nya justru memutus field ini dari design system.
+                    label = { Text("Nama modul", fontSize = 12.sp) }
                 )
                 if (trimmedName.isBlank()) {
                     Text(
@@ -84,9 +86,13 @@ fun RenameModuleDialog(
             )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSaving) {
-                Text("Batal", fontSize = 12.sp)
-            }
+            ClayButton(
+                text = "Batal",
+                onClick = onDismiss,
+                enabled = !isSaving,
+                style = ClayButtonStyle.Ghost,
+                fontSize = 12.sp
+            )
         }
     )
 }
