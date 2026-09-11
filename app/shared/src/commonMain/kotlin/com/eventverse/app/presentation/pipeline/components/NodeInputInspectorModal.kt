@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineInputPort
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -59,20 +64,24 @@ fun NodeInputInspectorModal(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Card(
+        Box(
             modifier = Modifier
                 .widthIn(max = 720.dp)
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.88f)
+                .claySurface(
+                    shape = ClayShapes.Panel,
+                    background = surfaceBg,
+                    outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Outline,
+                    // Modal melayang paling tinggi di layar, jadi bayangannya paling jauh.
+                    offset = 10.dp,
+                    innerShade = false
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {} // Consume click so backdrop doesn't close dialog
-                ),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = surfaceBg),
-            border = BorderStroke(1.5.dp, if (isPresentationMode) Color(0xFF475569) else WeMadeColors.Primary.copy(alpha = 0.4f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+                )
         ) {
             Column(
                 modifier = Modifier
@@ -111,20 +120,20 @@ fun NodeInputInspectorModal(
                             ) {
                                 Text(
                                     text = "INSPEKSI KONTRAK INPUT & MAPPING (NODE)",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = WeMadeColors.Primary,
                                     letterSpacing = 0.6.sp
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(Color(node.deptColorHex).copy(alpha = 0.15f))
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
                                 ) {
                                     Text(
                                         text = node.assignedDepartment,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(node.deptColorHex)
                                     )
@@ -182,13 +191,13 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(cardBg)
-                                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                                .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                                 .padding(10.dp)
                         ) {
                             Column {
-                                Text("Total Input Masuk", fontSize = 11.sp, color = textMuted)
+                                Text("Total Input Masuk", fontSize = 12.sp, color = textMuted)
                                 Text(
                                     text = "${node.inputs.size} Prasyarat",
                                     fontSize = 15.sp,
@@ -202,9 +211,9 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF0284C7).copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
-                                .border(1.dp, Color(0xFF0284C7).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .border(2.dp, Color(0xFF0284C7).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                                 .padding(10.dp)
                         ) {
                             Row(
@@ -213,7 +222,7 @@ fun NodeInputInspectorModal(
                             ) {
                                 IconZap(modifier = Modifier.size(16.dp), color = Color(0xFF0284C7))
                                 Column {
-                                    Text("Aliran Otomatis", fontSize = 11.sp, color = Color(0xFF0284C7))
+                                    Text("Aliran Otomatis", fontSize = 12.sp, color = Color(0xFF0284C7))
                                     Text(
                                         text = "${node.automatedInputCount} Dari Hulu",
                                         fontSize = 15.sp,
@@ -228,9 +237,9 @@ fun NodeInputInspectorModal(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFFEA580C).copy(alpha = if (isPresentationMode) 0.2f else 0.08f))
-                                .border(1.dp, Color(0xFFEA580C).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .border(2.dp, Color(0xFFEA580C).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                                 .padding(10.dp)
                         ) {
                             Row(
@@ -239,7 +248,7 @@ fun NodeInputInspectorModal(
                             ) {
                                 IconPerson(modifier = Modifier.size(16.dp), color = Color(0xFFEA580C))
                                 Column {
-                                    Text("Input Manual (Operator)", fontSize = 11.sp, color = Color(0xFFEA580C))
+                                    Text("Input Manual (Operator)", fontSize = 12.sp, color = Color(0xFFEA580C))
                                     Text(
                                         text = "${node.manualInputCount} Oleh Manusia",
                                         fontSize = 15.sp,
@@ -273,7 +282,7 @@ fun NodeInputInspectorModal(
                                 ) {
                                     Text(
                                         text = "${node.automatedInputs.size} Terkoneksi",
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF0284C7)
                                     )
@@ -282,7 +291,7 @@ fun NodeInputInspectorModal(
 
                             Text(
                                 text = "Data ini mengalir secara otomatis melalui sistem begitu modul hulu menyelesaikan eksekusinya tanpa membutuhkan intervensi manual staf.",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = textMuted
                             )
 
@@ -321,7 +330,7 @@ fun NodeInputInspectorModal(
                                 ) {
                                     Text(
                                         text = "${node.manualInputs.size} Perlu Diisi",
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFEA580C)
                                     )
@@ -330,7 +339,7 @@ fun NodeInputInspectorModal(
 
                             Text(
                                 text = "Prasyarat operasional yang wajib dientri, diunggah, atau diverifikasi secara manual oleh staf fisik pabrik sebelum modul dapat beroperasi.",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = textMuted
                             )
 
@@ -354,7 +363,7 @@ fun NodeInputInspectorModal(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(cardBg)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -367,7 +376,7 @@ fun NodeInputInspectorModal(
                         IconNodePort(modifier = Modifier.size(13.dp), color = WeMadeColors.Primary)
                         Text(
                             text = "Kontrak data tervalidasi sesuai standar arsitektur WeMade ERP.",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = textMuted
                         )
                     }
@@ -375,7 +384,7 @@ fun NodeInputInspectorModal(
                     Button(
                         onClick = onClose,
                         colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         modifier = Modifier.height(34.dp)
                     ) {
@@ -405,7 +414,7 @@ private fun NodeFlowVisualBanner(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (isPresentationMode) Color(0xFF090E1A) else Color(0xFFF1F5F9))
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
             .padding(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -421,7 +430,7 @@ private fun NodeFlowVisualBanner(
                     IconNodePort(modifier = Modifier.size(12.dp), color = WeMadeColors.Primary)
                     Text(
                         text = "DIAGRAM ALUR PIPELINE STREAM (N8N STYLE)",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.Primary,
                         letterSpacing = 0.5.sp
@@ -430,7 +439,7 @@ private fun NodeFlowVisualBanner(
 
                 Text(
                     text = "Live Graph Connector",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     color = textMuted
                 )
             }
@@ -446,15 +455,15 @@ private fun NodeFlowVisualBanner(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(cardBg)
-                        .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                        .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = "MODUL HULU (OUTPUT)",
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = textMuted
                         )
@@ -467,7 +476,7 @@ private fun NodeFlowVisualBanner(
                         )
                         Text(
                             text = "Data Stream Out",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = WeMadeColors.Success
                         )
                     }
@@ -502,9 +511,9 @@ private fun NodeFlowVisualBanner(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(WeMadeColors.Primary.copy(alpha = if (isPresentationMode) 0.25f else 0.12f))
-                        .border(1.5.dp, WeMadeColors.Primary, RoundedCornerShape(8.dp))
+                        .border(2.dp, WeMadeColors.Primary, RoundedCornerShape(12.dp))
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -520,7 +529,7 @@ private fun NodeFlowVisualBanner(
                             )
                             Text(
                                 text = "NODE TARGET (INPUT)",
-                                fontSize = 9.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.Primary
                             )
@@ -534,7 +543,7 @@ private fun NodeFlowVisualBanner(
                         )
                         Text(
                             text = "Menunggu Kontrak Input",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = textMuted
                         )
                     }
@@ -557,16 +566,16 @@ private fun AutomatedInputCard(
     isPresentationMode: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.35f))
+        containerColor = cardBg,
+        outlineColor = WeMadeColors.Teal.copy(alpha = 0.55f),
+        offset = ClayOffset.Small,
+        borderWidth = ClayBorder.Medium,
+        contentPadding = PaddingValues(12.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -589,13 +598,13 @@ private fun AutomatedInputCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFF0284C7).copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "Otomatis (Zero Latency)",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF0284C7)
                     )
@@ -605,7 +614,7 @@ private fun AutomatedInputCard(
             if (port.description.isNotBlank()) {
                 Text(
                     text = port.description,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = textMuted
                 )
             }
@@ -614,15 +623,15 @@ private fun AutomatedInputCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(if (isPresentationMode) Color(0xFF090E1A) else Color.White)
-                    .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                    .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                     .padding(10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "MAPPING SUMBER DATA (UPSTREAM):",
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = textMuted,
                         letterSpacing = 0.5.sp
@@ -634,13 +643,13 @@ private fun AutomatedInputCard(
                     ) {
                         Text(
                             text = "Modul Asal:",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = textMuted
                         )
                         Text(
                             text = port.sourceModuleName ?: "Modul Hulu",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.Primary
                         )
@@ -652,13 +661,13 @@ private fun AutomatedInputCard(
                     ) {
                         Text(
                             text = "Output Field:",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = textMuted
                         )
                         Text(
                             text = port.sourceOutputContract ?: "Data Output Terverifikasi",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = WeMadeColors.Success
                         )
@@ -682,16 +691,16 @@ private fun ManualInputCard(
     isPresentationMode: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.dp, Color(0xFFEA580C).copy(alpha = 0.35f))
+        containerColor = cardBg,
+        outlineColor = WeMadeColors.Accent.copy(alpha = 0.55f),
+        offset = ClayOffset.Small,
+        borderWidth = ClayBorder.Medium,
+        contentPadding = PaddingValues(12.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -714,13 +723,13 @@ private fun ManualInputCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFFEA580C).copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "Input Operator",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFEA580C)
                     )
@@ -730,7 +739,7 @@ private fun ManualInputCard(
             if (port.description.isNotBlank()) {
                 Text(
                     text = port.description,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = textMuted
                 )
             }
@@ -739,15 +748,15 @@ private fun ManualInputCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(if (isPresentationMode) Color(0xFF090E1A) else Color.White)
-                    .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                    .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                     .padding(10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "TATA KELOLA ENTRI MANUAL:",
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = textMuted,
                         letterSpacing = 0.5.sp
@@ -759,19 +768,19 @@ private fun ManualInputCard(
                     ) {
                         Text(
                             text = "Penanggung Jawab:",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = textMuted
                         )
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFFEA580C).copy(alpha = 0.12f))
                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = port.operatorRole ?: "Staf Terkait",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFEA580C)
                             )
@@ -784,13 +793,13 @@ private fun ManualInputCard(
                     ) {
                         Text(
                             text = "Metode Input:",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = textMuted
                         )
                         Text(
                             text = port.inputMethod ?: "Form Input Digital",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = textPrimary
                         )

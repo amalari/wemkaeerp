@@ -15,6 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.domain.pipeline.TenantModuleAvailability
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -36,14 +44,12 @@ fun TenantModulePanel(
     onResetToPreset: (GarmentBusinessPreset) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = BorderStroke(1.dp, WeMadeColors.Border)
+        shape = ClayShapes.Panel,
+        contentPadding = PaddingValues(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PanelHeader(catalog = catalog)
@@ -138,10 +144,15 @@ private fun ModuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (module.isActive) WeMadeColors.Success.copy(alpha = 0.06f)
-                else WeMadeColors.Background
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = if (module.isActive) WeMadeColors.Success.copy(alpha = 0.07f)
+                else WeMadeColors.Background,
+                // Baris aktif diberi outline hijau, yang nonaktif outline netral pucat — status
+                // terbaca saat memindai kolom dari atas ke bawah, bukan cuma dari posisi switch.
+                outline = if (module.isActive) WeMadeColors.Success.copy(alpha = 0.45f)
+                else WeMadeColors.Border,
+                borderWidth = ClayBorder.Medium
             )
             .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -176,7 +187,7 @@ private fun ModuleRow(
             }
             Text(
                 text = subtitle,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )
         }
@@ -204,55 +215,30 @@ private fun PresetResetRow(
         )
         Text(
             text = "Menimpa seluruh kustomisasi modul tenant ini dengan susunan standar preset terpilih.",
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             color = WeMadeColors.OnSurfaceMuted
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GarmentBusinessPreset.entries.forEach { preset ->
-                OutlinedButton(
+                ClayButton(
+                    text = preset.shortBadge,
                     onClick = { onResetToPreset(preset) },
                     enabled = !isSaving,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = if (preset == activePreset) {
-                            WeMadeColors.Primary
-                        } else {
-                            WeMadeColors.OnSurfaceMuted
-                        }
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (preset == activePreset) WeMadeColors.Primary else WeMadeColors.Border
-                    )
-                ) {
-                    Text(
-                        text = preset.shortBadge,
-                        fontSize = 11.sp,
-                        fontWeight = if (preset == activePreset) FontWeight.Bold else FontWeight.Medium
-                    )
-                }
+                    style = if (preset == activePreset) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+                    fontSize = 11.sp,
+                    offset = ClayOffset.Pressed,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
         }
     }
 }
 
+/** Kini tinggal membungkus [ClayTag] — salah satu dari tiga badge duplikat yang disatukan. */
 @Composable
 private fun Badge(
     text: String,
     color: androidx.compose.ui.graphics.Color
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = color
-        )
-    }
+    ClayTag(text = text, tint = color, fontSize = 11.sp)
 }

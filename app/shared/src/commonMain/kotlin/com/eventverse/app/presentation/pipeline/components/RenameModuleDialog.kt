@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -37,7 +38,8 @@ fun RenameModuleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(14.dp),
+        // Bentuknya diwarisi dari MaterialTheme.shapes.extraLarge (ClayShapes 24dp), jadi tidak
+        // perlu di-override di sini lagi.
         containerColor = WeMadeColors.Surface,
         title = {
             Text(
@@ -74,18 +76,12 @@ fun RenameModuleDialog(
             }
         },
         confirmButton = {
-            Button(
+            ClayButton(
+                text = if (isSaving) "Menyimpan…" else "Simpan",
                 onClick = { onConfirm(trimmedName) },
                 enabled = !isSaving && trimmedName.isNotBlank() && trimmedName != node.title,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary)
-            ) {
-                Text(
-                    text = if (isSaving) "Menyimpan…" else "Simpan",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                fontSize = 12.sp
+            )
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isSaving) {

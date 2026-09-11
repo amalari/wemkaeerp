@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.pipeline.FactoryFlowUiState
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -96,23 +99,27 @@ private fun StatusRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(accent.copy(alpha = 0.08f))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = accent.copy(alpha = 0.10f),
+                outline = accent.copy(alpha = 0.50f),
+                borderWidth = ClayBorder.Medium
+            )
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = accent
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )
             }

@@ -17,6 +17,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
@@ -46,7 +54,7 @@ fun FactoryFlowScreen(
         viewModel.onEvent(FactoryFlowUiEvent.LoadTenantPipeline(tenantSlug))
     }
 
-    val screenBg = if (isPresentationMode) Color(0xFF020617) else WeMadeColors.Background
+    val screenBg = if (isPresentationMode) WeMadeColors.BackgroundDark else WeMadeColors.BackgroundWarm
 
     Box(
         modifier = modifier
@@ -79,8 +87,12 @@ fun FactoryFlowScreen(
                     Box(
                         modifier = Modifier
                             .size(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(WeMadeColors.Primary.copy(alpha = 0.12f)),
+                            .clayFlat(
+                                shape = ClayShapes.Tile,
+                                background = WeMadeColors.PrimaryContainer,
+                                outline = WeMadeColors.Outline,
+                                borderWidth = ClayBorder.Medium
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         IconFlowGraph(
@@ -100,19 +112,11 @@ fun FactoryFlowScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.OnSurface
                             )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(WeMadeColors.Primary.copy(alpha = 0.12f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = activeCompany.name,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = WeMadeColors.Primary
-                                )
-                            }
+                            ClayTag(
+                                text = activeCompany.name,
+                                tint = WeMadeColors.Primary,
+                                fontSize = 11.sp
+                            )
                         }
 
                         Text(
@@ -231,9 +235,13 @@ private fun ExecutivePresentationBanner(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF1E293B))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .claySurface(
+                shape = ClayShapes.Card,
+                background = WeMadeColors.SurfaceDarkElevated,
+                outline = WeMadeColors.BackgroundDark,
+                offset = ClayOffset.Small
+            )
+            .padding(horizontal = 16.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -261,14 +269,13 @@ private fun ExecutivePresentationBanner(
             }
         }
 
-        Button(
+        ClayButton(
+            text = "✕ Tutup Presentasi",
             onClick = onExit,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
-            shape = RoundedCornerShape(6.dp),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-            modifier = Modifier.height(30.dp)
-        ) {
-            Text("✕ Tutup Presentasi", fontSize = 11.sp, color = Color.White)
-        }
+            style = ClayButtonStyle.Secondary,
+            fontSize = 11.sp,
+            offset = ClayOffset.Pressed,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        )
     }
 }

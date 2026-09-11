@@ -17,6 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -35,19 +41,22 @@ fun NodeInspectorDrawer(
 
     val scrollState = rememberScrollState()
 
-    Card(
+    Box(
         modifier = modifier
             .fillMaxHeight()
-            .width(420.dp),
-        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPresentationMode) Color(0xFF0F172A) else WeMadeColors.Surface
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            .width(420.dp)
+            .claySurface(
+                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
+                background = if (isPresentationMode) WeMadeColors.SurfaceDark else WeMadeColors.Surface,
+                outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Outline,
+                // Drawer menempel di tepi kanan layar, jadi bayangannya diarahkan ke kiri.
+                // Bayangan ke kanan akan jatuh ke luar viewport dan panel kehilangan kedalamannya.
+                shadowX = -ClayOffset.Rest,
+                shadowY = 0.dp,
+                // Inner shade dimatikan: pada panel setinggi layar, gradasi di dasarnya jatuh
+                // jauh dari isi dan hanya terbaca sebagai noda.
+                innerShade = false
+            )
     ) {
         Column(
             modifier = Modifier
@@ -84,7 +93,7 @@ fun NodeInspectorDrawer(
                     Column {
                         Text(
                             text = "INSPEKSI KONTRAK MODUL",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurfaceMuted,
                             letterSpacing = 0.5.sp
@@ -106,7 +115,7 @@ fun NodeInspectorDrawer(
                         TextButton(onClick = onRenameRequest) {
                             Text(
                                 text = "Ubah Nama",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.Primary
                             )
@@ -126,8 +135,12 @@ fun NodeInspectorDrawer(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(node.healthStatus.bgTintHex))
+                    .clayFlat(
+                        shape = ClayShapes.Card,
+                        background = Color(node.healthStatus.bgTintHex),
+                        outline = Color(node.healthStatus.badgeColorHex).copy(alpha = 0.55f),
+                        borderWidth = ClayBorder.Medium
+                    )
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -147,7 +160,7 @@ fun NodeInspectorDrawer(
                     )
                     Text(
                         text = node.healthMessage,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = WeMadeColors.OnSurface
                     )
                 }
@@ -209,10 +222,13 @@ fun NodeInspectorDrawer(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (isPresentationMode) Color(0xFF1E293B)
-                            else Color(0xFFF8FAFC)
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
+                            else WeMadeColors.Background,
+                            outline = if (isPresentationMode) WeMadeColors.OutlineInverse
+                            else WeMadeColors.Border,
+                            borderWidth = ClayBorder.Medium
                         )
                         .padding(10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -221,7 +237,7 @@ fun NodeInspectorDrawer(
                     Column {
                         Text(
                             text = "Divisi Pemilik:",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                         Text(
@@ -232,22 +248,11 @@ fun NodeInspectorDrawer(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                if (node.module.isGlobalOnly) WeMadeColors.SuccessBg
-                                else WeMadeColors.PrimaryContainer
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (node.module.isGlobalOnly) "Seluruh Pabrik (Global)" else "Hirarkis (Multi-Scope)",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (node.module.isGlobalOnly) WeMadeColors.Success else WeMadeColors.Primary
-                        )
-                    }
+                    ClayTag(
+                        text = if (node.module.isGlobalOnly) "Seluruh Pabrik (Global)" else "Hirarkis (Multi-Scope)",
+                        tint = if (node.module.isGlobalOnly) WeMadeColors.Success else WeMadeColors.Primary,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -317,8 +322,13 @@ private fun SectionBox(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF8FAFC))
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
+                else WeMadeColors.Background,
+                outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Border,
+                borderWidth = ClayBorder.Medium
+            )
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -342,19 +352,7 @@ private fun SectionBox(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(badgeColor.copy(alpha = 0.15f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = badge,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = badgeColor
-                )
-            }
+            ClayTag(text = badge, tint = badgeColor, fontSize = 11.sp)
         }
 
         Text(
@@ -366,7 +364,7 @@ private fun SectionBox(
 
         Text(
             text = explanation,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted,
             lineHeight = 15.sp
         )
@@ -384,8 +382,13 @@ private fun MetricBox(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF1F5F9))
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
+                else Color(0xFFF1F5F9),
+                outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Border,
+                borderWidth = ClayBorder.Medium
+            )
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
@@ -398,7 +401,7 @@ private fun MetricBox(
             }
             Text(
                 text = title,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 color = if (isPresentationMode) Color(0xFF94A3B8) else WeMadeColors.OnSurfaceMuted
             )
         }
@@ -410,7 +413,7 @@ private fun MetricBox(
         )
         Text(
             text = subtext,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             color = if (isPresentationMode) Color(0xFFCBD5E1) else WeMadeColors.OnSurfaceMuted
         )
     }

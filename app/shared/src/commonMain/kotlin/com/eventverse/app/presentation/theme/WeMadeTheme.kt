@@ -1,17 +1,19 @@
 package com.eventverse.app.presentation.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayMaterialShapes
+import com.eventverse.app.presentation.designsystem.rememberClayTypography
 
 /**
- * WeMade ERP Theme Tokens based on ui-ux-pro-max B2B SaaS Design System
+ * Token warna WeMade ERP.
+ *
+ * Bahasa visualnya claymorphism + neo-brutalism (outline tebal, hard shadow tanpa blur, sudut
+ * membulat besar), tapi **paletnya tetap palet WeMade** — biru kepercayaan dan oranye keselamatan
+ * garmen. Palet pastel dari referensi desainnya sengaja tidak diambil: layar Factory Flow memakai
+ * hijau/amber/merah sebagai sinyal produksi, dan warna pastel akan meredam sinyal itu.
  */
 object WeMadeColors {
     val Primary = Color(0xFF2563EB)         // Trust Blue
@@ -36,78 +38,85 @@ object WeMadeColors {
     val PurpleBg = Color(0xFFF5F3FF)
     val Teal = Color(0xFF0D9488)            // Teal-600
     val TealBg = Color(0xFFF0FDFA)
+
+    // ── Token clay ───────────────────────────────────────────────────────────────────────────
+    /**
+     * Warna outline **dan** hard shadow sekaligus. Dipakainya satu warna untuk keduanya bukan
+     * kebetulan: itulah yang membuat kartu dan bayangannya terbaca sebagai satu benda padat,
+     * bukan kartu yang kebetulan punya bayangan.
+     */
+    val Outline = Color(0xFF1E293B)
+
+    /** Outline untuk elemen sekunder yang tidak boleh mendominasi hierarki. */
+    val OutlineSoft = Color(0xFF475569)
+
+    /** Outline di atas latar gelap (presentation mode), di mana [Outline] tak terlihat. */
+    val OutlineInverse = Color(0xFF64748B)
+
+    /**
+     * Latar utama. Sedikit hangat, meminjam kehangatan `--bg-cream` (#fff9f5) dari referensi
+     * desain tapi jauh lebih diredam agar tetap netral untuk layar kerja seharian.
+     */
+    val BackgroundWarm = Color(0xFFFDFAF7)
+
+    /** Permukaan kartu di presentation mode. */
+    val SurfaceDark = Color(0xFF0F172A)
+    val SurfaceDarkElevated = Color(0xFF1E293B)
+    val BackgroundDark = Color(0xFF020617)
 }
 
+/**
+ * Seluruh slot `ColorScheme` diisi.
+ *
+ * Sebelumnya hanya 11 slot yang di-override, sehingga sisanya — `surfaceVariant`, `outline`,
+ * `tertiary`, `surfaceContainer*` — masih memakai ungu default Material 3. Ungu itu bocor ke
+ * `AlertDialog`, `DropdownMenu`, dan `OutlinedTextField` yang tidak diberi warna eksplisit.
+ */
 val WeMadeLightColorScheme = lightColorScheme(
     primary = WeMadeColors.Primary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEFF6FF),
+    primaryContainer = WeMadeColors.PrimaryContainer,
     onPrimaryContainer = WeMadeColors.PrimaryDark,
     secondary = WeMadeColors.Secondary,
-    background = WeMadeColors.Background,
+    onSecondary = Color.White,
+    secondaryContainer = WeMadeColors.PrimaryContainer,
+    onSecondaryContainer = WeMadeColors.PrimaryDark,
+    tertiary = WeMadeColors.Accent,
+    onTertiary = Color.White,
+    tertiaryContainer = WeMadeColors.AccentLight,
+    onTertiaryContainer = WeMadeColors.Accent,
+    background = WeMadeColors.BackgroundWarm,
     onBackground = WeMadeColors.OnSurface,
     surface = WeMadeColors.Surface,
     onSurface = WeMadeColors.OnSurface,
+    surfaceVariant = Color(0xFFF1F5F9),
+    onSurfaceVariant = WeMadeColors.OnSurfaceMuted,
+    surfaceTint = WeMadeColors.Primary,
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFDFAF7),
+    surfaceContainer = Color(0xFFF8FAFC),
+    surfaceContainerHigh = Color(0xFFF1F5F9),
+    surfaceContainerHighest = Color(0xFFE2E8F0),
+    inverseSurface = WeMadeColors.OnSurface,
+    inverseOnSurface = Color(0xFFF8FAFC),
+    inversePrimary = Color(0xFF93C5FD),
+    outline = WeMadeColors.Outline,
+    outlineVariant = WeMadeColors.Border,
     error = WeMadeColors.Error,
-    onError = Color.White
-)
-
-val WeMadeTypography = Typography(
-    headlineMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
-        color = WeMadeColors.OnSurface
-    ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 28.sp,
-        color = WeMadeColors.OnSurface
-    ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        color = WeMadeColors.OnSurface
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
-        color = WeMadeColors.OnSurface
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        color = WeMadeColors.OnSurface
-    ),
-    bodySmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        color = WeMadeColors.OnSurfaceMuted
-    ),
-    labelLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
-    )
+    onError = Color.White,
+    errorContainer = WeMadeColors.ErrorBg,
+    onErrorContainer = WeMadeColors.Error,
+    scrim = Color(0xFF0F172A)
 )
 
 @Composable
 fun WeMadeTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = WeMadeLightColorScheme,
-        typography = WeMadeTypography,
+        typography = rememberClayTypography(),
+        // Satu baris ini membuat seluruh AlertDialog, FilterChip, OutlinedTextField, dan
+        // DropdownMenu bawaan M3 ikut radius clay tanpa perlu disentuh satu per satu.
+        shapes = ClayMaterialShapes,
         content = content
     )
 }

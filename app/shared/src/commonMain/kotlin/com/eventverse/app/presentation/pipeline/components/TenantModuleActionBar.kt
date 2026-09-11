@@ -12,6 +12,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.pipeline.FactoryFlowUiState
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -57,20 +60,15 @@ fun TenantModuleActionBar(
             )
         }
 
-        OutlinedButton(
+        ClayButton(
+            text = if (state.isModulePanelVisible) "Tutup Pengaturan Modul" else "Atur Modul Tenant",
             onClick = onToggleModulePanel,
             enabled = !state.isLoading,
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            border = BorderStroke(1.dp, WeMadeColors.Primary.copy(alpha = 0.4f)),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.Primary)
-        ) {
-            Text(
-                text = if (state.isModulePanelVisible) "Tutup Pengaturan Modul" else "Atur Modul Tenant",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+            // Panel yang sedang terbuka membuat tombolnya menetap di posisi tertekan.
+            style = if (state.isModulePanelVisible) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+            fontSize = 12.sp,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+        )
     }
 }
 
@@ -79,17 +77,5 @@ private fun SummaryChip(
     label: String,
     color: androidx.compose.ui.graphics.Color
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-    ) {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = color
-        )
-    }
+    ClayTag(text = label, tint = color, fontSize = 11.sp)
 }

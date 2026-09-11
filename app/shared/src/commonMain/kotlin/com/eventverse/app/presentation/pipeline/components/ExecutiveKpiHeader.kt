@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.FactoryPipelineSnapshot
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -112,17 +113,15 @@ private fun KpiStatCard(
     iconContent: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, WeMadeColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+        // Outline mengambil warna aksen KPI-nya, jadi kartu bottleneck merah langsung terbaca
+        // dari jauh tanpa perlu membaca angkanya.
+        outlineColor = accentColor,
+        contentPadding = PaddingValues(14.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
@@ -132,7 +131,7 @@ private fun KpiStatCard(
             ) {
                 Text(
                     text = title.uppercase(),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurfaceMuted,
                     letterSpacing = 0.5.sp
@@ -140,8 +139,12 @@ private fun KpiStatCard(
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .clip(CircleShape)
-                        .background(bgColor),
+                        .clayFlat(
+                            shape = CircleShape,
+                            background = bgColor,
+                            outline = accentColor.copy(alpha = 0.45f),
+                            borderWidth = ClayBorder.Medium
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     iconContent()
@@ -167,7 +170,7 @@ private fun KpiStatCard(
                 )
                 Text(
                     text = subtitle,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     maxLines = 1
                 )

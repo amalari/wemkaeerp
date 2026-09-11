@@ -25,6 +25,13 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineGraph
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelineStage
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -111,8 +118,12 @@ private fun MacroProcessStepper(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isPresentationMode) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+            .clayFlat(
+                shape = ClayShapes.Card,
+                background = if (isPresentationMode) WeMadeColors.SurfaceDark else Color(0xFFF1F5F9),
+                outline = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.Border,
+                borderWidth = ClayBorder.Medium
+            )
             .padding(horizontal = 10.dp, vertical = 8.dp)
             .horizontalScroll(rememberScrollState()),
         verticalAlignment = Alignment.CenterVertically,
@@ -130,18 +141,22 @@ private fun MacroProcessStepper(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        when {
+                    // Pil tahapan ikut bahasa clay: outline selalu setebal 2dp, hanya warnanya
+                    // yang berubah saat terpilih. Sebelumnya border-nya dihilangkan (0.dp) saat
+                    // terpilih, yang membuat pil aktif menciut setengah piksel.
+                    .claySurface(
+                        shape = ClayShapes.Button,
+                        background = when {
                             isSelected -> Color(stage.colorHex)
-                            isPresentationMode -> Color(0xFF1E293B)
+                            isPresentationMode -> WeMadeColors.SurfaceDarkElevated
                             else -> Color.White
-                        }
-                    )
-                    .border(
-                        width = if (isSelected) 0.dp else 1.dp,
-                        color = if (isSelected) Color.Transparent else Color(stage.colorHex).copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(8.dp)
+                        },
+                        outline = if (isSelected) WeMadeColors.Outline
+                        else Color(stage.colorHex).copy(alpha = 0.4f),
+                        offset = ClayOffset.Pressed,
+                        pressed = isSelected,
+                        borderWidth = ClayBorder.Medium,
+                        innerShade = false
                     )
                     .clickable { onStageClick(stage) }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -270,7 +285,9 @@ private fun HorizontalSwimlaneLayout(
                             bounds = bounds,
                             onSelectNode = onSelectNode,
                             onInspectInputs = onInspectInputs,
-                            modifier = Modifier.width(305.dp)
+                            // Dinaikkan dari 305dp: outline 3dp + hard shadow 6dp pada setiap
+                            // kartu node menambah ~18dp lebar yang sebelumnya tidak ada.
+                            modifier = Modifier.width(324.dp)
                         )
                     }
                 }
@@ -304,30 +321,32 @@ private fun StageSwimlaneColumn(
     onInspectInputs: (PipelineNode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ClayCard(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPresentationMode) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isPresentationMode) Color(0xFF334155) else WeMadeColors.Border
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = ClayShapes.Panel,
+        containerColor = if (isPresentationMode) WeMadeColors.SurfaceDark else WeMadeColors.Background,
+        outlineColor = if (isPresentationMode) WeMadeColors.OutlineInverse else WeMadeColors.OutlineSoft,
+        // Kolom swimlane adalah wadah, bukan objek yang bisa disentuh — bayangannya dibuat tipis
+        // supaya kartu node di dalamnya tetap menjadi lapisan yang paling menonjol.
+        offset = ClayOffset.Small,
+        innerShade = false,
+        contentPadding = PaddingValues(12.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Stage Column Header
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(stage.colorHex).copy(alpha = if (isPresentationMode) 0.25f else 0.12f))
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = Color(stage.colorHex)
+                            .copy(alpha = if (isPresentationMode) 0.25f else 0.12f),
+                        outline = Color(stage.colorHex).copy(alpha = 0.45f),
+                        borderWidth = ClayBorder.Medium
+                    )
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -371,19 +390,11 @@ private fun StageSwimlaneColumn(
                         }
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(stage.colorHex).copy(alpha = 0.2f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "${nodes.size}",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isPresentationMode) Color.White else Color(stage.colorHex)
-                        )
-                    }
+                    ClayTag(
+                        text = "${nodes.size}",
+                        tint = if (isPresentationMode) Color.White else Color(stage.colorHex),
+                        fontSize = 11.sp
+                    )
                 }
 
             }
@@ -394,8 +405,13 @@ private fun StageSwimlaneColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isPresentationMode) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
+                        .clayFlat(
+                            shape = ClayShapes.Card,
+                            background = if (isPresentationMode) WeMadeColors.SurfaceDarkElevated
+                            else Color(0xFFF1F5F9),
+                            outline = WeMadeColors.Border,
+                            borderWidth = ClayBorder.Medium
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

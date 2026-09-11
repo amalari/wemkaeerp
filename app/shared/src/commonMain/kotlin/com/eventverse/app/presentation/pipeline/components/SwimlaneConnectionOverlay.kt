@@ -323,10 +323,13 @@ internal fun SwimlaneConnectionCanvas(
                 else -> 0.15f
             }
             val color = route.color.copy(alpha = alpha)
+            // Dinaikkan sejalan dengan outline kartu yang kini 3dp. Garis 1.7dp di antara kartu
+            // ber-outline tebal akan terbaca sebagai benang tipis yang tidak sepadan, dan arah
+            // alirannya jadi sulit diikuti dari jarak pandang normal.
             val width = when {
-                touchesSelection -> 2.6.dp.toPx()
-                route.isFeedback -> 1.9.dp.toPx()
-                else -> 1.7.dp.toPx()
+                touchesSelection -> 3.4.dp.toPx()
+                route.isFeedback -> 2.8.dp.toPx()
+                else -> 2.6.dp.toPx()
             }
 
             drawPath(

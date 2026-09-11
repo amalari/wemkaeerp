@@ -84,6 +84,14 @@ kotlin {
     }
 }
 
+// Pins the generated `Res` class to a known package. Without this the package is derived
+// from the Gradle group plus the module name, which makes the import path brittle.
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.eventverse.app.shared.resources"
+    generateResClass = always
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }
