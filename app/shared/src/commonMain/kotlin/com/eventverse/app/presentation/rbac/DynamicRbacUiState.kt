@@ -31,6 +31,14 @@ data class DynamicRbacUiState(
     val newRoleNameInput: String = "",
     val newRoleDescInput: String = "",
     val selectedTemplateRoleId: String? = null,
+    /**
+     * Divisi pemilik jabatan yang sedang dibuat.
+     *
+     * Wajib ada di sini, bukan opsional yang boleh dilupakan: jabatan tanpa divisi tidak pernah
+     * menerima wewenang lewat penugasan divisi, sehingga jabatan baru tampak "tidak mempan"
+     * meski admin sudah mengatur aksesnya.
+     */
+    val newRoleDepartmentId: String? = null,
     val successToast: String? = null,
     val errorToast: String? = null
 ) {
@@ -59,7 +67,12 @@ sealed interface DynamicRbacUiEvent {
     data object SaveChanges : DynamicRbacUiEvent
     data class OpenCreateModal(val templateRoleId: String? = null) : DynamicRbacUiEvent
     data object CloseCreateModal : DynamicRbacUiEvent
-    data class UpdateNewRoleInputs(val name: String, val desc: String, val templateId: String?) : DynamicRbacUiEvent
+    data class UpdateNewRoleInputs(
+        val name: String,
+        val desc: String,
+        val templateId: String?,
+        val departmentId: String? = null
+    ) : DynamicRbacUiEvent
     data object ConfirmCreateRole : DynamicRbacUiEvent
     data class DeleteRole(val roleId: String) : DynamicRbacUiEvent
     data class OpenAssignModal(val module: BusinessModule, val existing: DepartmentModuleAssignment? = null) : DynamicRbacUiEvent

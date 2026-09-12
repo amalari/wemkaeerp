@@ -33,7 +33,8 @@ data class RoleDto(
             val permissionsJson = ModulePermissionsSerializer.toJson(role.modulePermissions)
             val descEscaped = escape(role.description)
             val nameEscaped = escape(role.name)
-            return "{\"id\":\"${role.id.value}\",\"tenantId\":\"${role.tenantId?.value ?: ""}\",\"name\":\"$nameEscaped\",\"description\":\"$descEscaped\",\"isSystemDefault\":${role.isSystemDefault},\"userCount\":${role.userCount},\"modulePermissions\":$permissionsJson}"
+            val departmentJson = role.departmentId?.let { "\"${escape(it)}\"" } ?: "null"
+            return "{\"id\":\"${role.id.value}\",\"tenantId\":\"${role.tenantId?.value ?: ""}\",\"name\":\"$nameEscaped\",\"description\":\"$descEscaped\",\"isSystemDefault\":${role.isSystemDefault},\"userCount\":${role.userCount},\"departmentId\":$departmentJson,\"modulePermissions\":$permissionsJson}"
         }
 
         fun toJsonList(roles: List<CustomRole>): String =
@@ -52,14 +53,16 @@ data class ModuleAccessConfigDto(
 data class CreateRoleRequestDto(
     val name: String,
     val description: String = "",
-    val modulePermissions: Map<BusinessModule, ModuleAccessConfig> = emptyMap()
+    val modulePermissions: Map<BusinessModule, ModuleAccessConfig> = emptyMap(),
+    val departmentId: String? = null
 ) {
     companion object {
         fun fromJson(rawJson: String): CreateRoleRequestDto {
             val name = extractStringField(rawJson, "name") ?: ""
             val desc = extractStringField(rawJson, "description") ?: ""
             val permissions = ModulePermissionsSerializer.fromJson(rawJson)
-            return CreateRoleRequestDto(name, desc, permissions)
+            val departmentId = extractStringField(rawJson, "departmentId")?.takeIf { it.isNotBlank() }
+            return CreateRoleRequestDto(name, desc, permissions, departmentId)
         }
 
         private fun extractStringField(json: String, field: String): String? {
@@ -72,7 +75,8 @@ data class CreateRoleRequestDto(
 data class UpdateRoleRequestDto(
     val name: String? = null,
     val description: String? = null,
-    val modulePermissions: Map<BusinessModule, ModuleAccessConfig>? = null
+    val modulePermissions: Map<BusinessModule, ModuleAccessConfig>? = null,
+    val departmentId: String? = null
 ) {
     companion object {
         fun fromJson(rawJson: String): UpdateRoleRequestDto {
@@ -81,7 +85,12 @@ data class UpdateRoleRequestDto(
             val permissions = if (rawJson.contains("\"modulePermissions\"") || rawJson.contains("\"CRM_SALES\"") || rawJson.contains("\"level\"")) {
                 ModulePermissionsSerializer.fromJson(rawJson)
             } else null
-            return UpdateRoleRequestDto(name, desc, permissions)
+            // Hanya diisi kalau field-nya benar-benar dikirim. Body tanpa `departmentId` berarti
+            // "jangan sentuh divisinya", bukan "lepaskan dari divisinya".
+            val departmentId = if (rawJson.contains("\"departmentId\"")) {
+                extractStringField(rawJson, "departmentId") ?: ""
+            } else null
+            return UpdateRoleRequestDto(name, desc, permissions, departmentId)
         }
 
         private fun extractStringField(json: String, field: String): String? {

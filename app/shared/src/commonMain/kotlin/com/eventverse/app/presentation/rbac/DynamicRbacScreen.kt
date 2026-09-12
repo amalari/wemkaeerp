@@ -212,8 +212,12 @@ fun DynamicRbacScreen(
             descInput = state.newRoleDescInput,
             selectedTemplateId = state.selectedTemplateRoleId,
             roles = state.roles,
-            onInputsChanged = { name, desc, template ->
-                viewModel.onEvent(DynamicRbacUiEvent.UpdateNewRoleInputs(name, desc, template))
+            departments = state.departments,
+            selectedDepartmentId = state.newRoleDepartmentId,
+            onInputsChanged = { name, desc, template, department ->
+                viewModel.onEvent(
+                    DynamicRbacUiEvent.UpdateNewRoleInputs(name, desc, template, department)
+                )
             },
             onConfirm = { viewModel.onEvent(DynamicRbacUiEvent.ConfirmCreateRole) },
             onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.CloseCreateModal) }

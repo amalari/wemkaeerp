@@ -32,6 +32,12 @@ class JwtTokenService(
             .withClaim("username", user.username.value)
             .withClaim("email", user.email.value)
             .withClaim("role", user.role.name)
+            // Identitas yang dikonfigurasi tenant. Dibawa terpisah dari `role` karena `role` adalah
+            // enum tetap: menumpangkan id jabatan rakitan tenant di sana membuat `Role.valueOf`
+            // gagal di sisi baca, dan kegagalan itu ditelan menjadi TENANT_ADMIN — yaitu melebarkan
+            // wewenang justru ketika identitasnya tidak dikenali.
+            .withClaim("department_id", user.departmentId)
+            .withClaim("custom_role_id", user.customRoleId)
             .withClaim("permissions", user.effectivePermissions.map { it.name })
             .withIssuedAt(now)
             .withExpiresAt(expiresAt)

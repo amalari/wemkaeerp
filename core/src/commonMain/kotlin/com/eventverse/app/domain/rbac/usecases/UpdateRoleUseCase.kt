@@ -8,7 +8,9 @@ data class UpdateRoleCommand(
     val roleId: RoleId,
     val name: String? = null,
     val description: String? = null,
-    val modulePermissions: Map<BusinessModule, ModuleAccessConfig>? = null
+    val modulePermissions: Map<BusinessModule, ModuleAccessConfig>? = null,
+    /** Null berarti "jangan ubah"; string kosong berarti "lepaskan dari divisi mana pun". */
+    val departmentId: String? = null
 )
 
 class UpdateRoleUseCase(
@@ -28,6 +30,10 @@ class UpdateRoleUseCase(
 
         if (command.modulePermissions != null) {
             updated = updated.copy(modulePermissions = command.modulePermissions)
+        }
+
+        if (command.departmentId != null) {
+            updated = updated.copy(departmentId = command.departmentId.takeIf { it.isNotBlank() })
         }
 
         roleRepository.save(updated).getOrThrow()

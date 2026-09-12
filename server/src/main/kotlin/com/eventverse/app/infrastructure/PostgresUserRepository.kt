@@ -51,6 +51,8 @@ class PostgresUserRepository : UserRepository {
                     it[email] = user.email.value
                     it[role] = user.role.name
                     it[isActive] = user.isActive
+                    it[departmentId] = user.departmentId
+                    it[customRoleId] = user.customRoleId
                 }
             } else {
                 UsersTable.insert {
@@ -60,6 +62,8 @@ class PostgresUserRepository : UserRepository {
                     it[email] = user.email.value
                     it[role] = user.role.name
                     it[isActive] = user.isActive
+                    it[departmentId] = user.departmentId
+                    it[customRoleId] = user.customRoleId
                 }
             }
             user
@@ -79,6 +83,8 @@ class PostgresUserRepository : UserRepository {
         email = EmailAddress(row[UsersTable.email]),
         role = Role.valueOf(row[UsersTable.role]),
         customPermissions = emptySet(),
-        isActive = row[UsersTable.isActive]
+        isActive = row[UsersTable.isActive],
+        departmentId = row[UsersTable.departmentId],
+        customRoleId = row[UsersTable.customRoleId]
     )
 }

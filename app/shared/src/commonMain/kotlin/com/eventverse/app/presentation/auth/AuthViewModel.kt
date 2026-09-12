@@ -5,7 +5,9 @@ import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.api.AuthApiClient
+import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.infrastructure.storage.PlatformLocalStorage
+import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
 import com.eventverse.app.presentation.tenant.InMemoryTenantSessionStorage
 import com.eventverse.app.presentation.tenant.TenantSession
 import com.eventverse.app.presentation.tenant.TenantSessionStorage
@@ -33,7 +35,8 @@ object GoogleAuthBridge {
 class AuthViewModel(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
     private val sessionStorage: TenantSessionStorage = InMemoryTenantSessionStorage(),
-    private val authApiClient: AuthApiClient = AuthApiClient()
+    private val authApiClient: AuthApiClient = AuthApiClient(),
+    private val policyRepository: RbacAccessPolicyRepository = RbacAccessPolicyRepository.shared
 ) {
     companion object {
         const val STORAGE_KEY = AuthApiClient.SESSION_STORAGE_KEY
@@ -69,11 +72,16 @@ class AuthViewModel(
                 )
             )
 
+            // Pulihkan juga persona-nya. Tanpa ini, reload halaman mengembalikan sesi tetapi
+            // mengosongkan wewenang, dan seluruh menu modul lenyap tanpa sebab yang terlihat.
+            restorePersonaFrom(restoredSession)
+
             // 2. Asynchronously verify token validity against backend DB
             scope.launch {
                 val verifyResult = authApiClient.verifySession(restoredSession.token.value)
                 verifyResult.onSuccess { verifiedSession ->
                     _uiState.update { it.copy(authenticatedSession = verifiedSession) }
+                    restorePersonaFrom(verifiedSession)
                     PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(verifiedSession))
                 }.onFailure {
                     // Token expired or invalid: clear session
@@ -109,6 +117,9 @@ class AuthViewModel(
             }
             is LoginUiEvent.SubmitDemoSuperAdminLogin -> {
                 handleDemoLogin(Role.PLATFORM_SUPERADMIN)
+            }
+            is LoginUiEvent.SubmitPersonaLogin -> {
+                handlePersonaLogin(event.persona)
             }
             is LoginUiEvent.SubmitGoogleLogin -> {
                 handleGoogleLogin(event.idToken)
@@ -156,7 +167,10 @@ class AuthViewModel(
                     )
                 )
 
-                // 3. Update state & navigasi
+                // 3. Login demo tetap butuh persona, kalau tidak menu modulnya kosong.
+                restorePersonaFrom(session)
+
+                // 4. Update state & navigasi
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -200,6 +214,7 @@ class AuthViewModel(
                         tier = SubscriptionTier.PRO
                     )
                 )
+                restorePersonaFrom(offlineSession)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -210,6 +225,121 @@ class AuthViewModel(
                 _uiEffect.emit(LoginUiEffect.NavigateToDashboard(offlineSession))
             }
         }
+    }
+
+    /**
+     * Masuk — atau berpindah — ke sebuah persona pengujian.
+     *
+     * Dipakai dua jalur sekaligus: tombol persona di layar login, dan switcher di top bar untuk
+     * berganti persona tanpa keluar lebih dulu. Keduanya melewati server yang sama, jadi tidak ada
+     * jalur "cepat" yang menghasilkan wewenang berbeda dari jalur normal.
+     *
+     * Kegagalan jaringan jatuh ke sesi offline agar pengujian UI tidak terhenti saat backend belum
+     * dijalankan. Token offline itu **tidak pernah** diterima server — ia hanya membuka gerbang di
+     * client — dan itulah sebabnya statusnya dinyatakan terang-terangan di pesan sukses, bukan
+     * disamarkan sebagai login biasa.
+     */
+    fun handlePersonaLogin(persona: TestingPersona) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        scope.launch {
+            authApiClient.loginPersona(persona)
+                .onSuccess { session ->
+                    applyPersonaSession(session, persona, session.tenantSlug ?: persona.tenantSlug)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Persona aktif: ${persona.displayLabel} — sesi live dari server."
+                        )
+                    }
+                    _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
+                }
+                .onFailure {
+                    val offlineSession = UserSession(
+                        user = User(
+                            id = UserId(persona.userId),
+                            tenantId = persona.tenantId,
+                            username = Username(persona.syntheticUsername),
+                            email = EmailAddress(persona.syntheticEmail),
+                            role = Role.OPERATOR,
+                            isActive = true,
+                            departmentId = persona.departmentId,
+                            customRoleId = persona.roleId?.value
+                        ),
+                        token = AuthToken("offline-persona-${persona.userId}"),
+                        tenantSlug = persona.tenantSlug
+                    )
+                    applyPersonaSession(offlineSession, persona, persona.tenantSlug)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Persona aktif: ${persona.displayLabel} — mode offline, " +
+                                "wewenang dihitung lokal dan tidak ditegakkan server."
+                        )
+                    }
+                    _uiEffect.emit(LoginUiEffect.NavigateToDashboard(offlineSession))
+                }
+        }
+    }
+
+    /** Alias yang lebih terbaca di tempat pemanggilan switcher. */
+    fun switchPersona(persona: TestingPersona) = handlePersonaLogin(persona)
+
+    /**
+     * Menyusun ulang persona dari sesi yang tersimpan.
+     *
+     * Nama divisi dan jabatan sengaja dibiarkan berupa id dulu: begitu [RbacAccessPolicyRepository]
+     * selesai memuat daftar divisi dan jabatan, switcher menampilkan nama yang benar. Yang penting
+     * di sini adalah **id**-nya, karena itulah yang dipakai menghitung wewenang.
+     */
+    private fun restorePersonaFrom(session: UserSession) {
+        val user = session.user
+        val tenantId = user.tenantId ?: return
+        val slug = session.tenantSlug ?: "wemade-demo"
+
+        policyRepository.setPersona(
+            TestingPersona(
+                userId = user.id.value,
+                name = user.username.value,
+                tenantId = tenantId,
+                tenantSlug = slug,
+                departmentId = user.departmentId,
+                departmentName = user.departmentId ?: "Tanpa Divisi",
+                roleId = user.customRoleId?.let { com.eventverse.app.domain.rbac.RoleId(it) },
+                roleTitle = user.role.name,
+                // Jabatan menang atas peran platform.
+                //
+                // Kalau sesi membawa jabatan tenant, persona harus tampil **persis** sebagai
+                // jabatan itu — termasuk setelah halaman dimuat ulang. Menyimpulkan "owner" dari
+                // peran platform akan membuka seluruh modul dan diam-diam membatalkan pengujian,
+                // justru pada jalur yang paling jarang diperiksa: reload.
+                //
+                // Bypass hanya berlaku untuk sesi tanpa jabatan, yaitu akun admin yang sedang tidak
+                // menyamar. Tanpa itu, admin bisa terkunci dari layar RBAC-nya sendiri.
+                isOwnerOrSuperAdmin = user.customRoleId == null &&
+                    (user.role == Role.TENANT_ADMIN || user.role == Role.PLATFORM_SUPERADMIN)
+            )
+        )
+        policyRepository.load(tenantId, slug)
+    }
+
+    private fun applyPersonaSession(
+        session: UserSession,
+        persona: TestingPersona,
+        slug: String
+    ) {
+        PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
+        sessionStorage.setSession(
+            TenantSession(
+                tenantId = session.user.tenantId ?: persona.tenantId,
+                slug = TenantSlug(slug),
+                name = "Pabrik $slug",
+                tier = SubscriptionTier.PRO
+            )
+        )
+        policyRepository.setPersona(persona)
+        policyRepository.load(session.user.tenantId ?: persona.tenantId, slug)
+        _uiState.update { it.copy(authenticatedSession = session, tenantSlug = slug) }
     }
 
     /**

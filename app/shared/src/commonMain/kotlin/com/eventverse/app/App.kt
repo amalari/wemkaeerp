@@ -41,7 +41,17 @@ import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconMenu
 import com.eventverse.app.presentation.designsystem.IconShield
 import com.eventverse.app.presentation.designsystem.IconZap
+import com.eventverse.app.domain.rbac.AccessDecision
+import com.eventverse.app.domain.rbac.AccessSource
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
+import com.eventverse.app.presentation.navigation.ProfileDropdown
+import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
+import com.eventverse.app.presentation.workspace.ModuleWorkspaceScreen
+import com.eventverse.app.presentation.workspace.badgeLabel
+import com.eventverse.app.presentation.workspace.tint
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
 import com.eventverse.app.presentation.rbac.DynamicRbacScreen
@@ -54,6 +64,15 @@ fun App() {
     val authState by authViewModel.uiState.collectAsState()
     val session = authState.authenticatedSession
     val isAuthenticated = session != null
+
+    val policyRepository = remember { RbacAccessPolicyRepository.shared }
+    val activePersona by policyRepository.activePersona.collectAsState()
+    val effectivePermissions by policyRepository.effectivePermissions.collectAsState()
+    val accessDecisions by policyRepository.accessDecisions.collectAsState()
+    val auditView by policyRepository.isAuditViewEnabled.collectAsState()
+    val policyRoles by policyRepository.roles.collectAsState()
+    val policyDepartments by policyRepository.departments.collectAsState()
+    val policyEmployees by policyRepository.employees.collectAsState()
 
     // Determine initial screen from browser URL or session status
     val initialPath = remember { PlatformNavigation.getCurrentPath() }
@@ -122,7 +141,7 @@ fun App() {
         drawerOpen = false
     }
 
-    val navItems = remember(currentScreen, isAuthenticated) {
+    val adminNavItems = remember(currentScreen, isAuthenticated) {
         listOf(
             ClayNavItem(
                 key = AppNavScreen.ORG_CHART.route,
@@ -156,6 +175,54 @@ fun App() {
             )
         )
     }
+
+    // Menu modul dihitung dari wewenang efektif, bukan didaftar statis.
+    //
+    // Di luar mode audit, modul tanpa akses **dihilangkan**, bukan sekadar diredupkan — itulah
+    // perilaku produksi: staf gudang tidak perlu tahu ada layar HPP. Mode audit membalikkannya,
+    // karena saat menguji konfigurasi, menu yang hilang dan menu yang tak pernah ada terlihat sama.
+    val moduleNavItems = remember(currentScreen, effectivePermissions, auditView) {
+        AppNavScreen.entries
+            .mapNotNull { screen -> screen.businessModule?.let { screen to it } }
+            .mapNotNull { (screen, module) ->
+                val access = effectivePermissions[module] ?: ModuleAccessConfig()
+                if (!access.isAccessible && !auditView) return@mapNotNull null
+
+                ClayNavItem(
+                    key = screen.route,
+                    label = screen.title,
+                    selected = currentScreen == screen,
+                    onClick = { openScreen(screen) },
+                    icon = { tint ->
+                        if (access.isAccessible) {
+                            IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
+                        } else {
+                            LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
+                        }
+                    },
+                    badge = access.level.badgeLabel(),
+                    badgeTint = access.level.tint(),
+                    enabled = access.isAccessible
+                )
+            }
+    }
+
+    // Saat menyamar sebagai sebuah jabatan, menu administrasi ikut disembunyikan — kalau tidak,
+    // tampilannya bukan tampilan jabatan itu, melainkan tampilan jabatan itu plus hak admin.
+    //
+    // Aman disembunyikan karena switcher persona hidup di top bar, bukan di menu: penguji selalu
+    // bisa kembali menjadi dirinya sendiri. Mode audit tetap menampilkannya dalam keadaan terkunci,
+    // untuk memperlihatkan apa yang tidak dilihat jabatan itu.
+    val isImpersonating = activePersona?.isOwnerOrSuperAdmin == false
+    val visibleAdminItems = when {
+        !isImpersonating -> adminNavItems
+        auditView -> adminNavItems.map {
+            it.copy(enabled = false, badge = "Admin", badgeTint = WeMadeColors.OnSurfaceDisabled)
+        }
+        else -> emptyList()
+    }
+
+    val navItems = visibleAdminItems + moduleNavItems
 
     WeMadeTheme {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -213,6 +280,29 @@ fun App() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                         if (isAuthenticated && session != null) {
+                            PersonaSwitcherDropdown(
+                                activePersona = activePersona,
+                                employees = policyEmployees,
+                                departments = policyDepartments,
+                                roles = policyRoles,
+                                tenantId = session.user.tenantId ?: TenantId("ten-demo-001"),
+                                tenantSlug = session.tenantSlug ?: "wemade-demo",
+                                isAuditViewEnabled = auditView,
+                                onAuditViewChange = { policyRepository.setAuditView(it) },
+                                onApplyPersona = { authViewModel.switchPersona(it) },
+                                onResetSuperadmin = {
+                                    authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
+                                }
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 10.dp)
+                                    .height(24.dp)
+                                    .width(1.dp)
+                                    .background(WeMadeColors.Border)
+                            )
+
                             // GCP-Style Company Switcher Dropdown, for platform superadmins
                             // only: the server authorises acting on another tenant purely by
                             // role, so offering it to a tenant-bound account would just
@@ -235,70 +325,14 @@ fun App() {
                                 )
                             }
 
-                            // User Profile Capsule
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .clayFlat(
-                                        shape = ClayShapes.Chip,
-                                        background = WeMadeColors.SurfaceMuted,
-                                        outline = WeMadeColors.Border
-                                    )
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                val initial = session.user.username.value.take(2).uppercase()
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(CircleShape)
-                                        .background(WeMadeColors.Primary),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = initial,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-
-                                Column {
-                                    Text(
-                                        text = session.user.username.value,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WeMadeColors.OnSurface
-                                    )
-                                    Text(
-                                        text = session.user.role.name,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = WeMadeColors.Primary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            // Distinct Logout Button
-                            ClayActionSurface(
-                                onClick = {
+                            // User Profile Dropdown (info akun & aksi logout)
+                            ProfileDropdown(
+                                session = session,
+                                onLogout = {
                                     authViewModel.onEvent(LoginUiEvent.Logout)
                                     navigateTo(AppNavScreen.LOGIN)
-                                },
-                                containerColor = WeMadeColors.ErrorBg,
-                                outlineColor = WeMadeColors.Error,
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
-                            ) {
-                                LogoutIcon(modifier = Modifier.size(13.dp), color = WeMadeColors.Error)
-                                Text(
-                                    text = "Logout",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = WeMadeColors.Error
-                                )
-                            }
+                                }
+                            )
                         }
                         }
                     }
@@ -348,6 +382,41 @@ fun App() {
                                 )
                             }
                         }
+                        // Sembilan modul operasional berbagi satu layar kerja. Gerbangnya ganda:
+                        // sesi dulu (AuthGuardCard), baru wewenang (AccessDeniedCard di dalam
+                        // ModuleWorkspaceScreen) — belum login dan tidak berwenang adalah dua
+                        // keadaan berbeda dan pantas memberi pesan yang berbeda.
+                        AppNavScreen.CRM_SALES,
+                        AppNavScreen.SAMPLING_ORDER,
+                        AppNavScreen.INVENTORY,
+                        AppNavScreen.TECH_PACK_BOM,
+                        AppNavScreen.COSTING_HPP,
+                        AppNavScreen.PRODUCTION_MRP,
+                        AppNavScreen.OPERATOR_EXEC,
+                        AppNavScreen.QUALITY_CONTROL,
+                        AppNavScreen.FULFILLMENT -> {
+                            val module = screen.businessModule
+                            if (isAuthenticated && module != null) {
+                                ModuleWorkspaceScreen(
+                                    module = module,
+                                    decision = accessDecisions[module] ?: AccessDecision(
+                                        config = ModuleAccessConfig(),
+                                        source = AccessSource.NONE,
+                                        fromRole = ModuleAccessConfig(),
+                                        fromDepartment = ModuleAccessConfig()
+                                    ),
+                                    persona = activePersona
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
                         AppNavScreen.LOGIN -> {
                             LoginScreen(
                                 viewModel = authViewModel,
@@ -370,27 +439,18 @@ fun App() {
                 title = "WeMade ERP",
                 subtitle = "Multi-Tenant Garment Platform",
                 sectionLabel = "MODUL PABRIK",
-                items = navItems
-            ) {
-                if (isAuthenticated) {
-                    ClayButton(
-                        text = "Logout",
-                        onClick = {
-                            authViewModel.onEvent(LoginUiEvent.Logout)
-                            openScreen(AppNavScreen.LOGIN)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        style = ClayButtonStyle.Danger
-                    )
-                } else {
-                    ClayButton(
-                        text = "Login Akun",
-                        onClick = { openScreen(AppNavScreen.LOGIN) },
-                        modifier = Modifier.fillMaxWidth(),
-                        style = ClayButtonStyle.Primary
-                    )
-                }
-            }
+                items = navItems,
+                footer = if (!isAuthenticated) {
+                    {
+                        ClayButton(
+                            text = "Login Akun",
+                            onClick = { openScreen(AppNavScreen.LOGIN) },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = ClayButtonStyle.Primary
+                        )
+                    }
+                } else null
+            )
         }
     }
 }
@@ -506,43 +566,5 @@ private fun LockIcon(modifier: Modifier = Modifier, color: Color = WeMadeColors.
             size = Size(w * 0.60f, h * 0.46f),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.08f, w * 0.08f)
         )
-    }
-}
-
-/**
- * Crisp vector render of a Logout / Exit Door Icon
- */
-@Composable
-private fun LogoutIcon(modifier: Modifier = Modifier, color: Color = WeMadeColors.Error) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.6f * density
-
-        // Door frame: top, left, bottom
-        val door = Path().apply {
-            moveTo(w * 0.55f, h * 0.15f)
-            lineTo(w * 0.2f, h * 0.15f)
-            lineTo(w * 0.2f, h * 0.85f)
-            lineTo(w * 0.55f, h * 0.85f)
-        }
-        drawPath(door, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
-
-        // Exit arrow line
-        drawLine(
-            color = color,
-            start = Offset(w * 0.42f, h * 0.5f),
-            end = Offset(w * 0.88f, h * 0.5f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-
-        // Arrow head
-        val arrow = Path().apply {
-            moveTo(w * 0.72f, h * 0.34f)
-            lineTo(w * 0.88f, h * 0.5f)
-            lineTo(w * 0.72f, h * 0.66f)
-        }
-        drawPath(arrow, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }

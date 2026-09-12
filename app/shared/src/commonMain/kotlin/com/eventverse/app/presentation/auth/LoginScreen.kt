@@ -28,6 +28,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -152,6 +158,14 @@ fun LoginScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            PersonaLoginSection(
+                tenantSlug = state.tenantSlug.ifBlank { "wemade-demo" },
+                enabled = !state.isLoading,
+                onSelectPersona = { viewModel.onEvent(LoginUiEvent.SubmitPersonaLogin(it)) }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -740,5 +754,58 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
             size = Size(radius * 2, radius * 2),
             style = Stroke(width = stroke)
         )
+    }
+}
+
+/**
+ * Pintu masuk cepat sebagai persona pengujian.
+ *
+ * Ditaruh di layar login, bukan hanya di switcher top bar, karena pertanyaan yang paling sering
+ * diuji adalah "apa yang dilihat orang ini **begitu masuk**" — termasuk layar mana yang menyambutnya.
+ * Masuk sebagai admin lebih dulu lalu berpindah persona menjawab pertanyaan yang berbeda.
+ */
+@Composable
+private fun PersonaLoginSection(
+    tenantSlug: String,
+    enabled: Boolean,
+    onSelectPersona: (TestingPersona) -> Unit
+) {
+    val tenantId = remember(tenantSlug) {
+        if (tenantSlug == "wemade-demo") TenantId("ten-demo-001") else TenantId("ten-$tenantSlug")
+    }
+    val personas = remember(tenantId, tenantSlug) {
+        TestingPersona.factoryPresets(tenantId, tenantSlug)
+    }
+
+    ClayCard(modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp)) {
+        Text(
+            text = "🧪 Masuk sebagai Persona Pengujian (RBAC)",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.OnSurface
+        )
+        Text(
+            text = "Menerbitkan sesi nyata dari server untuk karyawan terpilih, " +
+                "lalu menyesuaikan menu dan wewenangnya.",
+            modifier = Modifier.padding(top = ClaySpacing.Xs),
+            fontSize = 11.sp,
+            color = WeMadeColors.OnSurfaceMuted
+        )
+
+        Column(
+            modifier = Modifier.padding(top = ClaySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+        ) {
+            personas.forEach { persona ->
+                ClayButton(
+                    text = "${persona.name} — ${persona.roleTitle}",
+                    onClick = { onSelectPersona(persona) },
+                    enabled = enabled,
+                    style = ClayButtonStyle.Secondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
 }

@@ -40,6 +40,7 @@ class PostgresRoleRepository : RoleRepository {
                     it[isSystemDefault] = role.isSystemDefault
                     it[modulePermissions] = permissionsJson
                     it[userCount] = role.userCount
+                    it[departmentId] = role.departmentId
                 }
             } else {
                 CustomRolesTable.insert {
@@ -50,6 +51,7 @@ class PostgresRoleRepository : RoleRepository {
                     it[isSystemDefault] = role.isSystemDefault
                     it[modulePermissions] = permissionsJson
                     it[userCount] = role.userCount
+                    it[departmentId] = role.departmentId
                 }
             }
             role
@@ -84,6 +86,7 @@ class PostgresRoleRepository : RoleRepository {
         description = row[CustomRolesTable.description],
         isSystemDefault = row[CustomRolesTable.isSystemDefault],
         modulePermissions = ModulePermissionsSerializer.fromJson(row[CustomRolesTable.modulePermissions]),
-        userCount = row[CustomRolesTable.userCount]
+        userCount = row[CustomRolesTable.userCount],
+        departmentId = row[CustomRolesTable.departmentId]
     )
 }

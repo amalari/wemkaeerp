@@ -72,12 +72,15 @@ class RbacApiClient(
         tenantSlug: String,
         name: String,
         description: String,
-        modulePermissions: Map<BusinessModule, ModuleAccessConfig>
+        modulePermissions: Map<BusinessModule, ModuleAccessConfig>,
+        departmentId: String? = null
     ): Result<CustomRole> = runCatching {
         val escapedName = OrgChartApiClient.escapeJson(name)
         val escapedDesc = OrgChartApiClient.escapeJson(description)
         val permJson = serializePermissions(modulePermissions)
-        val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\",\"modulePermissions\":$permJson}"
+        val deptJson = departmentId?.let { "\"${OrgChartApiClient.escapeJson(it)}\"" } ?: "null"
+        val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\"," +
+            "\"departmentId\":$deptJson,\"modulePermissions\":$permJson}"
 
         val response = httpClient.post(resolveUrl("/api/tenant/roles")) {
             tenantRequest(tenantSlug, tokenProvider)
@@ -100,7 +103,9 @@ class RbacApiClient(
         val escapedName = OrgChartApiClient.escapeJson(role.name)
         val escapedDesc = OrgChartApiClient.escapeJson(role.description)
         val permJson = serializePermissions(role.modulePermissions)
-        val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\",\"modulePermissions\":$permJson}"
+        val deptJson = role.departmentId?.let { "\"${OrgChartApiClient.escapeJson(it)}\"" } ?: "\"\""
+        val jsonBody = "{\"name\":\"$escapedName\",\"description\":\"$escapedDesc\"," +
+            "\"departmentId\":$deptJson,\"modulePermissions\":$permJson}"
 
         val response = httpClient.put(resolveUrl("/api/tenant/roles/${role.id.value}")) {
             tenantRequest(tenantSlug, tokenProvider)
@@ -125,6 +130,60 @@ class RbacApiClient(
         }
     }
 
+    /**
+     * GET /api/tenant/module-assignments
+     *
+     * Penugasan modul ke divisi — sumbu wewenang kedua di samping jabatan.
+     */
+    suspend fun getModuleAssignments(
+        tenantSlug: String
+    ): Result<Map<BusinessModule, List<DepartmentModuleAssignment>>> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/tenant/module-assignments")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal memuat penugasan modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        parseAssignments(response.bodyAsText())
+    }
+
+    /**
+     * PUT /api/tenant/module-assignments
+     */
+    suspend fun upsertModuleAssignment(
+        tenantSlug: String,
+        module: BusinessModule,
+        assignment: DepartmentModuleAssignment
+    ): Result<Unit> = runCatching {
+        val response = httpClient.put(resolveUrl("/api/tenant/module-assignments")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(serializeAssignment(module, assignment))
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal menyimpan penugasan modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+    }
+
+    /**
+     * DELETE /api/tenant/module-assignments/{module}/{assignmentKey}
+     */
+    suspend fun deleteModuleAssignment(
+        tenantSlug: String,
+        module: BusinessModule,
+        assignmentKey: String
+    ): Result<Unit> = runCatching {
+        val response = httpClient.delete(
+            resolveUrl("/api/tenant/module-assignments/${module.name}/$assignmentKey")
+        ) {
+            tenantRequest(tenantSlug, tokenProvider)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal menghapus penugasan modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+    }
+
     companion object {
         fun parseCustomRole(json: String): CustomRole {
             val id = OrgChartApiClient.extractString(json, "id") ?: "role-${(100..999).random()}"
@@ -144,8 +203,85 @@ class RbacApiClient(
                 description = description,
                 isSystemDefault = isSystemDefault,
                 modulePermissions = permissions,
-                userCount = userCount
+                userCount = userCount,
+                departmentId = OrgChartApiClient.extractString(json, "departmentId")?.takeIf { it.isNotBlank() }
             )
+        }
+
+        /**
+         * Membaca peta `{"MODUL": [ {...}, ... ]}` dari endpoint penugasan.
+         */
+        fun parseAssignments(json: String): Map<BusinessModule, List<DepartmentModuleAssignment>> {
+            if (json.isBlank() || json == "{}") return emptyMap()
+
+            return BusinessModule.entries.mapNotNull { module ->
+                val array = extractJsonArray(json, module.name) ?: return@mapNotNull null
+                val items = OrgChartApiClient.parseJsonArray(array).map { parseAssignment(it) }
+                if (items.isEmpty()) null else module to items
+            }.toMap()
+        }
+
+        /**
+         * Mengambil nilai array milik [key], lengkap dengan kurung sikunya.
+         *
+         * Dipindai per karakter dengan penghitung kedalaman, bukan regex: tiap penugasan memuat
+         * array `specificRoleIds` di dalamnya, dan pola non-greedy `\[(.*?)\]` akan berhenti di
+         * kurung tutup milik array bersarang itu — memotong daftar di tengah tanpa error.
+         */
+        private fun extractJsonArray(json: String, key: String): String? {
+            val keyIndex = json.indexOf("\"$key\"")
+            if (keyIndex < 0) return null
+
+            val start = json.indexOf('[', keyIndex)
+            if (start < 0) return null
+
+            var depth = 0
+            var inQuotes = false
+            var escaped = false
+
+            for (i in start until json.length) {
+                val c = json[i]
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == '"' -> inQuotes = !inQuotes
+                    inQuotes -> Unit
+                    c == '[' -> depth++
+                    c == ']' -> {
+                        depth--
+                        if (depth == 0) return json.substring(start, i + 1)
+                    }
+                }
+            }
+            return null
+        }
+
+        fun parseAssignment(json: String): DepartmentModuleAssignment = DepartmentModuleAssignment(
+            departmentId = OrgChartApiClient.extractString(json, "departmentId") ?: "",
+            departmentName = OrgChartApiClient.extractString(json, "departmentName") ?: "",
+            accessLevel = OrgChartApiClient.extractString(json, "accessLevel")
+                ?.let { runCatching { AccessLevel.valueOf(it) }.getOrNull() }
+                ?: AccessLevel.NONE,
+            scope = OrgChartApiClient.extractString(json, "scope")
+                ?.let { runCatching { DataScope.valueOf(it) }.getOrNull() }
+                ?: DataScope.ALL_TENANT_DATA,
+            specificRoleIds = "\"specificRoleIds\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex()
+                .find(json)?.groupValues?.get(1)
+                ?.let { raw -> "\"([^\"]+)\"".toRegex().findAll(raw).map { it.groupValues[1] }.toSet() }
+                ?: emptySet(),
+            id = OrgChartApiClient.extractString(json, "id") ?: ""
+        )
+
+        fun serializeAssignment(module: BusinessModule, assignment: DepartmentModuleAssignment): String {
+            val roleIds = assignment.specificRoleIds.sorted()
+                .joinToString(",") { "\"${OrgChartApiClient.escapeJson(it)}\"" }
+            return "{\"module\":\"${module.name}\"," +
+                "\"id\":\"${OrgChartApiClient.escapeJson(assignment.id)}\"," +
+                "\"departmentId\":\"${OrgChartApiClient.escapeJson(assignment.departmentId)}\"," +
+                "\"departmentName\":\"${OrgChartApiClient.escapeJson(assignment.departmentName)}\"," +
+                "\"accessLevel\":\"${assignment.accessLevel.name}\"," +
+                "\"scope\":\"${assignment.scope.name}\"," +
+                "\"specificRoleIds\":[$roleIds]}"
         }
 
         fun parsePermissions(rawJson: String?): Map<BusinessModule, ModuleAccessConfig> {

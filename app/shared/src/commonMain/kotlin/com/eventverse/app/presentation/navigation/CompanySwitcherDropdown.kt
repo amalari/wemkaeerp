@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.pipeline.components.IconBuilding
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -130,9 +131,8 @@ fun CompanySwitcherDropdown(
                 Spacer(modifier = Modifier.width(2.dp))
 
                 // Small Chevron Down
-                Text(
-                    text = "▼",
-                    fontSize = 8.sp,
+                IconChevronDown(
+                    modifier = Modifier.size(10.dp),
                     color = WeMadeColors.OnSurfaceMuted
                 )
             }

@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.auth
 
 import com.eventverse.app.domain.auth.UserSession
+import com.eventverse.app.domain.rbac.TestingPersona
 
 enum class LoginTab(val label: String, val isAvailable: Boolean = true) {
     GOOGLE("Akun Google"),
@@ -44,6 +45,14 @@ sealed interface LoginUiEvent {
     data class SubmitGoogleLogin(val idToken: String) : LoginUiEvent
     data object SubmitDemoLogin : LoginUiEvent
     data object SubmitDemoSuperAdminLogin : LoginUiEvent
+
+    /**
+     * Masuk sebagai persona pengujian.
+     *
+     * Yang dikirim adalah *permintaan* identitas, bukan identitas itu sendiri: server tetap yang
+     * memutuskan akun mana yang dipakai dan menerbitkan tokennya.
+     */
+    data class SubmitPersonaLogin(val persona: TestingPersona) : LoginUiEvent
     data object SendWhatsAppOtp : LoginUiEvent
     data object VerifyWhatsAppOtp : LoginUiEvent
     data object DismissMessage : LoginUiEvent

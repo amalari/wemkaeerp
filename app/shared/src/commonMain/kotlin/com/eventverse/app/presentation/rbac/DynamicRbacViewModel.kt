@@ -13,7 +13,8 @@ class DynamicRbacViewModel(
     private val tenantId: TenantId = TenantId("tenant-wemade-demo"),
     private val tenantSlug: String = "wemade-demo",
     private val apiClient: com.eventverse.app.infrastructure.api.RbacApiClient? = com.eventverse.app.infrastructure.api.RbacApiClient(),
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
+    private val policyRepository: RbacAccessPolicyRepository = RbacAccessPolicyRepository.shared
 ) {
     private val _uiState = MutableStateFlow(DynamicRbacUiState())
     val uiState: StateFlow<DynamicRbacUiState> = _uiState.asStateFlow()
@@ -31,6 +32,15 @@ class DynamicRbacViewModel(
         scope.launch {
             val deptsResult = client.getDepartments(tenantSlug)
             val rolesResult = client.getRoles(tenantSlug)
+
+            // Penugasan divisi kini punya tabelnya sendiri. Seed lokal di loadInitialRoles()
+            // turun pangkat jadi cadangan saat backend belum jalan.
+            client.getModuleAssignments(tenantSlug).onSuccess { remote ->
+                if (remote.isNotEmpty()) {
+                    _uiState.update { it.copy(moduleAssignments = remote) }
+                    policyRepository.syncAssignments(remote)
+                }
+            }
 
             val remoteDepts = deptsResult.getOrNull()
             val remoteRoles = rolesResult.getOrNull()
@@ -280,7 +290,8 @@ class DynamicRbacViewModel(
                     it.copy(
                         newRoleNameInput = event.name,
                         newRoleDescInput = event.desc,
-                        selectedTemplateRoleId = event.templateId
+                        selectedTemplateRoleId = event.templateId,
+                        newRoleDepartmentId = event.departmentId
                     )
                 }
             }
@@ -342,6 +353,11 @@ class DynamicRbacViewModel(
             }
 
             is DynamicRbacUiEvent.SaveDepartmentAssignment -> {
+                // Simpan ke server dan sebarkan ke repository kebijakan. Sebelumnya perubahan ini
+                // hanya menyentuh state layar: matriksnya berubah, menu navigasi tidak, dan
+                // seluruhnya hilang saat halaman dimuat ulang.
+                persistAssignment(event.module, event.assignment)
+
                 _uiState.update { state ->
                     val currentList = state.moduleAssignments[event.module] ?: emptyList()
                     val keyToRemove = event.existingAssignmentKey ?: event.assignment.assignmentKey
@@ -363,6 +379,8 @@ class DynamicRbacViewModel(
             }
 
             is DynamicRbacUiEvent.RemoveDepartmentAssignment -> {
+                removeAssignment(event.module, event.assignmentKey)
+
                 _uiState.update { state ->
                     val currentList = state.moduleAssignments[event.module] ?: emptyList()
                     val updatedList = currentList.filter { it.assignmentKey != event.assignmentKey }
@@ -378,6 +396,37 @@ class DynamicRbacViewModel(
             is DynamicRbacUiEvent.DismissToast -> {
                 _uiState.update { it.copy(successToast = null, errorToast = null) }
             }
+        }
+    }
+
+    /**
+     * Menyimpan satu penugasan divisi ke server, lalu menyebarkannya ke repository kebijakan.
+     *
+     * State layar diperbarui di pemanggil tanpa menunggu server: kegagalan jaringan tidak boleh
+     * membekukan matriks di layar. Yang dilaporkan kalau gagal adalah toast, bukan rollback —
+     * membatalkan perubahan yang baru saja diketik lebih membingungkan daripada memberitahunya.
+     */
+    private fun persistAssignment(module: BusinessModule, assignment: DepartmentModuleAssignment) {
+        scope.launch {
+            apiClient?.upsertModuleAssignment(tenantSlug, module, assignment)
+                ?.onFailure { cause ->
+                    _uiState.update {
+                        it.copy(errorToast = cause.message ?: "Gagal menyimpan penugasan ke server.")
+                    }
+                }
+            policyRepository.syncAssignments(_uiState.value.moduleAssignments)
+        }
+    }
+
+    private fun removeAssignment(module: BusinessModule, assignmentKey: String) {
+        scope.launch {
+            apiClient?.deleteModuleAssignment(tenantSlug, module, assignmentKey)
+                ?.onFailure { cause ->
+                    _uiState.update {
+                        it.copy(errorToast = cause.message ?: "Gagal mencabut penugasan di server.")
+                    }
+                }
+            policyRepository.syncAssignments(_uiState.value.moduleAssignments)
         }
     }
 
@@ -403,6 +452,8 @@ class DynamicRbacViewModel(
                     successToast = "Hak akses jabatan '${finalRole.name}' berhasil disimpan!"
                 )
             }
+            // Menu navigasi ikut berubah seketika, tanpa perlu login ulang.
+            policyRepository.syncRoles(_uiState.value.roles)
             _uiEffect.emit(DynamicRbacUiEffect.ShowToast("Hak akses jabatan '${finalRole.name}' disimpan."))
         }
     }
@@ -420,6 +471,12 @@ class DynamicRbacViewModel(
         val templateRole = _uiState.value.roles.find { it.id.value == templateId }
         val permissions = templateRole?.modulePermissions ?: emptyMap()
 
+        // Divisi yang dipilih menang; kalau tidak dipilih, warisi dari jabatan template. Template
+        // dipakai justru karena mirip dengan jabatan yang ditiru, dan divisi adalah bagian dari
+        // kemiripan itu.
+        val departmentId = _uiState.value.newRoleDepartmentId?.takeIf { it.isNotBlank() }
+            ?: templateRole?.departmentId
+
         val newId = RoleId("role-custom-${name.lowercase().replace("\\s+".toRegex(), "-")}-${(100..999).random()}")
         val initialNewRole = CustomRole(
             id = newId,
@@ -428,7 +485,8 @@ class DynamicRbacViewModel(
             description = desc.ifBlank { "Jabatan kustom operasional pabrik." },
             isSystemDefault = false,
             modulePermissions = permissions,
-            userCount = 0
+            userCount = 0,
+            departmentId = departmentId
         )
 
         scope.launch {
@@ -437,7 +495,8 @@ class DynamicRbacViewModel(
                 tenantSlug = tenantSlug,
                 name = initialNewRole.name,
                 description = initialNewRole.description,
-                modulePermissions = initialNewRole.modulePermissions
+                modulePermissions = initialNewRole.modulePermissions,
+                departmentId = initialNewRole.departmentId
             )
             val savedRole = apiResult?.getOrNull() ?: initialNewRole
 
@@ -449,9 +508,12 @@ class DynamicRbacViewModel(
                     draftRole = savedRole,
                     isDirty = false,
                     isCreateModalOpen = false,
+                    newRoleDepartmentId = null,
                     successToast = "Jabatan baru '${savedRole.name}' berhasil dibuat!"
                 )
             }
+            // Jabatan baru langsung tersedia bagi persona, tanpa memuat ulang halaman.
+            policyRepository.syncRoles(_uiState.value.roles)
         }
     }
 

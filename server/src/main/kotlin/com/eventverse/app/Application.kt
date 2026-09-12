@@ -18,7 +18,10 @@ import com.eventverse.app.infrastructure.PostgresUserRepository
 import com.eventverse.app.infrastructure.auth.GoogleAuthService
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 
+import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.infrastructure.PostgresModuleAssignmentRepository
+import com.eventverse.app.routes.moduleAssignmentRoutes
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.infrastructure.PostgresRoleRepository
@@ -72,6 +75,7 @@ fun Application.module(
     tenantRepository: TenantRepository? = null,
     userRepository: UserRepository? = null,
     roleRepository: RoleRepository? = null,
+    moduleAssignmentRepository: ModuleAssignmentRepository? = null,
     departmentRepository: DepartmentRepository? = null,
     employeeRepository: EmployeeRepository? = null,
     pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null,
@@ -94,6 +98,7 @@ fun Application.module(
     }
     val userRepo = userRepository ?: PostgresUserRepository()
     val roleRepo = roleRepository ?: PostgresRoleRepository()
+    val assignmentRepo = moduleAssignmentRepository ?: PostgresModuleAssignmentRepository()
     val deptRepo = departmentRepository ?: PostgresDepartmentRepository()
     val empRepo = employeeRepository ?: PostgresEmployeeRepository()
     val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
@@ -253,10 +258,43 @@ fun Application.module(
                     return@post
                 }
 
-                val requestedRole = params?.get("role")?.ifBlank { null }
-                    ?: call.request.queryParameters["role"]?.ifBlank { null }
+                fun field(name: String): String? = params?.get(name)?.ifBlank { null }
+                    ?: call.request.queryParameters[name]?.ifBlank { null }
+
+                val requestedRole = field("role")
                 val isSuperAdmin = requestedRole.equals("PLATFORM_SUPERADMIN", ignoreCase = true) ||
                     requestedRole.equals("superadmin", ignoreCase = true)
+
+                // Persona pengujian: nama bebas + jabatan rakitan tenant + divisi. Dikenali dari
+                // adanya `username`, karena login demo lama tidak pernah mengirimkannya.
+                val personaName = field("username")
+                if (!isSuperAdmin && personaName != null) {
+                    val personaResult = resolvePersonaUser(
+                        userRepo = userRepo,
+                        roleRepo = roleRepo,
+                        tenantId = tenant.id,
+                        personaName = personaName,
+                        tenantSlug = tenantSlug,
+                        requestedRoleId = requestedRole,
+                        departmentId = field("departmentId")
+                    )
+
+                    personaResult
+                        .onSuccess { personaUser ->
+                            val personaToken = jwtTokenService.generateToken(personaUser, tenantSlug)
+                            call.respondText(
+                                authSessionJson(personaUser, personaToken.value, tenantSlug),
+                                contentType = ContentType.Application.Json
+                            )
+                        }
+                        .onFailure {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                it.message ?: "Gagal menyiapkan persona pengujian"
+                            )
+                        }
+                    return@post
+                }
 
                 // Query real user from DB for this tenant or create fallback
                 val user = if (isSuperAdmin) {
@@ -292,11 +330,11 @@ fun Application.module(
                 }
 
                 val sessionToken = jwtTokenService.generateToken(user, tenantSlug)
-                val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
 
-                val responseJson = "{\"token\":\"${sessionToken.value}\",\"user\":{\"id\":\"${user.id.value}\",\"tenantId\":\"${user.tenantId?.value ?: ""}\",\"username\":\"${user.username.value}\",\"email\":\"${user.email.value}\",\"role\":\"${user.role.name}\",\"permissions\":[$permissionsJson]},\"tenantSlug\":\"$tenantSlug\"}"
-
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                call.respondText(
+                    authSessionJson(user, sessionToken.value, tenantSlug),
+                    contentType = ContentType.Application.Json
+                )
             }
 
             get("/me") {
@@ -318,8 +356,13 @@ fun Application.module(
                 val tenantSlug = jwt.getClaim("tenant_slug").asString() ?: "wemade-demo"
                 val username = jwt.getClaim("username").asString() ?: ""
                 val email = jwt.getClaim("email").asString() ?: ""
-                val roleName = jwt.getClaim("role").asString() ?: Role.TENANT_ADMIN.name
-                val role = runCatching { Role.valueOf(roleName) }.getOrDefault(Role.TENANT_ADMIN)
+                val roleName = jwt.getClaim("role").asString()
+                // Role tak dikenal dulu jatuh ke TENANT_ADMIN. Artinya identitas yang tidak dapat
+                // dibaca justru diberi wewenang paling luas — persis kebalikan dari yang aman.
+                // Sekarang jatuh ke STAFF, wewenang tersempit yang masih bisa login.
+                val role = roleName
+                    ?.let { name -> runCatching { Role.valueOf(name) }.getOrNull() }
+                    ?: Role.OPERATOR
                 val tenantIdStr = jwt.getClaim("tenant_id").asString()
 
                 val user = userRepo.findById(UserId(userId)) ?: User(
@@ -328,13 +371,17 @@ fun Application.module(
                     username = Username(username),
                     email = EmailAddress(email),
                     role = role,
-                    isActive = true
+                    isActive = true,
+                    // Baca ulang identitas tenant dari token, bukan diturunkan kembali. Inilah yang
+                    // membuat persona bertahan setelah halaman di-reload.
+                    departmentId = jwt.getClaim("department_id").asString(),
+                    customRoleId = jwt.getClaim("custom_role_id").asString()
                 )
 
-                val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
-                val responseJson = "{\"token\":\"$token\",\"user\":{\"id\":\"${user.id.value}\",\"tenantId\":\"${user.tenantId?.value ?: ""}\",\"username\":\"${user.username.value}\",\"email\":\"${user.email.value}\",\"role\":\"${user.role.name}\",\"permissions\":[$permissionsJson]},\"tenantSlug\":\"$tenantSlug\"}"
-
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                call.respondText(
+                    authSessionJson(user, token, tenantSlug),
+                    contentType = ContentType.Application.Json
+                )
             }
         }
 
@@ -354,6 +401,7 @@ fun Application.module(
         }
 
         rbacRoutes(roleRepo)
+        moduleAssignmentRoutes(assignmentRepo)
         departmentRoutes(deptRepo, empRepo)
         employeeRoutes(empRepo, deptRepo)
         pipelineRoutes(pipeRepo, entitlementRepo)
@@ -385,5 +433,102 @@ fun Application.module(
             ),
             defaultMarginPercent = defaultMargin
         )
+    }
+}
+/**
+ * Bentuk JSON sesi terotentikasi yang dipakai seluruh endpoint auth publik.
+ *
+ * Diangkat jadi satu fungsi karena tiga endpoint (`/demo`, `/google`, `/me`) sebelumnya merakit
+ * string yang sama secara terpisah, dan penambahan field identitas tenant harus muncul di
+ * ketiganya sekaligus — kalau tidak, client melihat persona hanya di sebagian jalur masuk.
+ */
+private fun authSessionJson(user: User, token: String, tenantSlug: String): String {
+    val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
+    fun nullableJson(value: String?): String = if (value == null) "null" else "\"$value\""
+
+    return "{\"token\":\"$token\",\"user\":{" +
+        "\"id\":\"${user.id.value}\"," +
+        "\"tenantId\":\"${user.tenantId?.value ?: ""}\"," +
+        "\"username\":\"${user.username.value}\"," +
+        "\"email\":\"${user.email.value}\"," +
+        "\"role\":\"${user.role.name}\"," +
+        "\"departmentId\":${nullableJson(user.departmentId)}," +
+        "\"customRoleId\":${nullableJson(user.customRoleId)}," +
+        "\"permissions\":[$permissionsJson]}," +
+        "\"tenantSlug\":\"$tenantSlug\"}"
+}
+
+/**
+ * Menemukan atau membuat akun untuk sebuah persona pengujian.
+ *
+ * Tiga hal yang membuat fungsi ini tidak sesederhana "insert user":
+ *
+ *  1. **Idempoten.** `users.email` UNIQUE dan `uq_tenant_username` UNIQUE. Login persona yang sama
+ *     dua kali harus menemukan baris yang sama, bukan menabrak constraint. Karena itu email dan id
+ *     diturunkan secara deterministik dari nama persona, bukan diacak.
+ *  2. **Dua sumbu identitas.** `Role` platform menentukan izin tingkat sistem; `custom_role_id`
+ *     menentukan isi layar. Jabatan tenant dipetakan ke `Role` yang paling mendekati agar izin
+ *     sistem tidak melebar, sementara id jabatan aslinya disimpan apa adanya.
+ *  3. **Jabatan harus nyata.** Id jabatan yang tidak ada di tenant ini ditolak, bukan diabaikan
+ *     diam-diam — persona dengan jabatan hantu akan tampak "tidak punya akses apa pun" dan
+ *     dilaporkan sebagai kerusakan.
+ */
+private suspend fun resolvePersonaUser(
+    userRepo: UserRepository,
+    roleRepo: RoleRepository,
+    tenantId: TenantId,
+    personaName: String,
+    tenantSlug: String,
+    requestedRoleId: String?,
+    departmentId: String?
+): Result<User> = runCatching {
+    val trimmedName = personaName.trim()
+    require(trimmedName.isNotBlank()) { "Nama persona tidak boleh kosong" }
+
+    val slug = trimmedName.lowercase()
+        .replace("[^a-z0-9]+".toRegex(), "-")
+        .trim('-')
+        .ifBlank { "anon" }
+
+    val customRole = requestedRoleId
+        ?.takeIf { it.isNotBlank() }
+        ?.let { roleId ->
+            roleRepo.findById(tenantId, com.eventverse.app.domain.rbac.RoleId(roleId))
+                ?: error("Jabatan '$roleId' tidak ditemukan pada tenant ini")
+        }
+
+    val email = EmailAddress("persona-$tenantSlug-$slug@testing.local")
+    val existing = userRepo.findByEmail(email)
+
+    val persona = User(
+        id = existing?.id ?: UserId("usr-persona-$slug".take(64)),
+        tenantId = tenantId,
+        username = Username("persona_${slug.replace('-', '_')}".take(50)),
+        email = email,
+        role = platformRoleFor(customRole?.name, requestedRoleId),
+        isActive = true,
+        departmentId = departmentId?.takeIf { it.isNotBlank() } ?: customRole?.departmentId,
+        customRoleId = customRole?.id?.value
+    )
+
+    userRepo.save(persona).getOrThrow()
+}
+
+/**
+ * Memetakan jabatan rakitan tenant ke [Role] platform yang paling mendekati.
+ *
+ * Default-nya sengaja [Role.OPERATOR] — wewenang tersempit. Jabatan yang tidak dikenali sebaiknya
+ * membuat persona melihat terlalu sedikit, bukan terlalu banyak: yang pertama dilaporkan penguji,
+ * yang kedua lolos tanpa disadari.
+ */
+private fun platformRoleFor(roleName: String?, roleId: String?): Role {
+    val haystack = "${roleName.orEmpty()} ${roleId.orEmpty()}".lowercase()
+    return when {
+        haystack.contains("owner") || haystack.contains("direktur") -> Role.TENANT_ADMIN
+        haystack.contains("sales") || haystack.contains("penjualan") -> Role.SALES
+        haystack.contains("ppic") || haystack.contains("produksi") -> Role.PPIC_SUPERVISOR
+        haystack.contains("qc") || haystack.contains("quality") -> Role.QC_INSPECTOR
+        haystack.contains("gudang") || haystack.contains("warehouse") || haystack.contains("logistik") -> Role.WAREHOUSE
+        else -> Role.OPERATOR
     }
 }

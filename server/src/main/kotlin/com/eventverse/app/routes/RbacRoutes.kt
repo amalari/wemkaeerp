@@ -70,7 +70,8 @@ fun Route.rbacRoutes(roleRepository: RoleRepository) {
                 val params = call.receiveParameters()
                 CreateRoleRequestDto(
                     name = params["name"] ?: "",
-                    description = params["description"] ?: ""
+                    description = params["description"] ?: "",
+                    departmentId = params["departmentId"]?.takeIf { it.isNotBlank() }
                 )
             }
 
@@ -79,7 +80,8 @@ fun Route.rbacRoutes(roleRepository: RoleRepository) {
                     tenantId = tenant.tenantId,
                     name = req.name,
                     description = req.description,
-                    modulePermissions = req.modulePermissions
+                    modulePermissions = req.modulePermissions,
+                    departmentId = req.departmentId
                 )
             )
 
@@ -117,7 +119,8 @@ fun Route.rbacRoutes(roleRepository: RoleRepository) {
                     roleId = roleId,
                     name = req.name,
                     description = req.description,
-                    modulePermissions = req.modulePermissions
+                    modulePermissions = req.modulePermissions,
+                    departmentId = req.departmentId
                 )
             )
 

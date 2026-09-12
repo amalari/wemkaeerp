@@ -12,6 +12,9 @@ object CustomRolesTable : Table("custom_roles") {
     val modulePermissions = jsonbText("module_permissions").default("{}")
     val userCount = integer("user_count").default(0)
 
+    /** Divisi pemilik jabatan ini. Dibutuhkan mesin keputusan akses untuk menyatukan hak role dan divisi. */
+    val departmentId = varchar("department_id", 64).references(DepartmentsTable.id).nullable()
+
     override val primaryKey = PrimaryKey(id)
 
     init {

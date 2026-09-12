@@ -49,7 +49,13 @@ data class ClayNavItem(
     val label: String,
     val selected: Boolean,
     val onClick: () -> Unit,
-    val icon: @Composable (tint: Color) -> Unit
+    val icon: @Composable (tint: Color) -> Unit,
+    /** Teks pendek di sisi kanan baris, mis. status wewenang. Null = tanpa badge. */
+    val badge: String? = null,
+    /** Warna badge; null memakai warna netral. Tetap `Color`, bukan tipe domain — Kontrak 6. */
+    val badgeTint: Color? = null,
+    /** False membuat baris teredam dan tidak dapat diklik. */
+    val enabled: Boolean = true
 )
 
 /** Lebar panel drawer. Sepadan dengan panel produk Google Cloud Console. */
@@ -79,7 +85,7 @@ fun ClayNavDrawer(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     sectionLabel: String? = null,
-    footer: @Composable ColumnScope.() -> Unit = {}
+    footer: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     val scrimInteraction = remember { MutableInteractionSource() }
 
@@ -152,9 +158,11 @@ fun ClayNavDrawer(
                     }
                 }
 
-                DrawerDivider()
-                Spacer(modifier = Modifier.height(ClaySpacing.Lg))
-                footer()
+                if (footer != null) {
+                    DrawerDivider()
+                    Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+                    footer()
+                }
             }
         }
     }
@@ -212,7 +220,7 @@ private fun DrawerDivider() {
 private fun DrawerRow(item: ClayNavItem) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val highlighted = item.selected || isPressed
+    val highlighted = item.enabled && (item.selected || isPressed)
 
     Row(
         modifier = Modifier
@@ -226,22 +234,47 @@ private fun DrawerRow(item: ClayNavItem) {
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                enabled = item.enabled,
                 onClick = item.onClick
             )
             .padding(horizontal = ClaySpacing.Lg, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val tint = if (item.selected) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
-        Box(modifier = Modifier.size(20.dp)) { item.icon(tint) }
-        Text(
-            text = item.label,
+        // Label boleh mengecil, badge tidak. Tanpa weight(fill = false) di sisi kiri, label panjang
+        // mengambil hampir seluruh lebar dan badge pecah satu huruf per baris — Kontrak 13.
+        Row(
             modifier = Modifier.weight(1f, fill = false),
-            fontSize = 13.sp,
-            fontWeight = if (item.selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (item.selected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val tint = when {
+                !item.enabled -> WeMadeColors.OnSurfaceDisabled
+                item.selected -> WeMadeColors.Primary
+                else -> WeMadeColors.OnSurfaceMuted
+            }
+            Box(modifier = Modifier.size(20.dp)) { item.icon(tint) }
+            Text(
+                text = item.label,
+                modifier = Modifier.weight(1f, fill = false),
+                fontSize = 13.sp,
+                fontWeight = if (item.selected) FontWeight.Bold else FontWeight.Medium,
+                color = when {
+                    !item.enabled -> WeMadeColors.OnSurfaceDisabled
+                    item.selected -> WeMadeColors.PrimaryDark
+                    else -> WeMadeColors.OnSurface
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        if (item.badge != null) {
+            Spacer(modifier = Modifier.width(ClaySpacing.Sm))
+            ClayTag(
+                text = item.badge,
+                tint = item.badgeTint ?: WeMadeColors.OnSurfaceMuted
+            )
+        }
     }
 }

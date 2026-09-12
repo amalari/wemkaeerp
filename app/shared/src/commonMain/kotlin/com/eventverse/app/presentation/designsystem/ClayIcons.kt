@@ -19,6 +19,38 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  */
 
 @Composable
+fun IconSearch(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val radius = w * 0.30f
+        val center = Offset(w * 0.42f, h * 0.42f)
+
+        // Magnifying glass lens
+        drawCircle(
+            color = color,
+            radius = radius,
+            center = center,
+            style = Stroke(width = stroke)
+        )
+
+        // Magnifying glass handle
+        val handleStart = Offset(
+            x = center.x + radius * 0.7071f,
+            y = center.y + radius * 0.7071f
+        )
+        drawLine(
+            color = color,
+            start = handleStart,
+            end = Offset(w * 0.88f, h * 0.88f),
+            strokeWidth = stroke * 1.2f,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
 fun IconEdit(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
     Canvas(modifier = modifier) {
         val w = size.width

@@ -43,6 +43,12 @@ object WeMadeColors {
     /** Permukaan netral satu tingkat di bawah [Surface] — chip, segmented control, well. */
     val SurfaceMuted = Color(0xFFF1F5F9)    // Slate-100
 
+    /**
+     * Teks dan ikon yang sengaja tidak dapat ditindaklanjuti — menu terkunci, tombol di luar
+     * wewenang. Lebih redup dari [OnSurfaceMuted], yang masih berarti "terbaca, sekadar sekunder".
+     */
+    val OnSurfaceDisabled = Color(0xFF94A3B8) // Slate-400
+
     /** Aliran data otomatis / mesin-ke-mesin (berbeda dari [Primary] yang berarti aksi user). */
     val Info = Color(0xFF0284C7)            // Sky-600
     val InfoDark = Color(0xFF0369A1)        // Sky-700

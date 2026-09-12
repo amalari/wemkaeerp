@@ -2,7 +2,7 @@ package com.eventverse.app.domain.rbac
 
 import com.eventverse.app.domain.rbac.usecases.*
 import com.eventverse.app.domain.tenant.TenantId
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class FakeRoleRepository : RoleRepository {
@@ -59,7 +59,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun createRole_withValidData_shouldSucceed() = runBlocking {
+    fun createRole_withValidData_shouldSucceed() = runTest {
         val cmd = CreateRoleCommand(
             tenantId = tenantId,
             name = "Mandor Bordir Komputer",
@@ -78,7 +78,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun createRole_withBlankName_shouldFail() = runBlocking {
+    fun createRole_withBlankName_shouldFail() = runTest {
         val cmd = CreateRoleCommand(
             tenantId = tenantId,
             name = "   "
@@ -88,7 +88,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun updateRole_metadataAndPermissions_shouldUpdate() = runBlocking {
+    fun updateRole_metadataAndPermissions_shouldUpdate() = runTest {
         val created = createRoleUseCase(CreateRoleCommand(tenantId, "Koordinator Packing")).getOrThrow()
 
         val updateResult = updateRoleUseCase(
@@ -111,7 +111,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun deleteRole_systemDefaultRole_shouldFail() = runBlocking {
+    fun deleteRole_systemDefaultRole_shouldFail() = runTest {
         restoreDefaultRolesUseCase(tenantId)
         val ownerRole = repo.findAllByTenant(tenantId).find { it.isSystemDefault }
         assertNotNull(ownerRole)
@@ -122,7 +122,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun deleteRole_customRoleWithAssignedUsers_shouldFail() = runBlocking {
+    fun deleteRole_customRoleWithAssignedUsers_shouldFail() = runTest {
         val created = createRoleUseCase(CreateRoleCommand(tenantId, "Staf Magang")).getOrThrow()
         repo.userCountMap["${tenantId.value}:${created.id.value}"] = 3
 
@@ -132,7 +132,7 @@ class RoleUseCaseTest {
     }
 
     @Test
-    fun deleteRole_customRoleWithoutUsers_shouldSucceed() = runBlocking {
+    fun deleteRole_customRoleWithoutUsers_shouldSucceed() = runTest {
         val created = createRoleUseCase(CreateRoleCommand(tenantId, "Staf Magang")).getOrThrow()
         val result = deleteRoleUseCase(tenantId, created.id)
         assertTrue(result.isSuccess)

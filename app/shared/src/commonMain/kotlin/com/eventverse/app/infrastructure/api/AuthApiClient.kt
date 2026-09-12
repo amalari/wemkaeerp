@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.domain.auth.*
+import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.tenant.TenantId
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -35,6 +36,36 @@ class AuthApiClient(
         }
         val text = response.bodyAsText()
         parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
+    }
+
+    /**
+     * POST /api/public/auth/demo — masuk sebagai persona pengujian.
+     *
+     * Dikirim sebagai form body, bukan query string seperti [loginDemo]: nama persona diketik
+     * bebas oleh penguji dan lazim mengandung spasi serta huruf beraksen.
+     *
+     * Server yang memutuskan identitasnya — mencari atau membuat akun, lalu menerbitkan JWT
+     * bertanda tangan. Client tidak pernah merakit sesi sendiri, supaya wewenang yang tampil di
+     * layar selalu berasal dari sumber yang sama dengan wewenang yang ditegakkan server.
+     */
+    suspend fun loginPersona(persona: TestingPersona): Result<UserSession> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/public/auth/demo")) {
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(
+                buildList {
+                    add("tenantSlug" to persona.tenantSlug)
+                    add("username" to persona.name)
+                    persona.roleId?.let { add("role" to it.value) }
+                    persona.departmentId?.let { add("departmentId" to it) }
+                }.formUrlEncode()
+            )
+        }
+        if (!response.status.isSuccess()) {
+            error("Login persona gagal (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        val text = response.bodyAsText()
+        parseUserSession(text) ?: error("Gagal mem-parsing sesi persona dari server: $text")
     }
 
     /**
@@ -102,7 +133,10 @@ class AuthApiClient(
             val escapedEmail = escapeJson(user.email.value)
             val roleName = user.role.name
 
-            return "{\"token\":\"$escapedToken\",\"tenantSlug\":\"$escapedSlug\",\"user\":{\"id\":\"$escapedUserId\",\"tenantId\":\"$escapedTenantId\",\"username\":\"$escapedUsername\",\"email\":\"$escapedEmail\",\"role\":\"$roleName\"}}"
+            val departmentJson = user.departmentId?.let { "\"${escapeJson(it)}\"" } ?: "null"
+            val customRoleJson = user.customRoleId?.let { "\"${escapeJson(it)}\"" } ?: "null"
+
+            return "{\"token\":\"$escapedToken\",\"tenantSlug\":\"$escapedSlug\",\"user\":{\"id\":\"$escapedUserId\",\"tenantId\":\"$escapedTenantId\",\"username\":\"$escapedUsername\",\"email\":\"$escapedEmail\",\"role\":\"$roleName\",\"departmentId\":$departmentJson,\"customRoleId\":$customRoleJson}}"
         }
 
         fun deserializeSession(json: String?): UserSession? {
@@ -129,7 +163,9 @@ class AuthApiClient(
                     username = Username(usernameStr),
                     email = EmailAddress(emailStr),
                     role = role,
-                    isActive = true
+                    isActive = true,
+                    departmentId = extractString(userJson, "departmentId")?.takeIf { it.isNotBlank() },
+                    customRoleId = extractString(userJson, "customRoleId")?.takeIf { it.isNotBlank() }
                 )
 
                 return UserSession(

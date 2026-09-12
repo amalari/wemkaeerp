@@ -12,7 +12,22 @@ data class User(
     val email: EmailAddress,
     val role: Role,
     val customPermissions: Set<Permission> = emptySet(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    /**
+     * Divisi tempat pengguna bekerja, sebagaimana dikonfigurasi tenant.
+     *
+     * Disimpan sebagai id mentah, bukan `DepartmentId`, supaya lapisan autentikasi tidak
+     * menarik ketergantungan ke agregat Org Chart. Null untuk pengguna platform.
+     */
+    val departmentId: String? = null,
+    /**
+     * Jabatan rakitan tenant (`custom_roles.id`).
+     *
+     * [role] di atas adalah enum tetap milik platform — ia menjawab "boleh menyentuh apa di
+     * tingkat sistem". Kolom ini menjawab "melihat modul apa di layar", dan hanya tenant yang
+     * menentukannya. Keduanya hidup berdampingan; tidak satu pun menggantikan yang lain.
+     */
+    val customRoleId: String? = null
 ) {
     init {
         if (role != Role.PLATFORM_SUPERADMIN) {

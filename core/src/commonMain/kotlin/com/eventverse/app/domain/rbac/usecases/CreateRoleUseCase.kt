@@ -7,7 +7,15 @@ data class CreateRoleCommand(
     val tenantId: TenantId,
     val name: String,
     val description: String = "",
-    val modulePermissions: Map<BusinessModule, ModuleAccessConfig> = emptyMap()
+    val modulePermissions: Map<BusinessModule, ModuleAccessConfig> = emptyMap(),
+    /**
+     * Divisi pemilik jabatan ini. Null berarti jabatan lintas divisi (mis. direksi).
+     *
+     * Tanpa ini, jabatan yang baru dibuat admin selamanya tak punya divisi — dan jalur wewenang
+     * lewat divisi tidak akan pernah berlaku baginya, meski admin sudah mengatur penugasan
+     * divisinya. Gejalanya membingungkan: jabatan lama bekerja, jabatan baru tidak.
+     */
+    val departmentId: String? = null
 )
 
 class CreateRoleUseCase(
@@ -32,7 +40,8 @@ class CreateRoleUseCase(
             description = command.description.trim(),
             isSystemDefault = false,
             modulePermissions = command.modulePermissions,
-            userCount = 0
+            userCount = 0,
+            departmentId = command.departmentId?.takeIf { it.isNotBlank() }
         )
 
         roleRepository.save(role).getOrThrow()

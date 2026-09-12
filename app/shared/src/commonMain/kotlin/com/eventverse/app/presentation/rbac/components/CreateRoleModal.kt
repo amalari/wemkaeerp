@@ -12,6 +12,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -23,7 +24,9 @@ fun CreateRoleModal(
     descInput: String,
     selectedTemplateId: String?,
     roles: List<CustomRole>,
-    onInputsChanged: (String, String, String?) -> Unit,
+    departments: List<Department>,
+    selectedDepartmentId: String?,
+    onInputsChanged: (String, String, String?, String?) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -61,7 +64,7 @@ fun CreateRoleModal(
             // Input: Role Name
             ClayTextField(
                 value = nameInput,
-                onValueChange = { onInputsChanged(it, descInput, selectedTemplateId) },
+                onValueChange = { onInputsChanged(it, descInput, selectedTemplateId, selectedDepartmentId) },
                 label = "Nama Jabatan (contoh: Mandor Sablon)",
                 placeholder = "Masukkan nama jabatan...",
                 leadingIcon = { IconUser(modifier = Modifier.size(16.dp), color = WeMadeColors.Primary) },
@@ -74,12 +77,60 @@ fun CreateRoleModal(
             // Input: Role Description
             ClayTextField(
                 value = descInput,
-                onValueChange = { onInputsChanged(nameInput, it, selectedTemplateId) },
+                onValueChange = { onInputsChanged(nameInput, it, selectedTemplateId, selectedDepartmentId) },
                 label = "Deskripsi Tugas / Tanggung Jawab",
                 placeholder = "Jelaskan wewenang dan tanggung jawab jabatan...",
                 singleLine = false,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+
+            // Pemilih Divisi
+            //
+            // Ditaruh sebelum template karena inilah yang menentukan apakah jabatan baru ikut
+            // menerima wewenang yang diatur per divisi. Jabatan tanpa divisi tetap sah (mis.
+            // direksi), tapi itu harus jadi pilihan sadar, bukan akibat field yang tak pernah ada.
+            Text(
+                text = "Divisi Pemilik Jabatan:",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface
+            )
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                ClayButton(
+                    text = "Lintas Divisi",
+                    onClick = { onInputsChanged(nameInput, descInput, selectedTemplateId, null) },
+                    style = if (selectedDepartmentId == null) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+                    fontSize = 11.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                departments.forEach { department ->
+                    val isPicked = department.id.value == selectedDepartmentId
+                    ClayButton(
+                        text = department.displayName,
+                        onClick = {
+                            onInputsChanged(
+                                nameInput,
+                                descInput,
+                                selectedTemplateId,
+                                if (isPicked) null else department.id.value
+                            )
+                        },
+                        style = if (isPicked) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+                        fontSize = 11.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
@@ -107,7 +158,7 @@ fun CreateRoleModal(
                             )
                             .clickable {
                                 val nextId = if (isSelected) null else template.id.value
-                                onInputsChanged(nameInput, descInput, nextId)
+                                onInputsChanged(nameInput, descInput, nextId, selectedDepartmentId)
                             }
                             .padding(ClaySpacing.Md)
                     ) {
