@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,6 +59,17 @@ data class ClayNavItem(
     val enabled: Boolean = true
 )
 
+/**
+ * Sekelompok [ClayNavItem] di bawah satu section header.
+ *
+ * Netral terhadap domain: [title] sudah berupa teks jadi, bukan enum kategori — design system tidak
+ * boleh tahu apa itu `ModuleCategory` (Kontrak 6).
+ */
+data class ClayNavSection(
+    val title: String,
+    val items: List<ClayNavItem>
+)
+
 /** Lebar panel drawer. Sepadan dengan panel produk Google Cloud Console. */
 private val DrawerWidth = 300.dp
 
@@ -81,10 +93,9 @@ fun ClayNavDrawer(
     open: Boolean,
     onDismiss: () -> Unit,
     title: String,
-    items: List<ClayNavItem>,
+    sections: List<ClayNavSection>,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    sectionLabel: String? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     val scrimInteraction = remember { MutableInteractionSource() }
@@ -139,22 +150,21 @@ fun ClayNavDrawer(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = ClaySpacing.Lg)
                 ) {
-                    if (sectionLabel != null) {
-                        Text(
-                            text = sectionLabel,
-                            modifier = Modifier.padding(
-                                start = ClaySpacing.Lg,
-                                bottom = ClaySpacing.Md
-                            ),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                    }
+                    sections.forEachIndexed { index, section ->
+                        // Pemisah hanya di *antara* seksi. Satu di atas seksi pertama akan
+                        // menggandakan garis pembatas header yang sudah ada tepat di atasnya.
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+                            DrawerDivider()
+                            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+                        }
 
-                    items.forEach { item ->
-                        DrawerRow(item = item)
-                        Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+                        DrawerSectionHeader(title = section.title)
+
+                        section.items.forEach { item ->
+                            DrawerRow(item = item)
+                            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+                        }
                     }
                 }
 
@@ -204,6 +214,26 @@ private fun DrawerHeader(title: String, subtitle: String?, onDismiss: () -> Unit
             }
         }
     }
+}
+
+/**
+ * Section header seksi menu.
+ *
+ * Warnanya diserahkan lewat parameter `color`, bukan ditanam ke `TextStyle` yang diambil dari tema —
+ * Kontrak 9. Ukurannya memakai peran `labelSmall` supaya ikut Nunito, bukan angka telanjang.
+ */
+@Composable
+private fun DrawerSectionHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        modifier = Modifier.padding(start = ClaySpacing.Lg, bottom = ClaySpacing.Md),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = ClayLetterSpacing.Label,
+        color = WeMadeColors.OnSurfaceMuted,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable

@@ -1,24 +1,15 @@
 package com.eventverse.app
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,15 +20,17 @@ import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
-import com.eventverse.app.presentation.designsystem.ClayActionSurface
 import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClayNavDrawer
 import com.eventverse.app.presentation.designsystem.ClayNavItem
+import com.eventverse.app.presentation.designsystem.ClayNavSection
 import com.eventverse.app.presentation.designsystem.ClayShapes
-import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconLayers
+import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
 import com.eventverse.app.presentation.designsystem.IconShield
 import com.eventverse.app.presentation.designsystem.IconZap
@@ -45,12 +38,13 @@ import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
+import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.ProfileDropdown
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
 import com.eventverse.app.presentation.workspace.ModuleWorkspaceScreen
-import com.eventverse.app.presentation.workspace.badgeLabel
 import com.eventverse.app.presentation.workspace.tint
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
@@ -141,88 +135,48 @@ fun App() {
         drawerOpen = false
     }
 
-    val adminNavItems = remember(currentScreen, isAuthenticated) {
-        listOf(
-            ClayNavItem(
-                key = AppNavScreen.ORG_CHART.route,
-                label = AppNavScreen.ORG_CHART.title,
-                selected = currentScreen == AppNavScreen.ORG_CHART,
-                onClick = { openScreen(AppNavScreen.ORG_CHART) },
-                icon = { tint ->
-                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
-                    else IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
-                }
-            ),
-            ClayNavItem(
-                key = AppNavScreen.DYNAMIC_RBAC.route,
-                label = AppNavScreen.DYNAMIC_RBAC.title,
-                selected = currentScreen == AppNavScreen.DYNAMIC_RBAC,
-                onClick = { openScreen(AppNavScreen.DYNAMIC_RBAC) },
-                icon = { tint ->
-                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
-                    else IconShield(modifier = Modifier.fillMaxSize(), color = tint)
-                }
-            ),
-            ClayNavItem(
-                key = AppNavScreen.FACTORY_FLOW.route,
-                label = AppNavScreen.FACTORY_FLOW.title,
-                selected = currentScreen == AppNavScreen.FACTORY_FLOW,
-                onClick = { openScreen(AppNavScreen.FACTORY_FLOW) },
-                icon = { tint ->
-                    if (!isAuthenticated) LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
-                    else IconZap(modifier = Modifier.fillMaxSize(), color = tint)
-                }
-            )
+    // Penyusunan menu — modul mana yang muncul, di seksi kategori mana, dengan badge wewenang apa —
+    // adalah keputusan wewenang, jadi ia hidup sebagai fungsi murni yang bisa diuji tanpa merender
+    // apa pun (lihat NavMenu.kt). Yang tersisa di sini hanyalah penerjemahannya ke bahasa clay.
+    val isImpersonating = activePersona?.isOwnerOrSuperAdmin == false
+    val menuSections = remember(effectivePermissions, auditView, isImpersonating) {
+        buildNavMenu(
+            permissions = effectivePermissions,
+            auditView = auditView,
+            isImpersonating = isImpersonating
         )
     }
 
-    // Menu modul dihitung dari wewenang efektif, bukan didaftar statis.
-    //
-    // Di luar mode audit, modul tanpa akses **dihilangkan**, bukan sekadar diredupkan — itulah
-    // perilaku produksi: staf gudang tidak perlu tahu ada layar HPP. Mode audit membalikkannya,
-    // karena saat menguji konfigurasi, menu yang hilang dan menu yang tak pernah ada terlihat sama.
-    val moduleNavItems = remember(currentScreen, effectivePermissions, auditView) {
-        AppNavScreen.entries
-            .mapNotNull { screen -> screen.businessModule?.let { screen to it } }
-            .mapNotNull { (screen, module) ->
-                val access = effectivePermissions[module] ?: ModuleAccessConfig()
-                if (!access.isAccessible && !auditView) return@mapNotNull null
-
+    val navSections = menuSections.map { section ->
+        ClayNavSection(
+            title = section.title,
+            items = section.entries.map { entry ->
+                val module = entry.screen.businessModule
                 ClayNavItem(
-                    key = screen.route,
-                    label = screen.title,
-                    selected = currentScreen == screen,
-                    onClick = { openScreen(screen) },
+                    key = entry.screen.route,
+                    label = entry.screen.title,
+                    selected = currentScreen == entry.screen,
+                    onClick = { openScreen(entry.screen) },
                     icon = { tint ->
-                        if (access.isAccessible) {
-                            IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
-                        } else {
-                            LockIcon(modifier = Modifier.fillMaxSize(), color = tint)
+                        when {
+                            entry.locked || !isAuthenticated ->
+                                IconLock(modifier = Modifier.fillMaxSize(), color = tint)
+                            module != null ->
+                                ModuleIcon(
+                                    iconKey = module.iconKey,
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = tint
+                                )
+                            else -> AdminScreenIcon(screen = entry.screen, tint = tint)
                         }
                     },
-                    badge = access.level.badgeLabel(),
-                    badgeTint = access.level.tint(),
-                    enabled = access.isAccessible
+                    badge = entry.badge,
+                    badgeTint = entry.accessLevel?.tint() ?: WeMadeColors.OnSurfaceDisabled,
+                    enabled = !entry.locked
                 )
             }
+        )
     }
-
-    // Saat menyamar sebagai sebuah jabatan, menu administrasi ikut disembunyikan — kalau tidak,
-    // tampilannya bukan tampilan jabatan itu, melainkan tampilan jabatan itu plus hak admin.
-    //
-    // Aman disembunyikan karena switcher persona hidup di top bar, bukan di menu: penguji selalu
-    // bisa kembali menjadi dirinya sendiri. Mode audit tetap menampilkannya dalam keadaan terkunci,
-    // untuk memperlihatkan apa yang tidak dilihat jabatan itu.
-    val isImpersonating = activePersona?.isOwnerOrSuperAdmin == false
-    val visibleAdminItems = when {
-        !isImpersonating -> adminNavItems
-        auditView -> adminNavItems.map {
-            it.copy(enabled = false, badge = "Admin", badgeTint = WeMadeColors.OnSurfaceDisabled)
-        }
-        else -> emptyList()
-    }
-
-    val navItems = visibleAdminItems + moduleNavItems
 
     WeMadeTheme {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -438,8 +392,7 @@ fun App() {
                 onDismiss = { drawerOpen = false },
                 title = "WeMade ERP",
                 subtitle = "Multi-Tenant Garment Platform",
-                sectionLabel = "MODUL PABRIK",
-                items = navItems,
+                sections = navSections,
                 footer = if (!isAuthenticated) {
                     {
                         ClayButton(
@@ -471,31 +424,30 @@ private fun AuthGuardCard(
             .background(WeMadeColors.Background),
         contentAlignment = Alignment.Center
     ) {
-        Card(
+        // Dicicil dari daftar utang §8 sekalian menyentuh file ini: Card/Button Material mentah
+        // dan dua literal amber diganti katalog clay + turunan token.
+        ClayCard(
             modifier = Modifier
                 .widthIn(max = 480.dp)
                 .fillMaxWidth()
-                .padding(24.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-            border = BorderStroke(1.dp, WeMadeColors.Border),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .padding(ClaySpacing.Xxl),
+            contentPadding = PaddingValues(ClaySpacing.Xxl)
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFEF3C7)), // Amber-100
+                        .background(WeMadeColors.Warning.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    LockIcon(modifier = Modifier.size(32.dp), color = Color(0xFFD97706)) // Amber-600
+                    IconLock(modifier = Modifier.size(32.dp), color = WeMadeColors.Warning)
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
                 Text(
                     text = "Akses Terbatas: Autentikasi Diperlukan",
@@ -504,7 +456,7 @@ private fun AuthGuardCard(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
                 Text(
                     text = "Modul \"$targetModuleName\" dilindungi oleh sistem keamanan multi-tenant pabrik. Silakan masuk menggunakan akun perusahaan Anda untuk melanjutkan.",
@@ -514,57 +466,32 @@ private fun AuthGuardCard(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
 
-                Button(
+                ClayButton(
+                    // Tanpa panah "→": Fredoka/Nunito yang dibundel tidak punya glyph U+2192,
+                    // jadi ia ter-render sebagai kotak tofu begitu tombolnya memakai font clay.
+                    text = "Masuk ke Akun Sekarang",
                     onClick = onLoginClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary)
-                ) {
-                    Text(
-                        text = "Masuk ke Akun Sekarang →",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
+                    modifier = Modifier.fillMaxWidth(),
+                    style = ClayButtonStyle.Primary,
+                    contentPadding = PaddingValues(horizontal = ClaySpacing.Xl, vertical = ClaySpacing.Lg)
+                )
             }
         }
     }
 }
 
 /**
- * Crisp vector render of a Lock / Shield Icon
+ * Ikon untuk layar tata kelola, yang tidak punya `BusinessModule` sehingga tidak bisa memakai
+ * `ModuleIcon`. Jumlahnya tetap tiga; kalau nanti bertambah, pertimbangkan memberi `AppNavScreen`
+ * sebuah `iconKey` sendiri seperti yang sudah dipunyai `BusinessModule`.
  */
 @Composable
-private fun LockIcon(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8f * density
-
-        // Shackle (arc loop)
-        val shackle = Path().apply {
-            moveTo(w * 0.32f, h * 0.44f)
-            lineTo(w * 0.32f, h * 0.26f)
-            arcTo(
-                rect = androidx.compose.ui.geometry.Rect(w * 0.32f, h * 0.10f, w * 0.68f, h * 0.42f),
-                startAngleDegrees = 180f,
-                sweepAngleDegrees = 180f,
-                forceMoveTo = false
-            )
-            lineTo(w * 0.68f, h * 0.44f)
-        }
-        drawPath(shackle, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
-
-        // Lock body rounded rect
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(w * 0.20f, h * 0.44f),
-            size = Size(w * 0.60f, h * 0.46f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.08f, w * 0.08f)
-        )
+private fun AdminScreenIcon(screen: AppNavScreen, tint: Color) {
+    when (screen) {
+        AppNavScreen.DYNAMIC_RBAC -> IconShield(modifier = Modifier.fillMaxSize(), color = tint)
+        AppNavScreen.FACTORY_FLOW -> IconZap(modifier = Modifier.fillMaxSize(), color = tint)
+        else -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
     }
 }

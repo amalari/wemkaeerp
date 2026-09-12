@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -777,3 +778,34 @@ fun IconTruck(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary
     }
 }
 
+
+@Composable
+fun IconLock(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Gagang gembok (busur setengah lingkaran di atas badan)
+        val shackle = Path().apply {
+            moveTo(w * 0.32f, h * 0.44f)
+            lineTo(w * 0.32f, h * 0.26f)
+            arcTo(
+                rect = Rect(w * 0.32f, h * 0.10f, w * 0.68f, h * 0.42f),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = 180f,
+                forceMoveTo = false
+            )
+            lineTo(w * 0.68f, h * 0.44f)
+        }
+        drawPath(shackle, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+
+        // Badan gembok
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.20f, h * 0.44f),
+            size = Size(w * 0.60f, h * 0.46f),
+            cornerRadius = CornerRadius(w * 0.08f, w * 0.08f)
+        )
+    }
+}

@@ -3,7 +3,9 @@ package com.eventverse.app.presentation.designsystem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Bentuk dasar bahasa visual clay: sudut membulat besar, jauh di atas radius Material default.
@@ -71,6 +73,15 @@ object ClaySpacing {
     val Lg: Dp = 12.dp
     val Xl: Dp = 16.dp
     val Xxl: Dp = 24.dp
+}
+
+/**
+ * Perenggangan huruf. Hanya dipakai pada label kapital pendek — pada teks isi, perenggangan
+ * membuat Nunito yang ber-x-height besar terbaca renggang dan lemah.
+ */
+object ClayLetterSpacing {
+    /** Section header dan label kapital lain, supaya kapitalnya tidak saling menempel. */
+    val Label: TextUnit = 0.8.sp
 }
 
 /**

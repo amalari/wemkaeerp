@@ -25,6 +25,7 @@ import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.domain.rbac.DepartmentModuleAssignment
 import com.eventverse.app.domain.rbac.ModuleCategory
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 import androidx.compose.foundation.lazy.LazyColumn
@@ -96,23 +97,6 @@ fun ModuleCardList(
                 }
             }
         }
-    }
-}
-
-/** Memetakan iconKey dari BusinessModule ke Clay Canvas icon yang sesuai. */
-@Composable
-private fun ModuleIcon(iconKey: String, modifier: Modifier = Modifier, color: Color) {
-    when (iconKey) {
-        "handshake"   -> IconHandshake(modifier = modifier, color = color)
-        "ruler"       -> IconRuler(modifier = modifier, color = color)
-        "package"     -> IconPackage(modifier = modifier, color = color)
-        "clipboard"   -> IconClipboard(modifier = modifier, color = color)
-        "calculator"  -> IconCalculator(modifier = modifier, color = color)
-        "calendar"    -> IconCalendarGrid(modifier = modifier, color = color)
-        "activity"    -> IconActivity(modifier = modifier, color = color)
-        "check_circle"-> IconCheckCircle(modifier = modifier, color = color)
-        "truck"       -> IconTruck(modifier = modifier, color = color)
-        else          -> IconLayers(modifier = modifier, color = color)
     }
 }
 
