@@ -98,6 +98,12 @@ object WeMadeColors {
     val OnSurfaceMutedInverse = Color(0xFF94A3B8) // Slate-400
     val BorderInverse = Color(0xFF334155)         // Slate-700
     val PrimaryInverse = Color(0xFF93C5FD)        // Blue-300
+
+    // ── Asset pihak ketiga ──────────────────────────────────────────────────────────────────
+    val GoogleBlue = Color(0xFF4285F4)
+    val GoogleGreen = Color(0xFF34A853)
+    val GoogleYellow = Color(0xFFFBBC05)
+    val GoogleRed = Color(0xFFEA4335)
 }
 
 /**

@@ -3,37 +3,32 @@ package com.eventverse.app.presentation.auth
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.rbac.TestingPersona
-import com.eventverse.app.domain.tenant.TenantId
-import com.eventverse.app.presentation.designsystem.ClayButton
-import com.eventverse.app.presentation.designsystem.ClayButtonStyle
-import com.eventverse.app.presentation.designsystem.ClayCard
-import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -55,119 +50,103 @@ fun LoginScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(WeMadeColors.Background),
+            .background(WeMadeColors.BackgroundWarm),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
                 .widthIn(max = 480.dp)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp)
+                .padding(horizontal = ClaySpacing.Xxl, vertical = 32.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 1. Header / Logo Section
             HeaderSection()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
 
-            // 2. Main Login Glassmorphic Card
-            Card(
+            // 2. Main Login Clay Card
+            ClayCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = WeMadeColors.Surface),
-                border = BorderStroke(1.dp, WeMadeColors.Border),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = ClayShapes.Panel,
+                containerColor = WeMadeColors.Surface,
+                outlineColor = WeMadeColors.Outline,
+                offset = ClayOffset.Rest,
+                borderWidth = ClayBorder.Thick,
+                contentPadding = PaddingValues(ClaySpacing.Xxl)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Status Banners (Error / Success)
-                    AlertBanners(
-                        errorMessage = state.errorMessage,
-                        successMessage = state.successMessage,
-                        onDismiss = { viewModel.onEvent(LoginUiEvent.DismissMessage) }
+                // Status Banners (Error / Success)
+                AlertBanners(
+                    errorMessage = state.errorMessage,
+                    successMessage = state.successMessage,
+                    onDismiss = { viewModel.onEvent(LoginUiEvent.DismissMessage) }
+                )
+
+                // If authenticated, show active session card
+                if (state.authenticatedSession != null) {
+                    AuthenticatedSessionCard(
+                        session = state.authenticatedSession!!,
+                        onLogout = { viewModel.onEvent(LoginUiEvent.Logout) },
+                        onNavigateToDashboard = onNavigateToDashboard
+                    )
+                } else {
+                    // Subdomain / Tenant Slug Input
+                    TenantSlugInput(
+                        tenantSlug = state.tenantSlug,
+                        onSlugChange = { viewModel.onEvent(LoginUiEvent.UpdateTenantSlug(it)) }
                     )
 
-                    // If authenticated, show active session card
-                    if (state.authenticatedSession != null) {
-                        AuthenticatedSessionCard(
-                            session = state.authenticatedSession!!,
-                            onLogout = { viewModel.onEvent(LoginUiEvent.Logout) },
-                            onNavigateToDashboard = onNavigateToDashboard
-                        )
-                    } else {
-                        // Subdomain / Tenant Slug Input
-                        TenantSlugInput(
-                            tenantSlug = state.tenantSlug,
-                            onSlugChange = { viewModel.onEvent(LoginUiEvent.UpdateTenantSlug(it)) }
+                    Spacer(modifier = Modifier.height(ClaySpacing.Xl))
+
+                    // Tab Segment Switcher — hidden entirely when only one login method is available
+                    if (LoginTab.available.size > 1) {
+                        LoginTabSelector(
+                            selectedTab = state.selectedTab,
+                            onTabSelected = { viewModel.onEvent(LoginUiEvent.SelectTab(it)) }
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(ClaySpacing.Xl))
+                    }
 
-                        // Tab Segment Switcher — hidden entirely when only one login
-                        // method is available, so the UI does not show a one-option picker.
-                        if (LoginTab.available.size > 1) {
-                            LoginTabSelector(
-                                selectedTab = state.selectedTab,
-                                onTabSelected = { viewModel.onEvent(LoginUiEvent.SelectTab(it)) }
-                            )
-
-                            Spacer(modifier = Modifier.height(24.dp))
-                        }
-
-                        // Tab Content
-                        when (state.selectedTab) {
-                            LoginTab.GOOGLE -> {
-                                GoogleLoginContent(
-                                    isLoading = state.isLoading,
-                                    onGoogleClick = {
-                                        // Platforms without a Google bridge (desktop) fall
-                                        // through with a blank token, which the state holder
-                                        // reports as "not available here" rather than
-                                        // fabricating a session.
-                                        val trigger = GoogleAuthBridge.onSignInTrigger
-                                        if (trigger != null) {
-                                            trigger()
-                                        } else {
-                                            viewModel.onEvent(LoginUiEvent.SubmitGoogleLogin(""))
-                                        }
-                                    },
-                                    onDemoLoginClick = {
-                                        viewModel.onEvent(LoginUiEvent.SubmitDemoLogin)
-                                    },
-                                    onDemoSuperAdminLoginClick = {
-                                        viewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
+                    // Tab Content
+                    when (state.selectedTab) {
+                        LoginTab.GOOGLE -> {
+                            GoogleLoginContent(
+                                isLoading = state.isLoading,
+                                onGoogleClick = {
+                                    val trigger = GoogleAuthBridge.onSignInTrigger
+                                    if (trigger != null) {
+                                        trigger()
+                                    } else {
+                                        viewModel.onEvent(LoginUiEvent.SubmitGoogleLogin(""))
                                     }
-                                )
-                            }
-                            LoginTab.WHATSAPP -> {
-                                WhatsAppLoginContent(
-                                    phoneNumber = state.phoneNumber,
-                                    otpCode = state.otpCode,
-                                    isOtpSent = state.isOtpSent,
-                                    isLoading = state.isLoading,
-                                    onPhoneChange = { viewModel.onEvent(LoginUiEvent.UpdatePhoneNumber(it)) },
-                                    onOtpChange = { viewModel.onEvent(LoginUiEvent.UpdateOtpCode(it)) },
-                                    onSendOtp = { viewModel.onEvent(LoginUiEvent.SendWhatsAppOtp) },
-                                    onVerifyOtp = { viewModel.onEvent(LoginUiEvent.VerifyWhatsAppOtp) }
-                                )
-                            }
+                                },
+                                onDemoLoginClick = {
+                                    viewModel.onEvent(LoginUiEvent.SubmitDemoLogin)
+                                },
+                                onDemoSuperAdminLoginClick = {
+                                    viewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
+                                }
+                            )
+                        }
+                        LoginTab.WHATSAPP -> {
+                            WhatsAppLoginContent(
+                                phoneNumber = state.phoneNumber,
+                                otpCode = state.otpCode,
+                                isOtpSent = state.isOtpSent,
+                                isLoading = state.isLoading,
+                                onPhoneChange = { viewModel.onEvent(LoginUiEvent.UpdatePhoneNumber(it)) },
+                                onOtpChange = { viewModel.onEvent(LoginUiEvent.UpdateOtpCode(it)) },
+                                onSendOtp = { viewModel.onEvent(LoginUiEvent.SendWhatsAppOtp) },
+                                onVerifyOtp = { viewModel.onEvent(LoginUiEvent.VerifyWhatsAppOtp) }
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            PersonaLoginSection(
-                tenantSlug = state.tenantSlug.ifBlank { "wemade-demo" },
-                enabled = !state.isLoading,
-                onSelectPersona = { viewModel.onEvent(LoginUiEvent.SubmitPersonaLogin(it)) }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
 
             // 3. Security Footer Notice
             FooterSecurityNotice()
@@ -178,12 +157,19 @@ fun LoginScreen(
 @Composable
 private fun HeaderSection() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // ERP Badge Icon
+        // ERP Badge Icon inside tactile Clay Tile
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(WeMadeColors.PrimaryContainer),
+                .claySurface(
+                    shape = ClayShapes.Tile,
+                    background = WeMadeColors.PrimaryContainer,
+                    outline = WeMadeColors.Outline,
+                    shadowColor = WeMadeColors.Outline,
+                    offset = ClayOffset.Small,
+                    borderWidth = ClayBorder.Thick,
+                    innerShade = true
+                ),
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.size(32.dp)) {
@@ -203,7 +189,7 @@ private fun HeaderSection() {
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
         Text(
             text = "WeMade ERP",
@@ -211,6 +197,8 @@ private fun HeaderSection() {
             fontWeight = FontWeight.Bold,
             color = WeMadeColors.OnSurface
         )
+
+        Spacer(modifier = Modifier.height(ClaySpacing.Xs))
 
         Text(
             text = "Sistem Manajemen Konveksi & Garmen Terpadu",
@@ -226,37 +214,20 @@ private fun TenantSlugInput(
     tenantSlug: String,
     onSlugChange: (String) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Subdomain / Kode Pabrik",
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = tenantSlug,
-            onValueChange = onSlugChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(10.dp),
-            placeholder = { Text("contoh: wemade-demo") },
-            trailingIcon = {
-                Text(
-                    text = ".wemade.id",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    modifier = Modifier.padding(end = 12.dp)
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = WeMadeColors.BorderFocus,
-                unfocusedBorderColor = WeMadeColors.Border
+    ClayTextField(
+        value = tenantSlug,
+        onValueChange = onSlugChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = "Subdomain / Kode Pabrik",
+        placeholder = "contoh: wemade-demo",
+        focusColor = WeMadeColors.Primary,
+        trailingIcon = {
+            ClayTag(
+                text = ".wemade.id",
+                tint = WeMadeColors.Primary
             )
-        )
-    }
+        }
+    )
 }
 
 @Composable
@@ -267,19 +238,44 @@ private fun LoginTabSelector(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF1F5F9))
-            .padding(4.dp)
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.SurfaceMuted,
+                outline = WeMadeColors.Outline,
+                borderWidth = ClayBorder.Medium
+            )
+            .padding(ClaySpacing.Xs),
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
     ) {
         LoginTab.available.forEach { tab ->
             val isSelected = tab == selectedTab
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) WeMadeColors.Surface else Color.Transparent)
-                    .clickable { onTabSelected(tab) }
-                    .padding(vertical = 10.dp),
+                    .then(
+                        if (isSelected) {
+                            Modifier.claySurface(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.Surface,
+                                outline = WeMadeColors.Outline,
+                                shadowColor = WeMadeColors.Outline,
+                                offset = ClayOffset.Pressed,
+                                pressed = isPressed,
+                                borderWidth = ClayBorder.Medium,
+                                innerShade = true
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onTabSelected(tab) }
+                    .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -311,89 +307,63 @@ private fun GoogleLoginContent(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
-        // Official Google Sign-In Button
-        OutlinedButton(
+        // Official Google Sign-In Button with Clay styling
+        ClayButton(
+            text = if (isLoading) "Memverifikasi..." else "Lanjutkan dengan Google",
             onClick = onGoogleClick,
             enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, WeMadeColors.Border),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = WeMadeColors.Surface,
-                contentColor = WeMadeColors.OnSurface
-            )
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = WeMadeColors.Primary
-                )
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    GoogleLogoVector(modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Lanjutkan dengan Google",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
+            style = ClayButtonStyle.Secondary,
+            fontSize = 13.sp,
+            offset = ClayOffset.Small,
+            contentPadding = PaddingValues(horizontal = ClaySpacing.Xl, vertical = 11.dp),
+            modifier = Modifier.fillMaxWidth(),
+            leading = {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = WeMadeColors.Primary
                     )
+                } else {
+                    GoogleLogoVector(modifier = Modifier.size(18.dp))
                 }
             }
-        }
+        )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
         // Quick Demo Login Button (Owner Pabrik / Tenant Admin)
-        FilledTonalButton(
+        ClayButton(
+            text = "Demo Mode: Masuk Cepat (Owner Pabrik)",
             onClick = onDemoLoginClick,
             enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(38.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = WeMadeColors.PrimaryContainer.copy(alpha = 0.6f),
-                contentColor = WeMadeColors.Primary
-            )
-        ) {
-            Text(
-                text = "Demo Mode: Masuk Cepat (Owner Pabrik)",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            style = ClayButtonStyle.Primary,
+            fontSize = 12.sp,
+            offset = ClayOffset.Small,
+            contentPadding = PaddingValues(horizontal = ClaySpacing.Lg, vertical = 9.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
         // Quick Demo Login Button (Superadmin Apps / Platform Admin)
-        FilledTonalButton(
+        ClayButton(
+            text = "Demo Mode: Masuk Cepat (Superadmin Apps)",
             onClick = onDemoSuperAdminLoginClick,
             enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(38.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = Color(0xFFF3E8FF),
-                contentColor = Color(0xFF7E22CE)
-            )
-        ) {
-            Text(
-                text = "⚡ Demo Mode: Masuk Cepat (Superadmin Apps)",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            style = ClayButtonStyle.Accent,
+            fontSize = 12.sp,
+            offset = ClayOffset.Small,
+            contentPadding = PaddingValues(horizontal = ClaySpacing.Lg, vertical = 9.dp),
+            modifier = Modifier.fillMaxWidth(),
+            leading = {
+                IconZap(modifier = Modifier.size(14.dp), color = Color.White)
+            }
+        )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
         Text(
             text = "Direkomendasikan untuk: Owner, Admin Apps, Sales, dan PPIC",
@@ -416,112 +386,84 @@ private fun WhatsAppLoginContent(
     onVerifyOtp: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Nomor WhatsApp (No. HP)",
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
+        ClayTextField(
             value = phoneNumber,
             onValueChange = onPhoneChange,
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+            label = "Nomor WhatsApp (No. HP)",
+            placeholder = "81234567890",
             enabled = !isOtpSent,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            shape = RoundedCornerShape(10.dp),
-            placeholder = { Text("81234567890") },
-            prefix = {
+            leadingIcon = {
                 Text(
-                    text = "+62 ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    text = "+62",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurface
                 )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = WeMadeColors.BorderFocus,
-                unfocusedBorderColor = WeMadeColors.Border
-            )
+            }
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
         if (!isOtpSent) {
-            Button(
+            ClayButton(
+                text = if (isLoading) "Mengirim OTP..." else "Kirim Kode OTP via WhatsApp",
                 onClick = onSendOtp,
                 enabled = !isLoading && phoneNumber.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Accent)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Kirim Kode OTP via WhatsApp",
-                        fontWeight = FontWeight.SemiBold
-                    )
+                style = ClayButtonStyle.Accent,
+                fontSize = 13.sp,
+                offset = ClayOffset.Small,
+                contentPadding = PaddingValues(horizontal = ClaySpacing.Lg, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                leading = {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
                 }
-            }
+            )
         } else {
             // OTP verification input
-            Text(
-                text = "Masukkan 6-Digit Kode OTP",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = WeMadeColors.OnSurface
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            OutlinedTextField(
+            ClayTextField(
                 value = otpCode,
                 onValueChange = { if (it.length <= 6) onOtpChange(it) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
+                label = "Masukkan 6-Digit Kode OTP",
+                placeholder = "Misal: 749102",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                placeholder = { Text("Misal: 749102") },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = WeMadeColors.BorderFocus,
-                    unfocusedBorderColor = WeMadeColors.Border
-                )
+                leadingIcon = {
+                    IconLock(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
+                }
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
-            Button(
+            ClayButton(
+                text = if (isLoading) "Memverifikasi..." else "Verifikasi & Masuk",
                 onClick = onVerifyOtp,
                 enabled = !isLoading && otpCode.length == 6,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Verifikasi & Masuk", fontWeight = FontWeight.SemiBold)
+                style = ClayButtonStyle.Primary,
+                fontSize = 13.sp,
+                offset = ClayOffset.Small,
+                contentPadding = PaddingValues(horizontal = ClaySpacing.Lg, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                leading = {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
                 }
-            }
+            )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
         Text(
             text = "Praktis untuk Operator Mesin, Operator Jahit & Staff Gudang.",
@@ -539,87 +481,78 @@ private fun AuthenticatedSessionCard(
     onLogout: () -> Unit,
     onNavigateToDashboard: (() -> Unit)? = null
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFF8FAFC))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    ClayCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = ClayShapes.Card,
+        containerColor = WeMadeColors.SurfaceMuted,
+        outlineColor = WeMadeColors.Outline,
+        offset = ClayOffset.Small,
+        borderWidth = ClayBorder.Medium,
+        contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(WeMadeColors.SuccessBg),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Canvas(modifier = Modifier.size(22.dp)) {
-                val strokeWidth = 2.5f * density
-                val path = Path().apply {
-                    moveTo(size.width * 0.2f, size.height * 0.52f)
-                    lineTo(size.width * 0.44f, size.height * 0.76f)
-                    lineTo(size.width * 0.82f, size.height * 0.28f)
-                }
-                drawPath(path, color = WeMadeColors.Success, style = Stroke(width = strokeWidth))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "Sesi Aktif Terautentikasi",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "${session.user.username.value} (${session.user.email.value})",
-            style = MaterialTheme.typography.bodyMedium,
-            color = WeMadeColors.OnSurfaceMuted
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        AssistChip(
-            onClick = {},
-            label = { Text("Peran: ${session.user.role.name}") },
-            colors = AssistChipDefaults.assistChipColors(
-                labelColor = WeMadeColors.Primary,
-                containerColor = WeMadeColors.PrimaryContainer
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (onNavigateToDashboard != null) {
-            Button(
-                onClick = onNavigateToDashboard,
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WeMadeColors.Primary)
+                    .size(48.dp)
+                    .clayFlat(
+                        shape = CircleShape,
+                        background = WeMadeColors.SuccessBg,
+                        outline = WeMadeColors.Success,
+                        borderWidth = ClayBorder.Medium
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Lanjutkan ke Bagan Organisasi ➔",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
+                IconCheck(modifier = Modifier.size(24.dp), color = WeMadeColors.Success)
             }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
 
-        OutlinedButton(
-            onClick = onLogout,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = WeMadeColors.Error),
-            border = BorderStroke(1.dp, WeMadeColors.Error.copy(alpha = 0.5f))
-        ) {
-            Text("Keluar (Logout)", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+            Text(
+                text = "Sesi Aktif Terautentikasi",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface
+            )
+
+            Text(
+                text = "${session.user.username.value} (${session.user.email.value})",
+                style = MaterialTheme.typography.bodyMedium,
+                color = WeMadeColors.OnSurfaceMuted
+            )
+
+            Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+            ClayBadge(
+                text = "Peran: ${session.user.role.name}",
+                tint = WeMadeColors.Primary,
+                dot = true
+            )
+
+            Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+
+            if (onNavigateToDashboard != null) {
+                ClayButton(
+                    text = "Lanjutkan ke Bagan Organisasi ➔",
+                    onClick = onNavigateToDashboard,
+                    style = ClayButtonStyle.Primary,
+                    fontSize = 13.sp,
+                    offset = ClayOffset.Small,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(ClaySpacing.Md))
+            }
+
+            ClayButton(
+                text = "Keluar (Logout)",
+                onClick = onLogout,
+                style = ClayButtonStyle.Danger,
+                fontSize = 13.sp,
+                offset = ClayOffset.Small,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -636,20 +569,28 @@ private fun AlertBanners(
         exit = fadeOut()
     ) {
         if (errorMessage != null) {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(WeMadeColors.ErrorBg)
+                    .padding(bottom = ClaySpacing.Lg)
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.ErrorBg,
+                        outline = WeMadeColors.Error,
+                        borderWidth = ClayBorder.Medium
+                    )
                     .clickable { onDismiss() }
-                    .padding(12.dp)
+                    .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
+                IconWarning(modifier = Modifier.size(16.dp), color = WeMadeColors.Error)
                 Text(
                     text = errorMessage,
                     style = MaterialTheme.typography.bodySmall,
                     color = WeMadeColors.Error,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -661,20 +602,28 @@ private fun AlertBanners(
         exit = fadeOut()
     ) {
         if (successMessage != null) {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(WeMadeColors.SuccessBg)
+                    .padding(bottom = ClaySpacing.Lg)
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.SuccessBg,
+                        outline = WeMadeColors.Success,
+                        borderWidth = ClayBorder.Medium
+                    )
                     .clickable { onDismiss() }
-                    .padding(12.dp)
+                    .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
+                IconCheck(modifier = Modifier.size(16.dp), color = WeMadeColors.Success)
                 Text(
                     text = successMessage,
                     style = MaterialTheme.typography.bodySmall,
                     color = WeMadeColors.Success,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -684,9 +633,18 @@ private fun AlertBanners(
 @Composable
 private fun FooterSecurityNotice() {
     Row(
+        modifier = Modifier
+            .clayFlat(
+                shape = ClayShapes.Pill,
+                background = WeMadeColors.Surface,
+                outline = WeMadeColors.OutlineSoft.copy(alpha = 0.5f),
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
     ) {
+        IconShield(modifier = Modifier.size(14.dp), color = WeMadeColors.Primary)
         Text(
             text = "Isolasi Data Multi-Tenant & PostgreSQL Row-Level Security Aktif",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
@@ -711,7 +669,7 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
 
         // Blue horizontal bar
         drawLine(
-            color = Color(0xFF4285F4),
+            color = WeMadeColors.GoogleBlue,
             start = Offset(cx, cy),
             end = Offset(w * 0.95f, cy),
             strokeWidth = stroke
@@ -719,7 +677,7 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
 
         // Arc quadrants
         drawArc(
-            color = Color(0xFF4285F4),
+            color = WeMadeColors.GoogleBlue,
             startAngle = 0f,
             sweepAngle = 45f,
             useCenter = false,
@@ -728,7 +686,7 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
             style = Stroke(width = stroke)
         )
         drawArc(
-            color = Color(0xFF34A853), // Green
+            color = WeMadeColors.GoogleGreen,
             startAngle = 45f,
             sweepAngle = 135f,
             useCenter = false,
@@ -737,7 +695,7 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
             style = Stroke(width = stroke)
         )
         drawArc(
-            color = Color(0xFFFBBC05), // Yellow
+            color = WeMadeColors.GoogleYellow,
             startAngle = 180f,
             sweepAngle = 90f,
             useCenter = false,
@@ -746,7 +704,7 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
             style = Stroke(width = stroke)
         )
         drawArc(
-            color = Color(0xFFEA4335), // Red
+            color = WeMadeColors.GoogleRed,
             startAngle = 270f,
             sweepAngle = 90f,
             useCenter = false,
@@ -754,58 +712,5 @@ private fun GoogleLogoVector(modifier: Modifier = Modifier) {
             size = Size(radius * 2, radius * 2),
             style = Stroke(width = stroke)
         )
-    }
-}
-
-/**
- * Pintu masuk cepat sebagai persona pengujian.
- *
- * Ditaruh di layar login, bukan hanya di switcher top bar, karena pertanyaan yang paling sering
- * diuji adalah "apa yang dilihat orang ini **begitu masuk**" — termasuk layar mana yang menyambutnya.
- * Masuk sebagai admin lebih dulu lalu berpindah persona menjawab pertanyaan yang berbeda.
- */
-@Composable
-private fun PersonaLoginSection(
-    tenantSlug: String,
-    enabled: Boolean,
-    onSelectPersona: (TestingPersona) -> Unit
-) {
-    val tenantId = remember(tenantSlug) {
-        if (tenantSlug == "wemade-demo") TenantId("ten-demo-001") else TenantId("ten-$tenantSlug")
-    }
-    val personas = remember(tenantId, tenantSlug) {
-        TestingPersona.factoryPresets(tenantId, tenantSlug)
-    }
-
-    ClayCard(modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp)) {
-        Text(
-            text = "🧪 Masuk sebagai Persona Pengujian (RBAC)",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = WeMadeColors.OnSurface
-        )
-        Text(
-            text = "Menerbitkan sesi nyata dari server untuk karyawan terpilih, " +
-                "lalu menyesuaikan menu dan wewenangnya.",
-            modifier = Modifier.padding(top = ClaySpacing.Xs),
-            fontSize = 11.sp,
-            color = WeMadeColors.OnSurfaceMuted
-        )
-
-        Column(
-            modifier = Modifier.padding(top = ClaySpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-        ) {
-            personas.forEach { persona ->
-                ClayButton(
-                    text = "${persona.name} — ${persona.roleTitle}",
-                    onClick = { onSelectPersona(persona) },
-                    enabled = enabled,
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
     }
 }
