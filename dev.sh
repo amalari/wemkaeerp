@@ -18,6 +18,19 @@ RESET="\033[0m"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
+# Muat .env ke environment proses.
+#
+# docker-compose membaca .env sendiri untuk substitusi ${VAR}, tapi JVM tidak — System.getenv()
+# hanya melihat environment proses. Tanpa baris ini, DB_APP_USER/DB_APP_PASSWORD yang sudah diisi
+# di .env tidak pernah sampai ke server, dan koneksi diam-diam kembali memakai role pemilik
+# (yang melewati seluruh Row-Level Security). Gagalnya senyap, jadi pemuatannya dibuat eksplisit.
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$PROJECT_DIR/.env"
+    set +a
+fi
+
 print_banner() {
     echo -e "${CYAN}${BOLD}"
     echo "========================================================================"

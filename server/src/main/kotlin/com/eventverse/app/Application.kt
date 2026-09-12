@@ -34,6 +34,34 @@ import com.eventverse.app.infrastructure.PostgresTenantPipelineRepository
 import com.eventverse.app.infrastructure.PostgresAuditLogRepository
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 import com.eventverse.app.domain.audit.AuditLogRepository
+import com.eventverse.app.domain.moduledev.EmbeddingProvider
+import com.eventverse.app.domain.moduledev.ModuleBuildRepository
+import com.eventverse.app.domain.moduledev.ModuleCatalogRepository
+import com.eventverse.app.domain.moduledev.ModuleCustomizationRequestRepository
+import com.eventverse.app.domain.moduledev.ModulePricingQuoteRepository
+import com.eventverse.app.domain.moduledev.SizingWeightsRepository
+import com.eventverse.app.infrastructure.LexicalEmbeddingProvider
+import com.eventverse.app.infrastructure.PostgresModuleBuildRepository
+import com.eventverse.app.infrastructure.PostgresModuleCatalogRepository
+import com.eventverse.app.infrastructure.PostgresModuleCustomizationRequestRepository
+import com.eventverse.app.infrastructure.PostgresModulePricingQuoteRepository
+import com.eventverse.app.infrastructure.PostgresSizingWeightsRepository
+import com.eventverse.app.routes.moduleDevRoutes
+import com.eventverse.app.domain.moduledev.Percentage
+import com.eventverse.app.domain.prospect.FlowTranslationRepository
+import com.eventverse.app.domain.prospect.FlowTranslator
+import com.eventverse.app.domain.prospect.ProspectLeadRepository
+import com.eventverse.app.domain.prospect.ProspectPriceEstimateRepository
+import com.eventverse.app.domain.prospect.usecases.AnalyzeCoverageUseCase
+import com.eventverse.app.domain.prospect.usecases.PriceProspectFlowUseCase
+import com.eventverse.app.domain.prospect.usecases.SubmitProspectLeadUseCase
+import com.eventverse.app.domain.prospect.usecases.TranslateProspectFlowUseCase
+import com.eventverse.app.domain.moduledev.MoneyIdr
+import com.eventverse.app.infrastructure.KeywordFlowTranslator
+import com.eventverse.app.infrastructure.PostgresFlowTranslationRepository
+import com.eventverse.app.infrastructure.PostgresProspectLeadRepository
+import com.eventverse.app.infrastructure.PostgresProspectPriceEstimateRepository
+import com.eventverse.app.routes.prospectRoutes
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -48,7 +76,17 @@ fun Application.module(
     employeeRepository: EmployeeRepository? = null,
     pipelineRepository: com.eventverse.app.domain.pipeline.TenantPipelineRepository? = null,
     entitlementRepository: com.eventverse.app.domain.pipeline.TenantEntitlementRepository? = null,
-    auditLogRepository: AuditLogRepository? = null
+    auditLogRepository: AuditLogRepository? = null,
+    moduleCatalogRepository: ModuleCatalogRepository? = null,
+    moduleBuildRepository: ModuleBuildRepository? = null,
+    modulePricingQuoteRepository: ModulePricingQuoteRepository? = null,
+    moduleCustomizationRequestRepository: ModuleCustomizationRequestRepository? = null,
+    sizingWeightsRepository: SizingWeightsRepository? = null,
+    embeddingProvider: EmbeddingProvider? = null,
+    prospectLeadRepository: ProspectLeadRepository? = null,
+    flowTranslationRepository: FlowTranslationRepository? = null,
+    prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
+    flowTranslator: FlowTranslator? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -61,6 +99,34 @@ fun Application.module(
     val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
     val entitlementRepo = entitlementRepository ?: PostgresTenantEntitlementRepository()
     val auditLogRepo = auditLogRepository ?: PostgresAuditLogRepository()
+    val catalogRepo = moduleCatalogRepository ?: PostgresModuleCatalogRepository()
+    val buildRepo = moduleBuildRepository ?: PostgresModuleBuildRepository()
+    val quoteRepo = modulePricingQuoteRepository ?: PostgresModulePricingQuoteRepository()
+    val customizationRequestRepo =
+        moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
+    val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
+
+    // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
+    // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
+    val embeddingProviderImpl = embeddingProvider ?: LexicalEmbeddingProvider()
+
+    val leadRepo = prospectLeadRepository ?: PostgresProspectLeadRepository()
+    val translationRepo = flowTranslationRepository ?: PostgresFlowTranslationRepository()
+    val prospectEstimateRepo =
+        prospectPriceEstimateRepository ?: PostgresProspectPriceEstimateRepository()
+
+    // Keyword matching, not comprehension — see KeywordFlowTranslator. Safe to run on a public
+    // endpoint because it costs nothing; a real model needs rate limiting first.
+    val flowTranslatorImpl = flowTranslator ?: KeywordFlowTranslator()
+
+    // Derived from REAL productive hours (~4/day), not a nominal 160-hour month. Using a nominal
+    // rate while logging honest hours recovers only half the cost on every quote.
+    val blendedHourlyRate = MoneyIdr(
+        System.getenv("WEMADE_BLENDED_HOURLY_RATE_IDR")?.toLongOrNull() ?: 250_000L
+    )
+    val defaultMargin = Percentage(
+        System.getenv("WEMADE_DEFAULT_MARGIN_PERCENT")?.toDoubleOrNull() ?: 35.0
+    )
 
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
@@ -292,5 +358,32 @@ fun Application.module(
         employeeRoutes(empRepo, deptRepo)
         pipelineRoutes(pipeRepo, entitlementRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
+        moduleDevRoutes(
+            catalogRepository = catalogRepo,
+            buildRepository = buildRepo,
+            quoteRepository = quoteRepo,
+            requestRepository = customizationRequestRepo,
+            sizingWeightsRepository = sizingWeightsRepo,
+            pipelineRepository = pipeRepo,
+            embeddingProvider = embeddingProviderImpl,
+            auditLogRepository = auditLogRepo
+        )
+        prospectRoutes(
+            leadRepository = leadRepo,
+            translationRepository = translationRepo,
+            priceEstimateRepository = prospectEstimateRepo,
+            submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo),
+            translateUseCase = TranslateProspectFlowUseCase(
+                flowTranslatorImpl, translationRepo, leadRepo
+            ),
+            analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo),
+            priceUseCase = PriceProspectFlowUseCase(
+                buildRepository = buildRepo,
+                sizingWeightsRepository = sizingWeightsRepo,
+                embeddingProvider = embeddingProviderImpl,
+                defaultBlendedHourlyRate = blendedHourlyRate
+            ),
+            defaultMarginPercent = defaultMargin
+        )
     }
 }

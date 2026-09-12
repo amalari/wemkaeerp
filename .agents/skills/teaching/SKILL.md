@@ -155,5 +155,71 @@ Gunakan struktur standar berikut:
 
 Setiap kali menyelesaikan task:
 1. **Analisis Diff & Solusi**: Tinjau file apa saja yang diubah, arsitektur yang digunakan, dan teknologi yang terlibat.
-2. **Susun Modul Teaching**: Buat file `docs/teaching/teaching-[id]-[slug].md` mengikuti blueprint di atas dengan bahasa Indonesia yang renyah, analogis, dan mendalam.
-3. **Simpan & Tautkan**: Tautkan file tersebut di response akhir kepada user agar user atau tim junior dapat langsung membacanya.
+2. **Catat effort ke ledger** (lihat bagian di bawah) — dilakukan **sebelum** menulis dokumen, selagi ingatannya masih segar.
+3. **Susun Modul Teaching**: Buat file `docs/teaching/teaching-[id]-[slug].md` mengikuti blueprint di atas dengan bahasa Indonesia yang renyah, analogis, dan mendalam.
+4. **Simpan & Tautkan**: Tautkan file tersebut di response akhir kepada user agar user atau tim junior dapat langsung membacanya.
+
+---
+
+## ⏱️ Pencatatan Effort ke Module Development Ledger
+
+Task yang punya baris di `module_build_records` **wajib ditutup di sini**. Alasannya praktis:
+ini satu-satunya momen di mana jam kerjanya masih diingat. Git tidak menyimpannya — commit
+mencatat kapan kerjaan *mendarat*, bukan berapa lama dikerjakan, dan di repo ini belasan commit
+bisa mendarat di hari yang sama.
+
+Kalau task-nya tidak punya build record (misal perbaikan kecil, chore), lewati bagian ini.
+
+### Yang ditanyakan ke user
+
+Ajukan tiga pertanyaan, lalu kirim hasilnya ke API. **Jangan menebak jawabannya sendiri.**
+
+1. **Berapa JAM per peran & fase?** Granularitas ½ jam.
+   Peran: `BACKEND` / `FRONTEND` / `DESIGN` / `QA` / `PM` / `DEVOPS`.
+   Fase: `ANALYSIS` / `DESIGN` / `IMPLEMENTATION` / `REVIEW` / `QA` / `DEPLOY`.
+
+   > ⚠️ **Tanyakan "berapa jam", jangan pernah "berapa hari".** Hari kerja nyata di proyek ini
+   > ± 4 jam terfokus, bukan 8. Begitu ada yang mencatat "3 hari" lalu dikonversi 8 jam/hari,
+   > angkanya membengkak 2× — dan karena `harga = jam × rate × margin`, kesalahan itu ikut
+   > tertagih selama masa kontrak.
+
+2. **Berapa ronde revisi?**
+
+3. **Apa yang tidak terhitung saat estimasi?** (`discoveredScopeDelta`)
+   Ini kolom paling berharga di seluruh ledger. Jawaban seperti *"kompresi & orientasi EXIF
+   foto HP tidak terhitung"* jauh lebih berguna daripada angka varians, karena ia menjelaskan
+   **kenapa** meleset.
+
+Boleh juga ditanyakan kalau relevan: `leadTimeDays` (berapa hari kalender dari mulai sampai
+selesai — **ini janji tanggal ke klien, bukan ukuran effort**, dan tidak pernah dipakai
+menghitung biaya).
+
+### Cara mengirimnya
+
+```bash
+# 1. Satu panggilan per (peran × fase)
+curl -X POST localhost:8080/api/admin/module-dev/builds/<BUILD_ID>/effort \
+  -H "Authorization: Bearer <SUPERADMIN_JWT>" \
+  -d '{"entryId":"e-1","role":"BACKEND","phase":"IMPLEMENTATION",
+       "hours":34.0,"hourlyRateIdr":138000}'
+
+# 2. Tutup build-nya
+curl -X POST localhost:8080/api/admin/module-dev/builds/<BUILD_ID>/complete \
+  -H "Authorization: Bearer <SUPERADMIN_JWT>" \
+  -d '{"revisionRoundCount":2,"leadTimeDays":18,
+       "discoveredScopeDelta":"kompresi & orientasi EXIF foto HP tidak terhitung"}'
+```
+
+`hourlyRateIdr` harus dihitung dari **jam produktif nyata**, bukan 160 jam nominal sebulan.
+Biaya Rp 20 jt/bulan dengan 80 jam produktif berarti rate Rp 250.000 — memakai Rp 125.000
+sambil mencatat jam jujur berarti tiap penawaran hanya memulihkan separuh biaya.
+
+### Yang TIDAK boleh dilakukan
+
+- **Jangan mengoreksi `feature_vector`** walau sekarang jelas estimasinya salah hitung. Vektor
+  itu dibekukan saat estimasi; salah-kiranya justru datanya. Temuan belakangan masuk ke
+  `discoveredScopeDelta`.
+- **Jangan mengarang jam** kalau user tidak yakin. Lebih baik kosong daripada tebakan: jam yang
+  ditebak dari "kelihatannya sebesar apa" akan membuat rasio jam/poin konstan secara konstruksi,
+  dan model belajar asumsi kita sendiri alih-alih kenyataan.
+- **Jangan pakai jumlah baris diff sebagai pengganti jam.**
