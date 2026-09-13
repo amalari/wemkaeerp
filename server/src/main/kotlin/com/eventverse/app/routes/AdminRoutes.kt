@@ -76,14 +76,17 @@ fun Route.adminRoutes(
                 return@put
             }
 
-            setEntitlementUseCase(tenant.id, tenant.tier, grants)
+            val autoBypass = call.request.queryParameters["autoBypass"]?.toBooleanStrictOrNull() ?: false
+
+            setEntitlementUseCase(tenant.id, tenant.tier, grants, autoBypassPipelineModules = autoBypass)
                 .onSuccess {
+                    val bypassNote = if (autoBypass) " (auto-bypass alur aktif)" else ""
                     call.recordAudit(
                         auditLogRepository = auditLogRepository,
                         actor = actor,
                         tenant = tenant,
                         action = AuditAction.TENANT_ENTITLEMENT_UPDATED,
-                        summary = "Mengubah entitlement modul tenant '${tenant.slug.value}': " +
+                        summary = "Mengubah entitlement modul tenant '${tenant.slug.value}'$bypassNote: " +
                             "modul bawaan=${grants.grantedModules?.size ?: "semua"}, " +
                             "modul kustom=${grants.grantedCustomModuleIds}"
                     )

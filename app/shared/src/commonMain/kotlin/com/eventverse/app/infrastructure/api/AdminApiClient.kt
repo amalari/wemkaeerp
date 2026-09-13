@@ -70,9 +70,11 @@ class AdminApiClient(
     /** PUT /api/admin/tenants/{slug}/entitlement */
     suspend fun setEntitlement(
         tenantSlug: String,
-        grants: TenantEntitlementGrants
+        grants: TenantEntitlementGrants,
+        autoBypass: Boolean = false
     ): Result<TenantAdminView> = runCatching {
-        val response = httpClient.put(resolveUrl(tenantSlug, "/entitlement")) {
+        val querySuffix = if (autoBypass) "?autoBypass=true" else ""
+        val response = httpClient.put(resolveUrl(tenantSlug, "/entitlement$querySuffix")) {
             tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)

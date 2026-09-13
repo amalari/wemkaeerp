@@ -151,7 +151,8 @@ fun FactoryFlowScreen(
                 // Entry point to per-tenant module provisioning.
                 TenantModuleActionBar(
                     state = state,
-                    onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) }
+                    onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) },
+                    onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) }
                 )
             }
 

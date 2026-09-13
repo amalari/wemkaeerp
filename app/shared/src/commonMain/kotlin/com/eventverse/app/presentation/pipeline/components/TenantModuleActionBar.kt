@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.pipeline.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun TenantModuleActionBar(
     state: FactoryFlowUiState,
     onToggleModulePanel: () -> Unit,
+    onToggleHideBypassed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -40,8 +42,9 @@ fun TenantModuleActionBar(
             )
             if (state.bypassedCount > 0) {
                 SummaryChip(
-                    label = "${state.bypassedCount} bypass",
-                    color = WeMadeColors.OnSurfaceMuted
+                    label = if (state.hideBypassedNodes) "${state.bypassedCount} bypass (tersembunyi)" else "${state.bypassedCount} bypass (ditampilkan)",
+                    color = if (state.hideBypassedNodes) WeMadeColors.OnSurfaceMuted else WeMadeColors.Warning,
+                    onClick = onToggleHideBypassed
                 )
             }
             if (state.customPluginCount > 0) {
@@ -75,7 +78,17 @@ fun TenantModuleActionBar(
 @Composable
 private fun SummaryChip(
     label: String,
-    color: androidx.compose.ui.graphics.Color
+    color: androidx.compose.ui.graphics.Color,
+    onClick: (() -> Unit)? = null
 ) {
-    ClayTag(text = label, tint = color, fontSize = 11.sp)
+    if (onClick != null) {
+        ClayTag(
+            text = label,
+            tint = color,
+            fontSize = 11.sp,
+            modifier = Modifier.clickable(onClick = onClick)
+        )
+    } else {
+        ClayTag(text = label, tint = color, fontSize = 11.sp)
+    }
 }

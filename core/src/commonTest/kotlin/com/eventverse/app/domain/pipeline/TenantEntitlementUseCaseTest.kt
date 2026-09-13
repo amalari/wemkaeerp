@@ -177,6 +177,41 @@ class TenantEntitlementUseCaseTest {
     }
 
     @Test
+    fun setEntitlement_withAutoBypass_shouldBypassRunningPipelineNodesAndSucceed() = runTest {
+        // Setup a running pipeline with all FOB modules active
+        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        val initialPipeline = pipelineRepository.findByTenantId(tenantId)!!
+        val packingNode = initialPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        assertFalse(packingNode.isBypassed)
+
+        // Revoke packing module with autoBypassPipelineModules = true
+        val result = setEntitlement(
+            tenantId = tenantId,
+            tier = SubscriptionTier.PRO,
+            grants = TenantEntitlementGrants(grantedModules = BusinessModule.entries.toSet() - BusinessModule.FULFILLMENT),
+            autoBypassPipelineModules = true
+        )
+
+        assertTrue(result.isSuccess, "Pesan: ${result.exceptionOrNull()?.message}")
+        val updatedPipeline = pipelineRepository.findByTenantId(tenantId)!!
+        val updatedPackingNode = updatedPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        assertTrue(updatedPackingNode.isBypassed, "Packing node harusnya otomatis di-bypass")
+        assertNotNull(entitlementRepository.findByTenantId(tenantId))
+
+        // When re-granting the module back to the tenant
+        val reGrantResult = setEntitlement(
+            tenantId = tenantId,
+            tier = SubscriptionTier.PRO,
+            grants = TenantEntitlementGrants(grantedModules = BusinessModule.entries.toSet())
+        )
+
+        assertTrue(reGrantResult.isSuccess, "Pesan: ${reGrantResult.exceptionOrNull()?.message}")
+        val restoredPipeline = pipelineRepository.findByTenantId(tenantId)!!
+        val restoredPackingNode = restoredPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        assertFalse(restoredPackingNode.isBypassed, "Packing node harusnya otomatis aktif kembali (tidak bypassed)")
+    }
+
+    @Test
     fun toGrants_withFullCatalogue_shouldNotPinTheModuleList() = runTest {
         // Storing "all modules" as an explicit list would freeze the catalogue: a module
         // added to the codebase later would not reach existing tenants.

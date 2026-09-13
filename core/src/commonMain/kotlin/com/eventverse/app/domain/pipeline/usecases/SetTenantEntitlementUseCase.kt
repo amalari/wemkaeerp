@@ -21,13 +21,42 @@ class SetTenantEntitlementUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         tier: SubscriptionTier,
-        grants: TenantEntitlementGrants
+        grants: TenantEntitlementGrants,
+        autoBypassPipelineModules: Boolean = false
     ): Result<TenantModuleEntitlement> = runCatching {
         val resolved = TenantModuleEntitlement.resolve(tier, grants)
 
         pipelineRepository.findByTenantId(tenantId)?.let { pipeline ->
             if (!pipeline.isEmpty) {
-                val violations = resolved.validate(pipeline)
+                var currentPipeline = pipeline
+                var pipelineModified = false
+
+                if (autoBypassPipelineModules) {
+                    val unpermittedActiveNodes = pipeline.activeNodes.filterNot { resolved.permits(it) }
+                    if (unpermittedActiveNodes.isNotEmpty()) {
+                        for (node in unpermittedActiveNodes) {
+                            currentPipeline = currentPipeline.setNodeBypassed(node.nodeId, isBypassed = true)
+                        }
+                        pipelineModified = true
+                    }
+                }
+
+                // Saat modul disambungkan kembali (re-granted), aktifkan kembali node yang sebelumnya di-bypass
+                // selama penambahan modul aktif ini tetap memenuhi kuota paket tenant.
+                val bypassedNodesToRestore = currentPipeline.bypassedNodes.filter { resolved.permits(it) }
+                for (node in bypassedNodesToRestore) {
+                    val candidate = currentPipeline.setNodeBypassed(node.nodeId, isBypassed = false)
+                    if (resolved.validate(candidate).isEmpty()) {
+                        currentPipeline = candidate
+                        pipelineModified = true
+                    }
+                }
+
+                if (pipelineModified) {
+                    pipelineRepository.save(currentPipeline).getOrThrow()
+                }
+
+                val violations = resolved.validate(currentPipeline)
                 require(violations.isEmpty()) {
                     "Entitlement ini membuat alur tenant yang sedang berjalan menjadi tidak valid: " +
                         violations.joinToString(" ") +

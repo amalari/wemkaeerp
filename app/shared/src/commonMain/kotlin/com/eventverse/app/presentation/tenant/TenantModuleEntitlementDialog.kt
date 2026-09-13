@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -54,6 +55,9 @@ import kotlinx.coroutines.launch
  * dapat dipanggil lewat HTTP langsung. Setiap penyimpanan tercatat di audit log oleh server —
  * mencabut modul dari sebuah pabrik adalah tindakan yang tak terlihat dari dalam pabrik itu, jadi
  * satu-satunya cara ia tetap dapat dipertanggungjawabkan adalah bila setiap pemakaiannya berjejak.
+ *
+ * Mendukung auto-bypass dengan modal konfirmasi dampak jika modul yang dicabut sedang aktif
+ * pada diagram alur pabrik tenant.
  */
 @Composable
 fun TenantModuleEntitlementDialog(
@@ -68,6 +72,7 @@ fun TenantModuleEntitlementDialog(
     var draft by remember(tenantSlug) { mutableStateOf<Set<BusinessModule>?>(null) }
     var isBusy by remember(tenantSlug) { mutableStateOf(true) }
     var error by remember(tenantSlug) { mutableStateOf<String?>(null) }
+    var showImpactConfirmation by remember(tenantSlug) { mutableStateOf(false) }
 
     LaunchedEffect(tenantSlug) {
         isBusy = true
@@ -79,6 +84,45 @@ fun TenantModuleEntitlementDialog(
             }
             .onFailure { error = it.message }
         isBusy = false
+    }
+
+    val activePipelineModules = remember(view) {
+        view?.catalog?.modules
+            ?.filter { it.isActive && it.standardModule != null }
+            ?.mapNotNull { it.standardModule }
+            ?.toSet() ?: emptySet()
+    }
+
+    val modulesToAutoBypass = remember(draft, view, activePipelineModules) {
+        val currentDraft = draft ?: return@remember emptyList<BusinessModule>()
+        val originalGranted = view?.grantedModules ?: return@remember emptyList<BusinessModule>()
+        (originalGranted - currentDraft).filter { it in activePipelineModules }
+    }
+
+    fun executeSave(autoBypass: Boolean) {
+        val snapshot = view ?: return
+        val target = draft ?: return
+        isBusy = true
+        error = null
+        scope.launch {
+            apiClient.setEntitlement(
+                tenantSlug = tenantSlug,
+                grants = snapshot.copy(grantedModules = target).toGrants(),
+                autoBypass = autoBypass
+            )
+                .onSuccess {
+                    view = it
+                    draft = it.grantedModules
+                    showImpactConfirmation = false
+                    onSaved(it.grantedModules)
+                    onDismiss()
+                }
+                .onFailure {
+                    error = it.message
+                    showImpactConfirmation = false
+                }
+            isBusy = false
+        }
     }
 
     // Scrim. Klik di luar kartu menutup dialog; klik pada kartunya sendiri tidak boleh menembus,
@@ -105,99 +149,230 @@ fun TenantModuleEntitlementDialog(
                 modifier = Modifier.widthIn(max = 620.dp).padding(ClaySpacing.Xl),
                 shape = ClayShapes.Panel
             ) {
-                DialogHeader(view = view, tenantSlug = tenantSlug)
-
-                Spacer(modifier = Modifier.padding(top = ClaySpacing.Lg))
-
-                when {
-                    isBusy && view == null -> Text(
-                        text = "Memuat data tenant…",
-                        fontSize = 13.sp,
-                        color = WeMadeColors.OnSurfaceMuted
+                if (showImpactConfirmation) {
+                    ImpactConfirmationView(
+                        tenantName = view?.name?.takeIf { it.isNotBlank() } ?: tenantSlug,
+                        modules = modulesToAutoBypass,
+                        isBusy = isBusy,
+                        error = error,
+                        onCancel = { showImpactConfirmation = false },
+                        onConfirm = { executeSave(autoBypass = true) }
                     )
+                } else {
+                    DialogHeader(view = view, tenantSlug = tenantSlug)
 
-                    view == null -> Text(
-                        text = error ?: "Data tenant tidak dapat dimuat.",
-                        fontSize = 13.sp,
-                        color = WeMadeColors.Error
-                    )
+                    Spacer(modifier = Modifier.padding(top = ClaySpacing.Lg))
 
-                    else -> {
-                        val current = draft.orEmpty()
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 420.dp)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-                        ) {
-                            ModuleGroup(
-                                title = "Modul Sistem & Tata Kelola",
-                                subtitle = "Tidak memakan kuota modul produksi.",
-                                modules = BusinessModule.governance,
-                                granted = current,
-                                onToggle = { module, enabled ->
-                                    draft = if (enabled) current + module else current - module
-                                }
-                            )
-                            ModuleGroup(
-                                title = "Modul Operasional Pabrik",
-                                subtitle = "Terhitung terhadap batas paket langganan.",
-                                modules = BusinessModule.operational,
-                                granted = current,
-                                onToggle = { module, enabled ->
-                                    draft = if (enabled) current + module else current - module
-                                }
-                            )
-                        }
+                    when {
+                        isBusy && view == null -> Text(
+                            text = "Memuat data tenant…",
+                            fontSize = 13.sp,
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
 
-                        error?.let {
-                            Text(
-                                text = it,
-                                modifier = Modifier.padding(top = ClaySpacing.Lg),
-                                fontSize = 12.sp,
-                                color = WeMadeColors.Error
-                            )
+                        view == null -> Text(
+                            text = error ?: "Data tenant tidak dapat dimuat.",
+                            fontSize = 13.sp,
+                            color = WeMadeColors.Error
+                        )
+
+                        else -> {
+                            val current = draft.orEmpty()
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 420.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                            ) {
+                                ModuleGroup(
+                                    title = "Modul Sistem & Tata Kelola",
+                                    subtitle = "Tidak memakan kuota modul produksi.",
+                                    modules = BusinessModule.governance,
+                                    granted = current,
+                                    activePipelineModules = activePipelineModules,
+                                    onToggle = { module, enabled ->
+                                        draft = if (enabled) current + module else current - module
+                                    }
+                                )
+                                ModuleGroup(
+                                    title = "Modul Operasional Pabrik",
+                                    subtitle = "Terhitung terhadap batas paket langganan.",
+                                    modules = BusinessModule.operational,
+                                    granted = current,
+                                    activePipelineModules = activePipelineModules,
+                                    onToggle = { module, enabled ->
+                                        draft = if (enabled) current + module else current - module
+                                    }
+                                )
+                            }
+
+                            error?.let {
+                                Text(
+                                    text = it,
+                                    modifier = Modifier.padding(top = ClaySpacing.Lg),
+                                    fontSize = 12.sp,
+                                    color = WeMadeColors.Error
+                                )
+                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.padding(top = ClaySpacing.Xl))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md, Alignment.End)
+                    ) {
+                        ClayButton(
+                            text = "Batal",
+                            onClick = onDismiss,
+                            style = ClayButtonStyle.Secondary
+                        )
+                        ClayButton(
+                            text = if (isBusy) "Menyimpan…" else "Simpan Entitlement",
+                            onClick = {
+                                if (modulesToAutoBypass.isNotEmpty()) {
+                                    showImpactConfirmation = true
+                                } else {
+                                    executeSave(autoBypass = false)
+                                }
+                            },
+                            enabled = view != null && !isBusy && draft != view?.grantedModules
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.padding(top = ClaySpacing.Xl))
+@Composable
+private fun ImpactConfirmationView(
+    tenantName: String,
+    modules: List<BusinessModule>,
+    isBusy: Boolean,
+    error: String?,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ClayTag(text = "Perhatian Alur", tint = WeMadeColors.Warning)
+            Text(
+                text = "Konfirmasi Pemutusan Modul",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface
+            )
+        }
 
+        Text(
+            text = "Modul berikut saat ini sedang aktif digunakan dalam diagram Alur Produksi tenant '$tenantName':",
+            fontSize = 13.sp,
+            color = WeMadeColors.OnSurface
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+        ) {
+            modules.forEach { module ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md, Alignment.End)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayFlat(
+                            shape = ClayShapes.Chip,
+                            background = WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Border,
+                            borderWidth = ClayBorder.Medium
+                        )
+                        .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Md),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ClayButton(
-                        text = "Batal",
-                        onClick = onDismiss,
-                        style = ClayButtonStyle.Secondary
-                    )
-                    ClayButton(
-                        text = if (isBusy) "Menyimpan…" else "Simpan Entitlement",
-                        onClick = {
-                            val snapshot = view ?: return@ClayButton
-                            val target = draft ?: return@ClayButton
-                            isBusy = true
-                            error = null
-                            scope.launch {
-                                apiClient.setEntitlement(
-                                    tenantSlug = tenantSlug,
-                                    grants = snapshot.copy(grantedModules = target).toGrants()
-                                )
-                                    .onSuccess {
-                                        view = it
-                                        draft = it.grantedModules
-                                        onSaved(it.grantedModules)
-                                        onDismiss()
-                                    }
-                                    .onFailure { error = it.message }
-                                isBusy = false
-                            }
-                        },
-                        enabled = view != null && !isBusy && draft != view?.grantedModules
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(20.dp)) {
+                            ModuleIcon(
+                                iconKey = module.iconKey,
+                                modifier = Modifier.fillMaxSize(),
+                                color = categoryTint(module.category)
+                            )
+                        }
+                        Text(
+                            text = module.displayName,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = WeMadeColors.OnSurface
+                        )
+                    }
+                    ClayBadge(
+                        text = "Aktif di Alur",
+                        tint = WeMadeColors.Warning,
+                        dot = true
                     )
                 }
             }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayFlat(
+                        shape = ClayShapes.Card,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Warning,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(ClaySpacing.Md),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Sistem akan secara otomatis menonaktifkan (bypass) tahapan di atas dari diagram alur tenant agar alur pabrik tetap valid dan tidak terjadi error pemutusan.",
+                    fontSize = 12.sp,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+
+        error?.let {
+            Text(
+                text = it,
+                fontSize = 12.sp,
+                color = WeMadeColors.Error
+            )
+        }
+
+        Spacer(modifier = Modifier.padding(top = ClaySpacing.Md))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md, Alignment.End)
+        ) {
+            ClayButton(
+                text = "Kembali ke Pilihan",
+                onClick = onCancel,
+                style = ClayButtonStyle.Secondary,
+                enabled = !isBusy
+            )
+            ClayButton(
+                text = if (isBusy) "Memproses…" else "Ya, Nonaktifkan dari Alur & Simpan",
+                onClick = onConfirm,
+                enabled = !isBusy
+            )
         }
     }
 }
@@ -251,6 +426,7 @@ private fun ModuleGroup(
     subtitle: String,
     modules: List<BusinessModule>,
     granted: Set<BusinessModule>,
+    activePipelineModules: Set<BusinessModule>,
     onToggle: (BusinessModule, Boolean) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
@@ -266,6 +442,7 @@ private fun ModuleGroup(
             ModuleToggleRow(
                 module = module,
                 isGranted = module in granted,
+                isPipelineActive = module in activePipelineModules,
                 onToggle = { onToggle(module, it) }
             )
         }
@@ -276,6 +453,7 @@ private fun ModuleGroup(
 private fun ModuleToggleRow(
     module: BusinessModule,
     isGranted: Boolean,
+    isPipelineActive: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
     Row(
@@ -297,7 +475,7 @@ private fun ModuleToggleRow(
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.width(18.dp)) {
+            Box(modifier = Modifier.size(18.dp)) {
                 ModuleIcon(
                     iconKey = module.iconKey,
                     modifier = Modifier.fillMaxSize(),
@@ -316,11 +494,22 @@ private fun ModuleToggleRow(
 
         Spacer(modifier = Modifier.width(ClaySpacing.Sm))
 
-        ClayBadge(
-            text = if (isGranted) "Tersambung" else "Diputus",
-            tint = if (isGranted) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted,
-            dot = true
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!isGranted && isPipelineActive) {
+                ClayTag(
+                    text = "Aktif di Alur",
+                    tint = WeMadeColors.Warning
+                )
+            }
+            ClayBadge(
+                text = if (isGranted) "Tersambung" else "Diputus",
+                tint = if (isGranted) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted,
+                dot = true
+            )
+        }
     }
 }
 
