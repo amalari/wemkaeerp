@@ -13,7 +13,8 @@ class AccessDecisionEngineTest {
         name: String = "Achmad",
         departmentId: String? = salesDept,
         roleId: String? = "role-sales",
-        isOwner: Boolean = false
+        isOwner: Boolean = false,
+        isSuperAdmin: Boolean = false
     ) = TestingPersona(
         userId = "usr-test",
         name = name,
@@ -23,7 +24,8 @@ class AccessDecisionEngineTest {
         departmentName = "Penjualan & CRM",
         roleId = roleId?.let { RoleId(it) },
         roleTitle = "Sales Eksekutif",
-        isOwnerOrSuperAdmin = isOwner
+        isOwnerOrSuperAdmin = isOwner,
+        isPlatformSuperAdmin = isSuperAdmin
     )
 
     private fun role(
@@ -398,5 +400,23 @@ class AccessDecisionEngineTest {
 
         assertEquals(AccessLevel.OPERATE, result.getValue(BusinessModule.CRM_SALES).level)
         assertEquals(AccessLevel.NONE, result.getValue(BusinessModule.INVENTORY).level)
+    }
+
+    @Test
+    fun `explain when persona is platform superadmin should bypass tenant entitlement limits`() {
+        // Ketika RBAC tidak disambungkan ke tenant (mis. grantedModules kosong), superadmin platform
+        // tetap berwenang penuh (MANAGE) dan asalnya tercatat SUPERADMIN_BYPASS, sehingga menunya tidak hilang.
+        val decision = AccessDecisionEngine.explain(
+            persona = persona(name = "Superadmin", departmentId = null, roleId = null, isSuperAdmin = true),
+            module = BusinessModule.DYNAMIC_RBAC,
+            role = null,
+            assignments = emptyList(),
+            grantedModules = emptySet()
+        )
+
+        assertEquals(AccessSource.SUPERADMIN_BYPASS, decision.source)
+        assertEquals(AccessLevel.MANAGE, decision.config.level)
+        assertTrue(decision.config.isAccessible)
+        assertFalse(decision.blockedByEntitlement)
     }
 }

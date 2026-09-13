@@ -28,15 +28,16 @@ data class TestingPersona(
     val roleId: RoleId?,
     val roleTitle: String,
     val isOwnerOrSuperAdmin: Boolean = false,
+    val isPlatformSuperAdmin: Boolean = false,
     val sourceEmployeeId: OrgNodeId? = null
 ) {
     init {
         require(name.isNotBlank()) { "Nama persona tidak boleh kosong" }
-        // Memilih jabatan berarti meminta dilihat **persis** sebagai jabatan itu. Bypass owner yang
-        // tetap menyala di atasnya akan membuka seluruh modul dan membuat persona tampak benar
+        // Memilih jabatan berarti meminta dilihat **persis** sebagai jabatan itu. Bypass owner atau superadmin
+        // yang tetap menyala di atasnya akan membuka seluruh modul dan membuat persona tampak benar
         // untuk konfigurasi apa pun — yaitu membuat pengujiannya tidak berarti apa-apa.
-        require(!(isOwnerOrSuperAdmin && roleId != null)) {
-            "Persona berjabatan tidak boleh memakai bypass owner; hapus roleId atau matikan bypass"
+        require(!((isOwnerOrSuperAdmin || isPlatformSuperAdmin) && roleId != null)) {
+            "Persona berjabatan tidak boleh memakai bypass; hapus roleId atau matikan bypass"
         }
     }
 

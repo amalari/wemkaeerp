@@ -69,7 +69,8 @@ internal suspend fun ApplicationCall.orgChartDecision(
         roleTitle = role?.name ?: "",
         // Invarian TestingPersona melarang bypass bagi persona berjabatan: memilih sebuah jabatan
         // berarti minta dilihat persis sebagai jabatan itu.
-        isOwnerOrSuperAdmin = principal.isPlatformSuperadmin && role == null
+        isOwnerOrSuperAdmin = principal.isPlatformSuperadmin && role == null,
+        isPlatformSuperAdmin = principal.isPlatformSuperadmin && role == null
     )
 
     val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)

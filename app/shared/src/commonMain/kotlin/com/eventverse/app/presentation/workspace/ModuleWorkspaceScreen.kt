@@ -150,7 +150,8 @@ private fun AccessProvenanceCard(decision: AccessDecision, persona: TestingPerso
                 tint = when (decision.source) {
                     AccessSource.ROLE -> WeMadeColors.Primary
                     AccessSource.DEPARTMENT -> WeMadeColors.Warning
-                    AccessSource.OWNER_BYPASS -> WeMadeColors.Success
+                    AccessSource.OWNER_BYPASS,
+                    AccessSource.SUPERADMIN_BYPASS -> WeMadeColors.Success
                     // Amber, bukan merah: modulnya belum disambungkan ke pabrik ini, dan itu
                     // keadaan langganan — bukan penolakan wewenang.
                     AccessSource.NOT_ENTITLED -> WeMadeColors.Warning

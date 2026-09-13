@@ -317,7 +317,8 @@ class AuthViewModel(
                 // Bypass hanya berlaku untuk sesi tanpa jabatan, yaitu akun admin yang sedang tidak
                 // menyamar. Tanpa itu, admin bisa terkunci dari layar RBAC-nya sendiri.
                 isOwnerOrSuperAdmin = user.customRoleId == null &&
-                    (user.role == Role.TENANT_ADMIN || user.role == Role.PLATFORM_SUPERADMIN)
+                    (user.role == Role.TENANT_ADMIN || user.role == Role.PLATFORM_SUPERADMIN),
+                isPlatformSuperAdmin = user.customRoleId == null && user.role == Role.PLATFORM_SUPERADMIN
             )
         )
         policyRepository.load(tenantId, slug)

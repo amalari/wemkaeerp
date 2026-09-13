@@ -399,7 +399,8 @@ private fun RolesListSection(
             ) {
                 // Platform Superadmin bypass card
                 if (showSuperAdminCard && onResetSuperadmin != null) {
-                    val isSuperAdminActive = activePersona?.isOwnerOrSuperAdmin == true
+                    val isSuperAdminActive = activePersona?.isPlatformSuperAdmin == true ||
+                        activePersona?.isOwnerOrSuperAdmin == true
 
                     ClayCard(
                         modifier = Modifier.fillMaxWidth(),

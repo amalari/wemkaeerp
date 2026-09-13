@@ -23,8 +23,11 @@ enum class AccessSource(val label: String) {
     /** Dari penugasan modul ke divisi. */
     DEPARTMENT("Divisi"),
 
-    /** Owner/superadmin melewati matriks sepenuhnya. */
+    /** Owner pabrik melewati matriks sepenuhnya. */
     OWNER_BYPASS("Owner (bypass)"),
+
+    /** Superadmin platform melewati matriks wewenang dan batasan paket tenant. */
+    SUPERADMIN_BYPASS("Superadmin (bypass)"),
 
     /**
      * Modul tidak disambungkan ke tenant ini sama sekali.
@@ -97,7 +100,21 @@ object AccessDecisionEngine {
         val roleAccess = (role?.getAccess(module) ?: ModuleAccessConfig(AccessLevel.NONE))
             .sanitizeFor(module)
 
-        // Entitlement tenant diperiksa **sebelum** apa pun, termasuk sebelum bypass Owner.
+        // Superadmin platform melewati batasan paket (entitlement) maupun matriks wewenang.
+        // Superadmin adalah pengelola SaaS yang bertugas mengonfigurasi seluruh tenant, termasuk
+        // menyambung/memutus modul via RBAC dan billing. Menunya tidak boleh ikut hilang ketika
+        // modul diputus dari tenant.
+        if (persona.isPlatformSuperAdmin) {
+            return AccessDecision(
+                config = ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
+                    .sanitizeFor(module),
+                source = AccessSource.SUPERADMIN_BYPASS,
+                fromRole = roleAccess,
+                fromDepartment = ModuleAccessConfig(AccessLevel.NONE)
+            )
+        }
+
+        // Entitlement tenant diperiksa **sebelum** apa pun, termasuk sebelum bypass Owner pabrik.
         //
         // Urutannya menentukan artinya: modul yang tidak disambungkan ke sebuah pabrik bukan modul
         // yang "Owner-nya berwenang tapi stafnya tidak" — ia tidak ada untuk pabrik itu. Kalau

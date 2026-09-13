@@ -21,7 +21,11 @@ class GovernanceModuleAccessTest {
     private val salesRole = CustomRole.createFactoryPresets(tenantId)
         .single { it.id.value.endsWith("sales") && !it.id.value.contains("head") }
 
-    private fun persona(role: CustomRole?, isOwner: Boolean = false) = TestingPersona(
+    private fun persona(
+        role: CustomRole?,
+        isOwner: Boolean = false,
+        isSuperAdmin: Boolean = false
+    ) = TestingPersona(
         userId = "usr-test",
         name = "Penguji",
         tenantId = tenantId,
@@ -30,7 +34,8 @@ class GovernanceModuleAccessTest {
         departmentName = "Divisi",
         roleId = role?.id,
         roleTitle = role?.name ?: "Tanpa Jabatan",
-        isOwnerOrSuperAdmin = isOwner
+        isOwnerOrSuperAdmin = isOwner,
+        isPlatformSuperAdmin = isSuperAdmin
     )
 
     // ── Entitlement ──────────────────────────────────────────────────────────────────────────
@@ -64,6 +69,24 @@ class GovernanceModuleAccessTest {
 
         assertEquals(AccessSource.NOT_ENTITLED, decision.source)
         assertFalse(decision.config.isAccessible)
+    }
+
+    @Test
+    fun superadminBypass_shouldRetainAccessToModuleEvenWhenNotEntitledToTenant() {
+        // Superadmin adalah pengelola SaaS / platform: meskipun modul diputus dari tenant,
+        // superadmin harus tetap bisa melihat menu dan mengonfigurasi modul tersebut.
+        val decision = AccessDecisionEngine.explain(
+            persona = persona(role = null, isSuperAdmin = true),
+            module = BusinessModule.DYNAMIC_RBAC,
+            role = null,
+            assignments = emptyList(),
+            grantedModules = BusinessModule.entries.toSet() - BusinessModule.DYNAMIC_RBAC
+        )
+
+        assertEquals(AccessSource.SUPERADMIN_BYPASS, decision.source)
+        assertEquals(AccessLevel.MANAGE, decision.config.level)
+        assertTrue(decision.config.isAccessible)
+        assertFalse(decision.blockedByEntitlement)
     }
 
     @Test
