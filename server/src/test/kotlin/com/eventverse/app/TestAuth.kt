@@ -32,7 +32,10 @@ object TestAuth {
         userId: String,
         role: Role,
         tenantSlug: String?,
-        tenantId: String?
+        tenantId: String?,
+        departmentId: String? = null,
+        customRoleId: String? = null,
+        email: String = "tester@wemade.test"
     ): String {
         val now = Date()
         return JWT.create()
@@ -41,8 +44,13 @@ object TestAuth {
             .withClaim("tenant_id", tenantId)
             .withClaim("tenant_slug", tenantSlug)
             .withClaim("username", "tester")
-            .withClaim("email", "tester@wemade.test")
+            .withClaim("email", email)
             .withClaim("role", role.name)
+            // Identitas yang dirakit tenant. Rute Bagan Organisasi memakainya untuk menghitung
+            // wewenang dan jangkauan data; token tanpa keduanya sengaja berperilaku seperti
+            // sebelum penjagaan itu ada.
+            .withClaim("department_id", departmentId)
+            .withClaim("custom_role_id", customRoleId)
             .withIssuedAt(now)
             .withExpiresAt(Date(now.time + 60 * 60 * 1000L))
             .sign(algorithm)
@@ -60,12 +68,46 @@ object TestAuth {
         tenantId = tenantId
     )
 
+    /**
+     * Token untuk seorang staf pabrik: terikat tenant **dan** membawa divisi serta jabatan yang
+     * dikonfigurasi tenant itu. Inilah bentuk token yang dipakai persona sungguhan.
+     */
+    fun staffToken(
+        tenantSlug: String,
+        customRoleId: String,
+        departmentId: String? = null,
+        email: String = "staff@wemade.test",
+        role: Role = Role.SALES
+    ): String = sign(
+        userId = "usr-test-staff-$customRoleId",
+        role = role,
+        tenantSlug = tenantSlug,
+        tenantId = null,
+        departmentId = departmentId,
+        customRoleId = customRoleId,
+        email = email
+    )
+
     /** Token for a platform superadmin, which is bound to no single tenant. */
     fun superadminToken(): String = sign(
         userId = "usr-test-superadmin",
         role = Role.PLATFORM_SUPERADMIN,
         tenantSlug = null,
         tenantId = null
+    )
+}
+
+/** Authenticates as a staff member with a tenant-configured job title and division. */
+fun HttpRequestBuilder.asStaff(
+    tenantSlug: String,
+    customRoleId: String,
+    departmentId: String? = null,
+    email: String = "staff@wemade.test"
+) {
+    header("X-Tenant-Slug", tenantSlug)
+    header(
+        HttpHeaders.Authorization,
+        "Bearer ${TestAuth.staffToken(tenantSlug, customRoleId, departmentId, email)}"
     )
 }
 

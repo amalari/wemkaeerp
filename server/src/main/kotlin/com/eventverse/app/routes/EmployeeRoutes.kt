@@ -5,17 +5,10 @@ import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.domain.orgchart.EmailConflictException
 import com.eventverse.app.domain.orgchart.OrgNodeId
-import com.eventverse.app.domain.orgchart.OrgChartVisibility
-import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.orgchart.usecases.*
-import com.eventverse.app.domain.rbac.AccessDecisionEngine
-import com.eventverse.app.domain.rbac.BusinessModule
-import com.eventverse.app.domain.rbac.DataScope
+import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
-import com.eventverse.app.domain.rbac.RoleId
 import com.eventverse.app.domain.rbac.RoleRepository
-import com.eventverse.app.domain.rbac.TestingPersona
-import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.CreateEmployeeRequestDto
@@ -32,10 +25,10 @@ fun Route.employeeRoutes(
     employeeRepository: EmployeeRepository,
     departmentRepository: DepartmentRepository,
     /**
-     * Dipakai hanya untuk menghitung jangkauan data pemanggil atas modul Bagan Organisasi.
+     * Dipakai untuk menghitung **wewenang dan jangkauan** pemanggil atas modul Bagan Organisasi.
      *
-     * Nullable supaya pemasangan route lama dan pengujian yang tidak peduli jangkauan tetap
-     * berjalan; bila keduanya null, daftar karyawan dikembalikan utuh seperti sebelumnya.
+     * Nullable supaya pemasangan route lama dan pengujian yang tidak menyuntikkannya tetap
+     * berjalan seperti sebelum penjagaan ini ada — lihat `OrgChartAccessGuard.kt`.
      */
     roleRepository: RoleRepository? = null,
     moduleAssignmentRepository: ModuleAssignmentRepository? = null
@@ -55,15 +48,18 @@ fun Route.employeeRoutes(
                 return@get
             }
 
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.VIEW)) return@get
             val deptFilter = call.request.queryParameters["departmentId"]?.let { DepartmentId(it) }
             val result = getEmployeesUseCase.getAll(tenant.tenantId, deptFilter)
 
             if (result.isSuccess) {
-                val visible = call.applyOrgChartScope(
+                val visible = applyOrgChartScope(
                     employees = result.getOrThrow(),
-                    tenant = tenant,
-                    roleRepository = roleRepository,
-                    moduleAssignmentRepository = moduleAssignmentRepository
+                    decision = decision,
+                    viewerEmail = call.callerPrincipalOrNull?.email,
+                    viewerDepartmentId = call.callerPrincipalOrNull?.departmentId
                 )
                 call.respondText(EmployeeDto.toJsonList(visible), contentType = ContentType.Application.Json)
             } else {
@@ -76,6 +72,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@get
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.VIEW)) return@get
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@get
@@ -99,6 +98,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@get
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.VIEW)) return@get
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@get
@@ -117,6 +119,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@post
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.OPERATE)) return@post
 
             val rawBody = call.receiveText()
             val req = CreateEmployeeRequestDto.fromJson(rawBody)
@@ -173,6 +178,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@put
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.OPERATE)) return@put
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@put
@@ -229,6 +237,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@delete
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@delete
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@delete
@@ -252,6 +263,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@get
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@get
             val result = employeeRepository.findAllArchived(tenant.tenantId)
             call.respondText(EmployeeDto.toJsonList(result), contentType = ContentType.Application.Json)
         }
@@ -262,6 +276,9 @@ fun Route.employeeRoutes(
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
                 return@post
             }
+
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@post
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@post
@@ -284,6 +301,9 @@ fun Route.employeeRoutes(
                 return@post
             }
 
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@post
+
             val result = restoreDefaultEmployeesUseCase(tenant.tenantId)
             if (result.isSuccess) {
                 call.respondText(EmployeeDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)
@@ -295,79 +315,4 @@ fun Route.employeeRoutes(
             }
         }
     }
-}
-
-/**
- * Mempersempit daftar karyawan menurut jangkauan data pemanggil atas modul Bagan Organisasi.
- *
- * Inilah sisi **penentu** dari `ScopeCapability.HIERARCHICAL`. Klien menjalankan penyaringan yang
- * sama supaya layarnya konsisten seketika, tetapi penyaringan yang hanya hidup di klien tidak
- * menyembunyikan apa pun — payload-nya tetap utuh dan terbaca siapa saja yang membuka panel jaringan.
- *
- * Jangkauan dihitung lewat [AccessDecisionEngine], bukan dengan membaca `role.getAccess(...)`
- * langsung. Wewenang datang dari dua sumbu yang disatukan — jabatan dan penugasan divisi — dan
- * menghitung ulang salah satunya di sini akan menjadi aturan kedua yang bisa menyimpang dari yang
- * dipakai menu dan layar.
- */
-private suspend fun ApplicationCall.applyOrgChartScope(
-    employees: List<OrgNode>,
-    tenant: TenantContext,
-    roleRepository: RoleRepository?,
-    moduleAssignmentRepository: ModuleAssignmentRepository?
-): List<OrgNode> {
-    val principal = callerPrincipalOrNull ?: return employees
-
-    // Tanpa repository wewenang, tidak ada dasar untuk mempersempit apa pun. Mengembalikan daftar
-    // utuh adalah perilaku sebelum fitur ini ada — bukan penurunan keamanan, karena route-nya tetap
-    // hanya terjangkau oleh pemanggil yang sudah terautentikasi dan terikat tenant ini.
-    if (roleRepository == null || moduleAssignmentRepository == null) return employees
-
-    // Wewenang hanya datang dari dua sumbu: jabatan dan divisi. Pemanggil yang tidak punya keduanya
-    // tidak punya jangkauan yang bisa dipersempit, apa pun isi matriksnya — jadi menanyakannya ke
-    // database hanya menghasilkan dua query untuk jawaban yang sudah pasti. Ini juga menjaga jalur
-    // lama tetap utuh bagi token layanan yang memang tidak membawa identitas pabrik.
-    if (principal.customRoleId == null && principal.departmentId == null) return employees
-
-    val role = principal.customRoleId
-        ?.let { runCatching { RoleId(it) }.getOrNull() }
-        ?.let { roleRepository.findById(tenant.tenantId, it) }
-
-    val persona = TestingPersona(
-        userId = principal.userId.ifBlank { "unknown" },
-        name = principal.email ?: principal.userId.ifBlank { "unknown" },
-        tenantId = tenant.tenantId,
-        tenantSlug = tenant.slug.value,
-        departmentId = principal.departmentId,
-        departmentName = "",
-        roleId = role?.id,
-        roleTitle = role?.name ?: "",
-        // Invarian TestingPersona melarang bypass bagi persona berjabatan: memilih sebuah jabatan
-        // berarti minta dilihat persis sebagai jabatan itu. Bypass karenanya hanya untuk akun
-        // platform yang memang tidak punya jabatan di pabrik mana pun.
-        isOwnerOrSuperAdmin = principal.isPlatformSuperadmin && role == null
-    )
-
-    val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
-    val decision = AccessDecisionEngine.explain(
-        persona = persona,
-        module = BusinessModule.ORG_CHART,
-        role = role,
-        assignments = assignments[BusinessModule.ORG_CHART].orEmpty()
-    )
-
-    if (decision.config.scope == DataScope.ALL_TENANT_DATA) return employees
-
-    // Baris karyawan milik penonton dicocokkan lewat email: `users` menyimpan divisi dan jabatan
-    // sejak V17, tetapi tidak menyimpan tautan ke baris `employees`. Email unik per tenant, jadi
-    // pencocokan ini deterministik — dan bila tidak ketemu, penonton memang bukan karyawan terdaftar
-    // sehingga hanya sumbu divisi yang berlaku baginya.
-    val viewerEmployeeId = principal.email
-        ?.let { email -> employees.firstOrNull { it.email.equals(email, ignoreCase = true) }?.id }
-
-    return OrgChartVisibility.visibleTo(
-        nodes = employees,
-        scope = decision.config.scope,
-        viewerEmployeeId = viewerEmployeeId,
-        viewerDepartmentId = principal.departmentId
-    )
 }

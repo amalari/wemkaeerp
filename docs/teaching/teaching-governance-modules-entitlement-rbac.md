@@ -463,6 +463,98 @@ hari salah satunya akan lupa diperbarui.
      file**, jauh dari penyebabnya.
    - *Solusi kita*: hindari urutan `/*` di dalam teks komentar. Saya kena jebakan ini di task ini.
 
+7. **Jebakan: invarian di kode tidak berlaku surut ke data lama** ⭐
+   - *Kenapa bahaya*: `CustomRole.enforce()` mengunci hak Owner atas modul RBAC — tetapi hanya
+     saat jabatan **ditulis**. Baris `role-owner` yang sudah lama tersimpan di database tidak
+     pernah melewatinya, dan `getAccess()` mengembalikan `NONE` untuk kunci yang tidak ada. Hasilnya:
+     begitu rilis mendarat, **Owner kehilangan ketiga layar** — dan bypass tidak menolong, karena
+     `matchRole()` memasangkan direksi ke `role-owner` sehingga personanya berjabatan.
+   - *Solusi kita*: migrasi `V19` yang mem-backfill `custom_roles.module_permissions`.
+   - *Pelajarannya*: setiap invarian baru punya dua sisi — kode untuk data yang akan datang,
+     migrasi untuk data yang sudah ada. Menulis salah satunya saja terasa selesai, padahal belum.
+
+---
+
+## 🔥 5b. Dua Bug yang Hanya Ketahuan Saat Aplikasinya Dijalankan
+
+Bagian ini ditambahkan **setelah** fitur dinyatakan selesai dan 542 test berwarna hijau. Keduanya
+lolos dari seluruh unit test, dan baru terlihat ketika server benar-benar dinyalakan dan
+di-`curl`. Kalau kamu hanya membaca satu bagian dari dokumen ini, baca yang ini.
+
+### Bug 1 — Matriks lama tidak punya kunci modul baru
+
+Gejalanya: setelah V18, `SELECT module_permissions FROM custom_roles WHERE id='role-owner'`
+berisi sembilan modul, tak satu pun governance.
+
+Rantai sebabnya panjang dan tiap mata rantainya masuk akal sendiri-sendiri:
+
+```
+getAccess(DYNAMIC_RBAC) → kunci tidak ada → NONE
+    ↓
+matchRole(Hendra) → dept null → role-owner  →  persona.roleId != null
+    ↓
+invarian TestingPersona: persona berjabatan DILARANG pakai bypass
+    ↓
+Owner berjalan lewat matriks → NONE → ketiga menu hilang untuk Owner sendiri
+```
+
+Yang menarik: invarian di mata rantai ketiga itu **benar dan disengaja** — menguji sebuah jabatan
+harus menguji jabatan itu. Bug muncul dari kombinasi keputusan yang masing-masing benar. Inilah
+alasan menjalankan aplikasinya tidak pernah bisa digantikan membaca kode.
+
+### Bug 2 — `scope` dibaca tanpa memeriksa `level`
+
+Ini yang lebih berbahaya. Versi pertama `applyOrgChartScope` berbunyi kira-kira begini:
+
+```kotlin
+if (decision.config.scope == DataScope.ALL_TENANT_DATA) return employees   // ❌
+```
+
+Sekilas benar. Tapi lihat nilai bawaan `ModuleAccessConfig`:
+
+```kotlin
+data class ModuleAccessConfig(
+    val level: AccessLevel = AccessLevel.NONE,
+    val scope: DataScope = DataScope.ALL_TENANT_DATA   // ← bawaan, bahkan saat level = NONE
+)
+```
+
+Artinya `ModuleAccessConfig(NONE)` punya scope `ALL_TENANT_DATA`. Kode di atas membaca
+**"tanpa akses"** sebagai **"seluruh data pabrik"** — kebalikan persis dari maksudnya.
+
+Buktinya di server sungguhan:
+
+```
+Agus — Operator (ORG_CHART = NONE)   HTTP 200   12 karyawan
+```
+
+Menunya memang tidak muncul di drawer. Tapi operator jahit dengan tokennya sendiri bisa
+mengunduh seluruh direktori karyawan pabrik — nama, email, nomor telepon — dengan satu `curl`.
+
+Setelah `OrgChartAccessGuard.kt`:
+
+```
+admin (TENANT_ADMIN)               HTTP 200   12 karyawan
+Budi — Kepala Sales (VIEW/SUB)     HTTP 200    7 karyawan
+Agus — Operator (NONE)             HTTP 403   Butuh wewenang Hanya Lihat…
+```
+
+### Pelajaran yang bisa dibawa ke task lain
+
+1. **Nilai bawaan sebuah field bisa menjadi lubang keamanan.** `scope` yang bawaannya paling luas
+   aman selama selalu dibaca bersama `level`. Begitu ada satu pemanggil yang lupa, bawaan itu
+   berubah menjadi izin penuh. Kalau kamu mendesain value object seperti ini, pertimbangkan
+   bawaan yang paling *sempit*, atau paksa keduanya dibaca bersama.
+
+2. **"Menu sudah disembunyikan" bukan jawaban atas "apakah ini aman".** Menu adalah tampilan;
+   endpoint adalah pintu. Selalu tanyakan: *kalau orang ini memanggil API-nya langsung, apa yang
+   dia dapat?*
+
+3. **Test yang tidak pernah kamu lihat gagal adalah test yang belum terbukti.** Setelah menulis
+   `OrgChartAccessApiTest`, saya sengaja melumpuhkan guard-nya sebentar untuk memastikan empat
+   test-nya benar-benar merah. Test yang lolos baik dengan maupun tanpa perbaikan tidak menjaga
+   apa pun.
+
 ---
 
 ## 🧪 6. Bagaimana Cara Membuktikan Kodingan Kita Bekerja?
@@ -513,10 +605,28 @@ mengembalikan data, bukan Composable:
 fun first_accessible_screen_when_everything_locked_should_be_null()
 ```
 
-**Yang belum tercakup, dan saya sebut terus terang**: test integrasi PostgreSQL dan pemeriksaan
-visual. Docker daemon tidak berjalan di lingkungan ini, jadi migrasi V18 **belum pernah benar-benar
-dijalankan terhadap database**, dan layarnya belum dilihat dengan mata. Keduanya wajib dikerjakan
-sebelum merge — bug layout dan bug SQL sama-sama tidak tertangkap unit test mana pun.
+**Test yang menjaga sisi API** (`OrgChartAccessApiTest`) — lahir dari dua bug di §5b:
+
+```kotlin
+@Test
+fun listEmployees_whenModuleAccessIsNone_shouldBeForbidden() = testApplication {
+    installApp(role("role-operator", salesDeptId, AccessLevel.NONE, DataScope.ALL_TENANT_DATA))
+    val response = client.get("/api/tenant/employees") {
+        asStaff(slug, customRoleId = "role-operator", departmentId = salesDeptId)
+    }
+    assertEquals(HttpStatusCode.Forbidden, response.status)
+}
+```
+
+Perhatikan `listEmployees_withSubordinateScope_shouldReturnFewerThanAllTenantScope`: ia
+**membandingkan dua pemanggil**, bukan mencocokkan angka tetap. Menuliskan `assertEquals(7, …)`
+akan membuat test itu pecah setiap kali ada yang menambah karyawan contoh — dan test yang sering
+pecah tanpa alasan akan segera dimatikan orang.
+
+**Status verifikasi akhir**: 550 test hijau (core 324, app:shared 81, server 145), migrasi V18 & V19
+tercatat sukses di `flyway_schema_history` terhadap database terisi, dan seluruh perilaku kunci
+diuji manual lewat `curl` terhadap server yang berjalan. Yang **masih** terbuka: pemeriksaan visual
+layarnya — bug layout clay tidak tertangkap satu pun test di daftar ini.
 
 ---
 
@@ -559,9 +669,11 @@ sebelum merge — bug layout dan bug SQL sama-sama tidak tertangkap unit test ma
 | Domain | `pipeline/TenantEntitlementGrants.kt` | `withModule()` |
 | Domain | `pipeline/TenantModuleEntitlement.kt` | `permitsModule()`, kuota abai-governance |
 | Server | `routes/PipelineRoutes.kt` | `GET /api/tenant/entitlement` |
-| Server | `routes/EmployeeRoutes.kt` | penyaringan scope otoritatif |
+| Server | `routes/OrgChartAccessGuard.kt` | **baru** — penjagaan level + penyaringan scope |
+| Server | `routes/EmployeeRoutes.kt` | 9 endpoint dijaga: VIEW / OPERATE / MANAGE |
 | Server | `plugins/CallerPrincipal.kt` | `departmentId`, `customRoleId`, `email` |
-| Server | `V18__add_governance_modules.sql` | **baru** — backfill + seed katalog |
+| Server | `V18__add_governance_modules.sql` | **baru** — backfill entitlement + seed katalog |
+| Server | `V19__backfill_governance_role_permissions.sql` | **baru** — backfill matriks jabatan |
 | Client | `navigation/NavMenu.kt` | hapus daftar admin hardcode, `firstAccessibleScreen()` |
 | Client | `workspace/GovernanceModuleGate.kt` | **baru** — gerbang bertingkat |
 | Client | `workspace/ModuleNotEntitledCard.kt` | **baru** — pesan "belum berlangganan" |
