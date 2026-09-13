@@ -243,7 +243,8 @@ internal fun TShapeHierarchyResult.restrictToReach(reach: OrgChartDataReach): TS
         superior = superior?.takeIf { reach.allowsEmployee(it.id.value) },
         peerHeads = peerHeads.filter { reach.allowsEmployee(it.id.value) },
         subordinates = subordinates.filter { reach.allowsEmployee(it.id.value) },
-        peersInDepartment = peersInDepartment.filter { reach.allowsEmployee(it.id.value) }
+        peersInDepartment = peersInDepartment.filter { reach.allowsEmployee(it.id.value) },
+        orderedDepartmentMembers = orderedDepartmentMembers.filter { reach.allowsEmployee(it.id.value) }
     )
 }
 

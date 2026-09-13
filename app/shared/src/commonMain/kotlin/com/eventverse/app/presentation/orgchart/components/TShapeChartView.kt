@@ -75,8 +75,13 @@ fun TShapeChartView(
         // Staf berada SEJAJAR bersama rekan kerja satu divisi di bawah Atasan Langsung
         if (result.focusNode.level == HierarchyLevel.STAFF_OPERATOR) {
             val deptName = result.focusNode.department?.displayName ?: "Perusahaan"
+            val totalCount = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                result.orderedDepartmentMembers.size
+            } else {
+                result.peersInDepartment.size + 1
+            }
             Text(
-                text = "Rekan Kerja Sejajar — Seluruh Tim Divisi $deptName (${result.peersInDepartment.size + 1} Orang)",
+                text = "Rekan Kerja Sejajar — Seluruh Tim Divisi $deptName ($totalCount Orang)",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted
@@ -91,20 +96,28 @@ fun TShapeChartView(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Tampilkan rekan-rekan yang sudah ada
-                result.peersInDepartment.forEach { peer ->
-                    OrgNodeCard(
-                        node = peer,
-                        onClick = { onSelectNode(peer.id.value) }
-                    )
+                val members = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                    result.orderedDepartmentMembers
+                } else {
+                    result.peersInDepartment + result.focusNode
                 }
 
-                // Posisi fokus (misal karyawan yang baru dibuat atau diedit)
-                OrgNodeCard(
-                    node = result.focusNode,
-                    isHighlighted = true,
-                    badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
-                )
+                members.forEach { member ->
+                    if (member.id == result.focusNode.id) {
+                        // Posisi fokus (misal karyawan yang baru dibuat atau diedit)
+                        OrgNodeCard(
+                            node = result.focusNode,
+                            isHighlighted = true,
+                            badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
+                        )
+                    } else {
+                        // Rekan kerja sejajar
+                        OrgNodeCard(
+                            node = member,
+                            onClick = { onSelectNode(member.id.value) }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
@@ -154,10 +167,15 @@ fun TShapeChartView(
                 }
             }
 
-            // 2.2 Focus Node Card (Head of Dept / Executive)
-            if (result.focusNode.level == HierarchyLevel.EXECUTIVE && result.peersInDepartment.isNotEmpty()) {
+            // 2.2 Focus Node Card (Head of Dept / Executive / Team Lead)
+            if (result.focusNode.level == HierarchyLevel.EXECUTIVE && (result.peersInDepartment.isNotEmpty() || result.orderedDepartmentMembers.size > 1)) {
+                val totalExecs = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                    result.orderedDepartmentMembers.size
+                } else {
+                    result.peersInDepartment.size + 1
+                }
                 Text(
-                    text = "Jajaran Dewan Direksi / Pimpinan Puncak (${result.peersInDepartment.size + 1} Orang)",
+                    text = "Jajaran Dewan Direksi / Pimpinan Puncak ($totalExecs Orang)",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = WeMadeColors.OnSurfaceMuted,
@@ -170,17 +188,68 @@ fun TShapeChartView(
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    result.peersInDepartment.forEach { peer ->
-                        OrgNodeCard(
-                            node = peer,
-                            onClick = { onSelectNode(peer.id.value) }
-                        )
+                    val execMembers = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                        result.orderedDepartmentMembers
+                    } else {
+                        result.peersInDepartment + result.focusNode
                     }
-                    OrgNodeCard(
-                        node = result.focusNode,
-                        isHighlighted = true,
-                        badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
-                    )
+
+                    execMembers.forEach { member ->
+                        if (member.id == result.focusNode.id) {
+                            OrgNodeCard(
+                                node = result.focusNode,
+                                isHighlighted = true,
+                                badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
+                            )
+                        } else {
+                            OrgNodeCard(
+                                node = member,
+                                onClick = { onSelectNode(member.id.value) }
+                            )
+                        }
+                    }
+                }
+            } else if (result.focusNode.level == HierarchyLevel.TEAM_LEAD && (result.peersInDepartment.isNotEmpty() || result.orderedDepartmentMembers.size > 1)) {
+                val deptName = result.focusNode.department?.displayName ?: "Divisi"
+                val totalLeads = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                    result.orderedDepartmentMembers.size
+                } else {
+                    result.peersInDepartment.size + 1
+                }
+                Text(
+                    text = "Kepala Tim / Supervisor — Divisi $deptName ($totalLeads Orang)",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    modifier = Modifier.padding(bottom = ClaySpacing.Md)
+                )
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val leadMembers = if (result.orderedDepartmentMembers.isNotEmpty()) {
+                        result.orderedDepartmentMembers
+                    } else {
+                        result.peersInDepartment + result.focusNode
+                    }
+
+                    leadMembers.forEach { member ->
+                        if (member.id == result.focusNode.id) {
+                            OrgNodeCard(
+                                node = result.focusNode,
+                                isHighlighted = true,
+                                badgeLabel = if (result.isDraft) "POSISI BARU DITAMBAHKAN" else "POSISI FOKUS / DIEDIT"
+                            )
+                        } else {
+                            OrgNodeCard(
+                                node = member,
+                                onClick = { onSelectNode(member.id.value) }
+                            )
+                        }
+                    }
                 }
             } else {
                 OrgNodeCard(

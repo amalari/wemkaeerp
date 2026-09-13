@@ -38,8 +38,9 @@ data class EmployeeDto(
             val peerHeadsJson = toJsonList(result.peerHeads)
             val subordinatesJson = toJsonList(result.subordinates)
             val peersJson = toJsonList(result.peersInDepartment)
+            val orderedMembersJson = toJsonList(result.orderedDepartmentMembers)
 
-            return "{\"focusNode\":$focusJson,\"superior\":$superiorJson,\"peerHeads\":$peerHeadsJson,\"subordinates\":$subordinatesJson,\"peersInDepartment\":$peersJson,\"isDraft\":${result.isDraft}}"
+            return "{\"focusNode\":$focusJson,\"superior\":$superiorJson,\"peerHeads\":$peerHeadsJson,\"subordinates\":$subordinatesJson,\"peersInDepartment\":$peersJson,\"orderedDepartmentMembers\":$orderedMembersJson,\"isDraft\":${result.isDraft}}"
         }
 
         private fun escape(s: String): String =

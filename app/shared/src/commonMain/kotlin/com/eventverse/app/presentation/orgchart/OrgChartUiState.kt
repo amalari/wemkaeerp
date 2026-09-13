@@ -107,7 +107,25 @@ data class OrgChartUiState(
      */
     val resolvedHierarchy: TShapeHierarchyResult
         get() {
-            val focus = if (isCreatingNew) draftNode else (employees.find { it.id.value == selectedEmployeeId } ?: draftNode)
+            val focus = if (isCreatingNew) {
+                draftNode
+            } else {
+                val existing = employees.find { it.id.value == selectedEmployeeId }
+                if (existing != null) {
+                    existing.copy(
+                        name = nameInput.ifBlank { existing.name },
+                        email = emailInput.ifBlank { existing.email },
+                        phone = phoneInput,
+                        department = if (selectedLevel == HierarchyLevel.EXECUTIVE) null else (selectedDepartment ?: existing.department),
+                        level = selectedLevel,
+                        tierName = selectedTierName ?: existing.tierName,
+                        roleTitle = roleTitleInput.ifBlank { selectedTierName ?: selectedLevel.displayName },
+                        reportsToId = selectedReportsToId?.let { OrgNodeId(it) }
+                    )
+                } else {
+                    draftNode
+                }
+            }
             return OrgNode.resolveTShapeView(
                 nodes = employees,
                 focusNode = focus,

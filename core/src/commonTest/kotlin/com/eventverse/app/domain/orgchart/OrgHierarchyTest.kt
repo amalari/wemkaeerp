@@ -143,4 +143,75 @@ class OrgHierarchyTest {
         assertFalse(result.subordinates.any { it.id.value == "emp-budi" })
         assertEquals(3, result.subordinates.size)
     }
+
+    @Test
+    fun existing_staff_selection_should_keep_original_card_position_in_orderedDepartmentMembers() {
+        // Sample sales staff in order: [emp-rian, emp-dedi, emp-maya]
+        val dedi = sampleEmployees.first { it.id.value == "emp-dedi" }
+
+        val resultDedi = OrgNode.resolveTShapeView(
+            nodes = sampleEmployees,
+            focusNode = dedi,
+            isDraft = false
+        )
+
+        // Dedi must stay at index 1 in orderedDepartmentMembers, NOT moved to the end
+        assertEquals(3, resultDedi.orderedDepartmentMembers.size)
+        assertEquals("emp-rian", resultDedi.orderedDepartmentMembers[0].id.value)
+        assertEquals("emp-dedi", resultDedi.orderedDepartmentMembers[1].id.value)
+        assertEquals("emp-maya", resultDedi.orderedDepartmentMembers[2].id.value)
+        assertEquals(dedi.id, resultDedi.focusNode.id)
+
+        // Select Maya (index 2) - order must remain [emp-rian, emp-dedi, emp-maya]
+        val maya = sampleEmployees.first { it.id.value == "emp-maya" }
+        val resultMaya = OrgNode.resolveTShapeView(
+            nodes = sampleEmployees,
+            focusNode = maya,
+            isDraft = false
+        )
+        assertEquals(3, resultMaya.orderedDepartmentMembers.size)
+        assertEquals("emp-rian", resultMaya.orderedDepartmentMembers[0].id.value)
+        assertEquals("emp-dedi", resultMaya.orderedDepartmentMembers[1].id.value)
+        assertEquals("emp-maya", resultMaya.orderedDepartmentMembers[2].id.value)
+        assertEquals(maya.id, resultMaya.focusNode.id)
+
+        // Select Rian (index 0) - order must remain [emp-rian, emp-dedi, emp-maya]
+        val rian = sampleEmployees.first { it.id.value == "emp-rian" }
+        val resultRian = OrgNode.resolveTShapeView(
+            nodes = sampleEmployees,
+            focusNode = rian,
+            isDraft = false
+        )
+        assertEquals(3, resultRian.orderedDepartmentMembers.size)
+        assertEquals("emp-rian", resultRian.orderedDepartmentMembers[0].id.value)
+        assertEquals("emp-dedi", resultRian.orderedDepartmentMembers[1].id.value)
+        assertEquals("emp-maya", resultRian.orderedDepartmentMembers[2].id.value)
+        assertEquals(rian.id, resultRian.focusNode.id)
+    }
+
+    @Test
+    fun new_draft_staff_creation_should_append_draft_node_at_the_end_on_the_right() {
+        val newDraft = OrgNode(
+            id = OrgNodeId("emp-new-draft"),
+            name = "Karyawan Baru",
+            email = "baru@wemade.id",
+            department = Department.SALES,
+            level = HierarchyLevel.STAFF_OPERATOR,
+            roleTitle = "Staf Pelaksana Baru"
+        )
+
+        val result = OrgNode.resolveTShapeView(
+            nodes = sampleEmployees,
+            focusNode = newDraft,
+            isDraft = true
+        )
+
+        // Existing 3 staff in order, and new draft node appended at the end (index 3, far right)
+        assertEquals(4, result.orderedDepartmentMembers.size)
+        assertEquals("emp-rian", result.orderedDepartmentMembers[0].id.value)
+        assertEquals("emp-dedi", result.orderedDepartmentMembers[1].id.value)
+        assertEquals("emp-maya", result.orderedDepartmentMembers[2].id.value)
+        assertEquals("emp-new-draft", result.orderedDepartmentMembers[3].id.value)
+        assertTrue(result.isDraft)
+    }
 }

@@ -253,19 +253,29 @@ data class OrgNode(
                         focusNode = focusNode,
                         subordinates = subordinates,
                         peersInDepartment = emptyList(),
-                        isDraft = isDraft
+                        isDraft = isDraft,
+                        orderedDepartmentMembers = listOf(focusNode)
                     )
                 }
 
                 HierarchyLevel.TEAM_LEAD -> {
-                    val peersInDept = nodes.filter {
+                    val allLeads = nodes.filter {
                         it.department != null &&
                         it.department == focusNode.department &&
-                        it.level == HierarchyLevel.TEAM_LEAD &&
-                        it.id != focusNode.id
+                        it.level == HierarchyLevel.TEAM_LEAD
                     }
+                    val peersInDept = allLeads.filter { it.id != focusNode.id }
                     val subordinates = nodes.filter {
                         it.reportsToId == focusNode.id || (it.department != null && it.department == focusNode.department && it.level == HierarchyLevel.STAFF_OPERATOR)
+                    }
+                    val orderedMembers = if (isDraft) {
+                        allLeads + focusNode
+                    } else {
+                        if (allLeads.any { it.id == focusNode.id }) {
+                            allLeads.map { if (it.id == focusNode.id) focusNode else it }
+                        } else {
+                            allLeads + focusNode
+                        }
                     }
                     TShapeHierarchyResult(
                         superior = superior,
@@ -273,16 +283,26 @@ data class OrgNode(
                         focusNode = focusNode,
                         subordinates = subordinates,
                         peersInDepartment = peersInDept,
-                        isDraft = isDraft
+                        isDraft = isDraft,
+                        orderedDepartmentMembers = orderedMembers
                     )
                 }
 
                 HierarchyLevel.STAFF_OPERATOR -> {
-                    val peersInDept = nodes.filter {
+                    val allStaffInDept = nodes.filter {
                         it.department != null &&
                         it.department == focusNode.department &&
-                        it.level == HierarchyLevel.STAFF_OPERATOR &&
-                        it.id != focusNode.id
+                        it.level == HierarchyLevel.STAFF_OPERATOR
+                    }
+                    val peersInDept = allStaffInDept.filter { it.id != focusNode.id }
+                    val orderedMembers = if (isDraft) {
+                        allStaffInDept + focusNode
+                    } else {
+                        if (allStaffInDept.any { it.id == focusNode.id }) {
+                            allStaffInDept.map { if (it.id == focusNode.id) focusNode else it }
+                        } else {
+                            allStaffInDept + focusNode
+                        }
                     }
                     TShapeHierarchyResult(
                         superior = superior,
@@ -290,16 +310,25 @@ data class OrgNode(
                         focusNode = focusNode,
                         subordinates = emptyList(),
                         peersInDepartment = peersInDept,
-                        isDraft = isDraft
+                        isDraft = isDraft,
+                        orderedDepartmentMembers = orderedMembers
                     )
                 }
 
                 HierarchyLevel.EXECUTIVE -> {
-                    val peerExecutives = nodes.filter {
-                        it.level == HierarchyLevel.EXECUTIVE && it.id != focusNode.id
-                    }
+                    val allExecutives = nodes.filter { it.level == HierarchyLevel.EXECUTIVE }
+                    val peerExecutives = allExecutives.filter { it.id != focusNode.id }
                     val allDirectReports = nodes.filter {
                         it.level == HierarchyLevel.HEAD_OF_DEPARTMENT || (it.reportsToId == focusNode.id && it.level != HierarchyLevel.EXECUTIVE)
+                    }
+                    val orderedMembers = if (isDraft) {
+                        allExecutives + focusNode
+                    } else {
+                        if (allExecutives.any { it.id == focusNode.id }) {
+                            allExecutives.map { if (it.id == focusNode.id) focusNode else it }
+                        } else {
+                            allExecutives + focusNode
+                        }
                     }
                     TShapeHierarchyResult(
                         superior = null,
@@ -307,7 +336,8 @@ data class OrgNode(
                         focusNode = focusNode,
                         subordinates = allDirectReports,
                         peersInDepartment = peerExecutives,
-                        isDraft = isDraft
+                        isDraft = isDraft,
+                        orderedDepartmentMembers = orderedMembers
                     )
                 }
             }
@@ -324,5 +354,6 @@ data class TShapeHierarchyResult(
     val focusNode: OrgNode,
     val subordinates: List<OrgNode>,
     val peersInDepartment: List<OrgNode>,
-    val isDraft: Boolean = false
+    val isDraft: Boolean = false,
+    val orderedDepartmentMembers: List<OrgNode> = emptyList()
 )
