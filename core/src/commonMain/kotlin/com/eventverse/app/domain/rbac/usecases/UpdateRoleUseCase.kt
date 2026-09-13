@@ -29,7 +29,9 @@ class UpdateRoleUseCase(
         }
 
         if (command.modulePermissions != null) {
-            updated = updated.copy(modulePermissions = command.modulePermissions)
+            // withModulePermissions, bukan copy(): matriks yang tiba lewat API tidak melewati layar
+            // mana pun, sehingga invarian anti-lockout harus ditegakkan di sini juga.
+            updated = updated.withModulePermissions(command.modulePermissions)
         }
 
         if (command.departmentId != null) {

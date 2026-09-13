@@ -4,7 +4,21 @@ package com.eventverse.app.domain.rbac
  * Business modules for WeMade Garment ERP.
  * Designed with human-friendly terminology for factory owners & management.
  */
+/**
+ * Membedakan modul yang mengerjakan **pekerjaan pabrik** dari modul yang mengatur **sistemnya**.
+ *
+ * Pembedaan ini bukan label dokumentasi: modul `GOVERNANCE` tidak mengisi slot kapabilitas
+ * [com.eventverse.app.domain.pipeline.ModuleArchetype] mana pun, tidak pernah menjadi node di kanvas
+ * Alur Pabrik, dan karenanya tidak boleh ikut menghabiskan kuota
+ * `SubscriptionTier.maxActivePipelineModules`. Paket PRO tetap berarti sembilan modul produksi,
+ * bukan sembilan dikurangi layar pengaturan.
+ */
+enum class ModuleKind { OPERATIONAL, GOVERNANCE }
+
 enum class ModuleCategory(val displayName: String) {
+    // Wajib entri pertama: NavMenu menyusun urutan seksi drawer dari ModuleCategory.entries, dan
+    // seksi tata kelola selalu berada di puncak seperti sebelum ketiga layar ini menjadi modul.
+    GOVERNANCE("Sistem & Struktur"),
     SALES("Penjualan & Relasi Pelanggan"),
     LOGISTICS("Gudang, Bahan Baku & Logistik"),
     TECHNICAL("Desain, Pola & Biaya HPP"),
@@ -19,12 +33,48 @@ enum class BusinessModule(
     val description: String,
     val iconKey: String,
     val scopeCapability: ScopeCapability = ScopeCapability.GLOBAL_ONLY,
+    val kind: ModuleKind = ModuleKind.OPERATIONAL,
     val supportedScopes: Set<DataScope> = if (scopeCapability == ScopeCapability.GLOBAL_ONLY) {
         setOf(DataScope.ALL_TENANT_DATA)
     } else {
         setOf(DataScope.OWN_DATA_ONLY, DataScope.SUBORDINATE_DATA, DataScope.ALL_TENANT_DATA)
     }
 ) {
+    // ── Modul tata kelola ────────────────────────────────────────────────────────────────────
+    // Ketiganya dulu berupa layar administrasi yang tidak dijaga matriks wewenang sama sekali.
+    // Menjadikannya modul membuat dua hal mungkin sekaligus: superadmin menyambung/memutusnya per
+    // tenant, dan admin pabrik mengatur siapa yang boleh membukanya.
+    ORG_CHART(
+        code = "org_chart",
+        displayName = "Bagan Organisasi & Karyawan",
+        category = ModuleCategory.GOVERNANCE,
+        description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
+        iconKey = "users",
+        // Hirarkis karena kepala divisi wajar dibatasi hanya melihat timnya sendiri; lihat
+        // OrgChartVisibility yang benar-benar menyaring datanya, bukan sekadar melabeli.
+        scopeCapability = ScopeCapability.HIERARCHICAL,
+        kind = ModuleKind.GOVERNANCE
+    ),
+    DYNAMIC_RBAC(
+        code = "dynamic_rbac",
+        displayName = "Hak Akses & Jabatan (RBAC)",
+        category = ModuleCategory.GOVERNANCE,
+        description = "Matriks wewenang per jabatan, penugasan modul ke divisi, dan pengujian persona.",
+        iconKey = "shield",
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
+        kind = ModuleKind.GOVERNANCE
+    ),
+    FACTORY_FLOW(
+        code = "factory_flow",
+        displayName = "Alur Pabrik (Pipeline)",
+        category = ModuleCategory.GOVERNANCE,
+        description = "Kanvas alur operasional tenant: urutan modul, penggantian nama, dan bypass.",
+        iconKey = "flow_graph",
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
+        kind = ModuleKind.GOVERNANCE
+    ),
+
+    // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
     CRM_SALES(
         code = "crm_sales",
         displayName = "Pelanggan & Prospek Sales",
@@ -101,5 +151,24 @@ enum class BusinessModule(
     val isGlobalOnly: Boolean get() = scopeCapability == ScopeCapability.GLOBAL_ONLY
     val isHierarchical: Boolean get() = scopeCapability == ScopeCapability.HIERARCHICAL
 
+    val isGovernance: Boolean get() = kind == ModuleKind.GOVERNANCE
+    val isOperational: Boolean get() = kind == ModuleKind.OPERATIONAL
+
     fun isScopeSupported(scope: DataScope): Boolean = supportedScopes.contains(scope)
+
+    companion object {
+        /**
+         * Modul yang boleh berdiri sebagai node di kanvas Alur Pabrik dan ikut dihitung kuota paket.
+         *
+         * Dipakai di mana pun "semua modul" sebelumnya berarti "semua modul produksi" — sebelum
+         * modul tata kelola ada, dua pengertian itu kebetulan sama.
+         */
+        val operational: List<BusinessModule> get() = entries.filter { it.isOperational }
+
+        /** Modul pengatur sistem: bagan organisasi, matriks wewenang, dan kanvas alur. */
+        val governance: List<BusinessModule> get() = entries.filter { it.isGovernance }
+
+        fun fromCode(code: String?): BusinessModule? =
+            entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
+    }
 }

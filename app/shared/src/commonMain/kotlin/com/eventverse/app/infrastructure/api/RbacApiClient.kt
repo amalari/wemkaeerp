@@ -4,6 +4,7 @@ import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.rbac.*
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.pipeline.TenantEntitlementGrantsCodec
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -63,6 +64,29 @@ class RbacApiClient(
             error("Gagal memuat karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
         }
         OrgChartApiClient.parseJsonArray(response.bodyAsText()).map { OrgChartApiClient.parseOrgNode(it) }
+    }
+
+    /**
+     * GET /api/tenant/entitlement — modul yang disambungkan ke tenant ini.
+     *
+     * Terpisah dari `GET /api/tenant/pipeline/modules`, yang sengaja hanya membicarakan katalog
+     * **operasional** (arketipe, rekomendasi preset, status terpasang di kanvas). Modul tata kelola
+     * tidak punya satu pun properti itu, jadi menumpangkannya ke sana berarti melebarkan kontrak
+     * katalog demi tiga baris yang tidak pernah memakai isinya.
+     *
+     * Server selalu mengirim daftar yang sudah dipadatkan; `null` di sini hanya muncul bila server
+     * lama yang menjawab, dan diartikan "semua modul" sesuai konvensi codec.
+     */
+    suspend fun getEntitlement(tenantSlug: String): Result<Set<BusinessModule>> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/tenant/entitlement")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal memuat entitlement modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        TenantEntitlementGrantsCodec.decode(response.bodyAsText()).grantedModules
+            ?: BusinessModule.entries.toSet()
     }
 
     /**

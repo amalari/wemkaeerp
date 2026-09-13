@@ -81,7 +81,10 @@ val TenantResolutionPlugin = createApplicationPlugin(
             tenantId = decoded.getClaim("tenant_id").asString()
                 ?.takeIf { it.isNotBlank() }
                 ?.let { TenantId(it) },
-            tenantSlug = decoded.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
+            tenantSlug = decoded.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() },
+            departmentId = decoded.getClaim("department_id").asString()?.takeIf { it.isNotBlank() },
+            customRoleId = decoded.getClaim("custom_role_id").asString()?.takeIf { it.isNotBlank() },
+            email = decoded.getClaim("email").asString()?.takeIf { it.isNotBlank() }
         )
         call.attributes.put(CallerPrincipalAttributeKey, principal)
 

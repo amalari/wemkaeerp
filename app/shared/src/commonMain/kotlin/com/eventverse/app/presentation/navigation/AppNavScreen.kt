@@ -13,25 +13,31 @@ enum class AppNavScreen(
     /**
      * Modul bisnis yang menjadi gerbang wewenang layar ini.
      *
-     * Null berarti layar tidak dijaga matriks RBAC (login, dan layar administrasi yang justru
-     * dipakai untuk memperbaiki matriksnya — mengunci keduanya berarti tidak ada jalan kembali).
+     * Null kini hanya untuk layar yang memang berada di luar tenant (login). Ketiga layar tata kelola
+     * dulu juga null dengan alasan "dipakai untuk memperbaiki matriksnya sendiri"; alasan itu kini
+     * ditangani dua lapis proteksi anti-lockout di lapisan domain — bypass Owner pada
+     * `AccessDecisionEngine` dan penguncian jabatan Owner pada `CustomRole.updateModuleAccess` —
+     * sehingga layarnya tidak perlu lagi dikecualikan dari matriks.
      */
     val businessModule: BusinessModule? = null
 ) {
     ORG_CHART(
         route = "/org-chart",
         title = "Bagan Organisasi",
-        aliases = listOf("/orgchart", "/organization", "/bagan-organisasi")
+        aliases = listOf("/orgchart", "/organization", "/bagan-organisasi"),
+        businessModule = BusinessModule.ORG_CHART
     ),
     DYNAMIC_RBAC(
         route = "/rbac",
         title = "Hak Akses (RBAC)",
-        aliases = listOf("/roles", "/hak-akses", "/permissions")
+        aliases = listOf("/roles", "/hak-akses", "/permissions"),
+        businessModule = BusinessModule.DYNAMIC_RBAC
     ),
     FACTORY_FLOW(
         route = "/factory-flow",
         title = "Alur Pabrik (Pipeline)",
-        aliases = listOf("/pipeline", "/alur-pabrik", "/flow")
+        aliases = listOf("/pipeline", "/alur-pabrik", "/flow"),
+        businessModule = BusinessModule.FACTORY_FLOW
     ),
     // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
     CRM_SALES(

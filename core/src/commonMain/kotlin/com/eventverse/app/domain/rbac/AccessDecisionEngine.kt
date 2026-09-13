@@ -26,6 +26,16 @@ enum class AccessSource(val label: String) {
     /** Owner/superadmin melewati matriks sepenuhnya. */
     OWNER_BYPASS("Owner (bypass)"),
 
+    /**
+     * Modul tidak disambungkan ke tenant ini sama sekali.
+     *
+     * Dibedakan dari [NONE] karena keduanya mengirim orang ke pintu yang berbeda: "tidak berwenang"
+     * diperbaiki admin pabrik lewat matriks, "tidak termasuk paket" hanya bisa diperbaiki
+     * superadmin platform. Menyamakan keduanya membuat admin mencari-cari di layar yang tidak akan
+     * pernah menyelesaikan masalahnya.
+     */
+    NOT_ENTITLED("Tidak termasuk paket"),
+
     /** Tidak ada satu pun yang memberi. */
     NONE("Tidak ada")
 }
@@ -49,6 +59,9 @@ data class AccessDecision(
     /** True bila menu terbuka **hanya** karena divisinya, bukan karena jabatannya. */
     val grantedByDepartmentOnly: Boolean
         get() = source == AccessSource.DEPARTMENT && !fromRole.isAccessible
+
+    /** True bila modulnya memang belum disambungkan ke tenant, bukan soal wewenang orangnya. */
+    val blockedByEntitlement: Boolean get() = source == AccessSource.NOT_ENTITLED
 }
 
 object AccessDecisionEngine {
@@ -64,8 +77,9 @@ object AccessDecisionEngine {
         persona: TestingPersona,
         module: BusinessModule,
         role: CustomRole?,
-        assignments: List<DepartmentModuleAssignment>
-    ): ModuleAccessConfig = explain(persona, module, role, assignments).config
+        assignments: List<DepartmentModuleAssignment>,
+        grantedModules: Set<BusinessModule>? = null
+    ): ModuleAccessConfig = explain(persona, module, role, assignments, grantedModules).config
 
     /**
      * Sama seperti [evaluate], tetapi ikut menyebut **dari mana** wewenangnya datang.
@@ -77,10 +91,32 @@ object AccessDecisionEngine {
         persona: TestingPersona,
         module: BusinessModule,
         role: CustomRole?,
-        assignments: List<DepartmentModuleAssignment>
+        assignments: List<DepartmentModuleAssignment>,
+        grantedModules: Set<BusinessModule>? = null
     ): AccessDecision {
         val roleAccess = (role?.getAccess(module) ?: ModuleAccessConfig(AccessLevel.NONE))
             .sanitizeFor(module)
+
+        // Entitlement tenant diperiksa **sebelum** apa pun, termasuk sebelum bypass Owner.
+        //
+        // Urutannya menentukan artinya: modul yang tidak disambungkan ke sebuah pabrik bukan modul
+        // yang "Owner-nya berwenang tapi stafnya tidak" — ia tidak ada untuk pabrik itu. Kalau
+        // bypass Owner diletakkan lebih dulu, memutus modul lewat billing tidak akan berpengaruh
+        // apa pun bagi orang yang paling sering memakai sistem.
+        //
+        // `null` berarti "entitlement belum diketahui" — misalnya panggilan lama, atau layar yang
+        // dimuat sebelum permintaan entitlement selesai. Di keadaan itu perilakunya sengaja
+        // dikembalikan seperti semula, supaya kegagalan jaringan tidak tampil sebagai pencabutan
+        // langganan.
+        if (grantedModules != null && module !in grantedModules) {
+            val denied = ModuleAccessConfig(AccessLevel.NONE)
+            return AccessDecision(
+                config = denied,
+                source = AccessSource.NOT_ENTITLED,
+                fromRole = roleAccess,
+                fromDepartment = denied
+            )
+        }
         val departmentMatch = resolveDepartmentAccess(persona, assignments)
         val departmentAccess = departmentMatch
             ?.let { ModuleAccessConfig(it.accessLevel, it.scope) }
@@ -122,11 +158,12 @@ object AccessDecisionEngine {
     fun explainAll(
         persona: TestingPersona,
         roles: List<CustomRole>,
-        assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>
+        assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>,
+        grantedModules: Set<BusinessModule>? = null
     ): Map<BusinessModule, AccessDecision> {
         val role = persona.roleId?.let { id -> roles.firstOrNull { it.id == id } }
         return BusinessModule.entries.associateWith { module ->
-            explain(persona, module, role, assignments[module].orEmpty())
+            explain(persona, module, role, assignments[module].orEmpty(), grantedModules)
         }
     }
 
@@ -134,9 +171,10 @@ object AccessDecisionEngine {
     fun evaluateAll(
         persona: TestingPersona,
         roles: List<CustomRole>,
-        assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>
+        assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>,
+        grantedModules: Set<BusinessModule>? = null
     ): Map<BusinessModule, ModuleAccessConfig> =
-        explainAll(persona, roles, assignments).mapValues { it.value.config }
+        explainAll(persona, roles, assignments, grantedModules).mapValues { it.value.config }
 
     /**
      * Assignment divisi yang benar-benar berlaku untuk persona ini.

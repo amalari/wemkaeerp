@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -39,10 +41,28 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun FactoryFlowScreen(
     tenantSlug: String = "wemade-demo",
     viewModel: FactoryFlowViewModel = remember { FactoryFlowViewModel() },
+    /**
+     * Wewenang efektif atas modul Alur Pabrik.
+     *
+     * `OPERATE` boleh mengubah topologi harian — mengganti nama modul, menyalakan atau mem-bypass —
+     * sedangkan `MANAGE` juga boleh mereset ke preset dan memasang modul kustom, dua aksi yang
+     * menulis ulang seluruh alur pabrik sekaligus.
+     */
+    access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
     val isPresentationMode = state.isPresentationMode
+
+    // Gerbang tunggal, dengan alasan yang sama seperti di layar RBAC: kanvas menyebar aksinya ke
+    // banyak komponen anak, dan tombol yang terlewat lebih baik tidak berefek daripada menembus.
+    val onTopologyEvent: (FactoryFlowUiEvent) -> Unit = { event ->
+        val required = when (event) {
+            is FactoryFlowUiEvent.ResetToPreset -> AccessLevel.MANAGE
+            else -> AccessLevel.OPERATE
+        }
+        if (access.level.isAtLeast(required)) viewModel.onEvent(event)
+    }
 
     val activeCompany = remember(tenantSlug) {
         com.eventverse.app.presentation.navigation.CompanyTenantProfile.findBySlug(tenantSlug)
@@ -148,12 +168,12 @@ fun FactoryFlowScreen(
                     catalog = state.moduleCatalog,
                     isSaving = state.isSaving,
                     onSetModuleActive = { moduleId, isActive ->
-                        viewModel.onEvent(
+                        onTopologyEvent(
                             FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, isActive)
                         )
                     },
                     onResetToPreset = { preset ->
-                        viewModel.onEvent(FactoryFlowUiEvent.ResetToPreset(tenantSlug, preset))
+                        onTopologyEvent(FactoryFlowUiEvent.ResetToPreset(tenantSlug, preset))
                     },
                     activePreset = state.selectedPreset
                 )
@@ -188,10 +208,12 @@ fun FactoryFlowScreen(
                 onClose = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(null)) },
                 // Renaming writes to persisted tenant data, so it is only offered when the
                 // canvas is showing that data rather than the preset template.
+                // Mengganti nama menulis ke data tenant, jadi ditawarkan hanya bila kanvas memang
+                // menampilkan data itu **dan** penonton berwenang mengubahnya.
                 onRenameRequest = state.selectedNode
-                    ?.takeIf { state.isTenantDataLoaded }
+                    ?.takeIf { state.isTenantDataLoaded && access.canWrite }
                     ?.let { node ->
-                        { viewModel.onEvent(FactoryFlowUiEvent.StartRenamingModule(node)) }
+                        { onTopologyEvent(FactoryFlowUiEvent.StartRenamingModule(node)) }
                     }
             )
         }
@@ -217,7 +239,7 @@ fun FactoryFlowScreen(
                 node = node,
                 isSaving = state.isSaving,
                 onConfirm = { newName ->
-                    viewModel.onEvent(
+                    onTopologyEvent(
                         FactoryFlowUiEvent.RenameModule(tenantSlug, node.id, newName)
                     )
                 },

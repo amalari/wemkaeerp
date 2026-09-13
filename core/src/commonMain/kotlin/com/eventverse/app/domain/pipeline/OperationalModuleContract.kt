@@ -203,8 +203,14 @@ enum class ModuleArchetype(
         /**
          * Single source of truth mapping a standard [BusinessModule] to the capability
          * slot it fills. Previously duplicated in two places that could drift apart.
+         *
+         * Returns null for governance modules (`ModuleKind.GOVERNANCE`). That is not a missing
+         * case: a capability slot describes a station on the production line, and the org chart,
+         * the permission matrix and the flow canvas are not stations — nothing hands work to them
+         * and they hand work to nothing. Forcing them into a slot would make them eligible for the
+         * pipeline canvas and for `interchangeableWith`, which is exactly what must not happen.
          */
-        fun forModule(module: BusinessModule): ModuleArchetype = when (module) {
+        fun forModule(module: BusinessModule): ModuleArchetype? = when (module) {
             BusinessModule.CRM_SALES -> ORDER_INGESTION
             BusinessModule.SAMPLING_ORDER -> ORDER_INGESTION
             BusinessModule.INVENTORY -> RAW_MATERIAL
@@ -214,6 +220,9 @@ enum class ModuleArchetype(
             BusinessModule.OPERATOR_EXEC -> SEWING
             BusinessModule.QUALITY_CONTROL -> QUALITY_CONTROL
             BusinessModule.FULFILLMENT -> FULFILLMENT
+            BusinessModule.ORG_CHART,
+            BusinessModule.DYNAMIC_RBAC,
+            BusinessModule.FACTORY_FLOW -> null
         }
 
         /** Resolves the archetype for a persisted module code, standard or custom. */
@@ -230,7 +239,17 @@ enum class ModuleArchetype(
  */
 interface OperationalModuleSpecification {
     val module: BusinessModule
-    val archetype: ModuleArchetype get() = ModuleArchetype.forModule(module)
+
+    /**
+     * Non-null by construction: only operational modules have a specification at all, and every
+     * operational module fills exactly one capability slot. A governance module reaching here
+     * would be a wiring mistake, and failing loudly beats silently synthesizing a station.
+     */
+    val archetype: ModuleArchetype
+        get() = requireNotNull(ModuleArchetype.forModule(module)) {
+            "Modul '${module.code}' bertipe ${module.kind} sehingga tidak mengisi slot kapabilitas " +
+                "mana pun; hanya modul operasional yang boleh punya OperationalModuleSpecification."
+        }
 
     /**
      * Presets where this module is recommended as starter default.
@@ -418,7 +437,10 @@ data class CustomTenantPipeline(
                     nodeId = node.id,
                     moduleId = node.module.code,
                     customDisplayName = node.title,
-                    archetype = ModuleArchetype.forModule(node.module),
+                    // forModuleCode, bukan forModule: ia total dan jatuh ke CUSTOM_EXTENSION.
+                    // Node preset selalu operasional, jadi hasilnya identik — yang berubah hanya
+                    // bahwa penambahan modul non-operasional tidak lagi memaksa perubahan di sini.
+                    archetype = ModuleArchetype.forModuleCode(node.module.code),
                     isBypassed = node.isBypassed,
                     stepOrderIndex = node.stepNumber,
                     customFormulaParameters = emptyMap()

@@ -3,6 +3,7 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -17,6 +18,8 @@ import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseC
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.PipelineDto
+import com.eventverse.app.shared.json.JsonWriter
+import com.eventverse.app.shared.pipeline.TenantEntitlementGrantsCodec
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -35,6 +38,35 @@ fun Route.pipelineRoutes(
     val setModuleActivationUseCase = SetTenantModuleActivationUseCase(pipelineRepository)
     val renameModuleUseCase = RenameTenantModuleUseCase(pipelineRepository)
     val installCustomModuleUseCase = InstallCustomModuleUseCase(pipelineRepository, entitlementRepository)
+
+    // Modul apa saja yang disambungkan ke tenant ini — termasuk modul tata kelola, yang sengaja
+    // tidak muncul di `/pipeline/modules` karena katalog itu khusus stasiun produksi.
+    //
+    // Dibutuhkan klien untuk menyusun menu: tanpa ini, memutus sebuah modul lewat billing tidak
+    // berpengaruh apa pun pada apa yang dilihat orang di dalam aplikasi.
+    get("/api/tenant/entitlement") {
+        val tenant = call.requireTenant() ?: return@get
+
+        getEntitlementUseCase(tenant.tenantId, tenant.tier)
+            .onSuccess { entitlement ->
+                call.respondText(
+                    // Selalu daftar eksplisit, bukan `toGrants()` yang memadatkan "semua" menjadi
+                    // null. Klien tidak perlu tahu aturan tier untuk memuluskan null itu kembali.
+                    text = JsonWriter.write(
+                        TenantEntitlementGrantsCodec.encode(
+                            TenantEntitlementGrants(
+                                grantedModules = entitlement.grantedModules,
+                                grantedCustomModuleIds = entitlement.grantedCustomModuleIds
+                            )
+                        )
+                    ),
+                    contentType = ContentType.Application.Json
+                )
+            }
+            .onFailure {
+                call.respondFailure(HttpStatusCode.InternalServerError, it, "Gagal memuat entitlement modul")
+            }
+    }
 
     route("/api/tenant/pipeline") {
 

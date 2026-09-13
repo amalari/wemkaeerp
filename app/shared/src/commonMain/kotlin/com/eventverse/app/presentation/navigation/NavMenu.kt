@@ -6,12 +6,6 @@ import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.ModuleCategory
 import com.eventverse.app.presentation.workspace.badgeLabel
 
-/** Judul seksi menu administrasi. Diletakkan paling atas, di atas seluruh seksi kategori modul. */
-const val SYSTEM_SECTION_TITLE: String = "SISTEM & STRUKTUR"
-
-/** Badge untuk item administrasi yang sedang diperlihatkan-tapi-terkunci oleh mode audit. */
-private const val ADMIN_LOCKED_BADGE = "Admin"
-
 /**
  * Satu baris menu, sebagai data murni — tanpa lambda dan tanpa tipe Compose.
  *
@@ -20,7 +14,6 @@ private const val ADMIN_LOCKED_BADGE = "Admin"
  */
 data class NavMenuEntry(
     val screen: AppNavScreen,
-    /** Null untuk layar administrasi yang tidak dijaga matriks RBAC. */
     val accessLevel: AccessLevel? = null,
     val badge: String? = null,
     /** True berarti baris ditampilkan teredam dengan ikon gembok dan tidak dapat diklik. */
@@ -36,38 +29,28 @@ data class NavMenuSection(
 /**
  * Menyusun isi drawer dari wewenang efektif, bukan dari daftar statis.
  *
- * Tiga aturan yang dikandungnya:
+ * Dua aturan yang dikandungnya:
  *
  * 1. **Modul tanpa akses dihilangkan, bukan diredupkan.** Staf gudang tidak perlu tahu ada layar
  *    HPP. Mode audit membalikkannya, karena saat menguji konfigurasi, menu yang hilang dan menu
  *    yang tak pernah ada terlihat sama.
  * 2. **Seksi kategori yang seluruh modulnya tersaring ikut hilang.** Header tanpa isi lebih buruk
  *    daripada tidak ada header — ia menjanjikan sesuatu yang tidak ada.
- * 3. **Saat menyamar sebagai sebuah jabatan, menu administrasi ikut disembunyikan.** Kalau tidak,
- *    tampilannya bukan tampilan jabatan itu, melainkan tampilan jabatan itu plus hak admin. Aman
- *    disembunyikan karena switcher persona hidup di top bar: penguji selalu bisa kembali menjadi
- *    dirinya sendiri.
  *
  * Kategori dan urutan modul dibaca dari [BusinessModule.category] — bukan didaftar ulang di sini,
- * supaya modul ke-sepuluh tidak diam-diam tertelan.
+ * supaya modul berikutnya tidak diam-diam tertelan. Seksi "Sistem & Struktur" pun lahir dari
+ * [ModuleCategory.GOVERNANCE] seperti seksi lainnya; sebelumnya ia berupa daftar layar yang ditulis
+ * tangan di file ini dan karenanya tidak pernah tunduk pada wewenang siapa pun.
+ *
+ * Entitlement tenant **tidak** diperiksa di sini. Modul yang tidak disambungkan ke tenant sudah tiba
+ * sebagai `AccessLevel.NONE` dari `AccessDecisionEngine`, sehingga tersaring oleh aturan 1 di atas.
+ * Memeriksanya dua kali berarti dua tempat yang bisa menyimpang.
  */
 fun buildNavMenu(
     permissions: Map<BusinessModule, ModuleAccessConfig>,
-    auditView: Boolean,
-    isImpersonating: Boolean
+    auditView: Boolean
 ): List<NavMenuSection> {
     val sections = mutableListOf<NavMenuSection>()
-
-    val adminEntries = when {
-        !isImpersonating -> ADMIN_SCREENS.map { NavMenuEntry(screen = it) }
-        auditView -> ADMIN_SCREENS.map {
-            NavMenuEntry(screen = it, badge = ADMIN_LOCKED_BADGE, locked = true)
-        }
-        else -> emptyList()
-    }
-    if (adminEntries.isNotEmpty()) {
-        sections += NavMenuSection(title = SYSTEM_SECTION_TITLE, entries = adminEntries)
-    }
 
     val screensByModule = AppNavScreen.entries.mapNotNull { screen ->
         screen.businessModule?.let { it to screen }
@@ -97,9 +80,18 @@ fun buildNavMenu(
     return sections
 }
 
-/** Layar tata kelola: tidak dijaga matriks RBAC karena justru dipakai untuk memperbaikinya. */
-private val ADMIN_SCREENS = listOf(
-    AppNavScreen.ORG_CHART,
-    AppNavScreen.DYNAMIC_RBAC,
-    AppNavScreen.FACTORY_FLOW
-)
+/**
+ * Layar pertama yang benar-benar boleh dibuka pengguna ini.
+ *
+ * Dipakai sebagai tujuan setelah login. Sebelum ketiga layar tata kelola menjadi modul, tujuan itu
+ * boleh berupa konstanta karena Bagan Organisasi selalu terbuka untuk semua orang; kini ia bisa
+ * tertutup, dan mendaratkan orang di halaman "akses ditolak" tepat setelah login adalah cara buruk
+ * menyambut mereka.
+ *
+ * Mengembalikan null bila tidak ada satu pun menu terbuka — keadaan yang sah (misalnya seluruh modul
+ * dicabut dari tenant) dan harus ditangani pemanggil, bukan disamarkan dengan tujuan asal-asalan.
+ */
+fun firstAccessibleScreen(sections: List<NavMenuSection>): AppNavScreen? =
+    sections.firstNotNullOfOrNull { section ->
+        section.entries.firstOrNull { !it.locked }?.screen
+    }

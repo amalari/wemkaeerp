@@ -151,6 +151,9 @@ private fun AccessProvenanceCard(decision: AccessDecision, persona: TestingPerso
                     AccessSource.ROLE -> WeMadeColors.Primary
                     AccessSource.DEPARTMENT -> WeMadeColors.Warning
                     AccessSource.OWNER_BYPASS -> WeMadeColors.Success
+                    // Amber, bukan merah: modulnya belum disambungkan ke pabrik ini, dan itu
+                    // keadaan langganan — bukan penolakan wewenang.
+                    AccessSource.NOT_ENTITLED -> WeMadeColors.Warning
                     AccessSource.NONE -> WeMadeColors.Error
                 }
             )
@@ -395,4 +398,11 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
         "Surat Jalan SJ-2201 — 40 karton" to "Dikirim",
         "Packing list PO-5512" to "Disiapkan"
     )
+    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik) dan
+    // tidak pernah dirutekan ke layar kerja generik ini. Cabang ini ada semata agar `when` tetap
+    // ekshaustif — dan sengaja kosong, bukan diisi baris contoh yang akan menyesatkan bila suatu
+    // saat benar-benar terlihat.
+    BusinessModule.ORG_CHART,
+    BusinessModule.DYNAMIC_RBAC,
+    BusinessModule.FACTORY_FLOW -> emptyList()
 }

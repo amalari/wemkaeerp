@@ -20,7 +20,19 @@ data class CallerPrincipal(
     val role: Role,
     /** Tenant the token itself belongs to. Null for a platform-level account. */
     val tenantId: TenantId?,
-    val tenantSlug: String?
+    val tenantSlug: String?,
+    /**
+     * Identitas yang dirakit tenant sendiri: divisi tempat orang ini bekerja dan jabatan yang
+     * dikonfigurasi pabriknya. Keduanya sudah ada di token sejak migrasi V17 tetapi belum pernah
+     * dibaca di sini.
+     *
+     * Dibutuhkan agar server bisa menentukan **jangkauan data** seseorang, bukan hanya apakah ia
+     * boleh masuk. Selama hanya `role` platform yang terbaca, satu-satunya tempat jangkauan
+     * dihitung adalah klien — dan jangkauan yang hanya ditegakkan klien bukan jangkauan.
+     */
+    val departmentId: String? = null,
+    val customRoleId: String? = null,
+    val email: String? = null
 ) {
     val isPlatformSuperadmin: Boolean get() = role == Role.PLATFORM_SUPERADMIN
 

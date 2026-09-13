@@ -7,129 +7,139 @@ import com.eventverse.app.domain.rbac.ModuleCategory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * Menu adalah keputusan wewenang, jadi ia diuji tanpa merender apa pun.
+ *
+ * Berkas ini ditulis ulang ketika Bagan Organisasi, RBAC, dan Alur Pabrik menjadi modul. Versi
+ * sebelumnya menguji `isImpersonating` dan `SYSTEM_SECTION_TITLE`: dua hal yang ada semata karena
+ * ketiga layar itu berada **di luar** matriks wewenang. Setelah keduanya masuk matriks, aturan
+ * khususnya tidak lagi punya alasan untuk ada — dan tesnya ikut hilang bersama aturannya.
+ */
 class NavMenuTest {
 
     private fun grant(vararg pairs: Pair<BusinessModule, AccessLevel>) =
         pairs.associate { (module, level) -> module to ModuleAccessConfig(level = level) }
 
     @Test
-    fun build_menu_when_owner_with_no_permissions_should_show_only_system_section() {
+    fun build_menu_when_no_permissions_should_be_empty() {
+        val sections = buildNavMenu(permissions = emptyMap(), auditView = false)
+
+        assertTrue(
+            sections.isEmpty(),
+            "Tanpa satu pun wewenang, tidak ada menu yang boleh muncul — termasuk layar tata kelola"
+        )
+    }
+
+    @Test
+    fun build_menu_when_governance_granted_should_appear_in_first_section() {
         val sections = buildNavMenu(
-            permissions = emptyMap(),
-            auditView = false,
-            isImpersonating = false
+            permissions = grant(
+                BusinessModule.ORG_CHART to AccessLevel.VIEW,
+                BusinessModule.DYNAMIC_RBAC to AccessLevel.MANAGE,
+                BusinessModule.INVENTORY to AccessLevel.OPERATE
+            ),
+            auditView = false
         )
 
-        assertEquals(1, sections.size)
-        assertEquals(SYSTEM_SECTION_TITLE, sections.single().title)
+        // Seksi tata kelola harus berada di puncak drawer, seperti sebelum ketiganya jadi modul.
+        assertEquals(ModuleCategory.GOVERNANCE.displayName, sections.first().title)
         assertEquals(
-            listOf(AppNavScreen.ORG_CHART, AppNavScreen.DYNAMIC_RBAC, AppNavScreen.FACTORY_FLOW),
-            sections.single().entries.map { it.screen }
+            listOf(AppNavScreen.ORG_CHART, AppNavScreen.DYNAMIC_RBAC),
+            sections.first().entries.map { it.screen }
         )
+    }
+
+    @Test
+    fun build_menu_when_governance_module_denied_should_hide_it() {
+        val sections = buildNavMenu(
+            permissions = grant(
+                BusinessModule.ORG_CHART to AccessLevel.VIEW,
+                BusinessModule.DYNAMIC_RBAC to AccessLevel.NONE,
+                BusinessModule.FACTORY_FLOW to AccessLevel.NONE
+            ),
+            auditView = false
+        )
+
+        val screens = sections.flatMap { it.entries }.map { it.screen }
+        assertTrue(AppNavScreen.ORG_CHART in screens)
+        assertFalse(
+            AppNavScreen.DYNAMIC_RBAC in screens,
+            "Layar RBAC kini tunduk pada matriks seperti modul lain, bukan selalu terlihat"
+        )
+        assertFalse(AppNavScreen.FACTORY_FLOW in screens)
     }
 
     @Test
     fun build_menu_when_module_granted_should_group_under_its_category_header() {
         val sections = buildNavMenu(
             permissions = grant(BusinessModule.INVENTORY to AccessLevel.OPERATE),
-            auditView = false,
-            isImpersonating = false
+            auditView = false
         )
 
         val logistics = sections.single { it.title == ModuleCategory.LOGISTICS.displayName }
-        assertEquals(listOf(AppNavScreen.INVENTORY), logistics.entries.map { it.screen })
-        assertEquals("Input", logistics.entries.single().badge)
+        assertEquals(AppNavScreen.INVENTORY, logistics.entries.single().screen)
+        assertEquals(AccessLevel.OPERATE, logistics.entries.single().accessLevel)
         assertFalse(logistics.entries.single().locked)
     }
 
     @Test
-    fun build_menu_when_category_has_no_accessible_module_should_hide_the_section() {
+    fun build_menu_should_omit_categories_whose_modules_are_all_denied() {
         val sections = buildNavMenu(
-            permissions = grant(BusinessModule.INVENTORY to AccessLevel.VIEW),
-            auditView = false,
-            isImpersonating = false
+            permissions = grant(
+                BusinessModule.INVENTORY to AccessLevel.VIEW,
+                BusinessModule.COSTING_HPP to AccessLevel.NONE
+            ),
+            auditView = false
         )
 
-        val titles = sections.map { it.title }
-        assertTrue(ModuleCategory.LOGISTICS.displayName in titles)
-        assertFalse(ModuleCategory.SALES.displayName in titles)
-        assertFalse(ModuleCategory.TECHNICAL.displayName in titles)
-        assertFalse(ModuleCategory.QUALITY.displayName in titles)
+        assertTrue(
+            sections.none { it.title == ModuleCategory.TECHNICAL.displayName },
+            "Header tanpa isi menjanjikan sesuatu yang tidak ada"
+        )
     }
 
     @Test
-    fun build_menu_when_audit_view_enabled_should_reveal_every_category_as_locked() {
+    fun build_menu_in_audit_view_should_show_denied_modules_locked() {
         val sections = buildNavMenu(
-            permissions = grant(BusinessModule.INVENTORY to AccessLevel.MANAGE),
-            auditView = true,
-            isImpersonating = false
+            permissions = grant(
+                BusinessModule.DYNAMIC_RBAC to AccessLevel.NONE,
+                BusinessModule.INVENTORY to AccessLevel.NONE
+            ),
+            auditView = true
         )
 
-        val titles = sections.map { it.title }
-        ModuleCategory.entries.forEach { assertTrue(it.displayName in titles, "hilang: $it") }
-
-        val sales = sections.single { it.title == ModuleCategory.SALES.displayName }
-        assertTrue(sales.entries.all { it.locked })
-        assertTrue(sales.entries.all { it.badge == "Terkunci" })
-
-        val inventory = sections
-            .single { it.title == ModuleCategory.LOGISTICS.displayName }
-            .entries.single { it.screen == AppNavScreen.INVENTORY }
-        assertFalse(inventory.locked)
-        assertEquals("Penuh", inventory.badge)
+        val entries = sections.flatMap { it.entries }
+        assertTrue(entries.isNotEmpty(), "Mode audit memperlihatkan batasnya, bukan menyembunyikannya")
+        assertTrue(entries.all { it.locked })
     }
 
     @Test
-    fun build_menu_when_impersonating_without_audit_should_hide_system_section() {
+    fun first_accessible_screen_should_skip_locked_entries() {
+        // Mode audit menampilkan modul terkunci; layar pendaratan tidak boleh mendarat di sana.
         val sections = buildNavMenu(
-            permissions = grant(BusinessModule.OPERATOR_EXEC to AccessLevel.OPERATE),
-            auditView = false,
-            isImpersonating = true
+            permissions = grant(
+                BusinessModule.ORG_CHART to AccessLevel.NONE,
+                BusinessModule.INVENTORY to AccessLevel.OPERATE
+            ),
+            auditView = true
         )
 
-        assertFalse(sections.any { it.title == SYSTEM_SECTION_TITLE })
-        assertEquals(listOf(ModuleCategory.PRODUCTION.displayName), sections.map { it.title })
+        assertEquals(AppNavScreen.INVENTORY, firstAccessibleScreen(sections))
     }
 
     @Test
-    fun build_menu_when_impersonating_with_audit_should_show_system_section_locked() {
+    fun first_accessible_screen_when_everything_locked_should_be_null() {
         val sections = buildNavMenu(
-            permissions = emptyMap(),
-            auditView = true,
-            isImpersonating = true
+            permissions = grant(BusinessModule.ORG_CHART to AccessLevel.NONE),
+            auditView = true
         )
 
-        val system = sections.first()
-        assertEquals(SYSTEM_SECTION_TITLE, system.title)
-        assertTrue(system.entries.all { it.locked })
-        assertTrue(system.entries.all { it.badge == "Admin" })
-    }
-
-    @Test
-    fun build_menu_should_cover_every_module_backed_screen_when_audit_view_enabled() {
-        val listed = buildNavMenu(
-            permissions = emptyMap(),
-            auditView = true,
-            isImpersonating = false
-        ).filter { it.title != SYSTEM_SECTION_TITLE }
-            .flatMap { it.entries }
-            .map { it.screen }
-            .toSet()
-
-        val expected = AppNavScreen.entries.filter { it.businessModule != null }.toSet()
-        assertEquals(expected, listed)
-    }
-
-    @Test
-    fun build_menu_should_place_system_section_first() {
-        val sections = buildNavMenu(
-            permissions = grant(BusinessModule.CRM_SALES to AccessLevel.MANAGE),
-            auditView = false,
-            isImpersonating = false
+        assertNull(
+            firstAccessibleScreen(sections),
+            "Tidak ada tujuan yang sah harus dinyatakan, bukan disamarkan dengan tujuan asal-asalan"
         )
-
-        assertEquals(SYSTEM_SECTION_TITLE, sections.first().title)
     }
 }

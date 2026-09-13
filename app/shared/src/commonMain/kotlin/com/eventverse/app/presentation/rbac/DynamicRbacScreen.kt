@@ -18,7 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.rbac.components.AssignDepartmentModal
 import com.eventverse.app.presentation.rbac.components.AssignModuleModal
@@ -32,9 +34,25 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun DynamicRbacScreen(
     viewModel: DynamicRbacViewModel = remember { DynamicRbacViewModel() },
     onBackToLogin: () -> Unit = {},
+    /**
+     * Wewenang efektif atas modul Hak Akses itu sendiri.
+     *
+     * Mengubah matriks wewenang bukan pekerjaan harian: satu perubahan di sini berlaku bagi seluruh
+     * orang di pabrik. Karena itu seluruh aksi tulis di layar ini menuntut `MANAGE`, tanpa tingkatan
+     * `OPERATE` di tengahnya — "setengah boleh mengatur hak akses" bukan keadaan yang bermakna.
+     */
+    access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val canManage = access.canManage
+
+    // Satu gerbang untuk seluruh aksi tulis layar ini. Menyalurkan setiap event lewat sini lebih
+    // aman daripada menonaktifkan tombol satu per satu di tiga file kartu yang berbeda: tombol yang
+    // terlewat akan tetap tidak berefek, bukan diam-diam menembus wewenang.
+    val onWriteEvent: (DynamicRbacUiEvent) -> Unit = { event ->
+        if (canManage) viewModel.onEvent(event)
+    }
 
     Box(
         modifier = modifier
@@ -62,6 +80,35 @@ fun DynamicRbacScreen(
                 errorMessage = state.errorToast,
                 onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.DismissToast) }
             )
+
+            // Menyatakan mode baca-saja secara terbuka.
+            //
+            // Tanpa keterangan ini, seluruh tombol penugasan tetap terlihat tetapi tidak melakukan
+            // apa-apa saat diklik — gejala yang selalu dilaporkan sebagai aplikasi rusak, bukan
+            // sebagai wewenang yang memang dibatasi.
+            if (!canManage) {
+                ClayCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = WeMadeColors.WarningBg
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Mode Baca Saja — matriks wewenang hanya dapat diubah oleh " +
+                                "jabatan dengan akses ${AccessLevel.MANAGE.displayName}.",
+                            modifier = Modifier.weight(1f, fill = false),
+                            fontSize = 12.sp,
+                            color = WeMadeColors.OnSurface
+                        )
+                        Spacer(modifier = Modifier.width(ClaySpacing.Sm))
+                        ClayBadge(text = access.level.displayName, tint = WeMadeColors.Warning)
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // 2. View Mode Switcher Bar (3 Tabs: Per Modul, Per Divisi, Per Jabatan)
             Row(
@@ -150,10 +197,10 @@ fun DynamicRbacScreen(
                             departments = state.departments,
                             roles = state.roles,
                             onOpenAssignModal = { module, existing ->
-                                viewModel.onEvent(DynamicRbacUiEvent.OpenAssignModal(module, existing))
+                                onWriteEvent(DynamicRbacUiEvent.OpenAssignModal(module, existing))
                             },
                             onRemoveAssignment = { module, assignKey ->
-                                viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
+                                onWriteEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -165,7 +212,7 @@ fun DynamicRbacScreen(
                             assignments = state.moduleAssignments,
                             roles = state.roles,
                             onOpenAssignModal = { dept, existing, initialMod ->
-                                viewModel.onEvent(
+                                onWriteEvent(
                                     DynamicRbacUiEvent.OpenAssignModuleModal(
                                         department = dept,
                                         existing = existing,
@@ -174,7 +221,7 @@ fun DynamicRbacScreen(
                                 )
                             },
                             onRemoveAssignment = { module, assignKey ->
-                                viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
+                                onWriteEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -186,7 +233,7 @@ fun DynamicRbacScreen(
                             departments = state.departments,
                             assignments = state.moduleAssignments,
                             onOpenAssignModal = { role, dept, existing, initialMod ->
-                                viewModel.onEvent(
+                                onWriteEvent(
                                     DynamicRbacUiEvent.OpenAssignModuleModal(
                                         role = role,
                                         department = dept,
@@ -196,7 +243,7 @@ fun DynamicRbacScreen(
                                 )
                             },
                             onRemoveAssignment = { module, assignKey ->
-                                viewModel.onEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
+                                onWriteEvent(DynamicRbacUiEvent.RemoveDepartmentAssignment(module, assignKey))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -219,7 +266,7 @@ fun DynamicRbacScreen(
                     DynamicRbacUiEvent.UpdateNewRoleInputs(name, desc, template, department)
                 )
             },
-            onConfirm = { viewModel.onEvent(DynamicRbacUiEvent.ConfirmCreateRole) },
+            onConfirm = { onWriteEvent(DynamicRbacUiEvent.ConfirmCreateRole) },
             onDismiss = { viewModel.onEvent(DynamicRbacUiEvent.CloseCreateModal) }
         )
 
@@ -232,7 +279,7 @@ fun DynamicRbacScreen(
             initialAssignment = state.editingAssignment,
             onConfirm = { assignment ->
                 val activeMod = state.activeAssignModule ?: return@AssignDepartmentModal
-                viewModel.onEvent(
+                onWriteEvent(
                     DynamicRbacUiEvent.SaveDepartmentAssignment(
                         module = activeMod,
                         assignment = assignment,
@@ -253,7 +300,7 @@ fun DynamicRbacScreen(
             initialAssignment = state.editingAssignment,
             initialModule = state.editingAssignModule,
             onConfirm = { module, assignment ->
-                viewModel.onEvent(
+                onWriteEvent(
                     DynamicRbacUiEvent.SaveDepartmentAssignment(
                         module = module,
                         assignment = assignment,

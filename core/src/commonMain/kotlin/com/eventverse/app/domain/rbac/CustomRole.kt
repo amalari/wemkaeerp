@@ -36,14 +36,62 @@ data class CustomRole(
         return config.level.isAtLeast(requiredLevel)
     }
 
+    /**
+     * True bila ini jabatan Owner bawaan sistem — satu-satunya jabatan yang tidak boleh kehilangan
+     * kunci pintunya sendiri.
+     */
+    val isSystemOwnerRole: Boolean
+        get() = isSystemDefault && id.value.endsWith("owner")
+
+    /**
+     * Wewenang yang benar-benar boleh berlaku bagi jabatan ini atas [module].
+     *
+     * Jabatan Owner tidak boleh diturunkan haknya atas modul RBAC. Bypass Owner di
+     * `AccessDecisionEngine` tidak menutup kasus ini: [TestingPersona] justru **melarang** persona
+     * berjabatan memakai bypass, supaya menguji sebuah jabatan benar-benar menguji jabatan itu. Jadi
+     * Owner yang punya jabatan terkonfigurasi berjalan lewat matriks seperti orang lain — dan bila
+     * matriksnya turun ke `NONE`, tidak tersisa satu pun layar untuk menaikkannya kembali.
+     */
+    private fun enforce(module: BusinessModule, config: ModuleAccessConfig): ModuleAccessConfig {
+        val locked = isSystemOwnerRole && module == BusinessModule.DYNAMIC_RBAC
+        return if (locked) {
+            ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
+        } else {
+            config.sanitizeFor(module)
+        }
+    }
+
     fun updateModuleAccess(
         module: BusinessModule,
         level: AccessLevel,
         scope: DataScope = DataScope.ALL_TENANT_DATA
     ): CustomRole {
         val updated = modulePermissions.toMutableMap()
-        updated[module] = ModuleAccessConfig(level, scope)
+        updated[module] = enforce(module, ModuleAccessConfig(level, scope))
         return copy(modulePermissions = updated)
+    }
+
+    /**
+     * Mengganti seluruh matriks sekaligus — jalur yang dipakai saat layar RBAC menyimpan.
+     *
+     * Ada sebagai fungsi domain, bukan `copy(modulePermissions = …)` polos, justru karena `copy`
+     * melewati setiap invarian di atas. Sebuah permintaan API yang dirakit tangan bisa menurunkan
+     * hak Owner atas modul RBAC tanpa menyentuh layar mana pun; menyalurkan kedua jalur lewat
+     * [enforce] membuat aturannya berlaku di mana pun matriks ditulis.
+     */
+    fun withModulePermissions(
+        permissions: Map<BusinessModule, ModuleAccessConfig>
+    ): CustomRole {
+        val enforced = permissions.mapValues { (module, config) -> enforce(module, config) }
+        // Modul yang tidak disebut pemanggil tetap harus tunduk: matriks tanpa kunci DYNAMIC_RBAC
+        // sama saja dengan menyetelnya ke NONE bagi Owner.
+        val withOwnerLock = if (isSystemOwnerRole) {
+            enforced + (BusinessModule.DYNAMIC_RBAC to
+                ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA))
+        } else {
+            enforced
+        }
+        return copy(modulePermissions = withOwnerLock)
     }
 
     fun updateMetadata(newName: String, newDescription: String): CustomRole {
@@ -84,6 +132,11 @@ data class CustomRole(
                     userCount = 2,
                     departmentId = "dept-${prefix}ppic",
                     modulePermissions = mapOf(
+                        // Kepala produksi memiliki kanvas alur, melihat bagan divisinya, dan tidak
+                        // menyentuh matriks wewenang.
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
@@ -104,6 +157,9 @@ data class CustomRole(
                     userCount = 1,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
@@ -124,6 +180,9 @@ data class CustomRole(
                     userCount = 4,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
@@ -144,6 +203,9 @@ data class CustomRole(
                     userCount = 3,
                     departmentId = "dept-${prefix}warehouse",
                     modulePermissions = mapOf(
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
@@ -164,6 +226,10 @@ data class CustomRole(
                     userCount = 14,
                     departmentId = "dept-${prefix}ppic",
                     modulePermissions = mapOf(
+                        // Operator bekerja di satu layar input; seluruh layar tata kelola tertutup.
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.NONE),

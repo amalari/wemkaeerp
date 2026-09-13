@@ -29,6 +29,26 @@ data class TenantEntitlementGrants(
     fun revokeCustomModule(moduleId: String): TenantEntitlementGrants =
         copy(grantedCustomModuleIds = grantedCustomModuleIds - moduleId)
 
+    /**
+     * Menyambung atau memutus satu modul bawaan untuk tenant ini — operasi tunggal di balik toggle
+     * pada dialog "Kelola Modul Tenant".
+     *
+     * Perhatikan penanganan `grantedModules == null`. Null berarti *"apa pun yang diberikan paket"*,
+     * bukan *"kosong"*. Memutus satu modul dari keadaan itu karenanya tidak bisa dilakukan dengan
+     * pengurangan himpunan; daftarnya harus dipadatkan dulu menjadi seluruh katalog, baru satu modul
+     * dikeluarkan. Tanpa langkah itu, toggle pertama pada tenant mana pun akan diam-diam mencabut
+     * delapan modul lain sekaligus.
+     */
+    fun withModule(module: BusinessModule, enabled: Boolean): TenantEntitlementGrants {
+        val current = grantedModules ?: BusinessModule.entries.toSet()
+        val updated = if (enabled) current + module else current - module
+        return copy(
+            // Kembali ke null bila hasilnya utuh: menyimpan "semua" sebagai null membuat tenant
+            // ikut mewarisi modul baru yang dirilis kemudian, tanpa perlu migrasi data lagi.
+            grantedModules = updated.takeIf { it != BusinessModule.entries.toSet() }
+        )
+    }
+
     companion object {
         val NONE = TenantEntitlementGrants()
     }

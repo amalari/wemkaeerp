@@ -37,10 +37,14 @@ import com.eventverse.app.domain.orgchart.DepartmentTier
 import com.eventverse.app.domain.orgchart.HeadSuccessionAction
 import com.eventverse.app.domain.orgchart.HierarchyLevel
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.infrastructure.api.OrgChartApiClient
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.orgchart.components.TShapeChartView
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.workspace.badgeLabel
+import com.eventverse.app.presentation.workspace.tint
 
 @Composable
 fun OrgChartScreen(
@@ -48,9 +52,21 @@ fun OrgChartScreen(
     viewModel: OrgChartViewModel = remember(tenantSlug) {
         OrgChartViewModel(tenantSlug = tenantSlug, apiClient = OrgChartApiClient())
     },
+    /**
+     * Wewenang efektif atas modul Bagan Organisasi.
+     *
+     * Default `MANAGE` supaya pemanggil lama dan preview tidak berubah perilakunya; jalur aplikasi
+     * sesungguhnya selalu mengisinya lewat `GovernanceModuleGate`.
+     */
+    access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    // OPERATE boleh menambah dan mengubah; MANAGE juga boleh menghapus, mengarsipkan, dan memulihkan
+    // preset. Tanpa pembedaan ini, "Hanya Lihat" hanya berarti menunya terlihat.
+    val canWrite = access.canWrite
+    val canManage = access.canManage
 
     Box(
         modifier = modifier
@@ -67,6 +83,7 @@ fun OrgChartScreen(
                 totalEmployees = state.employees.size,
                 totalDepartments = state.departments.size,
                 isResetMenuOpen = state.isResetMenuOpen,
+                accessLevel = access.level,
                 onToggleResetMenu = { viewModel.onEvent(OrgChartUiEvent.ToggleResetMenu) },
                 onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                 onAddNewDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
@@ -110,6 +127,8 @@ fun OrgChartScreen(
                     onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
                     onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
                     onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
+                    canWrite = canWrite,
+                    canManage = canManage,
                     modifier = Modifier.width(420.dp)
                 )
 
@@ -121,6 +140,8 @@ fun OrgChartScreen(
                     onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) },
                     onToggleArchived = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
                     showArchivedPanel = state.showArchivedPanel,
+                    canWrite = canWrite,
+                    canManage = canManage,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -199,7 +220,8 @@ fun OrgChartScreen(
                 isLoading = state.isLoadingArchived,
                 onRestoreEmployee = { viewModel.onEvent(OrgChartUiEvent.RestoreEmployee(it)) },
                 onRestoreDepartment = { viewModel.onEvent(OrgChartUiEvent.RestoreDepartment(it)) },
-                onClose = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) }
+                onClose = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
+                canManage = canManage
             )
         }
     }
@@ -212,6 +234,7 @@ private fun ArchivedPanel(
     isLoading: Boolean,
     onRestoreEmployee: (String) -> Unit,
     onRestoreDepartment: (String) -> Unit,
+    canManage: Boolean = true,
     onClose: () -> Unit
 ) {
     Surface(
@@ -306,6 +329,7 @@ private fun ArchivedPanel(
                                                 text = "Pulihkan",
                                                 leading = { IconRestore(modifier = Modifier.size(12.dp), color = WeMadeColors.Primary) },
                                                 onClick = { onRestoreEmployee(emp.id.value) },
+                                                enabled = canManage,
                                                 style = ClayButtonStyle.Secondary,
                                                 offset = ClayOffset.Pressed,
                                                 fontSize = 11.sp,
@@ -351,6 +375,7 @@ private fun ArchivedPanel(
                                             ClayButton(
                                                 text = "Pulihkan",
                                                 leading = { IconRestore(modifier = Modifier.size(12.dp), color = WeMadeColors.Primary) },
+                                                enabled = canManage,
                                                 onClick = { onRestoreDepartment(dept.id.value) },
                                                 style = ClayButtonStyle.Secondary,
                                                 offset = ClayOffset.Pressed,
@@ -389,6 +414,7 @@ private fun OrgChartHeader(
     totalEmployees: Int,
     totalDepartments: Int,
     isResetMenuOpen: Boolean,
+    accessLevel: AccessLevel,
     onToggleResetMenu: () -> Unit,
     onAddNewEmployee: () -> Unit,
     onAddNewDepartment: () -> Unit,
@@ -431,15 +457,17 @@ private fun OrgChartHeader(
         ) {
             HeaderBadge(label = "Total Karyawan", value = "$totalEmployees Orang")
             HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
+            ClayBadge(text = accessLevel.badgeLabel(), tint = accessLevel.tint(), dot = true)
 
-            // Tombol Opsi Preset / Mulai Kosong
+            // Tombol Opsi Preset / Mulai Kosong. Mengosongkan struktur dan memuat ulang template
+            // adalah aksi yang menghapus data, jadi ia menuntut MANAGE — bukan sekadar OPERATE.
             Box {
-                ClayButton(
+                ClayGuardedButton(
                     text = "Opsi Struktur",
                     onClick = onToggleResetMenu,
+                    enabled = accessLevel.isAtLeast(AccessLevel.MANAGE),
+                    lockedHint = "Butuh wewenang ${AccessLevel.MANAGE.displayName}.",
                     style = ClayButtonStyle.Secondary,
-                    offset = ClayOffset.Small,
-                    fontSize = 12.sp,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 )
 
@@ -469,21 +497,22 @@ private fun OrgChartHeader(
                 }
             }
 
-            // Tombol Tambah Divisi Baru
-            ClayButton(
+            // Menambah divisi dan karyawan adalah pekerjaan harian, jadi cukup OPERATE.
+            ClayGuardedButton(
                 text = "+ Divisi Baru",
                 onClick = onAddNewDepartment,
+                enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
+                lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
                 style = ClayButtonStyle.Secondary,
-                offset = ClayOffset.Small,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             )
 
-            // Tombol Tambah Karyawan Baru
-            ClayButton(
+            ClayGuardedButton(
                 text = "+ Tambah Karyawan",
                 onClick = onAddNewEmployee,
+                enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
+                lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
                 style = ClayButtonStyle.Primary,
-                offset = ClayOffset.Small,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             )
         }
@@ -533,6 +562,10 @@ private fun EmployeeFormPanel(
     onEditTierClick: (String, DepartmentTier) -> Unit,
     onDeleteEmployee: (String) -> Unit = {},
     onDeleteDepartment: (Department) -> Unit = {},
+    /** OPERATE: boleh menambah & mengubah. */
+    canWrite: Boolean = true,
+    /** MANAGE: boleh mengarsipkan & menghapus. */
+    canManage: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -804,6 +837,7 @@ private fun EmployeeFormPanel(
                             text = "Edit Divisi",
                             leading = { IconEdit(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface) },
                             onClick = { onEditDepartmentClick(currentDept) },
+                            enabled = canWrite,
                             style = ClayButtonStyle.Secondary,
                             offset = ClayOffset.Pressed,
                             fontSize = 11.sp,
@@ -814,6 +848,7 @@ private fun EmployeeFormPanel(
                                 text = "Arsipkan",
                                 leading = { IconArchive(modifier = Modifier.size(12.dp), color = WeMadeColors.Warning) },
                                 onClick = { onDeleteDepartment(currentDept) },
+                                enabled = canManage,
                                 style = ClayButtonStyle.Secondary,
                                 offset = ClayOffset.Pressed,
                                 fontSize = 11.sp,
@@ -824,6 +859,7 @@ private fun EmployeeFormPanel(
                     ClayButton(
                         text = "+ Divisi Baru",
                         onClick = onAddDepartmentClick,
+                        enabled = canWrite,
                         style = ClayButtonStyle.Secondary,
                         offset = ClayOffset.Pressed,
                         fontSize = 11.sp,
@@ -1027,6 +1063,7 @@ private fun EmployeeFormPanel(
                     ClayButton(
                         text = "+ Tambah Tingkat",
                         onClick = onAddTierClick,
+                        enabled = canWrite,
                         style = ClayButtonStyle.Secondary,
                         offset = ClayOffset.Pressed,
                         fontSize = 11.sp,
@@ -1301,6 +1338,7 @@ private fun EmployeeFormPanel(
                         text = "Arsipkan",
                         leading = { IconArchive(modifier = Modifier.size(14.dp), color = Color.White) },
                         onClick = { onDeleteEmployee(state.selectedEmployeeId) },
+                        enabled = canManage,
                         style = ClayButtonStyle.Danger,
                         offset = ClayOffset.Small,
                         modifier = Modifier.weight(1f)
@@ -1310,7 +1348,7 @@ private fun EmployeeFormPanel(
                 ClayButton(
                     text = if (state.isCreatingNew) "Simpan ke Bagan Organisasi" else "Perbarui Karyawan",
                     onClick = onSave,
-                    enabled = state.nameInput.isNotBlank(),
+                    enabled = canWrite && state.nameInput.isNotBlank(),
                     style = ClayButtonStyle.Primary,
                     offset = ClayOffset.Small,
                     modifier = Modifier.weight(if (!state.isCreatingNew && state.selectedEmployeeId != null) 1.2f else 1f)
@@ -1328,6 +1366,8 @@ private fun ChartPreviewPanel(
     onRestorePresets: () -> Unit,
     onToggleArchived: () -> Unit,
     showArchivedPanel: Boolean,
+    canWrite: Boolean = true,
+    canManage: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -1409,12 +1449,14 @@ private fun ChartPreviewPanel(
                             ClayButton(
                                 text = "Muat Template Konveksi (5 Divisi)",
                                 onClick = onRestorePresets,
+                                enabled = canManage,
                                 style = ClayButtonStyle.Secondary,
                                 offset = ClayOffset.Small
                             )
                             ClayButton(
                                 text = "+ Tambah Karyawan Pertama",
                                 onClick = onAddNewEmployee,
+                                enabled = canWrite,
                                 style = ClayButtonStyle.Primary,
                                 offset = ClayOffset.Small
                             )

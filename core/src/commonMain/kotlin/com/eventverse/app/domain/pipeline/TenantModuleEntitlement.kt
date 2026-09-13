@@ -25,6 +25,14 @@ data class TenantModuleEntitlement(
 
     val allowsCustomPlugins: Boolean get() = tier.allowCustomPluginModules
 
+    /**
+     * Apakah tenant ini boleh menjalankan sebuah modul bawaan sama sekali.
+     *
+     * Berlaku untuk modul tata kelola maupun operasional — inilah gerbang yang membuat menu
+     * "Alur Pabrik" benar-benar hilang bagi tenant yang tidak disambungkan ke modul itu.
+     */
+    fun permitsModule(module: BusinessModule): Boolean = module in grantedModules
+
     fun permits(node: CustomPipelineNode): Boolean = when {
         // A bypassed module occupies no licence: turning a module off is always allowed.
         node.isBypassed -> true
@@ -40,9 +48,17 @@ data class TenantModuleEntitlement(
         val violations = mutableListOf<String>()
         val activeNodes = pipeline.activeNodes
 
-        if (activeNodes.size > maxActiveModules) {
+        // Kuota paket menghitung modul **produksi** saja. Modul tata kelola (bagan organisasi,
+        // matriks wewenang, kanvas alur) tidak pernah menjadi node di sini, jadi penyaringan ini
+        // hari ini tidak membuang apa pun — ia ada supaya jaminannya terbaca sebagai aturan, bukan
+        // bergantung pada kebetulan bahwa topologi tenant kebetulan tidak memuatnya.
+        val billableActiveNodes = activeNodes.filterNot { node ->
+            node.standardModule?.isGovernance == true
+        }
+
+        if (billableActiveNodes.size > maxActiveModules) {
             violations += "Paket ${tier.name} hanya mengizinkan $maxActiveModules modul aktif, " +
-                "sedangkan alur ini mengaktifkan ${activeNodes.size} modul."
+                "sedangkan alur ini mengaktifkan ${billableActiveNodes.size} modul."
         }
 
         activeNodes.filter { it.isCustomPlugin }.forEach { node ->

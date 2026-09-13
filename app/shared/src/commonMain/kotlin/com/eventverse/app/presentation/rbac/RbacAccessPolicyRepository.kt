@@ -65,6 +65,17 @@ class RbacAccessPolicyRepository(
      * Default-nya mati, karena itulah perilaku produksi. Dinyalakan penguji ketika yang ingin
      * dilihat justru batasnya — menu tersembunyi dan menu yang memang tidak ada terlihat sama.
      */
+    /**
+     * Modul yang benar-benar disambungkan ke tenant ini.
+     *
+     * `null` berarti **belum diketahui**, bukan "tidak ada satu pun". Perbedaan itu penting: pada
+     * keadaan null, `AccessDecisionEngine` kembali ke perilaku lama dan mengabaikan entitlement,
+     * sehingga permintaan yang gagal atau belum selesai tidak pernah tampil sebagai langganan yang
+     * dicabut — kegagalan jaringan tidak boleh terlihat seperti keputusan billing.
+     */
+    private val _grantedModules = MutableStateFlow<Set<BusinessModule>?>(null)
+    val grantedModules: StateFlow<Set<BusinessModule>?> = _grantedModules.asStateFlow()
+
     private val _isAuditViewEnabled = MutableStateFlow(false)
     val isAuditViewEnabled: StateFlow<Boolean> = _isAuditViewEnabled.asStateFlow()
 
@@ -78,11 +89,16 @@ class RbacAccessPolicyRepository(
      * perhitungan, dua bentuk, sehingga mustahil keduanya menyimpang.
      */
     val accessDecisions: StateFlow<Map<BusinessModule, AccessDecision>> =
-        combine(_activePersona, _roles, _departmentAssignments) { persona, roles, assignments ->
+        combine(
+            _activePersona,
+            _roles,
+            _departmentAssignments,
+            _grantedModules
+        ) { persona, roles, assignments, granted ->
             if (persona == null) {
                 emptyMap()
             } else {
-                AccessDecisionEngine.explainAll(persona, roles, assignments)
+                AccessDecisionEngine.explainAll(persona, roles, assignments, granted)
             }
         }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
@@ -125,6 +141,14 @@ class RbacAccessPolicyRepository(
                 if (remote.isNotEmpty()) _departmentAssignments.value = remote
             }
 
+            // Sengaja tanpa onFailure: entitlement yang gagal dimuat harus tetap null (= belum
+            // diketahui), bukan himpunan kosong. Himpunan kosong berarti "tenant ini tidak punya
+            // modul apa pun" dan akan mengosongkan seluruh menu hanya karena server sedang tidak
+            // terjangkau.
+            client.getEntitlement(tenantSlug).onSuccess { granted ->
+                _grantedModules.value = granted
+            }
+
             _isLoading.value = false
         }
     }
@@ -150,6 +174,18 @@ class RbacAccessPolicyRepository(
     /** Wewenang efektif satu modul saat ini — untuk gerbang di layar kerja. */
     fun accessFor(module: BusinessModule): ModuleAccessConfig =
         effectivePermissions.value[module] ?: ModuleAccessConfig()
+
+    /**
+     * Apakah modul ini disambungkan ke tenant aktif. Selama entitlement belum diketahui, jawabannya
+     * `true` — lihat alasan di [grantedModules].
+     */
+    fun isModuleEntitled(module: BusinessModule): Boolean =
+        _grantedModules.value?.contains(module) ?: true
+
+    /** Dipanggil setelah superadmin mengubah entitlement, agar menu ikut berubah tanpa reload. */
+    fun syncGrantedModules(granted: Set<BusinessModule>) {
+        _grantedModules.value = granted
+    }
 
     companion object {
         /**

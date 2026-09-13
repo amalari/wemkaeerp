@@ -4,7 +4,6 @@ import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
-import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -64,7 +63,7 @@ class SetTenantModuleActivationUseCase(
             nodeId = nodeId,
             moduleId = moduleId,
             customDisplayName = specification.module.displayName,
-            archetype = ModuleArchetype.forModule(specification.module),
+            archetype = specification.archetype,
             isBypassed = false
         )
 

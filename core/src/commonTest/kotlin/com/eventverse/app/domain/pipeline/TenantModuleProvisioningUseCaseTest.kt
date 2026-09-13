@@ -61,7 +61,11 @@ class TenantModuleProvisioningUseCaseTest {
 
         val catalog = getCatalog(tenantId, proPlan, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
 
-        assertEquals(BusinessModule.entries.size, catalog.size)
+        // Katalog kanvas memuat modul **operasional** saja, bukan seluruh BusinessModule.
+        // Sejak modul tata kelola (Bagan Organisasi, RBAC, Alur Pabrik) masuk enum, dua jumlah itu
+        // tidak lagi kebetulan sama — dan memang tidak boleh sama: modul tata kelola tidak berdiri
+        // di lini produksi dan tidak memakan kuota paket.
+        assertEquals(OperationalModuleCatalog.all.size, catalog.size)
         assertTrue(catalog.all { it.isInstalled }, "Seluruh modul preset harus tercatat terpasang")
         // CMT bypasses procurement, so not every installed module is active.
         assertTrue(catalog.any { !it.isActive })

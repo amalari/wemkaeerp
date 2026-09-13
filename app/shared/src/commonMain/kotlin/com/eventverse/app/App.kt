@@ -32,23 +32,25 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
-import com.eventverse.app.presentation.designsystem.IconShield
-import com.eventverse.app.presentation.designsystem.IconZap
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
+import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
 import com.eventverse.app.presentation.navigation.buildNavMenu
+import com.eventverse.app.presentation.navigation.firstAccessibleScreen
 import com.eventverse.app.presentation.navigation.ProfileDropdown
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
+import com.eventverse.app.presentation.workspace.GovernanceModuleGate
 import com.eventverse.app.presentation.workspace.ModuleWorkspaceScreen
 import com.eventverse.app.presentation.workspace.tint
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
 import com.eventverse.app.presentation.rbac.DynamicRbacScreen
+import com.eventverse.app.presentation.tenant.TenantModuleEntitlementDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
 
@@ -82,6 +84,18 @@ fun App() {
     var currentScreen by remember { mutableStateOf(initialScreen) }
     var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
 
+    /**
+     * True selama kita masih menunggu wewenang tiba untuk memutuskan layar pendaratan.
+     *
+     * Sebelum ketiga layar tata kelola menjadi modul, tujuan setelah login boleh berupa konstanta
+     * `ORG_CHART` karena layar itu selalu terbuka untuk semua orang. Kini ia bisa tertutup — bagi
+     * operator jahit, atau bagi tenant yang modulnya diputus — sehingga tujuannya harus dihitung.
+     * Dan karena wewenang datang dari jaringan setelah login, keputusannya harus ditunda sampai
+     * data itu ada; memutuskan lebih awal akan mendaratkan orang di "akses ditolak" lalu melompat
+     * lagi sesaat kemudian.
+     */
+    var awaitingLandingScreen by remember { mutableStateOf(false) }
+
     // Centralized navigation action with browser history push
     val navigateTo: (AppNavScreen) -> Unit = remember {
         { target ->
@@ -107,13 +121,18 @@ fun App() {
         }
     }
 
-    // Auto-navigate when login succeeds: redirect to pending screen or default to ORG_CHART
+    // Auto-navigate when login succeeds: redirect to the screen the user was trying to reach,
+    // otherwise wait for permissions and land on the first screen they may actually open.
     LaunchedEffect(authViewModel) {
         authViewModel.uiEffect.collect { effect ->
             if (effect is LoginUiEffect.NavigateToDashboard) {
-                val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
+                val destination = pendingRedirectScreen
                 pendingRedirectScreen = null
-                navigateTo(destination)
+                if (destination != null) {
+                    navigateTo(destination)
+                } else {
+                    awaitingLandingScreen = true
+                }
             }
         }
     }
@@ -129,6 +148,9 @@ fun App() {
 
     var drawerOpen by remember { mutableStateOf(false) }
 
+    /** Dialog penyambungan modul per tenant; hanya dapat dibuka platform superadmin. */
+    var showTenantEntitlementDialog by remember { mutableStateOf(false) }
+
     // Memilih item menutup drawer-nya, seperti panel produk Google Cloud Console.
     val openScreen: (AppNavScreen) -> Unit = { target ->
         navigateTo(target)
@@ -138,13 +160,18 @@ fun App() {
     // Penyusunan menu — modul mana yang muncul, di seksi kategori mana, dengan badge wewenang apa —
     // adalah keputusan wewenang, jadi ia hidup sebagai fungsi murni yang bisa diuji tanpa merender
     // apa pun (lihat NavMenu.kt). Yang tersisa di sini hanyalah penerjemahannya ke bahasa clay.
-    val isImpersonating = activePersona?.isOwnerOrSuperAdmin == false
-    val menuSections = remember(effectivePermissions, auditView, isImpersonating) {
-        buildNavMenu(
-            permissions = effectivePermissions,
-            auditView = auditView,
-            isImpersonating = isImpersonating
-        )
+    val menuSections = remember(effectivePermissions, auditView) {
+        buildNavMenu(permissions = effectivePermissions, auditView = auditView)
+    }
+
+    // Menyelesaikan pendaratan pasca-login begitu menu benar-benar tersusun. Bila ternyata tidak
+    // ada satu pun modul terbuka — tenant yang seluruh modulnya diputus, misalnya — kita tetap
+    // mendarat di Bagan Organisasi supaya kartu penjelasannya yang muncul, bukan layar kosong.
+    LaunchedEffect(awaitingLandingScreen, menuSections) {
+        if (awaitingLandingScreen && menuSections.isNotEmpty()) {
+            awaitingLandingScreen = false
+            navigateTo(firstAccessibleScreen(menuSections) ?: AppNavScreen.ORG_CHART)
+        }
     }
 
     val navSections = menuSections.map { section ->
@@ -167,7 +194,10 @@ fun App() {
                                     modifier = Modifier.fillMaxSize(),
                                     color = tint
                                 )
-                            else -> AdminScreenIcon(screen = entry.screen, tint = tint)
+                            // Setiap baris menu kini berasal dari sebuah modul, jadi cabang ini
+                            // hanya tersisa sebagai jaring pengaman bila suatu saat ada layar tanpa
+                            // modul yang ikut masuk daftar.
+                            else -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
                         }
                     },
                     badge = entry.badge,
@@ -269,6 +299,19 @@ fun App() {
                                     }
                                 )
 
+                                // Menyambung/memutus modul untuk pabrik yang sedang dilihat.
+                                // Ditaruh bersebelahan dengan pemilih perusahaan karena keduanya
+                                // menjawab pertanyaan yang sama: "pabrik mana, dan punya apa".
+                                ClayIconButton(
+                                    onClick = { showTenantEntitlementDialog = true },
+                                    shape = ClayShapes.Tile
+                                ) {
+                                    IconLayers(
+                                        modifier = Modifier.size(16.dp),
+                                        color = WeMadeColors.OnSurface
+                                    )
+                                }
+
                                 // Divider
                                 Box(
                                     modifier = Modifier
@@ -295,44 +338,76 @@ fun App() {
                 // Screen Content Area with Auth Guard
                 Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {
+                        // Ketiga layar tata kelola kini melewati gerbang yang sama dengan sembilan
+                        // modul operasional: sesi, lalu entitlement tenant, lalu wewenang jabatan.
+                        // Sebelumnya hanya sesi yang diperiksa, sehingga siapa pun yang bisa login
+                        // melihat ketiganya dengan hak penuh.
                         AppNavScreen.ORG_CHART -> {
-                            if (session != null) {
-                                OrgChartScreen(tenantSlug = session.tenantSlug ?: "wemade-demo")
-                            } else {
-                                AuthGuardCard(
-                                    targetModuleName = "Bagan Struktur Organisasi & Karyawan",
-                                    onLoginClick = {
-                                        pendingRedirectScreen = AppNavScreen.ORG_CHART
-                                        navigateTo(AppNavScreen.LOGIN)
-                                    }
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                decision = accessDecisions[BusinessModule.ORG_CHART],
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(
+                                        targetModuleName = "Bagan Struktur Organisasi & Karyawan",
+                                        onLoginClick = {
+                                            pendingRedirectScreen = screen
+                                            navigateTo(AppNavScreen.LOGIN)
+                                        }
+                                    )
+                                }
+                            ) { access ->
+                                OrgChartScreen(
+                                    tenantSlug = session?.tenantSlug ?: "wemade-demo",
+                                    access = access
                                 )
                             }
                         }
                         AppNavScreen.DYNAMIC_RBAC -> {
-                            if (isAuthenticated) {
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                decision = accessDecisions[BusinessModule.DYNAMIC_RBAC],
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(
+                                        targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
+                                        onLoginClick = {
+                                            pendingRedirectScreen = screen
+                                            navigateTo(AppNavScreen.LOGIN)
+                                        }
+                                    )
+                                }
+                            ) { access ->
                                 DynamicRbacScreen(
-                                    onBackToLogin = { navigateTo(AppNavScreen.LOGIN) }
-                                )
-                            } else {
-                                AuthGuardCard(
-                                    targetModuleName = "Manajemen Hak Akses & Matriks RBAC",
-                                    onLoginClick = {
-                                        pendingRedirectScreen = AppNavScreen.DYNAMIC_RBAC
-                                        navigateTo(AppNavScreen.LOGIN)
-                                    }
+                                    onBackToLogin = { navigateTo(AppNavScreen.LOGIN) },
+                                    access = access
                                 )
                             }
                         }
                         AppNavScreen.FACTORY_FLOW -> {
-                            if (isAuthenticated) {
-                                FactoryFlowScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo")
-                            } else {
-                                AuthGuardCard(
-                                    targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
-                                    onLoginClick = {
-                                        pendingRedirectScreen = AppNavScreen.FACTORY_FLOW
-                                        navigateTo(AppNavScreen.LOGIN)
-                                    }
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                decision = accessDecisions[BusinessModule.FACTORY_FLOW],
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(
+                                        targetModuleName = "Alur Operasional & Monitoring Pabrik (Live Pipeline)",
+                                        onLoginClick = {
+                                            pendingRedirectScreen = screen
+                                            navigateTo(AppNavScreen.LOGIN)
+                                        }
+                                    )
+                                }
+                            ) { access ->
+                                FactoryFlowScreen(
+                                    tenantSlug = session?.tenantSlug ?: "wemade-demo",
+                                    access = access
                                 )
                             }
                         }
@@ -375,9 +450,13 @@ fun App() {
                             LoginScreen(
                                 viewModel = authViewModel,
                                 onNavigateToDashboard = {
-                                    val destination = pendingRedirectScreen ?: AppNavScreen.ORG_CHART
+                                    val destination = pendingRedirectScreen
                                     pendingRedirectScreen = null
-                                    navigateTo(destination)
+                                    if (destination != null) {
+                                        navigateTo(destination)
+                                    } else {
+                                        awaitingLandingScreen = true
+                                    }
                                 }
                             )
                         }
@@ -404,6 +483,23 @@ fun App() {
                     }
                 } else null
             )
+
+            // Dialog penyambungan modul per tenant.
+            //
+            // Syarat perannya diulang di sini, bukan hanya di tombol pembukanya: state boolean bisa
+            // tertinggal menyala saat pengguna berpindah akun, dan rute `/api/admin/**` di server
+            // tetap menolak pemanggil non-superadmin apa pun yang terjadi di layar.
+            if (showTenantEntitlementDialog && session?.user?.role == Role.PLATFORM_SUPERADMIN) {
+                TenantModuleEntitlementDialog(
+                    tenantSlug = session.tenantSlug ?: "wemade-demo",
+                    onDismiss = { showTenantEntitlementDialog = false },
+                    onSaved = { granted ->
+                        // Drawer ikut berubah tanpa memuat ulang halaman: entitlement adalah salah
+                        // satu masukan keputusan wewenang, bukan data yang berdiri sendiri.
+                        policyRepository.syncGrantedModules(granted)
+                    }
+                )
+            }
         }
     }
 }
@@ -482,16 +578,3 @@ private fun AuthGuardCard(
     }
 }
 
-/**
- * Ikon untuk layar tata kelola, yang tidak punya `BusinessModule` sehingga tidak bisa memakai
- * `ModuleIcon`. Jumlahnya tetap tiga; kalau nanti bertambah, pertimbangkan memberi `AppNavScreen`
- * sebuah `iconKey` sendiri seperti yang sudah dipunyai `BusinessModule`.
- */
-@Composable
-private fun AdminScreenIcon(screen: AppNavScreen, tint: Color) {
-    when (screen) {
-        AppNavScreen.DYNAMIC_RBAC -> IconShield(modifier = Modifier.fillMaxSize(), color = tint)
-        AppNavScreen.FACTORY_FLOW -> IconZap(modifier = Modifier.fillMaxSize(), color = tint)
-        else -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
-    }
-}
