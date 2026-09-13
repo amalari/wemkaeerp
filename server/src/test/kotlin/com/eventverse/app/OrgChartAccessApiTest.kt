@@ -148,48 +148,28 @@ class OrgChartAccessApiTest {
         assertFalse(body.contains("@"), "Penolakan tidak boleh membawa data karyawan apa pun")
     }
 
-    // ── Bug 2: scope sempit yang tidak benar-benar mempersempit ──────────────────────────────
+    // ── Akses Baca Global (GLOBAL_ONLY) ──────────────────────────────────────────────────
 
     @Test
-    fun listEmployees_withSubordinateScope_shouldReturnFewerThanAllTenantScope() = testApplication {
+    fun listEmployees_withViewAccess_shouldSeeAllEmployeesAcrossDepartments() = testApplication {
         installApp(
-            role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+            role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
             role("role-hrd", warehouseDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
         )
 
-        val narrowed = client.get("/api/tenant/employees") {
+        val salesHeadCount = client.get("/api/tenant/employees") {
             asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
         }.employeeCount()
 
-        val everything = client.get("/api/tenant/employees") {
+        val hrdCount = client.get("/api/tenant/employees") {
             asStaff(slug, customRoleId = "role-hrd", departmentId = warehouseDeptId)
         }.employeeCount()
 
-        assertTrue(everything > 0, "Prasyarat: data contoh harus ada untuk disaring")
-        assertTrue(
-            narrowed < everything,
-            "SUBORDINATE_DATA harus benar-benar memangkas payload ($narrowed vs $everything); " +
-                "kalau sama, scope-nya hanya label"
-        )
-    }
-
-    @Test
-    fun listEmployees_withSubordinateScope_shouldOnlyContainOwnDepartment() = testApplication {
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
-
-        val body = client.get("/api/tenant/employees") {
-            asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
-        }.bodyAsText()
-
-        val warehouse = runBlocking {
-            InMemoryDepartmentRepository().let { repo ->
-                repo.restoreDefaultPresets(tenantId)
-                repo.findAllByTenant(tenantId).first { it.id.value == warehouseDeptId }
-            }
-        }
-        assertFalse(
-            body.contains(warehouse.displayName),
-            "Divisi lain tidak boleh muncul di payload kepala divisi Penjualan"
+        assertTrue(salesHeadCount > 0, "Prasyarat: data contoh harus ada")
+        assertEquals(
+            hrdCount,
+            salesHeadCount,
+            "Karena modul berstatus GLOBAL_ONLY, seluruh pengguna berhak VIEW melihat seluruh karyawan pabrik"
         )
     }
 
@@ -197,7 +177,7 @@ class OrgChartAccessApiTest {
 
     @Test
     fun createEmployee_withViewOnlyAccess_shouldBeForbidden() = testApplication {
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
+        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA))
 
         val response = client.post("/api/tenant/employees") {
             asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
@@ -240,61 +220,6 @@ class OrgChartAccessApiTest {
         assertEquals(HttpStatusCode.Created, response.status)
     }
 
-    // ── Jangkauan data juga membatasi TULIS, bukan hanya baca ────────────────────────────────
-
-    @Test
-    fun createEmployee_intoADepartmentOutsideScope_shouldBeForbidden() = testApplication {
-        installApp(role("role-spv", salesDeptId, AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA))
-
-        val response = client.post("/api/tenant/employees") {
-            asStaff(slug, customRoleId = "role-spv", departmentId = salesDeptId)
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"name":"Sisipan Lintas Divisi","email":"sisipan@test.local",
-                   |"departmentId":"$warehouseDeptId","level":"STAFF_OPERATOR",
-                   |"roleTitle":"Staf Gudang","phone":""}""".trimMargin()
-            )
-        }
-
-        assertEquals(
-            HttpStatusCode.Forbidden,
-            response.status,
-            "Menulis ke divisi yang tidak bisa dilihat menghasilkan data yang pembuatnya sendiri " +
-                "tidak akan pernah temukan"
-        )
-    }
-
-    @Test
-    fun createEmployee_intoOwnDepartment_shouldStillSucceed() = testApplication {
-        installApp(role("role-spv", salesDeptId, AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA))
-
-        val response = client.post("/api/tenant/employees") {
-            asStaff(slug, customRoleId = "role-spv", departmentId = salesDeptId)
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"name":"Staf Sales Baru","email":"sales.baru@test.local",
-                   |"departmentId":"$salesDeptId","level":"STAFF_OPERATOR",
-                   |"roleTitle":"Staf","phone":""}""".trimMargin()
-            )
-        }
-
-        // Penjagaan yang menolak divisi sendiri bukan penjagaan, melainkan kerusakan.
-        assertEquals(HttpStatusCode.Created, response.status)
-    }
-
-    @Test
-    fun restorePresets_withNarrowScope_shouldBeForbiddenEvenWithManage() = testApplication {
-        // MANAGE sudah terpenuhi; yang kurang adalah jangkauannya. Memuat ulang template menimpa
-        // seluruh divisi, jadi tidak ada jangkauan sempit yang masuk akal untuknya.
-        installApp(role("role-head", salesDeptId, AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA))
-
-        val response = client.post("/api/tenant/employees/restore-presets") {
-            asStaff(slug, customRoleId = "role-head", departmentId = salesDeptId)
-        }
-
-        assertEquals(HttpStatusCode.Forbidden, response.status)
-    }
-
     @Test
     fun restorePresets_withFullScopeAndManage_shouldSucceed() = testApplication {
         installApp(role("role-hrd", salesDeptId, AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA))
@@ -306,76 +231,35 @@ class OrgChartAccessApiTest {
         assertEquals(HttpStatusCode.OK, response.status)
     }
 
-    // ── Detail per-id juga harus tunduk jangkauan, bukan hanya level ─────────────────────────
+    // ── Detail per-id & T-Shape pada modul GLOBAL_ONLY ──────────────────────────────────────
 
     @Test
-    fun getEmployeeDetail_forEmployeeOutsideScope_shouldBeForbidden() = testApplication {
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
+    fun getEmployeeDetail_withViewAccess_shouldSucceedForAnyEmployee() = testApplication {
+        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA))
 
-        // emp-joko adalah kepala PPIC — di luar jangkauan seorang kepala Penjualan. Id-nya tebakan
-        // yang wajar (pola `emp-<nama depan>`), bukan sesuatu yang perlu ditemukan lewat list dulu.
-        val response = client.get("/api/tenant/employees/emp-joko") {
+        // emp-joko (PPIC) dan emp-budi (Sales) sama-sama dapat dilihat karena bagan bersifat enterprise-wide
+        val resJoko = client.get("/api/tenant/employees/emp-joko") {
             asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
         }
+        assertEquals(HttpStatusCode.OK, resJoko.status)
 
-        assertEquals(
-            HttpStatusCode.Forbidden,
-            response.status,
-            "List menyaring dengan benar tidak berguna kalau detailnya bisa ditembus dengan menebak id"
-        )
+        val resBudi = client.get("/api/tenant/employees/emp-budi") {
+            asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
+        }
+        assertEquals(HttpStatusCode.OK, resBudi.status)
     }
 
     @Test
-    fun getEmployeeDetail_forEmployeeWithinScope_shouldSucceed() = testApplication {
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
-
-        val response = client.get("/api/tenant/employees/emp-budi") {
-            asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
-        }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-    }
-
-    @Test
-    fun tShape_forFocusOutsideScope_shouldBeForbidden() = testApplication {
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
-
-        val response = client.get("/api/tenant/employees/emp-joko/t-shape") {
-            asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
-        }
-
-        assertEquals(HttpStatusCode.Forbidden, response.status)
-    }
-
-    @Test
-    fun tShape_forOwnFocus_shouldStripSurroundingNodesOutsideScope() = testApplication {
-        // Ini bug yang paling mudah terlewat: memvalidasi fokusnya saja terasa cukup, tetapi
-        // T-Shape membawa superior dan peerHeads sebagai penumpang gelap di respons yang sama.
-        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.SUBORDINATE_DATA))
+    fun tShape_withViewAccess_shouldIncludeSurroundingNodesAcrossDepartments() = testApplication {
+        installApp(role("role-sales-head", salesDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA))
 
         val body = client.get("/api/tenant/employees/emp-budi/t-shape") {
             asStaff(slug, customRoleId = "role-sales-head", departmentId = salesDeptId)
         }.bodyAsText()
 
-        // emp-hendra (Direktur, superior Budi) dan Joko/Siti/Anton (peerHeads divisi lain) tidak
-        // boleh muncul sama sekali — mereka persis yang ditolak GET /{id} di atas.
-        assertFalse(body.contains("hendra.owner@wemade.id"), "Superior di luar divisi harus tersaring")
-        assertFalse(body.contains("emp-joko"), "peerHeads dari divisi lain harus tersaring")
-        assertTrue(body.contains("emp-budi"), "Fokusnya sendiri harus tetap ada")
-    }
-
-    @Test
-    fun tShape_withAllTenantScope_shouldKeepEverySurroundingNode() = testApplication {
-        // Penjagaan yang menyaring untuk semua orang, termasuk yang berjangkauan penuh, bukan
-        // penjagaan yang benar — hanya kerusakan dengan wajah berbeda.
-        installApp(role("role-hrd", salesDeptId, AccessLevel.VIEW, DataScope.ALL_TENANT_DATA))
-
-        val body = client.get("/api/tenant/employees/emp-budi/t-shape") {
-            asStaff(slug, customRoleId = "role-hrd", departmentId = salesDeptId)
-        }.bodyAsText()
-
-        assertTrue(body.contains("hendra.owner@wemade.id"))
-        assertTrue(body.contains("emp-joko"))
+        assertTrue(body.contains("hendra.owner@wemade.id"), "Superior direktur harus ada pada bagan global")
+        assertTrue(body.contains("emp-joko"), "Peer heads antar divisi harus tampil pada bagan global")
+        assertTrue(body.contains("emp-budi"), "Fokus node harus ada")
     }
 
     // ── Jalur lama tidak boleh ikut tertutup ─────────────────────────────────────────────────

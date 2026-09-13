@@ -1,6 +1,9 @@
 package com.eventverse.app.presentation.orgchart
 
 import com.eventverse.app.domain.orgchart.*
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.DataScope
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.infrastructure.api.OrgChartApiClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,26 +16,66 @@ import kotlinx.coroutines.launch
 class OrgChartViewModel(
     private val tenantSlug: String = "wemade-demo",
     private val apiClient: OrgChartApiClient? = null,
+    private val access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
+    private val viewerDepartmentId: String? = null,
+    private val viewerEmployeeId: String? = null,
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
 
     private val _uiState = MutableStateFlow(OrgChartUiState())
     val uiState: StateFlow<OrgChartUiState> = _uiState.asStateFlow()
 
+    private val isScoped: Boolean
+        get() = access.scope != DataScope.ALL_TENANT_DATA && !viewerDepartmentId.isNullOrBlank()
+
     init {
         loadInitialData()
+    }
+
+    private fun matchDepartment(depts: List<Department>, query: String?): Department? {
+        if (query.isNullOrBlank()) return null
+        return depts.find { it.id.value.equals(query, ignoreCase = true) }
+            ?: depts.find { it.code.equals(query, ignoreCase = true) }
+            ?: depts.find { query.contains(it.code, ignoreCase = true) || it.code.contains(query, ignoreCase = true) }
+            ?: depts.find { it.displayName.contains(query, ignoreCase = true) || query.contains(it.displayName, ignoreCase = true) }
+    }
+
+    private fun filterByScope(nodes: List<OrgNode>, deptId: String?): List<OrgNode> {
+        if (!isScoped) return nodes
+        return OrgChartVisibility.visibleTo(
+            nodes = nodes,
+            scope = access.scope,
+            viewerEmployeeId = viewerEmployeeId?.let { OrgNodeId(it) },
+            viewerDepartmentId = deptId ?: viewerDepartmentId
+        )
     }
 
     private fun loadInitialData() {
         val sampleList = OrgNode.createSampleEmployees()
         val defaultDepts = Department.defaultPresets()
-        val defaultDept = Department.SALES
-        val initialSuperior = resolveDefaultSuperior(sampleList, defaultDept, HierarchyLevel.STAFF_OPERATOR)
+        val matchedDept = matchDepartment(defaultDepts, viewerDepartmentId)
+        val targetDept = matchedDept ?: defaultDepts.firstOrNull { it.id.value == "dept-sales" } ?: defaultDepts.firstOrNull() ?: Department.SALES
+
+        val scopedSampleList = filterByScope(sampleList, targetDept.id.value)
+        val initialSuperior = resolveDefaultSuperior(scopedSampleList, targetDept, HierarchyLevel.STAFF_OPERATOR)
+        val initialSelectedEmpId = if (!access.canWrite) {
+            val viewerNode = if (viewerEmployeeId != null) scopedSampleList.find { it.id.value == viewerEmployeeId } else null
+            viewerNode?.id?.value
+                ?: scopedSampleList.find { it.department?.id == targetDept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }?.id?.value
+                ?: scopedSampleList.find { it.department?.id == targetDept.id }?.id?.value
+                ?: scopedSampleList.firstOrNull()?.id?.value
+        } else {
+            null
+        }
+
         _uiState.update {
             it.copy(
-                employees = sampleList,
-                departments = defaultDepts,
-                selectedDepartment = defaultDept,
+                employees = scopedSampleList,
+                departments = if (isScoped) listOf(targetDept) else defaultDepts,
+                selectedDepartment = targetDept,
+                isDepartmentLocked = isScoped,
+                isCreatingNew = access.canWrite,
+                selectedEmployeeId = initialSelectedEmpId,
                 selectedReportsToId = initialSuperior
             )
         }
@@ -49,18 +92,59 @@ class OrgChartViewModel(
                     val liveEmps = empsResult.getOrThrow()
                     if (liveDepts.isNotEmpty() || liveEmps.isNotEmpty()) {
                         _uiState.update { state ->
-                            val selectedDept = liveDepts.find { it.id == state.selectedDepartment?.id } 
-                                ?: liveDepts.firstOrNull() 
-                                ?: state.selectedDepartment
-                            val validSuperior = if (state.selectedReportsToId != null && liveEmps.any { it.id.value == state.selectedReportsToId }) {
-                                state.selectedReportsToId
-                            } else {
-                                resolveDefaultSuperior(liveEmps, selectedDept, state.selectedLevel)
+                            val matchedLiveDept = matchDepartment(liveDepts, viewerDepartmentId)
+                            val activeLiveDept = when {
+                                state.selectedDepartment != null -> {
+                                    liveDepts.find { it.id == state.selectedDepartment.id }
+                                        ?: matchedLiveDept
+                                        ?: state.selectedDepartment
+                                }
+                                viewerDepartmentId.isNullOrBlank() -> null
+                                matchedLiveDept != null -> matchedLiveDept
+                                else -> liveDepts.firstOrNull()
                             }
+
+                            val effectiveLiveEmps = filterByScope(liveEmps, activeLiveDept?.id?.value)
+                            val effectiveLiveDepts = if (isScoped && activeLiveDept != null) {
+                                listOf(activeLiveDept)
+                            } else if (liveDepts.isNotEmpty()) {
+                                liveDepts
+                            } else {
+                                state.departments
+                            }
+
+                            val validSuperior = if (state.selectedReportsToId != null && effectiveLiveEmps.any { it.id.value == state.selectedReportsToId }) {
+                                state.selectedReportsToId
+                            } else if (activeLiveDept != null) {
+                                resolveDefaultSuperior(effectiveLiveEmps, activeLiveDept, state.selectedLevel)
+                            } else {
+                                null
+                            }
+
+                            val effectiveSelectedEmpId = if (!access.canWrite) {
+                                if (state.selectedEmployeeId != null && effectiveLiveEmps.any { it.id.value == state.selectedEmployeeId }) {
+                                    state.selectedEmployeeId
+                                } else if (activeLiveDept == null) {
+                                    effectiveLiveEmps.find { it.level == HierarchyLevel.EXECUTIVE }?.id?.value
+                                        ?: effectiveLiveEmps.firstOrNull()?.id?.value
+                                } else {
+                                    val viewerNode = if (viewerEmployeeId != null) effectiveLiveEmps.find { it.id.value == viewerEmployeeId } else null
+                                    viewerNode?.id?.value
+                                        ?: effectiveLiveEmps.find { it.department?.id == activeLiveDept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }?.id?.value
+                                        ?: effectiveLiveEmps.find { it.department?.id == activeLiveDept.id }?.id?.value
+                                        ?: effectiveLiveEmps.firstOrNull()?.id?.value
+                                }
+                            } else {
+                                state.selectedEmployeeId
+                            }
+
                             state.copy(
-                                departments = if (liveDepts.isNotEmpty()) liveDepts else state.departments,
-                                employees = if (liveEmps.isNotEmpty()) liveEmps else state.employees,
-                                selectedDepartment = selectedDept,
+                                departments = effectiveLiveDepts,
+                                employees = if (effectiveLiveEmps.isNotEmpty()) effectiveLiveEmps else state.employees,
+                                selectedDepartment = activeLiveDept,
+                                isDepartmentLocked = isScoped,
+                                isCreatingNew = access.canWrite,
+                                selectedEmployeeId = effectiveSelectedEmpId,
                                 selectedReportsToId = validSuperior
                             )
                         }
@@ -87,6 +171,7 @@ class OrgChartViewModel(
             }
 
             is OrgChartUiEvent.SelectDepartment -> {
+                if (isScoped) return
                 _uiState.update { state ->
                     val defaultSuperior = resolveDefaultSuperior(
                         employees = state.employees,
@@ -98,24 +183,37 @@ class OrgChartViewModel(
                         ?: event.dept.tiers.firstOrNull { newLevel == HierarchyLevel.TEAM_LEAD && it.id == "team_lead" }
                         ?: event.dept.tiers.lastOrNull()
 
+                    val targetEmpId = if (!access.canWrite || state.selectedDepartment?.id != event.dept.id) {
+                        state.employees.find { it.department?.id == event.dept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }?.id?.value
+                            ?: state.employees.find { it.department?.id == event.dept.id }?.id?.value
+                            ?: state.selectedEmployeeId
+                    } else {
+                        state.selectedEmployeeId
+                    }
+
                     state.copy(
                         selectedDepartment = event.dept,
                         selectedLevel = newLevel,
                         selectedTierName = tier?.name ?: state.selectedTierName,
                         selectedReportsToId = defaultSuperior,
-                        isDepartmentLocked = false
+                        isDepartmentLocked = false,
+                        selectedEmployeeId = targetEmpId
                     )
                 }
             }
 
             is OrgChartUiEvent.SelectDireksi -> {
+                if (isScoped) return
                 _uiState.update { state ->
+                    val execEmpId = state.employees.find { it.level == HierarchyLevel.EXECUTIVE || it.department == null }?.id?.value
+                        ?: state.selectedEmployeeId
                     state.copy(
                         selectedDepartment = null,
                         selectedLevel = HierarchyLevel.EXECUTIVE,
                         selectedTierName = "Direksi",
                         selectedReportsToId = null,
-                        isDepartmentLocked = false
+                        isDepartmentLocked = false,
+                        selectedEmployeeId = execEmpId
                     )
                 }
             }
@@ -139,7 +237,7 @@ class OrgChartViewModel(
                         selectedLevel = event.level,
                         selectedTierName = tier,
                         selectedReportsToId = defaultSuperior,
-                        isDepartmentLocked = false
+                        isDepartmentLocked = isScoped || state.isDepartmentLocked
                     )
                 }
             }
@@ -161,14 +259,19 @@ class OrgChartViewModel(
                         selectedLevel = level,
                         selectedTierName = event.tier.name,
                         selectedReportsToId = defaultSuperior,
-                        isDepartmentLocked = false
+                        isDepartmentLocked = isScoped || state.isDepartmentLocked
                     )
                 }
             }
 
             is OrgChartUiEvent.SelectReportsTo -> {
                 _uiState.update { state ->
-                    if (event.superiorId == null) {
+                    if (isScoped || state.isDepartmentLocked) {
+                        state.copy(
+                            selectedReportsToId = event.superiorId,
+                            isDepartmentLocked = true
+                        )
+                    } else if (event.superiorId == null) {
                         // Memilih tanpa atasan -> otomatis tingkat wewenang menjadi Direksi (Executive), tanpa divisi
                         state.copy(
                             selectedReportsToId = null,
@@ -226,24 +329,25 @@ class OrgChartViewModel(
 
             is OrgChartUiEvent.SelectExistingEmployee -> {
                 val emp = _uiState.value.employees.find { it.id.value == event.id } ?: return
-                _uiState.update {
-                    it.copy(
+                _uiState.update { state ->
+                    state.copy(
                         selectedEmployeeId = emp.id.value,
                         isCreatingNew = false,
-                        nameInput = emp.name,
-                        emailInput = emp.email,
-                        phoneInput = emp.phone,
-                        selectedDepartment = emp.department,
-                        isDepartmentLocked = false,
+                        nameInput = if (access.canWrite) emp.name else "",
+                        emailInput = if (access.canWrite) emp.email else "",
+                        phoneInput = if (access.canWrite) emp.phone else "",
+                        selectedDepartment = if (isScoped) state.selectedDepartment else emp.department,
+                        isDepartmentLocked = isScoped,
                         selectedLevel = emp.level,
                         selectedTierName = emp.tierName ?: (if (emp.level == HierarchyLevel.EXECUTIVE) "Direksi" else if (emp.level == HierarchyLevel.HEAD_OF_DEPARTMENT) "Kepala Divisi" else "Staf"),
                         selectedReportsToId = emp.reportsToId?.value,
-                        roleTitleInput = emp.roleTitle
+                        roleTitleInput = if (access.canWrite) emp.roleTitle else ""
                     )
                 }
             }
 
             is OrgChartUiEvent.StartCreateNewEmployee -> {
+                if (!access.canWrite) return
                 _uiState.update { state ->
                     val currentDept = state.selectedDepartment ?: state.departments.firstOrNull()
                     val defaultSuperior = resolveDefaultSuperior(
@@ -260,7 +364,7 @@ class OrgChartViewModel(
                         emailInput = "",
                         phoneInput = "",
                         selectedDepartment = currentDept,
-                        isDepartmentLocked = false,
+                        isDepartmentLocked = isScoped || state.isDepartmentLocked,
                         selectedLevel = HierarchyLevel.STAFF_OPERATOR,
                         selectedTierName = tier,
                         selectedReportsToId = defaultSuperior,
@@ -270,6 +374,7 @@ class OrgChartViewModel(
             }
 
             is OrgChartUiEvent.SaveEmployee -> {
+                if (!access.canWrite) return
                 handleSaveEmployee()
             }
 
@@ -548,6 +653,7 @@ class OrgChartViewModel(
             }
 
             is OrgChartUiEvent.ClearAllDataToEmpty -> {
+                if (!access.canManage || isScoped) return
                 _uiState.update { state ->
                     state.copy(
                         employees = emptyList(),
@@ -567,6 +673,7 @@ class OrgChartViewModel(
             }
 
             is OrgChartUiEvent.RestoreDefaultPresets -> {
+                if (!access.canManage || isScoped) return
                 val defaultDepts = Department.defaultPresets()
                 val defaultEmployees = OrgNode.createSampleEmployees()
                 _uiState.update { state ->
@@ -934,8 +1041,9 @@ class OrgChartViewModel(
                     val savedNode = result.getOrThrow()
                     val serverList = client.getEmployees(tenantSlug).getOrNull()
                     _uiState.update { current ->
+                        val filteredServerList = serverList?.let { filterByScope(it, current.selectedDepartment?.id?.value) }
                         current.copy(
-                            employees = serverList ?: current.employees,
+                            employees = filteredServerList ?: current.employees,
                             selectedEmployeeId = savedNode.id.value,
                             isCreatingNew = false,
                             toastMessage = "Karyawan '${savedNode.name}' berhasil disimpan ke database!"

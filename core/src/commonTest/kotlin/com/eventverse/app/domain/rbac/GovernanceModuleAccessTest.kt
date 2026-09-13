@@ -161,9 +161,9 @@ class GovernanceModuleAccessTest {
     }
 
     @Test
-    fun orgChart_shouldOfferAllThreeScopes() {
-        assertTrue(BusinessModule.ORG_CHART.isHierarchical)
-        assertEquals(3, BusinessModule.ORG_CHART.supportedScopes.size)
+    fun orgChart_shouldBeGlobalOnly() {
+        assertTrue(BusinessModule.ORG_CHART.isGlobalOnly)
+        assertEquals(setOf(DataScope.ALL_TENANT_DATA), BusinessModule.ORG_CHART.supportedScopes)
     }
 
     @Test

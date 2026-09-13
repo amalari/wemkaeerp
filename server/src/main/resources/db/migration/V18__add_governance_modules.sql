@@ -67,7 +67,7 @@ INSERT INTO module_catalog_entries (
     ('mce-org-chart', 'org_chart', 'governance',
      'Bagan Organisasi & Karyawan',
      'Struktur divisi, jenjang jabatan, dan data karyawan pabrik.',
-     'GOVERNANCE', 'HIERARCHICAL', 'non_stock_service', 'indirect_overhead',
+     'GOVERNANCE', 'GLOBAL_ONLY', 'non_stock_service', 'indirect_overhead',
      '[]', 'OrganizationStructure',
      FALSE, NULL, 'RELEASED', 'M', 0, CURRENT_TIMESTAMP),
 

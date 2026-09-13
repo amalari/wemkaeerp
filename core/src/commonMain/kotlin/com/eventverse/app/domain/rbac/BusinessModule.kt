@@ -46,13 +46,13 @@ enum class BusinessModule(
     // tenant, dan admin pabrik mengatur siapa yang boleh membukanya.
     ORG_CHART(
         code = "org_chart",
-        displayName = "Bagan Organisasi & Karyawan",
+        displayName = "Bagan Struktur Organisasi & Karyawan",
         category = ModuleCategory.GOVERNANCE,
         description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
         iconKey = "users",
-        // Hirarkis karena kepala divisi wajar dibatasi hanya melihat timnya sendiri; lihat
-        // OrgChartVisibility yang benar-benar menyaring datanya, bukan sekadar melabeli.
-        scopeCapability = ScopeCapability.HIERARCHICAL,
+        // Global kolektif karena bagan organisasi dilihat utuh untuk seluruh struktur perusahaan;
+        // pembedaan wewenang berada pada tingkat hak akses (VIEW hanya lihat full bagan, OPERATE input/edit, MANAGE kelola penuh).
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
         kind = ModuleKind.GOVERNANCE
     ),
     DYNAMIC_RBAC(

@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.orgchart.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -158,11 +159,15 @@ fun TShapeChartView(
                     )
                     result.peerHeads.forEach { peer ->
                         val peerDeptColor = peer.department?.let { Color(it.colorHex) } ?: WeMadeColors.Primary
-                        ClayTag(
-                            text = "${peer.department?.shortName ?: "Direksi"}: ${peer.name}",
-                            tint = peerDeptColor,
-                            fontSize = 11.sp
-                        )
+                        Box(
+                            modifier = Modifier.clickable { onSelectNode(peer.id.value) }
+                        ) {
+                            ClayTag(
+                                text = "${peer.department?.shortName ?: "Direksi"}: ${peer.name}",
+                                tint = peerDeptColor,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }

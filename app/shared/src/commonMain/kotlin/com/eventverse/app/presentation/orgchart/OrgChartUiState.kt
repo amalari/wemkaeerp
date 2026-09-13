@@ -110,18 +110,29 @@ data class OrgChartUiState(
             val focus = if (isCreatingNew) {
                 draftNode
             } else {
-                val existing = employees.find { it.id.value == selectedEmployeeId }
-                if (existing != null) {
-                    existing.copy(
-                        name = nameInput.ifBlank { existing.name },
-                        email = emailInput.ifBlank { existing.email },
-                        phone = phoneInput,
-                        department = if (selectedLevel == HierarchyLevel.EXECUTIVE) null else (selectedDepartment ?: existing.department),
-                        level = selectedLevel,
-                        tierName = selectedTierName ?: existing.tierName,
-                        roleTitle = roleTitleInput.ifBlank { selectedTierName ?: selectedLevel.displayName },
-                        reportsToId = selectedReportsToId?.let { OrgNodeId(it) }
-                    )
+                val targetEmployee = if (selectedEmployeeId != null) {
+                    employees.find { it.id.value == selectedEmployeeId }
+                } else {
+                    val dept = selectedDepartment ?: activeDepartment
+                    employees.find { it.department?.id == dept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }
+                        ?: employees.find { it.department?.id == dept.id }
+                        ?: employees.firstOrNull()
+                }
+                if (targetEmployee != null) {
+                    if (nameInput.isBlank()) {
+                        targetEmployee
+                    } else {
+                        targetEmployee.copy(
+                            name = nameInput.ifBlank { targetEmployee.name },
+                            email = emailInput.ifBlank { targetEmployee.email },
+                            phone = phoneInput.ifBlank { targetEmployee.phone },
+                            department = if (selectedLevel == HierarchyLevel.EXECUTIVE) null else (selectedDepartment ?: targetEmployee.department),
+                            level = selectedLevel,
+                            tierName = selectedTierName ?: targetEmployee.tierName,
+                            roleTitle = roleTitleInput.ifBlank { targetEmployee.roleTitle },
+                            reportsToId = selectedReportsToId?.let { OrgNodeId(it) } ?: targetEmployee.reportsToId
+                        )
+                    }
                 } else {
                     draftNode
                 }

@@ -49,16 +49,18 @@ import com.eventverse.app.presentation.workspace.tint
 @Composable
 fun OrgChartScreen(
     tenantSlug: String = "wemade-demo",
-    viewModel: OrgChartViewModel = remember(tenantSlug) {
-        OrgChartViewModel(tenantSlug = tenantSlug, apiClient = OrgChartApiClient())
-    },
-    /**
-     * Wewenang efektif atas modul Bagan Organisasi.
-     *
-     * Default `MANAGE` supaya pemanggil lama dan preview tidak berubah perilakunya; jalur aplikasi
-     * sesungguhnya selalu mengisinya lewat `GovernanceModuleGate`.
-     */
     access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
+    viewerDepartmentId: String? = null,
+    viewerEmployeeId: String? = null,
+    viewModel: OrgChartViewModel = remember(tenantSlug, access, viewerDepartmentId, viewerEmployeeId) {
+        OrgChartViewModel(
+            tenantSlug = tenantSlug,
+            apiClient = OrgChartApiClient(),
+            access = access,
+            viewerDepartmentId = viewerDepartmentId,
+            viewerEmployeeId = viewerEmployeeId
+        )
+    },
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -84,6 +86,8 @@ fun OrgChartScreen(
                 totalDepartments = state.departments.size,
                 isResetMenuOpen = state.isResetMenuOpen,
                 accessLevel = access.level,
+                isDepartmentLocked = state.isDepartmentLocked,
+                lockedDepartmentName = state.selectedDepartment?.displayName,
                 onToggleResetMenu = { viewModel.onEvent(OrgChartUiEvent.ToggleResetMenu) },
                 onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                 onAddNewDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
@@ -106,36 +110,40 @@ fun OrgChartScreen(
                     .weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // SISI KIRI: Form Input Karyawan (40% width)
-                EmployeeFormPanel(
-                    state = state,
-                    onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateName(it)) },
-                    onEmailChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEmail(it)) },
-                    onPhoneChange = { viewModel.onEvent(OrgChartUiEvent.UpdatePhone(it)) },
-                    onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
-                    onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
-                    onTierChange = { viewModel.onEvent(OrgChartUiEvent.SelectTier(it)) },
-                    onLevelChange = { viewModel.onEvent(OrgChartUiEvent.SelectLevel(it)) },
-                    onSuperiorChange = { viewModel.onEvent(OrgChartUiEvent.SelectReportsTo(it)) },
-                    onRoleTitleChange = { viewModel.onEvent(OrgChartUiEvent.UpdateRoleTitle(it)) },
-                    onSuccessionActionChange = { viewModel.onEvent(OrgChartUiEvent.SelectSuccessionAction(it)) },
-                    onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEmployee) },
-                    onReset = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
-                    onAddDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
-                    onEditDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(it)) },
-                    onAddTierClick = { viewModel.onEvent(OrgChartUiEvent.OpenAddTierModal) },
-                    onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
-                    onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
-                    onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
-                    canWrite = canWrite,
-                    canManage = canManage,
-                    modifier = Modifier.width(420.dp)
-                )
+                // SISI KIRI: Form Input Karyawan (Hanya tampil jika berwenang mengedit)
+                if (canWrite) {
+                    EmployeeFormPanel(
+                        state = state,
+                        onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateName(it)) },
+                        onEmailChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEmail(it)) },
+                        onPhoneChange = { viewModel.onEvent(OrgChartUiEvent.UpdatePhone(it)) },
+                        onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
+                        onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
+                        onTierChange = { viewModel.onEvent(OrgChartUiEvent.SelectTier(it)) },
+                        onLevelChange = { viewModel.onEvent(OrgChartUiEvent.SelectLevel(it)) },
+                        onSuperiorChange = { viewModel.onEvent(OrgChartUiEvent.SelectReportsTo(it)) },
+                        onRoleTitleChange = { viewModel.onEvent(OrgChartUiEvent.UpdateRoleTitle(it)) },
+                        onSuccessionActionChange = { viewModel.onEvent(OrgChartUiEvent.SelectSuccessionAction(it)) },
+                        onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEmployee) },
+                        onReset = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
+                        onAddDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
+                        onEditDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(it)) },
+                        onAddTierClick = { viewModel.onEvent(OrgChartUiEvent.OpenAddTierModal) },
+                        onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
+                        onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
+                        onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
+                        canWrite = canWrite,
+                        canManage = canManage,
+                        modifier = Modifier.width(420.dp)
+                    )
+                }
 
                 // SISI KANAN: Live Org Chart Preview (60% weight)
                 ChartPreviewPanel(
                     state = state,
                     onSelectNode = { viewModel.onEvent(OrgChartUiEvent.SelectExistingEmployee(it)) },
+                    onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
+                    onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
                     onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                     onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) },
                     onToggleArchived = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
@@ -415,12 +423,16 @@ private fun OrgChartHeader(
     totalDepartments: Int,
     isResetMenuOpen: Boolean,
     accessLevel: AccessLevel,
+    isDepartmentLocked: Boolean = false,
+    lockedDepartmentName: String? = null,
     onToggleResetMenu: () -> Unit,
     onAddNewEmployee: () -> Unit,
     onAddNewDepartment: () -> Unit,
     onClearAllData: () -> Unit,
     onRestorePresets: () -> Unit
 ) {
+    val canWrite = accessLevel.isAtLeast(AccessLevel.OPERATE)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -442,10 +454,21 @@ private fun OrgChartHeader(
                     tint = WeMadeColors.Primary,
                     fontSize = 11.sp
                 )
+                if (isDepartmentLocked && lockedDepartmentName != null) {
+                    ClayTag(
+                        text = "Divisi: $lockedDepartmentName",
+                        tint = WeMadeColors.Warning,
+                        fontSize = 11.sp
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(ClaySpacing.Xs))
             Text(
-                text = "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik, atau mulai dari struktur kosong.",
+                text = if (isDepartmentLocked && lockedDepartmentName != null) {
+                    "Menampilkan bagan struktur khusus divisi $lockedDepartmentName sesuai batasan wewenang data Anda."
+                } else {
+                    "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik, atau mulai dari struktur kosong."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = WeMadeColors.OnSurfaceMuted
             )
@@ -459,62 +482,62 @@ private fun OrgChartHeader(
             HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
             ClayBadge(text = accessLevel.badgeLabel(), tint = accessLevel.tint(), dot = true)
 
-            // Tombol Opsi Preset / Mulai Kosong. Mengosongkan struktur dan memuat ulang template
-            // adalah aksi yang menghapus data, jadi ia menuntut MANAGE — bukan sekadar OPERATE.
-            Box {
+            // Tombol Opsi Preset, Divisi Baru, dan Tambah Karyawan hanya tampil untuk pengguna dengan wewenang tulis
+            if (canWrite) {
+                Box {
+                    ClayGuardedButton(
+                        text = "Opsi Struktur",
+                        onClick = onToggleResetMenu,
+                        enabled = accessLevel.isAtLeast(AccessLevel.MANAGE),
+                        lockedHint = "Butuh wewenang ${AccessLevel.MANAGE.displayName}.",
+                        style = ClayButtonStyle.Secondary,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    )
+
+                    DropdownMenu(
+                        expanded = isResetMenuOpen,
+                        onDismissRequest = onToggleResetMenu
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.Error)
+                                    Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
+                                }
+                            },
+                            onClick = onClearAllData
+                        )
+                        HorizontalDivider(color = WeMadeColors.Border)
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("Muat Template Konveksi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
+                                    Text("Isi dengan 5 divisi & staf contoh", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
+                                }
+                            },
+                            onClick = onRestorePresets
+                        )
+                    }
+                }
+
                 ClayGuardedButton(
-                    text = "Opsi Struktur",
-                    onClick = onToggleResetMenu,
-                    enabled = accessLevel.isAtLeast(AccessLevel.MANAGE),
-                    lockedHint = "Butuh wewenang ${AccessLevel.MANAGE.displayName}.",
+                    text = "+ Divisi Baru",
+                    onClick = onAddNewDepartment,
+                    enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
+                    lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
                     style = ClayButtonStyle.Secondary,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 )
 
-                DropdownMenu(
-                    expanded = isResetMenuOpen,
-                    onDismissRequest = onToggleResetMenu
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.Error)
-                                Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
-                            }
-                        },
-                        onClick = onClearAllData
-                    )
-                    HorizontalDivider(color = WeMadeColors.Border)
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text("Muat Template Konveksi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-                                Text("Isi dengan 5 divisi & staf contoh", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
-                            }
-                        },
-                        onClick = onRestorePresets
-                    )
-                }
+                ClayGuardedButton(
+                    text = "+ Tambah Karyawan",
+                    onClick = onAddNewEmployee,
+                    enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
+                    lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
+                    style = ClayButtonStyle.Primary,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                )
             }
-
-            // Menambah divisi dan karyawan adalah pekerjaan harian, jadi cukup OPERATE.
-            ClayGuardedButton(
-                text = "+ Divisi Baru",
-                onClick = onAddNewDepartment,
-                enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
-                lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
-                style = ClayButtonStyle.Secondary,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            )
-
-            ClayGuardedButton(
-                text = "+ Tambah Karyawan",
-                onClick = onAddNewEmployee,
-                enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
-                lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
-                style = ClayButtonStyle.Primary,
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-            )
         }
     }
 }
@@ -1362,6 +1385,8 @@ private fun EmployeeFormPanel(
 private fun ChartPreviewPanel(
     state: OrgChartUiState,
     onSelectNode: (String) -> Unit,
+    onDeptChange: (Department) -> Unit = {},
+    onSelectDireksi: () -> Unit = {},
     onAddNewEmployee: () -> Unit,
     onRestorePresets: () -> Unit,
     onToggleArchived: () -> Unit,
@@ -1386,14 +1411,30 @@ private fun ChartPreviewPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                    ) {
+                        Text(
+                            text = "Pratinjau Struktur Organisasi (Live Org Chart)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = WeMadeColors.OnSurface
+                        )
+                        if (state.isDepartmentLocked && state.selectedDepartment != null) {
+                            ClayTag(
+                                text = "Divisi: ${state.selectedDepartment.displayName}",
+                                tint = WeMadeColors.Primary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
                     Text(
-                        text = "Pratinjau Struktur Organisasi (Live Org Chart)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.OnSurface
-                    )
-                    Text(
-                        text = "Menampilkan fokus: 1 Tingkat ke Atas (Approval) & Seluruh Anggota Divisi",
+                        text = if (state.isDepartmentLocked && state.selectedDepartment != null) {
+                            "Menampilkan bagan organisasi divisi ${state.selectedDepartment.displayName} (Terkunci sesuai batasan wewenang Anda)"
+                        } else {
+                            "Menampilkan fokus: 1 Tingkat ke Atas (Approval) & Seluruh Anggota Divisi"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -1403,20 +1444,35 @@ private fun ChartPreviewPanel(
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ClayButton(
-                        text = if (showArchivedPanel) "Tutup Arsip" else "Lihat Arsip",
-                        leading = { IconArchive(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface) },
-                        onClick = onToggleArchived,
-                        style = ClayButtonStyle.Secondary,
-                        offset = ClayOffset.Pressed,
-                        fontSize = 11.sp,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    if (canManage) {
+                        ClayButton(
+                            text = if (showArchivedPanel) "Tutup Arsip" else "Lihat Arsip",
+                            leading = { IconArchive(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface) },
+                            onClick = onToggleArchived,
+                            style = ClayButtonStyle.Secondary,
+                            offset = ClayOffset.Pressed,
+                            fontSize = 11.sp,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                     LegendTag("Direksi", WeMadeColors.Primary)
                     LegendTag("Head", WeMadeColors.Warning)
                     LegendTag("Staf", WeMadeColors.OnSurfaceMuted)
                 }
             }
+
+            Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+            // 2. Navigasi Pilihan Divisi & Direksi
+            DivisionSelectorTabs(
+                departments = state.departments,
+                selectedDepartment = state.selectedDepartment,
+                isDireksiSelected = state.selectedDepartment == null && state.selectedLevel == HierarchyLevel.EXECUTIVE,
+                employees = state.employees,
+                onSelectDireksi = onSelectDireksi,
+                onSelectDepartment = onDeptChange,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(ClaySpacing.Md))
             HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
@@ -1439,27 +1495,33 @@ private fun ChartPreviewPanel(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "Belum ada karyawan yang terdaftar. Anda dapat memulai dengan struktur kosong atau menggunakan template konveksi bawaan.",
+                            text = if (state.isDepartmentLocked) {
+                                "Belum ada karyawan yang terdaftar di divisi ${state.selectedDepartment?.displayName ?: "ini"}."
+                            } else {
+                                "Belum ada karyawan yang terdaftar. Anda dapat memulai dengan struktur kosong atau menggunakan template konveksi bawaan."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = WeMadeColors.OnSurfaceMuted,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(ClaySpacing.Xs))
-                        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                            ClayButton(
-                                text = "Muat Template Konveksi (5 Divisi)",
-                                onClick = onRestorePresets,
-                                enabled = canManage,
-                                style = ClayButtonStyle.Secondary,
-                                offset = ClayOffset.Small
-                            )
-                            ClayButton(
-                                text = "+ Tambah Karyawan Pertama",
-                                onClick = onAddNewEmployee,
-                                enabled = canWrite,
-                                style = ClayButtonStyle.Primary,
-                                offset = ClayOffset.Small
-                            )
+                        if (canWrite) {
+                            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+                            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+                                if (canManage && !state.isDepartmentLocked) {
+                                    ClayButton(
+                                        text = "Muat Template Konveksi (5 Divisi)",
+                                        onClick = onRestorePresets,
+                                        style = ClayButtonStyle.Secondary,
+                                        offset = ClayOffset.Small
+                                    )
+                                }
+                                ClayButton(
+                                    text = "+ Tambah Karyawan Pertama",
+                                    onClick = onAddNewEmployee,
+                                    style = ClayButtonStyle.Primary,
+                                    offset = ClayOffset.Small
+                                )
+                            }
                         }
                     }
                 }
@@ -1469,6 +1531,127 @@ private fun ChartPreviewPanel(
                     onSelectNode = onSelectNode,
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DivisionSelectorTabs(
+    departments: List<Department>,
+    selectedDepartment: Department?,
+    isDireksiSelected: Boolean,
+    employees: List<OrgNode>,
+    onSelectDireksi: () -> Unit,
+    onSelectDepartment: (Department) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+
+    Row(
+        modifier = modifier
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.SurfaceMuted,
+                outline = WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
+            .horizontalScroll(scrollState),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+        ) {
+            IconLayers(modifier = Modifier.size(14.dp), color = WeMadeColors.Primary)
+            Text(
+                text = "Pilih Bagan Divisi:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface
+            )
+        }
+
+        // Chip Direksi (Non-Divisi)
+        val execCount = employees.count { it.level == HierarchyLevel.EXECUTIVE || it.department == null }
+        Box(
+            modifier = Modifier
+                .clayFlat(
+                    shape = ClayShapes.Chip,
+                    background = if (isDireksiSelected) WeMadeColors.Primary else WeMadeColors.Surface,
+                    outline = if (isDireksiSelected) WeMadeColors.Outline else WeMadeColors.Border,
+                    borderWidth = ClayBorder.Medium
+                )
+                .clickable { onSelectDireksi() }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+            ) {
+                Text(
+                    text = "Direksi (Pimpinan Puncak)",
+                    fontSize = 11.sp,
+                    fontWeight = if (isDireksiSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isDireksiSelected) Color.White else WeMadeColors.OnSurface
+                )
+                if (execCount > 0) {
+                    ClayTag(
+                        text = "$execCount",
+                        tint = if (isDireksiSelected) Color.White.copy(alpha = 0.9f) else WeMadeColors.Primary,
+                        fontSize = 9.sp
+                    )
+                }
+            }
+        }
+
+        // Chips for each Department
+        departments.forEach { dept ->
+            val isSelected = !isDireksiSelected && dept.id == selectedDepartment?.id
+            val deptColor = Color(dept.colorHex)
+            val deptCount = employees.count { it.department?.id == dept.id }
+
+            Box(
+                modifier = Modifier
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = if (isSelected) deptColor else WeMadeColors.Surface,
+                        outline = if (isSelected) WeMadeColors.Outline else WeMadeColors.Border,
+                        borderWidth = ClayBorder.Medium
+                    )
+                    .clickable { onSelectDepartment(dept) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                ) {
+                    if (!isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(deptColor)
+                        )
+                    }
+                    Text(
+                        text = dept.displayName,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else WeMadeColors.OnSurface
+                    )
+                    if (deptCount > 0) {
+                        ClayTag(
+                            text = "$deptCount",
+                            tint = if (isSelected) Color.White.copy(alpha = 0.9f) else deptColor,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
             }
         }
     }

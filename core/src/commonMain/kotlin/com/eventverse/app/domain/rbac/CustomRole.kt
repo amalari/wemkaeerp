@@ -134,7 +134,7 @@ data class CustomRole(
                     modulePermissions = mapOf(
                         // Kepala produksi memiliki kanvas alur, melihat bagan divisinya, dan tidak
                         // menyentuh matriks wewenang.
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
@@ -157,7 +157,7 @@ data class CustomRole(
                     userCount = 1,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
@@ -180,7 +180,7 @@ data class CustomRole(
                     userCount = 4,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
@@ -203,7 +203,7 @@ data class CustomRole(
                     userCount = 3,
                     departmentId = "dept-${prefix}warehouse",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),

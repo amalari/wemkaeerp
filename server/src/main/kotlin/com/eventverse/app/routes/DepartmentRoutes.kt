@@ -4,6 +4,11 @@ import com.eventverse.app.domain.orgchart.DepartmentId
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.domain.orgchart.usecases.*
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.DataScope
+import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
+import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.CreateDepartmentRequestDto
 import com.eventverse.app.routes.dto.DepartmentDto
@@ -16,7 +21,9 @@ import io.ktor.server.routing.*
 
 fun Route.departmentRoutes(
     departmentRepository: DepartmentRepository,
-    employeeRepository: EmployeeRepository? = null
+    employeeRepository: EmployeeRepository? = null,
+    roleRepository: RoleRepository? = null,
+    moduleAssignmentRepository: ModuleAssignmentRepository? = null
 ) {
     val getDepartmentsUseCase = GetDepartmentsUseCase(departmentRepository)
     val createDepartmentUseCase = CreateDepartmentUseCase(departmentRepository)
@@ -32,9 +39,24 @@ fun Route.departmentRoutes(
                 return@get
             }
 
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.VIEW)) return@get
+
             val result = getDepartmentsUseCase.getAll(tenant.tenantId)
             if (result.isSuccess) {
-                call.respondText(DepartmentDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)
+                val allDepts = result.getOrThrow()
+                val scope = decision?.config?.scope ?: DataScope.ALL_TENANT_DATA
+                val userDeptId = call.callerPrincipalOrNull?.departmentId
+                val filtered = if (scope != DataScope.ALL_TENANT_DATA && !userDeptId.isNullOrBlank()) {
+                    allDepts.filter {
+                        it.id.value.equals(userDeptId, ignoreCase = true) ||
+                        it.code.equals(userDeptId, ignoreCase = true) ||
+                        userDeptId.contains(it.code, ignoreCase = true)
+                    }.ifEmpty { allDepts }
+                } else {
+                    allDepts
+                }
+                call.respondText(DepartmentDto.toJsonList(filtered), contentType = ContentType.Application.Json)
             } else {
                 call.respond(HttpStatusCode.InternalServerError, result.exceptionOrNull()?.message ?: "Failed to load departments")
             }

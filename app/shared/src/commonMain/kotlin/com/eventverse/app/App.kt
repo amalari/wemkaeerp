@@ -361,7 +361,9 @@ fun App() {
                             ) { access ->
                                 OrgChartScreen(
                                     tenantSlug = session?.tenantSlug ?: "wemade-demo",
-                                    access = access
+                                    access = access,
+                                    viewerDepartmentId = activePersona?.departmentId ?: session?.user?.departmentId,
+                                    viewerEmployeeId = activePersona?.sourceEmployeeId?.value ?: session?.user?.id?.value
                                 )
                             }
                         }

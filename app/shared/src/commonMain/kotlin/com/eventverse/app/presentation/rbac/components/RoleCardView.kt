@@ -33,6 +33,96 @@ data class RoleAccessibleModule(
     val assignment: DepartmentModuleAssignment?
 )
 
+/**
+ * Menghitung daftar modul yang dapat diakses oleh sebuah jabatan, menggabungkan:
+ * 1. Penugasan khusus jabatan (DepartmentModuleAssignment spesifik roleId)
+ * 2. Penugasan divisi penuh (DepartmentModuleAssignment appliesToAllRoles)
+ * 3. Wewenang bawaan jabatan (CustomRole.modulePermissions)
+ *
+ * Menggunakan prinsip Highest Privilege Union yang identik dengan AccessDecisionEngine.
+ */
+fun resolveAccessibleModulesForRole(
+    role: CustomRole,
+    dept: Department?,
+    assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>
+): List<RoleAccessibleModule> {
+    val list = mutableListOf<RoleAccessibleModule>()
+    val roleIdStr = role.id.value
+    val deptIdStr = dept?.id?.value
+
+    BusinessModule.entries.forEach { mod ->
+        val assignList = assignments[mod].orEmpty()
+        val specific = assignList.find { it.specificRoleIds.contains(roleIdStr) }
+        val deptWide = if (deptIdStr != null) {
+            assignList.find { it.departmentId == deptIdStr && it.appliesToAllRoles }
+        } else null
+
+        val roleCfg = role.getAccess(mod)
+        val hasRoleAccess = roleCfg.isAccessible
+
+        when {
+            // 1. Penugasan khusus untuk jabatan ini pada modul ini
+            specific != null -> {
+                val roleWins = hasRoleAccess && roleCfg.level.weight > specific.accessLevel.weight
+                list.add(
+                    RoleAccessibleModule(
+                        module = mod,
+                        accessLevel = if (roleWins) roleCfg.level else specific.accessLevel,
+                        scope = if (roleWins) roleCfg.scope else specific.scope,
+                        isSpecificToRole = true,
+                        departmentName = specific.departmentName,
+                        assignment = specific
+                    )
+                )
+            }
+
+            // 2. Penugasan tingkat divisi (seluruh anggota divisi)
+            deptWide != null -> {
+                if (hasRoleAccess && roleCfg.level.weight > deptWide.accessLevel.weight) {
+                    // Wewenang bawaan jabatan lebih tinggi dari penugasan divisi
+                    list.add(
+                        RoleAccessibleModule(
+                            module = mod,
+                            accessLevel = roleCfg.level,
+                            scope = roleCfg.scope,
+                            isSpecificToRole = true,
+                            departmentName = dept?.displayName ?: "Bawaan Jabatan",
+                            assignment = null
+                        )
+                    )
+                } else {
+                    list.add(
+                        RoleAccessibleModule(
+                            module = mod,
+                            accessLevel = deptWide.accessLevel,
+                            scope = deptWide.scope,
+                            isSpecificToRole = false,
+                            departmentName = deptWide.departmentName,
+                            assignment = deptWide
+                        )
+                    )
+                }
+            }
+
+            // 3. Hak akses berasal langsung dari wewenang bawaan jabatan
+            hasRoleAccess -> {
+                list.add(
+                    RoleAccessibleModule(
+                        module = mod,
+                        accessLevel = roleCfg.level,
+                        scope = roleCfg.scope,
+                        isSpecificToRole = true,
+                        departmentName = dept?.displayName ?: "Bawaan Jabatan",
+                        assignment = null
+                    )
+                )
+            }
+        }
+    }
+
+    return list
+}
+
 @Composable
 fun RoleCardList(
     roles: List<CustomRole>,
@@ -72,61 +162,7 @@ fun RoleCardList(
                         }
 
                         val accessibleModules = remember(role, dept, assignments) {
-                            val list = mutableListOf<RoleAccessibleModule>()
-                            val roleIdStr = role.id.value
-                            val deptIdStr = dept?.id?.value
-
-                            assignments.forEach { (mod, assignList) ->
-                                // 1. Check specific assignment
-                                val specific = assignList.find { it.specificRoleIds.contains(roleIdStr) }
-                                if (specific != null) {
-                                    list.add(
-                                        RoleAccessibleModule(
-                                            module = mod,
-                                            accessLevel = specific.accessLevel,
-                                            scope = specific.scope,
-                                            isSpecificToRole = true,
-                                            departmentName = specific.departmentName,
-                                            assignment = specific
-                                        )
-                                    )
-                                } else if (deptIdStr != null) {
-                                    // 2. Check full department assignment
-                                    val deptWide = assignList.find { it.departmentId == deptIdStr && it.appliesToAllRoles }
-                                    if (deptWide != null) {
-                                        list.add(
-                                            RoleAccessibleModule(
-                                                module = mod,
-                                                accessLevel = deptWide.accessLevel,
-                                                scope = deptWide.scope,
-                                                isSpecificToRole = false,
-                                                departmentName = deptWide.departmentName,
-                                                assignment = deptWide
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-
-                            // If owner with no module assignments, fallback to role's permissions
-                            if (list.isEmpty() && role.isSystemDefault && role.name.contains("owner", ignoreCase = true)) {
-                                role.modulePermissions.forEach { (mod, cfg) ->
-                                    if (cfg.level != AccessLevel.NONE) {
-                                        list.add(
-                                            RoleAccessibleModule(
-                                                module = mod,
-                                                accessLevel = cfg.level,
-                                                scope = cfg.scope,
-                                                isSpecificToRole = true,
-                                                departmentName = "Direksi Pabrik",
-                                                assignment = null
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-
-                            list
+                            resolveAccessibleModulesForRole(role, dept, assignments)
                         }
 
                         Box(
