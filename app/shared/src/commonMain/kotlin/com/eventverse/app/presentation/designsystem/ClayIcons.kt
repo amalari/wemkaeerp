@@ -150,6 +150,21 @@ fun IconChevronDown(modifier: Modifier = Modifier, color: Color = WeMadeColors.O
 }
 
 @Composable
+fun IconChevronUp(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+        val path = Path().apply {
+            moveTo(w * 0.22f, h * 0.65f)
+            lineTo(w * 0.50f, h * 0.35f)
+            lineTo(w * 0.78f, h * 0.65f)
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
 fun IconClose(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
     Canvas(modifier = modifier) {
         val w = size.width

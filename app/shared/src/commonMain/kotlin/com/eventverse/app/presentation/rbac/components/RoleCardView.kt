@@ -9,7 +9,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -132,70 +135,48 @@ fun RoleCardList(
     onRemoveAssignment: (BusinessModule, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val columns = when {
-            maxWidth >= 1400.dp -> 4
-            maxWidth >= 1000.dp -> 3
-            maxWidth >= 650.dp -> 2
-            else -> 1
+    if (roles.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Belum ada jabatan yang terdaftar atau sesuai pencarian.",
+                fontSize = 13.sp,
+                color = WeMadeColors.OnSurfaceMuted
+            )
         }
-
-        val rows = remember(roles, columns) {
-            roles.chunked(columns)
-        }
-
+    } else {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg),
+            modifier = modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
             contentPadding = PaddingValues(bottom = ClaySpacing.Xxl)
         ) {
-            items(rows, key = { row -> row.joinToString("-") { it.id.value } }) { rowRoles ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Max),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-                ) {
-                    rowRoles.forEach { role ->
-                        val dept = remember(role, departments) {
-                            DynamicRbacViewModel.resolveDepartmentForRole(role, departments)
-                        }
-
-                        val accessibleModules = remember(role, dept, assignments) {
-                            resolveAccessibleModulesForRole(role, dept, assignments)
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        ) {
-                            SingleRoleCard(
-                                role = role,
-                                department = dept,
-                                accessibleModules = accessibleModules,
-                                onAddModuleClick = { onOpenAssignModal(role, dept, null, null) },
-                                onEditAssignmentClick = { mod, assignment -> onOpenAssignModal(role, dept, assignment, mod) },
-                                onRemoveAssignmentClick = { mod, assignKey -> onRemoveAssignment(mod, assignKey) },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-
-                    val remaining = columns - rowRoles.size
-                    if (remaining > 0) {
-                        repeat(remaining) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
+            items(roles, key = { it.id.value }) { role ->
+                val dept = remember(role, departments) {
+                    DynamicRbacViewModel.resolveDepartmentForRole(role, departments)
                 }
+
+                val accessibleModules = remember(role, dept, assignments) {
+                    resolveAccessibleModulesForRole(role, dept, assignments)
+                }
+
+                RoleRowCard(
+                    role = role,
+                    department = dept,
+                    accessibleModules = accessibleModules,
+                    onAddModuleClick = { onOpenAssignModal(role, dept, null, null) },
+                    onEditAssignmentClick = { mod, assignment -> onOpenAssignModal(role, dept, assignment, mod) },
+                    onRemoveAssignmentClick = { mod, assignKey -> onRemoveAssignment(mod, assignKey) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
 }
 
 @Composable
-fun SingleRoleCard(
+fun RoleRowCard(
     role: CustomRole,
     department: Department?,
     accessibleModules: List<RoleAccessibleModule>,
@@ -204,10 +185,11 @@ fun SingleRoleCard(
     onRemoveAssignmentClick: (BusinessModule, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isExpanded by remember { mutableStateOf(true) }
     val deptColor = department?.let { Color(it.colorHex) } ?: WeMadeColors.Primary
 
     ClayCard(
-        modifier = modifier.fillMaxWidth().fillMaxHeight(),
+        modifier = modifier.fillMaxWidth(),
         shape = ClayShapes.Card,
         containerColor = WeMadeColors.Surface,
         outlineColor = WeMadeColors.Outline,
@@ -216,129 +198,193 @@ fun SingleRoleCard(
         borderWidth = ClayBorder.Thick,
         contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        // Header: Role Name & Department Data
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = role.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Data Divisi info jelas
+            // Header Row: Role identity, Department badge, module counter, action buttons & collapse toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
+                    // Avatar / Dept color badge
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(deptColor)
-                    )
-                    Text(
-                        text = if (department != null) "Divisi: ${department.displayName}" else "Direksi / Lintas Divisi",
+                            .size(38.dp)
+                            .clayFlat(
+                                shape = CircleShape,
+                                background = deptColor.copy(alpha = 0.15f),
+                                outline = deptColor,
+                                borderWidth = 1.5.dp
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(deptColor)
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            Text(
+                                text = role.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.OnSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            ClayTag(
+                                text = if (department != null) "Divisi: ${department.displayName}" else "Direksi / Lintas Divisi",
+                                tint = deptColor,
+                                fontSize = 10.5.sp
+                            )
+
+                            ClayTag(
+                                text = "${accessibleModules.size} Modul",
+                                tint = if (accessibleModules.isNotEmpty()) deptColor else WeMadeColors.OnSurfaceMuted,
+                                fontSize = 10.5.sp
+                            )
+                        }
+
+                        if (role.description.isNotBlank()) {
+                            Text(
+                                text = role.description,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = WeMadeColors.OnSurfaceMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // Action buttons on the right
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    ClayButton(
+                        text = "+ Tambah Akses Modul",
+                        leading = { IconPlus(modifier = Modifier.size(11.dp), color = WeMadeColors.OnSurface) },
+                        onClick = onAddModuleClick,
+                        style = ClayButtonStyle.Secondary,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = deptColor
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                     )
+
+                    ClayActionSurface(
+                        onClick = { isExpanded = !isExpanded },
+                        containerColor = WeMadeColors.SurfaceMuted,
+                        outlineColor = WeMadeColors.Border,
+                        offset = ClayOffset.Flat,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (isExpanded) "Sembunyikan" else "Buka Detail (${accessibleModules.size})",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = WeMadeColors.OnSurface
+                            )
+                            if (isExpanded) {
+                                IconChevronUp(modifier = Modifier.size(11.dp), color = WeMadeColors.OnSurface)
+                            } else {
+                                IconChevronDown(modifier = Modifier.size(11.dp), color = WeMadeColors.OnSurface)
+                            }
+                        }
+                    }
                 }
             }
 
-            ClayTag(
-                text = "${accessibleModules.size} Modul",
-                tint = if (accessibleModules.isNotEmpty()) deptColor else WeMadeColors.OnSurfaceMuted,
-                fontSize = 11.sp
-            )
-        }
+            // Expanded Module Grid Section
+            if (isExpanded) {
+                HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
 
-        Spacer(modifier = Modifier.height(4.dp))
+                if (accessibleModules.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Card,
+                                background = WeMadeColors.SurfaceMuted,
+                                outline = WeMadeColors.Border
+                            )
+                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Jabatan ini belum memiliki hak akses ke modul apa pun.",
+                            fontSize = 12.sp,
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                } else {
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val moduleColumns = when {
+                            maxWidth >= 1200.dp -> 4
+                            maxWidth >= 850.dp -> 3
+                            maxWidth >= 550.dp -> 2
+                            else -> 1
+                        }
 
-        Text(
-            text = role.description,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-            color = WeMadeColors.OnSurfaceMuted,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+                        val moduleRows = remember(accessibleModules, moduleColumns) {
+                            accessibleModules.chunked(moduleColumns)
+                        }
 
-        Spacer(modifier = Modifier.height(ClaySpacing.Md))
-        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
-        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            moduleRows.forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                                ) {
+                                    rowItems.forEach { item ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            RoleModuleItemCard(
+                                                item = item,
+                                                onEdit = { item.assignment?.let { onEditAssignmentClick(item.module, it) } },
+                                                onRemove = { item.assignment?.let { onRemoveAssignmentClick(item.module, it.assignmentKey) } }
+                                            )
+                                        }
+                                    }
 
-        // List of accessible modules
-        Text(
-            text = "Modul yang Dapat Diakses (${accessibleModules.size}):",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = WeMadeColors.OnSurfaceMuted
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        if (accessibleModules.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clayFlat(
-                        shape = ClayShapes.Card,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Border
-                    )
-                    .padding(vertical = 16.dp, horizontal = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Jabatan ini belum memiliki hak akses ke modul apa pun.",
-                    fontSize = 11.5.sp,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                accessibleModules.forEach { item ->
-                    RoleModuleItemRow(
-                        item = item,
-                        onEdit = { item.assignment?.let { onEditAssignmentClick(item.module, it) } },
-                        onRemove = { item.assignment?.let { onRemoveAssignmentClick(item.module, it.assignmentKey) } }
-                    )
+                                    val remaining = moduleColumns - rowItems.size
+                                    if (remaining > 0) {
+                                        repeat(remaining) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        // Spacer weight(1f) mendorong tombol ke posisi paling bawah kartu persis seperti Per Modul
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Sticky Bottom Footer Button
-        Spacer(modifier = Modifier.height(ClaySpacing.Md))
-        HorizontalDivider(color = WeMadeColors.Border, thickness = ClayBorder.Hairline)
-        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-
-        ClayButton(
-            text = "+ Tambahkan Akses Modul",
-            onClick = onAddModuleClick,
-            style = ClayButtonStyle.Secondary,
-            fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = ClaySpacing.Sm)
-        )
     }
 }
 
 @Composable
-private fun RoleModuleItemRow(
+private fun RoleModuleItemCard(
     item: RoleAccessibleModule,
     onEdit: () -> Unit,
     onRemove: () -> Unit
@@ -356,75 +402,45 @@ private fun RoleModuleItemRow(
             .clayFlat(
                 shape = ClayShapes.Card,
                 background = WeMadeColors.SurfaceMuted,
-                outline = WeMadeColors.Border
+                outline = WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
             )
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            // Line 1: Module Name
-            Text(
-                text = item.module.displayName,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Line 2: Origin text
-            Text(
-                text = if (item.isSpecificToRole) "Khusus Jabatan Ini" else "Dari ${item.departmentName} (Full Divisi)",
-                fontSize = 10.5.sp,
-                color = if (item.isSpecificToRole) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted,
-                fontWeight = if (item.isSpecificToRole) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(3.dp))
-
-            // Line 3: Bottom Bar (Left: Tags, Right: Actions if specific)
+            // Line 1: Module Name & Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Access Level & Scope Tags
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    ClayTag(
-                        text = item.accessLevel.displayName,
-                        tint = levelColor,
-                        fontSize = 9.sp
-                    )
+                Text(
+                    text = item.module.displayName,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
 
-                    ClayTag(
-                        text = if (item.module.isGlobalOnly) "Shared" else item.scope.shortLabel,
-                        tint = WeMadeColors.Primary,
-                        fontSize = 9.sp
-                    )
-                }
-
-                // Right: Actions if editable (separated to right side)
                 if (item.isSpecificToRole && item.assignment != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         ClayActionSurface(
                             onClick = onEdit,
                             containerColor = WeMadeColors.PrimaryContainer,
                             outlineColor = WeMadeColors.Primary,
                             offset = ClayOffset.Flat,
-                            contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.5.dp)
+                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp)
                         ) {
-                            IconEdit(modifier = Modifier.size(10.dp), color = WeMadeColors.Primary)
-                            Text("Edit", fontSize = 10.sp, color = WeMadeColors.Primary, fontWeight = FontWeight.Bold)
+                            IconEdit(modifier = Modifier.size(9.dp), color = WeMadeColors.Primary)
+                            Text("Edit", fontSize = 9.5.sp, color = WeMadeColors.Primary, fontWeight = FontWeight.Bold)
                         }
 
                         ClayActionSurface(
@@ -432,12 +448,46 @@ private fun RoleModuleItemRow(
                             containerColor = WeMadeColors.ErrorBg,
                             outlineColor = WeMadeColors.Error,
                             offset = ClayOffset.Flat,
-                            contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.5.dp)
+                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp)
                         ) {
-                            IconTrash(modifier = Modifier.size(10.dp), color = WeMadeColors.Error)
-                            Text("Hapus", fontSize = 10.sp, color = WeMadeColors.Error, fontWeight = FontWeight.Bold)
+                            IconTrash(modifier = Modifier.size(9.dp), color = WeMadeColors.Error)
+                            Text("Hapus", fontSize = 9.5.sp, color = WeMadeColors.Error, fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+            }
+
+            // Line 2: Origin text & Badges
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (item.isSpecificToRole) "Khusus Jabatan" else "Dari ${item.departmentName}",
+                    fontSize = 10.sp,
+                    color = if (item.isSpecificToRole) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted,
+                    fontWeight = if (item.isSpecificToRole) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ClayTag(
+                        text = item.accessLevel.displayName,
+                        tint = levelColor,
+                        fontSize = 8.5.sp
+                    )
+
+                    ClayTag(
+                        text = if (item.module.isGlobalOnly) "Shared" else item.scope.shortLabel,
+                        tint = WeMadeColors.Primary,
+                        fontSize = 8.5.sp
+                    )
                 }
             }
         }

@@ -228,8 +228,14 @@ fun DynamicRbacScreen(
                     }
 
                     RbacViewMode.PER_ROLE -> {
+                        val filteredRoles = state.roles.filter { role ->
+                            state.searchQuery.isBlank() ||
+                                role.name.contains(state.searchQuery, ignoreCase = true) ||
+                                role.description.contains(state.searchQuery, ignoreCase = true)
+                        }
+
                         RoleCardList(
-                            roles = state.roles,
+                            roles = filteredRoles,
                             departments = state.departments,
                             assignments = state.moduleAssignments,
                             onOpenAssignModal = { role, dept, existing, initialMod ->
