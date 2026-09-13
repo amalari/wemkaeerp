@@ -539,6 +539,150 @@ Budi — Kepala Sales (VIEW/SUB)     HTTP 200    7 karyawan
 Agus — Operator (NONE)             HTTP 403   Butuh wewenang Hanya Lihat…
 ```
 
+### Bug 3 — jangkauan data hanya menyaring baca
+
+Ditemukan saat menjawab pertanyaan *"bagan organisasi kan per divisi, sedangkan `DataScope` cuma
+punya tiga nilai — gimana?"*. Jawaban pertanyaannya ada di §5c; yang ditemukan sambil menjawabnya
+adalah ini:
+
+```
+→ BACA  : 7 karyawan, semuanya divisi Penjualan
+→ TULIS : HTTP 201 — berhasil menambah karyawan ke divisi GUDANG
+```
+
+Orang yang hanya bisa **melihat** divisi Penjualan berhasil **menulis** ke divisi Gudang — lalu
+baris yang baru saja ia buat tidak muncul di daftarnya sendiri.
+
+Aturannya sekarang satu kalimat: **yang boleh diubah adalah yang boleh dilihat.**
+`OrgChartWriteReach` menurunkan batas tulis dari daftar karyawan yang **sudah tersaring**, memakai
+`applyOrgChartScope` yang sama dengan sisi baca — jadi kedua batas itu mustahil dihitung dengan
+aturan berbeda.
+
+Satu detail kecil yang mudah terlewat: divisi penonton sendiri ikut dimasukkan ke jangkauan
+meskipun divisinya sedang kosong. Tanpa itu, kepala divisi yang baru dibentuk tidak akan pernah
+bisa menambahkan orang pertamanya — jangkauannya kosong, jadi setiap penambahan ditolak.
+
+---
+
+## 🧭 5c. Menjawab: "Bagan organisasi kan per divisi, tapi `DataScope` cuma tiga nilai?"
+
+Kebingungan ini wajar, dan sumbernya adalah satu kata dipakai untuk **tiga konsep berbeda**:
+
+| Arti "per divisi" | Mekanismenya | Status |
+|---|---|---|
+| Siapa yang **dapat wewenang** — "seluruh staf Gudang boleh buka Org Chart" | `DepartmentModuleAssignment` | ✅ ada, dan sengaja terpisah dari `DataScope` |
+| Batas **data** = divisi penonton sendiri | `DataScope.SUBORDINATE_DATA` | ✅ ada |
+| Batas **data** = divisi tertentu yang ditunjuk — "HRD boleh lihat divisi Gudang saja" | — | ❌ belum ada |
+
+Kuncinya: **`DataScope` selalu relatif terhadap penonton, bukan absolut.** Ia menjawab "seberapa
+jauh dari saya", bukan "divisi mana".
+
+### Kenapa `SUBORDINATE_DATA` sudah berarti "per divisi"
+
+Namanya menyesatkan; implementasinya menyatukan dua sumbu:
+
+```kotlin
+val byDepartment   = /* semua orang sedivisi dengan penonton */
+val byCommandChain = /* bawahan transitif via reportsToId    */
+(self + byDepartment + byCommandChain).distinctBy { it.id.value }
+```
+
+Sumbu pertama itulah "per divisi". Kepala Penjualan melihat 7 dari 12 orang — seluruh divisinya.
+
+Kalau hanya dipakai salah satu, keduanya rusak dengan cara berbeda: hanya divisi → bawahan lintas
+divisi hilang; hanya rantai komando → rekan sedivisi yang tidak melapor langsung hilang, dan
+bagannya bolong.
+
+### Yang belum terpecahkan, dan kapan itu penting
+
+Untuk staf biasa, "divisi sendiri" bukan "bawahan". Sales eksekutif dengan `SUBORDINATE_DATA`
+melihat seluruh divisinya **termasuk atasannya** — label "Data Tim & Bawahan" menutupi ini, tapi
+"lihat tim saya" dan "lihat bawahan saya" sekarang tidak bisa dibedakan.
+
+Kalau suatu saat perlu dibedakan, tambahkan `DataScope.DEPARTMENT_DATA` (divisi sendiri saja,
+tanpa rantai komando). Kalau yang dibutuhkan scope **bertarget** ("HRD → divisi Gudang"),
+perubahannya jauh lebih besar: `ModuleAccessConfig` harus membawa daftar divisi target, ikut ke
+skema DB, codec, dan UI wewenang. Itu task tersendiri, bukan tambalan.
+
+### Bug 4 — id per-item bisa ditebak, dan detail-nya membawa penumpang gelap
+
+Ditemukan saat menjawab pertanyaan pengguna: *"kalau jabatan diberi akses lihat bagan tapi klik
+per karyawan tidak bisa, itu gimana sekarang handle-nya?"* Jawabannya, sebelum diperiksa: **tidak
+ditangani sama sekali.**
+
+`GET /employees` menyaring 12 karyawan menjadi 7 dengan benar. Tapi id-nya berpola
+(`emp-joko`, `emp-budi`, …) dan `GET /employees/{id}` memeriksa *level* — sama seperti Bug 2 —
+tanpa pernah memeriksa *scope*. Menebak satu id melewati seluruh penyaringan list begitu saja.
+
+Lebih halus lagi: bahkan setelah id fokusnya divalidasi, `GET /{id}/t-shape` tetap bocor. Buktinya
+di server sungguhan — Budi (Kepala Penjualan, jangkauan `SUBORDINATE_DATA`) membuka T-Shape
+dirinya sendiri:
+
+```json
+"superior": {"id": "emp-hendra", "name": "Bpk. Hendra Kusuma", "email": "hendra.owner@wemade.id", ...}
+"peerHeads": ["Joko Susilo", "Siti Rahma", "Anton Prasetyo"]
+```
+
+`emp-joko` **ditolak 403** saat diakses langsung, tapi email dan telepon Joko tetap muncul lengkap
+sebagai `peerHeads` di respons T-Shape yang sama. Memvalidasi node fokus saja memberi rasa aman
+yang keliru — objek hasilnya (`TShapeHierarchyResult`) membawa empat kelompok karyawan lain
+(`superior`, `peerHeads`, `subordinates`, `peersInDepartment`), dan keempatnya harus disaring
+sendiri-sendiri:
+
+```kotlin
+internal fun TShapeHierarchyResult.restrictToReach(reach: OrgChartDataReach): TShapeHierarchyResult {
+    if (reach.isUnrestricted) return this
+    return copy(
+        superior = superior?.takeIf { reach.allowsEmployee(it.id.value) },
+        peerHeads = peerHeads.filter { reach.allowsEmployee(it.id.value) },
+        subordinates = subordinates.filter { reach.allowsEmployee(it.id.value) },
+        peersInDepartment = peersInDepartment.filter { reach.allowsEmployee(it.id.value) }
+    )
+}
+```
+
+Kelasnya juga diganti nama dari `OrgChartWriteReach` ke `OrgChartDataReach` di tengah perbaikan
+ini — nama lamanya sudah tidak jujur begitu dipakai untuk baca satu-per-satu, bukan hanya tulis.
+Pelajarannya: kalau sebuah abstraksi mulai dipakai untuk kasus yang namanya tidak lagi mencakup,
+ganti namanya saat itu juga — bukan nanti, karena "nanti" jarang datang.
+
+### Bug 4b — apakah list dan detail perlu dipisah?
+
+Pertanyaan susulannya masuk akal: *"list sama detail dipisah aja gimana?"* Jawabannya butuh
+diperiksa dulu, bukan diasumsikan — dan pemeriksaannya mengubah jawabannya:
+
+```kotlin
+// EmployeeDto.toJsonList() memanggil toJson() yang SAMA dengan endpoint detail
+fun toJsonList(employees: List<OrgNode>): String =
+    "[${employees.joinToString(",") { toJson(it) }}]"
+```
+
+`GET /employees` **sudah** mengirim field lengkap — email, telepon — untuk setiap baris di list.
+Endpoint detail tidak menambah data baru; ia hanya mengulang satu baris yang sama. Jadi
+"pisahkan list dari detail" sebenarnya dua pertanyaan berbeda:
+
+1. **Wewenangnya** — sudah identik hari ini (`VIEW` untuk keduanya), dan itu masuk akal: kalau
+   tidak boleh membaca satu karyawan, tidak ada alasan boleh membaca 12 karyawan sekaligus dalam
+   satu respons.
+2. **Bentuk datanya** — list mengirim field yang dipakai kartu bagan (`name`, `roleTitle`,
+   `department`, `level`); detail baru mengirim `email`/`phone`. Ini murni soal ukuran payload,
+   bukan wewenang, dan baru masuk akal dikerjakan **setelah** Bug 4 tertutup — memisahkan payload
+   sebelum jangkauannya benar hanya memindahkan kebocoran, bukan menutupnya.
+
+Sebelum menulisnya, cek dulu siapa yang memakai field itu:
+
+```bash
+grep -nE "node\.(name|email|phone|roleTitle|level|department)" \
+  app/shared/.../presentation/orgchart/components/OrgNodeCard.kt
+```
+
+Ternyata kartu bagan hanya merender `name`, `roleTitle`, `department.shortName`, warna, dan
+`level` — tidak pernah `email` atau `phone`. Dan `OrgChartApiClient` tidak pernah memanggil
+endpoint detail sama sekali; semuanya dibaca dari hasil list yang di-cache. Jadi mengirim
+email+telepon di list bukan kebutuhan fitur — itu **over-fetching**: pabrik dengan 200 staf
+berarti 200 nomor telepon mendarat di browser setiap kali bagan dibuka, padahal tidak ada satu
+piksel pun yang memakainya.
+
 ### Pelajaran yang bisa dibawa ke task lain
 
 1. **Nilai bawaan sebuah field bisa menjadi lubang keamanan.** `scope` yang bawaannya paling luas
@@ -549,6 +693,20 @@ Agus — Operator (NONE)             HTTP 403   Butuh wewenang Hanya Lihat…
 2. **"Menu sudah disembunyikan" bukan jawaban atas "apakah ini aman".** Menu adalah tampilan;
    endpoint adalah pintu. Selalu tanyakan: *kalau orang ini memanggil API-nya langsung, apa yang
    dia dapat?*
+
+2b. **Membatasi baca tanpa membatasi tulis menghasilkan sistem yang tidak konsisten.** Setiap kali
+   kamu menambahkan penyaringan data, tanyakan pasangannya: *bolehkah ia menulis ke tempat yang
+   tidak bisa ia lihat?* Jawabannya hampir selalu tidak.
+
+2c. **Menyaring sebuah list tidak otomatis menyaring detailnya.** Kalau id-nya bisa ditebak
+   (berpola, berurutan, atau sekadar diketahui dari respons lain), endpoint detail butuh
+   penjagaannya sendiri — memakai aturan penyaringan yang **sama persis** dengan list-nya, bukan
+   yang mirip.
+
+2d. **Objek gabungan (satu respons berisi beberapa entitas) harus disaring per-bagian.** Memvalidasi
+   hanya entitas utamanya (fokus) memberi rasa aman yang keliru kalau entitas pendamping di objek
+   yang sama (superior, peer, related records) tidak ikut disaring. Periksa setiap field yang
+   berisi entitas lain, satu per satu.
 
 3. **Test yang tidak pernah kamu lihat gagal adalah test yang belum terbukti.** Setelah menulis
    `OrgChartAccessApiTest`, saya sengaja melumpuhkan guard-nya sebentar untuk memastikan empat
@@ -623,10 +781,12 @@ Perhatikan `listEmployees_withSubordinateScope_shouldReturnFewerThanAllTenantSco
 akan membuat test itu pecah setiap kali ada yang menambah karyawan contoh — dan test yang sering
 pecah tanpa alasan akan segera dimatikan orang.
 
-**Status verifikasi akhir**: 550 test hijau (core 324, app:shared 81, server 145), migrasi V18 & V19
+**Status verifikasi akhir**: 559 test hijau (core 324, app:shared 81, server 154), migrasi V18 & V19
 tercatat sukses di `flyway_schema_history` terhadap database terisi, dan seluruh perilaku kunci
 diuji manual lewat `curl` terhadap server yang berjalan. Yang **masih** terbuka: pemeriksaan visual
-layarnya — bug layout clay tidak tertangkap satu pun test di daftar ini.
+layarnya — bug layout clay tidak tertangkap satu pun test di daftar ini; dan payload list yang
+masih lebih gemuk dari yang dipakai kartu bagan (Bug 4b), menunggu keputusan produk sebelum
+dipangkas.
 
 ---
 

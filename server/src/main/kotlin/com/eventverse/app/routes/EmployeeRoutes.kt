@@ -80,6 +80,15 @@ fun Route.employeeRoutes(
                 return@get
             }
 
+            // GET /employees menyaring dengan benar, tetapi id karyawan berpola (`emp-joko`,
+            // `emp-budi`, ...) dan bisa ditebak. Tanpa baris ini, memanggil endpoint ini langsung
+            // melewati seluruh penyaringan jangkauan yang barusan diperiksa di atas.
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!call.requireReachableEmployee(reach, empId.value)) return@get
+
             val result = getEmployeesUseCase.getById(tenant.tenantId, empId)
             if (result.isSuccess) {
                 val emp = result.getOrThrow()
@@ -106,9 +115,22 @@ fun Route.employeeRoutes(
                 return@get
             }
 
+            // Sama seperti GET /{id}: fokus T-Shape juga bisa ditebak lewat id, dan hasilnya
+            // (superior, peer, subordinate) membawa data karyawan lain di luar jangkauan bila
+            // tidak diperiksa di sini.
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!call.requireReachableEmployee(reach, empId.value)) return@get
+
             val result = getTShapeUseCase(tenant.tenantId, empId)
             if (result.isSuccess) {
-                call.respondText(EmployeeDto.toTShapeJson(result.getOrThrow()), contentType = ContentType.Application.Json)
+                // Fokusnya sudah tervalidasi lewat requireReachableEmployee di atas; yang tersisa
+                // adalah menyaring penumpang gelap di sekitarnya (superior, peerHeads, dst) yang
+                // bisa jadi berada di luar jangkauan yang sama.
+                val restricted = result.getOrThrow().restrictToReach(reach)
+                call.respondText(EmployeeDto.toTShapeJson(restricted), contentType = ContentType.Application.Json)
             } else {
                 call.respond(HttpStatusCode.NotFound, result.exceptionOrNull()?.message ?: "Failed to resolve T-Shape hierarchy")
             }
@@ -125,6 +147,12 @@ fun Route.employeeRoutes(
 
             val rawBody = call.receiveText()
             val req = CreateEmployeeRequestDto.fromJson(rawBody)
+
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!call.requireWritableDepartment(reach, req.departmentId?.takeIf { it.isNotBlank() })) return@post
 
             val result = createEmployeeUseCase(
                 CreateEmployeeCommand(
@@ -189,6 +217,15 @@ fun Route.employeeRoutes(
             val rawBody = call.receiveText()
             val req = UpdateEmployeeRequestDto.fromJson(rawBody)
 
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!call.requireReachableEmployee(reach, empId.value)) return@put
+            // Divisi tujuan ikut diperiksa: memindahkan orang ke divisi di luar jangkauan sama
+            // saja dengan menulis ke sana, hanya lewat pintu yang berbeda.
+            if (!call.requireWritableDepartment(reach, req.departmentId?.takeIf { it.isNotBlank() })) return@put
+
             val result = updateEmployeeUseCase(
                 UpdateEmployeeCommand(
                     tenantId = tenant.tenantId,
@@ -240,6 +277,11 @@ fun Route.employeeRoutes(
 
             val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@delete
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!call.requireReachableEmployee(reach, call.parameters["id"].orEmpty())) return@delete
             val empId = call.parameters["id"]?.let { OrgNodeId(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, "Missing employee id")
                 return@delete
@@ -303,6 +345,20 @@ fun Route.employeeRoutes(
 
             val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@post
+            // Memuat ulang template menimpa seluruh bagan, lintas divisi. Tidak ada jangkauan
+            // sempit yang masuk akal untuk itu: yang boleh menekannya harus melihat semuanya.
+            val reach = call.orgChartDataReach(
+                decision = decision,
+                allEmployees = getEmployeesUseCase.getAll(tenant.tenantId, null).getOrDefault(emptyList())
+            )
+            if (!reach.isUnrestricted) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    "Memuat ulang template struktur menimpa seluruh divisi, sehingga menuntut " +
+                        "jangkauan data Seluruh Data Pabrik."
+                )
+                return@post
+            }
 
             val result = restoreDefaultEmployeesUseCase(tenant.tenantId)
             if (result.isSuccess) {
