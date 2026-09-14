@@ -32,6 +32,17 @@ data class Ratio(val numerator: Long, val denominator: Long) : Comparable<Ratio>
 
     fun toDouble(): Double = numerator.toDouble() / denominator.toDouble()
 
+    fun asPercentageString(decimals: Int = 1): String {
+        val pct = toDouble() * 100.0
+        val whole = pct.toLong()
+        val frac = kotlin.math.abs(((pct - whole) * 10.0).toLong())
+        return if (frac == 0L || decimals == 0) "$whole%" else "$whole.$frac%"
+    }
+
+    val isNegative: Boolean get() = (numerator < 0) xor (denominator < 0)
+    val isPositive: Boolean get() = !isNegative && numerator != 0L
+    val isZero: Boolean get() = numerator == 0L
+
     companion object {
         val ZERO = Ratio(0L, 1L)
         val ONE = Ratio(1L, 1L)

@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.crm.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
@@ -25,6 +29,7 @@ import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.presentation.crm.CrmViewMode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayPaneWidth
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -59,6 +64,8 @@ fun CrmKanbanBoard(
     onUpdateStage: (LeadId, LeadStage) -> Unit,
     onArchive: (LeadId) -> Unit,
     onAddField: () -> Unit,
+    onDeleteField: ((fieldId: String) -> Unit)? = null,
+    onOpenActivities: (CrmLead) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -113,68 +120,65 @@ fun CrmKanbanBoard(
             }
         }
 
-        // Area Papan Kanban & Inspector Drawer
+        // Area 3 Kolom Kanban Utama (memenuhi seluruh lebar papan)
         Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl)
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            // Area 3 Kolom Kanban Utama
-            Row(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+            // Kolom 1: New Lead
+            CrmKanbanColumn(
+                stage = LeadStage.NEW_LEAD,
+                leads = newLeads,
+                employees = employees,
+                selectedLeadId = selectedLeadId,
+                canWrite = canWrite,
+                onSelectLead = { onSelectLead(it) },
+                onUpdateStage = onUpdateStage,
+                onAddLead = onAddLead?.let { { it(LeadStage.NEW_LEAD) } },
+                onOpenActivities = onOpenActivities,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            )
+
+            // Kolom 2: Qualified Lead (bisa langsung tambah lead)
+            CrmKanbanColumn(
+                stage = LeadStage.QUALIFIED,
+                leads = qualifiedLeads,
+                employees = employees,
+                selectedLeadId = selectedLeadId,
+                canWrite = canWrite,
+                onSelectLead = { onSelectLead(it) },
+                onUpdateStage = onUpdateStage,
+                onAddLead = onAddLead?.let { { it(LeadStage.QUALIFIED) } },
+                onOpenActivities = onOpenActivities,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            )
+
+            // Kolom 3: Unqualified (tidak ada tombol tambah lead)
+            CrmKanbanColumn(
+                stage = LeadStage.UNQUALIFIED,
+                leads = unqualifiedLeads,
+                employees = employees,
+                selectedLeadId = selectedLeadId,
+                canWrite = canWrite,
+                onSelectLead = { onSelectLead(it) },
+                onUpdateStage = onUpdateStage,
+                onAddLead = null,
+                onOpenActivities = onOpenActivities,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            )
+        }
+
+        // Modal Dialog Detail Lead saat kartu lead diklik
+        if (selectedLead != null) {
+            Dialog(
+                onDismissRequest = { onSelectLead(null) },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
             ) {
-                // Kolom 1: New Lead
-                CrmKanbanColumn(
-                    stage = LeadStage.NEW_LEAD,
-                    leads = newLeads,
-                    employees = employees,
-                    selectedLeadId = selectedLeadId,
-                    canWrite = canWrite,
-                    onSelectLead = { onSelectLead(it) },
-                    onUpdateStage = onUpdateStage,
-                    onAddLead = onAddLead?.let { { it(LeadStage.NEW_LEAD) } },
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
-
-                // Kolom 2: Qualified Lead (bisa langsung tambah lead)
-                CrmKanbanColumn(
-                    stage = LeadStage.QUALIFIED,
-                    leads = qualifiedLeads,
-                    employees = employees,
-                    selectedLeadId = selectedLeadId,
-                    canWrite = canWrite,
-                    onSelectLead = { onSelectLead(it) },
-                    onUpdateStage = onUpdateStage,
-                    onAddLead = onAddLead?.let { { it(LeadStage.QUALIFIED) } },
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
-
-                // Kolom 3: Unqualified (tidak ada tombol tambah lead)
-                CrmKanbanColumn(
-                    stage = LeadStage.UNQUALIFIED,
-                    leads = unqualifiedLeads,
-                    employees = employees,
-                    selectedLeadId = selectedLeadId,
-                    canWrite = canWrite,
-                    onSelectLead = { onSelectLead(it) },
-                    onUpdateStage = onUpdateStage,
-                    onAddLead = null,
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
-            }
-
-            // Lead Inspector Side Drawer (jika ada lead terpilih)
-            if (selectedLead != null) {
-                Box(
+                ClayCard(
                     modifier = Modifier
-                        .width(ClayPaneWidth.List)
-                        .fillMaxHeight()
-                        .clayFlat(
-                            shape = ClayShapes.Card,
-                            background = WeMadeColors.Surface,
-                            outline = WeMadeColors.Outline,
-                            borderWidth = ClayBorder.Medium
-                        )
+                        .widthIn(min = 480.dp, max = 640.dp)
+                        .fillMaxHeight(0.88f),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
                     LeadInspectorPane(
                         lead = selectedLead,
@@ -186,6 +190,7 @@ fun CrmKanbanBoard(
                         onUpdateStage = { targetStage -> onUpdateStage(selectedLead.id, targetStage) },
                         onArchive = { onArchive(selectedLead.id) },
                         onAddField = onAddField,
+                        onDeleteField = onDeleteField,
                         onClose = { onSelectLead(null) },
                         modifier = Modifier.fillMaxSize()
                     )

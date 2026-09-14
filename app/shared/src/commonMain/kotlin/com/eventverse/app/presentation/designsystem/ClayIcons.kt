@@ -943,3 +943,39 @@ fun IconDatabase(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSu
         drawPath(baseAndSides, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
+
+@Composable
+fun IconReceipt(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        val left = w * 0.22f
+        val right = w * 0.78f
+        val top = h * 0.14f
+        val bottom = h * 0.86f
+
+        val path = Path().apply {
+            moveTo(left, top)
+            lineTo(right, top)
+            lineTo(right, bottom)
+            val step = (right - left) / 4f
+            lineTo(right - step * 0.5f, bottom - h * 0.05f)
+            lineTo(right - step * 1.0f, bottom)
+            lineTo(right - step * 1.5f, bottom - h * 0.05f)
+            lineTo(right - step * 2.0f, bottom)
+            lineTo(right - step * 2.5f, bottom - h * 0.05f)
+            lineTo(right - step * 3.0f, bottom)
+            lineTo(right - step * 3.5f, bottom - h * 0.05f)
+            lineTo(left, bottom)
+            close()
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        drawLine(color, Offset(left + w * 0.12f, h * 0.32f), Offset(right - w * 0.12f, h * 0.32f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, Offset(left + w * 0.12f, h * 0.46f), Offset(right - w * 0.12f, h * 0.46f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, Offset(left + w * 0.12f, h * 0.60f), Offset(right - w * 0.24f, h * 0.60f), strokeWidth = stroke, cap = StrokeCap.Round)
+    }
+}
+

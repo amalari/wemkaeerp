@@ -521,4 +521,5 @@ private fun categoryTint(category: ModuleCategory) = when (category) {
     ModuleCategory.TECHNICAL -> WeMadeColors.Info
     ModuleCategory.PRODUCTION -> WeMadeColors.Accent
     ModuleCategory.QUALITY -> WeMadeColors.Success
+    ModuleCategory.FINANCE -> WeMadeColors.Success
 }

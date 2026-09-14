@@ -230,7 +230,8 @@ enum class ModuleArchetype(
             BusinessModule.ORG_CHART,
             BusinessModule.DYNAMIC_RBAC,
             BusinessModule.FACTORY_FLOW,
-            BusinessModule.MASTER_DATA -> null
+            BusinessModule.MASTER_DATA,
+            BusinessModule.INVOICING -> null
         }
 
         /** Resolves the archetype for a persisted module code, standard or custom. */

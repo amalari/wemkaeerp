@@ -1,8 +1,12 @@
 package com.eventverse.app.presentation.crm
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,16 +14,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.presentation.crm.components.AddCustomFieldDialog
 import com.eventverse.app.presentation.crm.components.CreateLeadDialog
 import com.eventverse.app.presentation.crm.components.CrmKanbanBoard
 import com.eventverse.app.presentation.crm.components.CrmMobileKanbanView
+import com.eventverse.app.presentation.crm.components.LeadActivitiesDialog
 import com.eventverse.app.presentation.crm.components.LeadsMasterDetailLayout
 import com.eventverse.app.presentation.crm.components.LeadsMobileFeedLayout
+import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -49,14 +62,46 @@ fun CrmWorkspaceScreen(
         return
     }
 
-    if (state.error != null) {
+    if (state.error != null && state.leads.isEmpty()) {
         Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
             Text(text = "Gagal memuat: ${state.error}", color = WeMadeColors.Error)
         }
         return
     }
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize()) {
+        state.error?.let { err ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Sm)
+                    .clayFlat(
+                        shape = ClayShapes.Card,
+                        background = WeMadeColors.ErrorBg,
+                        outline = WeMadeColors.Error,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = err,
+                    color = WeMadeColors.Error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                ClayButton(
+                    text = "Tutup",
+                    onClick = { viewModel.onEvent(CrmUiEvent.DismissError) },
+                    style = ClayButtonStyle.Ghost,
+                    fontSize = 12.sp,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+
+        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
         val isDesktop = maxWidth >= ClayBreakpoints.MasterDetail
 
         if (state.viewMode == CrmViewMode.KANBAN) {
@@ -78,6 +123,8 @@ fun CrmWorkspaceScreen(
                     onUpdateStage = { leadId, stage -> viewModel.onEvent(CrmUiEvent.UpdateStage(leadId, stage)) },
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
+                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
+                    onOpenActivities = { viewModel.onEvent(CrmUiEvent.OpenActivities(it)) },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -100,6 +147,8 @@ fun CrmWorkspaceScreen(
                     onUpdateStage = { leadId, stage -> viewModel.onEvent(CrmUiEvent.UpdateStage(leadId, stage)) },
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
+                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
+                    onOpenActivities = { viewModel.onEvent(CrmUiEvent.OpenActivities(it)) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -124,6 +173,7 @@ fun CrmWorkspaceScreen(
                     },
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
+                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -146,11 +196,13 @@ fun CrmWorkspaceScreen(
                     },
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
+                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
         }
     }
+}
 
     if (state.isCreateDialogOpen) {
         CreateLeadDialog(
@@ -167,6 +219,19 @@ fun CrmWorkspaceScreen(
             onDismiss = { viewModel.onEvent(CrmUiEvent.CloseAddFieldDialog) },
             onAdd = { label, type, isRequired ->
                 viewModel.onEvent(CrmUiEvent.AddCustomField(label, type, isRequired))
+            }
+        )
+    }
+
+    state.activeLeadForActivities?.let { lead ->
+        LeadActivitiesDialog(
+            lead = lead,
+            activities = state.leadActivities,
+            isLoading = state.isLoadingActivities,
+            isSubmitting = state.isSubmittingActivity,
+            onDismiss = { viewModel.onEvent(CrmUiEvent.CloseActivities) },
+            onSubmit = { content ->
+                viewModel.onEvent(CrmUiEvent.SubmitActivity(lead.id, content))
             }
         )
     }

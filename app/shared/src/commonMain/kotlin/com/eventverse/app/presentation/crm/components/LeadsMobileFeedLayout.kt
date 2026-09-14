@@ -38,6 +38,7 @@ fun LeadsMobileFeedLayout(
     onUpdateStage: (LeadStage) -> Unit,
     onArchive: (LeadId) -> Unit,
     onAddField: () -> Unit,
+    onDeleteField: ((fieldId: String) -> Unit)? = null,
     viewMode: com.eventverse.app.presentation.crm.CrmViewMode = com.eventverse.app.presentation.crm.CrmViewMode.LIST,
     onViewModeChange: ((com.eventverse.app.presentation.crm.CrmViewMode) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -71,6 +72,7 @@ fun LeadsMobileFeedLayout(
                 onUpdateStage = onUpdateStage,
                 onArchive = { onArchive(selectedLead.id) },
                 onAddField = onAddField,
+                onDeleteField = onDeleteField,
                 onClose = { onSelectLead(null) },
                 modifier = Modifier.fillMaxWidth()
             )

@@ -80,10 +80,12 @@ class CustomFieldEvolutionTest {
     }
 
     @Test
-    fun archive_systemField_isRefused() {
-        val systemField = requiredTextField().copy(isSystem = true, isRequired = false, requiredSince = null)
-        val result = runCatching { systemField.archive(Instant.parse("2026-03-01T00:00:00Z")) }
-        assertTrue(result.isFailure)
+    fun archive_field_setsArchivedAt() {
+        val field = requiredTextField().copy(isSystem = true, isRequired = false, requiredSince = null)
+        val timestamp = Instant.parse("2026-03-01T00:00:00Z")
+        val archived = field.archive(timestamp)
+        assertEquals(timestamp, archived.archivedAt)
+        assertTrue(archived.isArchived)
     }
 
     @Test

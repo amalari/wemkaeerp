@@ -36,7 +36,8 @@ data class CrmLead(
     val createdByUserId: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val archivedAt: Instant? = null
+    val archivedAt: Instant? = null,
+    val activityCount: Int = 0
 ) {
     init {
         require(estimatedPcs == null || estimatedPcs >= 0) { "estimatedPcs cannot be negative" }

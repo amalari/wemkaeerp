@@ -109,6 +109,15 @@ fun ModuleWorkspaceScreen(
         return
     }
 
+    if (module == BusinessModule.INVOICING) {
+        com.eventverse.app.presentation.invoicing.InvoiceWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            access = access,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
 }
 
@@ -459,6 +468,10 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
     BusinessModule.FULFILLMENT -> listOf(
         "Surat Jalan SJ-2201 — 40 karton" to "Dikirim",
         "Packing list PO-5512" to "Disiapkan"
+    )
+    BusinessModule.INVOICING -> listOf(
+        "INV/2026/03/0001 — PT Sinar Jaya (DP 50%)" to "Issued",
+        "INV/2026/03/0002 — CV Amanah (Sampling)" to "Paid"
     )
     // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik) dan
     // tidak pernah dirutekan ke layar kerja generik ini. Cabang ini ada semata agar `when` tetap

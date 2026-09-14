@@ -39,4 +39,10 @@ interface CrmRemoteDataSource {
         type: FieldType,
         isRequired: Boolean
     ): Result<CustomFieldDefinition>
+
+    suspend fun deleteCustomField(tenantSlug: String, fieldId: String): Result<Unit>
+
+    suspend fun getActivities(tenantSlug: String, leadId: LeadId): Result<List<com.eventverse.app.domain.crm.LeadActivity>>
+
+    suspend fun addActivity(tenantSlug: String, leadId: LeadId, content: String): Result<com.eventverse.app.domain.crm.LeadActivity>
 }

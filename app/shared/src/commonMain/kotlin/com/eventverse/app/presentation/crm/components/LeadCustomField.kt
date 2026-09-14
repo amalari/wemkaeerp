@@ -47,21 +47,37 @@ fun LeadCustomField(
     cell: JsonValue.Obj?,
     editable: Boolean,
     employees: List<OrgNode> = emptyList(),
+    onDelete: (() -> Unit)? = null,
     onCommit: ((JsonValue.Obj?) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = ClaySpacing.Sm)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-            Text(
-                text = descriptor.label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-            if (descriptor.isRequired) {
-                Text(text = "*", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Error)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    text = descriptor.label,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                if (descriptor.isRequired) {
+                    Text(text = "*", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Error)
+                }
+            }
+            if (onDelete != null && descriptor.isDeletable) {
+                Text(
+                    text = "Hapus",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Error,
+                    modifier = Modifier.clickable(onClick = onDelete)
+                )
             }
         }
 
@@ -88,7 +104,8 @@ private fun TextEditor(
     placeholder: String? = null,
     buildCell: (String) -> JsonValue.Obj
 ) {
-    var text by remember(cell) { mutableStateOf(cell?.let { it.entries["v"] }?.let(::rawText) ?: "") }
+    val initialText = remember(cell) { cell?.let { it.entries["v"] }?.let(::rawText) ?: "" }
+    var text by remember(cell) { mutableStateOf(initialText) }
 
     if (editable && onCommit != null) {
         ClayTextField(
@@ -98,10 +115,11 @@ private fun TextEditor(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        // Commit on every change is simplest and safest for Phase 1 (no separate "blur"
-        // signal exists across all five KMP targets in a uniform way). Debouncing per
-        // keystroke network calls is a Phase 2 optimisation.
+        // Hanya commit jika user benar-benar mengubah text dari nilai awalnya (initialText),
+        // dengan jeda debounce 600ms agar tidak membanjiri server dan tidak mentrigger patch saat baru membuka lead.
         androidx.compose.runtime.LaunchedEffect(text) {
+            if (text == initialText) return@LaunchedEffect
+            kotlinx.coroutines.delay(600)
             onCommit(text.takeIf { it.isNotBlank() }?.let(buildCell))
         }
     } else {

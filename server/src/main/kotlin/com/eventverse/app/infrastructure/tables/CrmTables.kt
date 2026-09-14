@@ -36,3 +36,15 @@ object CrmLeadsTable : Table("crm_leads") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+object CrmLeadActivitiesTable : Table("crm_lead_activities") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val leadId = varchar("lead_id", 64).references(CrmLeadsTable.id)
+    val authorEmployeeId = varchar("author_employee_id", 64).references(EmployeesTable.id).nullable()
+    val authorName = varchar("author_name", 150).default("Sales")
+    val content = text("content")
+    val createdAt = timestamp("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}

@@ -11,6 +11,7 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.infrastructure.tables.CrmLeadActivitiesTable
 import com.eventverse.app.infrastructure.tables.CrmLeadsTable
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -20,6 +21,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
@@ -41,10 +43,18 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
 
     override suspend fun findById(tenantId: TenantId, id: LeadId): CrmLead? =
         DatabaseFactory.dbQuery(tenantId) {
-            CrmLeadsTable.selectAll()
+            val lead = CrmLeadsTable.selectAll()
                 .where { (CrmLeadsTable.tenantId eq tenantId.value) and (CrmLeadsTable.id eq id.value) }
                 .map(::toLead)
-                .singleOrNull()
+                .singleOrNull() ?: return@dbQuery null
+
+            val count = CrmLeadActivitiesTable
+                .selectAll()
+                .where { (CrmLeadActivitiesTable.tenantId eq tenantId.value) and (CrmLeadActivitiesTable.leadId eq id.value) }
+                .count()
+                .toInt()
+
+            lead.copy(activityCount = count)
         }
 
     override suspend fun findActive(tenantId: TenantId, ownerReachIds: Set<OrgNodeId>?): List<CrmLead> =
@@ -63,7 +73,21 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
                 }
             }
 
-            query.orderBy(CrmLeadsTable.updatedAt, SortOrder.DESC).map(::toLead)
+            val leads = query.orderBy(CrmLeadsTable.updatedAt, SortOrder.DESC).map(::toLead)
+            if (leads.isEmpty()) return@dbQuery emptyList()
+
+            val leadIds = leads.map { it.id.value }
+            val countColumn = CrmLeadActivitiesTable.id.count()
+            val counts = CrmLeadActivitiesTable
+                .select(CrmLeadActivitiesTable.leadId, countColumn)
+                .where {
+                    (CrmLeadActivitiesTable.tenantId eq tenantId.value) and
+                    (CrmLeadActivitiesTable.leadId inList leadIds)
+                }
+                .groupBy(CrmLeadActivitiesTable.leadId)
+                .associate { LeadId(it[CrmLeadActivitiesTable.leadId]) to it[countColumn].toInt() }
+
+            leads.map { lead -> lead.copy(activityCount = counts[lead.id] ?: 0) }
         }
 
     override suspend fun save(lead: CrmLead): Result<CrmLead> = runCatching {

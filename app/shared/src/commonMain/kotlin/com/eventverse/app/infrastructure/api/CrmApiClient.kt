@@ -106,6 +106,40 @@ class CrmApiClient(
             ?: error("Respons kolom kustom tidak valid")
     }
 
+    override suspend fun deleteCustomField(tenantSlug: String, fieldId: String): Result<Unit> = runCatching {
+        val response = httpClient.delete(resolveUrl("/api/tenant/crm/fields/$fieldId")) {
+            tenantRequest(tenantSlug, tokenProvider)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal menghapus kolom kustom (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+    }
+
+    override suspend fun getActivities(
+        tenantSlug: String,
+        leadId: LeadId
+    ): Result<List<com.eventverse.app.domain.crm.LeadActivity>> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/tenant/crm/leads/${leadId.value}/activities")) {
+            tenantRequest(tenantSlug, tokenProvider)
+        }
+        val body = response.requireBody("memuat aktivitas lead")
+        CrmLeadCodec.decodeActivities(body)
+    }
+
+    override suspend fun addActivity(
+        tenantSlug: String,
+        leadId: LeadId,
+        content: String
+    ): Result<com.eventverse.app.domain.crm.LeadActivity> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/tenant/crm/leads/${leadId.value}/activities")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(com.eventverse.app.shared.json.jsonObjectOf("content" to com.eventverse.app.shared.json.jsonOf(content)).encode())
+        }
+        val body = response.requireBody("menambah aktivitas lead")
+        CrmLeadCodec.decodeActivity(JsonParser.parseObject(body)) ?: error("Respons aktivitas tidak valid")
+    }
+
     private suspend fun decodeLeadOrThrow(response: HttpResponse, action: String): CrmLead {
         val body = response.requireBody(action)
         return CrmLeadCodec.decodeLead(JsonParser.parseObject(body)) ?: error("Respons lead tidak valid")

@@ -3,6 +3,9 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.crm.CrmLeadRepository
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
+import com.eventverse.app.domain.crm.LeadActivityRepository
+import com.eventverse.app.domain.crm.usecases.AddLeadActivityUseCase
+import com.eventverse.app.domain.crm.usecases.GetLeadActivitiesUseCase
 import com.eventverse.app.domain.crm.usecases.ArchiveLeadUseCase
 import com.eventverse.app.domain.crm.usecases.CreateLeadUseCase
 import com.eventverse.app.domain.crm.usecases.GetLeadFormSchemaUseCase
@@ -14,15 +17,18 @@ import com.eventverse.app.domain.crm.usecases.Optional
 import com.eventverse.app.domain.crm.usecases.UpdateLeadStageUseCase
 import com.eventverse.app.domain.crm.usecases.UpdateLeadUseCase
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
+import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.CustomFieldValidationError
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.customfield.usecases.AddCustomFieldDefinitionUseCase
+import com.eventverse.app.domain.customfield.usecases.ArchiveCustomFieldDefinitionUseCase
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.crm.CrmLeadCodec
@@ -44,7 +50,8 @@ fun Route.crmRoutes(
     customFieldRepository: CustomFieldDefinitionRepository,
     employeeRepository: EmployeeRepository,
     roleRepository: RoleRepository,
-    moduleAssignmentRepository: ModuleAssignmentRepository
+    moduleAssignmentRepository: ModuleAssignmentRepository,
+    leadActivityRepository: LeadActivityRepository = PostgresLeadActivityRepository()
 ) {
     val listLeadsUseCase = ListLeadsUseCase(leadRepository)
     val createLeadUseCase = CreateLeadUseCase(leadRepository, customFieldRepository)
@@ -53,6 +60,9 @@ fun Route.crmRoutes(
     val archiveLeadUseCase = ArchiveLeadUseCase(leadRepository)
     val getLeadFormSchemaUseCase = GetLeadFormSchemaUseCase(customFieldRepository)
     val addCustomFieldUseCase = AddCustomFieldDefinitionUseCase(customFieldRepository)
+    val archiveCustomFieldUseCase = ArchiveCustomFieldDefinitionUseCase(customFieldRepository)
+    val addLeadActivityUseCase = AddLeadActivityUseCase(leadActivityRepository)
+    val getLeadActivitiesUseCase = GetLeadActivitiesUseCase(leadActivityRepository)
 
     route("/api/tenant/crm/leads") {
 
@@ -197,6 +207,60 @@ fun Route.crmRoutes(
                     .onSuccess { call.respond(HttpStatusCode.NoContent) }
                     .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it) }
             }
+
+            get("/activities") {
+                val tenant = call.requireTenant() ?: return@get
+                val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+                if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
+
+                val leadIdStr = call.parameters["id"]
+                if (leadIdStr.isNullOrBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, "Lead ID required")
+                    return@get
+                }
+
+                getLeadActivitiesUseCase(tenant.tenantId, LeadId(leadIdStr))
+                    .onSuccess { activities -> call.respondJson(CrmLeadCodec.encodeActivities(activities)) }
+                    .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it) }
+            }
+
+            post("/activities") {
+                val tenant = call.requireTenant() ?: return@post
+                val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+                if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
+
+                val leadIdStr = call.parameters["id"]
+                if (leadIdStr.isNullOrBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, "Lead ID required")
+                    return@post
+                }
+
+                val body = call.receiveText()
+                val obj = com.eventverse.app.shared.json.JsonParser.parseObjectOrNull(body)
+                val content = obj?.string("content")?.trim()
+                if (content.isNullOrBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, "Catatan aktivitas tidak boleh kosong")
+                    return@post
+                }
+
+                val principal = call.callerPrincipalOrNull
+                val employee = principal?.email?.let { employeeRepository.findByEmail(tenant.tenantId, it) }
+                val authorName = employee?.name?.ifBlank { null }
+                    ?: principal?.email?.substringBefore('@')?.ifBlank { null }
+                    ?: "Sales"
+
+                addLeadActivityUseCase(
+                    tenantId = tenant.tenantId,
+                    leadId = LeadId(leadIdStr),
+                    authorEmployeeId = employee?.id,
+                    authorName = authorName,
+                    content = content
+                )
+                    .onSuccess { activity ->
+                        call.respondJson(CrmLeadCodec.encodeActivity(activity).encode())
+                    }
+                    .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+            }
         }
     }
 
@@ -237,6 +301,23 @@ fun Route.crmRoutes(
                     contentType = ContentType.Application.Json
                 )
             }.onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        delete("/{id}") {
+            val tenant = call.requireTenant() ?: return@delete
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.MANAGE)) return@delete
+
+            val fieldIdParam = call.parameters["id"]
+            if (fieldIdParam.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "Field ID required")
+                return@delete
+            }
+
+            val fieldId = CustomFieldId(fieldIdParam)
+            archiveCustomFieldUseCase(tenant.tenantId, fieldId, kotlinx.datetime.Clock.System.now())
+                .onSuccess { call.respond(HttpStatusCode.NoContent) }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
         }
     }
 }

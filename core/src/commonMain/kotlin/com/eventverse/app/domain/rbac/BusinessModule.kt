@@ -24,7 +24,8 @@ enum class ModuleCategory(val displayName: String) {
     LOGISTICS("Gudang, Bahan Baku & Logistik"),
     TECHNICAL("Desain, Pola & Biaya HPP"),
     PRODUCTION("Lantai Produksi & Operator"),
-    QUALITY("Kualitas & Pengawasan");
+    QUALITY("Kualitas & Pengawasan"),
+    FINANCE("Keuangan & Penagihan");
 }
 
 enum class BusinessModule(
@@ -159,6 +160,15 @@ enum class BusinessModule(
         description = "Finishing setrika uap, verifikasi kuantitas per karton, dan cetak Surat Jalan ekspedisi.",
         iconKey = "truck",
         scopeCapability = ScopeCapability.GLOBAL_ONLY
+    ),
+    INVOICING(
+        code = "invoicing",
+        displayName = "Invoice & Penagihan",
+        category = ModuleCategory.FINANCE,
+        description = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas.",
+        iconKey = "receipt",
+        scopeCapability = ScopeCapability.HIERARCHICAL,
+        kind = ModuleKind.FOUNDATION
     );
 
     val isGlobalOnly: Boolean get() = scopeCapability == ScopeCapability.GLOBAL_ONLY

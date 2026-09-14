@@ -100,6 +100,12 @@ enum class AppNavScreen(
         aliases = listOf("/materials", "/bahan", "/masterdata"),
         businessModule = BusinessModule.MASTER_DATA
     ),
+    INVOICING(
+        route = "/invoicing",
+        title = "Invoice & Penagihan",
+        aliases = listOf("/invoice", "/tagihan", "/faktur"),
+        businessModule = BusinessModule.INVOICING
+    ),
 
     LOGIN(
         route = "/login",

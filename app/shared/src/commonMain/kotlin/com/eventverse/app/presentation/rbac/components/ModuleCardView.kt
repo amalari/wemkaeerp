@@ -136,6 +136,7 @@ fun SingleModuleCard(
                 ModuleCategory.TECHNICAL  -> WeMadeColors.Info
                 ModuleCategory.PRODUCTION -> WeMadeColors.Accent
                 ModuleCategory.QUALITY    -> WeMadeColors.Success
+                ModuleCategory.FINANCE    -> WeMadeColors.Success
             }
             val categoryBg = when (module.category) {
                 ModuleCategory.GOVERNANCE -> WeMadeColors.PurpleBg
@@ -145,6 +146,7 @@ fun SingleModuleCard(
                 ModuleCategory.TECHNICAL  -> WeMadeColors.TealBg
                 ModuleCategory.PRODUCTION -> WeMadeColors.AccentLight
                 ModuleCategory.QUALITY    -> WeMadeColors.SuccessBg
+                ModuleCategory.FINANCE    -> WeMadeColors.SuccessBg
             }
 
             Box(

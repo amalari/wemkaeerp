@@ -67,8 +67,10 @@ import com.eventverse.app.infrastructure.PostgresProspectPriceEstimateRepository
 import com.eventverse.app.routes.prospectRoutes
 
 import com.eventverse.app.domain.crm.CrmLeadRepository
+import com.eventverse.app.domain.crm.LeadActivityRepository
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.infrastructure.PostgresCrmLeadRepository
+import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
 import com.eventverse.app.infrastructure.PostgresSamplingOrderRepository
 import com.eventverse.app.domain.masterdata.MaterialItemRepository
@@ -81,6 +83,15 @@ import com.eventverse.app.routes.samplingRoutes
 import com.eventverse.app.domain.techpack.TechPackRepository
 import com.eventverse.app.infrastructure.PostgresTechPackRepository
 import com.eventverse.app.routes.techPackRoutes
+import com.eventverse.app.domain.invoicing.InvoiceIssuerProfileRepository
+import com.eventverse.app.domain.invoicing.InvoicePaymentRepository
+import com.eventverse.app.domain.invoicing.InvoiceRepository
+import com.eventverse.app.domain.invoicing.InvoiceTemplateRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceIssuerProfileRepository
+import com.eventverse.app.infrastructure.PostgresInvoicePaymentRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceTemplateRepository
+import com.eventverse.app.routes.invoicingRoutes
 
 
 fun main() {
@@ -110,10 +121,15 @@ fun Application.module(
     flowTranslator: FlowTranslator? = null,
     crmLeadRepository: CrmLeadRepository? = null,
     customFieldDefinitionRepository: CustomFieldDefinitionRepository? = null,
+    leadActivityRepository: LeadActivityRepository? = null,
     samplingOrderRepository: com.eventverse.app.domain.sampling.SamplingOrderRepository? = null,
     materialItemRepository: MaterialItemRepository? = null,
     materialPriceRepository: MaterialPriceRepository? = null,
-    techPackRepository: TechPackRepository? = null
+    techPackRepository: TechPackRepository? = null,
+    invoiceRepository: InvoiceRepository? = null,
+    invoiceTemplateRepository: InvoiceTemplateRepository? = null,
+    invoicePaymentRepository: InvoicePaymentRepository? = null,
+    invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -134,11 +150,16 @@ fun Application.module(
         moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
     val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
+    val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
     val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
     val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
+    val invoiceRepo = invoiceRepository ?: PostgresInvoiceRepository()
+    val invoiceTemplateRepo = invoiceTemplateRepository ?: PostgresInvoiceTemplateRepository()
+    val invoicePaymentRepo = invoicePaymentRepository ?: PostgresInvoicePaymentRepository()
+    val invoiceIssuerProfileRepo = invoiceIssuerProfileRepository ?: PostgresInvoiceIssuerProfileRepository()
 
     // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
     // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
@@ -469,7 +490,8 @@ fun Application.module(
             customFieldRepository = customFieldRepo,
             employeeRepository = empRepo,
             roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo
+            moduleAssignmentRepository = assignmentRepo,
+            leadActivityRepository = leadActivityRepo
         )
         samplingRoutes(
             repository = samplingOrderRepo
@@ -486,6 +508,13 @@ fun Application.module(
             materialPriceRepository = materialPriceRepo,
             roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo
+        )
+        invoicingRoutes(
+            invoiceRepository = invoiceRepo,
+            templateRepository = invoiceTemplateRepo,
+            paymentRepository = invoicePaymentRepo,
+            issuerProfileRepository = invoiceIssuerProfileRepo,
+            samplingOrderRepository = samplingOrderRepo
         )
     }
 }

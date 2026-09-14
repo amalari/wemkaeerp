@@ -70,6 +70,8 @@ fun CrmMobileKanbanView(
     onUpdateStage: (LeadId, LeadStage) -> Unit,
     onArchive: (LeadId) -> Unit,
     onAddField: () -> Unit,
+    onDeleteField: ((fieldId: String) -> Unit)? = null,
+    onOpenActivities: (CrmLead) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -198,7 +200,8 @@ fun CrmMobileKanbanView(
                         selected = lead.id == selectedLeadId,
                         canWrite = canWrite,
                         onSelectLead = { onSelectLead(it) },
-                        onUpdateStage = { targetStage -> onUpdateStage(lead.id, targetStage) }
+                        onUpdateStage = { targetStage -> onUpdateStage(lead.id, targetStage) },
+                        onOpenActivities = onOpenActivities
                     )
                 }
             }
@@ -221,6 +224,7 @@ fun CrmMobileKanbanView(
                 onUpdateStage = { targetStage -> onUpdateStage(selectedLead.id, targetStage) },
                 onArchive = { onArchive(selectedLead.id) },
                 onAddField = onAddField,
+                onDeleteField = onDeleteField,
                 onClose = { onSelectLead(null) },
                 modifier = Modifier.fillMaxWidth()
             )

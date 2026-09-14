@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.common.CurrencyCode
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.common.Ratio
 import com.eventverse.app.domain.pipeline.CostingBehavior
@@ -22,7 +23,9 @@ data class CostBucket(
     val label: String,
     val amountPerUnit: Money,
     val ownership: StockOwnershipSemantics = StockOwnershipSemantics.OWNED_RAW_MATERIAL,
-    val isBillableToClient: Boolean = true
+    val isBillableToClient: Boolean = true,
+    /** BOM lineId(s) atau ref lain yang menghasilkan bucket ini — wajib untuk drill-down UI dan audit. */
+    val sourceRefs: List<String> = emptyList()
 ) {
     init {
         require(!(ownership == StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL && isBillableToClient)) {
@@ -71,25 +74,43 @@ data class CostingCalculationResult(
     val buckets: List<CostBucket> = emptyList(),
     val marginRatio: Ratio = Ratio.ZERO,
     val formulaParameters: Map<String, String> = emptyMap(),
+    /**
+     * Nilai total per order dari kain konsinyasi klien — bukan untuk penagihan,
+     * tapi untuk rekonsiliasi perca dan klaim kerusakan. Ini adalah total per order
+     * (bukan per pcs), konsisten dengan [BomCostPreview.consignedNotionalValue].
+     */
     val consignedMaterialValueHandled: Money = Money.zero(),
-    val calculatedAt: Instant
+    val calculatedAt: Instant,
+    /**
+     * Sisa sen dari pembagian biaya per-order (mis. packingCostPerOrder) ke biaya per-pcs.
+     * packingCostPerOrder = 4200 dengan qty 9 → perUnit = 467, residual = 4200 - (467*9) = 97 sen.
+     * `billableTotal` menambahkan residual ini agar total order tepat ke sen.
+     */
+    val roundingResidual: Money = Money.zero(),
+    /** Mata uang yang dipakai di seluruh bucket dan perhitungan. Default IDR. */
+    val currency: CurrencyCode = CurrencyCode.IDR,
 ) : ModulePortPayload {
     override val portDataType: String = PortDataTypeRegistry.COSTING_CALCULATION_RESULT
 
     val cogsPerUnit: Money
         get() {
             val cogsBuckets = buckets.filter { it.kind.countsInCogs }
-            return Money.sum(cogsBuckets.map { it.amountPerUnit })
+            return Money.sum(cogsBuckets.map { it.amountPerUnit }, currency)
         }
 
     val billablePerUnit: Money
         get() {
             val billableBuckets = buckets.filter { it.isBillableToClient }
-            return Money.sum(billableBuckets.map { it.amountPerUnit })
+            return Money.sum(billableBuckets.map { it.amountPerUnit }, currency)
         }
 
+    /**
+     * Total tagihan per order = (billablePerUnit × orderQuantity) + roundingResidual.
+     * Residual memastikan biaya per-order (mis. packing 4200/order) tidak menciptakan
+     * uang dari udara saat qty tidak habis dibagi.
+     */
     val billableTotal: Money
-        get() = billablePerUnit * orderQuantity
+        get() = (billablePerUnit * orderQuantity) + roundingResidual
 
     val sellingPricePerUnit: Money
         get() = billablePerUnit + (billablePerUnit * marginRatio)

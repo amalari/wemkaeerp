@@ -10,6 +10,10 @@ import com.eventverse.app.domain.customfield.CustomAttributesCodec
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.orgchart.OrgNodeId
+import com.eventverse.app.domain.crm.LeadActivity
+import com.eventverse.app.domain.crm.LeadActivityId
+import com.eventverse.app.domain.crm.LeadId
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
@@ -54,7 +58,8 @@ object CrmLeadCodec {
         "customAttributes" to lead.customAttributes.toJsonValue(),
         "createdAt" to jsonOf(lead.createdAt.toString()),
         "updatedAt" to jsonOf(lead.updatedAt.toString()),
-        "archivedAt" to jsonOf(lead.archivedAt?.toString())
+        "archivedAt" to jsonOf(lead.archivedAt?.toString()),
+        "activityCount" to jsonOf(lead.activityCount)
     )
 
     fun encodeLeads(leads: List<CrmLead>): String = jsonArrayOf(leads.map(::encodeLead)).encode()
@@ -91,12 +96,52 @@ object CrmLeadCodec {
             ),
             createdAt = createdAt,
             updatedAt = updatedAt,
-            archivedAt = DateTimeCodec.parseInstantOrNull(obj.string("archivedAt"))
+            archivedAt = DateTimeCodec.parseInstantOrNull(obj.string("archivedAt")),
+            activityCount = obj.int("activityCount") ?: 0
         )
     }
 
     fun decodeLeads(rawJson: String): List<CrmLead> =
         JsonParser.parseArray(rawJson).filterIsInstance<JsonValue.Obj>().mapNotNull(::decodeLead)
+
+    // -----------------------------------------------------------------------
+    // Activity <-> JSON
+    // -----------------------------------------------------------------------
+
+    fun encodeActivity(activity: LeadActivity): JsonValue.Obj = jsonObjectOf(
+        "id" to jsonOf(activity.id.value),
+        "tenantId" to jsonOf(activity.tenantId.value),
+        "leadId" to jsonOf(activity.leadId.value),
+        "authorEmployeeId" to jsonOf(activity.authorEmployeeId?.value),
+        "authorName" to jsonOf(activity.authorName),
+        "content" to jsonOf(activity.content),
+        "createdAt" to jsonOf(activity.createdAt.toString())
+    )
+
+    fun encodeActivities(activities: List<LeadActivity>): String =
+        jsonArrayOf(activities.map(::encodeActivity)).encode()
+
+    fun decodeActivity(obj: JsonValue.Obj): LeadActivity? {
+        val id = obj.string("id") ?: return null
+        val tenantId = obj.string("tenantId") ?: return null
+        val leadId = obj.string("leadId") ?: return null
+        val content = obj.string("content") ?: return null
+        val authorName = obj.string("authorName") ?: "Sales"
+        val createdAt = DateTimeCodec.parseInstantOrFallback(obj.string("createdAt"), Instant.fromEpochMilliseconds(0))
+
+        return LeadActivity(
+            id = LeadActivityId(id),
+            tenantId = TenantId(tenantId),
+            leadId = LeadId(leadId),
+            authorEmployeeId = obj.string("authorEmployeeId")?.let { OrgNodeId(it) },
+            authorName = authorName,
+            content = content,
+            createdAt = createdAt
+        )
+    }
+
+    fun decodeActivities(rawJson: String): List<LeadActivity> =
+        JsonParser.parseArray(rawJson).filterIsInstance<JsonValue.Obj>().mapNotNull(::decodeActivity)
 
     // -----------------------------------------------------------------------
     // Form schema <-> JSON

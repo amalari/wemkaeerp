@@ -426,7 +426,8 @@ fun App() {
                         AppNavScreen.PRODUCTION_MRP,
                         AppNavScreen.OPERATOR_EXEC,
                         AppNavScreen.QUALITY_CONTROL,
-                        AppNavScreen.FULFILLMENT -> {
+                        AppNavScreen.FULFILLMENT,
+                        AppNavScreen.INVOICING -> {
                             val module = screen.businessModule
                             if (isAuthenticated && module != null) {
                                 ModuleWorkspaceScreen(

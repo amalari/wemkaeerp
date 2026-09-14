@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -18,7 +19,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
@@ -49,9 +52,12 @@ fun LeadInspectorPane(
     onUpdateStage: (LeadStage) -> Unit,
     onArchive: () -> Unit,
     onAddField: () -> Unit,
+    onDeleteField: ((fieldId: String) -> Unit)? = null,
     onClose: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var fieldPendingDeletion by remember { mutableStateOf<LeadFieldDescriptor?>(null) }
+
     if (lead == null) {
         Column(
             modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl),
@@ -74,7 +80,7 @@ fun LeadInspectorPane(
             verticalAlignment = Alignment.Top
         ) {
             Column(modifier = Modifier.weight(1f, fill = false)) {
-                Text(text = lead.brandName.value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+                Text(text = lead.brandName.display(fallback = lead.contactPerson.ifBlank { "Detail Lead" }), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
                 lead.whatsappNumber?.let { number ->
                     Text(
                         text = "Chat WA: ${number.value}",
@@ -130,6 +136,9 @@ fun LeadInspectorPane(
                         cell = cells[descriptor.fieldId],
                         editable = canWrite,
                         employees = employees,
+                        onDelete = if (canManage && descriptor.isDeletable && onDeleteField != null) {
+                            { fieldPendingDeletion = descriptor }
+                        } else null,
                         onCommit = { value -> onCommitField(descriptor.fieldId, value) }
                     )
                 }
@@ -138,6 +147,47 @@ fun LeadInspectorPane(
 
         if (canWrite) {
             ClayButton(text = "Arsipkan Lead", onClick = onArchive, style = ClayButtonStyle.Danger)
+        }
+    }
+
+    val pending = fieldPendingDeletion
+    if (pending != null) {
+        Dialog(onDismissRequest = { fieldPendingDeletion = null }) {
+            ClayCard(modifier = Modifier.width(380.dp)) {
+                Text(
+                    text = "Hapus Kolom Kustom?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Text(
+                    text = "Kolom \"${pending.label}\" akan diarsipkan dari form lead. Data yang sudah tersimpan sebelumnya tetap tersimpan di riwayat sistem.",
+                    fontSize = 13.sp,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    modifier = Modifier.padding(vertical = ClaySpacing.Md)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                ) {
+                    ClayButton(
+                        text = "Batal",
+                        onClick = { fieldPendingDeletion = null },
+                        style = ClayButtonStyle.Secondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ClayButton(
+                        text = "Hapus Kolom",
+                        onClick = {
+                            val idToDelete = pending.fieldId
+                            fieldPendingDeletion = null
+                            onDeleteField?.invoke(idToDelete)
+                        },
+                        style = ClayButtonStyle.Danger,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }

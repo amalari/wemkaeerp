@@ -48,12 +48,9 @@ data class CustomFieldDefinition(
     fun markOptional(): CustomFieldDefinition = copy(isRequired = false, requiredSince = null)
 
     /**
-     * Soft-archives this field. System fields provisioned by seed are refused here —
-     * callers must use [com.eventverse.app.domain.customfield.usecases.ArchiveCustomFieldDefinitionUseCase],
-     * which enforces that check before calling this.
+     * Soft-archives this field.
      */
     fun archive(at: Instant): CustomFieldDefinition {
-        require(!isSystem) { "System field cannot be archived: ${key.value}" }
         return copy(archivedAt = at)
     }
 

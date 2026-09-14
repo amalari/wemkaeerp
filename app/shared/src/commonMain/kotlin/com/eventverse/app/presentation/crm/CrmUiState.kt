@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.crm
 
 import com.eventverse.app.domain.crm.CrmLead
+import com.eventverse.app.domain.crm.LeadActivity
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
@@ -34,6 +35,11 @@ data class CrmUiState(
     val isCreateDialogOpen: Boolean = false,
     val createDialogInitialStage: LeadStage = LeadStage.NEW_LEAD,
     val isAddFieldDialogOpen: Boolean = false,
+
+    val activeLeadForActivities: CrmLead? = null,
+    val leadActivities: List<LeadActivity> = emptyList(),
+    val isLoadingActivities: Boolean = false,
+    val isSubmittingActivity: Boolean = false,
 
     /** Cells being edited in the inspector but not yet committed to the server. */
     val pendingEdits: Map<String, JsonValue.Obj?> = emptyMap()
@@ -97,6 +103,12 @@ sealed interface CrmUiEvent {
     data object OpenAddFieldDialog : CrmUiEvent
     data object CloseAddFieldDialog : CrmUiEvent
     data class AddCustomField(val label: String, val type: FieldType, val isRequired: Boolean) : CrmUiEvent
+    data class DeleteCustomField(val fieldId: String) : CrmUiEvent
+
+    data class OpenActivities(val lead: CrmLead) : CrmUiEvent
+    data object CloseActivities : CrmUiEvent
+    data class SubmitActivity(val leadId: LeadId, val content: String) : CrmUiEvent
 
     data object DismissStatusMessage : CrmUiEvent
+    data object DismissError : CrmUiEvent
 }

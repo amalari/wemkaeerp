@@ -55,6 +55,7 @@ fun CrmKanbanColumn(
     onSelectLead: (LeadId) -> Unit,
     onUpdateStage: (LeadId, LeadStage) -> Unit,
     onAddLead: (() -> Unit)?,
+    onOpenActivities: (CrmLead) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalValue = leads.sumOf { it.estimatedValue?.amount ?: 0L }
@@ -191,7 +192,8 @@ fun CrmKanbanColumn(
                         selected = lead.id == selectedLeadId,
                         canWrite = canWrite,
                         onSelectLead = onSelectLead,
-                        onUpdateStage = { targetStage -> onUpdateStage(lead.id, targetStage) }
+                        onUpdateStage = { targetStage -> onUpdateStage(lead.id, targetStage) },
+                        onOpenActivities = onOpenActivities
                     )
                 }
             }

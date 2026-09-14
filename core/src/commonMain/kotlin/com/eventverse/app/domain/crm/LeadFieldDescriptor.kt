@@ -51,7 +51,7 @@ data class LeadFieldDescriptor(
             type = def.type,
             isRequired = def.isRequired,
             isEditable = true,
-            isDeletable = !def.isSystem,
+            isDeletable = true,
             isCore = false
         )
     }

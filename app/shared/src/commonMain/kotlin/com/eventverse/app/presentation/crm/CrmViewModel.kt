@@ -57,7 +57,12 @@ class CrmViewModel(
             is CrmUiEvent.OpenAddFieldDialog -> _uiState.update { it.copy(isAddFieldDialogOpen = true) }
             is CrmUiEvent.CloseAddFieldDialog -> _uiState.update { it.copy(isAddFieldDialogOpen = false) }
             is CrmUiEvent.AddCustomField -> addCustomField(event)
+            is CrmUiEvent.DeleteCustomField -> deleteCustomField(event)
+            is CrmUiEvent.OpenActivities -> openActivities(event.lead)
+            is CrmUiEvent.CloseActivities -> closeActivities()
+            is CrmUiEvent.SubmitActivity -> submitActivity(event.leadId, event.content)
             is CrmUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null, error = null) }
+            is CrmUiEvent.DismissError -> _uiState.update { it.copy(error = null) }
         }
     }
 
@@ -163,9 +168,23 @@ class CrmViewModel(
                 CrmLeadCodec.PatchLeadRequest(customValues = mapOf(CustomFieldId(fieldId) to value))
             }
 
-            remoteDataSource.patchLead(tenantSlug, lead.id, patch.copy(expectedUpdatedAt = lead.updatedAt))
+            val currentLead = _uiState.value.selectedLead ?: lead
+            remoteDataSource.patchLead(tenantSlug, currentLead.id, patch.copy(expectedUpdatedAt = currentLead.updatedAt))
                 .onSuccess { updated -> replaceLead(updated) }
-                .onFailure { error -> _uiState.update { it.copy(error = error.message) } }
+                .onFailure { error ->
+                    val errorMsg = error.message ?: "Gagal menyimpan field"
+                    if (errorMsg.contains("HTTP 409")) {
+                        val jsonStart = errorMsg.indexOf('{')
+                        if (jsonStart != -1) {
+                            runCatching {
+                                val obj = com.eventverse.app.shared.json.JsonParser.parseObject(errorMsg.substring(jsonStart))
+                                val serverLead = obj?.let { CrmLeadCodec.decodeLead(it) }
+                                if (serverLead != null) replaceLead(serverLead)
+                            }
+                        }
+                    }
+                    _uiState.update { it.copy(error = error.message) }
+                }
         }
     }
 
@@ -216,9 +235,100 @@ class CrmViewModel(
         }
     }
 
+    private fun deleteCustomField(event: CrmUiEvent.DeleteCustomField) {
+        if (!_uiState.value.canManage) return
+        _uiState.update { it.copy(isSaving = true) }
+
+        scope.launch {
+            remoteDataSource.deleteCustomField(tenantSlug, event.fieldId)
+                .onSuccess {
+                    remoteDataSource.getSchema(tenantSlug).onSuccess { schema ->
+                        _uiState.update {
+                            it.copy(isSaving = false, schema = schema, statusMessage = "Kolom berhasil dihapus.")
+                        }
+                    }.onFailure {
+                        _uiState.update { it.copy(isSaving = false) }
+                    }
+                }
+                .onFailure { error -> _uiState.update { it.copy(isSaving = false, error = error.message) } }
+        }
+    }
+
     private fun replaceLead(updated: com.eventverse.app.domain.crm.CrmLead) {
         _uiState.update { state ->
             state.copy(leads = state.leads.map { if (it.id == updated.id) updated else it })
+        }
+    }
+
+    private fun openActivities(lead: com.eventverse.app.domain.crm.CrmLead) {
+        _uiState.update {
+            it.copy(
+                activeLeadForActivities = lead,
+                leadActivities = emptyList(),
+                isLoadingActivities = true
+            )
+        }
+        scope.launch {
+            remoteDataSource.getActivities(tenantSlug, lead.id)
+                .onSuccess { activities ->
+                    _uiState.update {
+                        it.copy(
+                            leadActivities = activities,
+                            isLoadingActivities = false
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingActivities = false,
+                            error = "Gagal memuat aktivitas: ${error.message}"
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun closeActivities() {
+        _uiState.update {
+            it.copy(
+                activeLeadForActivities = null,
+                leadActivities = emptyList(),
+                isLoadingActivities = false,
+                isSubmittingActivity = false
+            )
+        }
+    }
+
+    private fun submitActivity(leadId: LeadId, content: String) {
+        _uiState.update { it.copy(isSubmittingActivity = true) }
+        scope.launch {
+            remoteDataSource.addActivity(tenantSlug, leadId, content)
+                .onSuccess { newActivity ->
+                    _uiState.update { state ->
+                        val updatedActivities = listOf(newActivity) + state.leadActivities
+                        val updatedLeads = state.leads.map { lead ->
+                            if (lead.id == leadId) lead.copy(activityCount = lead.activityCount + 1) else lead
+                        }
+                        val updatedActiveLead = state.activeLeadForActivities?.let {
+                            if (it.id == leadId) it.copy(activityCount = it.activityCount + 1) else it
+                        }
+                        state.copy(
+                            isSubmittingActivity = false,
+                            leadActivities = updatedActivities,
+                            leads = updatedLeads,
+                            activeLeadForActivities = updatedActiveLead
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmittingActivity = false,
+                            error = "Gagal menambahkan aktivitas: ${error.message}"
+                        )
+                    }
+                }
         }
     }
 }

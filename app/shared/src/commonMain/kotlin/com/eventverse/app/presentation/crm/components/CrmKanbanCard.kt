@@ -1,6 +1,9 @@
 package com.eventverse.app.presentation.crm.components
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,8 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
@@ -21,15 +32,14 @@ import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
-import com.eventverse.app.presentation.crm.iconLabel
 import com.eventverse.app.presentation.crm.tint
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
-import com.eventverse.app.presentation.designsystem.ClayButton
-import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 fun formatRupiah(amount: Long): String {
@@ -45,13 +55,24 @@ fun formatRupiah(amount: Long): String {
     return "Rp $builder"
 }
 
+private fun getInitials(name: String): String {
+    val parts = name.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+    return when {
+        parts.isEmpty() -> "?"
+        parts.size == 1 -> parts[0].take(2).uppercase()
+        else -> "${parts[0].first()}${parts[1].first()}".uppercase()
+    }
+}
+
 /**
  * Kartu Kanban Lead untuk modul CRM Sales.
  *
  * Mengikuti bahasa visual Claymorphism WeMade:
  * - Outline tebal 3dp, hard shadow tanpa blur
- * - Menampilkan status kualifikasi, kuantiti, estimasi rupiah (nullable)
- * - Quick Action buttons untuk memindahkan lead antar kolom tanpa harus membuka dialog inspeksi
+ * - Dropdown stage di pojok kanan atas badge
+ * - Tag HP & Email berdampingan
+ * - Estimasi nilai & kuantiti pcs
+ * - Footer: Ikon aktivitas sales dengan counter di kiri, Avatar bulat PIC di kanan
  */
 @Composable
 fun CrmKanbanCard(
@@ -61,8 +82,10 @@ fun CrmKanbanCard(
     canWrite: Boolean,
     onSelectLead: (LeadId) -> Unit,
     onUpdateStage: (LeadStage) -> Unit,
+    onOpenActivities: (CrmLead) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var stageMenuExpanded by remember { mutableStateOf(false) }
     val owner = lead.ownerEmployeeId?.let { id -> employees.firstOrNull { it.id == id } }
 
     val cardOutline = when (lead.stage) {
@@ -76,10 +99,10 @@ fun CrmKanbanCard(
         outlineColor = cardOutline,
         borderWidth = ClayBorder.Medium,
         selected = selected,
-        onClick = { onSelectLead(lead.id) },
+        onClick = null,
         contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        // Baris Atas: Title (Brand / Kontak / HP) & Badge Status
+        // Baris Atas: Title (Brand / Kontak) & Badge Status Dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -92,60 +115,96 @@ fun CrmKanbanCard(
                 color = WeMadeColors.OnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .clickable { onSelectLead(lead.id) }
             )
-            ClayBadge(
-                text = lead.stage.displayName,
-                tint = lead.stage.tint(),
-                fontSize = 10.sp
-            )
+
+            val badgeInteractionSource = remember { MutableInteractionSource() }
+            Box {
+                ClayBadge(
+                    text = if (canWrite) "${lead.stage.displayName} ▾" else lead.stage.displayName,
+                    tint = lead.stage.tint(),
+                    fontSize = 10.sp,
+                    modifier = if (canWrite) {
+                        Modifier.clickable(
+                            interactionSource = badgeInteractionSource,
+                            indication = null
+                        ) { stageMenuExpanded = true }
+                    } else Modifier
+                )
+                if (canWrite) {
+                    DropdownMenu(
+                        expanded = stageMenuExpanded,
+                        onDismissRequest = { stageMenuExpanded = false }
+                    ) {
+                        LeadStage.entries.filter { it != lead.stage }.forEach { targetStage ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = when (targetStage) {
+                                            LeadStage.NEW_LEAD -> "Pindahkan ke Inquiry / New Lead"
+                                            LeadStage.QUALIFIED -> "Kualifikasi (Qualified)"
+                                            LeadStage.UNQUALIFIED -> "Tandai Unqualified"
+                                        },
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                },
+                                onClick = {
+                                    stageMenuExpanded = false
+                                    onUpdateStage(targetStage)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        Spacer(Modifier.height(ClaySpacing.Sm))
-
-        // Detail Kontak & Nomor HP
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Area Tengah: Kontak & Nilai (bisa diklik untuk membuka Lead Inspector)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSelectLead(lead.id) }
         ) {
-            if (lead.contactPerson.isNotBlank() && lead.brandName.value.isNotBlank()) {
-                Text(
-                    text = "👤 ${lead.contactPerson}",
-                    fontSize = 11.sp,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-            } else if (lead.brandName.value.isNotBlank() && lead.contactPerson.isBlank()) {
-                Text(
-                    text = "Tanpa nama kontak",
-                    fontSize = 11.sp,
-                    fontStyle = FontStyle.Italic,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            }
 
-            val whatsapp = lead.whatsappNumber
-            if (whatsapp != null) {
-                ClayTag(
-                    text = "📱 ${whatsapp.normalizedNumber}",
-                    tint = WeMadeColors.Success,
-                    fontSize = 9.sp
-                )
-            }
-        }
-
-        if (lead.email.isNotBlank()) {
-            Spacer(Modifier.height(2.dp))
+        // Kontak person jika berbeda dengan nama brand
+        if (lead.contactPerson.isNotBlank() && lead.brandName.value.isNotBlank()) {
             Text(
-                text = "✉️ ${lead.email}",
-                fontSize = 10.sp,
+                text = "👤 ${lead.contactPerson}",
+                fontSize = 11.sp,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        // Baris Tag HP dan Email Berdampingan
+        if (lead.whatsappNumber != null || lead.email.isNotBlank()) {
+            Spacer(Modifier.height(ClaySpacing.Xs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val whatsapp = lead.whatsappNumber
+                if (whatsapp != null) {
+                    ClayTag(
+                        text = "📱 ${whatsapp.normalizedNumber}",
+                        tint = WeMadeColors.Success,
+                        fontSize = 9.sp
+                    )
+                }
+
+                if (lead.email.isNotBlank()) {
+                    ClayTag(
+                        text = "✉️ ${lead.email}",
+                        tint = WeMadeColors.Info,
+                        fontSize = 9.sp
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(ClaySpacing.Md))
@@ -156,7 +215,6 @@ fun CrmKanbanCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Nilai Rupiah (nullable pada tahap New Lead)
             val estValue = lead.estimatedValue
             if (estValue != null) {
                 Text(
@@ -174,7 +232,6 @@ fun CrmKanbanCard(
                 )
             }
 
-            // Kuantiti Pcs (nullable)
             val pcs = lead.estimatedPcs
             if (pcs != null) {
                 ClayTag(
@@ -184,77 +241,76 @@ fun CrmKanbanCard(
                 )
             }
         }
+    }
 
-        // Owner Assigned PIC
-        if (owner != null) {
-            Spacer(Modifier.height(ClaySpacing.Sm))
-            Text(
-                text = "PIC: ${owner.name}",
-                fontSize = 10.sp,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-        }
+        Spacer(Modifier.height(ClaySpacing.Md))
 
-        // Quick Stage Move Buttons (jika memiliki hak tulis canWrite)
-        if (canWrite) {
-            Spacer(Modifier.height(ClaySpacing.Md))
+        // Footer Kartu: Ikon Aktivitas (Kiri) & Avatar Bulat PIC (Kanan)
+        val activityInteractionSource = remember { MutableInteractionSource() }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Tombol Ikon Komentar/Aktivitas dengan Counter
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                modifier = Modifier
+                    .clayFlat(
+                        shape = ClayShapes.Pill,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Outline,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .clickable(
+                        interactionSource = activityInteractionSource,
+                        indication = null
+                    ) {
+                        onOpenActivities(lead)
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                when (lead.stage) {
-                    LeadStage.NEW_LEAD -> {
-                        ClayButton(
-                            text = "Kualifikasi",
-                            style = ClayButtonStyle.Success,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.QUALIFIED) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        ClayButton(
-                            text = "Unqualify",
-                            style = ClayButtonStyle.Danger,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.UNQUALIFIED) }
-                        )
-                    }
-                    LeadStage.QUALIFIED -> {
-                        ClayButton(
-                            text = "Unqualify",
-                            style = ClayButtonStyle.Danger,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.UNQUALIFIED) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        ClayButton(
-                            text = "Ke Inquiry",
-                            style = ClayButtonStyle.Secondary,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.NEW_LEAD) }
-                        )
-                    }
-                    LeadStage.UNQUALIFIED -> {
-                        ClayButton(
-                            text = "Buka Kembali (Qualified)",
-                            style = ClayButtonStyle.Success,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.QUALIFIED) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        ClayButton(
-                            text = "Ke Inquiry",
-                            style = ClayButtonStyle.Ghost,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            onClick = { onUpdateStage(LeadStage.NEW_LEAD) }
-                        )
-                    }
+                Text(text = "💬", fontSize = 11.sp)
+                Text(
+                    text = "${lead.activityCount} Aktivitas",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurface
+                )
+            }
+
+            // Avatar Bulat PIC dengan Inisial
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                owner?.let {
+                    Text(
+                        text = it.name,
+                        fontSize = 10.sp,
+                        color = WeMadeColors.OnSurfaceMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clayFlat(
+                            shape = CircleShape,
+                            background = if (owner != null) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
+                            outline = WeMadeColors.Outline,
+                            borderWidth = ClayBorder.Hairline
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (owner != null) getInitials(owner.name) else "?",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (owner != null) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
+                    )
                 }
             }
         }
