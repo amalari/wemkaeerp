@@ -125,6 +125,16 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
+            BusinessModule.MASTER_DATA to listOfNotNull(
+                whDept?.let {
+                    DepartmentModuleAssignment(
+                        departmentId = it.id.value,
+                        departmentName = it.displayName,
+                        accessLevel = AccessLevel.OPERATE,
+                        scope = DataScope.ALL_TENANT_DATA
+                    )
+                }
+            ),
             BusinessModule.INVENTORY to listOfNotNull(
                 whDept?.let {
                     DepartmentModuleAssignment(

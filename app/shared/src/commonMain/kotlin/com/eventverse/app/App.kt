@@ -419,6 +419,7 @@ fun App() {
                         // keadaan berbeda dan pantas memberi pesan yang berbeda.
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
+                        AppNavScreen.MASTER_DATA,
                         AppNavScreen.INVENTORY,
                         AppNavScreen.TECH_PACK_BOM,
                         AppNavScreen.COSTING_HPP,

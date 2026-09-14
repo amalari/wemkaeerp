@@ -824,3 +824,122 @@ fun IconLock(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfac
         )
     }
 }
+
+@Composable
+fun IconStar(modifier: Modifier = Modifier, color: Color = WeMadeColors.Success) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val outerRadius = w * 0.42f
+        val innerRadius = outerRadius * 0.44f
+        val path = Path().apply {
+            for (i in 0 until 10) {
+                val radius = if (i % 2 == 0) outerRadius else innerRadius
+                val angle = (i * 36 - 90) * (kotlin.math.PI / 180.0)
+                val x = cx + (radius * kotlin.math.cos(angle)).toFloat()
+                val y = cy + (radius * kotlin.math.sin(angle)).toFloat()
+                if (i == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+        drawPath(path, color = color)
+    }
+}
+
+@Composable
+fun IconInbox(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+        val box = Path().apply {
+            moveTo(w * 0.15f, h * 0.32f)
+            lineTo(w * 0.85f, h * 0.32f)
+            lineTo(w * 0.85f, h * 0.80f)
+            lineTo(w * 0.65f, h * 0.80f)
+            lineTo(w * 0.58f, h * 0.65f)
+            lineTo(w * 0.42f, h * 0.65f)
+            lineTo(w * 0.35f, h * 0.80f)
+            lineTo(w * 0.15f, h * 0.80f)
+            close()
+        }
+        drawPath(box, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Down arrow into inbox
+        drawLine(color = color, start = Offset(w * 0.50f, h * 0.14f), end = Offset(w * 0.50f, h * 0.48f), strokeWidth = stroke, cap = StrokeCap.Round)
+        val arrow = Path().apply {
+            moveTo(w * 0.38f, h * 0.38f)
+            lineTo(w * 0.50f, h * 0.50f)
+            lineTo(w * 0.62f, h * 0.38f)
+        }
+        drawPath(arrow, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun IconBan(modifier: Modifier = Modifier, color: Color = WeMadeColors.Error) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+        val r = w * 0.36f
+        drawCircle(color = color, radius = r, center = Offset(w * 0.50f, h * 0.50f), style = Stroke(width = stroke))
+
+        val offsetVal = r * 0.7071f
+        drawLine(
+            color = color,
+            start = Offset(w * 0.50f - offsetVal, h * 0.50f - offsetVal),
+            end = Offset(w * 0.50f + offsetVal, h * 0.50f + offsetVal),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+fun IconDatabase(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        val left = w * 0.20f
+        val right = w * 0.80f
+        val top = h * 0.16f
+        val ellipseH = h * 0.18f
+
+        // Top full ellipse
+        drawOval(
+            color = color,
+            topLeft = Offset(left, top),
+            size = Size(right - left, ellipseH),
+            style = Stroke(width = stroke)
+        )
+
+        // Middle curved rim
+        val middleArc = Path().apply {
+            moveTo(left, h * 0.48f)
+            cubicTo(
+                left, h * 0.48f + ellipseH * 0.6f,
+                right, h * 0.48f + ellipseH * 0.6f,
+                right, h * 0.48f
+            )
+        }
+        drawPath(middleArc, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Bottom cylinder base & sides
+        val baseAndSides = Path().apply {
+            moveTo(left, top + ellipseH / 2f)
+            lineTo(left, h * 0.76f)
+            cubicTo(
+                left, h * 0.76f + ellipseH * 0.6f,
+                right, h * 0.76f + ellipseH * 0.6f,
+                right, h * 0.76f
+            )
+            lineTo(right, top + ellipseH / 2f)
+        }
+        drawPath(baseAndSides, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}

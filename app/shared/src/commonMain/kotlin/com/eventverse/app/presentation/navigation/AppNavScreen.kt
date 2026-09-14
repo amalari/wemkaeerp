@@ -94,6 +94,12 @@ enum class AppNavScreen(
         aliases = listOf("/packing", "/pengiriman"),
         businessModule = BusinessModule.FULFILLMENT
     ),
+    MASTER_DATA(
+        route = "/master-data",
+        title = "Master Data Bahan & Harga",
+        aliases = listOf("/materials", "/bahan", "/masterdata"),
+        businessModule = BusinessModule.MASTER_DATA
+    ),
 
     LOGIN(
         route = "/login",

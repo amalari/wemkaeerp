@@ -306,14 +306,36 @@ Ringkasan kontrak wajibnya:
    dan tier ukuran font setiap kali mengkonversi layar padat.
 10. **Mode gelap lewat theme, bukan ternary.** Jangan menambah `if (isPresentationMode)` baru.
 
-Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap UI selesai —
-termasuk **menjalankan aplikasinya dan melihat dengan mata**, karena bug layout tidak tertangkap
-test mana pun.
+---
+
+### 13. Full-Stack End-to-End Planning & Backend Integration (Wajib)
+
+Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubahan arsitektur:
+- **Dilarang keras hanya merencanakan sisi UI / Client saja.**
+- **Setiap planning WAJIB mencakup arsitektur Full-Stack yang terintegrasi secara end-to-end**, yang terdiri dari 5 pilar:
+  1. **Database & Persistence Layer**:
+     - Skema migrasi Flyway baru (`V...__.sql`) di `server/src/main/resources/db/migration/`.
+     - Definisi tabel Exposed di `server/src/main/kotlin/.../infrastructure/persistence/` (termasuk tipe data spesifik seperti `jsonb`, indeks GIN, foreign key, dan `tenant_id` multi-tenancy).
+  2. **Pure Domain Layer (`core/`)**:
+     - Entities, Value Objects, Domain Events, dan Repository Interface yang bebas dari dependensi framework.
+     - Use Cases (`[Verb][Noun]UseCase`) dengan input Command/Query dan return `Result<T>`.
+  3. **Backend API & Routing (`server/`)**:
+     - Route path Ktor, HTTP methods (`GET`, `POST`, `PATCH`, `DELETE`).
+     - Kontrak DTO Request/Response (`@Serializable`).
+     - Proteksi RBAC / Wewenang (`tenant_id` context, checking `ModuleAccessConfig` & `AccessDecision`).
+  4. **Client-Server Integration (`app/shared/`)**:
+     - Implementasi HTTP Client repository menggunakan Ktor Client (`Ktor...Repository`).
+     - Mapping DTO jaringan ke Domain Entity.
+     - Penanganan status jaringan (Loading, Success, Error, Timeout, Offline fallback/Cache).
+     - Aliran data ke ViewModel via StateFlow (`UiState`, `UiEvent`).
+  5. **Shared Presentation Layer (`app/shared/presentation/`)**:
+     - Komponen Compose Multiplatform responsif (Web/Desktop & Mobile) mematuhi Claymorphism Design System.
 
 ---
 
 ## Anti-Patterns yang Dilarang
 
+- **Frontend-Only Planning** — Merencanakan atau membuat modul sebatas mockup UI tanpa merancang skema database, migrasi Flyway, API endpoint Ktor, dan integrasi data backend
 - **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
 - **Anemic Domain Model** — Entity hanya data tanpa behavior, logika tersebar di service
 - **God UseCase / God Orchestrator** — Satu use case / satu file `main.ts` menangani seluruh operasi tanpa delegasi modul

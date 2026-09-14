@@ -25,6 +25,10 @@ import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.presentation.crm.CrmWorkspaceScreen
+import com.eventverse.app.presentation.masterdata.MasterDataWorkspaceScreen
+import com.eventverse.app.presentation.sampling.SamplingWorkspaceScreen
+import com.eventverse.app.presentation.techpack.TechPackWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -33,12 +37,14 @@ import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
- * Layar kerja generik untuk sembilan modul bisnis konveksi.
+ * Layar kerja untuk sembilan modul bisnis konveksi.
  *
- * Tujuannya bukan menjadi modul yang sesungguhnya, melainkan membuat **perbedaan antar tingkat
- * wewenang terlihat dalam satu layar**: banner yang berbeda, tombol yang hidup atau mati, dan
- * cakupan data yang dinyatakan terang-terangan. Satu layar dipakai bersama sembilan modul supaya
- * perbedaan yang terlihat pasti berasal dari wewenang, bukan dari layar yang kebetulan berbeda.
+ * `CRM_SALES` adalah modul pertama yang lepas dari placeholder generik — lihat
+ * [CrmWorkspaceScreen]. Delapan modul sisanya masih memakai [ModuleWorkspacePlaceholder]:
+ * banner yang berbeda, tombol yang hidup atau mati, dan cakupan data yang dinyatakan
+ * terang-terangan, supaya perbedaan yang terlihat pasti berasal dari wewenang, bukan dari
+ * layar yang kebetulan berbeda. Saat modul kesembilan pindah ke layar sungguhannya,
+ * `ModuleWorkspacePlaceholder` dan `sampleRowsFor` di bawah bisa dihapus seluruhnya.
  */
 @Composable
 fun ModuleWorkspaceScreen(
@@ -63,6 +69,57 @@ fun ModuleWorkspaceScreen(
         }
         return
     }
+
+    if (module == BusinessModule.CRM_SALES) {
+        CrmWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            access = access,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.SAMPLING_ORDER) {
+        SamplingWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.MASTER_DATA) {
+        MasterDataWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.TECH_PACK_BOM) {
+        TechPackWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
+}
+
+@Composable
+private fun ModuleWorkspacePlaceholder(
+    module: BusinessModule,
+    decision: AccessDecision,
+    persona: TestingPersona?,
+    modifier: Modifier = Modifier
+) {
+    val access = decision.config
 
     Column(
         modifier = modifier
@@ -370,6 +427,10 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
     BusinessModule.SAMPLING_ORDER -> listOf(
         "Sample #SP-1043 — Polo Cotton" to "Jahit",
         "Sample #SP-1044 — Kemeja PDH" to "Review"
+    )
+    BusinessModule.MASTER_DATA -> listOf(
+        "Benang Cotton Combed 30s — YRN-0001" to "Aktif",
+        "Kain Fleece Katun 280 gsm — FAB-0002" to "Aktif"
     )
     BusinessModule.INVENTORY -> listOf(
         "Cotton Combed 30s — 420 kg" to "Tersedia",

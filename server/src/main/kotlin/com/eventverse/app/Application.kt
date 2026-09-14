@@ -66,6 +66,23 @@ import com.eventverse.app.infrastructure.PostgresProspectLeadRepository
 import com.eventverse.app.infrastructure.PostgresProspectPriceEstimateRepository
 import com.eventverse.app.routes.prospectRoutes
 
+import com.eventverse.app.domain.crm.CrmLeadRepository
+import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
+import com.eventverse.app.infrastructure.PostgresCrmLeadRepository
+import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
+import com.eventverse.app.infrastructure.PostgresSamplingOrderRepository
+import com.eventverse.app.domain.masterdata.MaterialItemRepository
+import com.eventverse.app.domain.masterdata.MaterialPriceRepository
+import com.eventverse.app.infrastructure.PostgresMaterialItemRepository
+import com.eventverse.app.infrastructure.PostgresMaterialPriceRepository
+import com.eventverse.app.routes.crmRoutes
+import com.eventverse.app.routes.masterDataRoutes
+import com.eventverse.app.routes.samplingRoutes
+import com.eventverse.app.domain.techpack.TechPackRepository
+import com.eventverse.app.infrastructure.PostgresTechPackRepository
+import com.eventverse.app.routes.techPackRoutes
+
+
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -90,7 +107,13 @@ fun Application.module(
     prospectLeadRepository: ProspectLeadRepository? = null,
     flowTranslationRepository: FlowTranslationRepository? = null,
     prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
-    flowTranslator: FlowTranslator? = null
+    flowTranslator: FlowTranslator? = null,
+    crmLeadRepository: CrmLeadRepository? = null,
+    customFieldDefinitionRepository: CustomFieldDefinitionRepository? = null,
+    samplingOrderRepository: com.eventverse.app.domain.sampling.SamplingOrderRepository? = null,
+    materialItemRepository: MaterialItemRepository? = null,
+    materialPriceRepository: MaterialPriceRepository? = null,
+    techPackRepository: TechPackRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -110,6 +133,12 @@ fun Application.module(
     val customizationRequestRepo =
         moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
+    val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
+    val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
+    val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
+    val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
+    val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
+    val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
 
     // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
     // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
@@ -434,6 +463,29 @@ fun Application.module(
                 defaultBlendedHourlyRate = blendedHourlyRate
             ),
             defaultMarginPercent = defaultMargin
+        )
+        crmRoutes(
+            leadRepository = crmLeadRepo,
+            customFieldRepository = customFieldRepo,
+            employeeRepository = empRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo
+        )
+        samplingRoutes(
+            repository = samplingOrderRepo
+        )
+        masterDataRoutes(
+            materialRepository = materialRepo,
+            priceRepository = materialPriceRepo,
+            customFieldRepository = customFieldRepo
+        )
+        techPackRoutes(
+            techPackRepository = techPackRepo,
+            samplingOrderRepository = samplingOrderRepo,
+            materialRepository = materialRepo,
+            materialPriceRepository = materialPriceRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo
         )
     }
 }

@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /** Peran tombol. Warna isian diturunkan dari sini, outline selalu gelap seperti pada demo. */
-enum class ClayButtonStyle { Primary, Secondary, Accent, Danger, Ghost }
+enum class ClayButtonStyle { Primary, Secondary, Accent, Danger, Success, Ghost }
 
 /**
  * Tombol clay — sepadan dengan `.btn-primary` pada demo: isian pekat, outline 3px,
@@ -53,6 +53,7 @@ fun ClayButton(
         ClayButtonStyle.Secondary -> WeMadeColors.Surface
         ClayButtonStyle.Accent -> WeMadeColors.Accent
         ClayButtonStyle.Danger -> WeMadeColors.Error
+        ClayButtonStyle.Success -> WeMadeColors.Success
         ClayButtonStyle.Ghost -> Color.Transparent
     }
     val label = when (style) {

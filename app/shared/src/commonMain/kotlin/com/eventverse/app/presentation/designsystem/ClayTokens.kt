@@ -85,6 +85,25 @@ object ClayLetterSpacing {
 }
 
 /**
+ * Breakpoint adaptif window-size, dipakai layar pertama yang benar-benar butuhnya (CRM
+ * Leads). Ditaruh di sini, bukan angka telanjang di layar fitur, supaya modul berikutnya
+ * yang butuh adaptivitas mewarisi nilai yang sama alih-alih menebak ulang.
+ *
+ * Adaptivitas window-size tercatat sebagai utang arsitektur ("greenfield", design-system
+ * rules §8) sebelum CRM; nilai 840dp dipilih karena itulah titik umum tablet-lanskap/desktop
+ * kecil beralih dari satu kolom ke dua kolom di panduan Material adaptive layouts.
+ */
+object ClayBreakpoints {
+    /** Di bawah ini: satu kolom (daftar kartu + bottom sheet). Di atas/sama: master-detail dua panel. */
+    val MasterDetail: Dp = 840.dp
+}
+
+/** Lebar panel dalam layar master-detail. */
+object ClayPaneWidth {
+    val List: Dp = 380.dp
+}
+
+/**
  * Diserahkan ke `MaterialTheme(shapes = …)`.
  *
  * Ini pengungkit termurah yang kita punya: dengan satu baris, seluruh `AlertDialog`, `FilterChip`,

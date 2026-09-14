@@ -53,7 +53,7 @@ data class TenantModuleEntitlement(
         // hari ini tidak membuang apa pun — ia ada supaya jaminannya terbaca sebagai aturan, bukan
         // bergantung pada kebetulan bahwa topologi tenant kebetulan tidak memuatnya.
         val billableActiveNodes = activeNodes.filterNot { node ->
-            node.standardModule?.isGovernance == true
+            node.standardModule?.isOperational != true
         }
 
         if (billableActiveNodes.size > maxActiveModules) {

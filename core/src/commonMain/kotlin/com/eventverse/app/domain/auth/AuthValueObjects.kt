@@ -65,6 +65,10 @@ enum class Permission {
     MANAGE_PRODUCTION_SCHEDULE,
     INPUT_SHOPFLOOR_OUTPUT,
 
+    // Master Data & Bahan Baku
+    VIEW_MASTER_DATA,
+    MANAGE_MASTER_DATA,
+
     // QC & Fulfillment
     PERFORM_QC,
     MANAGE_FULFILLMENT;
@@ -82,6 +86,8 @@ enum class Role(val defaultPermissions: Set<Permission>) {
             Permission.VIEW_LEADS,
             Permission.MANAGE_LEADS,
             Permission.MANAGE_SAMPLING_ORDERS,
+            Permission.VIEW_MASTER_DATA,
+            Permission.MANAGE_MASTER_DATA,
             Permission.VIEW_INVENTORY,
             Permission.MANAGE_INVENTORY,
             Permission.VIEW_PLM,

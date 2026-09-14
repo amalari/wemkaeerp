@@ -130,6 +130,7 @@ fun SingleModuleCard(
             // Icon Tile (category-tinted clay tile)
             val categoryColor = when (module.category) {
                 ModuleCategory.GOVERNANCE -> WeMadeColors.Purple
+                ModuleCategory.FOUNDATION -> WeMadeColors.Teal
                 ModuleCategory.SALES      -> WeMadeColors.Primary
                 ModuleCategory.LOGISTICS  -> WeMadeColors.Warning
                 ModuleCategory.TECHNICAL  -> WeMadeColors.Info
@@ -138,6 +139,7 @@ fun SingleModuleCard(
             }
             val categoryBg = when (module.category) {
                 ModuleCategory.GOVERNANCE -> WeMadeColors.PurpleBg
+                ModuleCategory.FOUNDATION -> WeMadeColors.TealBg
                 ModuleCategory.SALES      -> WeMadeColors.PrimaryContainer
                 ModuleCategory.LOGISTICS  -> WeMadeColors.WarningBg
                 ModuleCategory.TECHNICAL  -> WeMadeColors.TealBg
