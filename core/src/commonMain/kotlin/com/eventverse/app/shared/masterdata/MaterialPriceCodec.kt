@@ -27,12 +27,16 @@ object MaterialPriceCodec {
         val unitPrice = MeasureCodec.decodeUnitPrice(obj.obj("unitPrice"))
         val source = obj.string("source")?.let { runCatching { PriceSource.valueOf(it) }.getOrNull() }
             ?: PriceSource.STANDARD
-        val effectiveFrom = obj.string("effectiveFrom")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: kotlinx.datetime.Clock.System.now()
+        val effectiveFrom = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("effectiveFrom"),
+            kotlinx.datetime.Clock.System.now()
+        )
         val note = obj.string("note") ?: ""
         val recordedByUserId = obj.string("recordedByUserId") ?: ""
-        val recordedAt = obj.string("recordedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: effectiveFrom
+        val recordedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("recordedAt"),
+            effectiveFrom
+        )
 
         return MaterialPrice(
             id = id,
@@ -86,8 +90,10 @@ object MaterialPriceCodec {
         val unitPrice = MeasureCodec.decodeUnitPrice(obj.obj("unitPrice"))
         val source = obj.string("source")?.let { runCatching { PriceSource.valueOf(it) }.getOrNull() }
             ?: PriceSource.STANDARD
-        val effectiveFrom = obj.string("effectiveFrom")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: kotlinx.datetime.Clock.System.now()
+        val effectiveFrom = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("effectiveFrom"),
+            kotlinx.datetime.Clock.System.now()
+        )
         val explanation = obj.string("explanation") ?: ""
         return ResolvedPrice(materialId, unitPrice, source, effectiveFrom, explanation)
     }

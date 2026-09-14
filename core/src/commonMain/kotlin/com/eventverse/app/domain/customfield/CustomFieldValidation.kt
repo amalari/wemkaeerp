@@ -90,7 +90,7 @@ object CustomFieldValidation {
 
             is FieldType.DateField -> {
                 val raw = (v as? JsonValue.Str)?.value
-                if (raw == null || runCatching { LocalDate.parse(raw) }.isFailure) mismatch(def) else null
+                if (raw == null || com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(raw) == null) mismatch(def) else null
             }
 
             is FieldType.SingleSelect -> {

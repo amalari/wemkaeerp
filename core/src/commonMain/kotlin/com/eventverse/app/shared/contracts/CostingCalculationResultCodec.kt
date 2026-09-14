@@ -46,8 +46,10 @@ object CostingCalculationResultCodec {
         }?.toMap() ?: emptyMap()
 
         val consignedHandled = MeasureCodec.decodeMoney(obj.obj("consignedMaterialValueHandled"))
-        val calculatedAt = obj.string("calculatedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: kotlinx.datetime.Clock.System.now()
+        val calculatedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("calculatedAt"),
+            kotlinx.datetime.Clock.System.now()
+        )
 
         return CostingCalculationResult(
             costingId = costingId,

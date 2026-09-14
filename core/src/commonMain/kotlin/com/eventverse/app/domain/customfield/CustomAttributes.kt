@@ -31,7 +31,7 @@ data class CustomAttributes(private val raw: JsonValue.Obj) {
         rawCell(fieldId)?.string("v")?.let { SelectOptionId(it) }
 
     fun date(fieldId: CustomFieldId): LocalDate? =
-        rawCell(fieldId)?.string("v")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(rawCell(fieldId)?.string("v"))
 
     fun checked(fieldId: CustomFieldId): Boolean = rawCell(fieldId)?.boolean("v") ?: false
 

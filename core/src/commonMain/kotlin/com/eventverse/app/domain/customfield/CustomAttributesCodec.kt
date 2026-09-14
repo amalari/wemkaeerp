@@ -153,7 +153,7 @@ object CustomAttributesCodec {
             isRequired = obj.boolean("isRequired") ?: false,
             defaultValue = obj.entries["defaultValue"]?.takeIf { it !is JsonValue.Null },
             isSystem = obj.boolean("isSystem") ?: false,
-            archivedAt = obj.string("archivedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            archivedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrNull(obj.string("archivedAt"))
         )
     }
 

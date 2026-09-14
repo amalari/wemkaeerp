@@ -31,8 +31,10 @@ object TechPackAndYieldDataCodec {
         val bomLines = obj.objectArray("bomLines").map(::decodeBomLine)
         val laborOps = obj.objectArray("laborOperations").map(::decodeLaborOperation)
         val sizeFactors = obj.objectArray("sizeYieldFactors").map(::decodeSizeYieldFactor)
-        val preparedAt = obj.string("preparedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: kotlinx.datetime.Clock.System.now()
+        val preparedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("preparedAt"),
+            kotlinx.datetime.Clock.System.now()
+        )
 
         return TechPackAndYieldData(
             techPackId = techPackId,

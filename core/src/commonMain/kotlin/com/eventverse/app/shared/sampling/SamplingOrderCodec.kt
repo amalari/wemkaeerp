@@ -42,9 +42,9 @@ object SamplingOrderCodec {
         val status = obj.string("status")?.let { runCatching { SamplingStatus.valueOf(it) }.getOrNull() } ?: SamplingStatus.DRAFT
         val sizeMode = obj.string("sizeMode")?.let { runCatching { SizeMode.valueOf(it) }.getOrNull() } ?: SizeMode.ALL_SIZE
 
-        val deadlineProgram = obj.string("deadlineProgram")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        val deadlineFinishing = obj.string("deadlineFinishing")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        val deadlineDelivery = obj.string("deadlineDelivery")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val deadlineProgram = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineProgram"))
+        val deadlineFinishing = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineFinishing"))
+        val deadlineDelivery = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineDelivery"))
 
         val leadId = obj.string("leadId")
         val accNotes = obj.string("accNotes") ?: ""
@@ -258,7 +258,7 @@ object SamplingOrderCodec {
     private fun decodeMilestoneProgress(obj: JsonValue.Obj): MilestoneProgress {
         val step = obj.string("step")?.let { runCatching { MilestoneStep.valueOf(it) }.getOrNull() } ?: MilestoneStep.PROGRAM
         val isCompleted = obj.boolean("isCompleted") ?: false
-        val completedAt = obj.string("completedAt")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val completedAt = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("completedAt"))
         val notes = obj.string("notes") ?: ""
         return MilestoneProgress(step, isCompleted, completedAt, notes)
     }

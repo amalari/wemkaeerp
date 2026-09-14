@@ -24,7 +24,7 @@ fun MaterialPriceHistoryCard(
     val now = Clock.System.now()
     val activePrice = prices
         .filter { it.effectiveFrom <= now }
-        .maxByOrNull { it.effectiveFrom }
+        .maxByOrNull { it.effectiveFrom.toEpochMilliseconds() }
 
     ClayCard(
         modifier = modifier.fillMaxWidth()

@@ -31,8 +31,10 @@ object ApprovedSampleSpecificationCodec {
         val spkNumber = obj.string("spkNumber") ?: ""
         val styleName = obj.string("styleName") ?: ""
         val clientName = obj.string("clientName") ?: ""
-        val approvedAt = obj.string("approvedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            ?: kotlinx.datetime.Clock.System.now()
+        val approvedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+            obj.string("approvedAt"),
+            kotlinx.datetime.Clock.System.now()
+        )
         val sizeMode = obj.string("sizeMode") ?: "ALL_SIZE"
 
         val sizeCharts = obj.objectArray("sizeCharts").map(::decodeSizeChart)

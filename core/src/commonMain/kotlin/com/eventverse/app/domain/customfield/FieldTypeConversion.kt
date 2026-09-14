@@ -91,7 +91,7 @@ object FieldTypeConversion {
                 ?.let { CoercionResult.Converted(CustomAttributes.numberCell(it.toString())) }
                 ?: CoercionResult.Cleared(rawValueText)
 
-            to is FieldType.DateField -> runCatching { LocalDate.parse(rawValueText.trim()) }.getOrNull()
+            to is FieldType.DateField -> com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(rawValueText.trim())
                 ?.let { CoercionResult.Converted(CustomAttributes.dateCell(it)) }
                 ?: CoercionResult.Cleared(rawValueText)
 

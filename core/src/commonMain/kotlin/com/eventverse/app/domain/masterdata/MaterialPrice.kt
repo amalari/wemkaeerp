@@ -45,7 +45,7 @@ data class MaterialPriceHistory(
     fun priceAt(instant: Instant, source: PriceSource = PriceSource.STANDARD): MaterialPrice? {
         return entries
             .filter { it.source == source && it.effectiveFrom <= instant }
-            .maxByOrNull { it.effectiveFrom }
+            .maxByOrNull { it.effectiveFrom.toEpochMilliseconds() }
     }
 
     fun currentPrice(now: Instant, source: PriceSource = PriceSource.STANDARD): MaterialPrice? =
@@ -54,18 +54,18 @@ data class MaterialPriceHistory(
     fun futurePrices(now: Instant, source: PriceSource = PriceSource.STANDARD): List<MaterialPrice> {
         return entries
             .filter { it.source == source && it.effectiveFrom > now }
-            .sortedBy { it.effectiveFrom }
+            .sortedBy { it.effectiveFrom.toEpochMilliseconds() }
     }
 
     fun timelineFor(source: PriceSource? = null): List<MaterialPrice> {
         val filtered = if (source == null) entries else entries.filter { it.source == source }
-        return filtered.sortedByDescending { it.effectiveFrom }
+        return filtered.sortedByDescending { it.effectiveFrom.toEpochMilliseconds() }
     }
 
     fun append(newPrice: MaterialPrice): MaterialPriceHistory {
         require(newPrice.materialId == materialId) {
             "MaterialId tidak cocok: ${newPrice.materialId} vs $materialId"
         }
-        return copy(entries = (entries + newPrice).sortedBy { it.effectiveFrom })
+        return copy(entries = (entries + newPrice).sortedBy { it.effectiveFrom.toEpochMilliseconds() })
     }
 }
