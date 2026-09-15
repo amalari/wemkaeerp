@@ -37,13 +37,15 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.designsystem.IconChat
+import com.eventverse.app.presentation.designsystem.IconNote
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-private fun formatTimestamp(instant: Instant): String {
+fun formatActivityTimestamp(instant: Instant): String {
     val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())
     val day = dt.dayOfMonth.toString().padStart(2, '0')
     val month = dt.monthNumber.toString().padStart(2, '0')
@@ -52,7 +54,7 @@ private fun formatTimestamp(instant: Instant): String {
     return "$day/$month ${dt.year} • $hour:$minute"
 }
 
-private fun getInitials(name: String): String {
+fun getAuthorInitials(name: String): String {
     val parts = name.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
     return when {
         parts.isEmpty() -> "?"
@@ -97,7 +99,7 @@ fun LeadActivitiesDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                     ) {
-                        Text(text = "💬", fontSize = 18.sp)
+                        IconChat(modifier = Modifier.size(20.dp), color = WeMadeColors.Primary)
                         Text(
                             text = "Aktivitas Sales",
                             fontSize = 18.sp,
@@ -147,7 +149,7 @@ fun LeadActivitiesDialog(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                     ) {
-                        Text(text = "📝", fontSize = 32.sp)
+                        IconNote(modifier = Modifier.size(48.dp), color = WeMadeColors.OnSurfaceMuted)
                         Text(
                             text = "Belum Ada Catatan Aktivitas",
                             fontSize = 14.sp,
@@ -206,7 +208,7 @@ fun LeadActivitiesDialog(
 }
 
 @Composable
-private fun ActivityCommentCard(activity: LeadActivity) {
+fun ActivityCommentCard(activity: LeadActivity) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -233,7 +235,7 @@ private fun ActivityCommentCard(activity: LeadActivity) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = getInitials(activity.authorName),
+                text = getAuthorInitials(activity.authorName),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.Surface
@@ -254,7 +256,7 @@ private fun ActivityCommentCard(activity: LeadActivity) {
                     color = WeMadeColors.OnSurface
                 )
                 Text(
-                    text = formatTimestamp(activity.createdAt),
+                    text = formatActivityTimestamp(activity.createdAt),
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

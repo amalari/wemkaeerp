@@ -72,6 +72,10 @@ fun CrmMobileKanbanView(
     onAddField: () -> Unit,
     onDeleteField: ((fieldId: String) -> Unit)? = null,
     onOpenActivities: (CrmLead) -> Unit = {},
+    activities: List<com.eventverse.app.domain.crm.LeadActivity> = emptyList(),
+    isLoadingActivities: Boolean = false,
+    isSubmittingActivity: Boolean = false,
+    onSubmitActivity: ((content: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -226,6 +230,10 @@ fun CrmMobileKanbanView(
                 onAddField = onAddField,
                 onDeleteField = onDeleteField,
                 onClose = { onSelectLead(null) },
+                activities = activities,
+                isLoadingActivities = isLoadingActivities,
+                isSubmittingActivity = isSubmittingActivity,
+                onSubmitActivity = onSubmitActivity,
                 modifier = Modifier.fillMaxWidth()
             )
         }

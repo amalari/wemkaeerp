@@ -66,7 +66,7 @@ object FullPackageCogsStrategy : CostingFormulaStrategy {
         val laborCost = params.laborRatePerSamMinute * samDirect
         val laborBucket = CostBucket(
             kind = CostBucketKind.LABOR,
-            label = "Tenaga Kerja Langsung (${samDirect.toDouble().let { "%.1f".format(it) }} menit SAM)",
+            label = "Tenaga Kerja Langsung (${samDirect.formatted(1)} menit SAM)",
             amountPerUnit = laborCost,
             isBillableToClient = true,
             sourceRefs = emptyList()
@@ -82,7 +82,7 @@ object FullPackageCogsStrategy : CostingFormulaStrategy {
             val subconCost = params.subcontractRatePerSamMinute * samSubcon
             buckets.add(CostBucket(
                 kind = CostBucketKind.SUBCONTRACT,
-                label = "Jasa Subkon Eksternal (${samSubcon.toDouble().let { "%.1f".format(it) }} menit SAM)",
+                label = "Jasa Subkon Eksternal (${samSubcon.formatted(1)} menit SAM)",
                 amountPerUnit = subconCost,
                 isBillableToClient = true
             ))

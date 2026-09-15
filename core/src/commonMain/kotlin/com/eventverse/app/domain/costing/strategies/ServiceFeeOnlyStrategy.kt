@@ -73,7 +73,7 @@ object ServiceFeeOnlyStrategy : CostingFormulaStrategy {
                 "Ongkos Jasa Makloon (tarif tetap)"
             } else {
                 val samTotal = input.samBreakdown.totalMinutes()
-                "Ongkos Jasa Makloon (${samTotal.toDouble().let { "%.1f".format(it) }} menit SAM)"
+                "Ongkos Jasa Makloon (${samTotal.formatted(1)} menit SAM)"
             },
             amountPerUnit = laborCost,
             isBillableToClient = true

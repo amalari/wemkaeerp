@@ -40,7 +40,7 @@ print_banner() {
     echo -e "  🌐 ${BOLD}Frontend (Wasm Compose)${RESET} : ${GREEN}http://localhost:3000${RESET}"
     echo -e "  🔌 ${BOLD}Backend API (Ktor)${RESET}     : ${GREEN}http://localhost:8080${RESET}"
     echo -e "  🔄 ${BOLD}Webpack Proxy API${RESET}      : ${PURPLE}/api -> http://localhost:8080${RESET}"
-    echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:5432 (wemade_erp)${RESET}"
+    echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:${DB_PORT:-5432} (${DB_NAME:-wemade_erp})${RESET}"
     echo -e "${CYAN}------------------------------------------------------------------------${RESET}"
 }
 
@@ -61,8 +61,9 @@ check_port() {
 
 # Cek apakah docker postgres perlu dijalankan
 check_postgres() {
-    if ! nc -z localhost 5432 >/dev/null 2>&1; then
-        echo -e "${YELLOW}ℹ️  PostgreSQL di port 5432 belum aktif.${RESET}"
+    local pg_port="${DB_PORT:-5432}"
+    if ! nc -z localhost "$pg_port" >/dev/null 2>&1; then
+        echo -e "${YELLOW}ℹ️  PostgreSQL di port $pg_port belum aktif.${RESET}"
         if command -v docker &> /dev/null && docker compose ps >/dev/null 2>&1; then
             read -p "   Nyalakan container database via docker compose? (y/N): " -n 1 -r
             echo
@@ -75,7 +76,7 @@ check_postgres() {
             echo -e "${YELLOW}   Pastikan service PostgreSQL lokal aktif untuk fitur database.${RESET}"
         fi
     else
-        echo -e "${GREEN}✅ PostgreSQL aktif di port 5432.${RESET}"
+        echo -e "${GREEN}✅ PostgreSQL aktif di port $pg_port.${RESET}"
     fi
 }
 
@@ -121,7 +122,7 @@ case "$MODE" in
     docker)
         echo -e "${GREEN}🐘 Menjalankan PostgreSQL container...${RESET}"
         docker compose up -d postgres
-        echo -e "${GREEN}✅ Database siap di port 5432.${RESET}"
+        echo -e "${GREEN}✅ Database siap di port ${DB_PORT:-5432}.${RESET}"
         trap - SIGINT SIGTERM EXIT
         exit 0
         ;;

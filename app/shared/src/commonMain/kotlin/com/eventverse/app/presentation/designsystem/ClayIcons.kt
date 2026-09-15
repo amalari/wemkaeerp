@@ -979,3 +979,63 @@ fun IconReceipt(modifier: Modifier = Modifier, color: Color = WeMadeColors.Prima
     }
 }
 
+@Composable
+fun IconChat(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val path = Path().apply {
+            moveTo(w * 0.20f, h * 0.16f)
+            lineTo(w * 0.80f, h * 0.16f)
+            quadraticTo(w * 0.90f, h * 0.16f, w * 0.90f, h * 0.28f)
+            lineTo(w * 0.90f, h * 0.60f)
+            quadraticTo(w * 0.90f, h * 0.72f, w * 0.80f, h * 0.72f)
+            lineTo(w * 0.48f, h * 0.72f)
+            lineTo(w * 0.25f, h * 0.88f)
+            lineTo(w * 0.28f, h * 0.72f)
+            lineTo(w * 0.20f, h * 0.72f)
+            quadraticTo(w * 0.10f, h * 0.72f, w * 0.10f, h * 0.60f)
+            lineTo(w * 0.10f, h * 0.28f)
+            quadraticTo(w * 0.10f, h * 0.16f, w * 0.20f, h * 0.16f)
+            close()
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        val dotY = h * 0.44f
+        val dotR = w * 0.045f
+        drawCircle(color = color, radius = dotR, center = Offset(w * 0.32f, dotY))
+        drawCircle(color = color, radius = dotR, center = Offset(w * 0.50f, dotY))
+        drawCircle(color = color, radius = dotR, center = Offset(w * 0.68f, dotY))
+    }
+}
+
+@Composable
+fun IconNote(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val docPath = Path().apply {
+            moveTo(w * 0.20f, h * 0.12f)
+            lineTo(w * 0.60f, h * 0.12f)
+            lineTo(w * 0.80f, h * 0.32f)
+            lineTo(w * 0.80f, h * 0.88f)
+            lineTo(w * 0.20f, h * 0.88f)
+            close()
+        }
+        drawPath(docPath, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        val foldPath = Path().apply {
+            moveTo(w * 0.60f, h * 0.12f)
+            lineTo(w * 0.60f, h * 0.32f)
+            lineTo(w * 0.80f, h * 0.32f)
+        }
+        drawPath(foldPath, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        drawLine(color, Offset(w * 0.32f, h * 0.46f), Offset(w * 0.68f, h * 0.46f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, Offset(w * 0.32f, h * 0.60f), Offset(w * 0.68f, h * 0.60f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, Offset(w * 0.32f, h * 0.74f), Offset(w * 0.52f, h * 0.74f), strokeWidth = stroke, cap = StrokeCap.Round)
+    }
+}
+

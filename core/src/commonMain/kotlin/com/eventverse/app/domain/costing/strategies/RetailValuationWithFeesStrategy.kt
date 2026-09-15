@@ -61,7 +61,7 @@ object RetailValuationWithFeesStrategy : CostingFormulaStrategy {
         val samDirect = input.samBreakdown.directMinutes()
         buckets.add(CostBucket(
             kind = CostBucketKind.LABOR,
-            label = "Tenaga Kerja (${samDirect.toDouble().let { "%.1f".format(it) }} menit SAM)",
+            label = "Tenaga Kerja (${samDirect.formatted(1)} menit SAM)",
             amountPerUnit = params.laborRatePerSamMinute * samDirect,
             isBillableToClient = true
         ))

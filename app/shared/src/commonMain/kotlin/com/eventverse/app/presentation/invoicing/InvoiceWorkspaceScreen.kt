@@ -24,9 +24,14 @@ fun InvoiceWorkspaceScreen(
         InvoiceViewModel(tenantSlug = tenantSlug, access = access)
     }
     val state by viewModel.uiState.collectAsState()
+    var activePrefill by remember { mutableStateOf<InvoicePrefillData?>(null) }
 
     LaunchedEffect(tenantSlug) {
         viewModel.onEvent(InvoiceUiEvent.Load)
+        if (InvoicePrefillCoordinator.hasPending()) {
+            activePrefill = InvoicePrefillCoordinator.consumePending()
+            viewModel.onEvent(InvoiceUiEvent.OpenCreateInvoiceDialog())
+        }
     }
 
     if (state.isDesignerOpen) {
@@ -176,7 +181,13 @@ fun InvoiceWorkspaceScreen(
     if (state.isCreateInvoiceDialogOpen) {
         CreateInvoiceDialog(
             state = state,
-            onEvent = viewModel::onEvent
+            onEvent = { event ->
+                if (event is InvoiceUiEvent.CloseCreateInvoiceDialog || event is InvoiceUiEvent.SubmitCreateInvoice) {
+                    activePrefill = null
+                }
+                viewModel.onEvent(event)
+            },
+            initialPrefill = activePrefill
         )
     }
 

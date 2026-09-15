@@ -125,6 +125,14 @@ fun CrmWorkspaceScreen(
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
                     onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     onOpenActivities = { viewModel.onEvent(CrmUiEvent.OpenActivities(it)) },
+                    activities = state.leadActivities,
+                    isLoadingActivities = state.isLoadingActivities,
+                    isSubmittingActivity = state.isSubmittingActivity,
+                    onSubmitActivity = { content ->
+                        state.selectedLeadId?.let { leadId ->
+                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -149,6 +157,14 @@ fun CrmWorkspaceScreen(
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
                     onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     onOpenActivities = { viewModel.onEvent(CrmUiEvent.OpenActivities(it)) },
+                    activities = state.leadActivities,
+                    isLoadingActivities = state.isLoadingActivities,
+                    isSubmittingActivity = state.isSubmittingActivity,
+                    onSubmitActivity = { content ->
+                        state.selectedLeadId?.let { leadId ->
+                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -174,6 +190,14 @@ fun CrmWorkspaceScreen(
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
                     onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
+                    activities = state.leadActivities,
+                    isLoadingActivities = state.isLoadingActivities,
+                    isSubmittingActivity = state.isSubmittingActivity,
+                    onSubmitActivity = { content ->
+                        state.selectedLeadId?.let { leadId ->
+                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -197,6 +221,14 @@ fun CrmWorkspaceScreen(
                     onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
                     onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
+                    activities = state.leadActivities,
+                    isLoadingActivities = state.isLoadingActivities,
+                    isSubmittingActivity = state.isSubmittingActivity,
+                    onSubmitActivity = { content ->
+                        state.selectedLeadId?.let { leadId ->
+                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }

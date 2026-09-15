@@ -9,18 +9,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
@@ -45,6 +60,9 @@ import com.eventverse.app.shared.json.JsonValue
  * Menampilkan 3 kolom horizontal: New Lead, Qualified Lead, Unqualified.
  * Jika salah satu kartu dipilih, Lead Inspector Drawer meluncur dari sisi kanan
  * sehingga pengguna dapat memeriksa/mengedit custom field tanpa keluar dari papan Kanban.
+ *
+ * Mendukung Jira-like Drag & Drop antar kolom dengan floating card overlay di level papan
+ * sehingga kartu tidak pernah terpotong (clipped) saat keluar dari kolom container.
  */
 @Composable
 fun CrmKanbanBoard(
@@ -66,6 +84,10 @@ fun CrmKanbanBoard(
     onAddField: () -> Unit,
     onDeleteField: ((fieldId: String) -> Unit)? = null,
     onOpenActivities: (CrmLead) -> Unit = {},
+    activities: List<com.eventverse.app.domain.crm.LeadActivity> = emptyList(),
+    isLoadingActivities: Boolean = false,
+    isSubmittingActivity: Boolean = false,
+    onSubmitActivity: ((content: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -75,127 +97,184 @@ fun CrmKanbanBoard(
     val qualifiedLeads = leads.filter { it.stage == LeadStage.QUALIFIED }
     val unqualifiedLeads = leads.filter { it.stage == LeadStage.UNQUALIFIED }
 
-    Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
-        // Toolbar Atas: Search Bar + View Mode Toggle + Metrics + Tambah Lead
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Xl),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ClayTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = "Cari brand, kontak, nomor WA…",
-                modifier = Modifier.width(360.dp)
-            )
+    val dragDropState = rememberCrmDragDropState()
+    var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-            ) {
-                // Ringkasan Pipeline Value
+    CompositionLocalProvider(LocalCrmDragDropState provides dragDropState) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .onGloballyPositioned { coords ->
+                    if (coords.isAttached) {
+                        rootWindowOffset = coords.positionInWindow()
+                    }
+                }
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
+                // Toolbar Atas: Search Bar + View Mode Toggle + Metrics + Tambah Lead
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                    modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Xl),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Pipeline:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurfaceMuted
+                    ClayTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        placeholder = "Cari brand, kontak, nomor WA…",
+                        modifier = Modifier.width(360.dp)
                     )
-                    ClayTag(
-                        text = "${leads.size} Lead • ${formatRupiah(totalPipelineValue)}",
-                        tint = WeMadeColors.Primary,
-                        fontSize = 12.sp
-                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                    ) {
+                        // Ringkasan Pipeline Value
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            Text(
+                                text = "Pipeline:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = WeMadeColors.OnSurfaceMuted
+                            )
+                            ClayTag(
+                                text = "${leads.size} Lead • ${formatRupiah(totalPipelineValue)}",
+                                tint = WeMadeColors.Primary,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        if (onAddLead != null) {
+                            ClayButton(
+                                text = "+ Tambah Lead",
+                                onClick = { onAddLead(LeadStage.NEW_LEAD) }
+                            )
+                        }
+                    }
                 }
 
-                if (onAddLead != null) {
-                    ClayButton(
-                        text = "+ Tambah Lead",
-                        onClick = { onAddLead(LeadStage.NEW_LEAD) }
+                // Area 3 Kolom Kanban Utama (memenuhi seluruh lebar papan)
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                ) {
+                    // Kolom 1: New Lead
+                    CrmKanbanColumn(
+                        stage = LeadStage.NEW_LEAD,
+                        leads = newLeads,
+                        employees = employees,
+                        selectedLeadId = selectedLeadId,
+                        canWrite = canWrite,
+                        onSelectLead = { onSelectLead(it) },
+                        onUpdateStage = onUpdateStage,
+                        onAddLead = onAddLead?.let { { it(LeadStage.NEW_LEAD) } },
+                        onOpenActivities = onOpenActivities,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
+
+                    // Kolom 2: Qualified Lead (bisa langsung tambah lead)
+                    CrmKanbanColumn(
+                        stage = LeadStage.QUALIFIED,
+                        leads = qualifiedLeads,
+                        employees = employees,
+                        selectedLeadId = selectedLeadId,
+                        canWrite = canWrite,
+                        onSelectLead = { onSelectLead(it) },
+                        onUpdateStage = onUpdateStage,
+                        onAddLead = onAddLead?.let { { it(LeadStage.QUALIFIED) } },
+                        onOpenActivities = onOpenActivities,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
+
+                    // Kolom 3: Unqualified (tidak ada tombol tambah lead)
+                    CrmKanbanColumn(
+                        stage = LeadStage.UNQUALIFIED,
+                        leads = unqualifiedLeads,
+                        employees = employees,
+                        selectedLeadId = selectedLeadId,
+                        canWrite = canWrite,
+                        onSelectLead = { onSelectLead(it) },
+                        onUpdateStage = onUpdateStage,
+                        onAddLead = null,
+                        onOpenActivities = onOpenActivities,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 }
             }
-        }
 
-        // Area 3 Kolom Kanban Utama (memenuhi seluruh lebar papan)
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-        ) {
-            // Kolom 1: New Lead
-            CrmKanbanColumn(
-                stage = LeadStage.NEW_LEAD,
-                leads = newLeads,
-                employees = employees,
-                selectedLeadId = selectedLeadId,
-                canWrite = canWrite,
-                onSelectLead = { onSelectLead(it) },
-                onUpdateStage = onUpdateStage,
-                onAddLead = onAddLead?.let { { it(LeadStage.NEW_LEAD) } },
-                onOpenActivities = onOpenActivities,
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            )
-
-            // Kolom 2: Qualified Lead (bisa langsung tambah lead)
-            CrmKanbanColumn(
-                stage = LeadStage.QUALIFIED,
-                leads = qualifiedLeads,
-                employees = employees,
-                selectedLeadId = selectedLeadId,
-                canWrite = canWrite,
-                onSelectLead = { onSelectLead(it) },
-                onUpdateStage = onUpdateStage,
-                onAddLead = onAddLead?.let { { it(LeadStage.QUALIFIED) } },
-                onOpenActivities = onOpenActivities,
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            )
-
-            // Kolom 3: Unqualified (tidak ada tombol tambah lead)
-            CrmKanbanColumn(
-                stage = LeadStage.UNQUALIFIED,
-                leads = unqualifiedLeads,
-                employees = employees,
-                selectedLeadId = selectedLeadId,
-                canWrite = canWrite,
-                onSelectLead = { onSelectLead(it) },
-                onUpdateStage = onUpdateStage,
-                onAddLead = null,
-                onOpenActivities = onOpenActivities,
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            )
-        }
-
-        // Modal Dialog Detail Lead saat kartu lead diklik
-        if (selectedLead != null) {
-            Dialog(
-                onDismissRequest = { onSelectLead(null) },
-                properties = DialogProperties(usePlatformDefaultWidth = false)
-            ) {
-                ClayCard(
-                    modifier = Modifier
-                        .widthIn(min = 480.dp, max = 640.dp)
-                        .fillMaxHeight(0.88f),
-                    contentPadding = PaddingValues(0.dp)
+            // Modal Dialog Detail Lead saat kartu lead diklik
+            if (selectedLead != null) {
+                Dialog(
+                    onDismissRequest = { onSelectLead(null) },
+                    properties = DialogProperties(usePlatformDefaultWidth = false)
                 ) {
-                    LeadInspectorPane(
-                        lead = selectedLead,
-                        schema = schema,
+                    ClayCard(
+                        modifier = Modifier
+                            .widthIn(min = 480.dp, max = 640.dp)
+                            .fillMaxHeight(0.88f),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        LeadInspectorPane(
+                            lead = selectedLead,
+                            schema = schema,
+                            employees = employees,
+                            canWrite = canWrite,
+                            canManage = canManage,
+                            onCommitField = onCommitField,
+                            onUpdateStage = { targetStage -> onUpdateStage(selectedLead.id, targetStage) },
+                            onArchive = { onArchive(selectedLead.id) },
+                            onAddField = onAddField,
+                            onDeleteField = onDeleteField,
+                            onClose = { onSelectLead(null) },
+                            activities = activities,
+                            isLoadingActivities = isLoadingActivities,
+                            isSubmittingActivity = isSubmittingActivity,
+                            onSubmitActivity = onSubmitActivity,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+
+            // Floating Drag Overlay ala Jira: melayang bebas di atas seluruh board tanpa ter-clip
+            if (dragDropState.isDragging && dragDropState.draggedLead != null) {
+                val lead = dragDropState.draggedLead!!
+                val floatingOffset = dragDropState.floatingCardOffset(rootWindowOffset)
+                val cardWidth = with(LocalDensity.current) {
+                    if (dragDropState.cardInitialSize.width > 0f) {
+                        dragDropState.cardInitialSize.width.toDp()
+                    } else {
+                        280.dp
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(floatingOffset.x.toInt(), floatingOffset.y.toInt()) }
+                        .width(cardWidth)
+                        .zIndex(999f)
+                        .graphicsLayer {
+                            rotationZ = -2.5f
+                            scaleX = 1.02f
+                            scaleY = 1.02f
+                            alpha = 0.95f
+                        }
+                        .pointerHoverIcon(PointerIcon.Hand)
+                ) {
+                    CrmKanbanCard(
+                        lead = lead,
                         employees = employees,
-                        canWrite = canWrite,
-                        canManage = canManage,
-                        onCommitField = onCommitField,
-                        onUpdateStage = { targetStage -> onUpdateStage(selectedLead.id, targetStage) },
-                        onArchive = { onArchive(selectedLead.id) },
-                        onAddField = onAddField,
-                        onDeleteField = onDeleteField,
-                        onClose = { onSelectLead(null) },
-                        modifier = Modifier.fillMaxSize()
+                        selected = false,
+                        canWrite = false,
+                        onSelectLead = {},
+                        onUpdateStage = {},
+                        onOpenActivities = {}
                     )
                 }
             }
         }
     }
 }
+

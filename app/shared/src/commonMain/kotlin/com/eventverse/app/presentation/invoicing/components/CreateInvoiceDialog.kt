@@ -27,25 +27,42 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 
+import com.eventverse.app.presentation.invoicing.InvoicePrefillData
+
 @Composable
 fun CreateInvoiceDialog(
     state: InvoiceUiState,
-    onEvent: (InvoiceUiEvent) -> Unit
+    onEvent: (InvoiceUiEvent) -> Unit,
+    initialPrefill: InvoicePrefillData? = null
 ) {
-    var selectedKind by remember { mutableStateOf(InvoiceKind.DOWN_PAYMENT) }
-    var clientName by remember { mutableStateOf("") }
-    var contactPerson by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
+    var selectedKind by remember(initialPrefill) { mutableStateOf(initialPrefill?.kind ?: InvoiceKind.DOWN_PAYMENT) }
+    var clientName by remember(initialPrefill) { mutableStateOf(initialPrefill?.clientName ?: "") }
+    var contactPerson by remember(initialPrefill) { mutableStateOf(initialPrefill?.contactPerson ?: "") }
+    var phone by remember(initialPrefill) { mutableStateOf(initialPrefill?.phone ?: "") }
+    var email by remember(initialPrefill) { mutableStateOf(initialPrefill?.email ?: "") }
+    var address by remember(initialPrefill) { mutableStateOf(initialPrefill?.address ?: "") }
     var taxId by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var notes by remember(initialPrefill) { mutableStateOf(initialPrefill?.notes ?: "") }
     var terms by remember { mutableStateOf("Pembayaran via transfer bank. Mohon sertakan nomor invoice pada berita transfer.") }
 
     // Line items state
-    var lineDescription by remember { mutableStateOf("Produksi Garmen") }
-    var lineQtyStr by remember { mutableStateOf("100") }
-    var linePriceStr by remember { mutableStateOf("150000") }
+    var lineDescription by remember(initialPrefill, selectedKind) {
+        mutableStateOf(
+            initialPrefill?.lineDescription?.ifBlank { null }
+                ?: if (selectedKind == InvoiceKind.SAMPLE) "Jasa Pembuatan Prototype Sample" else "Produksi Garmen"
+        )
+    }
+    var lineQtyStr by remember(initialPrefill, selectedKind) {
+        mutableStateOf(if (selectedKind == InvoiceKind.SAMPLE) "1" else "100")
+    }
+    var linePriceStr by remember(initialPrefill) {
+        mutableStateOf(
+            if (initialPrefill != null && initialPrefill.linePrice > 0)
+                initialPrefill.linePrice.toString()
+            else
+                "150000"
+        )
+    }
     var taxPercentStr by remember { mutableStateOf("11") }
 
     val defaultTplId = state.defaultTemplate?.id ?: state.templates.firstOrNull()?.id ?: InvoiceTemplateId("tpl-std-id-001")
@@ -299,6 +316,8 @@ fun CreateInvoiceDialog(
                                 issueDate = today,
                                 dueDate = null,
                                 templateId = defaultTplId,
+                                sourceKind = initialPrefill?.sourceKind ?: InvoiceSourceKind.MANUAL,
+                                sourceRef = initialPrefill?.sourceRef,
                                 notes = notes,
                                 terms = terms,
                                 createdBy = "admin"

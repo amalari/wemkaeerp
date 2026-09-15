@@ -40,6 +40,10 @@ fun LeadsMasterDetailLayout(
     onDeleteField: ((fieldId: String) -> Unit)? = null,
     viewMode: com.eventverse.app.presentation.crm.CrmViewMode = com.eventverse.app.presentation.crm.CrmViewMode.LIST,
     onViewModeChange: ((com.eventverse.app.presentation.crm.CrmViewMode) -> Unit)? = null,
+    activities: List<com.eventverse.app.domain.crm.LeadActivity> = emptyList(),
+    isLoadingActivities: Boolean = false,
+    isSubmittingActivity: Boolean = false,
+    onSubmitActivity: ((content: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -68,6 +72,10 @@ fun LeadsMasterDetailLayout(
             onArchive = { selectedLead?.let { onArchive(it.id) } },
             onAddField = onAddField,
             onDeleteField = onDeleteField,
+            activities = activities,
+            isLoadingActivities = isLoadingActivities,
+            isSubmittingActivity = isSubmittingActivity,
+            onSubmitActivity = onSubmitActivity,
             modifier = Modifier.fillMaxSize()
         )
     }

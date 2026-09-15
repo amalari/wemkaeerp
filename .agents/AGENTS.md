@@ -305,6 +305,7 @@ Ringkasan kontrak wajibnya:
 9. **Clay memakan ruang** (~18dp/kartu) dan Nunito ber-x-height besar; tinjau lebar kontainer
    dan tier ukuran font setiap kali mengkonversi layar padat.
 10. **Mode gelap lewat theme, bukan ternary.** Jangan menambah `if (isPresentationMode)` baru.
+11. **Nol literal emoji / Unicode glyph sebagai ikon di string UI.** Skiko/Wasm di browser tidak memiliki fallback font emoji OS dan akan merender kotak kosong/tofu (`▯`). Seluruh ikon wajib memakai vektor berbasis Canvas dari `ClayIcons.kt` (`IconChat`, `IconNote`, `IconPhone`, `IconMail`, `IconUser`, `IconChevronDown`, dll.) via slot `leading`/`trailing`.
 
 ---
 
@@ -336,6 +337,7 @@ Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubaha
 ## Anti-Patterns yang Dilarang
 
 - **Frontend-Only Planning** — Merencanakan atau membuat modul sebatas mockup UI tanpa merancang skema database, migrasi Flyway, API endpoint Ktor, dan integrasi data backend
+- **Unicode Emojis / Glyphs sebagai Ikon** — Menanam emoji (`💬`, `📝`, `📱`, `👤`, `✉️`, `▾`) ke dalam `Text(...)` atau label komponen yang menyebabkan rendering tofu (`▯`) di Compose Wasm. Selalu pakai `ClayIcons.kt`!
 - **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
 - **Anemic Domain Model** — Entity hanya data tanpa behavior, logika tersebar di service
 - **God UseCase / God Orchestrator** — Satu use case / satu file `main.ts` menangani seluruh operasi tanpa delegasi modul

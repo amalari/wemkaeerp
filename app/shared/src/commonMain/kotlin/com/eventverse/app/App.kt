@@ -39,6 +39,7 @@ import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
@@ -208,7 +209,10 @@ fun App() {
         )
     }
 
-    WeMadeTheme {
+    CompositionLocalProvider(
+        LocalAppNavigator provides navigateTo
+    ) {
+        WeMadeTheme {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top Bar: Menu Trigger, Brand, Tenant Switcher & User Profile
@@ -506,6 +510,7 @@ fun App() {
             }
         }
     }
+}
 }
 
 /**

@@ -23,11 +23,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
@@ -39,6 +49,14 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.IconBan
+import com.eventverse.app.presentation.designsystem.IconChat
+import com.eventverse.app.presentation.designsystem.IconCheck
+import com.eventverse.app.presentation.designsystem.IconChevronDown
+import com.eventverse.app.presentation.designsystem.IconInbox
+import com.eventverse.app.presentation.designsystem.IconMail
+import com.eventverse.app.presentation.designsystem.IconPhone
+import com.eventverse.app.presentation.designsystem.IconUser
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -52,7 +70,7 @@ fun formatRupiah(amount: Long): String {
         }
         builder.append(str[i])
     }
-    return "Rp $builder"
+    return "Rp " + builder.toString()
 }
 
 private fun getInitials(name: String): String {
@@ -88,6 +106,11 @@ fun CrmKanbanCard(
     var stageMenuExpanded by remember { mutableStateOf(false) }
     val owner = lead.ownerEmployeeId?.let { id -> employees.firstOrNull { it.id == id } }
 
+    val dragDropState = LocalCrmDragDropState.current
+    val isBeingDragged = canWrite && dragDropState?.isDragging == true && dragDropState.draggedLead?.id == lead.id
+    var cardWindowOffset by remember { mutableStateOf(Offset.Zero) }
+    var cardSize by remember { mutableStateOf(Size.Zero) }
+
     val cardOutline = when (lead.stage) {
         LeadStage.NEW_LEAD -> WeMadeColors.Primary
         LeadStage.QUALIFIED -> WeMadeColors.Success
@@ -95,37 +118,100 @@ fun CrmKanbanCard(
     }
 
     ClayCard(
-        modifier = modifier.fillMaxWidth(),
-        outlineColor = cardOutline,
-        borderWidth = ClayBorder.Medium,
+        modifier = modifier
+            .fillMaxWidth()
+            .pointerHoverIcon(if (canWrite) PointerIcon.Hand else PointerIcon.Default)
+            .onGloballyPositioned { coords ->
+                if (coords.isAttached) {
+                    cardWindowOffset = coords.positionInWindow()
+                    cardSize = coords.size.toSize()
+                }
+            }
+            .then(
+                if (canWrite) {
+                    Modifier.pointerInput(lead.id, lead.stage) {
+                        detectDragGestures(
+                            onDragStart = { pointerOffset ->
+                                dragDropState?.onDragStart(lead, cardWindowOffset, cardSize, pointerOffset)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragDropState?.onDrag(dragAmount)
+                            },
+                            onDragEnd = {
+                                dragDropState?.onDragEnd { targetStage ->
+                                    onUpdateStage(targetStage)
+                                }
+                            },
+                            onDragCancel = {
+                                dragDropState?.onDragCancel()
+                            }
+                        )
+                    }
+                } else Modifier
+            ),
+        outlineColor = if (isBeingDragged) WeMadeColors.OutlineSoft else cardOutline,
+        containerColor = if (isBeingDragged) WeMadeColors.SurfaceMuted else WeMadeColors.Surface,
+        borderWidth = if (isBeingDragged) ClayBorder.Hairline else ClayBorder.Medium,
         selected = selected,
         onClick = null,
         contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
-        // Baris Atas: Title (Brand / Kontak) & Badge Status Dropdown
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = lead.title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        if (isBeingDragged) {
+            Box(
                 modifier = Modifier
-                    .weight(1f, fill = false)
-                    .clickable { onSelectLead(lead.id) }
-            )
+                    .fillMaxWidth()
+                    .height(with(LocalDensity.current) {
+                        (cardSize.height - 32f).coerceAtLeast(64f).toDp()
+                    }),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    IconInbox(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
+                    Text(
+                        text = "Memindahkan ${lead.title}…",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                }
+            }
+        } else {
+            // Baris Atas: Title (Brand / Kontak) & Badge Status Dropdown
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val titleInteractionSource = remember { MutableInteractionSource() }
+                Text(
+                    text = lead.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clickable(
+                            interactionSource = titleInteractionSource,
+                            indication = null,
+                            enabled = canWrite
+                        ) { onSelectLead(lead.id) }
+                )
 
             val badgeInteractionSource = remember { MutableInteractionSource() }
             Box {
                 ClayBadge(
-                    text = if (canWrite) "${lead.stage.displayName} ▾" else lead.stage.displayName,
+                    text = lead.stage.displayName,
                     tint = lead.stage.tint(),
                     fontSize = 10.sp,
+                    trailing = if (canWrite) {
+                        { IconChevronDown(Modifier.size(9.dp), color = lead.stage.tint()) }
+                    } else null,
                     modifier = if (canWrite) {
                         Modifier.clickable(
                             interactionSource = badgeInteractionSource,
@@ -139,7 +225,19 @@ fun CrmKanbanCard(
                         onDismissRequest = { stageMenuExpanded = false }
                     ) {
                         LeadStage.entries.filter { it != lead.stage }.forEach { targetStage ->
+                            val itemColor = when (targetStage) {
+                                LeadStage.QUALIFIED -> WeMadeColors.Success
+                                LeadStage.UNQUALIFIED -> WeMadeColors.Error
+                                LeadStage.NEW_LEAD -> WeMadeColors.Primary
+                            }
                             DropdownMenuItem(
+                                leadingIcon = {
+                                    when (targetStage) {
+                                        LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = WeMadeColors.Success)
+                                        LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
+                                        LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = WeMadeColors.Primary)
+                                    }
+                                },
                                 text = {
                                     Text(
                                         text = when (targetStage) {
@@ -148,7 +246,8 @@ fun CrmKanbanCard(
                                             LeadStage.UNQUALIFIED -> "Tandai Unqualified"
                                         },
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold,
+                                        color = itemColor
                                     )
                                 },
                                 onClick = {
@@ -162,22 +261,33 @@ fun CrmKanbanCard(
             }
         }
 
+        val contentInteractionSource = remember { MutableInteractionSource() }
         // Area Tengah: Kontak & Nilai (bisa diklik untuk membuka Lead Inspector)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onSelectLead(lead.id) }
+                .clickable(
+                    interactionSource = contentInteractionSource,
+                    indication = null,
+                    enabled = canWrite
+                ) { onSelectLead(lead.id) }
         ) {
 
         // Kontak person jika berbeda dengan nama brand
         if (lead.contactPerson.isNotBlank() && lead.brandName.value.isNotBlank()) {
-            Text(
-                text = "👤 ${lead.contactPerson}",
-                fontSize = 11.sp,
-                color = WeMadeColors.OnSurfaceMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconUser(Modifier.size(11.dp), color = WeMadeColors.OnSurfaceMuted)
+                Text(
+                    text = lead.contactPerson,
+                    fontSize = 11.sp,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         // Baris Tag HP dan Email Berdampingan
@@ -191,17 +301,19 @@ fun CrmKanbanCard(
                 val whatsapp = lead.whatsappNumber
                 if (whatsapp != null) {
                     ClayTag(
-                        text = "📱 ${whatsapp.normalizedNumber}",
+                        text = whatsapp.normalizedNumber,
                         tint = WeMadeColors.Success,
-                        fontSize = 9.sp
+                        fontSize = 9.sp,
+                        leading = { IconPhone(Modifier.size(10.dp), color = WeMadeColors.Success) }
                     )
                 }
 
                 if (lead.email.isNotBlank()) {
                     ClayTag(
-                        text = "✉️ ${lead.email}",
+                        text = lead.email,
                         tint = WeMadeColors.Info,
-                        fontSize = 9.sp
+                        fontSize = 9.sp,
+                        leading = { IconMail(Modifier.size(10.dp), color = WeMadeColors.Info) }
                     )
                 }
             }
@@ -271,7 +383,7 @@ fun CrmKanbanCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "💬", fontSize = 11.sp)
+                IconChat(modifier = Modifier.size(11.dp), color = WeMadeColors.OnSurfaceMuted)
                 Text(
                     text = "${lead.activityCount} Aktivitas",
                     fontSize = 10.sp,
@@ -316,3 +428,5 @@ fun CrmKanbanCard(
         }
     }
 }
+}
+

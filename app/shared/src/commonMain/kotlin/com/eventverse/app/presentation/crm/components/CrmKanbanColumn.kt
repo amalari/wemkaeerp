@@ -15,12 +15,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
@@ -44,6 +49,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * - Border warna tegas per stage (Qualified hijau, Unqualified merah, New Lead biru)
  * - Empty state tanpa kotak kartu, terpusat secara vertikal dengan ikon vector Skiko
  * - Tombol tambah di Qualified menggunakan warna hijau (Success)
+ * - Mendukung drop-target highlighting saat kartu Kanban di-drag
  */
 @Composable
 fun CrmKanbanColumn(
@@ -60,22 +66,73 @@ fun CrmKanbanColumn(
 ) {
     val totalValue = leads.sumOf { it.estimatedValue?.amount ?: 0L }
 
-    val columnOutline = when (stage) {
-        LeadStage.NEW_LEAD -> WeMadeColors.Primary
-        LeadStage.QUALIFIED -> WeMadeColors.Success
-        LeadStage.UNQUALIFIED -> WeMadeColors.Error
+    val dragDropState = LocalCrmDragDropState.current
+    val isDropTarget = dragDropState?.isDragging == true &&
+            dragDropState.hoveredStage == stage &&
+            dragDropState.draggedLead?.stage != stage
+
+    val columnOutline = when {
+        isDropTarget -> stage.tint()
+        stage == LeadStage.NEW_LEAD -> WeMadeColors.Primary
+        stage == LeadStage.QUALIFIED -> WeMadeColors.Success
+        stage == LeadStage.UNQUALIFIED -> WeMadeColors.Error
+        else -> WeMadeColors.Outline
+    }
+
+    DisposableEffect(stage) {
+        onDispose {
+            dragDropState?.unregisterColumn(stage)
+        }
     }
 
     Column(
         modifier = modifier
+            .onGloballyPositioned { coords ->
+                if (coords.isAttached) {
+                    dragDropState?.registerColumn(
+                        stage,
+                        Rect(coords.positionInWindow(), coords.size.toSize())
+                    )
+                }
+            }
             .clayFlat(
                 shape = ClayShapes.Card,
-                background = WeMadeColors.SurfaceMuted,
+                background = if (isDropTarget) {
+                    when (stage) {
+                        LeadStage.NEW_LEAD -> WeMadeColors.PrimaryContainer
+                        LeadStage.QUALIFIED -> WeMadeColors.SuccessBg
+                        LeadStage.UNQUALIFIED -> WeMadeColors.ErrorBg
+                    }
+                } else WeMadeColors.SurfaceMuted,
                 outline = columnOutline,
-                borderWidth = ClayBorder.Medium
+                borderWidth = if (isDropTarget) ClayBorder.Thick else ClayBorder.Medium
             )
             .padding(ClaySpacing.Lg)
     ) {
+        // Drop Banner saat kartu di-drag melayang di atas kolom ini
+        if (isDropTarget) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = ClaySpacing.Md)
+                    .clayFlat(
+                        shape = ClayShapes.Pill,
+                        background = WeMadeColors.Surface,
+                        outline = columnOutline,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Lepas kartu untuk pindah ke ${stage.displayName}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = stage.tint()
+                )
+            }
+        }
+
         // Header Kolom: Nama Stage + Counter Tag + Tombol Tambah
         Row(
             modifier = Modifier.fillMaxWidth(),

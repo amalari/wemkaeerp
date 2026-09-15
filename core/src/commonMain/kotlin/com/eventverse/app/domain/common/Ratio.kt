@@ -39,6 +39,18 @@ data class Ratio(val numerator: Long, val denominator: Long) : Comparable<Ratio>
         return if (frac == 0L || decimals == 0) "$whole%" else "$whole.$frac%"
     }
 
+    fun formatted(decimals: Int = 1): String {
+        val v = toDouble()
+        val whole = v.toLong()
+        val factor = when (decimals) {
+            1 -> 10.0
+            2 -> 100.0
+            else -> 10.0
+        }
+        val frac = kotlin.math.abs(((v - whole) * factor).toLong())
+        return if (decimals == 0) "$whole" else "$whole.$frac"
+    }
+
     val isNegative: Boolean get() = (numerator < 0) xor (denominator < 0)
     val isPositive: Boolean get() = !isNegative && numerator != 0L
     val isZero: Boolean get() = numerator == 0L

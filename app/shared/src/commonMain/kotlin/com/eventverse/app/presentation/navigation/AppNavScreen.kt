@@ -1,6 +1,12 @@
 package com.eventverse.app.presentation.navigation
 
+import androidx.compose.runtime.compositionLocalOf
 import com.eventverse.app.domain.rbac.BusinessModule
+
+/**
+ * CompositionLocal untuk aksi navigasi aplikasi antar modul.
+ */
+val LocalAppNavigator = compositionLocalOf<(AppNavScreen) -> Unit> { {} }
 
 /**
  * Typed application navigation routes with canonical paths, titles, and URI aliases.

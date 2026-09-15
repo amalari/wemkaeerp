@@ -44,7 +44,12 @@ class CrmViewModel(
             is CrmUiEvent.Load, is CrmUiEvent.Retry -> load()
             is CrmUiEvent.SetViewMode -> _uiState.update { it.copy(viewMode = event.mode) }
             is CrmUiEvent.SetMobileStage -> _uiState.update { it.copy(activeMobileStage = event.stage) }
-            is CrmUiEvent.SelectLead -> _uiState.update { it.copy(selectedLeadId = event.leadId) }
+            is CrmUiEvent.SelectLead -> {
+                _uiState.update { it.copy(selectedLeadId = event.leadId) }
+                event.leadId?.let { id ->
+                    loadActivitiesForLead(id)
+                }
+            }
             is CrmUiEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
             is CrmUiEvent.OpenCreateDialog -> _uiState.update {
                 it.copy(isCreateDialogOpen = true, createDialogInitialStage = event.stage)
@@ -257,6 +262,31 @@ class CrmViewModel(
     private fun replaceLead(updated: com.eventverse.app.domain.crm.CrmLead) {
         _uiState.update { state ->
             state.copy(leads = state.leads.map { if (it.id == updated.id) updated else it })
+        }
+    }
+
+    private fun loadActivitiesForLead(leadId: LeadId) {
+        _uiState.update {
+            it.copy(
+                leadActivities = emptyList(),
+                isLoadingActivities = true
+            )
+        }
+        scope.launch {
+            remoteDataSource.getActivities(tenantSlug, leadId)
+                .onSuccess { activities ->
+                    _uiState.update {
+                        it.copy(
+                            leadActivities = activities,
+                            isLoadingActivities = false
+                        )
+                    }
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(isLoadingActivities = false)
+                    }
+                }
         }
     }
 
