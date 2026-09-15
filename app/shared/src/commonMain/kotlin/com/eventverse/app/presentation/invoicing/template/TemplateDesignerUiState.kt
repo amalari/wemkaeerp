@@ -17,11 +17,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
-enum class DesignerInspectorTab(val label: String) {
-    LAYOUT("Tata Letak & Token"),
-    LIVE_DATA("Isi Data Faktur Live")
-}
-
 /**
  * Alat interaksi kanvas.
  *
@@ -35,6 +30,15 @@ enum class CanvasTool(val label: String) {
     PAN("Geser Kanvas")
 }
 
+/**
+ * Batas zoom kanvas.
+ *
+ * Dipakai bersama oleh ViewModel (yang menjepit permintaan zoom) dan layar (yang menghitung zoom
+ * "Muat Layar"), supaya nilai yang dihitung tidak pernah berada di luar rentang yang diterima state.
+ */
+const val MIN_CANVAS_ZOOM = 50
+const val MAX_CANVAS_ZOOM = 200
+
 data class TemplateDesignerUiState(
     val template: InvoiceTemplate,
     val selectedElementId: String? = null,
@@ -47,13 +51,48 @@ data class TemplateDesignerUiState(
     val successMessage: String? = null,
     val previewInvoice: Invoice = createDummyPreviewInvoice(),
     val prefillData: InvoicePrefillData? = null,
-    val activeInspectorTab: DesignerInspectorTab = DesignerInspectorTab.LAYOUT,
     val createdInvoiceId: InvoiceId? = null,
     val isPdfPreviewOpen: Boolean = false,
-    val aiMappingSummary: AiAutoMapSummary? = null
+    val aiMappingSummary: AiAutoMapSummary? = null,
+    /**
+     * Elemen teks yang sedang diedit langsung di kanvas (hasil klik dua kali). Selama tidak null,
+     * kanvas menampilkan editor di atas elemen tersebut, bukan teksnya.
+     */
+    val editingTextElementId: String? = null,
+    /** Grup modul yang dibuka di perpustakaan elemen. Modul terlipat secara bawaan. */
+    val expandedModules: Set<BindingModuleSource> = emptySet()
 ) {
     val selectedElement: TemplateElement?
         get() = selectedElementId?.let { id -> template.elements.find { it.elementId == id } }
+
+    /** Elemen yang sedang diedit langsung, bila ada. */
+    val editingElement: TemplateElement.StaticText?
+        get() = editingTextElementId?.let { id ->
+            template.elements.filterIsInstance<TemplateElement.StaticText>().find { it.elementId == id }
+        }
+
+    /**
+     * True bila kanvas menampilkan contoh data, bukan data faktur sungguhan.
+     *
+     * Dipakai untuk memberi tahu pengguna asal angka yang mereka lihat. Sejak panel "Isi Data Faktur
+     * Live" dihapus, nilai di kanvas **selalu** berasal dari luar desainer — dari modul CRM atau dari
+     * contoh bawaan — sehingga tidak ada lagi tempat mengetiknya di sini.
+     */
+    val isSampleData: Boolean get() = prefillData == null
+
+    /** Keterangan singkat asal data kanvas untuk strip sumber data. */
+    val dataSourceLabel: String
+        get() {
+            val prefill = prefillData
+            return if (prefill == null) {
+                "Contoh data bawaan desainer"
+            } else {
+                val client = prefill.clientName.ifBlank { "Tanpa nama klien" }
+                "${prefill.sourceKind.name} · $client · ${prefill.sourceRef.ifBlank { "tanpa referensi" }}"
+            }
+        }
+
+    val itemTableExists: Boolean get() = template.itemTable != null
 
     companion object {
         fun fromPrefill(prefill: InvoicePrefillData, tenantSlug: String, now: Instant): Invoice {
@@ -205,8 +244,23 @@ sealed interface TemplateDesignerUiEvent {
     ) : TemplateDesignerUiEvent
 
     data class UpdateElementRect(val elementId: String, val newBounds: TemplateRect) : TemplateDesignerUiEvent
+
+    /**
+     * Mengubah lebar elemen dengan penjepitan domain ([TemplateRect.resizedWidth]).
+     *
+     * Tinggi **tidak** ikut berubah: ia turunan dari isi teks. Menggeser sudut bawah akan langsung
+     * dilawan perhitungan ulang tinggi dan terasa seperti kanvas yang rusak.
+     */
+    data class ResizeElementWidth(val elementId: String, val widthMm10: Int) : TemplateDesignerUiEvent
+
     data class UpdateElement(val updatedElement: TemplateElement) : TemplateDesignerUiEvent
-    data class AddElement(val element: TemplateElement) : TemplateDesignerUiEvent
+
+    /** Mengubah isi teks statis. Satu jalur untuk editor inline dan isian di panel properti. */
+    data class UpdateElementText(val elementId: String, val text: String) : TemplateDesignerUiEvent
+
+    /** Menyisipkan elemen baru dari perpustakaan elemen. Penempatan ditentukan domain. */
+    data class InsertPreset(val preset: TemplateElementPreset) : TemplateDesignerUiEvent
+
     data class DeleteElement(val elementId: String) : TemplateDesignerUiEvent
     data class UpdateTemplateName(val name: String) : TemplateDesignerUiEvent
     data class SetZoom(val percent: Int) : TemplateDesignerUiEvent
@@ -216,23 +270,15 @@ sealed interface TemplateDesignerUiEvent {
     data object SaveTemplate : TemplateDesignerUiEvent
     data object DismissMessage : TemplateDesignerUiEvent
 
-    // AI Auto-Mapping & Live Editing
+    /** Membuka/menutup grup modul di perpustakaan elemen. */
+    data class ToggleModuleExpanded(val module: BindingModuleSource) : TemplateDesignerUiEvent
+
+    // Pengeditan langsung di kanvas
+    data class BeginTextEdit(val elementId: String) : TemplateDesignerUiEvent
+    data object EndTextEdit : TemplateDesignerUiEvent
+
+    // AI Auto-Mapping
     data object AutoMapWithAi : TemplateDesignerUiEvent
-    data class SetInspectorTab(val tab: DesignerInspectorTab) : TemplateDesignerUiEvent
-    data class UpdateLiveInvoice(val updatedInvoice: Invoice) : TemplateDesignerUiEvent
-    data class UpdateLiveClient(
-        val name: String,
-        val contactPerson: String,
-        val phone: String,
-        val email: String,
-        val address: String
-    ) : TemplateDesignerUiEvent
-    data class UpdateLiveItem(
-        val description: String,
-        val quantity: Double,
-        val unitPrice: Long,
-        val taxPercent: Double
-    ) : TemplateDesignerUiEvent
     data class SaveAndCreateInvoice(val onSuccess: (InvoiceId) -> Unit = {}) : TemplateDesignerUiEvent
     data object ClosePdfPreview : TemplateDesignerUiEvent
 }

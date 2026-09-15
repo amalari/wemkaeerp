@@ -23,6 +23,18 @@ sealed interface TemplateElement {
     fun withRect(newRect: TemplateRect): TemplateElement
     fun withAnchorBelowTable(anchor: Boolean): TemplateElement
 
+    /**
+     * Menuliskan tinggi hasil hitung tata letak ([InvoiceDocumentLayout]).
+     *
+     * Tinggi elemen teks bukan lagi angka yang diketik pengguna, melainkan turunan dari isi teks,
+     * ukuran font, dan lebar kotak. Elemen yang tingginya memang ditentukan sendiri (garis, kotak,
+     * gambar) mengembalikan dirinya sendiri tanpa perubahan.
+     */
+    fun withDerivedHeight(height: Mm10): TemplateElement
+
+    /** Mengganti gaya teks. Elemen yang tidak punya gaya teks mengembalikan dirinya sendiri. */
+    fun withStyle(style: TextStyleSpec): TemplateElement
+
     data class StaticText(
         override val elementId: String,
         override val rect: TemplateRect,
@@ -33,6 +45,8 @@ sealed interface TemplateElement {
     ) : TemplateElement {
         override fun withRect(newRect: TemplateRect): StaticText = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): StaticText = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): StaticText = copy(rect = rect.copy(height = height))
+        override fun withStyle(style: TextStyleSpec): StaticText = copy(style = style)
     }
 
     data class BoundField(
@@ -47,6 +61,8 @@ sealed interface TemplateElement {
     ) : TemplateElement {
         override fun withRect(newRect: TemplateRect): BoundField = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): BoundField = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): BoundField = copy(rect = rect.copy(height = height))
+        override fun withStyle(style: TextStyleSpec): BoundField = copy(style = style)
     }
 
     data class ImageBox(
@@ -59,6 +75,8 @@ sealed interface TemplateElement {
     ) : TemplateElement {
         override fun withRect(newRect: TemplateRect): ImageBox = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): ImageBox = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): ImageBox = this
+        override fun withStyle(style: TextStyleSpec): ImageBox = this
     }
 
     data class RectShape(
@@ -73,6 +91,8 @@ sealed interface TemplateElement {
     ) : TemplateElement {
         override fun withRect(newRect: TemplateRect): RectShape = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): RectShape = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): RectShape = this
+        override fun withStyle(style: TextStyleSpec): RectShape = this
     }
 
     data class LineShape(
@@ -85,6 +105,8 @@ sealed interface TemplateElement {
     ) : TemplateElement {
         override fun withRect(newRect: TemplateRect): LineShape = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): LineShape = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): LineShape = this
+        override fun withStyle(style: TextStyleSpec): LineShape = this
     }
 
     data class ItemTable(
@@ -105,5 +127,7 @@ sealed interface TemplateElement {
 
         override fun withRect(newRect: TemplateRect): ItemTable = copy(rect = newRect)
         override fun withAnchorBelowTable(anchor: Boolean): ItemTable = copy(anchorBelowTable = anchor)
+        override fun withDerivedHeight(height: Mm10): ItemTable = copy(rect = rect.copy(height = height))
+        override fun withStyle(style: TextStyleSpec): ItemTable = this
     }
 }

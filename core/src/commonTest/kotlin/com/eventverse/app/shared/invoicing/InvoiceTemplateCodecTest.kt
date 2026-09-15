@@ -1,7 +1,9 @@
 package com.eventverse.app.shared.invoicing
 
 import com.eventverse.app.domain.invoicing.template.InvoiceTemplateFactory
+import com.eventverse.app.domain.invoicing.template.Mm10
 import com.eventverse.app.domain.invoicing.template.TemplateElement
+import com.eventverse.app.domain.invoicing.template.TemplateRect
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonParser
 import kotlinx.datetime.Instant
@@ -106,5 +108,34 @@ class InvoiceTemplateCodecTest {
         assertEquals("Deskripsi Barang / Jasa", table.columns[0].header)
         assertEquals(5, table.columns[0].widthRatio.numerator)
         assertEquals(12, table.columns[0].widthRatio.denominator)
+    }
+
+    /**
+     * Teks multi-baris menyimpan `\n` di dalam nilai JSON. Kalau penulis JSON tidak meng-escape newline,
+     * template yang disimpan akan rusak dan tidak bisa dibaca lagi — karena itu baris baru diuji lewat
+     * round-trip penuh, bukan lewat pemeriksaan string.
+     */
+    @Test
+    fun multilineStaticText_roundTrip_keepsLineBreaksAndDerivedHeight() {
+        val base = InvoiceTemplateFactory.standardIndonesianInvoice(tenantId, now)
+        val withParagraph = base.copy(
+            elements = base.elements + TemplateElement.StaticText(
+                elementId = "terms-paragraph",
+                rect = TemplateRect(
+                    x = Mm10(150),
+                    y = Mm10(2400),
+                    width = Mm10(1000),
+                    height = Mm10(200)
+                ),
+                text = "Syarat pembayaran:\n1. Pelunasan 14 hari setelah terbit.\n2. Keterlambatan dikenakan denda 1%."
+            )
+        )
+
+        val decoded = InvoiceTemplateCodec.decode(InvoiceTemplateCodec.encode(withParagraph))
+        val paragraph = decoded.elements.first { it.elementId == "terms-paragraph" }
+
+        assertEquals(withParagraph.elements.last(), paragraph)
+        assertEquals(3, (paragraph as TemplateElement.StaticText).text.split('\n').size)
+        assertEquals(Mm10(200), paragraph.rect.height, "Tinggi hasil ukur ikut tersimpan apa adanya")
     }
 }

@@ -4,11 +4,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,10 +17,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign as ComposeTextAlign
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +34,7 @@ import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlin.math.roundToInt
@@ -37,16 +42,26 @@ import kotlin.math.roundToInt
 /**
  * Kanvas A4 tempat template faktur disusun.
  *
- * Dua hal yang membuat kanvas ini bisa dipakai, dan keduanya sengaja dipisah tegas:
+ * Empat hal yang membuat kanvas ini bisa dipercaya, dan semuanya sengaja dipisah tegas:
  *
- * 1. **Titik nol koordinat = sudut kiri-atas lembar.** Lapisan dekorasi (kertas + hard shadow)
- *    dan lapisan isi (grid + elemen) adalah dua `Box` terpisah. Kalau digabung, `padding`
- *    reservasi bayangan milik [claySurface] ikut menggeser titik nol elemen sejauh 6dp — kanvas
- *    akan menampilkan elemen 2 mm lebih ke kanan-bawah daripada hasil cetak PDF-nya.
- * 2. **Posisi elemen selalu berasal dari state.** Tidak ada salinan posisi lokal yang dipegang
- *    selama digeser; setiap frame tarikan mengirim rect absolut hasil [TemplateRect.movedBy],
- *    lalu Compose menggambar dari state terbaru. Salinan lokal yang tidak pernah diperbarui
- *    inilah yang dulu membuat elemen selalu mental kembali ke titik awalnya.
+ * 1. **Titik nol koordinat = sudut kiri-atas lembar.** Lapisan dekorasi (kertas + hard shadow) dan
+ *    lapisan isi (grid + elemen) adalah dua `Box` terpisah. Kalau digabung, `padding` reservasi
+ *    bayangan milik [claySurface] ikut menggeser titik nol elemen sejauh 6dp — kanvas akan
+ *    menunjukkan elemen 2 mm lebih ke kanan-bawah daripada hasil cetak PDF-nya.
+ * 2. **Geometri berasal dari [InvoiceDocumentLayout], bukan dari `element.rect` mentah.** Tinggi teks
+ *    diturunkan dari isinya, tabel item tumbuh mengikuti jumlah baris faktur, dan elemen ber-anchor
+ *    ikut bergeser. Renderer PDF memakai penyelesai yang sama, sehingga yang terlihat di sini adalah
+ *    yang akan tercetak.
+ * 3. **Baris teks digambar apa adanya dari penyelesai**, bukan diserahkan ke mesin teks Compose.
+ *    Kalau Compose memutus baris dengan metrik Skia-nya sendiri, jumlah baris di kanvas bisa berbeda
+ *    dari PDF untuk isi yang sama.
+ * 4. **Posisi elemen selalu berasal dari state.** Tidak ada salinan posisi lokal yang dipegang selama
+ *    digeser; setiap frame tarikan mengirim rect absolut hasil [TemplateRect.movedBy], lalu Compose
+ *    menggambar dari state terbaru.
+ *
+ * [viewportSize] dikirim dari layar induk yang sudah mengukur area gulir, karena `BoxWithConstraints`
+ * yang diletakkan **di dalam** wadah bergulir selalu melihat lebar/tinggi tak hingga dan tidak akan
+ * pernah bisa memusatkan kertas.
  */
 @Composable
 fun TemplateCanvas(
@@ -54,6 +69,7 @@ fun TemplateCanvas(
     onEvent: (TemplateDesignerUiEvent) -> Unit,
     horizontalScroll: ScrollState,
     verticalScroll: ScrollState,
+    viewportSize: DpSize,
     modifier: Modifier = Modifier
 ) {
     val zoomFactor = state.zoomPercent / 100f
@@ -66,23 +82,35 @@ fun TemplateCanvas(
     val invoice = state.previewInvoice
     val isSelectTool = state.canvasTool == CanvasTool.SELECT
 
+    // Geometri efektif dihitung sekali per perubahan template/faktur, bukan per elemen: menariknya
+    // ke dalam loop membuat pengukuran teks berjalan belasan kali di setiap recomposition.
+    val laidOutElements = remember(state.template, invoice) {
+        InvoiceDocumentLayout.solve(state.template, invoice)
+    }
+
+    // Kertas yang lebih kecil dari viewport dimusatkan dengan memberi konten ukuran minimum sebesar
+    // viewport; kalau kertas lebih besar, ukuran kertaspun yang menang dan area bergulir bekerja.
+    val contentWidth = maxOf(paperWidthDp + ClayOffset.Rest, viewportSize.width)
+    val contentHeight = maxOf(paperHeightDp + ClayOffset.Rest, viewportSize.height)
+
     val focusRequester = remember { FocusRequester() }
 
     // Kertas menerima fokus setiap kali pilihan berubah, supaya tombol panah langsung bisa dipakai
     // untuk menggeser elemen terpilih tanpa perlu mengeklik kertas lebih dulu.
     //
-    // Kunci efek ini juga memuat `canvasTool`. Menekan tombol apa pun di toolbar memindahkan fokus
+    // Kunci efek ini juga memuat `canvasTool`. Menekan tombol apa pun di panel/palet memindahkan fokus
     // Compose ke tombol itu, dan selama fokus di sana seluruh pintasan papan-tik (panah, Delete,
-    // Escape) mati diam-diam — pengguna hanya melihat "tombol panah tidak jalan". Mengembalikan
-    // fokus setiap kali alat berganti membuat pintasan itu hidup lagi tanpa perlu mengeklik kertas.
-    LaunchedEffect(selectedElementId, state.canvasTool) {
-        if (selectedElementId != null) runCatching { focusRequester.requestFocus() }
+    // Escape) mati diam-diam — pengguna hanya melihat "tombol panah tidak jalan". Mengembalikan fokus
+    // setiap kali alat berganti membuat pintasan itu hidup lagi tanpa perlu mengeklik kertas.
+    LaunchedEffect(selectedElementId, state.canvasTool, state.editingTextElementId) {
+        if (selectedElementId != null && state.editingTextElementId == null) {
+            runCatching { focusRequester.requestFocus() }
+        }
     }
 
     Box(
         modifier = modifier
-            .fillMaxSize()
-            .padding(ClayOffset.Rest)
+            .size(contentWidth, contentHeight)
             .pointerInput(Unit) {
                 // Tarikan yang tidak dikonsumsi elemen = menggeser viewport kanvas (pan).
                 //
@@ -114,77 +142,138 @@ fun TemplateCanvas(
                     )
             )
 
-            // 2. Isi kertas: ukuran persis 210 × 297 mm, titik nol (0,0) = sudut kiri-atas lembar.
-            Box(
-                modifier = Modifier
-                    .size(paperWidthDp, paperHeightDp)
-                    // Ketuk bidang kosong = lepas pilihan, sehingga panel kanan kembali ke
-                    // Pengaturan Template. Tarikan tidak dihitung ketuk: pan di atas sudah
-                    // mengonsumsi geraknya dan detektor ketuk batal dengan sendirinya.
-                    //
-                    // Ketukan di mode Geser Kanvas sengaja **tidak** melepas pilihan: alat itu
-                    // dipakai untuk menggeser pandangan, bukan untuk mengubah apa yang sedang
-                    // disunting. Pilihan yang hilang karena menyentuh kanvas akan terasa seperti
-                    // panel properti yang tiba-tiba mengosongkan diri.
-                    .pointerInput(isSelectTool) {
-                        detectTapGestures {
-                            runCatching { focusRequester.requestFocus() }
-                            if (isSelectTool) {
-                                onEvent(TemplateDesignerUiEvent.SelectElement(null))
-                            }
-                        }
-                    }
-                    .focusRequester(focusRequester)
-                    .focusable()
-                    .onPreviewKeyEvent { event -> handleCanvasKeyEvent(event, state, onEvent) }
-            ) {
-                // Background Grid (10mm squares) — hanya kalau diminta. Bawaannya mati: mesh
-                // 21 × 30 kotak terbaca lebih ramai daripada isi fakturnya sendiri.
-                if (state.showGrid) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val stepPx = 10f * mmToDp * density
-                        var x = stepPx
-                        while (x < size.width) {
-                            drawLine(
-                                color = WeMadeColors.Border,
-                                start = Offset(x, 0f),
-                                end = Offset(x, size.height),
-                                strokeWidth = 1f
-                            )
-                            x += stepPx
-                        }
-                        var y = stepPx
-                        while (y < size.height) {
-                            drawLine(
-                                color = WeMadeColors.Border,
-                                start = Offset(0f, y),
-                                end = Offset(size.width, y),
-                                strokeWidth = 1f
-                            )
-                            y += stepPx
-                        }
-                    }
-                }
+            PaperContent(
+                state = state,
+                laidOutElements = laidOutElements,
+                paperWidthDp = paperWidthDp,
+                paperHeightDp = paperHeightDp,
+                mmToDp = mmToDp,
+                zoomFactor = zoomFactor,
+                invoice = invoice,
+                snapMm10 = snapMm10,
+                paperSize = paperSize,
+                isSelectTool = isSelectTool,
+                focusRequester = focusRequester,
+                onEvent = onEvent
+            )
+        }
+    }
+}
 
-                // Elements Layer
-                state.template.elements.forEach { element ->
-                    key(element.elementId) {
-                        CanvasElementNode(
-                            element = element,
-                            isSelected = element.elementId == selectedElementId,
-                            // Mode Geser mematikan handler elemen supaya tarikan di titik mana pun
-                            // menjadi pan, bukan pemindahan elemen.
-                            isInteractive = isSelectTool,
-                            mmToDp = mmToDp,
-                            zoomFactor = zoomFactor,
-                            invoice = invoice,
-                            snapMm10 = snapMm10,
-                            paperSize = paperSize,
-                            onEvent = onEvent
-                        )
+/**
+ * Isi lembar: grid, elemen, dan editor langsung.
+ *
+ * Dipisah dari [TemplateCanvas] karena dua lapisan ini punya dua hal yang tidak boleh tercampur:
+ * dekorasi memakai ukuran kotak + bayangan, sedangkan isi memakai koordinat milimeter absolut.
+ */
+@Composable
+private fun PaperContent(
+    state: TemplateDesignerUiState,
+    laidOutElements: List<LaidOutElement>,
+    paperWidthDp: androidx.compose.ui.unit.Dp,
+    paperHeightDp: androidx.compose.ui.unit.Dp,
+    mmToDp: Float,
+    zoomFactor: Float,
+    invoice: Invoice,
+    snapMm10: Int,
+    paperSize: PaperSize,
+    isSelectTool: Boolean,
+    focusRequester: FocusRequester,
+    onEvent: (TemplateDesignerUiEvent) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(paperWidthDp, paperHeightDp)
+            // Ketuk bidang kosong = lepas pilihan, sehingga panel kanan kembali ke Pengaturan
+            // Template. Tarikan tidak dihitung ketuk: pan di atas sudah mengonsumsi geraknya dan
+            // detektor ketuk batal dengan sendirinya.
+            //
+            // Ketukan di mode Geser Kanvas sengaja **tidak** melepas pilihan: alat itu dipakai untuk
+            // menggeser pandangan, bukan untuk mengubah apa yang sedang disunting. Pilihan yang hilang
+            // karena menyentuh kanvas akan terasa seperti panel properti yang mengosongkan diri.
+            .pointerInput(isSelectTool) {
+                detectTapGestures {
+                    runCatching { focusRequester.requestFocus() }
+                    if (isSelectTool) {
+                        onEvent(TemplateDesignerUiEvent.EndTextEdit)
+                        onEvent(TemplateDesignerUiEvent.SelectElement(null))
                     }
                 }
             }
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event -> handleCanvasKeyEvent(event, state, onEvent) }
+    ) {
+        if (state.showGrid) {
+            GridOverlay(mmToDp = mmToDp)
+        }
+
+        laidOutElements.forEach { laid ->
+            key(laid.element.elementId) {
+                CanvasElementNode(
+                    laid = laid,
+                    isSelected = laid.element.elementId == state.selectedElementId,
+                    isEditing = laid.element.elementId == state.editingTextElementId,
+                    // Mode Geser mematikan handler elemen supaya tarikan di titik mana pun menjadi
+                    // pan, bukan pemindahan elemen.
+                    isInteractive = isSelectTool,
+                    mmToDp = mmToDp,
+                    zoomFactor = zoomFactor,
+                    invoice = invoice,
+                    snapMm10 = snapMm10,
+                    paperSize = paperSize,
+                    onEvent = onEvent
+                )
+            }
+        }
+
+        // Editor langsung digambar paling akhir supaya tidak tertutup elemen lain — termasuk oleh
+        // elemen yang posisinya bertumpuk di atas teks yang sedang diedit.
+        state.editingElement?.let { editing ->
+            val laid = laidOutElements.find { it.element.elementId == editing.elementId }
+            if (laid != null) {
+                InlineTextEditor(
+                    elementId = editing.elementId,
+                    rect = laid.rect,
+                    mmToDp = mmToDp,
+                    zoomFactor = zoomFactor,
+                    initialText = editing.text,
+                    style = editing.style,
+                    onTextChange = { text ->
+                        onEvent(TemplateDesignerUiEvent.UpdateElementText(editing.elementId, text))
+                    },
+                    onFinish = { onEvent(TemplateDesignerUiEvent.EndTextEdit) }
+                )
+            }
+        }
+    }
+}
+
+/** Mesh 10 mm di atas kertas. Bawaannya mati: mesh 21 × 30 kotak terbaca lebih ramai dari isinya. */
+@Composable
+private fun GridOverlay(mmToDp: Float) {
+    val density = LocalDensity.current.density
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val stepPx = 10f * mmToDp * density
+        var x = stepPx
+        while (x < size.width) {
+            drawLine(
+                color = WeMadeColors.Border,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = 1f
+            )
+            x += stepPx
+        }
+        var y = stepPx
+        while (y < size.height) {
+            drawLine(
+                color = WeMadeColors.Border,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1f
+            )
+            y += stepPx
         }
     }
 }
@@ -192,8 +281,8 @@ fun TemplateCanvas(
 /**
  * Pemetaan tombol panah & tombol hapus pada kanvas.
  *
- * Nudge lewat tombol panah sengaja tidak ditumpangkan pada `detectDragGestures`: setelah satu
- * klik pada elemen, presisi 1 mm tidak lagi bergantung pada kestabilan tangan saat menyeret mouse.
+ * Nudge lewat tombol panah sengaja tidak ditumpangkan pada `detectDragGestures`: setelah satu klik
+ * pada elemen, presisi 1 mm tidak lagi bergantung pada kestabilan tangan saat menyeret mouse.
  * `Shift` + panah = lompatan 10× untuk memindahkan blok besar tanpa puluhan penekanan.
  */
 private fun handleCanvasKeyEvent(
@@ -207,18 +296,25 @@ private fun handleCanvasKeyEvent(
 
     when (event.key) {
         Key.Escape -> {
-            onEvent(TemplateDesignerUiEvent.SelectElement(null))
+            // Esc menutup editor langsung lebih dulu; menekannya saat tidak sedang mengedit melepas
+            // pilihan, seperti sebelumnya.
+            if (state.editingTextElementId != null) {
+                onEvent(TemplateDesignerUiEvent.EndTextEdit)
+            } else {
+                onEvent(TemplateDesignerUiEvent.SelectElement(null))
+            }
             return true
         }
         Key.Delete -> {
-            if (selected == null) return false
+            if (selected == null || state.editingTextElementId != null) return false
             onEvent(TemplateDesignerUiEvent.DeleteElement(selected.elementId))
             return true
         }
         else -> Unit
     }
 
-    if (selected == null) return false
+    // Selama editor teks terbuka, tombol panah milik kursor di dalam teks — bukan perintah geser.
+    if (selected == null || state.editingTextElementId != null) return false
 
     val baseStep = state.snapGridMm.coerceAtLeast(1) * 10
     val step = if (event.isShiftPressed) baseStep * 10 else baseStep
@@ -246,21 +342,35 @@ private fun handleCanvasKeyEvent(
 }
 
 /**
- * Satu elemen di atas kertas: posisi, garis pilihan, dan gestur tarik.
+ * Menempatkan elemen pada koordinat milimeter absolut di atas kertas.
  *
- * `dragBase` diambil dari posisi terbaru **saat tarikan dimulai** dan tidak pernah dibaca ulang
- * dari state selama tarikan berlangsung. Inilah kunci agar perpindahan tidak berbalik arah:
- * menghitung dari rect yang sudah basi membuat setiap langkah menimpa langkah sebelumnya, dan
- * elemen hanya bergerak beberapa milimeter lalu mental kembali — persis gejala "tidak bisa
- * digeser" yang dulu terlihat di kanvas.
+ * Satu-satunya tempat konversi mm → piksel untuk penempatan elemen. Sebelumnya rumus ini ditulis
+ * ulang di tiga tempat (elemen, editor langsung, penanda) dan setiap salinan adalah kesempatan
+ * untuk berbeda beberapa piksel dari hasil cetak.
+ */
+private fun Modifier.absoluteMmRect(rect: TemplateRect, mmToDp: Float): Modifier = this.offset {
+    IntOffset(
+        x = (rect.x.value / 10f * mmToDp).dp.roundToPx(),
+        y = (rect.y.value / 10f * mmToDp).dp.roundToPx()
+    )
+}
+
+/**
+ * Satu elemen di atas kertas: posisi, garis pilihan, gestur tarik, dan gagang ubah lebar.
  *
- * Snap grid **dimatikan selama tarikan** dan baru diterapkan saat jari/mouse dilepas. Hasilnya
- * gerakan mengikuti kursor 1:1 (mulus), lalu "menempel" ke grid dengan satu lompatan magnetik.
+ * `dragBase` diambil dari posisi terbaru **saat tarikan dimulai** dan tidak pernah dibaca ulang dari
+ * state selama tarikan berlangsung. Inilah kunci agar perpindahan tidak berbalik arah: menghitung dari
+ * rect yang sudah basi membuat setiap langkah menimpa langkah sebelumnya, dan elemen hanya bergerak
+ * beberapa milimeter lalu mental kembali.
+ *
+ * Snap grid **dimatikan selama tarikan** dan baru diterapkan saat jari/mouse dilepas. Hasilnya gerakan
+ * mengikuti kursor 1:1 (mulus), lalu "menempel" ke grid dengan satu lompatan magnetik.
  */
 @Composable
 private fun CanvasElementNode(
-    element: TemplateElement,
+    laid: LaidOutElement,
     isSelected: Boolean,
+    isEditing: Boolean,
     isInteractive: Boolean,
     mmToDp: Float,
     zoomFactor: Float,
@@ -269,19 +379,15 @@ private fun CanvasElementNode(
     paperSize: PaperSize,
     onEvent: (TemplateDesignerUiEvent) -> Unit
 ) {
-    val renderRect by rememberUpdatedState(element.rect)
+    val element = laid.element
+    val renderRect by rememberUpdatedState(laid.rect)
 
-    val widthDp = (element.rect.width.value / 10f * mmToDp).dp
-    val heightDp = (element.rect.height.value / 10f * mmToDp).dp
+    val widthDp = (laid.rect.width.value / 10f * mmToDp).dp
+    val heightDp = (laid.rect.height.value / 10f * mmToDp).dp
 
     Box(
         modifier = Modifier
-            .offset {
-                IntOffset(
-                    x = (renderRect.x.value / 10f * mmToDp).dp.roundToPx(),
-                    y = (renderRect.y.value / 10f * mmToDp).dp.roundToPx()
-                )
-            }
+            .absoluteMmRect(laid.rect, mmToDp)
             .size(width = widthDp, height = heightDp)
             .then(
                 if (isSelected) {
@@ -295,36 +401,239 @@ private fun CanvasElementNode(
                 }
             )
             .then(
-                if (isInteractive) {
+                if (isInteractive && !isEditing) {
                     Modifier.elementDragModifier(element.elementId, mmToDp, snapMm10, paperSize, onEvent) { renderRect }
                 } else {
                     Modifier
                 }
             )
             .then(
-                if (isInteractive) {
-                    Modifier.clickable { onEvent(TemplateDesignerUiEvent.SelectElement(element.elementId)) }
+                if (isInteractive && !isEditing) {
+                    Modifier.tapSelectModifier(
+                        isTextElement = element is TemplateElement.StaticText,
+                        onSelect = { onEvent(TemplateDesignerUiEvent.SelectElement(element.elementId)) },
+                        onEditText = { onEvent(TemplateDesignerUiEvent.BeginTextEdit(element.elementId)) }
+                    )
                 } else {
                     Modifier
                 }
             )
             .padding(2.dp)
     ) {
-        RenderElementContent(
-            element = element,
-            invoice = invoice,
-            zoomFactor = zoomFactor
-        )
-
-        // Penanda sudut saat elemen terpilih.
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .align(Alignment.BottomEnd)
-                    .background(WeMadeColors.Primary, ClayShapes.Element)
+        // Teks yang sedang diedit tidak digambar: editor langsung menggantikannya, dan menggambar
+        // keduanya membuat huruf terlihat dobel di belakang kursor.
+        if (!isEditing) {
+            RenderElementContent(
+                laid = laid,
+                invoice = invoice,
+                zoomFactor = zoomFactor
             )
         }
+
+        if (isSelected && !isEditing) {
+            SelectionFrame(
+                element = element,
+                mmToDp = mmToDp,
+                snapMm10 = snapMm10,
+                paperSize = paperSize,
+                onEvent = onEvent
+            )
+        }
+    }
+}
+
+/**
+ * Bingkai pilihan: label ukuran dan gagang ubah lebar.
+ *
+ * Ubah lebar sengaja hanya tersedia untuk elemen yang lebarnya memang bermakna (teks, tabel, kotak).
+ * Gagang pada elemen yang tingginya mengikuti isi akan langsung "dilawan" perhitungan ulang tinggi dan
+ * terasa seperti kanvas yang rusak.
+ */
+@Composable
+private fun BoxScope.SelectionFrame(
+    element: TemplateElement,
+    mmToDp: Float,
+    snapMm10: Int,
+    paperSize: PaperSize,
+    onEvent: (TemplateDesignerUiEvent) -> Unit
+) {
+    val canResize = element !is TemplateElement.LineShape && element !is TemplateElement.ImageBox
+
+    if (canResize) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(10.dp)
+                .background(WeMadeColors.Primary, ClayShapes.Element)
+                .widthResizeModifier(
+                    baseWidthMm10 = element.rect.width.value,
+                    mmToDp = mmToDp,
+                    snapMm10 = snapMm10,
+                    paperSize = paperSize,
+                    onEvent = { newWidth ->
+                        onEvent(
+                            TemplateDesignerUiEvent.ResizeElementWidth(element.elementId, newWidth)
+                        )
+                    }
+                )
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .offset(y = (-16).dp)
+            .clayFlat(
+                shape = ClayShapes.Element,
+                background = WeMadeColors.Primary,
+                outline = WeMadeColors.PrimaryDark,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Lebar ${element.rect.width.value / 10} mm",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.Surface,
+            maxLines = 1
+        )
+    }
+}
+
+/**
+ * Detektor ketuk elemen: satu ketuk memilih, dua ketuk membuka editor langsung untuk teks statis.
+ *
+ * `clickable` tidak dipakai karena ia tidak mengenal ketukan ganda — memakainya bersama ketukan ganda
+ * membuat pemilihan elemen ikut terpicu dua kali pada setiap pengeditan, dan pilihan berpindah di
+ * tengah pengeditan.
+ */
+private fun Modifier.tapSelectModifier(
+    isTextElement: Boolean,
+    onSelect: () -> Unit,
+    onEditText: () -> Unit
+): Modifier = this.pointerInput(isTextElement) {
+    detectTapGestures(
+        onTap = { onSelect() },
+        onDoubleTap = {
+            onSelect()
+            if (isTextElement) onEditText()
+        }
+    )
+}
+
+/**
+ * Modifier tarik untuk mengubah **lebar** elemen.
+ *
+ * Lebar dasar diambil saat tarikan dimulai, lalu setiap frame mengirim lebar absolut. Sama seperti
+ * pemindahan: menghitung dari lebar terbaru yang sudah berubah membuat setiap langkah menumpuk
+ * perubahan sebelumnya dan elemen membengkak jauh lebih cepat dari gerakan mouse.
+ */
+private fun Modifier.widthResizeModifier(
+    baseWidthMm10: Int,
+    mmToDp: Float,
+    snapMm10: Int,
+    paperSize: PaperSize,
+    onEvent: (Int) -> Unit
+): Modifier = this.pointerInput(baseWidthMm10, mmToDp, snapMm10, paperSize) {
+    var dragBase = baseWidthMm10
+    var dragTotalX = 0f
+
+    detectDragGestures(
+        onDragStart = {
+            dragBase = baseWidthMm10
+            dragTotalX = 0f
+        },
+        onDrag = { change, dragAmount ->
+            change.consume()
+            dragTotalX += dragAmount.x
+            onEvent(dragBase + (dragTotalX / mmToDp * 10f).roundToInt())
+        },
+        onDragEnd = {
+            val raw = dragBase + (dragTotalX / mmToDp * 10f).roundToInt()
+            // Snap hanya di akhir tarikan supaya gerakan terasa mulus lalu menempel ke grid.
+            onEvent(if (snapMm10 > 0) (raw / snapMm10) * snapMm10 else raw)
+            dragTotalX = 0f
+        },
+        onDragCancel = { dragTotalX = 0f }
+    )
+}
+
+/**
+ * Editor teks langsung di atas kanvas.
+ *
+ * ## Kenapa tinggi editor dibiarkan tumbuh
+ *
+ * Kotak editor tidak dikunci pada tinggi elemen yang sedang diedit: begitu pengguna menambah baris,
+ * tinggi turunan elemen ikut bertambah (lewat [InvoiceDocumentLayout]) dan editor harus terlihat
+ * mengikuti. Kalau tinggi editor dipatok, baris keempat dan seterusnya mengetik "di luar kotak".
+ *
+ * ## Kenapa pemenggalan baris di editor tidak memakai [InvoiceTextLayout]
+ *
+ * Berbeda dari lapisan gambar, editor memang **harus** memakai mesin teks platform: kursor, seleksi,
+ * dan IME tidak bisa bekerja di atas daftar baris hasil hitungan. Karena itu lebar baris di dalam
+ * editor bisa berbeda beberapa persen dari hasil akhir — dan itu wajar, karena yang penting adalah
+ * isi teksnya, bukan titik potongnya saat mengetik.
+ */
+@Composable
+private fun InlineTextEditor(
+    elementId: String,
+    rect: TemplateRect,
+    mmToDp: Float,
+    zoomFactor: Float,
+    initialText: String,
+    style: TextStyleSpec,
+    onTextChange: (String) -> Unit,
+    onFinish: () -> Unit
+) {
+    // Teks ditahan sebagai state lokal agar kursor tidak meloncat saat ViewModel mengirim balik hasil
+    // perubahan lewat state global. Kuncinya `elementId`, bukan isi teks: mengganti kunci dengan isi
+    // membuat setiap ketikan membangun ulang kotak editor dan menghapus posisi kursor.
+    var text by remember(elementId) { mutableStateOf(initialText) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(elementId) {
+        runCatching { focusRequester.requestFocus() }
+    }
+
+    val fontSizeSp = (style.fontSizePt * zoomFactor).sp
+    val lineHeightSp = (InvoiceTextLayout.lineHeightMm10(style) / 10f * mmToDp).sp
+
+    Box(
+        modifier = Modifier
+            .absoluteMmRect(rect, mmToDp)
+            .widthIn(min = (rect.width.value / 10f * mmToDp).dp)
+            .heightIn(min = (rect.height.value / 10f * mmToDp).dp)
+            .background(WeMadeColors.Surface, ClayShapes.Element)
+            .border(ClayBorder.Medium, WeMadeColors.Primary, ClayShapes.Element)
+            .padding(2.dp)
+    ) {
+        BasicTextField(
+            value = text,
+            onValueChange = { updated ->
+                text = updated
+                onTextChange(updated)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Escape) {
+                        onFinish()
+                        true
+                    } else {
+                        false
+                    }
+                },
+            textStyle = TextStyle(
+                color = Color(style.colorHex),
+                fontSize = fontSizeSp,
+                lineHeight = lineHeightSp,
+                fontWeight = if (style.isBold) FontWeight.Bold else FontWeight.Normal
+            ),
+            cursorBrush = SolidColor(WeMadeColors.Primary)
+        )
     }
 }
 
@@ -351,11 +660,10 @@ private fun TemplateRect.advancedByPixels(
 /**
  * Modifier tarik satu elemen.
  *
- * Dipisah dari [CanvasElementNode] karena `pointerInput` menyimpan lambda beserta closure-nya
- * selama kuncinya tidak berubah. Posisi awal tarikan disimpan **di dalam** closure ini
- * (`dragBase`) dan aslinya dibaca lewat [latestRect] — pembaca yang selalu menunjuk state
- * terbaru. Membaca rect dari nilai yang di-capture saat komposisi pertama adalah akar bug
- * "elemen tidak bisa digeser".
+ * Dipisah dari [CanvasElementNode] karena `pointerInput` menyimpan lambda beserta closure-nya selama
+ * kuncinya tidak berubah. Posisi awal tarikan disimpan **di dalam** closure ini (`dragBase`) dan
+ * aslinya dibaca lewat [latestRect] — pembaca yang selalu menunjuk state terbaru. Membaca rect dari
+ * nilai yang di-capture saat komposisi pertama adalah akar bug "elemen tidak bisa digeser".
  */
 private fun Modifier.elementDragModifier(
     elementId: String,
@@ -399,66 +707,93 @@ private fun Modifier.elementDragModifier(
     )
 }
 
+/**
+ * Menggambar isi satu elemen.
+ *
+ * Teks **tidak** diserahkan ke pembungkusan otomatis Compose: baris yang datang dari
+ * [LaidOutElement.textLines] digambar apa adanya (`softWrap = false`), sehingga titik potong baris di
+ * kanvas identik dengan titik potong di PDF. Pembungkusan otomatis Compose memakai metrik Skia yang
+ * berbeda dari PDFBox, dan perbedaannya baru terlihat setelah faktur dicetak.
+ */
 @Composable
-private fun RenderElementContent(
-    element: TemplateElement,
+private fun BoxScope.RenderElementContent(
+    laid: LaidOutElement,
     invoice: Invoice,
     zoomFactor: Float
 ) {
+    val element = laid.element
     val totalPaid = Money.idr(0)
 
     when (element) {
         is TemplateElement.StaticText -> {
             Text(
-                text = element.text,
+                text = laid.textLines.joinToString("\n"),
                 fontSize = (element.style.fontSizePt * zoomFactor).sp,
+                lineHeight = (InvoiceTextLayout.lineHeightMm10(element.style) / 10f * 3f * zoomFactor).sp,
                 fontWeight = if (element.style.isBold) FontWeight.Bold else FontWeight.Normal,
                 color = Color(element.style.colorHex),
                 textAlign = toComposeTextAlign(element.style.align),
-                modifier = Modifier.fillMaxSize()
+                softWrap = false,
+                modifier = Modifier.fillMaxWidth()
             )
         }
+
         is TemplateElement.BoundField -> {
             val resolved = InvoiceBindingResolver.resolve(element.binding, invoice, null, totalPaid)
-            val valueText = when (resolved) {
-                is ResolvedBindingValue.Text -> resolved.value
-                is ResolvedBindingValue.Image -> "[Logo]"
-                ResolvedBindingValue.Empty -> "{{${element.binding.value}}}"
-            }
-            val displayText = "${element.prefix}$valueText${element.suffix}"
+            val isUnmapped = resolved is ResolvedBindingValue.Empty
             Text(
-                text = displayText,
+                // Token yang belum bisa diresolusi tetap ditampilkan sebagai penanda agar pengguna
+                // melihat "ada yang salah" di kanvas, bukan kotak kosong tanpa penjelasan.
+                text = if (isUnmapped) "{{${element.binding.value}}}" else laid.textLines.joinToString("\n"),
                 fontSize = (element.style.fontSizePt * zoomFactor).sp,
+                lineHeight = (InvoiceTextLayout.lineHeightMm10(element.style) / 10f * 3f * zoomFactor).sp,
                 fontWeight = if (element.style.isBold) FontWeight.Bold else FontWeight.Normal,
-                color = Color(element.style.colorHex),
+                color = if (isUnmapped) WeMadeColors.Warning else Color(element.style.colorHex),
                 textAlign = toComposeTextAlign(element.style.align),
-                modifier = Modifier.fillMaxSize()
+                softWrap = false,
+                modifier = Modifier.fillMaxWidth()
             )
         }
+
         is TemplateElement.RectShape -> {
+            // Hex ditangkap ke variabel lokal lebih dulu: properti `Long?` dari modul lain tidak bisa
+            // di-smart-cast di dalam lambda modifier.
+            val strokeHex = element.strokeHex
+            val fillHex = element.fillHex
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (element.strokeHex != null && element.strokeMm10 > 0) {
-                            Modifier.border(1.dp, Color(element.strokeHex!!))
-                        } else Modifier
+                        if (strokeHex != null && element.strokeMm10 > 0) {
+                            Modifier.border(1.dp, Color(strokeHex))
+                        } else {
+                            Modifier
+                        }
                     )
                     .then(
-                        if (element.fillHex != null) {
-                            Modifier.background(Color(element.fillHex!!))
-                        } else Modifier
+                        if (fillHex != null) {
+                            Modifier.background(Color(fillHex))
+                        } else {
+                            Modifier
+                        }
                     )
             )
         }
+
         is TemplateElement.LineShape -> {
+            // Digambar di tengah tinggi kotaknya, sama seperti renderer PDF yang menempatkan garis di
+            // `topPt - height/2`. Menggambarnya di tepi atas membuat posisi garis meleset 1 mm dari
+            // hasil cetak hanya karena perbedaan titik jangkar.
             Box(
                 modifier = Modifier
+                    .align(Alignment.CenterStart)
                     .fillMaxWidth()
-                    .height(2.dp)
+                    .height((element.strokeMm10 / 10f * 3f * zoomFactor).dp.coerceAtLeast(1.dp))
                     .background(Color(element.strokeHex))
             )
         }
+
         is TemplateElement.ImageBox -> {
             Box(
                 modifier = Modifier
@@ -475,65 +810,99 @@ private fun RenderElementContent(
                 )
             }
         }
-        is TemplateElement.ItemTable -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(WeMadeColors.Surface)
-                    .border(1.dp, WeMadeColors.Border)
-            ) {
-                // Table Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(WeMadeColors.PrimaryContainer)
-                        .padding(vertical = 4.dp, horizontal = 6.dp)
-                ) {
-                    element.columns.forEach { col ->
-                        val weight = (col.widthRatio.numerator.toFloat() / col.widthRatio.denominator.toFloat()).coerceAtLeast(0.05f)
-                        Text(
-                            text = col.header,
-                            fontSize = (element.headerStyle.fontSizePt * zoomFactor).sp,
-                            fontWeight = if (element.headerStyle.isBold) FontWeight.Bold else FontWeight.Normal,
-                            color = Color(element.headerStyle.colorHex),
-                            textAlign = toComposeTextAlign(col.align),
-                            modifier = Modifier.weight(weight)
-                        )
-                    }
-                }
 
-                // Sample Rows (from preview invoice)
-                invoice.lines.forEach { line ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp, horizontal = 6.dp)
-                    ) {
-                        element.columns.forEach { col ->
-                            val weight = (col.widthRatio.numerator.toFloat() / col.widthRatio.denominator.toFloat()).coerceAtLeast(0.05f)
-                            val res = InvoiceBindingResolver.resolve(col.binding, invoice, line, totalPaid)
-                            val value = when (res) {
-                                is ResolvedBindingValue.Text -> res.value
-                                else -> "-"
-                            }
-                            Text(
-                                text = value,
-                                fontSize = (element.bodyStyle.fontSizePt * zoomFactor).sp,
-                                fontWeight = if (element.bodyStyle.isBold) FontWeight.Bold else FontWeight.Normal,
-                                color = Color(element.bodyStyle.colorHex),
-                                textAlign = toComposeTextAlign(col.align),
-                                modifier = Modifier.weight(weight)
-                            )
+        is TemplateElement.ItemTable -> ItemTablePreview(
+            table = element,
+            invoice = invoice,
+            zoomFactor = zoomFactor
+        )
+    }
+}
+
+/**
+ * Pratinjau tabel item.
+ *
+ * Kolom memakai `weight` dari rasio lebar domain — rasio yang sama yang dipakai renderer PDF menghitung
+ * lebar kolom dalam poin, sehingga proporsi kolom di kanvas dan di kertas berasal dari satu angka.
+ */
+@Composable
+private fun BoxScope.ItemTablePreview(
+    table: TemplateElement.ItemTable,
+    invoice: Invoice,
+    zoomFactor: Float,
+    totalPaid: Money = Money.idr(0)
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .border(1.dp, WeMadeColors.Border)
+    ) {
+        if (table.showHeader) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(WeMadeColors.PrimaryContainer)
+                    .padding(vertical = 2.dp, horizontal = 4.dp)
+            ) {
+                table.columns.forEach { col ->
+                    Text(
+                        text = col.header,
+                        fontSize = (table.headerStyle.fontSizePt * zoomFactor).sp,
+                        fontWeight = if (table.headerStyle.isBold) FontWeight.Bold else FontWeight.Normal,
+                        color = Color(table.headerStyle.colorHex),
+                        textAlign = toComposeTextAlign(col.align),
+                        maxLines = 1,
+                        modifier = Modifier.weight(col.columnWeight)
+                    )
+                }
+            }
+        }
+
+        invoice.lines.forEachIndexed { index, line ->
+            val zebraFillHex = table.zebraFillHex
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (index % 2 == 1 && zebraFillHex != null) {
+                            Modifier.background(Color(zebraFillHex))
+                        } else {
+                            Modifier
                         }
+                    )
+                    .padding(vertical = 2.dp, horizontal = 4.dp)
+            ) {
+                table.columns.forEach { col ->
+                    val value = when (val res = InvoiceBindingResolver.resolve(col.binding, invoice, line, totalPaid)) {
+                        is ResolvedBindingValue.Text -> res.value
+                        is ResolvedBindingValue.Image -> res.assetUrl ?: ""
+                        is ResolvedBindingValue.Empty -> "-"
                     }
+                    Text(
+                        text = value,
+                        fontSize = (table.bodyStyle.fontSizePt * zoomFactor).sp,
+                        fontWeight = if (table.bodyStyle.isBold) FontWeight.Bold else FontWeight.Normal,
+                        color = Color(table.bodyStyle.colorHex),
+                        textAlign = toComposeTextAlign(col.align),
+                        maxLines = 1,
+                        modifier = Modifier.weight(col.columnWeight)
+                    )
                 }
             }
         }
     }
 }
 
+private val TableColumn.columnWeight: Float
+    get() = (widthRatio.numerator.toFloat() / widthRatio.denominator.toFloat()).coerceAtLeast(0.05f)
+
 private fun toComposeTextAlign(align: TextAlign): ComposeTextAlign = when (align) {
     TextAlign.LEFT -> ComposeTextAlign.Left
     TextAlign.CENTER -> ComposeTextAlign.Center
     TextAlign.RIGHT -> ComposeTextAlign.Right
 }
+
+
+
+
+

@@ -4,9 +4,7 @@ import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
 import com.eventverse.app.domain.invoicing.InvoiceStatus
-import com.eventverse.app.domain.invoicing.template.Mm10
-import com.eventverse.app.domain.invoicing.template.TemplateElement
-import com.eventverse.app.domain.invoicing.template.TemplateRect
+import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.invoicing.InvoicePrefillData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -84,7 +82,7 @@ class TemplateDesignerViewModelTest {
             "ID template CRM wajib unik agar tidak menimpa template standar tenant"
         )
         assertEquals(setOf(InvoiceKind.SAMPLE), state.template.applicableKinds)
-        assertEquals(DesignerInspectorTab.LIVE_DATA, state.activeInspectorTab)
+        assertFalse(state.isSampleData, "Alur CRM membawa data faktur sungguhan, bukan contoh")
 
         val draft = state.previewInvoice
         assertEquals(InvoiceKind.SAMPLE, draft.kind)
@@ -120,12 +118,12 @@ class TemplateDesignerViewModelTest {
     }
 
     @Test
-    fun designerOpenedForTemplateEditing_hasNoPrefillAndStartsOnLayoutTab() {
+    fun designerOpenedForTemplateEditing_carriesNoPrefillAndShowsSampleData() {
         val state = designer(prefill = null, templateId = "tpl-existing").uiState.value
 
         assertNull(state.prefillData)
         assertEquals("tpl-existing", state.template.id.value)
-        assertEquals(DesignerInspectorTab.LAYOUT, state.activeInspectorTab)
+        assertTrue(state.isSampleData, "Tanpa prefill, kanvas menampilkan contoh bawaan")
         assertEquals(InvoiceStatus.DRAFT, state.previewInvoice.status)
     }
 
@@ -144,20 +142,16 @@ class TemplateDesignerViewModelTest {
     @Test
     fun autoMapWithAi_convertsValueTextAndKeepsPureLabelsStatic() = testScope.runTest {
         val viewModel = designer(samplingPrefill())
+        viewModel.onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.StaticText))
+        val insertedId = assertNotNull(viewModel.uiState.value.selectedElementId)
         viewModel.onEvent(
-            TemplateDesignerUiEvent.AddElement(
-                TemplateElement.StaticText(
-                    elementId = "note-1",
-                    rect = TemplateRect(Mm10(150), Mm10(1700), Mm10(1000), Mm10(80)),
-                    text = "Catatan: Bahan Katun Combed 30s"
-                )
-            )
+            TemplateDesignerUiEvent.UpdateElementText(insertedId, "Catatan: Bahan Katun Combed 30s")
         )
 
         viewModel.onEvent(TemplateDesignerUiEvent.AutoMapWithAi)
 
         val state = viewModel.uiState.value
-        val mappedNote = state.template.elements.first { it.elementId == "note-1" }
+        val mappedNote = state.template.elements.first { it.elementId == insertedId }
         assertTrue(mappedNote is TemplateElement.BoundField)
         assertEquals("invoice.notes", mappedNote.binding.value)
         assertEquals("Catatan: ", mappedNote.prefix)
@@ -174,37 +168,159 @@ class TemplateDesignerViewModelTest {
     }
 
     @Test
-    fun updateLiveClientAndItem_flowStraightIntoDraftInvoice() = testScope.runTest {
+    fun insertPreset_moduleField_carriesLabelAndFontFromTheRegistry() {
+        val viewModel = designer(samplingPrefill())
+        val descriptor = assertNotNull(InvoiceBindingRegistry.descriptorFor("billTo.phone"))
+
+        viewModel.onEvent(
+            TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptor))
+        )
+
+        val insertedId = assertNotNull(viewModel.uiState.value.selectedElementId)
+        val inserted = assertNotNull(
+            viewModel.uiState.value.template.elements.find { it.elementId == insertedId }
+        )
+
+        assertTrue(inserted is TemplateElement.BoundField, "Isian modul harus lahir sebagai kolom dinamis")
+        assertEquals("billTo.phone", inserted.binding.value)
+        assertEquals("Telp: ", inserted.prefix, "Label bawaan diambil dari registry, bukan ditulis di UI")
+        assertEquals(descriptor.defaultFontSizePt, inserted.style.fontSizePt)
+    }
+
+    @Test
+    fun insertPreset_placesNewElementBelowTheLowestElement() {
+        val viewModel = designer(prefill = null, templateId = "tpl-existing")
+        val before = viewModel.uiState.value.template
+        val lowestBottom = before.elements.maxOf { it.rect.y.value + it.rect.height.value }
+
+        viewModel.onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.Divider))
+
+        val insertedId = assertNotNull(viewModel.uiState.value.selectedElementId)
+        val inserted = assertNotNull(viewModel.uiState.value.template.elements.find { it.elementId == insertedId })
+
+        assertTrue(
+            inserted.rect.y.value >= lowestBottom,
+            "Elemen baru muncul di bawah elemen terendah, bukan menimpa isi kertas yang sudah ada"
+        )
+        assertTrue(inserted.rect.bottom <= before.paperSize.height, "Elemen baru tidak boleh keluar dari kertas")
+    }
+
+    @Test
+    fun insertPreset_secondItemTable_isRejectedWithMessage() {
+        val viewModel = designer(prefill = null, templateId = "tpl-existing")
+
+        viewModel.onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ItemTable))
+
+        val state = viewModel.uiState.value
+        assertEquals(1, state.template.elements.count { it is TemplateElement.ItemTable })
+        assertTrue(
+            state.error?.contains("sudah memiliki tabel item") == true,
+            "Menambah tabel kedua harus ditolak dengan pesan yang menjelaskan sebabnya"
+        )
+    }
+
+    @Test
+    fun updateElementText_growsTheBoxHeightFollowingTheContent() {
+        val viewModel = designer(samplingPrefill())
+        viewModel.onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.StaticText))
+        val elementId = assertNotNull(viewModel.uiState.value.selectedElementId)
+
+        val singleLineHeight = heightOf(viewModel, elementId)
+        viewModel.onEvent(
+            TemplateDesignerUiEvent.UpdateElementText(
+                elementId,
+                "Syarat pembayaran: pelunasan dilakukan paling lambat 14 hari setelah faktur diterbitkan."
+            )
+        )
+
+        assertTrue(
+            heightOf(viewModel, elementId) > singleLineHeight,
+            "Tinggi kotak teks harus tumbuh mengikuti isinya, bukan tetap seperti saat dibuat"
+        )
+    }
+
+    @Test
+    fun resizeElementWidth_isClampedToMinimumAndToThePaperEdge() {
+        val viewModel = designer(samplingPrefill())
+        val elementId = "issuer-name"
+        val paperWidth = viewModel.uiState.value.template.paperSize.width.value
+        val start = assertNotNull(viewModel.uiState.value.template.elements.find { it.elementId == elementId })
+
+        viewModel.onEvent(TemplateDesignerUiEvent.ResizeElementWidth(elementId, 1))
+        assertEquals(
+            InvoiceTemplateDefaults.MIN_TEXT_WIDTH_MM10,
+            widthOf(viewModel, elementId),
+            "Lebar di bawah batas minimum akan memecah teks per karakter, jadi harus dijepit"
+        )
+
+        viewModel.onEvent(TemplateDesignerUiEvent.ResizeElementWidth(elementId, 999_999))
+        assertEquals(
+            paperWidth - start.rect.x.value,
+            widthOf(viewModel, elementId),
+            "Lebar tidak boleh melewati tepi kanan kertas"
+        )
+    }
+
+    @Test
+    fun resizeElementWidth_keepsTheDerivedHeightInSyncWithTheNewLineCount() {
+        val viewModel = designer(samplingPrefill())
+        viewModel.onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.StaticText))
+        val elementId = assertNotNull(viewModel.uiState.value.selectedElementId)
+        viewModel.onEvent(
+            TemplateDesignerUiEvent.UpdateElementText(
+                elementId,
+                "Keterangan panjang yang sengaja dibuat agar memakan lebih dari satu baris pada lebar sempit."
+            )
+        )
+
+        val wideHeight = heightOf(viewModel, elementId)
+        viewModel.onEvent(TemplateDesignerUiEvent.ResizeElementWidth(elementId, 250))
+
+        assertTrue(
+            heightOf(viewModel, elementId) > wideHeight,
+            "Menyempitkan kotak menambah jumlah baris, dan tingginya wajib ikut menyesuaikan"
+        )
+    }
+
+    @Test
+    fun beginAndEndTextEdit_toggleTheInlineEditorTarget() {
         val viewModel = designer(samplingPrefill())
 
-        viewModel.onEvent(
-            TemplateDesignerUiEvent.UpdateLiveClient(
-                name = "PT Baru Sejahtera",
-                contactPerson = "Bu Rina",
-                phone = "0811-2233",
-                email = "ar@baru.co.id",
-                address = "Jl. Melati No. 1, Bandung"
-            )
-        )
-        viewModel.onEvent(
-            TemplateDesignerUiEvent.UpdateLiveItem(
-                description = "Kemeja Drill 100 pcs",
-                quantity = 100.0,
-                unitPrice = 150_000L,
-                taxPercent = 11.0
-            )
+        viewModel.onEvent(TemplateDesignerUiEvent.BeginTextEdit("bill-to-label"))
+        assertNotNull(viewModel.uiState.value.editingElement)
+        assertEquals("bill-to-label", viewModel.uiState.value.editingTextElementId)
+
+        viewModel.onEvent(TemplateDesignerUiEvent.SelectElement("issuer-name"))
+        assertNull(
+            viewModel.uiState.value.editingTextElementId,
+            "Memilih elemen lain harus menutup editor langsung yang sedang terbuka"
         )
 
-        val draft = viewModel.uiState.value.previewInvoice
-        assertEquals("PT Baru Sejahtera", draft.billTo.name)
-        assertEquals("Bu Rina", draft.billTo.contactPerson)
-        assertEquals("Jl. Melati No. 1, Bandung", draft.billTo.address)
-        assertEquals("Kemeja Drill 100 pcs", draft.lines.first().description)
-        assertEquals(Money.idr(15_000_000), draft.subtotal)
-        assertEquals(Money.idr(1_650_000), draft.taxAmount)
-        assertEquals(Money.idr(16_650_000), draft.total)
-        assertEquals(Money.idr(15_000_000), draft.contractValue)
+        viewModel.onEvent(TemplateDesignerUiEvent.BeginTextEdit("bill-to-label"))
+        viewModel.onEvent(TemplateDesignerUiEvent.EndTextEdit)
+        assertNull(viewModel.uiState.value.editingTextElementId)
     }
+
+    @Test
+    fun toggleModuleExpanded_opensAndClosesPaletteGroups() {
+        val viewModel = designer(samplingPrefill())
+        val module = BindingModuleSource.ISSUER_TENANT
+        assertFalse(module in viewModel.uiState.value.expandedModules)
+
+        viewModel.onEvent(TemplateDesignerUiEvent.ToggleModuleExpanded(module))
+        assertTrue(module in viewModel.uiState.value.expandedModules)
+
+        viewModel.onEvent(TemplateDesignerUiEvent.ToggleModuleExpanded(module))
+        assertFalse(module in viewModel.uiState.value.expandedModules)
+    }
+
+    private fun heightOf(viewModel: TemplateDesignerViewModel, elementId: String): Int =
+        assertNotNull(viewModel.uiState.value.template.elements.find { it.elementId == elementId })
+            .rect.height.value
+
+    private fun widthOf(viewModel: TemplateDesignerViewModel, elementId: String): Int =
+        assertNotNull(viewModel.uiState.value.template.elements.find { it.elementId == elementId })
+            .rect.width.value
 
     @Test
     fun saveAndCreateInvoice_persistsTemplateThenCreatesDraftAndOpensPreview() = testScope.runTest {
@@ -265,6 +381,34 @@ class TemplateDesignerViewModelTest {
         assertTrue(viewModel.uiState.value.error?.contains("Gagal menyimpan template") == true)
         assertFalse(viewModel.uiState.value.isSaving)
     }
+    @Test
+    fun saveTemplate_afterAPreviousFailure_clearsTheStaleErrorMessage() = testScope.runTest {
+        // Banner pesan tidak punya batas waktu: ia bertahan sampai ada yang menutupnya. Tanpa
+        // pembersihan di awal operasi, simpan yang tadinya gagal lalu diperbaiki akan menampilkan
+        // banner merah lama berdampingan dengan banner hijau "berhasil disimpan" — dan pengguna
+        // tidak punya cara tahu mana yang masih berlaku.
+        fakeRemote.saveTemplateOutcome = { Result.failure(IllegalStateException("HTTP 500")) }
+        val viewModel = designer(prefill = null, templateId = "tpl-existing")
+
+        viewModel.onEvent(TemplateDesignerUiEvent.SaveTemplate)
+        advanceUntilIdle()
+        assertTrue(
+            viewModel.uiState.value.error?.contains("HTTP 500") == true,
+            "Kegagalan simpan harus terlihat lebih dulu supaya test ini benar-benar menguji banner lama"
+        )
+
+        fakeRemote.saveTemplateOutcome = { Result.success(it) }
+        viewModel.onEvent(TemplateDesignerUiEvent.SaveTemplate)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(2, fakeRemote.saveTemplateCallCount)
+        assertNull(state.error, "Kesalahan lama wajib hilang begitu simpan berhasil")
+        assertTrue(state.successMessage?.contains("berhasil disimpan") == true)
+        assertFalse(state.isSaving)
+    }
+
+
 
     @Test
     fun designerTemplate_neverOpensWithABlankPaper() {

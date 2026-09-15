@@ -79,6 +79,27 @@ data class TemplateRect(
             y = Mm10(snappedY.coerceIn(0, maxY))
         )
     }
+
+    /**
+     * Mengubah **lebar** elemen saja, dengan penjepitan ke kertas dan lebar minimum.
+     *
+     * Dipecah dari [movedBy] karena artinya berbeda: [movedBy] memindahkan, fungsi ini mengubah
+     * ukuran. Elemen teks hanya boleh diubah lebarnya — tingginya turunan dari isi teks (lihat
+     * [InvoiceDocumentLayout]), sehingga menggeser sudut bawah akan langsung "dilawan" oleh
+     * perhitungan ulang tinggi dan terasa seperti gagal.
+     *
+     * Lebar tidak boleh melebihi sisa ruang ke tepi kanan kertas: elemen yang menjulur keluar lembar
+     * akan terpotong saat dicetak, dan pengguna tidak punya cara melihatnya di kanvas.
+     */
+    fun resizedWidth(
+        newWidth: Mm10,
+        minWidthMm10: Int,
+        paperWidth: Mm10
+    ): TemplateRect {
+        val minWidth = minWidthMm10.coerceAtLeast(1)
+        val maxWidth = (paperWidth.value - x.value).coerceAtLeast(minWidth)
+        return copy(width = Mm10(newWidth.value.coerceIn(minWidth, maxWidth)))
+    }
 }
 
 enum class PaperSize(val displayName: String, val widthMm10: Int, val heightMm10: Int) {

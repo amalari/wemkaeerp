@@ -50,45 +50,34 @@ class InvoicePdfRenderer {
             val fontFredokaBold = loadFont(doc, "/fonts/fredoka_bold.ttf") ?: fontNunitoBold
             val fontFredokaMedium = loadFont(doc, "/fonts/fredoka_medium.ttf") ?: fontNunitoRegular
 
-            // Calculate table expansion for anchorBelowTable
-            val itemTable = template.elements.filterIsInstance<TemplateElement.ItemTable>().firstOrNull()
-            val tableDeltaMm10 = if (itemTable != null) {
-                val neededRows = invoice.lines.size
-                val headerH = if (itemTable.showHeader) itemTable.rowHeight.value else 0
-                val dynamicHeight = headerH + (neededRows * itemTable.rowHeight.value)
-                if (dynamicHeight > itemTable.rect.height.value) {
-                    dynamicHeight - itemTable.rect.height.value
-                } else 0
-            } else 0
-
-            // Sort elements by zOrder
-            val sortedElements = template.elements.sortedBy { it.zOrder }
+            // Geometri dinamis (tinggi turunan + pergeseran elemen ber-anchor) dihitung oleh
+            // InvoiceDocumentLayout, entity yang sama yang dipakai kanvas Compose. Sebelumnya
+            // perhitungan ini hidup di sini saja, sehingga kanvas menampilkan posisi yang berbeda
+            // dari hasil cetak untuk setiap template yang elemen bawahnya mengikuti tabel.
+            val laidOutElements = InvoiceDocumentLayout.solve(template, invoice, paidAmount)
 
             PDPageContentStream(doc, page).use { cs ->
-                for (element in sortedElements) {
-                    val yMm10 = if (element.anchorBelowTable) element.rect.y.value + tableDeltaMm10 else element.rect.y.value
-                    val xPt = element.rect.x.value * MM10_TO_PT
-                    val widthPt = element.rect.width.value * MM10_TO_PT
-                    val heightPt = element.rect.height.value * MM10_TO_PT
-                    val topPt = pageHeightPt - (yMm10 * MM10_TO_PT)
+                for (laid in laidOutElements) {
+                    val element = laid.element
+                    val xPt = laid.rect.x.value * MM10_TO_PT
+                    val widthPt = laid.rect.width.value * MM10_TO_PT
+                    val heightPt = laid.rect.height.value * MM10_TO_PT
+                    val topPt = pageHeightPt - (laid.rect.y.value * MM10_TO_PT)
                     val bottomPt = topPt - heightPt
 
                     when (element) {
                         is TemplateElement.StaticText -> {
                             val font = pickFont(element.style, fontNunitoRegular, fontNunitoBold, fontFredokaMedium, fontFredokaBold)
-                            drawText(cs, element.text, font, element.style, xPt, topPt, widthPt)
+                            drawText(cs, laid.textLines, font, element.style, xPt, topPt, widthPt)
                         }
 
                         is TemplateElement.BoundField -> {
-                            val resolved = InvoiceBindingResolver.resolve(element.binding, invoice, null, paidAmount)
-                            val textValue = when (resolved) {
-                                is ResolvedBindingValue.Text -> element.prefix + resolved.value + element.suffix
-                                is ResolvedBindingValue.Image -> element.prefix + (resolved.assetUrl ?: "") + element.suffix
-                                is ResolvedBindingValue.Empty -> ""
-                            }
-                            if (textValue.isNotBlank()) {
+                            // Baris teks sudah dipecah oleh InvoiceTextLayout saat geometri
+                            // diselesaikan, sehingga PDF memotong baris di titik yang persis sama
+                            // dengan kanvas — bukan dengan metrik fontnya sendiri.
+                            if (laid.textLines.any { it.isNotBlank() }) {
                                 val font = pickFont(element.style, fontNunitoRegular, fontNunitoBold, fontFredokaMedium, fontFredokaBold)
-                                drawText(cs, textValue, font, element.style, xPt, topPt, widthPt)
+                                drawText(cs, laid.textLines, font, element.style, xPt, topPt, widthPt)
                             }
                         }
 
@@ -150,44 +139,64 @@ class InvoicePdfRenderer {
         }
     }
 
+    /**
+     * Menggambar teks multi-baris.
+     *
+     * [lines] datang dari [InvoiceTextLayout] melalui [InvoiceDocumentLayout.solve] dan **tidak boleh
+     * dipecah ulang di sini**. Kalau PDFBox memutuskan sendiri di mana baris dipotong memakai metrik
+     * aslinya, dokumen hasil cetak akan berbeda dari yang dilihat pengguna di kanvas — persis kelas
+     * bug yang membuat desainer template tidak bisa dipercaya.
+     *
+     * Metrik asli tetap dipakai, tapi hanya untuk hal yang tidak mengubah struktur: lebar tiap baris
+     * (untuk perataan kiri/tengah/kanan) dan penempatan glyph.
+     */
     private fun drawText(
         cs: PDPageContentStream,
-        rawText: String,
+        lines: List<String>,
         font: PDFont,
         style: TextStyleSpec,
         xPt: Float,
         topPt: Float,
         widthPt: Float
     ) {
-        val sanitized = rawText.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("\t", " ")
-        if (sanitized.isBlank()) return
+        val drawable = lines.ifEmpty { return }
+        if (drawable.all { it.isBlank() }) return
 
         val fontSizePt = style.fontSizePt.toFloat()
-        val textWidth = try {
-            (font.getStringWidth(sanitized) / 1000f) * fontSizePt
-        } catch (_: Exception) {
-            sanitized.length * fontSizePt * 0.5f
-        }
-
-        val drawX = when (style.align) {
-            TextAlign.LEFT -> xPt
-            TextAlign.CENTER -> xPt + (widthPt - textWidth).coerceAtLeast(0f) / 2f
-            TextAlign.RIGHT -> xPt + (widthPt - textWidth).coerceAtLeast(0f)
-        }
-
-        val baselineY = topPt - (fontSizePt * 0.85f)
+        val lineHeightPt = InvoiceTextLayout.lineHeightMm10(style) * MM10_TO_PT
 
         cs.setNonStrokingColor(colorFromHex(style.colorHex))
-        cs.beginText()
-        cs.setFont(font, fontSizePt)
-        cs.newLineAtOffset(drawX, baselineY)
-        try {
-            cs.showText(sanitized)
-        } catch (_: Exception) {
-            val safeAscii = sanitized.map { if (it.code in 32..126) it else '?' }.joinToString("")
-            cs.showText(safeAscii)
+
+        drawable.forEachIndexed { index, line ->
+            if (line.isBlank()) return@forEachIndexed
+
+            val textWidth = try {
+                (font.getStringWidth(line) / 1000f) * fontSizePt
+            } catch (_: Exception) {
+                line.length * fontSizePt * 0.5f
+            }
+
+            val drawX = when (style.align) {
+                TextAlign.LEFT -> xPt
+                TextAlign.CENTER -> xPt + (widthPt - textWidth).coerceAtLeast(0f) / 2f
+                TextAlign.RIGHT -> xPt + (widthPt - textWidth).coerceAtLeast(0f)
+            }
+
+            val baselineY = topPt - (fontSizePt * 0.85f) - (index * lineHeightPt)
+
+            cs.beginText()
+            // `setFont` wajib berada di dalam blok teks (BT/ET); memanggilnya di luar akan
+            // melempar IllegalStateException di PDFBox 3.
+            cs.setFont(font, fontSizePt)
+            cs.newLineAtOffset(drawX, baselineY)
+            try {
+                cs.showText(line)
+            } catch (_: Exception) {
+                val safeAscii = line.map { if (it.code in 32..126) it else '?' }.joinToString("")
+                cs.showText(safeAscii)
+            }
+            cs.endText()
         }
-        cs.endText()
     }
 
     private fun drawItemTable(
@@ -223,7 +232,9 @@ class InvoicePdfRenderer {
                 val headerStyle = table.headerStyle.copy(align = col.align)
                 drawText(
                     cs = cs,
-                    rawText = col.header,
+                    // Judul kolom sengaja satu baris: kolom tabel jauh lebih sempit dari elemen teks
+                    // biasa, dan judul yang terpecah dua baris akan menabrak baris pertama data.
+                    lines = listOf(col.header),
                     font = fontBold,
                     style = headerStyle,
                     xPt = currentColX + 4f,
@@ -262,7 +273,7 @@ class InvoicePdfRenderer {
 
                 drawText(
                     cs = cs,
-                    rawText = cellText,
+                    lines = listOf(cellText),
                     font = fontRegular,
                     style = cellStyle,
                     xPt = cellX + 4f,

@@ -35,6 +35,14 @@ fun ClayTextField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     singleLine: Boolean = true,
+    /**
+     * Tinggi minimum untuk isian multi-baris, diabaikan bila [singleLine] true.
+     *
+     * Tanpa ini, isian teks panjang (isi elemen teks pada template faktur) hanya setinggi satu baris
+     * dan pengguna harus menggulir di dalam kotak satu baris untuk membaca ulang apa yang sudah
+     * ditulisnya.
+     */
+    minLines: Int = 1,
     enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
@@ -69,7 +77,9 @@ fun ClayTextField(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                // Isian multi-baris dibaca dari atas ke bawah; memusatkannya secara vertikal membuat
+                // baris pertama melompat-lompat setiap kali pengguna menambah baris baru.
+                verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 if (leadingIcon != null) {
@@ -92,6 +102,8 @@ fun ClayTextField(
                             .fillMaxWidth()
                             .onFocusChanged { isFocused = it.isFocused },
                         singleLine = singleLine,
+                        // BasicTextField melempar pengecualian bila minLines > 1 pada mode satu baris.
+                        minLines = if (singleLine) 1 else minLines.coerceAtLeast(1),
                         enabled = enabled,
                         textStyle = LocalTextStyle.current.copy(
                             color = WeMadeColors.OnSurface,

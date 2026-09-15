@@ -1,9 +1,5 @@
 package com.eventverse.app.presentation.invoicing.template
 
-import com.eventverse.app.domain.common.Money
-import com.eventverse.app.domain.common.Quantity
-import com.eventverse.app.domain.common.Ratio
-import com.eventverse.app.domain.common.UnitOfMeasure
 import com.eventverse.app.domain.invoicing.*
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.domain.invoicing.usecases.CreateInvoiceCommand
@@ -74,7 +70,8 @@ class TemplateDesignerViewModel(
             template = initialTemplate,
             previewInvoice = initialPreview,
             prefillData = initialPrefill,
-            activeInspectorTab = if (initialPrefill != null) DesignerInspectorTab.LIVE_DATA else DesignerInspectorTab.LAYOUT
+            // Modul pertama dibuka agar palet tidak tampak kosong saat pertama kali dibuka.
+            expandedModules = setOf(BindingModuleSource.CRM_SALES)
         )
     )
     val uiState: StateFlow<TemplateDesignerUiState> = _uiState.asStateFlow()
@@ -88,28 +85,66 @@ class TemplateDesignerViewModel(
     private fun loadTemplate(id: InvoiceTemplateId) {
         scope.launch {
             remoteDataSource.getTemplate(tenantSlug, id).onSuccess { tpl ->
-                _uiState.update { it.copy(template = tpl) }
+                // Template dari server bisa dibuat sebelum tinggi elemen menjadi turunan, jadi
+                // tingginya diukur ulang di sini. Tanpa ini, kotak seleksi di kanvas akan memakai
+                // tinggi lama sampai pengguna kebetulan mengubah teksnya.
+                _uiState.update { current ->
+                    current.copy(template = measured(tpl, current.previewInvoice))
+                }
             }.onFailure { err ->
                 _uiState.update { it.copy(error = "Gagal memuat template: ${err.message}") }
             }
         }
     }
 
+    /**
+     * Menyelaraskan tinggi turunan elemen dengan isi teks dan baris faktur.
+     *
+     * Dipanggil pada **setiap** perubahan template, bukan hanya saat teks berubah: lebar kotak dan
+     * jumlah baris faktur sama-sama mengubah jumlah baris teks, sehingga tinggi yang tersimpan bisa
+     * basi tanpa ada isian teks yang disentuh.
+     */
+    private fun measured(template: InvoiceTemplate, invoice: Invoice): InvoiceTemplate =
+        InvoiceDocumentLayout.measureHeights(template, invoice)
+
+    /** Satu-satunya jalur perubahan daftar elemen, agar pengukuran ulang tidak pernah terlewat. */
+    private fun mutateElements(
+        transform: (List<TemplateElement>) -> List<TemplateElement>
+    ) {
+        _uiState.update { current ->
+            val updated = transform(current.template.elements)
+            val template = measured(current.template.copy(elements = updated), current.previewInvoice)
+            current.copy(template = template.copy(updatedAt = Clock.System.now()))
+        }
+    }
+
     fun onEvent(event: TemplateDesignerUiEvent) {
         when (event) {
             is TemplateDesignerUiEvent.SelectElement -> _uiState.update {
-                it.copy(selectedElementId = event.elementId)
+                it.copy(selectedElementId = event.elementId, editingTextElementId = null)
             }
             is TemplateDesignerUiEvent.UpdateElementRect -> updateElementRect(event.elementId, event.newBounds)
             is TemplateDesignerUiEvent.MoveElementBy -> moveElementBy(event)
+            is TemplateDesignerUiEvent.ResizeElementWidth -> resizeElementWidth(event.elementId, event.widthMm10)
             is TemplateDesignerUiEvent.UpdateElement -> updateElement(event.updatedElement)
-            is TemplateDesignerUiEvent.AddElement -> addElement(event.element)
+            is TemplateDesignerUiEvent.UpdateElementText -> updateElementText(event.elementId, event.text)
+            is TemplateDesignerUiEvent.InsertPreset -> insertPreset(event.preset)
             is TemplateDesignerUiEvent.DeleteElement -> deleteElement(event.elementId)
+            is TemplateDesignerUiEvent.ToggleModuleExpanded -> _uiState.update { current ->
+                val modules = current.expandedModules
+                current.copy(
+                    expandedModules = if (event.module in modules) modules - event.module else modules + event.module
+                )
+            }
+            is TemplateDesignerUiEvent.BeginTextEdit -> _uiState.update {
+                it.copy(selectedElementId = event.elementId, editingTextElementId = event.elementId)
+            }
+            is TemplateDesignerUiEvent.EndTextEdit -> _uiState.update { it.copy(editingTextElementId = null) }
             is TemplateDesignerUiEvent.UpdateTemplateName -> _uiState.update {
                 it.copy(template = it.template.copy(name = event.name, updatedAt = Clock.System.now()))
             }
             is TemplateDesignerUiEvent.SetZoom -> _uiState.update {
-                it.copy(zoomPercent = event.percent.coerceIn(50, 200))
+                it.copy(zoomPercent = event.percent.coerceIn(MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM))
             }
             is TemplateDesignerUiEvent.SetCanvasTool -> _uiState.update {
                 it.copy(canvasTool = event.tool)
@@ -125,14 +160,6 @@ class TemplateDesignerViewModel(
                 it.copy(error = null, successMessage = null)
             }
             is TemplateDesignerUiEvent.AutoMapWithAi -> runAiAutoMapping()
-            is TemplateDesignerUiEvent.SetInspectorTab -> _uiState.update {
-                it.copy(activeInspectorTab = event.tab)
-            }
-            is TemplateDesignerUiEvent.UpdateLiveInvoice -> _uiState.update {
-                it.copy(previewInvoice = event.updatedInvoice)
-            }
-            is TemplateDesignerUiEvent.UpdateLiveClient -> updateLiveClient(event)
-            is TemplateDesignerUiEvent.UpdateLiveItem -> updateLiveItem(event)
             is TemplateDesignerUiEvent.SaveAndCreateInvoice -> saveAndCreateInvoice(event.onSuccess)
             is TemplateDesignerUiEvent.ClosePdfPreview -> _uiState.update {
                 it.copy(isPdfPreviewOpen = false)
@@ -144,12 +171,16 @@ class TemplateDesignerViewModel(
         val currentElements = _uiState.value.template.elements
         val summary = InvoiceAiMappingEngine.autoMapAll(currentElements)
         _uiState.update { current ->
+            val template = measured(
+                current.template.copy(elements = summary.mappedElements),
+                current.previewInvoice
+            )
             current.copy(
-                template = current.template.copy(
-                    elements = summary.mappedElements,
-                    updatedAt = Clock.System.now()
-                ),
+                template = template.copy(updatedAt = Clock.System.now()),
                 aiMappingSummary = summary,
+                // Pesan lama dibersihkan agar hasil pemetaan terakhir tidak tampil berdampingan
+                // dengan kesalahan dari aksi sebelumnya.
+                error = null,
                 successMessage = buildAiMappingMessage(summary)
             )
         }
@@ -172,42 +203,6 @@ class TemplateDesignerViewModel(
                 "seperti nomor faktur, nama klien, atau nominal tagihan."
     }
 
-    private fun updateLiveClient(event: TemplateDesignerUiEvent.UpdateLiveClient) {
-        _uiState.update { current ->
-            val updatedBillTo = current.previewInvoice.billTo.copy(
-                name = event.name,
-                contactPerson = event.contactPerson,
-                phone = event.phone,
-                email = event.email,
-                address = event.address
-            )
-            current.copy(
-                previewInvoice = current.previewInvoice.copy(billTo = updatedBillTo)
-            )
-        }
-    }
-
-    private fun updateLiveItem(event: TemplateDesignerUiEvent.UpdateLiveItem) {
-        _uiState.update { current ->
-            val qtyInt = (event.quantity * 1_000_000).toLong().coerceAtLeast(1_000_000L)
-            val updatedLine = InvoiceLine(
-                id = InvoiceLineId("line-live-01"),
-                description = event.description.ifBlank { "Rincian Pekerjaan Garmen" },
-                quantity = Quantity(qtyInt, UnitOfMeasure.PIECE),
-                unitPrice = Money.idr(event.unitPrice.coerceAtLeast(0L)),
-                discount = Ratio.ZERO,
-                sortOrder = 1
-            )
-            current.copy(
-                previewInvoice = current.previewInvoice.copy(
-                    lines = listOf(updatedLine),
-                    taxRatio = Ratio.percent(event.taxPercent.coerceIn(0.0, 100.0)),
-                    contractValue = updatedLine.amount
-                )
-            )
-        }
-    }
-
     /**
      * Menerapkan perpindahan relatif pada satu elemen.
      *
@@ -216,76 +211,141 @@ class TemplateDesignerViewModel(
      * tidak bisa lagi menghasilkan posisi yang berbeda untuk perpindahan yang sama.
      */
     private fun moveElementBy(event: TemplateDesignerUiEvent.MoveElementBy) {
-        _uiState.update { current ->
-            val paperSize = current.template.paperSize
-            val target = current.template.elements.find { it.elementId == event.elementId }
-                ?: return@update current
+        val current = _uiState.value
+        val paperSize = current.template.paperSize
+        val target = current.template.elements.find { it.elementId == event.elementId } ?: return
 
-            val newRect = target.rect.movedBy(
-                dx = Mm10(event.dxMm10),
-                dy = Mm10(event.dyMm10),
-                snapMm10 = current.snapGridMm * 10,
-                paperWidth = paperSize.width,
-                paperHeight = paperSize.height
-            )
-            if (newRect == target.rect) return@update current
+        val newRect = target.rect.movedBy(
+            dx = Mm10(event.dxMm10),
+            dy = Mm10(event.dyMm10),
+            snapMm10 = current.snapGridMm * 10,
+            paperWidth = paperSize.width,
+            paperHeight = paperSize.height
+        )
+        if (newRect == target.rect) return
 
-            val updated = current.template.elements.map { el ->
-                if (el.elementId == event.elementId) el.withRect(newRect) else el
-            }
-            current.copy(
-                template = current.template.copy(elements = updated, updatedAt = Clock.System.now())
-            )
+        mutateElements { elements ->
+            elements.map { el -> if (el.elementId == event.elementId) el.withRect(newRect) else el }
         }
     }
 
     private fun updateElementRect(elementId: String, newBounds: TemplateRect) {
-        _uiState.update { current ->
-            val updated = current.template.elements.map { el ->
-                if (el.elementId == elementId) {
-                    el.withRect(newBounds)
-                } else el
-            }
-            current.copy(
-                template = current.template.copy(elements = updated, updatedAt = Clock.System.now())
-            )
+        mutateElements { elements ->
+            elements.map { el -> if (el.elementId == elementId) el.withRect(newBounds) else el }
+        }
+    }
+
+    /**
+     * Mengubah lebar elemen.
+     *
+     * Selebar apa pun yang diminta pengguna, hasilnya dijepit domain ([TemplateRect.resizedWidth]):
+     * tidak lebih sempit dari lebar minimum yang masih terbaca, dan tidak melewati tepi kanan kertas.
+     */
+    private fun resizeElementWidth(elementId: String, widthMm10: Int) {
+        val current = _uiState.value
+        val target = current.template.elements.find { it.elementId == elementId } ?: return
+
+        val newRect = target.rect.resizedWidth(
+            newWidth = Mm10(widthMm10),
+            minWidthMm10 = InvoiceTemplateDefaults.MIN_TEXT_WIDTH_MM10,
+            paperWidth = current.template.paperSize.width
+        )
+        if (newRect == target.rect) return
+
+        mutateElements { elements ->
+            elements.map { el -> if (el.elementId == elementId) el.withRect(newRect) else el }
         }
     }
 
     private fun updateElement(updatedElement: TemplateElement) {
-        _uiState.update { current ->
-            val updated = current.template.elements.map { el ->
-                if (el.elementId == updatedElement.elementId) updatedElement else el
-            }
-            current.copy(
-                template = current.template.copy(elements = updated, updatedAt = Clock.System.now())
-            )
+        mutateElements { elements ->
+            elements.map { el -> if (el.elementId == updatedElement.elementId) updatedElement else el }
         }
     }
 
-    private fun addElement(element: TemplateElement) {
-        _uiState.update { current ->
-            val updated = current.template.elements + element
-            current.copy(
-                template = current.template.copy(elements = updated, updatedAt = Clock.System.now()),
-                selectedElementId = element.elementId
-            )
+    /**
+     * Mengubah isi teks statis.
+     *
+     * Satu jalur untuk dua tempat pengeditan (editor langsung di kanvas dan isian di panel properti),
+     * supaya keduanya tidak bisa menghasilkan aturan yang berbeda — misalnya satu memangkas spasi dan
+     * yang lain tidak.
+     */
+    private fun updateElementText(elementId: String, text: String) {
+        mutateElements { elements ->
+            elements.map { el ->
+                if (el.elementId == elementId && el is TemplateElement.StaticText) el.copy(text = text) else el
+            }
         }
+    }
+
+    /**
+     * Menyisipkan elemen baru dari perpustakaan elemen.
+     *
+     * Posisi, ukuran awal, dan gaya bawaan seluruhnya berasal dari domain
+     * ([InvoiceTemplate.nextFreeRect] dan [TemplateElementFactory]). ViewModel hanya menyediakan ID
+     * unik dan urutan tumpuk; kalau nilai bawaan ditulis di UI, tombol yang sama di tempat berbeda
+     * akan mulai menyimpang.
+     */
+    private fun insertPreset(preset: TemplateElementPreset) {
+        val current = _uiState.value
+        if (preset is TemplateElementPreset.ItemTable && current.template.itemTable != null) {
+            _uiState.update {
+                it.copy(error = "Template sudah memiliki tabel item. Hapus tabel lama sebelum menambah yang baru.")
+            }
+            return
+        }
+
+        val rect = current.template.nextFreeRect(
+            widthMm10 = preset.requestedWidthMm10,
+            heightMm10 = preset.requestedHeightMm10,
+            snapMm10 = current.snapGridMm * 10
+        )
+        val elementId = uniqueElementId(current.template.elements)
+        val zOrder = (current.template.elements.maxOfOrNull { it.zOrder } ?: 0.0) + 1.0
+        val element = TemplateElementFactory.create(preset, elementId, rect, zOrder)
+
+        mutateElements { elements -> elements + element }
+        _uiState.update { it.copy(selectedElementId = elementId, error = null) }
+    }
+
+    /**
+     * Membuat ID elemen yang belum dipakai.
+     *
+     * Stempel waktu milidetik saja tidak cukup: dua elemen yang disisipkan beruntun dari palet bisa
+     * lahir pada milidetik yang sama, dan ID kembar membuat seleksi kanvas selalu menunjuk elemen
+     * pertama — elemen kedua seolah tidak bisa dipilih. Karena itu bentrokan diselesaikan dengan
+     * akhiran berurutan, bukan dengan mengandalkan jam.
+     */
+    private fun uniqueElementId(existing: List<TemplateElement>): String {
+        val taken = existing.mapTo(mutableSetOf()) { it.elementId }
+        val base = "el-${Clock.System.now().toEpochMilliseconds()}"
+        if (base !in taken) return base
+
+        var suffix = 2
+        while ("$base-$suffix" in taken) suffix++
+        return "$base-$suffix"
     }
 
     private fun deleteElement(elementId: String) {
+        mutateElements { elements -> elements.filterNot { it.elementId == elementId } }
         _uiState.update { current ->
-            val updated = current.template.elements.filterNot { it.elementId == elementId }
-            current.copy(
-                template = current.template.copy(elements = updated, updatedAt = Clock.System.now()),
-                selectedElementId = null
-            )
+            if (current.selectedElementId == elementId) {
+                current.copy(selectedElementId = null, editingTextElementId = null)
+            } else {
+                current
+            }
         }
     }
 
     private fun saveTemplate() {
         scope.launch {
-            _uiState.update { it.copy(isSaving = true) }
+            // Pesan lama dibersihkan saat operasi **dimulai**, bukan hanya ditimpa di akhir.
+            //
+            // Sebelumnya banner lama bertahan sampai ada yang menutupnya. Akibatnya, simpan yang
+            // tadinya gagal lalu diperbaiki tetap memperlihatkan banner merah lama berdampingan
+            // dengan banner hijau "berhasil disimpan" — layar menyatakan gagal dan berhasil
+            // sekaligus, dan pengguna tidak punya cara tahu mana yang masih berlaku.
+            _uiState.update { it.copy(isSaving = true, error = null, successMessage = null) }
             val tpl = _uiState.value.template
             remoteDataSource.saveTemplate(tenantSlug, tpl).onSuccess { saved ->
                 _uiState.update {
@@ -297,7 +357,11 @@ class TemplateDesignerViewModel(
                 }
             }.onFailure { err ->
                 _uiState.update {
-                    it.copy(isSaving = false, error = "Gagal menyimpan template: ${err.message}")
+                    it.copy(
+                        isSaving = false,
+                        successMessage = null,
+                        error = "Gagal menyimpan template: ${err.message}"
+                    )
                 }
             }
         }
@@ -305,14 +369,20 @@ class TemplateDesignerViewModel(
 
     private fun saveAndCreateInvoice(onSuccess: (InvoiceId) -> Unit) {
         scope.launch {
-            _uiState.update { it.copy(isSaving = true) }
+            // Sama seperti [saveTemplate]: pesan lama dibersihkan di awal supaya hasil terakhir
+            // tidak pernah tampil bersama sisa hasil percobaan sebelumnya.
+            _uiState.update { it.copy(isSaving = true, error = null, successMessage = null) }
             val tpl = _uiState.value.template
 
             // 1. Simpan template kustom terlebih dahulu
             val templateResult = remoteDataSource.saveTemplate(tenantSlug, tpl)
             if (templateResult.isFailure) {
                 _uiState.update {
-                    it.copy(isSaving = false, error = "Gagal menyimpan template: ${templateResult.exceptionOrNull()?.message}")
+                    it.copy(
+                        isSaving = false,
+                        successMessage = null,
+                        error = "Gagal menyimpan template: ${templateResult.exceptionOrNull()?.message}"
+                    )
                 }
                 return@launch
             }
@@ -354,7 +424,11 @@ class TemplateDesignerViewModel(
                 onSuccess(created.id)
             }.onFailure { err ->
                 _uiState.update {
-                    it.copy(isSaving = false, error = "Gagal menerbitkan faktur: ${err.message}")
+                    it.copy(
+                        isSaving = false,
+                        successMessage = null,
+                        error = "Gagal menerbitkan faktur: ${err.message}"
+                    )
                 }
             }
         }

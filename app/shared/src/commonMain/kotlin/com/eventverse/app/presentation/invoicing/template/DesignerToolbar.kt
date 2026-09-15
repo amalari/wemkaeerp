@@ -13,13 +13,13 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
-import kotlinx.datetime.Clock
 
 @Composable
 fun DesignerToolbar(
     state: TemplateDesignerUiState,
     onEvent: (TemplateDesignerUiEvent) -> Unit,
     onClose: () -> Unit,
+    fitZoomPercent: Int? = null,
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -61,7 +61,12 @@ fun DesignerToolbar(
                 }
             }
 
-            // Center: Canvas Tool + Add Element Buttons
+            // Center: pemilih alat kanvas.
+            //
+            // Tombol tambah elemen tidak lagi di sini: seluruh elemen disisipkan dari perpustakaan di
+            // panel kiri. Sebelumnya baris ini juga menampung `+ Teks`, `+ Garis`, `+ Kotak`, dan
+            // `AI Auto-Map`, sehingga toolbar adalah satu-satunya tempat yang bertambah panjang setiap
+            // kali ada jenis elemen baru.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                 verticalAlignment = Alignment.CenterVertically
@@ -113,79 +118,6 @@ fun DesignerToolbar(
                         }
                     }
                 }
-
-                ClayButton(
-                    text = "+ Teks",
-                    onClick = {
-                        val newId = "txt-${Clock.System.now().toEpochMilliseconds()}"
-                        val el = TemplateElement.StaticText(
-                            elementId = newId,
-                            rect = TemplateRect(Mm10(200), Mm10(1000), Mm10(600), Mm10(80)),
-                            text = "Teks Baru",
-                            style = TextStyleSpec(fontSizePt = 10, isBold = false)
-                        )
-                        onEvent(TemplateDesignerUiEvent.AddElement(el))
-                    },
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp
-                )
-
-                ClayButton(
-                    text = "+ Kolom Data",
-                    onClick = {
-                        val newId = "field-${Clock.System.now().toEpochMilliseconds()}"
-                        val el = TemplateElement.BoundField(
-                            elementId = newId,
-                            rect = TemplateRect(Mm10(200), Mm10(1100), Mm10(600), Mm10(80)),
-                            binding = BindingToken("invoice.number"),
-                            style = TextStyleSpec(fontSizePt = 10, isBold = false)
-                        )
-                        onEvent(TemplateDesignerUiEvent.AddElement(el))
-                    },
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp
-                )
-
-                ClayButton(
-                    text = "+ Garis",
-                    onClick = {
-                        val newId = "line-${Clock.System.now().toEpochMilliseconds()}"
-                        val el = TemplateElement.LineShape(
-                            elementId = newId,
-                            rect = TemplateRect(Mm10(150), Mm10(1200), Mm10(1800), Mm10(10)),
-                            strokeHex = 0xFF1E293BL,
-                            strokeMm10 = 3
-                        )
-                        onEvent(TemplateDesignerUiEvent.AddElement(el))
-                    },
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp
-                )
-
-                ClayButton(
-                    text = "+ Kotak",
-                    onClick = {
-                        val newId = "rect-${Clock.System.now().toEpochMilliseconds()}"
-                        val el = TemplateElement.RectShape(
-                            elementId = newId,
-                            rect = TemplateRect(Mm10(150), Mm10(1250), Mm10(1800), Mm10(200)),
-                            fillHex = 0xFFF1F5F9L,
-                            strokeHex = 0xFF1E293BL,
-                            strokeMm10 = 2
-                        )
-                        onEvent(TemplateDesignerUiEvent.AddElement(el))
-                    },
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp
-                )
-
-                ClayButton(
-                    text = "AI Auto-Map",
-                    onClick = { onEvent(TemplateDesignerUiEvent.AutoMapWithAi) },
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp,
-                    leading = { IconZap(Modifier.size(13.dp)) }
-                )
             }
 
             // Right: Zoom & Save
@@ -212,6 +144,18 @@ fun DesignerToolbar(
                     style = ClayButtonStyle.Ghost,
                     fontSize = 12.sp
                 )
+
+                if (fitZoomPercent != null) {
+                    // "Muat Layar" menyelamatkan pengguna dari kertas yang tiba-tiba keluar dari
+                    // pandangan setelah panel kiri masuk: pada zoom 100%, A4 selebar 630dp sering tidak
+                    // muat lagi di area kanvas yang tersisa.
+                    ClayButton(
+                        text = "Muat Layar",
+                        onClick = { onEvent(TemplateDesignerUiEvent.SetZoom(fitZoomPercent)) },
+                        style = ClayButtonStyle.Ghost,
+                        fontSize = 11.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(ClaySpacing.Sm))
 

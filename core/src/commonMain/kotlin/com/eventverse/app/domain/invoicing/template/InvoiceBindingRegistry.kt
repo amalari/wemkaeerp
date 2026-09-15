@@ -19,6 +19,53 @@ enum class BindingScope {
     }
 }
 
+/**
+ * Modul WeMade ERP yang **memproduksi** nilai sebuah token.
+ *
+ * ## Mengapa ini ada di lapisan domain, bukan sebagai pengelompokan di UI
+ *
+ * Desainer faktur menawarkan isian dinamis sebagai "Modul": pengguna memilih grup `CRM — Klien &
+ * Prospek` lalu mengambil `Nama Klien`, `Telepon`, `Email`. Pengelompokan itu bukan hiasan tata
+ * letak — ia menyatakan fakta domain: nilai tersebut adalah **keluaran (output port)** modul lain,
+ * sesuai kontrak modul di `AGENTS.md` §3 Kontrak 2.
+ *
+ * Kalau pengelompokan ini ditulis di UI, modul kesepuluh yang lahir ikut memaksa UI diubah, dan
+ * hubungan "nilai ini datang dari mana" hilang dari tempat yang seharusnya mendokumentasikannya.
+ *
+ * [ITEM_LINES] berbeda sifatnya dari tiga lainnya: token `line.*` hanya masuk akal **di dalam** tabel
+ * item, karena resolver menerimanya bersama satu baris faktur. Di luar tabel ia resolve ke string
+ * kosong, jadi palet wajib menolak token dari modul ini sebagai elemen bebas.
+ */
+enum class BindingModuleSource(
+    val displayName: String,
+    val description: String,
+    val iconKey: String
+) {
+    CRM_SALES(
+        displayName = "CRM — Klien & Prospek",
+        description = "Identitas pembeli yang dihasilkan pipeline penjualan.",
+        iconKey = "user"
+    ),
+    INVOICING_DOCUMENT(
+        displayName = "Invoicing — Dokumen & Tagihan",
+        description = "Nomor, tanggal, dan nominal yang dihitung mesin faktur.",
+        iconKey = "receipt"
+    ),
+    ISSUER_TENANT(
+        displayName = "Penerbit — Profil Perusahaan",
+        description = "Identitas dan rekening penerbit faktur (profil tenant).",
+        iconKey = "database"
+    ),
+    ITEM_LINES(
+        displayName = "Baris Item — Tabel Faktur",
+        description = "Kolom per baris pekerjaan. Hanya berlaku di dalam tabel item.",
+        iconKey = "layers"
+    );
+
+    /** True bila token dari modul ini hanya boleh dipakai di dalam tabel item. */
+    val isLineScopedOnly: Boolean get() = this == ITEM_LINES
+}
+
 enum class BindingFormat {
     TEXT,
     MONEY,
@@ -34,12 +81,28 @@ enum class BindingFormat {
     }
 }
 
+/**
+ * Satu token data dinamis yang bisa ditempel ke kanvas.
+ *
+ * @param defaultPrefix Teks label yang langsung dipasang saat token disisipkan dari palet, mis.
+ *   `"Telp: "`. Disimpan di domain supaya UI tidak perlu tahu konvensi label per token — menambah
+ *   token baru cukup dengan mengisi satu baris di registry ini.
+ * @param defaultSuffix Teks penutup, dipakai token seperti terbilang (`" #"`).
+ * @param defaultFontSizePt Ukuran font awal saat token disisipkan, mengikuti kebiasaan dokumen
+ *   (nama klien lebih besar dari nomor telepon).
+ * @param defaultWidthMm10 Lebar kotak awal saat disisipkan, dalam 1/10 mm.
+ */
 data class BindingDescriptor(
     val token: BindingToken,
     val displayName: String,
     val scope: BindingScope,
     val format: BindingFormat,
-    val category: String
+    val category: String,
+    val moduleSource: BindingModuleSource,
+    val defaultPrefix: String = "",
+    val defaultSuffix: String = "",
+    val defaultFontSizePt: Int = 10,
+    val defaultWidthMm10: Int = 800
 )
 
 /**
@@ -49,65 +112,119 @@ data class BindingDescriptor(
 object InvoiceBindingRegistry {
 
     val DOCUMENT: List<BindingDescriptor> = listOf(
-        // Dokumen
-        BindingDescriptor(BindingToken("invoice.number"), "Nomor Faktur / Invoice", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.kind"), "Jenis Invoice", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.status"), "Status Invoice", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.issueDate"), "Tanggal Terbit", BindingScope.DOCUMENT, BindingFormat.DATE, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.dueDate"), "Tanggal Jatuh Tempo", BindingScope.DOCUMENT, BindingFormat.DATE, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.terms"), "Syarat Pembayaran", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.notes"), "Catatan Khusus", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
-        BindingDescriptor(BindingToken("invoice.sourceRef"), "Referensi SPK / PO", BindingScope.DOCUMENT, BindingFormat.TEXT, "Dokumen"),
+        // ── Dokumen (diproduksi Invoicing) ──
+        document("invoice.number", "Nomor Faktur / Invoice", BindingFormat.TEXT, "Dokumen", prefix = "No: ", widthMm10 = 750),
+        document("invoice.kind", "Jenis Invoice", BindingFormat.TEXT, "Dokumen", fontSizePt = 16, widthMm10 = 750),
+        document("invoice.status", "Status Invoice", BindingFormat.TEXT, "Dokumen"),
+        document("invoice.issueDate", "Tanggal Terbit", BindingFormat.DATE, "Dokumen", prefix = "Tgl Terbit: ", fontSizePt = 9),
+        document("invoice.dueDate", "Tanggal Jatuh Tempo", BindingFormat.DATE, "Dokumen", prefix = "Jatuh Tempo: ", fontSizePt = 9),
+        document("invoice.terms", "Syarat Pembayaran", BindingFormat.TEXT, "Dokumen", fontSizePt = 9, widthMm10 = 1000),
+        document("invoice.notes", "Catatan Khusus", BindingFormat.TEXT, "Dokumen", fontSizePt = 9, widthMm10 = 1000),
+        document("invoice.sourceRef", "Referensi SPK / PO", BindingFormat.TEXT, "Dokumen", prefix = "Ref: ", fontSizePt = 9),
 
-        // Finansial
-        BindingDescriptor(BindingToken("invoice.subtotal"), "Subtotal", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.discountAmount"), "Nominal Diskon Global", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.taxableBase"), "Dasar Pengenaan Pajak (DPP)", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.taxRate"), "Tarif Pajak (PPN %)", BindingScope.DOCUMENT, BindingFormat.PERCENT, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.taxAmount"), "Nominal Pajak (PPN)", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.total"), "Grand Total", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.totalInWords"), "Terbilang Rupiah", BindingScope.DOCUMENT, BindingFormat.TEXT, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.paidAmount"), "Total Terbayar", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.outstandingAmount"), "Sisa Tagihan", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
-        BindingDescriptor(BindingToken("invoice.contractValue"), "Nilai Kontrak Penuh", BindingScope.DOCUMENT, BindingFormat.MONEY, "Finansial"),
+        // ── Finansial (diproduksi Invoicing) ──
+        document("invoice.subtotal", "Subtotal", BindingFormat.MONEY, "Finansial", prefix = "Subtotal: ", widthMm10 = 700),
+        document("invoice.discountAmount", "Nominal Diskon Global", BindingFormat.MONEY, "Finansial", prefix = "Diskon: ", widthMm10 = 700),
+        document("invoice.taxableBase", "Dasar Pengenaan Pajak (DPP)", BindingFormat.MONEY, "Finansial", prefix = "DPP: ", widthMm10 = 700),
+        document("invoice.taxRate", "Tarif Pajak (PPN %)", BindingFormat.PERCENT, "Finansial", fontSizePt = 9),
+        document("invoice.taxAmount", "Nominal Pajak (PPN)", BindingFormat.MONEY, "Finansial", prefix = "PPN: ", widthMm10 = 700),
+        document("invoice.total", "Grand Total", BindingFormat.MONEY, "Finansial", prefix = "TOTAL: ", fontSizePt = 13, widthMm10 = 700),
+        document("invoice.totalInWords", "Terbilang Rupiah", BindingFormat.TEXT, "Finansial", prefix = "Terbilang: # ", suffix = " #", fontSizePt = 9, widthMm10 = 1050),
+        document("invoice.paidAmount", "Total Terbayar", BindingFormat.MONEY, "Finansial", prefix = "Terbayar: ", widthMm10 = 700),
+        document("invoice.outstandingAmount", "Sisa Tagihan", BindingFormat.MONEY, "Finansial", prefix = "Sisa: ", widthMm10 = 700),
+        document("invoice.contractValue", "Nilai Kontrak Penuh", BindingFormat.MONEY, "Finansial", fontSizePt = 9, widthMm10 = 700),
 
-        // Klien (Bill To)
-        BindingDescriptor(BindingToken("billTo.name"), "Nama Klien / Pembeli", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
-        BindingDescriptor(BindingToken("billTo.contactPerson"), "Nama Kontak Person", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
-        BindingDescriptor(BindingToken("billTo.address"), "Alamat Klien", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
-        BindingDescriptor(BindingToken("billTo.phone"), "No. Telepon Klien", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
-        BindingDescriptor(BindingToken("billTo.email"), "Email Klien", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
-        BindingDescriptor(BindingToken("billTo.taxId"), "NPWP Klien", BindingScope.DOCUMENT, BindingFormat.TEXT, "Klien"),
+        // ── Klien (diproduksi modul CRM) ──
+        document("billTo.name", "Nama Klien / Pembeli", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, fontSizePt = 11, widthMm10 = 800),
+        document("billTo.contactPerson", "Nama Kontak Person", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, prefix = "Kontak: ", fontSizePt = 9),
+        document("billTo.address", "Alamat Klien", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, fontSizePt = 9, widthMm10 = 1000),
+        document("billTo.phone", "No. Telepon Klien", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, prefix = "Telp: ", fontSizePt = 9),
+        document("billTo.email", "Email Klien", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, prefix = "Email: ", fontSizePt = 9),
+        document("billTo.taxId", "NPWP Klien", BindingFormat.TEXT, "Klien", module = BindingModuleSource.CRM_SALES, prefix = "NPWP: ", fontSizePt = 9),
 
-        // Penerbit (Issuer / Tenant)
-        BindingDescriptor(BindingToken("issuer.companyName"), "Nama Perusahaan Penerbit", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.address"), "Alamat Penerbit", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.taxId"), "NPWP Penerbit", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.phone"), "No. Telepon Penerbit", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.email"), "Email Penerbit", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.bankName"), "Nama Bank", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.bankAccountNumber"), "Nomor Rekening Bank", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.bankAccountHolder"), "Atas Nama Rekening", BindingScope.DOCUMENT, BindingFormat.TEXT, "Penerbit"),
-        BindingDescriptor(BindingToken("issuer.logoAssetUrl"), "Logo Perusahaan", BindingScope.DOCUMENT, BindingFormat.IMAGE, "Penerbit")
+        // ── Penerbit (diproduksi profil tenant) ──
+        document("issuer.companyName", "Nama Perusahaan Penerbit", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, fontSizePt = 14, widthMm10 = 1000),
+        document("issuer.address", "Alamat Penerbit", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, fontSizePt = 9, widthMm10 = 1000),
+        document("issuer.taxId", "NPWP Penerbit", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, prefix = "NPWP: ", fontSizePt = 9),
+        document("issuer.phone", "No. Telepon Penerbit", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, prefix = "Telp: ", fontSizePt = 9),
+        document("issuer.email", "Email Penerbit", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, prefix = "Email: ", fontSizePt = 9),
+        document("issuer.bankName", "Nama Bank", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, fontSizePt = 9),
+        document("issuer.bankAccountNumber", "Nomor Rekening Bank", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, prefix = "No. Rekening: ", fontSizePt = 9),
+        document("issuer.bankAccountHolder", "Atas Nama Rekening", BindingFormat.TEXT, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, prefix = "A/N: ", fontSizePt = 9),
+        document("issuer.logoAssetUrl", "Logo Perusahaan", BindingFormat.IMAGE, "Penerbit", module = BindingModuleSource.ISSUER_TENANT, widthMm10 = 600)
     )
 
     val LINE: List<BindingDescriptor> = listOf(
-        BindingDescriptor(BindingToken("line.no"), "Nomor Baris", BindingScope.LINE, BindingFormat.NUMBER, "Baris Item"),
-        BindingDescriptor(BindingToken("line.description"), "Deskripsi Barang / Jasa", BindingScope.LINE, BindingFormat.TEXT, "Baris Item"),
-        BindingDescriptor(BindingToken("line.quantity"), "Jumlah / Kuantitas", BindingScope.LINE, BindingFormat.QUANTITY, "Baris Item"),
-        BindingDescriptor(BindingToken("line.uom"), "Satuan (UOM)", BindingScope.LINE, BindingFormat.TEXT, "Baris Item"),
-        BindingDescriptor(BindingToken("line.unitPrice"), "Harga Satuan", BindingScope.LINE, BindingFormat.MONEY, "Baris Item"),
-        BindingDescriptor(BindingToken("line.discount"), "Diskon (%)", BindingScope.LINE, BindingFormat.PERCENT, "Baris Item"),
-        BindingDescriptor(BindingToken("line.grossAmount"), "Jumlah Kotor", BindingScope.LINE, BindingFormat.MONEY, "Baris Item"),
-        BindingDescriptor(BindingToken("line.amount"), "Jumlah Bersih (Subtotal)", BindingScope.LINE, BindingFormat.MONEY, "Baris Item")
+        line("line.no", "Nomor Baris", BindingFormat.NUMBER),
+        line("line.description", "Deskripsi Barang / Jasa", BindingFormat.TEXT),
+        line("line.quantity", "Jumlah / Kuantitas", BindingFormat.QUANTITY),
+        line("line.uom", "Satuan (UOM)", BindingFormat.TEXT),
+        line("line.unitPrice", "Harga Satuan", BindingFormat.MONEY),
+        line("line.discount", "Diskon (%)", BindingFormat.PERCENT),
+        line("line.grossAmount", "Jumlah Kotor", BindingFormat.MONEY),
+        line("line.amount", "Jumlah Bersih (Subtotal)", BindingFormat.MONEY)
     )
 
     private val allByToken: Map<String, BindingDescriptor> =
         (DOCUMENT + LINE).associateBy { it.token.value }
+
+    /**
+     * Token yang boleh disisipkan sebagai elemen bebas di kanvas.
+     *
+     * Token baris (`line.*`) sengaja tidak termasuk: resolver menerimanya bersama satu baris faktur,
+     * sehingga di luar tabel ia selalu bernilai kosong. Menawarkannya di palet akan menghasilkan
+     * elemen kosong yang membingungkan — "sudah saya tempel, kok isinya tidak muncul".
+     */
+    val standaloneTokens: List<BindingDescriptor> =
+        DOCUMENT.filterNot { it.moduleSource.isLineScopedOnly }
+
+    /** Token yang valid sebagai kolom tabel item. */
+    val tableColumnTokens: List<BindingDescriptor> = LINE
+
+    fun descriptorsOf(module: BindingModuleSource): List<BindingDescriptor> =
+        (DOCUMENT + LINE).filter { it.moduleSource == module }
+
+    /** Modul yang isiannya boleh disisipkan sebagai elemen bebas, terurut sesuai enum. */
+    fun standaloneModules(): List<BindingModuleSource> =
+        BindingModuleSource.entries.filterNot { it.isLineScopedOnly }
 
     fun descriptorFor(token: BindingToken): BindingDescriptor? =
         allByToken[token.value]
 
     fun descriptorFor(tokenValue: String): BindingDescriptor? =
         allByToken[tokenValue]
+
+    private fun document(
+        token: String,
+        displayName: String,
+        format: BindingFormat,
+        category: String,
+        module: BindingModuleSource = BindingModuleSource.INVOICING_DOCUMENT,
+        prefix: String = "",
+        suffix: String = "",
+        fontSizePt: Int = 10,
+        widthMm10: Int = 800
+    ) = BindingDescriptor(
+        token = BindingToken(token),
+        displayName = displayName,
+        scope = BindingScope.DOCUMENT,
+        format = format,
+        category = category,
+        moduleSource = module,
+        defaultPrefix = prefix,
+        defaultSuffix = suffix,
+        defaultFontSizePt = fontSizePt,
+        defaultWidthMm10 = widthMm10
+    )
+
+    private fun line(token: String, displayName: String, format: BindingFormat) = BindingDescriptor(
+        token = BindingToken(token),
+        displayName = displayName,
+        scope = BindingScope.LINE,
+        format = format,
+        category = "Baris Item",
+        moduleSource = BindingModuleSource.ITEM_LINES,
+        defaultFontSizePt = 9,
+        defaultWidthMm10 = 400
+    )
 }
