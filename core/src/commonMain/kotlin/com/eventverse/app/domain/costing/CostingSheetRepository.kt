@@ -5,6 +5,7 @@ import kotlinx.datetime.Instant
 
 interface CostingSheetRepository {
     suspend fun findById(tenantId: TenantId, id: CostingSheetId): CostingSheet?
+    suspend fun findAll(tenantId: TenantId): List<CostingSheet>
     suspend fun findByTechPack(tenantId: TenantId, techPackId: String): List<CostingSheet>
     suspend fun findByStatus(tenantId: TenantId, status: CostingSheetStatus): List<CostingSheet>
     /**

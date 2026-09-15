@@ -21,6 +21,8 @@ object CostingCalculationResultCodec {
         "formulaParameters" to JsonValue.Obj(result.formulaParameters.mapValues { jsonOf(it.value) }),
         "consignedMaterialValueHandled" to MeasureCodec.encodeMoney(result.consignedMaterialValueHandled),
         "calculatedAt" to jsonOf(result.calculatedAt.toString()),
+        "currency" to jsonOf(result.currency.code),
+        "roundingResidual" to MeasureCodec.encodeMoney(result.roundingResidual),
         "cogsPerUnit" to MeasureCodec.encodeMoney(result.cogsPerUnit),
         "billablePerUnit" to MeasureCodec.encodeMoney(result.billablePerUnit),
         "billableTotal" to MeasureCodec.encodeMoney(result.billableTotal),
@@ -50,6 +52,10 @@ object CostingCalculationResultCodec {
             obj.string("calculatedAt"),
             kotlinx.datetime.Clock.System.now()
         )
+        val currency = obj.string("currency")?.let { codeStr ->
+            com.eventverse.app.domain.common.CurrencyCode.entries.firstOrNull { it.code == codeStr || it.name.equals(codeStr, ignoreCase = true) }
+        } ?: com.eventverse.app.domain.common.CurrencyCode.IDR
+        val roundingResidual = MeasureCodec.decodeMoney(obj.obj("roundingResidual"))
 
         return CostingCalculationResult(
             costingId = costingId,
@@ -61,7 +67,9 @@ object CostingCalculationResultCodec {
             marginRatio = marginRatio,
             formulaParameters = formulaParams,
             consignedMaterialValueHandled = consignedHandled,
-            calculatedAt = calculatedAt
+            calculatedAt = calculatedAt,
+            currency = currency,
+            roundingResidual = roundingResidual
         )
     }
 
@@ -70,7 +78,8 @@ object CostingCalculationResultCodec {
         "label" to jsonOf(b.label),
         "amountPerUnit" to MeasureCodec.encodeMoney(b.amountPerUnit),
         "ownership" to jsonOf(b.ownership.code),
-        "isBillableToClient" to jsonOf(b.isBillableToClient)
+        "isBillableToClient" to jsonOf(b.isBillableToClient),
+        "sourceRefs" to jsonArrayOf(b.sourceRefs.map(::jsonOf))
     )
 
     private fun decodeCostBucket(obj: JsonValue.Obj): CostBucket {
@@ -82,13 +91,15 @@ object CostingCalculationResultCodec {
             StockOwnershipSemantics.entries.firstOrNull { it.code == codeStr || it.name.equals(codeStr, ignoreCase = true) }
         } ?: StockOwnershipSemantics.OWNED_RAW_MATERIAL
         val isBillable = obj.boolean("isBillableToClient") ?: (ownership != StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL)
+        val sourceRefs = obj.stringArray("sourceRefs")
 
         return CostBucket(
             kind = kind,
             label = label,
             amountPerUnit = amount,
             ownership = ownership,
-            isBillableToClient = isBillable
+            isBillableToClient = isBillable,
+            sourceRefs = sourceRefs
         )
     }
 }

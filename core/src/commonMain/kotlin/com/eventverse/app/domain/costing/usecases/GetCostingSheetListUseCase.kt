@@ -9,6 +9,20 @@ import com.eventverse.app.domain.tenant.TenantId
 class GetCostingSheetListUseCase(
     private val sheetRepository: CostingSheetRepository
 ) {
+    suspend operator fun invoke(
+        tenantId: TenantId,
+        techPackId: String? = null,
+        status: CostingSheetStatus? = null
+    ): Result<List<CostingSheet>> = runCatching {
+        when {
+            techPackId != null -> sheetRepository.findByTechPack(tenantId, techPackId).let { list ->
+                if (status != null) list.filter { it.status == status } else list
+            }
+            status != null -> sheetRepository.findByStatus(tenantId, status)
+            else -> sheetRepository.findAll(tenantId)
+        }
+    }
+
     suspend fun listByTechPack(tenantId: TenantId, techPackId: String): Result<List<CostingSheet>> =
         runCatching { sheetRepository.findByTechPack(tenantId, techPackId) }
 

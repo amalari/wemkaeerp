@@ -50,6 +50,11 @@ import com.eventverse.app.infrastructure.PostgresModuleCustomizationRequestRepos
 import com.eventverse.app.infrastructure.PostgresModulePricingQuoteRepository
 import com.eventverse.app.infrastructure.PostgresSizingWeightsRepository
 import com.eventverse.app.routes.moduleDevRoutes
+import com.eventverse.app.domain.costing.CostingSheetRepository
+import com.eventverse.app.domain.costing.CostingRateCardRepository
+import com.eventverse.app.infrastructure.PostgresCostingSheetRepository
+import com.eventverse.app.infrastructure.PostgresCostingRateCardRepository
+import com.eventverse.app.routes.costingRoutes
 import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.prospect.FlowTranslationRepository
 import com.eventverse.app.domain.prospect.FlowTranslator
@@ -129,7 +134,9 @@ fun Application.module(
     invoiceRepository: InvoiceRepository? = null,
     invoiceTemplateRepository: InvoiceTemplateRepository? = null,
     invoicePaymentRepository: InvoicePaymentRepository? = null,
-    invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null
+    invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null,
+    costingSheetRepository: CostingSheetRepository? = null,
+    costingRateCardRepository: CostingRateCardRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -160,6 +167,8 @@ fun Application.module(
     val invoiceTemplateRepo = invoiceTemplateRepository ?: PostgresInvoiceTemplateRepository()
     val invoicePaymentRepo = invoicePaymentRepository ?: PostgresInvoicePaymentRepository()
     val invoiceIssuerProfileRepo = invoiceIssuerProfileRepository ?: PostgresInvoiceIssuerProfileRepository()
+    val costingSheetRepo = costingSheetRepository ?: PostgresCostingSheetRepository()
+    val costingRateCardRepo = costingRateCardRepository ?: PostgresCostingRateCardRepository()
 
     // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
     // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
@@ -515,6 +524,15 @@ fun Application.module(
             paymentRepository = invoicePaymentRepo,
             issuerProfileRepository = invoiceIssuerProfileRepo,
             samplingOrderRepository = samplingOrderRepo
+        )
+        costingRoutes(
+            sheetRepository = costingSheetRepo,
+            rateCardRepository = costingRateCardRepo,
+            techPackRepository = techPackRepo,
+            materialRepository = materialRepo,
+            materialPriceRepository = materialPriceRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo
         )
     }
 }

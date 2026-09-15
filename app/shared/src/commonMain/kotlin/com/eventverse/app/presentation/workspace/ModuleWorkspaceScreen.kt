@@ -118,6 +118,16 @@ fun ModuleWorkspaceScreen(
         return
     }
 
+    if (module == BusinessModule.COSTING_HPP) {
+        com.eventverse.app.presentation.costing.CostingWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
 }
 
@@ -449,10 +459,6 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
         "Tech Pack PDH-2024 rev.3" to "Final",
         "BOM Polo Combed" to "Draft"
     )
-    BusinessModule.COSTING_HPP -> listOf(
-        "HPP Kemeja PDH — Rp 78.400/pcs" to "Terkunci",
-        "HPP Polo — Rp 54.100/pcs" to "Simulasi"
-    )
     BusinessModule.PRODUCTION_MRP -> listOf(
         "SPK-8891 — Line 2, 3 hari" to "Berjalan",
         "SPK-8892 — Line 4" to "Antre"
@@ -473,10 +479,11 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
         "INV/2026/03/0001 — PT Sinar Jaya (DP 50%)" to "Issued",
         "INV/2026/03/0002 — CV Amanah (Sampling)" to "Paid"
     )
-    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik) dan
+    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik, Costing) dan
     // tidak pernah dirutekan ke layar kerja generik ini. Cabang ini ada semata agar `when` tetap
     // ekshaustif — dan sengaja kosong, bukan diisi baris contoh yang akan menyesatkan bila suatu
     // saat benar-benar terlihat.
+    BusinessModule.COSTING_HPP,
     BusinessModule.ORG_CHART,
     BusinessModule.DYNAMIC_RBAC,
     BusinessModule.FACTORY_FLOW -> emptyList()

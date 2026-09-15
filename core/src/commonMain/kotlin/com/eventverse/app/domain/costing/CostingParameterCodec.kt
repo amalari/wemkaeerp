@@ -134,19 +134,19 @@ object CostingParameterCodec {
         val ovOverheadIdr = sheetOverrides.readLong(KEY_OVERHEAD_PER_PCS_IDR)
         val ovServiceFeeIdr = sheetOverrides.readLong(KEY_SERVICE_FEE_PER_PCS_IDR)
         val ovLaborRateIdr = sheetOverrides.readLong(KEY_LABOR_RATE_PER_SAM_MINUTE_IDR)
-
-        val currency = base.laborRatePerSamMinute.currency
+        val ovPackingPcsIdr = sheetOverrides.readLong(KEY_PACKING_COST_PER_PCS_IDR)
+        val ovPackingOrderIdr = sheetOverrides.readLong(KEY_PACKING_COST_PER_ORDER_IDR)
 
         return base.copy(
             laborRatePerSamMinute = resolve(
                 "laborRatePerSamMinute", base.laborRatePerSamMinute,
-                nodeLaborRateIdr?.let { Money(it, currency) },
+                nodeLaborRateIdr?.let { Money.idr(it) },
                 rateCard?.laborRatePerSamMinute,
-                ovLaborRateIdr?.let { Money(it, currency) }
+                ovLaborRateIdr?.let { Money.idr(it) }
             ),
             subcontractRatePerSamMinute = resolve(
                 "subcontractRatePerSamMinute", base.subcontractRatePerSamMinute,
-                nodeSubcontractRateIdr?.let { Money(it, currency) },
+                nodeSubcontractRateIdr?.let { Money.idr(it) },
                 rateCard?.subcontractRatePerSamMinute,
                 null
             ),
@@ -166,13 +166,13 @@ object CostingParameterCodec {
                 "packingCostPerUnit", base.packingCostPerUnit,
                 nodePackingPcsIdr?.let { Money.idr(it) },
                 rateCard?.packingCostPerUnit,
-                null
+                ovPackingPcsIdr?.let { Money.idr(it) }
             ),
             packingCostPerOrder = resolve(
                 "packingCostPerOrder", base.packingCostPerOrder,
                 nodePackingOrderIdr?.let { Money.idr(it) },
                 rateCard?.packingCostPerOrder,
-                null
+                ovPackingOrderIdr?.let { Money.idr(it) }
             ),
             marginRatio = resolve(
                 "marginRatio", base.marginRatio,
