@@ -137,7 +137,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     "bodyWidthN" to jsonOf(order.machineProgram.patternFormulas.bodyWidthN),
                     "ribK" to jsonOf(order.machineProgram.patternFormulas.ribK)
                 ).encode()
-                it[tensionSettings] = JsonValue.Obj(order.machineProgram.tensionSettings.mapValues { jsonOf(it.value) }).encode()
+                it[tensionSettings] = JsonValue.Obj(order.machineProgram.tensionSettings.mapValues { (_, value) -> jsonOf(value) }).encode()
                 it[createdAt] = order.createdAt
                 it[updatedAt] = order.updatedAt
             }
@@ -243,9 +243,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             .singleOrNull()
 
         val knitSpec = if (knitSpecRow != null) {
-            val urls = JsonParser.parse(knitSpecRow[SamplingKnitSpecsTable.mockupImageUrls])?.let {
-                (it as? JsonValue.Arr)?.items?.mapNotNull { item -> (item as? JsonValue.Str)?.value }
-            } ?: emptyList()
+            val urls = (JsonParser.parse(knitSpecRow[SamplingKnitSpecsTable.mockupImageUrls]) as? JsonValue.Arr)
+                ?.items?.mapNotNull { item -> (item as? JsonValue.Str)?.value }
+                ?: emptyList()
 
             KnitSpec(
                 yarnType = knitSpecRow[SamplingKnitSpecsTable.yarnType],
@@ -279,8 +279,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             .singleOrNull()
 
         val machineProgram = if (mpRow != null) {
-            val feeders = JsonParser.parse(mpRow[SamplingMachineProgramsTable.feederInstructions])?.let {
-                (it as? JsonValue.Arr)?.items?.mapNotNull { item ->
+            val feeders = (JsonParser.parse(mpRow[SamplingMachineProgramsTable.feederInstructions]) as? JsonValue.Arr)
+                ?.items?.mapNotNull { item ->
                     val obj = item as? JsonValue.Obj ?: return@mapNotNull null
                     FeederEntry(
                         feederNumber = obj.int("feederNumber") ?: 1,
@@ -288,8 +288,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                         ply = obj.string("ply") ?: "",
                         color = obj.string("color") ?: ""
                     )
-                }
-            } ?: emptyList()
+                } ?: emptyList()
 
             val formulasObj = JsonParser.parse(mpRow[SamplingMachineProgramsTable.patternFormulas]) as? JsonValue.Obj
             val formulas = PatternFormulas(
