@@ -94,12 +94,13 @@ fun CreateInvoiceDialog(
                         fontWeight = FontWeight.Black,
                         color = WeMadeColors.OnSurface
                     )
-                    ClayButton(
-                        text = "✕",
+                    ClayIconButton(
                         onClick = { onEvent(InvoiceUiEvent.CloseCreateInvoiceDialog) },
-                        style = ClayButtonStyle.Ghost,
-                        fontSize = 14.sp
-                    )
+                        size = 30.dp,
+                        containerColor = WeMadeColors.SurfaceMuted
+                    ) {
+                        IconClose(Modifier.size(14.dp), color = WeMadeColors.OnSurface)
+                    }
                 }
 
                 // Jenis Faktur Chips

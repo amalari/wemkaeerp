@@ -19,7 +19,8 @@ data class InvoicePrefillData(
     val lineDescription: String = "",
     val lineQty: Double = 1.0,
     val linePrice: Long = 0L,
-    val notes: String = ""
+    val notes: String = "",
+    val openDesignerDirectly: Boolean = true
 )
 
 /**

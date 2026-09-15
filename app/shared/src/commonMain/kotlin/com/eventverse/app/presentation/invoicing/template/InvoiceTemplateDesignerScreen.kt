@@ -12,18 +12,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.invoicing.InvoiceId
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.invoicing.InvoicePrefillData
+import com.eventverse.app.presentation.invoicing.components.InvoicePdfPreviewModal
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
 fun InvoiceTemplateDesignerScreen(
     tenantSlug: String,
     templateId: String?,
+    initialPrefill: InvoicePrefillData? = null,
     onClose: () -> Unit,
+    onInvoiceCreated: (InvoiceId) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val viewModel = remember(tenantSlug, templateId) {
-        TemplateDesignerViewModel(tenantSlug = tenantSlug, initialTemplateId = templateId)
+    val viewModel = remember(tenantSlug, templateId, initialPrefill) {
+        TemplateDesignerViewModel(
+            tenantSlug = tenantSlug,
+            initialTemplateId = templateId,
+            initialPrefill = initialPrefill
+        )
     }
     val state by viewModel.uiState.collectAsState()
 
@@ -36,7 +45,17 @@ fun InvoiceTemplateDesignerScreen(
         // Toolbar
         DesignerToolbar(
             state = state,
-            onEvent = viewModel::onEvent,
+            onEvent = { event ->
+                if (event is TemplateDesignerUiEvent.SaveAndCreateInvoice) {
+                    viewModel.onEvent(
+                        TemplateDesignerUiEvent.SaveAndCreateInvoice { createdId ->
+                            onInvoiceCreated(createdId)
+                        }
+                    )
+                } else {
+                    viewModel.onEvent(event)
+                }
+            },
             onClose = onClose
         )
 
@@ -93,16 +112,25 @@ fun InvoiceTemplateDesignerScreen(
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
             // Center Canvas Area
+            //
+            // State scroll diangkat ke sini karena kanvas memakainya juga untuk pan: tarikan di
+            // area kosong memanggil `dispatchRawDelta` pada state yang sama dengan yang dipakai
+            // roda mouse, sehingga kedua jalur tidak pernah bertengkar soal posisi.
+            val horizontalScroll = rememberScrollState()
+            val verticalScroll = rememberScrollState()
+
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .horizontalScroll(rememberScrollState())
-                    .verticalScroll(rememberScrollState())
+                    .horizontalScroll(horizontalScroll)
+                    .verticalScroll(verticalScroll)
             ) {
                 TemplateCanvas(
                     state = state,
-                    onEvent = viewModel::onEvent
+                    onEvent = viewModel::onEvent,
+                    horizontalScroll = horizontalScroll,
+                    verticalScroll = verticalScroll
                 )
             }
 
@@ -113,5 +141,14 @@ fun InvoiceTemplateDesignerScreen(
                 modifier = Modifier.width(340.dp)
             )
         }
+    }
+
+    // High-Fidelity PDF Preview Dialog
+    if (state.isPdfPreviewOpen && state.createdInvoiceId != null) {
+        InvoicePdfPreviewModal(
+            invoice = state.previewInvoice,
+            pdfUrl = viewModel.getPdfUrl(state.createdInvoiceId!!),
+            onClose = { viewModel.onEvent(TemplateDesignerUiEvent.ClosePdfPreview) }
+        )
     }
 }

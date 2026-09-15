@@ -1,162 +1,186 @@
 package com.eventverse.app.presentation.invoicing.template
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign as ComposeTextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.common.Money
+import com.eventverse.app.domain.invoicing.Invoice
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlin.math.roundToInt
 
+/**
+ * Kanvas A4 tempat template faktur disusun.
+ *
+ * Dua hal yang membuat kanvas ini bisa dipakai, dan keduanya sengaja dipisah tegas:
+ *
+ * 1. **Titik nol koordinat = sudut kiri-atas lembar.** Lapisan dekorasi (kertas + hard shadow)
+ *    dan lapisan isi (grid + elemen) adalah dua `Box` terpisah. Kalau digabung, `padding`
+ *    reservasi bayangan milik [claySurface] ikut menggeser titik nol elemen sejauh 6dp — kanvas
+ *    akan menampilkan elemen 2 mm lebih ke kanan-bawah daripada hasil cetak PDF-nya.
+ * 2. **Posisi elemen selalu berasal dari state.** Tidak ada salinan posisi lokal yang dipegang
+ *    selama digeser; setiap frame tarikan mengirim rect absolut hasil [TemplateRect.movedBy],
+ *    lalu Compose menggambar dari state terbaru. Salinan lokal yang tidak pernah diperbarui
+ *    inilah yang dulu membuat elemen selalu mental kembali ke titik awalnya.
+ */
 @Composable
 fun TemplateCanvas(
     state: TemplateDesignerUiState,
     onEvent: (TemplateDesignerUiEvent) -> Unit,
+    horizontalScroll: ScrollState,
+    verticalScroll: ScrollState,
     modifier: Modifier = Modifier
 ) {
     val zoomFactor = state.zoomPercent / 100f
     val mmToDp = 3f * zoomFactor // 1mm = 3dp at 100% zoom
-    val paperWidthDp = (state.template.paperSize.width.value / 10f * mmToDp).dp
-    val paperHeightDp = (state.template.paperSize.height.value / 10f * mmToDp).dp
+    val paperSize = state.template.paperSize
+    val paperWidthDp = (paperSize.width.value / 10f * mmToDp).dp
+    val paperHeightDp = (paperSize.height.value / 10f * mmToDp).dp
+    val selectedElementId = state.selectedElementId
+    val snapMm10 = state.snapGridMm * 10
+    val invoice = state.previewInvoice
+    val isSelectTool = state.canvasTool == CanvasTool.SELECT
+
+    val focusRequester = remember { FocusRequester() }
+
+    // Kertas menerima fokus setiap kali pilihan berubah, supaya tombol panah langsung bisa dipakai
+    // untuk menggeser elemen terpilih tanpa perlu mengeklik kertas lebih dulu.
+    //
+    // Kunci efek ini juga memuat `canvasTool`. Menekan tombol apa pun di toolbar memindahkan fokus
+    // Compose ke tombol itu, dan selama fokus di sana seluruh pintasan papan-tik (panah, Delete,
+    // Escape) mati diam-diam — pengguna hanya melihat "tombol panah tidak jalan". Mengembalikan
+    // fokus setiap kali alat berganti membuat pintasan itu hidup lagi tanpa perlu mengeklik kertas.
+    LaunchedEffect(selectedElementId, state.canvasTool) {
+        if (selectedElementId != null) runCatching { focusRequester.requestFocus() }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(ClayOffset.Rest),
+            .padding(ClayOffset.Rest)
+            .pointerInput(Unit) {
+                // Tarikan yang tidak dikonsumsi elemen = menggeser viewport kanvas (pan).
+                //
+                // Pada mode PAN elemen tidak memasang handler apa pun, jadi tarikan di atas elemen
+                // pun sampai ke sini. Pada mode SELECT, detektor elemen lebih dulu mengonsumsi
+                // gerakan (urutan dispatch Compose berjalan dari anak ke induk), dan
+                // `detectDragGestures` otomatis membatalkan drag-nya begitu mendeteksi konsumsi.
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    horizontalScroll.dispatchRawDelta(-dragAmount.x)
+                    verticalScroll.dispatchRawDelta(-dragAmount.y)
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
-        // A4/Letter Paper Sheet with Claymorphism Shadow
-        Box(
-            modifier = Modifier
-                .size(paperWidthDp, paperHeightDp)
-                .claySurface(
-                    shape = RoundedCornerShape(4.dp),
-                    background = WeMadeColors.Surface,
-                    outline = WeMadeColors.Outline,
-                    offset = ClayOffset.Rest,
-                    borderWidth = ClayBorder.Medium
-                )
-                .clickable { onEvent(TemplateDesignerUiEvent.SelectElement(null)) }
-        ) {
-            // Background Grid (10mm squares)
-            if (state.showGrid) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val stepPx = 10f * mmToDp * density
-                    val gridColor = Color(0xFFE2E8F0)
-                    var x = stepPx
-                    while (x < size.width) {
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(x, 0f),
-                            end = Offset(x, size.height),
-                            strokeWidth = 1f
-                        )
-                        x += stepPx
+        // Kotak pembungkus dilebihkan sebesar jarak bayangan: claySurface memakai dp pertama
+        // sebagai ruang gambar bayangan, bukan sebagai bagian dari lembar kertasnya.
+        Box(modifier = Modifier.size(paperWidthDp + ClayOffset.Rest, paperHeightDp + ClayOffset.Rest)) {
+            // 1. Dekorasi: lembar kertas + hard shadow. Diletakkan lebih dulu agar di belakang.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .claySurface(
+                        shape = ClayShapes.Paper,
+                        background = WeMadeColors.Surface,
+                        outline = WeMadeColors.Outline,
+                        offset = ClayOffset.Rest,
+                        borderWidth = ClayBorder.Medium
+                    )
+            )
+
+            // 2. Isi kertas: ukuran persis 210 × 297 mm, titik nol (0,0) = sudut kiri-atas lembar.
+            Box(
+                modifier = Modifier
+                    .size(paperWidthDp, paperHeightDp)
+                    // Ketuk bidang kosong = lepas pilihan, sehingga panel kanan kembali ke
+                    // Pengaturan Template. Tarikan tidak dihitung ketuk: pan di atas sudah
+                    // mengonsumsi geraknya dan detektor ketuk batal dengan sendirinya.
+                    //
+                    // Ketukan di mode Geser Kanvas sengaja **tidak** melepas pilihan: alat itu
+                    // dipakai untuk menggeser pandangan, bukan untuk mengubah apa yang sedang
+                    // disunting. Pilihan yang hilang karena menyentuh kanvas akan terasa seperti
+                    // panel properti yang tiba-tiba mengosongkan diri.
+                    .pointerInput(isSelectTool) {
+                        detectTapGestures {
+                            runCatching { focusRequester.requestFocus() }
+                            if (isSelectTool) {
+                                onEvent(TemplateDesignerUiEvent.SelectElement(null))
+                            }
+                        }
                     }
-                    var y = stepPx
-                    while (y < size.height) {
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = 1f
-                        )
-                        y += stepPx
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onPreviewKeyEvent { event -> handleCanvasKeyEvent(event, state, onEvent) }
+            ) {
+                // Background Grid (10mm squares) — hanya kalau diminta. Bawaannya mati: mesh
+                // 21 × 30 kotak terbaca lebih ramai daripada isi fakturnya sendiri.
+                if (state.showGrid) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val stepPx = 10f * mmToDp * density
+                        var x = stepPx
+                        while (x < size.width) {
+                            drawLine(
+                                color = WeMadeColors.Border,
+                                start = Offset(x, 0f),
+                                end = Offset(x, size.height),
+                                strokeWidth = 1f
+                            )
+                            x += stepPx
+                        }
+                        var y = stepPx
+                        while (y < size.height) {
+                            drawLine(
+                                color = WeMadeColors.Border,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = 1f
+                            )
+                            y += stepPx
+                        }
                     }
                 }
-            }
 
-            // Elements Layer
-            state.template.elements.forEach { element ->
-                val isSelected = element.elementId == state.selectedElementId
-                val xDp = (element.rect.x.value / 10f * mmToDp).dp
-                val yDp = (element.rect.y.value / 10f * mmToDp).dp
-                val wDp = (element.rect.width.value / 10f * mmToDp).dp
-                val hDp = (element.rect.height.value / 10f * mmToDp).dp
-
-                var dragAccumX by remember(element.elementId) { mutableStateOf(0f) }
-                var dragAccumY by remember(element.elementId) { mutableStateOf(0f) }
-
-                Box(
-                    modifier = Modifier
-                        .offset(x = xDp, y = yDp)
-                        .size(width = wDp, height = hDp)
-                        .then(
-                            if (isSelected) {
-                                Modifier.border(ClayBorder.Thick, WeMadeColors.Primary, RoundedCornerShape(2.dp))
-                            } else {
-                                Modifier.border(1.dp, Color(0xFF94A3B8).copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-                            }
-                        )
-                        .pointerInput(element.elementId) {
-                            detectDragGestures(
-                                onDragStart = {
-                                    dragAccumX = 0f
-                                    dragAccumY = 0f
-                                    onEvent(TemplateDesignerUiEvent.SelectElement(element.elementId))
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragAccumX += dragAmount.x
-                                    dragAccumY += dragAmount.y
-
-                                    val dxMm10 = (dragAccumX / mmToDp * 10f).toInt()
-                                    val dyMm10 = (dragAccumY / mmToDp * 10f).toInt()
-
-                                    if (kotlin.math.abs(dxMm10) >= 10 || kotlin.math.abs(dyMm10) >= 10) {
-                                        val maxX = (state.template.paperSize.width.value - element.rect.width.value).coerceAtLeast(0)
-                                        val maxY = (state.template.paperSize.height.value - element.rect.height.value).coerceAtLeast(0)
-                                        val newX = (element.rect.x.value + dxMm10).coerceIn(0, maxX)
-                                        val newY = (element.rect.y.value + dyMm10).coerceIn(0, maxY)
-
-                                        val snap = state.snapGridMm * 10
-                                        val snappedX = if (snap > 0) (newX / snap) * snap else newX
-                                        val snappedY = if (snap > 0) (newY / snap) * snap else newY
-
-                                        val newRect = element.rect.copy(
-                                            x = Mm10(snappedX),
-                                            y = Mm10(snappedY)
-                                        )
-                                        onEvent(TemplateDesignerUiEvent.UpdateElementRect(element.elementId, newRect))
-                                        dragAccumX = 0f
-                                        dragAccumY = 0f
-                                    }
-                                }
-                            )
-                        }
-                        .clickable { onEvent(TemplateDesignerUiEvent.SelectElement(element.elementId)) }
-                        .padding(2.dp)
-                ) {
-                    RenderElementContent(
-                        element = element,
-                        state = state,
-                        zoomFactor = zoomFactor
-                    )
-
-                    // Corner indicator when selected
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .align(Alignment.BottomEnd)
-                                .background(WeMadeColors.Primary, RoundedCornerShape(1.dp))
+                // Elements Layer
+                state.template.elements.forEach { element ->
+                    key(element.elementId) {
+                        CanvasElementNode(
+                            element = element,
+                            isSelected = element.elementId == selectedElementId,
+                            // Mode Geser mematikan handler elemen supaya tarikan di titik mana pun
+                            // menjadi pan, bukan pemindahan elemen.
+                            isInteractive = isSelectTool,
+                            mmToDp = mmToDp,
+                            zoomFactor = zoomFactor,
+                            invoice = invoice,
+                            snapMm10 = snapMm10,
+                            paperSize = paperSize,
+                            onEvent = onEvent
                         )
                     }
                 }
@@ -165,13 +189,222 @@ fun TemplateCanvas(
     }
 }
 
+/**
+ * Pemetaan tombol panah & tombol hapus pada kanvas.
+ *
+ * Nudge lewat tombol panah sengaja tidak ditumpangkan pada `detectDragGestures`: setelah satu
+ * klik pada elemen, presisi 1 mm tidak lagi bergantung pada kestabilan tangan saat menyeret mouse.
+ * `Shift` + panah = lompatan 10× untuk memindahkan blok besar tanpa puluhan penekanan.
+ */
+private fun handleCanvasKeyEvent(
+    event: KeyEvent,
+    state: TemplateDesignerUiState,
+    onEvent: (TemplateDesignerUiEvent) -> Unit
+): Boolean {
+    if (event.type != KeyEventType.KeyDown) return false
+
+    val selected = state.selectedElement
+
+    when (event.key) {
+        Key.Escape -> {
+            onEvent(TemplateDesignerUiEvent.SelectElement(null))
+            return true
+        }
+        Key.Delete -> {
+            if (selected == null) return false
+            onEvent(TemplateDesignerUiEvent.DeleteElement(selected.elementId))
+            return true
+        }
+        else -> Unit
+    }
+
+    if (selected == null) return false
+
+    val baseStep = state.snapGridMm.coerceAtLeast(1) * 10
+    val step = if (event.isShiftPressed) baseStep * 10 else baseStep
+
+    val dx: Int
+    val dy: Int
+    when (event.key) {
+        Key.DirectionLeft -> {
+            dx = -step; dy = 0
+        }
+        Key.DirectionRight -> {
+            dx = step; dy = 0
+        }
+        Key.DirectionUp -> {
+            dx = 0; dy = -step
+        }
+        Key.DirectionDown -> {
+            dx = 0; dy = step
+        }
+        else -> return false
+    }
+
+    onEvent(TemplateDesignerUiEvent.MoveElementBy(selected.elementId, dx, dy))
+    return true
+}
+
+/**
+ * Satu elemen di atas kertas: posisi, garis pilihan, dan gestur tarik.
+ *
+ * `dragBase` diambil dari posisi terbaru **saat tarikan dimulai** dan tidak pernah dibaca ulang
+ * dari state selama tarikan berlangsung. Inilah kunci agar perpindahan tidak berbalik arah:
+ * menghitung dari rect yang sudah basi membuat setiap langkah menimpa langkah sebelumnya, dan
+ * elemen hanya bergerak beberapa milimeter lalu mental kembali — persis gejala "tidak bisa
+ * digeser" yang dulu terlihat di kanvas.
+ *
+ * Snap grid **dimatikan selama tarikan** dan baru diterapkan saat jari/mouse dilepas. Hasilnya
+ * gerakan mengikuti kursor 1:1 (mulus), lalu "menempel" ke grid dengan satu lompatan magnetik.
+ */
+@Composable
+private fun CanvasElementNode(
+    element: TemplateElement,
+    isSelected: Boolean,
+    isInteractive: Boolean,
+    mmToDp: Float,
+    zoomFactor: Float,
+    invoice: Invoice,
+    snapMm10: Int,
+    paperSize: PaperSize,
+    onEvent: (TemplateDesignerUiEvent) -> Unit
+) {
+    val renderRect by rememberUpdatedState(element.rect)
+
+    val widthDp = (element.rect.width.value / 10f * mmToDp).dp
+    val heightDp = (element.rect.height.value / 10f * mmToDp).dp
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    x = (renderRect.x.value / 10f * mmToDp).dp.roundToPx(),
+                    y = (renderRect.y.value / 10f * mmToDp).dp.roundToPx()
+                )
+            }
+            .size(width = widthDp, height = heightDp)
+            .then(
+                if (isSelected) {
+                    Modifier.border(ClayBorder.Thick, WeMadeColors.Primary, ClayShapes.Element)
+                } else {
+                    Modifier.border(
+                        ClayBorder.Hairline,
+                        WeMadeColors.OnSurfaceDisabled.copy(alpha = 0.35f),
+                        ClayShapes.Element
+                    )
+                }
+            )
+            .then(
+                if (isInteractive) {
+                    Modifier.elementDragModifier(element.elementId, mmToDp, snapMm10, paperSize, onEvent) { renderRect }
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (isInteractive) {
+                    Modifier.clickable { onEvent(TemplateDesignerUiEvent.SelectElement(element.elementId)) }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(2.dp)
+    ) {
+        RenderElementContent(
+            element = element,
+            invoice = invoice,
+            zoomFactor = zoomFactor
+        )
+
+        // Penanda sudut saat elemen terpilih.
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .align(Alignment.BottomEnd)
+                    .background(WeMadeColors.Primary, ClayShapes.Element)
+            )
+        }
+    }
+}
+
+/**
+ * Menerjemahkan perpindahan piksel (dari `PointerInputChange`) menjadi rect milimeter.
+ *
+ * Aturan snap dan penjepitan ke kertas dipinjam dari [TemplateRect.movedBy] di lapisan domain,
+ * sehingga jalur drag dan jalur tombol panah tidak dapat menghasilkan posisi yang berbeda untuk
+ * perpindahan yang sama.
+ */
+private fun TemplateRect.advancedByPixels(
+    delta: Offset,
+    mmToDp: Float,
+    snapMm10: Int,
+    paperSize: PaperSize
+): TemplateRect = movedBy(
+    dx = Mm10((delta.x / mmToDp * 10f).roundToInt()),
+    dy = Mm10((delta.y / mmToDp * 10f).roundToInt()),
+    snapMm10 = snapMm10,
+    paperWidth = paperSize.width,
+    paperHeight = paperSize.height
+)
+
+/**
+ * Modifier tarik satu elemen.
+ *
+ * Dipisah dari [CanvasElementNode] karena `pointerInput` menyimpan lambda beserta closure-nya
+ * selama kuncinya tidak berubah. Posisi awal tarikan disimpan **di dalam** closure ini
+ * (`dragBase`) dan aslinya dibaca lewat [latestRect] — pembaca yang selalu menunjuk state
+ * terbaru. Membaca rect dari nilai yang di-capture saat komposisi pertama adalah akar bug
+ * "elemen tidak bisa digeser".
+ */
+private fun Modifier.elementDragModifier(
+    elementId: String,
+    mmToDp: Float,
+    snapMm10: Int,
+    paperSize: PaperSize,
+    onEvent: (TemplateDesignerUiEvent) -> Unit,
+    latestRect: () -> TemplateRect
+): Modifier = this.pointerInput(elementId, mmToDp, snapMm10, paperSize) {
+    var dragBase = latestRect()
+    var dragTotal = Offset.Zero
+
+    detectDragGestures(
+        onDragStart = {
+            dragBase = latestRect()
+            dragTotal = Offset.Zero
+            onEvent(TemplateDesignerUiEvent.SelectElement(elementId))
+        },
+        onDrag = { change, dragAmount ->
+            change.consume()
+            dragTotal += dragAmount
+            // Snap dimatikan selama tarikan supaya gerakan mengikuti kursor 1:1.
+            onEvent(
+                TemplateDesignerUiEvent.UpdateElementRect(
+                    elementId = elementId,
+                    newBounds = dragBase.advancedByPixels(dragTotal, mmToDp, snapMm10 = 0, paperSize = paperSize)
+                )
+            )
+        },
+        onDragEnd = {
+            // Satu lompatan magnetik terakhir: posisi akhir dikunci ke grid & dijepit ke kertas.
+            onEvent(
+                TemplateDesignerUiEvent.UpdateElementRect(
+                    elementId = elementId,
+                    newBounds = dragBase.advancedByPixels(dragTotal, mmToDp, snapMm10, paperSize)
+                )
+            )
+            dragTotal = Offset.Zero
+        },
+        onDragCancel = { dragTotal = Offset.Zero }
+    )
+}
+
 @Composable
 private fun RenderElementContent(
     element: TemplateElement,
-    state: TemplateDesignerUiState,
+    invoice: Invoice,
     zoomFactor: Float
 ) {
-    val invoice = state.previewInvoice
     val totalPaid = Money.idr(0)
 
     when (element) {
@@ -235,7 +468,7 @@ private fun RenderElementContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🖼 LOGO PERUSAHAAN",
+                    text = "LOGO PERUSAHAAN",
                     fontSize = (9 * zoomFactor).sp,
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurfaceMuted

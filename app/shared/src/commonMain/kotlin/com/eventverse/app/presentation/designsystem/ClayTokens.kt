@@ -31,6 +31,16 @@ object ClayShapes {
 
     /** Badge/pill status yang membulat penuh. */
     val Pill = RoundedCornerShape(percent = 50)
+
+    // ── Bentuk di dalam kanvas kerja (invoice / template designer) ───────────────────────────
+    // Sengaja jauh lebih kecil dari kartu UI: kertas A4 dan elemen di atasnya adalah bahan
+    // cetak yang sudutnya mendekati siku, bukan permukaan clay yang membulat.
+
+    /** Lembar kertas kerja — kanvas A4/Letter di dalam designer. */
+    val Paper = RoundedCornerShape(4.dp)
+
+    /** Elemen di dalam kertas — kotak teks, tabel item, bentuk garis. */
+    val Element = RoundedCornerShape(2.dp)
 }
 
 /**

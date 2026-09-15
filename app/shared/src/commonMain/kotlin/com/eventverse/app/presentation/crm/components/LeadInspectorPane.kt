@@ -437,6 +437,8 @@ fun LeadInspectorPane(
                                             email = lead.email,
                                             sourceKind = InvoiceSourceKind.CRM_LEAD,
                                             sourceRef = lead.id.value,
+                                            // Alur CRM langsung membuka kanvas desainer A4, bukan modal form.
+                                            openDesignerDirectly = true,
                                             lineDescription = "Jasa Pembuatan Prototype Sample Baju - ${lead.brandName.display(fallback = lead.contactPerson)}",
                                             lineQty = 1.0,
                                             linePrice = 150000L
@@ -505,6 +507,7 @@ fun LeadInspectorPane(
                                             email = lead.email,
                                             sourceKind = InvoiceSourceKind.CRM_LEAD,
                                             sourceRef = lead.id.value,
+                                            openDesignerDirectly = true,
                                             lineDescription = "Uang Muka (DP) Produksi Pakaian - ${lead.brandName.display(fallback = lead.contactPerson)}",
                                             lineQty = 100.0,
                                             linePrice = 150000L

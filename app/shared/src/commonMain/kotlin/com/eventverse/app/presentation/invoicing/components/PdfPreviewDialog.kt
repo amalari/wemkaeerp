@@ -22,8 +22,20 @@ fun PdfPreviewDialog(
 ) {
     val invoice = state.selectedInvoice ?: return
     val pdfUrl = getPdfUrl(invoice.id)
+    InvoicePdfPreviewModal(
+        invoice = invoice,
+        pdfUrl = pdfUrl,
+        onClose = { onEvent(InvoiceUiEvent.ClosePdfPreview) }
+    )
+}
 
-    Dialog(onDismissRequest = { onEvent(InvoiceUiEvent.ClosePdfPreview) }) {
+@Composable
+fun InvoicePdfPreviewModal(
+    invoice: com.eventverse.app.domain.invoicing.Invoice,
+    pdfUrl: String,
+    onClose: () -> Unit
+) {
+    Dialog(onDismissRequest = onClose) {
         ClayCard(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -48,12 +60,13 @@ fun PdfPreviewDialog(
                         fontWeight = FontWeight.Black,
                         color = WeMadeColors.OnSurface
                     )
-                    ClayButton(
-                        text = "✕",
-                        onClick = { onEvent(InvoiceUiEvent.ClosePdfPreview) },
-                        style = ClayButtonStyle.Ghost,
-                        fontSize = 14.sp
-                    )
+                    ClayIconButton(
+                        onClick = onClose,
+                        size = 30.dp,
+                        containerColor = WeMadeColors.SurfaceMuted
+                    ) {
+                        IconClose(Modifier.size(14.dp), color = WeMadeColors.OnSurface)
+                    }
                 }
 
                 ClayCard(
@@ -94,7 +107,7 @@ fun PdfPreviewDialog(
                 ) {
                     ClayButton(
                         text = "Tutup",
-                        onClick = { onEvent(InvoiceUiEvent.ClosePdfPreview) },
+                        onClick = onClose,
                         style = ClayButtonStyle.Ghost
                     )
                     Spacer(modifier = Modifier.width(ClaySpacing.Sm))

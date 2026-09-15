@@ -8,24 +8,118 @@ import com.eventverse.app.domain.common.UnitOfMeasure
 import com.eventverse.app.domain.invoicing.*
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.presentation.invoicing.InvoicePrefillData
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+
+enum class DesignerInspectorTab(val label: String) {
+    LAYOUT("Tata Letak & Token"),
+    LIVE_DATA("Isi Data Faktur Live")
+}
+
+/**
+ * Alat interaksi kanvas.
+ *
+ * Dipisah menjadi dua mode, bukan satu mode pintar, karena kanvas A4 selalu penuh elemen yang
+ * menempati hampir seluruh bidang: di [SELECT] setiap tarikan di atas elemen adalah perintah
+ * "pindahkan elemen", sehingga tidak ada lagi jalur untuk menggeser tampilan kertasnya.
+ * [PAN] mematikan seluruh handler elemen sehingga tarikan di titik mana pun menggeser viewport.
+ */
+enum class CanvasTool(val label: String) {
+    SELECT("Kursor"),
+    PAN("Geser Kanvas")
+}
 
 data class TemplateDesignerUiState(
     val template: InvoiceTemplate,
     val selectedElementId: String? = null,
     val zoomPercent: Int = 100, // 50% to 200%
-    val showGrid: Boolean = true,
+    val showGrid: Boolean = false,
     val snapGridMm: Int = 5, // 5mm snap
+    val canvasTool: CanvasTool = CanvasTool.SELECT,
     val isSaving: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
-    val previewInvoice: Invoice = createDummyPreviewInvoice()
+    val previewInvoice: Invoice = createDummyPreviewInvoice(),
+    val prefillData: InvoicePrefillData? = null,
+    val activeInspectorTab: DesignerInspectorTab = DesignerInspectorTab.LAYOUT,
+    val createdInvoiceId: InvoiceId? = null,
+    val isPdfPreviewOpen: Boolean = false,
+    val aiMappingSummary: AiAutoMapSummary? = null
 ) {
     val selectedElement: TemplateElement?
         get() = selectedElementId?.let { id -> template.elements.find { it.elementId == id } }
 
     companion object {
+        fun fromPrefill(prefill: InvoicePrefillData, tenantSlug: String, now: Instant): Invoice {
+            // Tanggal faktur diambil dari waktu nyata, bukan tanggal tetap, agar draft yang
+            // dihasilkan dari CRM selalu memakai periode penagihan yang sedang berjalan.
+            val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val issueDate = today
+            val dueDate = today.plus(14, DateTimeUnit.DAY)
+            val qtyInt = (prefill.lineQty * 1_000_000).toLong().coerceAtLeast(1_000_000L)
+            val line = InvoiceLine(
+                id = InvoiceLineId("line-prefill-01"),
+                description = prefill.lineDescription.ifBlank {
+                    if (prefill.kind == InvoiceKind.SAMPLE) "Jasa Pembuatan Sample Baju" else "Pemesanan Produksi Garmen (DP)"
+                },
+                quantity = Quantity(qtyInt, UnitOfMeasure.PIECE),
+                unitPrice = Money.idr(prefill.linePrice.coerceAtLeast(100_000L)),
+                discount = Ratio.ZERO,
+                sortOrder = 1
+            )
+            return Invoice(
+                id = InvoiceId("inv-preview-crm"),
+                tenantId = TenantId(tenantSlug),
+                number = InvoiceNumber("INV/DRAFT"),
+                kind = prefill.kind,
+                status = InvoiceStatus.DRAFT,
+                billTo = BillToParty(
+                    name = prefill.clientName.ifBlank { "Klien Prospek CRM" },
+                    contactPerson = prefill.contactPerson,
+                    address = prefill.address.ifBlank { "Alamat Klien" },
+                    phone = prefill.phone,
+                    email = prefill.email,
+                    taxId = ""
+                ),
+                issuer = IssuerProfile(
+                    companyName = "PT WeMade Garment Indonesia",
+                    address = "Kawasan Industri Rancaekek Kav. 12, Bandung",
+                    taxId = "02.345.678.9-429.000",
+                    phone = "(022) 8765-4321",
+                    email = "billing@wemade.co.id",
+                    bankName = "Bank Central Asia (BCA)",
+                    bankAccountNumber = "8420-123-999",
+                    bankAccountHolder = "PT WEMADE GARMENT INDONESIA"
+                ),
+                lines = listOf(line),
+                taxRatio = Ratio.percent(11.0),
+                globalDiscount = Ratio.ZERO,
+                currency = CurrencyCode.IDR,
+                issueDate = issueDate,
+                dueDate = dueDate,
+                templateId = InvoiceTemplateId("tpl-std-id-001"),
+                renderedTemplate = null,
+                sourceKind = prefill.sourceKind,
+                sourceRef = prefill.sourceRef,
+                parentInvoiceId = null,
+                contractValue = line.amount,
+                notes = prefill.notes.ifBlank {
+                    if (prefill.kind == InvoiceKind.SAMPLE) "Faktur pembayaran biaya pembuatan prototype sample garmen."
+                    else "Faktur termin 1 (Uang Muka / Down Payment) sebelum proses potong dan jahit."
+                },
+                terms = "Pembayaran via transfer bank ke rekening PT WeMade Garment Indonesia.",
+                createdBy = "Admin",
+                createdAt = now,
+                updatedAt = now
+            )
+        }
+
         fun createDummyPreviewInvoice(): Invoice {
             val now = Clock.System.now()
             val issueDate = LocalDate(2026, 3, 15)
@@ -51,7 +145,10 @@ data class TemplateDesignerUiState(
                 tenantId = TenantId("ten-demo-001"),
                 number = InvoiceNumber("INV/2026/03/0042"),
                 kind = InvoiceKind.DOWN_PAYMENT,
-                status = InvoiceStatus.ISSUED,
+                // Contoh data kanvas wajib berstatus DRAFT: domain melarang invoice berstatus
+                // terbit tanpa snapshot template beku (renderedTemplate). Dokumen contoh ini
+                // murni untuk mengisi token di kanvas, bukan dokumen legal yang sudah diterbitkan.
+                status = InvoiceStatus.DRAFT,
                 billTo = BillToParty(
                     name = "PT Mitra Usaha Mandiri",
                     contactPerson = "Bapak Hendra Gunawan",
@@ -94,14 +191,48 @@ data class TemplateDesignerUiState(
 
 sealed interface TemplateDesignerUiEvent {
     data class SelectElement(val elementId: String?) : TemplateDesignerUiEvent
+
+    /**
+     * Memindahkan elemen secara **relatif** sebesar [dxMm10]/[dyMm10] (satuan 1/10 mm).
+     *
+     * Kanvas dan tombol panah sama-sama memakai event ini supaya aturan snap-to-grid serta
+     * penjepitan ke dalam kertas diterapkan satu kali saja, di satu tempat: [TemplateRect.movedBy].
+     */
+    data class MoveElementBy(
+        val elementId: String,
+        val dxMm10: Int,
+        val dyMm10: Int
+    ) : TemplateDesignerUiEvent
+
     data class UpdateElementRect(val elementId: String, val newBounds: TemplateRect) : TemplateDesignerUiEvent
     data class UpdateElement(val updatedElement: TemplateElement) : TemplateDesignerUiEvent
     data class AddElement(val element: TemplateElement) : TemplateDesignerUiEvent
     data class DeleteElement(val elementId: String) : TemplateDesignerUiEvent
     data class UpdateTemplateName(val name: String) : TemplateDesignerUiEvent
     data class SetZoom(val percent: Int) : TemplateDesignerUiEvent
+    data class SetCanvasTool(val tool: CanvasTool) : TemplateDesignerUiEvent
     data class ToggleGrid(val show: Boolean) : TemplateDesignerUiEvent
     data class SetSnapGrid(val mm: Int) : TemplateDesignerUiEvent
     data object SaveTemplate : TemplateDesignerUiEvent
     data object DismissMessage : TemplateDesignerUiEvent
+
+    // AI Auto-Mapping & Live Editing
+    data object AutoMapWithAi : TemplateDesignerUiEvent
+    data class SetInspectorTab(val tab: DesignerInspectorTab) : TemplateDesignerUiEvent
+    data class UpdateLiveInvoice(val updatedInvoice: Invoice) : TemplateDesignerUiEvent
+    data class UpdateLiveClient(
+        val name: String,
+        val contactPerson: String,
+        val phone: String,
+        val email: String,
+        val address: String
+    ) : TemplateDesignerUiEvent
+    data class UpdateLiveItem(
+        val description: String,
+        val quantity: Double,
+        val unitPrice: Long,
+        val taxPercent: Double
+    ) : TemplateDesignerUiEvent
+    data class SaveAndCreateInvoice(val onSuccess: (InvoiceId) -> Unit = {}) : TemplateDesignerUiEvent
+    data object ClosePdfPreview : TemplateDesignerUiEvent
 }

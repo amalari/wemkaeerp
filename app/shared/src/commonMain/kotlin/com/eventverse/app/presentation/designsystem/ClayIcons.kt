@@ -1039,3 +1039,86 @@ fun IconNote(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfac
     }
 }
 
+@Composable
+fun IconArrowBack(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val midY = h * 0.50f
+
+        drawLine(
+            color = color,
+            start = Offset(w * 0.18f, midY),
+            end = Offset(w * 0.84f, midY),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+
+        val head = Path().apply {
+            moveTo(w * 0.18f, midY)
+            lineTo(w * 0.42f, h * 0.26f)
+            moveTo(w * 0.18f, midY)
+            lineTo(w * 0.42f, h * 0.74f)
+        }
+        drawPath(head, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** Panah kursor — alat "pilih & pindahkan elemen" pada kanvas template. */
+@Composable
+fun IconCursor(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.6f * density
+
+        val pointer = Path().apply {
+            moveTo(w * 0.26f, h * 0.12f)
+            lineTo(w * 0.26f, h * 0.82f)
+            lineTo(w * 0.45f, h * 0.63f)
+            lineTo(w * 0.58f, h * 0.90f)
+            lineTo(w * 0.72f, h * 0.83f)
+            lineTo(w * 0.59f, h * 0.57f)
+            lineTo(w * 0.82f, h * 0.53f)
+            close()
+        }
+        drawPath(pointer, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** Tangan terbuka — alat "geser tampilan kanvas" (pan). */
+@Composable
+fun IconHandMove(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.6f * density
+
+        // Telapak tangan: tiga ruas jari sejajar + ibu jari yang menekuk ke samping.
+        for (i in 0..2) {
+            val x = w * (0.36f + i * 0.14f)
+            drawLine(
+                color = color,
+                start = Offset(x, h * 0.16f),
+                end = Offset(x, h * 0.55f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+        }
+
+        val palm = Path().apply {
+            moveTo(w * 0.34f, h * 0.45f)
+            lineTo(w * 0.30f, h * 0.62f)
+            lineTo(w * 0.20f, h * 0.56f)
+            moveTo(w * 0.34f, h * 0.50f)
+            lineTo(w * 0.30f, h * 0.70f)
+            lineTo(w * 0.44f, h * 0.86f)
+            lineTo(w * 0.78f, h * 0.86f)
+            lineTo(w * 0.80f, h * 0.58f)
+            lineTo(w * 0.78f, h * 0.42f)
+        }
+        drawPath(palm, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+

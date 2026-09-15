@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.invoicing.template.*
@@ -36,7 +37,54 @@ fun DesignerPropertyInspector(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            if (selected == null) {
+            // Tab Switcher: Tata Letak vs Live Data
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+            ) {
+                DesignerInspectorTab.entries.forEach { tab ->
+                    val isSelected = state.activeInspectorTab == tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .claySurface(
+                                shape = ClayShapes.Button,
+                                background = if (isSelected) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
+                                outline = if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                                borderWidth = ClayBorder.Hairline,
+                                offset = if (isSelected) ClayOffset.Pressed else ClayOffset.Flat
+                            )
+                            .clickable { onEvent(TemplateDesignerUiEvent.SetInspectorTab(tab)) }
+                            .padding(vertical = ClaySpacing.Sm, horizontal = ClaySpacing.Xs),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val tint = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            when (tab) {
+                                DesignerInspectorTab.LAYOUT -> IconRuler(Modifier.size(12.dp), color = tint)
+                                DesignerInspectorTab.LIVE_DATA -> IconNote(Modifier.size(12.dp), color = tint)
+                            }
+                            Text(
+                                text = tab.label,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = tint
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = WeMadeColors.Border)
+
+            if (state.activeInspectorTab == DesignerInspectorTab.LIVE_DATA) {
+                LiveDataInspector(state = state, onEvent = onEvent)
+            } else if (selected == null) {
                 // Template-level properties
                 Text(
                     text = "Pengaturan Template",
@@ -128,7 +176,7 @@ fun DesignerPropertyInspector(
                     contentPadding = PaddingValues(ClaySpacing.Md)
                 ) {
                     Text(
-                        text = "💡 Petunjuk Desain:",
+                        text = "Petunjuk Desain:",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.Primary
@@ -136,6 +184,22 @@ fun DesignerPropertyInspector(
                     Spacer(modifier = Modifier.height(ClaySpacing.Xs))
                     Text(
                         text = "Klik salah satu elemen di kanvas untuk mengedit posisi, ukuran font, token data dinamis, atau mengaktifkan fitur geser dinamis di bawah tabel.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                    Text(
+                        text = "Tombol panah menggeser elemen terpilih " +
+                            "${state.snapGridMm.coerceAtLeast(1)} mm per tekan (sebesar grid magnet " +
+                            "di atas); Shift + panah melompat 10× lipat. Delete menghapus elemen, " +
+                            "Escape melepas pilihan.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                    Text(
+                        text = "Untuk menggeser tampilan kertasnya, pilih alat \"Geser Kanvas\" di " +
+                            "toolbar lalu tarik kanvas — atau tarik area kosong di luar kertas.",
                         fontSize = 11.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -211,6 +275,68 @@ fun DesignerPropertyInspector(
                         onValueChange = { onEvent(TemplateDesignerUiEvent.UpdateElement(selected.copy(text = it))) },
                         label = "Isi Teks Statis"
                     )
+
+                    val aiSuggestion = remember(selected.text, selected.rect) {
+                        InvoiceAiMappingEngine.analyzeElement(selected)
+                    }
+                    if (aiSuggestion != null) {
+                        val descriptor = InvoiceBindingRegistry.descriptorFor(aiSuggestion.token)
+                        ClayCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = WeMadeColors.PrimaryContainer,
+                            borderWidth = ClayBorder.Hairline,
+                            contentPadding = PaddingValues(ClaySpacing.Sm)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconZap(Modifier.size(12.dp), color = WeMadeColors.Primary)
+                                        Text(
+                                            text = "Rekomendasi AI",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WeMadeColors.Primary
+                                        )
+                                    }
+                                    ClayBadge(
+                                        text = "${(aiSuggestion.confidence * 100).toInt()}% cocok",
+                                        tint = WeMadeColors.Success,
+                                        fontSize = 9.sp
+                                    )
+                                }
+                                Text(
+                                    text = "Petakan ke: ${descriptor?.displayName ?: aiSuggestion.token.value}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = WeMadeColors.OnSurface
+                                )
+                                Text(
+                                    text = aiSuggestion.explanation,
+                                    fontSize = 10.sp,
+                                    color = WeMadeColors.OnSurfaceMuted
+                                )
+                                ClayButton(
+                                    text = if (aiSuggestion.isStaticLabelOnly) "Jadikan Kolom Dinamis Berlabel" else "Hubungkan Token Ini",
+                                    onClick = {
+                                        onEvent(
+                                            TemplateDesignerUiEvent.UpdateElement(
+                                                InvoiceAiMappingEngine.toBoundField(selected, aiSuggestion)
+                                            )
+                                        )
+                                    },
+                                    style = if (aiSuggestion.isStaticLabelOnly) ClayButtonStyle.Secondary else ClayButtonStyle.Primary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Text Style Controls (for Text & BoundField)
@@ -343,12 +469,18 @@ private fun RowScope.CoordinateField(
     valueMm10: Mm10,
     onChange: (Mm10) -> Unit
 ) {
-    val mmValue = valueMm10.value / 10
+    // Nilai ditahan sebagai teks lokal agar field boleh kosong saat diketik ulang.
+    // Sebelumnya field dipetakan langsung ke angka, sehingga menghapus isinya memaksa nilai 0 dan
+    // angka baru selalu menempel di belakangnya ("0" lalu "25" menjadi "025") — field terasa
+    // tidak bisa diisi. Teks lokal hanya memanggil [onChange] saat isinya benar-benar angka.
+    var text by remember(valueMm10) { mutableStateOf((valueMm10.value / 10).toString()) }
+
     ClayTextField(
-        value = mmValue.toString(),
-        onValueChange = { str ->
-            val num = str.toIntOrNull() ?: 0
-            onChange(Mm10(num * 10))
+        value = text,
+        onValueChange = { raw ->
+            val digits = raw.filter { it.isDigit() }.take(4)
+            text = digits
+            digits.toIntOrNull()?.let { onChange(Mm10(it * 10)) }
         },
         label = label,
         modifier = Modifier.weight(1f)
@@ -386,7 +518,11 @@ private fun TokenSelector(
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.PrimaryDark
                 )
-                Text(text = if (expanded) "▲" else "▼", fontSize = 10.sp, color = WeMadeColors.PrimaryDark)
+                if (expanded) {
+                    IconChevronUp(Modifier.size(10.dp), color = WeMadeColors.PrimaryDark)
+                } else {
+                    IconChevronDown(Modifier.size(10.dp), color = WeMadeColors.PrimaryDark)
+                }
             }
         }
 
@@ -446,3 +582,180 @@ private fun elementTypeLabel(el: TemplateElement): String = when (el) {
     is TemplateElement.LineShape -> "Garis Pembatas"
     is TemplateElement.ImageBox -> "Kotak Logo / Gambar"
 }
+
+@Composable
+private fun LiveDataInspector(
+    state: TemplateDesignerUiState,
+    onEvent: (TemplateDesignerUiEvent) -> Unit
+) {
+    val live = state.previewInvoice
+    val billTo = live.billTo
+    val line = live.lines.firstOrNull()
+
+    var clientName by remember(billTo.name) { mutableStateOf(billTo.name) }
+    var pic by remember(billTo.contactPerson) { mutableStateOf(billTo.contactPerson) }
+    var phone by remember(billTo.phone) { mutableStateOf(billTo.phone) }
+    var email by remember(billTo.email) { mutableStateOf(billTo.email) }
+    var address by remember(billTo.address) { mutableStateOf(billTo.address) }
+
+    var itemDesc by remember(line?.description) { mutableStateOf(line?.description ?: "") }
+    var qtyStr by remember(line?.quantity) { mutableStateOf(((line?.quantity?.micros ?: 1_000_000L) / 1_000_000.0).toString()) }
+    var priceStr by remember(line?.unitPrice) { mutableStateOf(((line?.unitPrice?.minorUnits ?: 0L) / (line?.unitPrice?.currency?.minorFactor ?: 100L)).toString()) }
+    var taxStr by remember(live.taxRatio) { mutableStateOf(((live.taxRatio.toDouble() * 100.0).toInt()).toString()) }
+
+    Text(
+        text = "Data Klien & Penagihan",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Black,
+        color = WeMadeColors.OnSurface
+    )
+
+    ClayTextField(
+        value = clientName,
+        onValueChange = {
+            clientName = it
+            onEvent(TemplateDesignerUiEvent.UpdateLiveClient(it, pic, phone, email, address))
+        },
+        label = "Nama Klien / Perusahaan *"
+    )
+
+    ClayTextField(
+        value = pic,
+        onValueChange = {
+            pic = it
+            onEvent(TemplateDesignerUiEvent.UpdateLiveClient(clientName, it, phone, email, address))
+        },
+        label = "PIC / Kontak Person"
+    )
+
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+        Box(modifier = Modifier.weight(1f)) {
+            ClayTextField(
+                value = phone,
+                onValueChange = {
+                    phone = it
+                    onEvent(TemplateDesignerUiEvent.UpdateLiveClient(clientName, pic, it, email, address))
+                },
+                label = "No. Telepon / WA"
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            ClayTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    onEvent(TemplateDesignerUiEvent.UpdateLiveClient(clientName, pic, phone, it, address))
+                },
+                label = "Email Klien"
+            )
+        }
+    }
+
+    ClayTextField(
+        value = address,
+        onValueChange = {
+            address = it
+            onEvent(TemplateDesignerUiEvent.UpdateLiveClient(clientName, pic, phone, email, it))
+        },
+        label = "Alamat Pengiriman / Penagihan"
+    )
+
+    HorizontalDivider(color = WeMadeColors.Border)
+
+    Text(
+        text = "Rincian Item & Nilai",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Black,
+        color = WeMadeColors.OnSurface
+    )
+
+    ClayTextField(
+        value = itemDesc,
+        onValueChange = {
+            itemDesc = it
+            val q = qtyStr.toDoubleOrNull() ?: 1.0
+            val p = priceStr.toLongOrNull() ?: 0L
+            val t = taxStr.toDoubleOrNull() ?: 11.0
+            onEvent(TemplateDesignerUiEvent.UpdateLiveItem(it, q, p, t))
+        },
+        label = "Deskripsi Pekerjaan / Produk *"
+    )
+
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+        Box(modifier = Modifier.weight(0.7f)) {
+            ClayTextField(
+                value = qtyStr,
+                onValueChange = {
+                    qtyStr = it
+                    val q = it.toDoubleOrNull() ?: 1.0
+                    val p = priceStr.toLongOrNull() ?: 0L
+                    val t = taxStr.toDoubleOrNull() ?: 11.0
+                    onEvent(TemplateDesignerUiEvent.UpdateLiveItem(itemDesc, q, p, t))
+                },
+                label = "Jumlah (Qty)"
+            )
+        }
+        Box(modifier = Modifier.weight(1.3f)) {
+            ClayTextField(
+                value = priceStr,
+                onValueChange = {
+                    priceStr = it
+                    val q = qtyStr.toDoubleOrNull() ?: 1.0
+                    val p = it.toLongOrNull() ?: 0L
+                    val t = taxStr.toDoubleOrNull() ?: 11.0
+                    onEvent(TemplateDesignerUiEvent.UpdateLiveItem(itemDesc, q, p, t))
+                },
+                label = "Harga Satuan (Rp)"
+            )
+        }
+    }
+
+    ClayTextField(
+        value = taxStr,
+        onValueChange = {
+            taxStr = it
+            val q = qtyStr.toDoubleOrNull() ?: 1.0
+            val p = priceStr.toLongOrNull() ?: 0L
+            val t = it.toDoubleOrNull() ?: 11.0
+            onEvent(TemplateDesignerUiEvent.UpdateLiveItem(itemDesc, q, p, t))
+        },
+        label = "Tarif PPN (%)"
+    )
+
+    ClayCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = WeMadeColors.SurfaceMuted,
+        borderWidth = ClayBorder.Hairline,
+        contentPadding = PaddingValues(ClaySpacing.Md)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Subtotal:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                Text(text = live.subtotal.formatted(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "PPN (${(live.taxRatio.toDouble() * 100.0).toInt()}%):", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                Text(text = live.taxAmount.formatted(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            HorizontalDivider(color = WeMadeColors.Border)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Estimasi Total:", fontSize = 12.sp, fontWeight = FontWeight.Black, color = WeMadeColors.Primary)
+                Text(text = live.total.formatted(), fontSize = 13.sp, fontWeight = FontWeight.Black, color = WeMadeColors.Primary)
+            }
+        }
+    }
+
+    ClayCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = WeMadeColors.PrimaryContainer,
+        borderWidth = ClayBorder.Hairline,
+        contentPadding = PaddingValues(ClaySpacing.Md)
+    ) {
+        Text(
+            text = "Sinkronisasi Live: Data yang Anda ketik di atas langsung terpasang pada titik-titik elemen kanvas A4 yang bertaut secara otomatis.",
+            fontSize = 11.sp,
+            color = WeMadeColors.Primary
+        )
+    }
+}
+

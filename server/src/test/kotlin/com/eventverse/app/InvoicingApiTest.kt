@@ -253,6 +253,110 @@ class InvoicingApiTest {
         }
         assertEquals(HttpStatusCode.OK, detailRes.status)
     }
+    /**
+     * Regresi alur CRM → Kanvas Desainer → Faktur.
+     *
+     * Menguji permintaan persis yang dikirim klien saat tombol "Generate Invoice Sampling/DP"
+     * ditekan: simpan template ber-ID unik, buat draft ber-`sourceKind: "CRM_LEAD"`, lalu ambil
+     * PDF-nya untuk pratinjau otomatis. Sebelumnya permintaan ini berakhir HTTP 500 saat runtime
+     * server belum memuat [InvoiceSourceKind.CRM_LEAD].
+     */
+    @Test
+    fun crmOriginInvoiceFlow_savesNamedTemplate_createsLeadSourcedDraft_withPdfPreview() = testApplication {
+        val tenantRepo = setupTestTenantRepo()
+        val invoiceRepo = InMemoryInvoiceRepository()
+        val templateRepo = InMemoryInvoiceTemplateRepository()
+        val paymentRepo = InMemoryInvoicePaymentRepository()
+        val issuerRepo = InMemoryInvoiceIssuerProfileRepository()
+        val standardTemplate = setupDefaultTemplate(templateRepo)
+
+        application {
+            module(
+                tenantRepository = tenantRepo,
+                invoiceRepository = invoiceRepo,
+                invoiceTemplateRepository = templateRepo,
+                invoicePaymentRepository = paymentRepo,
+                invoiceIssuerProfileRepository = issuerRepo
+            )
+        }
+
+        // 1. Template hasil alur CRM: nama otomatis, ID unik, bukan default, khusus jenis SAMPLE
+        val crmTemplate = InvoiceTemplateFactory.standardIndonesianInvoice(tenantId, Clock.System.now()).copy(
+            id = InvoiceTemplateId("tpl-crm-sample-001"),
+            name = "Template Faktur Sampling - PT Mitra Usaha Mandiri",
+            isDefault = false,
+            applicableKinds = setOf(InvoiceKind.SAMPLE)
+        )
+        val saveTemplateRes = client.post("/api/tenant/invoicing/templates") {
+            asTenant(tenantSlug)
+            contentType(ContentType.Application.Json)
+            setBody(InvoiceTemplateCodec.encode(crmTemplate).encode())
+        }
+        assertEquals(HttpStatusCode.OK, saveTemplateRes.status)
+
+        // 2. Draft faktur dari prospek CRM
+        val createPayload = """
+            {
+                "kind": "SAMPLE",
+                "templateId": "tpl-crm-sample-001",
+                "sourceKind": "CRM_LEAD",
+                "sourceRef": "lead-42",
+                "billTo": {
+                    "name": "PT Mitra Usaha Mandiri",
+                    "contactPerson": "Bapak Hendra",
+                    "address": "Kawasan Industri MM2100 Blok C-4",
+                    "phone": "0812-9876-5432",
+                    "email": "finance@mitrausaha.co.id",
+                    "taxId": ""
+                },
+                "lines": [
+                    {
+                        "id": "line-prefill-01",
+                        "description": "Jasa Pembuatan Prototype Sample Baju",
+                        "quantity": {"micros": 1000000, "uom": "pcs"},
+                        "unitPrice": {"minor": 15000000, "currency": "IDR"},
+                        "discount": {"numerator": 0, "denominator": 100},
+                        "sortOrder": 1
+                    }
+                ],
+                "taxRatio": {"numerator": 11, "denominator": 100},
+                "globalDiscount": {"numerator": 0, "denominator": 100},
+                "contractValue": {"minor": 15000000, "currency": "IDR"},
+                "currency": "IDR",
+                "issueDate": "2026-09-15",
+                "dueDate": "2026-09-29",
+                "notes": "Faktur pembayaran biaya pembuatan prototype sample garmen.",
+                "terms": "Pembayaran via transfer bank ke rekening PT WeMade Garment Indonesia."
+            }
+        """.trimIndent()
+
+        val createRes = client.post("/api/tenant/invoicing") {
+            asTenant(tenantSlug)
+            contentType(ContentType.Application.Json)
+            setBody(createPayload)
+        }
+        assertEquals(HttpStatusCode.OK, createRes.status)
+
+        val createdJson = JsonParser.parseObject(createRes.bodyAsText())
+        val invoiceId = createdJson.string("id")
+        assertNotNull(invoiceId)
+        assertEquals("SAMPLE", createdJson.string("kind"))
+        assertEquals("CRM_LEAD", createdJson.string("sourceKind"))
+        assertEquals("lead-42", createdJson.string("sourceRef"))
+        assertEquals("DRAFT", createdJson.string("status"))
+
+        // 3. Pratinjau PDF otomatis setelah simpan
+        val pdfRes = client.get("/api/tenant/invoicing/$invoiceId/pdf") { asTenant(tenantSlug) }
+        assertEquals(HttpStatusCode.OK, pdfRes.status)
+        assertEquals("%PDF-", String(pdfRes.bodyAsBytes().sliceArray(0..4)))
+
+        // 4. Template default tenant tidak boleh tertimpa oleh template alur CRM
+        val defaultRes = client.get("/api/tenant/invoicing/templates/default") { asTenant(tenantSlug) }
+        val defaultJson = JsonParser.parseObject(defaultRes.bodyAsText())
+        assertEquals(standardTemplate.id.value, defaultJson.string("id"))
+    }
+
+
 
     @Test
     fun issuerProfileApi_get_and_put_shouldPersist() = testApplication {

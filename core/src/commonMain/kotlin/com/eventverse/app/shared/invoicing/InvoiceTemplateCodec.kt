@@ -112,7 +112,10 @@ object InvoiceTemplateCodec {
     }
 
     fun decodeElement(obj: JsonValue.Obj): TemplateElement? {
-        val id = obj.string("id") ?: return null
+        // `id` adalah nama kanonik yang ditulis [encodeElement]; `elementId` adalah nama yang
+        // dipakai seed SQL `V32__register_invoicing_module.sql`. Membaca keduanya wajib: tanpa itu
+        // seluruh 23 elemen template standar dibuang diam-diam dan kanvas A4 tampil kosong.
+        val id = obj.string("id") ?: obj.string("elementId") ?: return null
         val rect = obj.obj("rect")?.let(::decodeRect) ?: return null
         val zOrder = obj.double("zOrder") ?: 0.0
         val anchorBelowTable = obj.boolean("anchorBelowTable") ?: false
@@ -223,8 +226,13 @@ object InvoiceTemplateCodec {
 
     private fun decodeTableColumn(obj: JsonValue.Obj): TableColumn? {
         val bindingStr = obj.string("binding") ?: return null
-        val header = obj.string("header") ?: return null
-        val widthRatio = MeasureCodec.decodeRatio(obj.obj("widthRatio"))
+        // `header` = bentuk kanonik, `headerText` = bentuk seed SQL V32.
+        val header = obj.string("header") ?: obj.string("headerText") ?: return null
+        // Rasio kanonik berbentuk objek; seed SQL menulisnya sebagai teks ("5/12"). Keduanya
+        // diterima, dan kolom tidak boleh dibuang hanya karena bentuk rasionya berbeda.
+        val widthRatio = obj.obj("widthRatio")?.let(MeasureCodec::decodeRatio)
+            ?: MeasureCodec.parseRatioText(obj.string("widthRatio"))
+            ?: Ratio.ONE
         val align = TextAlign.fromCode(obj.string("align"))
         return TableColumn(
             binding = BindingToken(bindingStr),

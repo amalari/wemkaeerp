@@ -29,8 +29,13 @@ fun InvoiceWorkspaceScreen(
     LaunchedEffect(tenantSlug) {
         viewModel.onEvent(InvoiceUiEvent.Load)
         if (InvoicePrefillCoordinator.hasPending()) {
-            activePrefill = InvoicePrefillCoordinator.consumePending()
-            viewModel.onEvent(InvoiceUiEvent.OpenCreateInvoiceDialog())
+            val pending = InvoicePrefillCoordinator.consumePending()
+            activePrefill = pending
+            if (pending?.openDesignerDirectly == true) {
+                viewModel.onEvent(InvoiceUiEvent.OpenDesigner(templateId = null))
+            } else {
+                viewModel.onEvent(InvoiceUiEvent.OpenCreateInvoiceDialog())
+            }
         }
     }
 
@@ -38,7 +43,15 @@ fun InvoiceWorkspaceScreen(
         InvoiceTemplateDesignerScreen(
             tenantSlug = tenantSlug,
             templateId = state.editingTemplateId,
-            onClose = { viewModel.onEvent(InvoiceUiEvent.CloseDesigner) },
+            initialPrefill = activePrefill,
+            onClose = {
+                activePrefill = null
+                viewModel.onEvent(InvoiceUiEvent.CloseDesigner)
+                viewModel.onEvent(InvoiceUiEvent.Load)
+            },
+            onInvoiceCreated = { _ ->
+                viewModel.onEvent(InvoiceUiEvent.Load)
+            },
             modifier = modifier
         )
         return
@@ -86,10 +99,11 @@ fun InvoiceWorkspaceScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayButton(
-                    text = "🎨 Desain Template",
+                    text = "Desain Template",
                     onClick = { viewModel.onEvent(InvoiceUiEvent.OpenDesigner(state.defaultTemplate?.id?.value)) },
                     style = ClayButtonStyle.Secondary,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    leading = { IconRuler(Modifier.size(13.dp), color = WeMadeColors.Primary) }
                 )
 
                 ClayButton(
@@ -117,12 +131,13 @@ fun InvoiceWorkspaceScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = err, color = WeMadeColors.Error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                ClayButton(
-                    text = "✕",
+                ClayIconButton(
                     onClick = { viewModel.onEvent(InvoiceUiEvent.DismissMessage) },
-                    style = ClayButtonStyle.Ghost,
-                    fontSize = 12.sp
-                )
+                    size = 28.dp,
+                    containerColor = WeMadeColors.Surface
+                ) {
+                    IconClose(Modifier.size(13.dp), color = WeMadeColors.Error)
+                }
             }
         }
 
@@ -141,12 +156,13 @@ fun InvoiceWorkspaceScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = msg, color = WeMadeColors.Success, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                ClayButton(
-                    text = "✕",
+                ClayIconButton(
                     onClick = { viewModel.onEvent(InvoiceUiEvent.DismissMessage) },
-                    style = ClayButtonStyle.Ghost,
-                    fontSize = 12.sp
-                )
+                    size = 28.dp,
+                    containerColor = WeMadeColors.Surface
+                ) {
+                    IconClose(Modifier.size(13.dp), color = WeMadeColors.Success)
+                }
             }
         }
 

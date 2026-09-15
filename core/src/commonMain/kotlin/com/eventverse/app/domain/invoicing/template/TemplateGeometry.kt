@@ -45,6 +45,40 @@ data class TemplateRect(
 
     fun translated(dx: Mm10, dy: Mm10): TemplateRect =
         copy(x = x + dx, y = y + dy)
+
+    /**
+     * Menggeser elemen sebesar [dx]/[dy] lalu mengunci hasilnya ke grid [snapMm10] dan ke dalam
+     * bidang kertas [paperWidth] × [paperHeight].
+     *
+     * Perilaku ini adalah aturan domain, bukan urusan UI: kanvas yang digambar dengan pixel,
+     * tombol panah nudge, dan input milimeter di panel properti harus menghasilkan posisi yang
+     * **identik** untuk perpindahan yang sama. Sebelumnya aturan ini hidup di dalam lambda
+     * `detectDragGestures` sehingga hanya berlaku untuk jalur drag saja.
+     *
+     * `snapMm10 <= 0` berarti grid magnet dimatikan. Pembulatan selalu ke bawah (`floor`) supaya
+     * elemen tidak pernah keluar dari kertas walau grid-nya lebih besar dari ruang sisa.
+     */
+    fun movedBy(
+        dx: Mm10,
+        dy: Mm10,
+        snapMm10: Int,
+        paperWidth: Mm10,
+        paperHeight: Mm10
+    ): TemplateRect {
+        val maxX = (paperWidth.value - width.value).coerceAtLeast(0)
+        val maxY = (paperHeight.value - height.value).coerceAtLeast(0)
+
+        val rawX = (x.value + dx.value).coerceIn(0, maxX)
+        val rawY = (y.value + dy.value).coerceIn(0, maxY)
+
+        val snappedX = if (snapMm10 > 0) (rawX / snapMm10) * snapMm10 else rawX
+        val snappedY = if (snapMm10 > 0) (rawY / snapMm10) * snapMm10 else rawY
+
+        return copy(
+            x = Mm10(snappedX.coerceIn(0, maxX)),
+            y = Mm10(snappedY.coerceIn(0, maxY))
+        )
+    }
 }
 
 enum class PaperSize(val displayName: String, val widthMm10: Int, val heightMm10: Int) {
