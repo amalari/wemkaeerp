@@ -3,6 +3,10 @@
 # ==============================================================================
 # WeMade ERP — Fullstack Development Runner
 # Menjalankan Ktor Backend Server & Wasm Compose Web App dengan Auto-Watch/Reload
+#
+# Juga menyediakan runner test:
+#   ./dev.sh test                → seluruh suite test (core + shared + server)
+#   ./dev.sh test-changed [ref]  → hanya test yang berhubungan dengan file yang berubah
 # ==============================================================================
 
 # Warna ANSI untuk terminal
@@ -127,12 +131,33 @@ case "$MODE" in
         exit 0
         ;;
 
+    # Seluruh suite (core + shared + server).
+    #
+    # Dijalankan lewat dev.sh, bukan langsung `./gradlew`, karena script ini sudah
+    # memuat .env di atas: Gradle sendiri tidak membaca .env, dan tanpa DB_PORT=5435
+    # test server akan menembak PostgreSQL di 5432 (project lain) lalu gagal dengan
+    # HikariPool$PoolInitializationException yang tampak seperti bug kode.
+    test)
+        trap - SIGINT SIGTERM EXIT
+        exec ./tools/test-changed.sh --full
+        ;;
+
+    # Hanya test yang berhubungan dengan file yang berubah.
+    # Contoh: ./dev.sh test-changed origin/main
+    test-changed)
+        shift
+        trap - SIGINT SIGTERM EXIT
+        exec ./tools/test-changed.sh "$@"
+        ;;
+
     help|--help|-h)
         echo -e "${BOLD}Panduan Penggunaan dev.sh:${RESET}"
         echo "  ./dev.sh         : Menjalankan Server Backend (8080) dan Wasm Watcher (3000) sekaligus"
         echo "  ./dev.sh wasm    : Hanya menjalankan Wasm Dev Server dengan auto-watching/hot-reload"
         echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server"
         echo "  ./dev.sh docker  : Menyalakan container database PostgreSQL"
+        echo "  ./dev.sh test    : Menjalankan seluruh suite test (core + shared + server)"
+        echo "  ./dev.sh test-changed [ref] : HANYA test yang berhubungan dengan file yang berubah"
         echo "  ./dev.sh help    : Menampilkan bantuan ini"
         trap - SIGINT SIGTERM EXIT
         exit 0
