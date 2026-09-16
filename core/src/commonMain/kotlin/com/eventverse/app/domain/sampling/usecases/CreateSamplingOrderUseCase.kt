@@ -14,9 +14,18 @@ data class CreateSamplingOrderCommand(
     val deadlineFinishing: LocalDate? = null,
     val deadlineDelivery: LocalDate? = null,
     val leadId: String? = null,
+    /** Deal CRM asal sampling (opsional — sampling standalone tetap didukung). */
+    val dealId: String? = null,
+    val sampleQuantity: Int = 2,
+    val samplingFeeIdr: Long = 0L,
     val notes: String = "",
     val useFactoryAllSizePreset: Boolean = true
-)
+) {
+    init {
+        require(sampleQuantity in 1..3) { "Jumlah sampel harus 1-3 pcs" }
+        require(samplingFeeIdr >= 0) { "Biaya sampling tidak boleh negatif" }
+    }
+}
 
 class CreateSamplingOrderUseCase(
     private val repository: SamplingOrderRepository
@@ -53,6 +62,9 @@ class CreateSamplingOrderUseCase(
             deadlineFinishing = command.deadlineFinishing,
             deadlineDelivery = command.deadlineDelivery,
             leadId = command.leadId,
+            dealId = command.dealId,
+            sampleQuantity = command.sampleQuantity,
+            samplingFeeIdr = command.samplingFeeIdr,
             notes = command.notes.trim(),
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawSizes,

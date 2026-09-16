@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.crm.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,10 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -41,9 +46,11 @@ import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.presentation.crm.CrmViewMode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayPaneWidth
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -88,10 +95,14 @@ fun CrmKanbanBoard(
     isLoadingActivities: Boolean = false,
     isSubmittingActivity: Boolean = false,
     onSubmitActivity: ((content: String) -> Unit)? = null,
+    kpiMetrics: com.eventverse.app.domain.crm.CrmLeadKpiMetrics = com.eventverse.app.domain.crm.CrmLeadKpiMetrics(),
+    selectedEmployeeId: OrgNodeId? = null,
+    selectedSource: String? = null,
+    onFilterEmployee: (OrgNodeId?) -> Unit = {},
+    onFilterSource: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
-    val totalPipelineValue = leads.sumOf { it.estimatedValue?.amount ?: 0L }
 
     val newLeads = leads.filter { it.stage == LeadStage.NEW_LEAD }
     val qualifiedLeads = leads.filter { it.stage == LeadStage.QUALIFIED }
@@ -99,6 +110,9 @@ fun CrmKanbanBoard(
 
     val dragDropState = rememberCrmDragDropState()
     var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
+
+    var employeeMenuExpanded by remember { mutableStateOf(false) }
+    var sourceMenuExpanded by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalCrmDragDropState provides dragDropState) {
         Box(
@@ -111,40 +125,123 @@ fun CrmKanbanBoard(
                 }
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
-                // Toolbar Atas: Search Bar + View Mode Toggle + Metrics + Tambah Lead
+                // Baris Atas: Executive KPI Metric Strip (4 Kartu Clay)
+                CrmKpiMetricsRow(metrics = kpiMetrics)
+
+                Spacer(Modifier.height(ClaySpacing.Lg))
+
+                // Toolbar Atas: Search Bar + Filter PIC + Filter Sumber + View Mode Toggle + Tambah Lead
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Xl),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Lg),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ClayTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        placeholder = "Cari brand, kontak, nomor WA…",
-                        modifier = Modifier.width(360.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                    ) {
+                        ClayTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            placeholder = "Cari brand, kontak, nomor WA, kategori…",
+                            modifier = Modifier.width(280.dp)
+                        )
+
+                        // Dropdown Filter Sales PIC
+                        Box {
+                            val selectedEmpName = employees.firstOrNull { it.id == selectedEmployeeId }?.name
+                            Row(
+                                modifier = Modifier
+                                    .clayFlat(
+                                        shape = ClayShapes.Button,
+                                        background = if (selectedEmployeeId != null) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                                        outline = if (selectedEmployeeId != null) WeMadeColors.Primary else WeMadeColors.Outline,
+                                        borderWidth = ClayBorder.Medium
+                                    )
+                                    .clickable { employeeMenuExpanded = true }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = selectedEmpName ?: "Semua Sales PIC",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (selectedEmployeeId != null) WeMadeColors.Primary else WeMadeColors.OnSurface
+                                )
+                                IconChevronDown(Modifier.size(10.dp), color = if (selectedEmployeeId != null) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted)
+                            }
+                            DropdownMenu(
+                                expanded = employeeMenuExpanded,
+                                onDismissRequest = { employeeMenuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Semua Sales PIC", fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                                    onClick = {
+                                        employeeMenuExpanded = false
+                                        onFilterEmployee(null)
+                                    }
+                                )
+                                employees.forEach { emp ->
+                                    DropdownMenuItem(
+                                        text = { Text(emp.name, fontSize = 12.sp) },
+                                        onClick = {
+                                            employeeMenuExpanded = false
+                                            onFilterEmployee(emp.id)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Dropdown Filter Sumber Channel
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .clayFlat(
+                                        shape = ClayShapes.Button,
+                                        background = if (selectedSource != null) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                                        outline = if (selectedSource != null) WeMadeColors.Primary else WeMadeColors.Outline,
+                                        borderWidth = ClayBorder.Medium
+                                    )
+                                    .clickable { sourceMenuExpanded = true }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = selectedSource ?: "Semua Sumber",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (selectedSource != null) WeMadeColors.Primary else WeMadeColors.OnSurface
+                                )
+                                IconChevronDown(Modifier.size(10.dp), color = if (selectedSource != null) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted)
+                            }
+                            DropdownMenu(
+                                expanded = sourceMenuExpanded,
+                                onDismissRequest = { sourceMenuExpanded = false }
+                            ) {
+                                listOf(null, "WhatsApp", "Referral", "Pameran", "Walk-in", "Instagram").forEach { src ->
+                                    DropdownMenuItem(
+                                        text = { Text(src ?: "Semua Sumber", fontSize = 12.sp, fontWeight = if (src == null) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = {
+                                            sourceMenuExpanded = false
+                                            onFilterSource(src)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                     ) {
-                        // Ringkasan Pipeline Value
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                        ) {
-                            Text(
-                                text = "Pipeline:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-                            ClayTag(
-                                text = "${leads.size} Lead • ${formatRupiah(totalPipelineValue)}",
-                                tint = WeMadeColors.Primary,
-                                fontSize = 12.sp
-                            )
-                        }
+                        CrmViewToggle(
+                            currentMode = viewMode,
+                            onModeChange = onViewModeChange
+                        )
 
                         if (onAddLead != null) {
                             ClayButton(

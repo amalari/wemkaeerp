@@ -1148,3 +1148,76 @@ fun IconHandMove(modifier: Modifier = Modifier, color: Color = WeMadeColors.Prim
     }
 }
 
+
+/**
+ * Dua lembar bertumpuk — tombol salin (mis. nomor resi kurir).
+ */
+@Composable
+fun IconCopy(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Lembar belakang
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.10f, h * 0.10f),
+            size = Size(w * 0.50f, h * 0.50f),
+            cornerRadius = CornerRadius(w * 0.12f, w * 0.12f),
+            style = Stroke(width = stroke)
+        )
+
+        // Lembar depan
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.38f, h * 0.38f),
+            size = Size(w * 0.52f, h * 0.52f),
+            cornerRadius = CornerRadius(w * 0.12f, w * 0.12f),
+            style = Stroke(width = stroke)
+        )
+    }
+}
+
+/**
+ * Foto/gambar — placeholder slot mockup desain dan aksi "Upload Foto".
+ */
+@Composable
+fun IconImage(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Bingkai foto
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.12f, h * 0.16f),
+            size = Size(w * 0.76f, h * 0.68f),
+            cornerRadius = CornerRadius(w * 0.10f, w * 0.10f),
+            style = Stroke(width = stroke)
+        )
+
+        // Matahari kecil di dalam bingkai
+        drawCircle(
+            color = color,
+            radius = w * 0.06f,
+            center = Offset(w * 0.32f, h * 0.36f),
+            style = Stroke(width = stroke * 0.8f)
+        )
+
+        // Siluet gunung
+        val path = Path().apply {
+            moveTo(w * 0.18f, h * 0.74f)
+            lineTo(w * 0.40f, h * 0.50f)
+            lineTo(w * 0.56f, h * 0.66f)
+            lineTo(w * 0.68f, h * 0.56f)
+            lineTo(w * 0.84f, h * 0.74f)
+        }
+        drawPath(
+            path,
+            color = color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}

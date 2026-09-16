@@ -29,6 +29,9 @@ object CrmLeadsTable : Table("crm_leads") {
 
     val customAttributes = jsonbText("custom_attributes").default("{}")
 
+    val productCategory = varchar("product_category", 100).default("")
+    val lastContactedAt = timestamp("last_contacted_at").nullable()
+
     val createdByUserId = varchar("created_by_user_id", 64).references(UsersTable.id).nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")

@@ -3,8 +3,13 @@ package com.eventverse.app.infrastructure.api
 import com.eventverse.app.domain.deal.Deal
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrder
+import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.shared.deal.DealCodec
 import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.jsonObjectOf
+import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -122,6 +127,85 @@ class DealApiClient(
         val body = response.requireBody("membuat tautan unduhan")
         JsonParser.parseObject(body).string("url")
             ?: error("Respons tautan unduhan tidak valid")
+    }
+
+    override suspend fun getDealSamplingOrders(tenantSlug: String, dealId: String): Result<List<SamplingOrder>> =
+        runCatching {
+            val response = httpClient.get(resolveUrl("$DEALS_PATH/$dealId/sampling-orders")) {
+                tenantRequest(tenantSlug, tokenProvider)
+                accept(ContentType.Application.Json)
+            }
+            val body = response.requireBody("memuat sampling deal")
+            JsonParser.parseArray(body).filterIsInstance<JsonValue.Obj>()
+                .map { SamplingOrderCodec.decode(it) }
+        }
+
+    override suspend fun saveSamplingOrderFromDeal(
+        tenantSlug: String,
+        dealId: String,
+        request: SaveSamplingOrderFromDealRequest
+    ): Result<SamplingOrder> = runCatching {
+        val response = httpClient.post(resolveUrl("$DEALS_PATH/$dealId/sampling-orders")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(
+                jsonObjectOf(
+                    "samplingOrderId" to jsonOf(request.samplingOrderId),
+                    "styleName" to jsonOf(request.styleName),
+                    "sampleQuantity" to jsonOf(request.sampleQuantity),
+                    "courierTracking" to jsonOf(request.courierTracking),
+                    "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
+                    "notes" to jsonOf(request.notes)
+                ).encode()
+            )
+        }
+        val body = response.requireBody("menyimpan lembar sampling")
+        SamplingOrderCodec.decode(JsonParser.parseObject(body))
+    }
+
+    override suspend fun approveSamplingOrder(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String,
+        isApproved: Boolean,
+        notes: String
+    ): Result<List<SamplingOrder>> = runCatching {
+        val response = httpClient.post(
+            resolveUrl("$DEALS_PATH/$dealId/sampling-orders/$samplingOrderId/acc")
+        ) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(
+                jsonObjectOf(
+                    "isApproved" to jsonOf(isApproved),
+                    "notes" to jsonOf(notes)
+                ).encode()
+            )
+        }
+        val body = response.requireBody("menandai ACC sampling")
+        JsonParser.parseArray(body).filterIsInstance<JsonValue.Obj>()
+            .map { SamplingOrderCodec.decode(it) }
+    }
+
+    override suspend fun uploadSamplingMockup(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray
+    ): Result<SamplingOrder> = runCatching {
+        val response = httpClient.post(
+            resolveUrl("$DEALS_PATH/$dealId/sampling-orders/$samplingOrderId/mockup")
+        ) {
+            tenantRequest(tenantSlug, tokenProvider)
+            parameter("fileName", fileName)
+            parameter("mimeType", mimeType)
+            contentType(ContentType.parse(mimeType))
+            setBody(bytes)
+        }
+        val body = response.requireBody("mengunggah foto desain")
+        SamplingOrderCodec.decode(JsonParser.parseObject(body))
     }
 
     private fun resolveTenant(tenantSlug: String) =

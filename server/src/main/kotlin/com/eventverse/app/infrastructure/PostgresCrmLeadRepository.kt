@@ -108,6 +108,8 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
                 it[ownerEmployeeId] = lead.ownerEmployeeId?.value
                 it[expectedCloseDate] = lead.expectedCloseDate
                 it[customAttributes] = customAttributesJson
+                it[productCategory] = lead.productCategory.value
+                it[lastContactedAt] = lead.lastContactedAt
                 it[updatedAt] = lead.updatedAt
                 it[archivedAt] = lead.archivedAt
             }
@@ -127,6 +129,8 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
                     it[ownerEmployeeId] = lead.ownerEmployeeId?.value
                     it[expectedCloseDate] = lead.expectedCloseDate
                     it[customAttributes] = customAttributesJson
+                    it[productCategory] = lead.productCategory.value
+                    it[lastContactedAt] = lead.lastContactedAt
                     it[createdByUserId] = lead.createdByUserId
                     it[createdAt] = lead.createdAt
                     it[updatedAt] = lead.updatedAt
@@ -151,6 +155,8 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
             estimatedValue = row[CrmLeadsTable.estimatedValueIdr]?.let { MoneyIdr(it) },
             ownerEmployeeId = row[CrmLeadsTable.ownerEmployeeId]?.let { OrgNodeId(it) },
             expectedCloseDate = row[CrmLeadsTable.expectedCloseDate],
+            productCategory = com.eventverse.app.domain.crm.ProductCategory(row[CrmLeadsTable.productCategory]),
+            lastContactedAt = row[CrmLeadsTable.lastContactedAt],
             customAttributes = CustomAttributes.fromJsonValue(attrsObj),
             createdByUserId = row[CrmLeadsTable.createdByUserId],
             createdAt = row[CrmLeadsTable.createdAt],

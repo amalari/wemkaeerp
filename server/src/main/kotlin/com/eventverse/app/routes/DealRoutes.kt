@@ -15,9 +15,20 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.domain.deal.storage.PoFileStorage as PoStorage
+import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.SamplingOrderId
+import com.eventverse.app.domain.sampling.SamplingOrderRepository
+import com.eventverse.app.domain.sampling.usecases.AttachSamplingMockupCommand
+import com.eventverse.app.domain.sampling.usecases.AttachSamplingMockupUseCase
+import com.eventverse.app.domain.sampling.usecases.ApproveSamplingFromDealCommand
+import com.eventverse.app.domain.sampling.usecases.ApproveSamplingFromDealUseCase
+import com.eventverse.app.domain.sampling.usecases.CreateSamplingOrderFromDealUseCase
+import com.eventverse.app.domain.sampling.usecases.SamplingFromDealCommand
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.deal.DealCodec
+import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -46,11 +57,15 @@ fun Route.dealRoutes(
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
     poFileStorage: PoFileStorage? = null,
+    samplingOrderRepository: SamplingOrderRepository? = null,
 ) {
     val listDealsUseCase = ListDealsUseCase(dealRepository)
     val getDealDetailUseCase = GetDealDetailUseCase(dealRepository, contactRepository)
     val updateDealStageUseCase = UpdateDealStageUseCase(dealRepository)
     val attachPurchaseOrderUseCase = AttachPurchaseOrderUseCase(dealRepository, poFileStorage)
+    val createSamplingFromDealUseCase = samplingOrderRepository?.let { CreateSamplingOrderFromDealUseCase(it) }
+    val approveSamplingFromDealUseCase = samplingOrderRepository?.let { ApproveSamplingFromDealUseCase(it) }
+    val attachSamplingMockupUseCase = samplingOrderRepository?.let { AttachSamplingMockupUseCase(it) }
 
     route("/api/tenant/deals") {
 
@@ -278,6 +293,202 @@ fun Route.dealRoutes(
                     .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it) }
             }
         }
+
+        // ROUTES_SAMPLING — lembar sampling per desain menempel pada deal (Golden Sample Lock).
+        // Authority sama dengan deal lainnya: CRM_SALES (VIEW untuk baca, OPERATE untuk tulis).
+        get("/{id}/sampling-orders") {
+            val tenant = call.requireTenant() ?: return@get
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
+            val repo = samplingOrderRepository
+            if (repo == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@get
+            }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val deal = dealRepository.findById(tenant.tenantId, dealId)
+            if (deal == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@get
+            }
+
+            val orders = repo.findByDealId(tenant.tenantId, dealId.value)
+            // DB menyimpan OBJECT KEY, bukan presigned URL (yang kedaluwarsa). URL segar
+            // dibuat di sini supaya foto desain selalu bisa ditampilkan klien.
+            val resolved = orders.map { withResolvedMockups(it, poFileStorage) }
+            call.respondJson(
+                com.eventverse.app.shared.json.jsonArrayOf(resolved.map { SamplingOrderCodec.encode(it) }).encode()
+            )
+        }
+
+        post("/{id}/sampling-orders") {
+            val tenant = call.requireTenant() ?: return@post
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
+            val useCase = createSamplingFromDealUseCase
+            if (useCase == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@post
+            }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val existing = dealRepository.findById(tenant.tenantId, dealId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@post
+            }
+            val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
+            if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@post
+
+            val json = com.eventverse.app.shared.json.JsonParser.parseObject(call.receiveText())
+            val command = SamplingFromDealCommand(
+                tenantId = tenant.tenantId,
+                dealId = dealId.value,
+                clientName = existing.contactId.value,
+                styleName = json.string("styleName") ?: "",
+                samplingOrderId = json.string("samplingOrderId"),
+                sampleQuantity = json.int("sampleQuantity") ?: 2,
+                courierTracking = json.string("courierTracking"),
+                samplingFeeIdr = json.long("samplingFeeIdr") ?: 0L,
+                notes = json.string("notes") ?: ""
+            )
+
+            useCase(command)
+                .onSuccess { order ->
+                    call.respondJson(SamplingOrderCodec.encode(order).encode())
+                }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        post("/{id}/sampling-orders/{samplingId}/acc") {
+            val tenant = call.requireTenant() ?: return@post
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
+            val useCase = approveSamplingFromDealUseCase
+            if (useCase == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@post
+            }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val existing = dealRepository.findById(tenant.tenantId, dealId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@post
+            }
+            val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
+            if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@post
+
+            val json = com.eventverse.app.shared.json.JsonParser.parseObject(call.receiveText())
+            val command = ApproveSamplingFromDealCommand(
+                tenantId = tenant.tenantId,
+                dealId = dealId.value,
+                samplingOrderId = call.parameters["samplingId"] ?: "",
+                isApproved = json.boolean("isApproved") ?: true,
+                notes = json.string("notes") ?: ""
+            )
+
+            useCase(command)
+                .onSuccess { orders ->
+                    call.respondJson(
+                        com.eventverse.app.shared.json.jsonArrayOf(orders.map { SamplingOrderCodec.encode(it) }).encode()
+                    )
+                }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        // POST /{id}/sampling-orders/{samplingId}/mockup — unggah foto mockup desain.
+        // Kontrak sama dengan upload PO: metadata via query, bytes sebagai raw body.
+        post("/{id}/sampling-orders/{samplingId}/mockup") {
+            val tenant = call.requireTenant() ?: return@post
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
+
+            val useCase = attachSamplingMockupUseCase
+            if (useCase == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@post
+            }
+            // Objek storage opsional: kalau belum dikonfigurasi (dev tanpa MinIO), foto tetap
+            // bisa masuk sebagai data URL kecil supaya tombol Upload tidak menemui jalan buntu.
+            val storage = poFileStorage?.takeIf { it.isConfigured }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val existing = dealRepository.findById(tenant.tenantId, dealId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@post
+            }
+            val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
+            if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@post
+
+            val samplingId = call.parameters["samplingId"] ?: ""
+            if (samplingId.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "Missing samplingOrderId")
+                return@post
+            }
+
+            val query = call.request.queryParameters
+            val fileName = query["fileName"]?.takeIf { it.isNotBlank() }
+            val mimeType = query["mimeType"]?.takeIf { it.isNotBlank() } ?: "application/octet-stream"
+            if (fileName == null) {
+                call.respond(HttpStatusCode.BadRequest, "Query 'fileName' wajib diisi")
+                return@post
+            }
+            if (mimeType !in ALLOWED_MOCKUP_MIME_TYPES) {
+                call.respond(HttpStatusCode.UnsupportedMediaType, "Tipe gambar $mimeType tidak diizinkan")
+                return@post
+            }
+
+            val bytes = call.receive<ByteArray>()
+            if (bytes.isEmpty()) {
+                call.respond(HttpStatusCode.BadRequest, "Body berkas kosong")
+                return@post
+            }
+            val inline = storage == null
+            val limit = if (inline) MAX_INLINE_MOCKUP_BYTES else MAX_MOCKUP_BYTES
+            if (bytes.size > limit) {
+                val limitMb = limit / (1024 * 1024)
+                call.respond(
+                    HttpStatusCode.PayloadTooLarge,
+                    if (inline) {
+                        "Ukuran foto melebihi $limitMb MB. Konfigurasikan S3/MinIO " +
+                            "(S3_ENDPOINT/S3_ACCESS_KEY/S3_SECRET_KEY) untuk foto berukuran besar."
+                    } else {
+                        "Ukuran foto melebihi $limitMb MB"
+                    }
+                )
+                return@post
+            }
+
+            val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val reference: String
+            if (inline) {
+                reference = "data:$mimeType;base64," + java.util.Base64.getEncoder().encodeToString(bytes)
+            } else {
+                val key = "sampling-mockups/${tenant.tenantId.value}/$samplingId/" +
+                    "${Instant.fromEpochMilliseconds(System.currentTimeMillis()).toEpochMilliseconds()}-$safeName"
+                val stored = storage.put(key, bytes, mimeType)
+                if (stored.isFailure) {
+                    call.respondFailure(HttpStatusCode.InternalServerError, stored.exceptionOrNull()!!)
+                    return@post
+                }
+                reference = key
+            }
+
+            useCase(
+                AttachSamplingMockupCommand(
+                    tenantId = tenant.tenantId,
+                    samplingOrderId = SamplingOrderId(samplingId),
+                    storageKey = reference
+                )
+            ).onSuccess { order ->
+                call.respondJson(
+                    SamplingOrderCodec.encode(withResolvedMockups(order, storage)).encode()
+                )
+            }.onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
     }
     route("/api/tenant/crm/contacts") {
 
@@ -294,6 +505,44 @@ fun Route.dealRoutes(
 }
 
 private const val MAX_PO_FILE_BYTES = 10 * 1024 * 1024
+
+/** Foto mockup desain: hanya raster web yang aman ditampilkan di kanvas. */
+private val ALLOWED_MOCKUP_MIME_TYPES = setOf(
+    "image/png",
+    "image/jpeg",
+    "image/webp"
+)
+
+private const val MAX_MOCKUP_BYTES = 5 * 1024 * 1024
+
+/**
+ * Batas foto yang disimpan INLINE (base64) saat object storage belum dikonfigurasi.
+ * Sengaja jauh di bawah batas storage: nilai ini ikut ditulis ke kolom jsonb, jadi
+ * 2 MB adalah kompromi paling jauh yang masih sehat untuk lingkungan pengembangan.
+ */
+private const val MAX_INLINE_MOCKUP_BYTES = 2 * 1024 * 1024
+
+/**
+ * Mengganti key object storage di `knitSpec.mockupImageUrls` dengan presigned URL segar.
+ * Entri yang sudah berupa URL absolut dibiarkan; entri yang gagal di-resolve dibuang supaya
+ * UI tidak menerima tautan mati.
+ */
+private suspend fun withResolvedMockups(
+    order: SamplingOrder,
+    storage: PoStorage?
+): SamplingOrder {
+    val entries = order.knitSpec.mockupImageUrls
+    if (entries.isEmpty()) return order
+    val resolved = entries.mapNotNull { entry ->
+        when {
+            entry.startsWith("http") -> entry
+            entry.startsWith("data:") -> entry
+            storage?.isConfigured == true -> storage.downloadUrl(entry).getOrNull()
+            else -> null
+        }
+    }
+    return order.copy(knitSpec = order.knitSpec.copy(mockupImageUrls = resolved))
+}
 
 private val ALLOWED_PO_MIME_TYPES = setOf(
     "application/pdf",

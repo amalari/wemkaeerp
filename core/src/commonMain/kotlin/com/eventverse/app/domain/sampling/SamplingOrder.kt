@@ -16,6 +16,13 @@ data class SamplingOrder(
     val deadlineFinishing: LocalDate? = null,
     val deadlineDelivery: LocalDate? = null,
     val leadId: String? = null,
+    /** Deal CRM pemilik sampling ini — Golden Sample Lock dari deal ke produksi massal. */
+    val dealId: String? = null,
+    val sampleQuantity: Int = 2,
+    val courierTracking: String? = null,
+    val samplingFeeIdr: Long = 0L,
+    /** Jumlah revisi yang pernah diminta buyer — 0 berarti masih sampel awal (Rev 0). */
+    val revisionCount: Int = 0,
     val accNotes: String = "",
     val notes: String = "",
     val knitSpec: KnitSpec = KnitSpec(),
@@ -78,6 +85,7 @@ data class SamplingOrder(
     fun requestRevision(notes: String, updatedAt: Instant): SamplingOrder = copy(
         status = SamplingStatus.REVISION,
         accNotes = notes,
+        revisionCount = revisionCount + 1,
         updatedAt = updatedAt
     )
 
@@ -87,7 +95,43 @@ data class SamplingOrder(
         updatedAt = updatedAt
     )
 
+    /**
+     * Mengikat order sampling ke deal CRM. Idempotent: re-link ke deal yang sama
+     * dibiarkan menghasilkan salinan identik tanpa mengubah updatedAt.
+     */
+    fun linkToDeal(dealId: String, updatedAt: Instant): SamplingOrder =
+        if (this.dealId == dealId) this
+        else copy(dealId = dealId, updatedAt = updatedAt)
+
+    fun updateCourierTracking(tracking: String, updatedAt: Instant): SamplingOrder = copy(
+        courierTracking = tracking.trim().takeIf { it.isNotEmpty() },
+        updatedAt = updatedAt
+    )
+
+    /**
+     * Menempelkan satu foto mockup desain. Nilai yang disimpan adalah KEY object storage
+     * (bukan presigned URL yang kedaluwarsa) — URL segar dibuat saat pembacaan.
+     *
+     * Idempotent per key dan dibatasi [MAX_MOCKUPS] foto agar satu desain tidak menumpuk
+     * puluhan foto yang membuat kartu accordion berat.
+     */
+    fun attachMockup(storageKey: String, updatedAt: Instant): SamplingOrder {
+        val key = storageKey.trim()
+        if (key.isEmpty() || key in knitSpec.mockupImageUrls) return this
+        val next = (knitSpec.mockupImageUrls + key).takeLast(MAX_MOCKUPS)
+        return copy(knitSpec = knitSpec.copy(mockupImageUrls = next), updatedAt = updatedAt)
+    }
+
+    /** Foto mockup terbaru — yang ditampilkan besar di kartu accordion desain. */
+    val latestMockupKey: String? get() = knitSpec.mockupImageUrls.lastOrNull()
+
+    /** Desain aktif = belum ACC dan belum dibatalkan (drop oleh buyer/admin). */
+    val isActiveDesign: Boolean get() = status != SamplingStatus.ACC_APPROVED && status != SamplingStatus.CANCELLED
+
     companion object {
+        /** Batas foto mockup per desain — mockup terbaru yang ditampilkan. */
+        const val MAX_MOCKUPS = 6
+
         fun defaultMilestones(): List<MilestoneProgress> = MilestoneStep.entries.sortedBy { it.defaultOrder }.map {
             MilestoneProgress(step = it, isCompleted = false)
         }

@@ -40,17 +40,17 @@ fun CrmViewToggle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         ClayButton(
-            text = "⊞ Kanban",
+            text = "Kanban",
             style = if (currentMode == CrmViewMode.KANBAN) ClayButtonStyle.Primary else ClayButtonStyle.Ghost,
             fontSize = 12.sp,
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             onClick = { onModeChange(CrmViewMode.KANBAN) }
         )
         ClayButton(
-            text = "☰ List",
+            text = "Tabel",
             style = if (currentMode == CrmViewMode.LIST) ClayButtonStyle.Primary else ClayButtonStyle.Ghost,
             fontSize = 12.sp,
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             onClick = { onModeChange(CrmViewMode.LIST) }
         )
     }

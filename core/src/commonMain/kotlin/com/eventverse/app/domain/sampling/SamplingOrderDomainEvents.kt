@@ -45,3 +45,22 @@ data class SamplingOrderRevisionRequested(
     val revisionNotes: String,
     override val occurredAt: Instant
 ) : SamplingOrderDomainEvent
+
+/** Sampling lahir dari deal CRM — membawa [dealId] sebagai jejak Golden Sample Lock. */
+data class SamplingOrderCreatedFromDeal(
+    override val orderId: SamplingOrderId,
+    override val tenantId: TenantId,
+    val dealId: String,
+    val styleName: String,
+    val sampleQuantity: Int,
+    override val occurredAt: Instant
+) : SamplingOrderDomainEvent
+
+/** Sampel di-ACC buyer — spesifikasi terkunci sebagai acuan produksi massal deal terkait. */
+data class SamplingOrderAccApproved(
+    override val orderId: SamplingOrderId,
+    override val tenantId: TenantId,
+    val dealId: String,
+    val accNotes: String,
+    override val occurredAt: Instant
+) : SamplingOrderDomainEvent

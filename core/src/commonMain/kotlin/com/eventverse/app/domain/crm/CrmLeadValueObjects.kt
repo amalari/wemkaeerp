@@ -110,3 +110,24 @@ value class LeadSource(val value: String) {
         val UNSPECIFIED = LeadSource("")
     }
 }
+
+/** Kategori pakaian / arketipe produk garmen (misal: Kaos / Polo, Kemeja Drill, Jaket Fleece, Seragam). */
+@JvmInline
+value class ProductCategory(val value: String) {
+    init {
+        require(value.length <= 100) { "ProductCategory must be at most 100 characters" }
+    }
+
+    companion object {
+        val EMPTY = ProductCategory("")
+    }
+}
+
+/** Ringkasan metrik performa eksekutif KPI Sales CRM. */
+data class CrmLeadKpiMetrics(
+    val totalPipelineValue: Long = 0L,
+    val activeLeadsCount: Int = 0,
+    val qualifiedConversionRate: Double = 0.0,
+    val followUpNeededCount: Int = 0
+)
+

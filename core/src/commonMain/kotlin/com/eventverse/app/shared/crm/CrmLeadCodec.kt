@@ -5,6 +5,8 @@ import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadSource
 import com.eventverse.app.domain.crm.LeadStage
+import com.eventverse.app.domain.crm.ProductCategory
+import com.eventverse.app.domain.crm.CrmLeadKpiMetrics
 import com.eventverse.app.domain.crm.WhatsappNumber
 import com.eventverse.app.domain.customfield.CustomAttributesCodec
 import com.eventverse.app.domain.customfield.CustomFieldId
@@ -56,6 +58,8 @@ object CrmLeadCodec {
         "ownerEmployeeId" to jsonOf(lead.ownerEmployeeId?.value),
         "expectedCloseDate" to jsonOf(lead.expectedCloseDate?.toString()),
         "customAttributes" to lead.customAttributes.toJsonValue(),
+        "productCategory" to jsonOf(lead.productCategory.value),
+        "lastContactedAt" to jsonOf(lead.lastContactedAt?.toString()),
         "createdAt" to jsonOf(lead.createdAt.toString()),
         "updatedAt" to jsonOf(lead.updatedAt.toString()),
         "archivedAt" to jsonOf(lead.archivedAt?.toString()),
@@ -94,6 +98,8 @@ object CrmLeadCodec {
             customAttributes = com.eventverse.app.domain.customfield.CustomAttributes.fromJsonValue(
                 obj.obj("customAttributes") ?: JsonValue.Obj(emptyMap())
             ),
+            productCategory = com.eventverse.app.domain.crm.ProductCategory(obj.string("productCategory") ?: ""),
+            lastContactedAt = DateTimeCodec.parseInstantOrNull(obj.string("lastContactedAt")),
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = DateTimeCodec.parseInstantOrNull(obj.string("archivedAt")),
@@ -196,6 +202,7 @@ object CrmLeadCodec {
         val estimatedValue: MoneyIdr? = null,
         val ownerEmployeeId: OrgNodeId? = null,
         val expectedCloseDate: LocalDate? = null,
+        val productCategory: ProductCategory = ProductCategory.EMPTY,
         val customValues: Map<CustomFieldId, JsonValue.Obj?> = emptyMap()
     )
 
@@ -210,6 +217,7 @@ object CrmLeadCodec {
         "estimatedValueIdr" to (request.estimatedValue?.let { jsonOf(it.amount) } ?: JsonValue.Null),
         "ownerEmployeeId" to jsonOf(request.ownerEmployeeId?.value),
         "expectedCloseDate" to jsonOf(request.expectedCloseDate?.toString()),
+        "productCategory" to jsonOf(request.productCategory.value),
         "customAttributes" to encodeCustomValues(request.customValues)
     ).encode()
 
@@ -226,7 +234,29 @@ object CrmLeadCodec {
             estimatedValue = root.long("estimatedValueIdr")?.let { MoneyIdr(it) },
             ownerEmployeeId = root.string("ownerEmployeeId")?.let { OrgNodeId(it) },
             expectedCloseDate = DateTimeCodec.parseLocalDateOrNull(root.string("expectedCloseDate")),
+            productCategory = ProductCategory(root.string("productCategory") ?: ""),
             customValues = decodeCustomValues(root)
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // KPI Metrics <-> JSON
+    // -----------------------------------------------------------------------
+
+    fun encodeKpiMetrics(metrics: CrmLeadKpiMetrics): JsonValue.Obj = jsonObjectOf(
+        "totalPipelineValue" to jsonOf(metrics.totalPipelineValue),
+        "activeLeadsCount" to jsonOf(metrics.activeLeadsCount),
+        "qualifiedConversionRate" to jsonOf(metrics.qualifiedConversionRate),
+        "followUpNeededCount" to jsonOf(metrics.followUpNeededCount)
+    )
+
+    fun decodeKpiMetrics(rawJson: String): CrmLeadKpiMetrics {
+        val root = JsonParser.parseObjectOrNull(rawJson) ?: return CrmLeadKpiMetrics()
+        return CrmLeadKpiMetrics(
+            totalPipelineValue = root.long("totalPipelineValue") ?: 0L,
+            activeLeadsCount = root.int("activeLeadsCount") ?: 0,
+            qualifiedConversionRate = root.double("qualifiedConversionRate") ?: 0.0,
+            followUpNeededCount = root.int("followUpNeededCount") ?: 0
         )
     }
 

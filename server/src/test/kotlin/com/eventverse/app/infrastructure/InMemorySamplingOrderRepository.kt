@@ -21,6 +21,11 @@ class InMemorySamplingOrderRepository : SamplingOrderRepository {
             .filter { it.tenantId == tenantId && it.archivedAt == null && (status == null || it.status == status) }
             .sortedByDescending { it.updatedAt }
 
+    override suspend fun findByDealId(tenantId: TenantId, dealId: String): List<SamplingOrder> =
+        storage.values
+            .filter { it.tenantId == tenantId && it.dealId == dealId && it.archivedAt == null }
+            .sortedBy { it.updatedAt }
+
     override suspend fun save(order: SamplingOrder): SamplingOrder {
         storage[order.id.value] = order
         return order

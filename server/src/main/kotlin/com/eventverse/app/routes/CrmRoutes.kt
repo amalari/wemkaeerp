@@ -79,8 +79,29 @@ fun Route.crmRoutes(
     val archiveCustomFieldUseCase = ArchiveCustomFieldDefinitionUseCase(customFieldRepository)
     val addLeadActivityUseCase = AddLeadActivityUseCase(leadActivityRepository)
     val getLeadActivitiesUseCase = GetLeadActivitiesUseCase(leadActivityRepository)
+    val getCrmLeadKpiMetricsUseCase = com.eventverse.app.domain.crm.usecases.GetCrmLeadKpiMetricsUseCase()
 
     route("/api/tenant/crm/leads") {
+
+        get("/metrics") {
+            val tenant = call.requireTenant() ?: return@get
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
+
+            val scope = decision.config.sanitizeFor(BusinessModule.CRM_SALES).scope
+            val principal = call.callerPrincipalOrNull
+            val viewerEmployeeId = principal?.email
+                ?.let { email -> employeeRepository.findByEmail(tenant.tenantId, email) }
+                ?.id
+            val employees = employeeRepository.findAllByTenant(tenant.tenantId)
+
+            listLeadsUseCase(tenant.tenantId, scope, employees, viewerEmployeeId, principal?.departmentId)
+                .onSuccess { leads ->
+                    val metrics = getCrmLeadKpiMetricsUseCase(leads, kotlinx.datetime.Clock.System.now())
+                    call.respondJson(CrmLeadCodec.encodeKpiMetrics(metrics).encode())
+                }
+                .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it) }
+        }
 
         get("/schema") {
             val tenant = call.requireTenant() ?: return@get
@@ -130,6 +151,7 @@ fun Route.crmRoutes(
                 estimatedValue = req.estimatedValue,
                 ownerEmployeeId = req.ownerEmployeeId,
                 expectedCloseDate = req.expectedCloseDate,
+                productCategory = req.productCategory,
                 customValues = req.customValues,
                 createdByUserId = call.callerPrincipalOrNull?.userId,
                 newId = { "lead-${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}-${(100..999).random()}" }

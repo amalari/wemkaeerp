@@ -32,9 +32,28 @@ dependencies {
     implementation(libs.flyway.database.postgresql)
     implementation("com.auth0:java-jwt:4.4.0")
     implementation(libs.pdfbox)
+    // Membaca berkas .xlsx HPP lama beserta gambar mockup yang tertanam di dalam sheet.
+    implementation(libs.poi.ooxml)
     // Object storage (S3-compatible / MinIO) untuk berkas PO yang di-upload
     implementation(libs.awssdk.s3)
 
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
+}
+/**
+ * Impor batch arsip HPP Excel lama ke Knowledge Base tenant.
+ *
+ *     ./gradlew :server:importHistoricalCosting --args="--dir=data/excel-hpp --tenant=<tenantId>"
+ *
+ * Memakai `JavaExec` terpisah, bukan `application { mainClass }`, supaya `./gradlew :server:run`
+ * tetap menjalankan server Ktor dan bukan importer.
+ */
+tasks.register<JavaExec>("importHistoricalCosting") {
+    group = "wemade"
+    description = "Impor berkas .xlsx HPP historis ke tabel costing_product_benchmarks"
+    mainClass.set("com.eventverse.app.cli.HistoricalCostingCliImporter")
+    classpath = sourceSets["main"].runtimeClasspath
+    // Kunci API dan kredensial database diwariskan dari shell yang menjalankan Gradle.
+    environment(System.getenv())
+    standardInput = System.`in`
 }

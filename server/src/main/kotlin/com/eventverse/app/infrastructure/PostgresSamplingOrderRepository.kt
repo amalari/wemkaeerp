@@ -46,6 +46,18 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             query.map { loadOrderDetails(it) }
         }
 
+    override suspend fun findByDealId(tenantId: TenantId, dealId: String): List<SamplingOrder> =
+        DatabaseFactory.dbQuery(tenantId) {
+            SamplingOrdersTable.selectAll()
+                .where {
+                    (SamplingOrdersTable.tenantId eq tenantId.value) and
+                        (SamplingOrdersTable.dealId eq dealId) and
+                        (SamplingOrdersTable.archivedAt.isNull())
+                }
+                .orderBy(SamplingOrdersTable.updatedAt, SortOrder.ASC)
+                .map { loadOrderDetails(it) }
+        }
+
     override suspend fun save(order: SamplingOrder): SamplingOrder =
         DatabaseFactory.dbQuery(order.tenantId) {
             val existing = SamplingOrdersTable.selectAll()
@@ -65,6 +77,11 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[deadlineFinishing] = order.deadlineFinishing
                     it[deadlineDelivery] = order.deadlineDelivery
                     it[leadId] = order.leadId
+                    it[dealId] = order.dealId
+                    it[sampleQuantity] = order.sampleQuantity
+                    it[courierTracking] = order.courierTracking
+                    it[samplingFeeIdr] = order.samplingFeeIdr
+                    it[revisionCount] = order.revisionCount
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[createdAt] = order.createdAt
@@ -80,6 +97,11 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[deadlineFinishing] = order.deadlineFinishing
                     it[deadlineDelivery] = order.deadlineDelivery
                     it[leadId] = order.leadId
+                    it[dealId] = order.dealId
+                    it[sampleQuantity] = order.sampleQuantity
+                    it[courierTracking] = order.courierTracking
+                    it[samplingFeeIdr] = order.samplingFeeIdr
+                    it[revisionCount] = order.revisionCount
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[updatedAt] = order.updatedAt
@@ -373,6 +395,11 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             deadlineFinishing = orderRow[SamplingOrdersTable.deadlineFinishing],
             deadlineDelivery = orderRow[SamplingOrdersTable.deadlineDelivery],
             leadId = orderRow[SamplingOrdersTable.leadId],
+            dealId = orderRow[SamplingOrdersTable.dealId],
+            sampleQuantity = orderRow[SamplingOrdersTable.sampleQuantity],
+            courierTracking = orderRow[SamplingOrdersTable.courierTracking],
+            samplingFeeIdr = orderRow[SamplingOrdersTable.samplingFeeIdr],
+            revisionCount = orderRow[SamplingOrdersTable.revisionCount],
             accNotes = orderRow[SamplingOrdersTable.accNotes],
             notes = orderRow[SamplingOrdersTable.notes],
             knitSpec = knitSpec,

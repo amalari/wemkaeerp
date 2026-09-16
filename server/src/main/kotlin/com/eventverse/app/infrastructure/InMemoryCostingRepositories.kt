@@ -106,3 +106,67 @@ class InMemoryCostingRateCardRepository : CostingRateCardRepository {
         rateCards[rateCard.tenantId.value to rateCard.id.value] = rateCard
     }
 }
+
+/**
+ * Arsip benchmark di memori — dipakai test rute dan mode demo tanpa PostgreSQL.
+ *
+ * Aturan penyempitan kandidatnya sengaja dibuat setara dengan
+ * [PostgresCostingBenchmarkRepository.findSimilar]: sempitkan ke kategori, lebarkan ke seluruh
+ * arsip bila kosong, urutkan gauge terdekat. Kalau keduanya berbeda, test rute akan lulus dengan
+ * perilaku yang tidak pernah terjadi di produksi.
+ */
+class InMemoryCostingBenchmarkRepository : CostingBenchmarkRepository {
+    private val benchmarks = mutableMapOf<Pair<String, String>, CostingProductBenchmark>()
+
+    override suspend fun findById(tenantId: TenantId, id: BenchmarkId): CostingProductBenchmark? =
+        benchmarks[tenantId.value to id.value]
+
+    override suspend fun listAll(tenantId: TenantId, limit: Int): List<CostingProductBenchmark> =
+        benchmarks.values
+            .filter { it.tenantId == tenantId }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
+
+    override suspend fun findSimilar(
+        tenantId: TenantId,
+        category: KnitCategory,
+        gauge: Int?,
+        limit: Int
+    ): List<CostingProductBenchmark> {
+        val tenantScoped = benchmarks.values.filter { it.tenantId == tenantId }
+        val pool = tenantScoped.filter { it.category == category }.ifEmpty { tenantScoped }
+        return pool
+            .sortedBy { candidate ->
+                val candidateGauge = candidate.structure.gauge
+                if (gauge == null || candidateGauge == null) 99 else kotlin.math.abs(candidateGauge - gauge)
+            }
+            .take(limit)
+    }
+
+    override suspend fun netWeightSamples(
+        tenantId: TenantId,
+        category: KnitCategory,
+        limit: Int
+    ): List<Double> = benchmarks.values
+        .filter { it.tenantId == tenantId && it.category == category }
+        .sortedByDescending { it.createdAt }
+        .take(limit)
+        .map { it.metrics.netWeightGrams }
+
+    override suspend fun save(benchmark: CostingProductBenchmark) {
+        benchmarks[benchmark.tenantId.value to benchmark.id.value] = benchmark
+    }
+
+    override suspend fun saveBatch(benchmarks: List<CostingProductBenchmark>) {
+        benchmarks.forEach { save(it) }
+    }
+
+    override suspend fun findImportedFileNames(tenantId: TenantId): Set<String> =
+        benchmarks.values
+            .filter { it.tenantId == tenantId }
+            .mapNotNull { it.sourceFileName.takeIf(String::isNotBlank) }
+            .toSet()
+
+    override suspend fun count(tenantId: TenantId): Int =
+        benchmarks.values.count { it.tenantId == tenantId }
+}

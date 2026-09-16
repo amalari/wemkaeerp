@@ -51,6 +51,8 @@ class CrmViewModel(
                 }
             }
             is CrmUiEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
+            is CrmUiEvent.FilterByEmployee -> _uiState.update { it.copy(selectedEmployeeId = event.employeeId) }
+            is CrmUiEvent.FilterBySource -> _uiState.update { it.copy(selectedSource = event.source) }
             is CrmUiEvent.OpenCreateDialog -> _uiState.update {
                 it.copy(isCreateDialogOpen = true, createDialogInitialStage = event.stage)
             }
@@ -103,10 +105,11 @@ class CrmViewModel(
                 email = event.email.trim(),
                 stage = event.stage,
                 source = LeadSource.UNSPECIFIED,
-                estimatedPcs = null,
+                estimatedPcs = event.estimatedPcs,
                 estimatedValue = null,
                 ownerEmployeeId = null,
                 expectedCloseDate = null,
+                productCategory = com.eventverse.app.domain.crm.ProductCategory(event.productCategory),
                 customValues = emptyMap()
             )
 

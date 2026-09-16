@@ -19,6 +19,8 @@ import com.eventverse.app.domain.costing.CostingSheetStatus
 import com.eventverse.app.domain.pipeline.CostingBehavior
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.presentation.costing.components.AiQuickEstimatorPane
+import com.eventverse.app.presentation.costing.components.HistoricalBenchmarksPane
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -215,9 +217,12 @@ private fun CostingDesktopWorkbench(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
-            // Tabs Bar
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            // Tabs Bar — FlowRow, bukan Row: tujuh tab tidak muat satu baris di lebar 1280dp
+            // dan Row diam-diam memotong tab terakhir di luar layar.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            (FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 CostingWorkbenchTab.entries.forEach { tab ->
                     val isActive = tab == state.activeWorkbenchTab
@@ -227,7 +232,7 @@ private fun CostingDesktopWorkbench(
                         style = if (isActive) ClayButtonStyle.Primary else ClayButtonStyle.Ghost
                     )
                 }
-            }
+            })
 
             // Tab Content
             ClayCard(
@@ -236,17 +241,28 @@ private fun CostingDesktopWorkbench(
                 contentPadding = PaddingValues(ClaySpacing.Md)
             ) {
                 val sheet = state.selectedSheet
-                if (sheet == null) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Pilih atau buat lembar HPP terlebih dahulu", color = WeMadeColors.OnSurfaceMuted)
-                    }
-                } else {
-                    when (state.activeWorkbenchTab) {
+                // Tab yang berdiri sendiri dirender lebih dulu: estimator dan Knowledge Base
+                // justru dipakai SEBELUM lembar HPP pertama ada.
+                when {
+                    state.activeWorkbenchTab == CostingWorkbenchTab.QUICK_ESTIMATOR ->
+                        AiQuickEstimatorPane(state = state, onEvent = onEvent)
+
+                    state.activeWorkbenchTab == CostingWorkbenchTab.HISTORICAL_BENCHMARKS ->
+                        HistoricalBenchmarksPane(state = state, onEvent = onEvent)
+
+                    sheet == null ->
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Pilih atau buat lembar HPP terlebih dahulu", color = WeMadeColors.OnSurfaceMuted)
+                        }
+
+                    else -> when (state.activeWorkbenchTab) {
                         CostingWorkbenchTab.DETAIL -> CostingDetailTab(sheet = sheet, state = state, onEvent = onEvent)
                         CostingWorkbenchTab.BUCKETS -> CostingBucketsTab(sheet = sheet, showMargin = state.showMargin)
                         CostingWorkbenchTab.DRIFT -> CostingDriftTab(sheet = sheet, drift = state.drift)
                         CostingWorkbenchTab.RATE_CARD -> CostingRateCardTab(rateCard = state.activeRateCard, behavior = state.rateCardBehavior, onEvent = onEvent)
                         CostingWorkbenchTab.SIMULATION -> CostingSimulationTab(sheet = sheet)
+                        CostingWorkbenchTab.QUICK_ESTIMATOR,
+                        CostingWorkbenchTab.HISTORICAL_BENCHMARKS -> Unit // sudah ditangani di atas
                     }
                 }
             }
@@ -806,18 +822,4 @@ private fun RejectCostingDialog(
             }
         }
     }
-}
-
-private fun Long.toFormattedIdr(): String {
-    val str = this.toString()
-    val builder = StringBuilder()
-    var count = 0
-    for (i in str.length - 1 downTo 0) {
-        builder.append(str[i])
-        count++
-        if (count % 3 == 0 && i > 0) {
-            builder.append('.')
-        }
-    }
-    return builder.reverse().toString()
 }

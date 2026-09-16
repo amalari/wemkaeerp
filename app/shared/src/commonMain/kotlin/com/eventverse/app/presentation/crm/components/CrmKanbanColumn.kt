@@ -73,9 +73,6 @@ fun CrmKanbanColumn(
 
     val columnOutline = when {
         isDropTarget -> stage.tint()
-        stage == LeadStage.NEW_LEAD -> WeMadeColors.Primary
-        stage == LeadStage.QUALIFIED -> WeMadeColors.Success
-        stage == LeadStage.UNQUALIFIED -> WeMadeColors.Error
         else -> WeMadeColors.Outline
     }
 
@@ -105,7 +102,7 @@ fun CrmKanbanColumn(
                     }
                 } else WeMadeColors.SurfaceMuted,
                 outline = columnOutline,
-                borderWidth = if (isDropTarget) ClayBorder.Thick else ClayBorder.Medium
+                borderWidth = ClayBorder.Thick
             )
             .padding(ClaySpacing.Lg)
     ) {
@@ -139,21 +136,11 @@ fun CrmKanbanColumn(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-            ) {
-                ClayBadge(
-                    text = stage.displayName,
-                    tint = stage.tint(),
-                    fontSize = 12.sp
-                )
-                ClayTag(
-                    text = "${leads.size}",
-                    tint = stage.tint(),
-                    fontSize = 11.sp
-                )
-            }
+            ClayBadge(
+                text = "${stage.displayName} (${leads.size})",
+                tint = stage.tint(),
+                fontSize = 12.sp
+            )
 
             // Qualified Lead dan New Lead bisa langsung ditambahkan (+ Tambah), Unqualified tidak ada
             if (stage != LeadStage.UNQUALIFIED && onAddLead != null) {

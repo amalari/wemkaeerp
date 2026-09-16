@@ -12,6 +12,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.http.content.staticFiles
 
 import com.eventverse.app.domain.auth.*
 import com.eventverse.app.infrastructure.PostgresUserRepository
@@ -54,6 +55,11 @@ import com.eventverse.app.domain.costing.CostingSheetRepository
 import com.eventverse.app.domain.costing.CostingRateCardRepository
 import com.eventverse.app.infrastructure.PostgresCostingSheetRepository
 import com.eventverse.app.infrastructure.PostgresCostingRateCardRepository
+import com.eventverse.app.infrastructure.PostgresCostingBenchmarkRepository
+import com.eventverse.app.infrastructure.storage.LocalBenchmarkImageStorage
+import com.eventverse.app.services.GeminiCostingParserService
+import com.eventverse.app.services.HeuristicCostingParser
+import com.eventverse.app.services.NoopDesignVisionAnalyzer
 import com.eventverse.app.routes.costingRoutes
 import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.prospect.FlowTranslationRepository
@@ -143,7 +149,8 @@ fun Application.module(
     invoicePaymentRepository: InvoicePaymentRepository? = null,
     invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null,
     costingSheetRepository: CostingSheetRepository? = null,
-    costingRateCardRepository: CostingRateCardRepository? = null
+    costingRateCardRepository: CostingRateCardRepository? = null,
+    costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -179,6 +186,16 @@ fun Application.module(
     val invoiceIssuerProfileRepo = invoiceIssuerProfileRepository ?: PostgresInvoiceIssuerProfileRepository()
     val costingSheetRepo = costingSheetRepository ?: PostgresCostingSheetRepository()
     val costingRateCardRepo = costingRateCardRepository ?: PostgresCostingRateCardRepository()
+    val costingBenchmarkRepo = costingBenchmarkRepository ?: PostgresCostingBenchmarkRepository()
+
+    // Tanpa GEMINI_API_KEY seluruh fitur tetap hidup: impor memakai parser heuristik berbasis
+    // label, dan estimator berjalan tanpa petunjuk visual. Yang hilang hanya kenyamanannya,
+    // bukan fungsinya — server tidak boleh gagal start karena satu kunci API belum diisi.
+    val geminiApiKey = System.getenv("GEMINI_API_KEY")?.takeIf { it.isNotBlank() }
+    val geminiService = geminiApiKey?.let { GeminiCostingParserService(apiKey = it) }
+    val historicalCostingParser = geminiService ?: HeuristicCostingParser()
+    val designVisionAnalyzer = geminiService ?: NoopDesignVisionAnalyzer
+    val benchmarkImageStorage = LocalBenchmarkImageStorage()
 
     // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
     // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
@@ -223,6 +240,16 @@ fun Application.module(
         get("/health") {
             call.respondText("OK", status = HttpStatusCode.OK)
         }
+
+        // Gambar mockup yang diekstrak dari berkas Excel arsip disimpan di folder lokal
+        // (lihat LocalBenchmarkImageStorage) dan di-serve dari sini supaya UI Knowledge Base
+        // bisa menampilkan thumbnail-nya tanpa menunggu object storage dikonfigurasi.
+        staticFiles(
+            remotePath = "/uploads",
+            dir = java.io.File(
+                System.getenv("WEMADE_UPLOAD_DIR")?.takeIf { it.isNotBlank() } ?: "data/uploads"
+            )
+        )
 
         route("/api/public/onboarding") {
             get("/check-subdomain") {
@@ -521,7 +548,8 @@ fun Application.module(
             employeeRepository = empRepo,
             roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo,
-            poFileStorage = poFileStorage
+            poFileStorage = poFileStorage,
+            samplingOrderRepository = samplingOrderRepo
         )
         samplingRoutes(
             repository = samplingOrderRepo
@@ -553,7 +581,12 @@ fun Application.module(
             materialRepository = materialRepo,
             materialPriceRepository = materialPriceRepo,
             roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo
+            moduleAssignmentRepository = assignmentRepo,
+            benchmarkRepository = costingBenchmarkRepo,
+            tenantPipelineRepository = pipeRepo,
+            historicalCostingParser = historicalCostingParser,
+            designVisionAnalyzer = designVisionAnalyzer,
+            benchmarkImageStorage = benchmarkImageStorage
         )
     }
 }

@@ -5,6 +5,7 @@ import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.CrmLeadRepository
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadSource
+import com.eventverse.app.domain.crm.ProductCategory
 import com.eventverse.app.domain.crm.WhatsappNumber
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
@@ -39,6 +40,7 @@ class CreateLeadUseCase(
         estimatedValue: MoneyIdr? = null,
         ownerEmployeeId: OrgNodeId? = null,
         expectedCloseDate: LocalDate? = null,
+        productCategory: ProductCategory = ProductCategory.EMPTY,
         customValues: Map<CustomFieldId, JsonValue.Obj?> = emptyMap(),
         createdByUserId: String? = null,
         newId: () -> String
@@ -64,6 +66,8 @@ class CreateLeadUseCase(
             estimatedValue = estimatedValue,
             ownerEmployeeId = ownerEmployeeId,
             expectedCloseDate = expectedCloseDate,
+            productCategory = productCategory,
+            lastContactedAt = now,
             customAttributes = attributes,
             createdByUserId = createdByUserId,
             createdAt = now,

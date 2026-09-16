@@ -160,6 +160,11 @@ fun CrmWorkspaceScreen(
                             viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
                         }
                     },
+                    kpiMetrics = state.kpiMetrics,
+                    selectedEmployeeId = state.selectedEmployeeId,
+                    selectedSource = state.selectedSource,
+                    onFilterEmployee = { viewModel.onEvent(CrmUiEvent.FilterByEmployee(it)) },
+                    onFilterSource = { viewModel.onEvent(CrmUiEvent.FilterBySource(it)) },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -267,8 +272,8 @@ fun CrmWorkspaceScreen(
         CreateLeadDialog(
             initialStage = state.createDialogInitialStage,
             onDismiss = { viewModel.onEvent(CrmUiEvent.CloseCreateDialog) },
-            onCreate = { brandName, contactPerson, phoneNumber, email, stage ->
-                viewModel.onEvent(CrmUiEvent.CreateLead(brandName, contactPerson, phoneNumber, email, stage))
+            onCreate = { brandName, contactPerson, phoneNumber, email, stage, productCategory, estimatedPcs ->
+                viewModel.onEvent(CrmUiEvent.CreateLead(brandName, contactPerson, phoneNumber, email, stage, productCategory, estimatedPcs))
             }
         )
     }

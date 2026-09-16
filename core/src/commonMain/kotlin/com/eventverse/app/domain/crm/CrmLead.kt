@@ -32,6 +32,8 @@ data class CrmLead(
     /** Drives `DataScope`. Null means unassigned — visible only to an unrestricted viewer. */
     val ownerEmployeeId: OrgNodeId? = null,
     val expectedCloseDate: LocalDate? = null,
+    val productCategory: ProductCategory = ProductCategory.EMPTY,
+    val lastContactedAt: Instant? = null,
     val customAttributes: CustomAttributes = CustomAttributes.EMPTY,
     val createdByUserId: String? = null,
     val createdAt: Instant,

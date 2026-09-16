@@ -23,6 +23,11 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val deadlineDelivery = date("deadline_delivery").nullable()
 
     val leadId = varchar("lead_id", 64).references(CrmLeadsTable.id).nullable()
+    val dealId = varchar("deal_id", 64).references(DealsTable.id).nullable()
+    val sampleQuantity = integer("sample_quantity").default(2)
+    val courierTracking = varchar("courier_tracking", 150).nullable()
+    val samplingFeeIdr = long("sampling_fee_idr").default(0L)
+    val revisionCount = integer("revision_count").default(0)
     val accNotes = text("acc_notes").default("")
     val notes = text("notes").default("")
 

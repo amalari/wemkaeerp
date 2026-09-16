@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
@@ -180,253 +182,278 @@ fun CrmKanbanCard(
                 }
             }
         } else {
-            // Baris Atas: Title (Brand / Kontak) & Badge Status Dropdown
+            val uriHandler = LocalUriHandler.current
+
+            // Baris Atas: Title (Brand / Kontak) & Order Archetype + Badge Status Dropdown
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 val titleInteractionSource = remember { MutableInteractionSource() }
-                Text(
-                    text = lead.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                val pcs = lead.estimatedPcs
+                val orderSpecs = buildString {
+                    if (pcs != null && pcs > 0) append("$pcs pcs ")
+                    if (lead.productCategory.value.isNotBlank()) append(lead.productCategory.value)
+                }
+
+                Column(
                     modifier = Modifier
-                        .weight(1f, fill = false)
+                        .weight(1f)
                         .clickable(
                             interactionSource = titleInteractionSource,
                             indication = null,
                             enabled = canWrite
                         ) { onSelectLead(lead.id) }
-                )
+                ) {
+                    Text(
+                        text = lead.title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (orderSpecs.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = orderSpecs,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = WeMadeColors.Primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
 
-            val badgeInteractionSource = remember { MutableInteractionSource() }
-            Box {
-                ClayBadge(
-                    text = lead.stage.displayName,
-                    tint = lead.stage.tint(),
-                    fontSize = 10.sp,
-                    trailing = if (canWrite) {
-                        { IconChevronDown(Modifier.size(9.dp), color = lead.stage.tint()) }
-                    } else null,
-                    modifier = if (canWrite) {
-                        Modifier.clickable(
-                            interactionSource = badgeInteractionSource,
-                            indication = null
-                        ) { stageMenuExpanded = true }
-                    } else Modifier
-                )
-                if (canWrite) {
-                    DropdownMenu(
-                        expanded = stageMenuExpanded,
-                        onDismissRequest = { stageMenuExpanded = false }
-                    ) {
-                        LeadStage.entries.filter { it != lead.stage }.forEach { targetStage ->
-                            val itemColor = when (targetStage) {
-                                LeadStage.QUALIFIED -> WeMadeColors.Success
-                                LeadStage.UNQUALIFIED -> WeMadeColors.Error
-                                LeadStage.NEW_LEAD -> WeMadeColors.Primary
-                            }
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    when (targetStage) {
-                                        LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = WeMadeColors.Success)
-                                        LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
-                                        LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = WeMadeColors.Primary)
-                                    }
-                                },
-                                text = {
-                                    Text(
-                                        text = when (targetStage) {
-                                            LeadStage.NEW_LEAD -> "Pindahkan ke Inquiry / New Lead"
-                                            LeadStage.QUALIFIED -> "Kualifikasi (Qualified)"
-                                            LeadStage.UNQUALIFIED -> "Tandai Unqualified"
-                                        },
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = itemColor
-                                    )
-                                },
-                                onClick = {
-                                    stageMenuExpanded = false
-                                    onUpdateStage(targetStage)
+                Spacer(Modifier.width(ClaySpacing.Sm))
+
+                val badgeInteractionSource = remember { MutableInteractionSource() }
+                Box {
+                    ClayBadge(
+                        text = lead.stage.displayName,
+                        tint = lead.stage.tint(),
+                        fontSize = 10.sp,
+                        trailing = if (canWrite) {
+                            { IconChevronDown(Modifier.size(9.dp), color = lead.stage.tint()) }
+                        } else null,
+                        modifier = if (canWrite) {
+                            Modifier.clickable(
+                                interactionSource = badgeInteractionSource,
+                                indication = null
+                            ) { stageMenuExpanded = true }
+                        } else Modifier
+                    )
+                    if (canWrite) {
+                        DropdownMenu(
+                            expanded = stageMenuExpanded,
+                            onDismissRequest = { stageMenuExpanded = false }
+                        ) {
+                            LeadStage.entries.filter { it != lead.stage }.forEach { targetStage ->
+                                val itemColor = when (targetStage) {
+                                    LeadStage.QUALIFIED -> WeMadeColors.Success
+                                    LeadStage.UNQUALIFIED -> WeMadeColors.Error
+                                    LeadStage.NEW_LEAD -> WeMadeColors.Primary
                                 }
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        when (targetStage) {
+                                            LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = WeMadeColors.Success)
+                                            LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
+                                            LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = WeMadeColors.Primary)
+                                        }
+                                    },
+                                    text = {
+                                        Text(
+                                            text = when (targetStage) {
+                                                LeadStage.NEW_LEAD -> "Pindahkan ke Inquiry / New Lead"
+                                                LeadStage.QUALIFIED -> "Kualifikasi (Qualified)"
+                                                LeadStage.UNQUALIFIED -> "Tandai Unqualified"
+                                            },
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = itemColor
+                                        )
+                                    },
+                                    onClick = {
+                                        stageMenuExpanded = false
+                                        onUpdateStage(targetStage)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(ClaySpacing.Md))
+
+            // Estimasi Nilai & Tombol Cepat WhatsApp
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = canWrite
+                    ) { onSelectLead(lead.id) }
+            ) {
+                Text(
+                    text = "Est. Deal Value",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val estValue = lead.estimatedValue
+                    Text(
+                        text = if (estValue != null) formatRupiah(estValue.amount) else "Nilai Belum Diestimasi",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (estValue != null) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
+                    )
+
+                    val whatsapp = lead.whatsappNumber
+                    if (whatsapp != null) {
+                        Row(
+                            modifier = Modifier
+                                .clayFlat(
+                                    shape = ClayShapes.Pill,
+                                    background = WeMadeColors.SuccessBg,
+                                    outline = WeMadeColors.Success,
+                                    borderWidth = ClayBorder.Hairline
+                                )
+                                .clickable {
+                                    runCatching { uriHandler.openUri(whatsapp.waLink) }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconPhone(Modifier.size(10.dp), color = WeMadeColors.Success)
+                            Text(
+                                text = "WhatsApp",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.Success
                             )
                         }
                     }
                 }
             }
-        }
 
-        val contentInteractionSource = remember { MutableInteractionSource() }
-        // Area Tengah: Kontak & Nilai (bisa diklik untuk membuka Lead Inspector)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    interactionSource = contentInteractionSource,
-                    indication = null,
-                    enabled = canWrite
-                ) { onSelectLead(lead.id) }
-        ) {
+            Spacer(Modifier.height(ClaySpacing.Md))
 
-        // Kontak person jika berbeda dengan nama brand
-        if (lead.contactPerson.isNotBlank() && lead.brandName.value.isNotBlank()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconUser(Modifier.size(11.dp), color = WeMadeColors.OnSurfaceMuted)
-                Text(
-                    text = lead.contactPerson,
-                    fontSize = 11.sp,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        // Baris Tag HP dan Email Berdampingan
-        if (lead.whatsappNumber != null || lead.email.isNotBlank()) {
-            Spacer(Modifier.height(ClaySpacing.Xs))
+            // Kontak Klien & Avatar Sales PIC
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val whatsapp = lead.whatsappNumber
-                if (whatsapp != null) {
-                    ClayTag(
-                        text = whatsapp.normalizedNumber,
-                        tint = WeMadeColors.Success,
-                        fontSize = 9.sp,
-                        leading = { IconPhone(Modifier.size(10.dp), color = WeMadeColors.Success) }
-                    )
-                }
-
-                if (lead.email.isNotBlank()) {
-                    ClayTag(
-                        text = lead.email,
-                        tint = WeMadeColors.Info,
-                        fontSize = 9.sp,
-                        leading = { IconMail(Modifier.size(10.dp), color = WeMadeColors.Info) }
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(ClaySpacing.Md))
-
-        // Estimasi Nilai & Kuantiti Pcs
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val estValue = lead.estimatedValue
-            if (estValue != null) {
-                Text(
-                    text = formatRupiah(estValue.amount),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.Primary
-                )
-            } else {
-                Text(
-                    text = "Nilai: Belum Diestimasi",
-                    fontSize = 11.sp,
-                    fontStyle = FontStyle.Italic,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            }
-
-            val pcs = lead.estimatedPcs
-            if (pcs != null) {
-                ClayTag(
-                    text = "$pcs pcs",
-                    tint = WeMadeColors.Secondary,
-                    fontSize = 10.sp
-                )
-            }
-        }
-    }
-
-        Spacer(Modifier.height(ClaySpacing.Md))
-
-        // Footer Kartu: Ikon Aktivitas (Kiri) & Avatar Bulat PIC (Kanan)
-        val activityInteractionSource = remember { MutableInteractionSource() }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Tombol Ikon Komentar/Aktivitas dengan Counter
-            Row(
-                modifier = Modifier
-                    .clayFlat(
-                        shape = ClayShapes.Pill,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Outline,
-                        borderWidth = ClayBorder.Hairline
-                    )
-                    .clickable(
-                        interactionSource = activityInteractionSource,
-                        indication = null
-                    ) {
-                        onOpenActivities(lead)
-                    }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconChat(modifier = Modifier.size(11.dp), color = WeMadeColors.OnSurfaceMuted)
-                Text(
-                    text = "${lead.activityCount} Aktivitas",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurface
-                )
-            }
-
-            // Avatar Bulat PIC dengan Inisial
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                owner?.let {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    IconUser(Modifier.size(12.dp), color = WeMadeColors.OnSurfaceMuted)
                     Text(
-                        text = it.name,
-                        fontSize = 10.sp,
+                        text = if (lead.contactPerson.isNotBlank()) lead.contactPerson else "PIC Klien Belum Diisi",
+                        fontSize = 11.sp,
                         color = WeMadeColors.OnSurfaceMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clayFlat(
-                            shape = CircleShape,
-                            background = if (owner != null) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
-                            outline = WeMadeColors.Outline,
-                            borderWidth = ClayBorder.Hairline
-                        ),
-                    contentAlignment = Alignment.Center
+
+                // Avatar Bulat PIC dengan Inisial
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    owner?.let {
+                        Text(
+                            text = it.name,
+                            fontSize = 10.sp,
+                            color = WeMadeColors.OnSurfaceMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clayFlat(
+                                shape = CircleShape,
+                                background = if (owner != null) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
+                                outline = WeMadeColors.Outline,
+                                borderWidth = ClayBorder.Hairline
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (owner != null) getInitials(owner.name) else "?",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (owner != null) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(ClaySpacing.Md))
+
+            // Footer Kartu: Tag Sumber Channel (Kiri) & Badge Follow-up / Aktivitas (Kanan)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val sourceLabel = if (lead.source.value.isNotBlank()) lead.source.value else "Inquiry Langsung"
+                ClayTag(
+                    text = sourceLabel,
+                    tint = WeMadeColors.Primary,
+                    fontSize = 9.sp
+                )
+
+                val activityInteractionSource = remember { MutableInteractionSource() }
+                val hasActivities = lead.activityCount > 0
+                Row(
+                    modifier = Modifier
+                        .clayFlat(
+                            shape = ClayShapes.Pill,
+                            background = if (hasActivities) WeMadeColors.SurfaceMuted else WeMadeColors.WarningBg,
+                            outline = if (hasActivities) WeMadeColors.Outline else WeMadeColors.Warning,
+                            borderWidth = ClayBorder.Hairline
+                        )
+                        .clickable(
+                            interactionSource = activityInteractionSource,
+                            indication = null
+                        ) {
+                            onOpenActivities(lead)
+                        }
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconChat(
+                        modifier = Modifier.size(10.dp),
+                        color = if (hasActivities) WeMadeColors.OnSurfaceMuted else WeMadeColors.Warning
+                    )
                     Text(
-                        text = if (owner != null) getInitials(owner.name) else "?",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (owner != null) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
+                        text = if (hasActivities) "${lead.activityCount} Aktivitas" else "Perlu Follow-up",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (hasActivities) WeMadeColors.OnSurface else WeMadeColors.Warning
                     )
                 }
             }
         }
     }
-}
 }
 

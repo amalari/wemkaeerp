@@ -4,6 +4,7 @@ import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrderLine
 import com.eventverse.app.infrastructure.api.DealApiClient
 import com.eventverse.app.infrastructure.api.DealRemoteDataSource
+import com.eventverse.app.infrastructure.api.SaveSamplingOrderFromDealRequest
 import com.eventverse.app.shared.deal.DealCodec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,142 @@ class DealViewModel(
             is DealUiEvent.AttachManualPo -> attachManualPo(event)
             is DealUiEvent.UploadPoFile -> uploadPoFile()
             is DealUiEvent.OpenPoDownload -> openDownload(event.poId)
+            is DealUiEvent.SelectDealTab -> selectDealTab(event.tab)
+            is DealUiEvent.SaveSamplingOrder -> saveSamplingOrder(event)
+            is DealUiEvent.ToggleSampleAcc -> toggleSampleAcc(event)
+            is DealUiEvent.UploadSamplingMockup -> uploadSamplingMockup(event)
+        }
+    }
+
+    private fun selectDealTab(tab: DealDetailTab) {
+        val state = _uiState.value
+        // Gerbang: Tab Produksi Massal terkunci selama masih ada desain sampling aktif.
+        if (tab == DealDetailTab.MASS_PRODUCTION && !state.productionUnlocked) {
+            _uiState.update {
+                it.copy(
+                    statusMessage = "Tab Produksi terkunci: ${it.activeDesigns.size} desain belum di-ACC " +
+                        "(${it.approvedDesigns.size} dari ${it.samplingOrders.size} desain sudah ACC)."
+                )
+            }
+            return
+        }
+        _uiState.update { it.copy(activeTab = tab) }
+    }
+
+    private fun saveSamplingOrder(event: DealUiEvent.SaveSamplingOrder) {
+        val deal = _uiState.value.deal ?: return
+        if (!_uiState.value.canWrite) return
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            remoteDataSource.saveSamplingOrderFromDeal(
+                tenantSlug = tenantSlug,
+                dealId = deal.id.value,
+                request = SaveSamplingOrderFromDealRequest(
+                    samplingOrderId = event.samplingOrderId,
+                    styleName = event.styleName.trim(),
+                    sampleQuantity = event.sampleQuantity,
+                    courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
+                    samplingFeeIdr = event.samplingFeeIdr,
+                    notes = event.notes
+                )
+            ).onSuccess { saved ->
+                _uiState.update { current ->
+                    current.copy(
+                        isSaving = false,
+                        statusMessage = if (event.samplingOrderId == null) {
+                            "Desain \"${saved.styleName}\" ditambahkan ke siklus sampling."
+                        } else {
+                            "Lembar sampling \"${saved.styleName}\" diperbarui."
+                        },
+                        samplingOrders = current.samplingOrders
+                            .filterNot { it.id == saved.id } + saved
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { it.copy(isSaving = false, error = error.message) }
+            }
+        }
+    }
+
+    private fun toggleSampleAcc(event: DealUiEvent.ToggleSampleAcc) {
+        val deal = _uiState.value.deal ?: return
+        if (!_uiState.value.canWrite) return
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            remoteDataSource.approveSamplingOrder(
+                tenantSlug = tenantSlug,
+                dealId = deal.id.value,
+                samplingOrderId = event.samplingId,
+                isApproved = event.isApproved,
+                notes = event.notes
+            ).onSuccess { orders ->
+                _uiState.update { current ->
+                    current.copy(
+                        isSaving = false,
+                        samplingOrders = orders,
+                        statusMessage = if (event.isApproved) {
+                            "Sampel di-ACC — spesifikasi terkunci sebagai acuan produksi."
+                        } else {
+                            "Revisi sampling dicatat."
+                        },
+                        // Seluruh desain beres? Otomatis buka Tab Produksi Massal.
+                        activeTab = if (
+                            orders.isNotEmpty() && orders.none { it.isActiveDesign }
+                        ) {
+                            DealDetailTab.MASS_PRODUCTION
+                        } else {
+                            current.activeTab
+                        }
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { it.copy(isSaving = false, error = error.message) }
+            }
+        }
+    }
+
+    /**
+     * Memilih foto lewat picker platform lalu mengunggahnya sebagai mockup desain.
+     *
+     * Picker boleh mengembalikan `null` (dibatalkan pengguna, atau platform belum punya
+     * picker) — itu bukan error, jadi ia dilaporkan sebagai pesan status, bukan `error`.
+     */
+    private fun uploadSamplingMockup(event: DealUiEvent.UploadSamplingMockup) {
+        val deal = _uiState.value.deal ?: return
+        if (!_uiState.value.canWrite) return
+        scope.launch {
+            val picked = pickLocalFile(MOCKUP_IMAGE_ACCEPT)
+            if (picked == null) {
+                _uiState.update {
+                    it.copy(
+                        statusMessage = "Pemilihan foto dibatalkan, atau picker berkas belum " +
+                            "tersedia di platform ini."
+                    )
+                }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isSaving = true) }
+            remoteDataSource.uploadSamplingMockup(
+                tenantSlug = tenantSlug,
+                dealId = deal.id.value,
+                samplingOrderId = event.samplingId,
+                fileName = picked.fileName,
+                mimeType = picked.mimeType,
+                bytes = picked.bytes
+            ).onSuccess { updated ->
+                _uiState.update { current ->
+                    current.copy(
+                        isSaving = false,
+                        statusMessage = "Foto desain " + updated.styleName + " terunggah.",
+                        samplingOrders = current.samplingOrders.map { order ->
+                            if (order.id == updated.id) updated else order
+                        }
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { it.copy(isSaving = false, error = error.message) }
+            }
         }
     }
 
@@ -72,6 +209,11 @@ class DealViewModel(
                             purchaseOrders = detail.purchaseOrders
                         )
                     }
+                    // Lembar sampling dimuat terpisah — gagalnya tidak boleh menggagalkan detail deal.
+                    remoteDataSource.getDealSamplingOrders(tenantSlug, resolved)
+                        .onSuccess { orders ->
+                            _uiState.update { it.copy(samplingOrders = orders) }
+                        }
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(isLoading = false, error = error.message) }

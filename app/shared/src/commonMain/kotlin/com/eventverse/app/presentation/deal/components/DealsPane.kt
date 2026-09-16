@@ -430,7 +430,9 @@ private fun StageFilterChip(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted,
+            // Chip non-aktif memakai OnSurface penuh (bukan OnSurfaceMuted) agar label
+            // "Semua" dan tahapan tetap terbaca tajam di atas permukaan clay terang.
+            color = if (selected) WeMadeColors.Primary else WeMadeColors.OnSurface,
             maxLines = 1
         )
         if (selected && onClear != null) {

@@ -46,13 +46,15 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun CreateLeadDialog(
     initialStage: LeadStage = LeadStage.NEW_LEAD,
     onDismiss: () -> Unit,
-    onCreate: (brandName: String, contactPerson: String, phoneNumber: String, email: String, stage: LeadStage) -> Unit
+    onCreate: (brandName: String, contactPerson: String, phoneNumber: String, email: String, stage: LeadStage, productCategory: String, estimatedPcs: Int?) -> Unit
 ) {
     var stage by remember { mutableStateOf(if (initialStage == LeadStage.QUALIFIED) LeadStage.QUALIFIED else LeadStage.NEW_LEAD) }
     var brandName by remember { mutableStateOf("") }
     var contactPerson by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var productCategory by remember { mutableStateOf("") }
+    var estimatedPcsStr by remember { mutableStateOf("") }
 
     val isPhoneFilled = phoneNumber.trim().isNotBlank()
     val isPhoneValid = !isPhoneFilled || WhatsappNumber.isValidIndonesianPhone(phoneNumber.trim())
@@ -156,6 +158,27 @@ fun CreateLeadDialog(
                         )
                     }
                 }
+
+                // Kategori Produk Garmen & Kuantiti Pcs
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    ClayTextField(
+                        value = productCategory,
+                        onValueChange = { productCategory = it },
+                        label = "Kategori Produk",
+                        placeholder = "Polo, Kemeja, Hoodie...",
+                        modifier = Modifier.weight(1.3f)
+                    )
+                    ClayTextField(
+                        value = estimatedPcsStr,
+                        onValueChange = { estimatedPcsStr = it.filter { ch -> ch.isDigit() } },
+                        label = "Kuantiti (Pcs)",
+                        placeholder = "Misal: 500",
+                        modifier = Modifier.weight(0.7f)
+                    )
+                }
             }
 
             Row(
@@ -172,7 +195,15 @@ fun CreateLeadDialog(
                     text = "Simpan",
                     onClick = {
                         if (canSubmit) {
-                            onCreate(brandName.trim(), contactPerson.trim(), phoneNumber.trim(), email.trim(), stage)
+                            onCreate(
+                                brandName.trim(),
+                                contactPerson.trim(),
+                                phoneNumber.trim(),
+                                email.trim(),
+                                stage,
+                                productCategory.trim(),
+                                estimatedPcsStr.toIntOrNull()
+                            )
                         }
                     },
                     enabled = canSubmit,

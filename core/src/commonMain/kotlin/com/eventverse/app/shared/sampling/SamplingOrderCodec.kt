@@ -20,6 +20,11 @@ object SamplingOrderCodec {
         "deadlineFinishing" to jsonOf(order.deadlineFinishing?.toString()),
         "deadlineDelivery" to jsonOf(order.deadlineDelivery?.toString()),
         "leadId" to jsonOf(order.leadId),
+        "dealId" to jsonOf(order.dealId),
+        "sampleQuantity" to jsonOf(order.sampleQuantity),
+        "courierTracking" to jsonOf(order.courierTracking),
+        "samplingFeeIdr" to jsonOf(order.samplingFeeIdr),
+        "revisionCount" to jsonOf(order.revisionCount),
         "accNotes" to jsonOf(order.accNotes),
         "notes" to jsonOf(order.notes),
         "knitSpec" to encodeKnitSpec(order.knitSpec),
@@ -47,6 +52,11 @@ object SamplingOrderCodec {
         val deadlineDelivery = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineDelivery"))
 
         val leadId = obj.string("leadId")
+        val dealId = obj.string("dealId")
+        val sampleQuantity = obj.int("sampleQuantity") ?: 2
+        val courierTracking = obj.string("courierTracking")
+        val samplingFeeIdr = obj.long("samplingFeeIdr") ?: 0L
+        val revisionCount = obj.int("revisionCount") ?: 0
         val accNotes = obj.string("accNotes") ?: ""
         val notes = obj.string("notes") ?: ""
 
@@ -85,6 +95,11 @@ object SamplingOrderCodec {
             deadlineFinishing = deadlineFinishing,
             deadlineDelivery = deadlineDelivery,
             leadId = leadId,
+            dealId = dealId,
+            sampleQuantity = sampleQuantity,
+            courierTracking = courierTracking,
+            samplingFeeIdr = samplingFeeIdr,
+            revisionCount = revisionCount,
             accNotes = accNotes,
             notes = notes,
             knitSpec = knitSpec,
