@@ -45,30 +45,30 @@ data class InvoicePrefillData(
             sourceRef = lead.id.value,
             openDesignerDirectly = true
         )
-    }
 
-    /**
-     * Memetakan deal + contact menjadi prefill faktur — jalur baru setelah invoicing
-     * dipindah dari CRM ke Deal. `sourceKind = DEAL` dan `sourceRef = dealId`, sehingga
-     * riwayat penagihan deal bisa direkonstruksi dari invoice mana pun.
-     */
-    fun fromDeal(
-        deal: com.eventverse.app.domain.deal.Deal,
-        contact: com.eventverse.app.domain.crm.Contact?,
-        kind: InvoiceKind = InvoiceKind.DOWN_PAYMENT
-    ): InvoicePrefillData = InvoicePrefillData(
-        kind = kind,
-        clientName = contact?.brandName?.takeIf { !it.isBlank }?.value
-            ?: contact?.displayName
-            ?: deal.title.value,
-        contactPerson = contact?.name ?: "",
-        phone = contact?.phone?.value ?: "",
-        email = contact?.email ?: "",
-        address = contact?.address ?: "",
-        sourceKind = InvoiceSourceKind.DEAL,
-        sourceRef = deal.id.value,
-        openDesignerDirectly = true
-    )
+        /**
+         * Memetakan deal + contact menjadi prefill faktur — jalur baru setelah invoicing
+         * dipindah dari CRM ke Deal. `sourceKind = DEAL` dan `sourceRef = dealId`, sehingga
+         * riwayat penagihan deal bisa direkonstruksi dari invoice mana pun.
+         */
+        fun fromDeal(
+            deal: com.eventverse.app.domain.deal.Deal,
+            contact: com.eventverse.app.domain.crm.Contact?,
+            kind: InvoiceKind = InvoiceKind.DOWN_PAYMENT
+        ): InvoicePrefillData = InvoicePrefillData(
+            kind = kind,
+            clientName = contact?.brandName?.takeIf { !it.isBlank }?.value
+                ?: contact?.displayName
+                ?: deal.title.value,
+            contactPerson = contact?.name ?: "",
+            phone = contact?.phone?.value ?: "",
+            email = contact?.email ?: "",
+            address = contact?.address ?: "",
+            sourceKind = InvoiceSourceKind.DEAL,
+            sourceRef = deal.id.value,
+            openDesignerDirectly = true
+        )
+    }
 }
 
 /**

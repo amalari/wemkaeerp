@@ -1065,6 +1065,32 @@ fun IconArrowBack(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnS
     }
 }
 
+@Composable
+fun IconArrowForward(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val midY = h * 0.50f
+
+        drawLine(
+            color = color,
+            start = Offset(w * 0.16f, midY),
+            end = Offset(w * 0.82f, midY),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+
+        val head = Path().apply {
+            moveTo(w * 0.82f, midY)
+            lineTo(w * 0.58f, h * 0.26f)
+            moveTo(w * 0.82f, midY)
+            lineTo(w * 0.58f, h * 0.74f)
+        }
+        drawPath(head, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
 /** Panah kursor — alat "pilih & pindahkan elemen" pada kanvas template. */
 @Composable
 fun IconCursor(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
