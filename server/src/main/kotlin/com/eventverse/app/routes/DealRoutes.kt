@@ -279,6 +279,18 @@ fun Route.dealRoutes(
             }
         }
     }
+    route("/api/tenant/crm/contacts") {
+
+        // Customer master listing. Same authority surface as deals: CRM_SALES VIEW.
+        get {
+            val tenant = call.requireTenant() ?: return@get
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
+
+            val contacts = contactRepository.findActive(tenant.tenantId)
+            call.respondJson(DealCodec.encodeContacts(contacts))
+        }
+    }
 }
 
 private const val MAX_PO_FILE_BYTES = 10 * 1024 * 1024

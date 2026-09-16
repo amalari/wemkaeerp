@@ -13,7 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,8 @@ import com.eventverse.app.presentation.crm.components.CrmMobileKanbanView
 import com.eventverse.app.presentation.crm.components.LeadActivitiesDialog
 import com.eventverse.app.presentation.crm.components.LeadsMasterDetailLayout
 import com.eventverse.app.presentation.crm.components.LeadsMobileFeedLayout
+import com.eventverse.app.presentation.deal.components.ContactsPane
+import com.eventverse.app.presentation.deal.components.DealsPane
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -52,6 +56,7 @@ fun CrmWorkspaceScreen(
     val viewModel = remember(tenantSlug) { CrmViewModel(tenantSlug = tenantSlug, access = access) }
     val state by viewModel.uiState.collectAsState()
     val employees by RbacAccessPolicyRepository.shared.employees.collectAsState()
+    var directoryTab by remember { mutableStateOf(CrmDirectoryTab.LEADS) }
 
     LaunchedEffect(tenantSlug) { viewModel.onEvent(CrmUiEvent.Load) }
 
@@ -101,10 +106,32 @@ fun CrmWorkspaceScreen(
             }
         }
 
+        // Tab direktori CRM: Leads (papan Kanban) | Deal | Kontak
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Sm),
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
+            CrmDirectoryTab.entries.forEach { tab ->
+                val isSelected = directoryTab == tab
+                ClayButton(
+                    text = tab.label,
+                    onClick = { directoryTab = tab },
+                    style = if (isSelected) ClayButtonStyle.Primary else ClayButtonStyle.Ghost,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
         val isDesktop = maxWidth >= ClayBreakpoints.MasterDetail
 
-        if (state.viewMode == CrmViewMode.KANBAN) {
+        if (directoryTab == CrmDirectoryTab.DEALS) {
+            DealsPane(tenantSlug = tenantSlug, modifier = Modifier.fillMaxSize())
+        } else if (directoryTab == CrmDirectoryTab.CONTACTS) {
+            ContactsPane(tenantSlug = tenantSlug, modifier = Modifier.fillMaxSize())
+        } else if (state.viewMode == CrmViewMode.KANBAN) {
             if (isDesktop) {
                 CrmKanbanBoard(
                     leads = state.visibleLeads,
@@ -267,4 +294,15 @@ fun CrmWorkspaceScreen(
             }
         )
     }
+}
+
+/**
+ * Tab direktori di atas layar CRM: papan lead (default), daftar seluruh deal,
+ * dan master data kontak. Deal/Kontak sengaja bukan menu modul tersendiri —
+ * keduanya bagian dari bounded context CRM_SALES yang sama (RBAC & entitlement ikut CRM).
+ */
+private enum class CrmDirectoryTab(val label: String) {
+    LEADS("Leads"),
+    DEALS("Deal"),
+    CONTACTS("Kontak")
 }

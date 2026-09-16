@@ -13,6 +13,8 @@ interface DealRemoteDataSource {
 
     suspend fun getDeals(tenantSlug: String): Result<List<Deal>>
 
+    suspend fun getContacts(tenantSlug: String): Result<List<com.eventverse.app.domain.crm.Contact>>
+
     /** Detail payload: deal + contact + purchase orders. */
     suspend fun getDealDetail(tenantSlug: String, dealId: String): Result<DealDetailResponse>
 

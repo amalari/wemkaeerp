@@ -63,6 +63,14 @@ object DealCodec {
         )
     }
 
+    fun decodeContacts(rawJson: String, tenantId: TenantId): List<Contact> =
+        JsonParser.parseArray(rawJson).mapNotNull { item ->
+            (item as? JsonValue.Obj)?.let { decodeContact(it, tenantId) }
+    }
+
+    fun encodeContacts(contacts: List<Contact>): String =
+        jsonArrayOf(contacts.map(::encodeContact)).encode()
+
     // -----------------------------------------------------------------------
     // Deal <-> JSON
     // -----------------------------------------------------------------------

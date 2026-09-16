@@ -33,6 +33,14 @@ class DealApiClient(
         DealCodec.decodeDeals(response.requireBody("memuat daftar deal"), resolveTenant(tenantSlug))
     }
 
+    override suspend fun getContacts(tenantSlug: String): Result<List<com.eventverse.app.domain.crm.Contact>> = runCatching {
+        val response = httpClient.get(resolveUrl(CONTACTS_PATH)) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        DealCodec.decodeContacts(response.requireBody("memuat daftar kontak"), resolveTenant(tenantSlug))
+    }
+
     override suspend fun getDealDetail(tenantSlug: String, dealId: String): Result<DealDetailResponse> = runCatching {
         val response = httpClient.get(resolveUrl("$DEALS_PATH/$dealId")) {
             tenantRequest(tenantSlug, tokenProvider)
@@ -129,5 +137,6 @@ class DealApiClient(
 
     private companion object {
         const val DEALS_PATH = "/api/tenant/deals"
+        const val CONTACTS_PATH = "/api/tenant/crm/contacts"
     }
 }

@@ -332,14 +332,3 @@ private fun DealDetailContent(
         }
     }
 }
-
-private fun DealStage.tint() = when (this) {
-    DealStage.OPEN -> WeMadeColors.Info
-    DealStage.PO_RECEIVED -> WeMadeColors.Primary
-    DealStage.IN_PRODUCTION -> WeMadeColors.Accent
-    DealStage.WON -> WeMadeColors.Success
-    DealStage.LOST -> WeMadeColors.Error
-}
-
-private fun formatIdr(amount: Long): String =
-    "Rp" + amount.toString().reversed().chunked(3).joinToString(".").reversed()
