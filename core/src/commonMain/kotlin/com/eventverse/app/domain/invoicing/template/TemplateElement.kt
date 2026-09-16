@@ -14,6 +14,23 @@ data class TableColumn(
     }
 }
 
+/**
+ * Gaya teks elemen, atau `null` bila elemen itu tidak menggambar teks bergaya tunggal.
+ *
+ * [TemplateElement.ItemTable] sengaja mengembalikan `null` walaupun ia menggambar teks: ia punya
+ * **dua** gaya (judul dan isi) dan ratusan sel dengan lebar berbeda-beda, jadi tidak ada satu gaya
+ * yang bisa mewakilinya. Pengukuran sel tabel adalah persoalan tersendiri.
+ */
+val TemplateElement.textStyleOrNull: TextStyleSpec?
+    get() = when (this) {
+        is TemplateElement.StaticText -> style
+        is TemplateElement.BoundField -> style
+        is TemplateElement.ItemTable,
+        is TemplateElement.ImageBox,
+        is TemplateElement.LineShape,
+        is TemplateElement.RectShape -> null
+    }
+
 sealed interface TemplateElement {
     val elementId: String
     val rect: TemplateRect

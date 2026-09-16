@@ -1,5 +1,6 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.crm.LeadScope
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.domain.orgchart.OrgNodeId
@@ -60,7 +61,12 @@ internal suspend fun ApplicationCall.crmDecision(
         departmentName = "",
         roleId = role?.id,
         roleTitle = role?.name ?: "",
-        isOwnerOrSuperAdmin = principal.isPlatformSuperadmin && role == null,
+        // Owner pabrik (Role platform TENANT_ADMIN — akun seed `usr-owner-001`) melewati matriks
+        // wewenang sama seperti superadmin: ia pemilik tenant. Tanpa bypass ini seluruh modul CRM
+        // terkunci 403 justru untuk akun yang paling berhak, karena TENANT_ADMIN tidak punya
+        // jabatan tenant (custom role) maupun penugasan departemen. Bypass tetap mensyaratkan
+        // `role == null` agar bila owner diberi jabatan tenant, matriks jabatan itu yang berlaku.
+        isOwnerOrSuperAdmin = (principal.isPlatformSuperadmin || principal.role == Role.TENANT_ADMIN) && role == null,
         isPlatformSuperAdmin = principal.isPlatformSuperadmin && role == null
     )
 

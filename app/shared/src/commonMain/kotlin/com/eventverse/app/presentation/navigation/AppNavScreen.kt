@@ -25,7 +25,8 @@ enum class AppNavScreen(
      * `AccessDecisionEngine` dan penguncian jabatan Owner pada `CustomRole.updateModuleAccess` —
      * sehingga layarnya tidak perlu lagi dikecualikan dari matriks.
      */
-    val businessModule: BusinessModule? = null
+    val businessModule: BusinessModule? = null,
+    val isNavMenuItem: Boolean = true
 ) {
     ORG_CHART(
         route = "/org-chart",
@@ -112,6 +113,13 @@ enum class AppNavScreen(
         aliases = listOf("/invoice", "/tagihan", "/faktur"),
         businessModule = BusinessModule.INVOICING
     ),
+    INVOICING_TEMPLATES(
+        route = "/invoicing/templates",
+        title = "Template & Desain Faktur",
+        aliases = listOf("/invoicing/design", "/invoicing/template", "/invoicing/layouts"),
+        businessModule = BusinessModule.INVOICING,
+        isNavMenuItem = false
+    ),
 
     LOGIN(
         route = "/login",
@@ -145,10 +153,51 @@ enum class AppNavScreen(
 
             if (normalized == "/") return null
 
-            return entries.firstOrNull { screen ->
+            val exactMatch = entries.firstOrNull { screen ->
                 screen.route.equals(normalized, ignoreCase = true) ||
                     screen.aliases.any { alias -> alias.equals(normalized, ignoreCase = true) }
             }
+            if (exactMatch != null) return exactMatch
+
+            // Match sub-routes by prefix (e.g. /invoicing/templates/tpl-123 -> INVOICING_TEMPLATES)
+            // Urutkan berdasarkan panjang rute menurun agar sub-rute lebih spesifik menang lebih dulu.
+            return entries
+                .sortedByDescending { it.route.length }
+                .firstOrNull { screen ->
+                    screen.route != "/" && (
+                        normalized.startsWith("${screen.route}/", ignoreCase = true) ||
+                            screen.aliases.any { alias -> normalized.startsWith("$alias/", ignoreCase = true) }
+                    )
+                }
+        }
+
+        /**
+         * Mengambil ID template dari URL path (baik dari subpath /invoicing/templates/{id}
+         * ataupun query param ?templateId={id} atau ?id={id}).
+         */
+        fun extractTemplateId(rawPath: String): String? {
+            val trimmed = rawPath.trim().removePrefix("#").removePrefix("/")
+            val queryPart = trimmed.substringAfter("?", "")
+            if (queryPart.isNotEmpty()) {
+                val params = queryPart.split("&").associate {
+                    val parts = it.split("=", limit = 2)
+                    parts[0].lowercase() to (parts.getOrNull(1) ?: "")
+                }
+                params["templateid"]?.takeIf { it.isNotBlank() }?.let { return it }
+                params["id"]?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+
+            val pathOnly = trimmed.substringBefore("?").removeSuffix("/")
+            val prefixes = listOf("invoicing/templates/", "invoicing/design/", "invoicing/template/", "invoicing/layouts/")
+            for (prefix in prefixes) {
+                if (pathOnly.startsWith(prefix, ignoreCase = true)) {
+                    val candidate = pathOnly.substring(prefix.length).trim()
+                    if (candidate.isNotBlank() && !candidate.contains("/")) {
+                        return candidate
+                    }
+                }
+            }
+            return null
         }
     }
 }

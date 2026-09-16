@@ -70,48 +70,120 @@ fun ElementPalette(
                 color = WeMadeColors.OnSurfaceMuted
             )
 
-            PaletteSectionTitle("Elemen Dasar")
+            PaletteSectionTitle("Elemen Transaksi (Data Deal)")
+
+            val descriptorName = InvoiceBindingRegistry.descriptorFor("billTo.name")
+            if (descriptorName != null) {
+                PaletteRow(
+                    label = "Nama Klien / Perusahaan",
+                    hint = "Nama brand/klien pemesan dari transaksi Deal.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorName))) },
+                    leading = { IconUser(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorContact = InvoiceBindingRegistry.descriptorFor("billTo.contactPerson")
+            if (descriptorContact != null) {
+                PaletteRow(
+                    label = "Kontak & Telepon",
+                    hint = "Nama PIC & nomor kontak pemesan.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorContact))) },
+                    leading = { IconPhone(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorAddress = InvoiceBindingRegistry.descriptorFor("billTo.address")
+            if (descriptorAddress != null) {
+                PaletteRow(
+                    label = "Alamat Klien",
+                    hint = "Alamat workshop / pengiriman pemesan.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorAddress))) },
+                    leading = { IconDatabase(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorInvNumber = InvoiceBindingRegistry.descriptorFor("invoice.number")
+            if (descriptorInvNumber != null) {
+                val labelText = if (state.template.targetKind == com.eventverse.app.domain.invoicing.InvoiceKind.SAMPLE) {
+                    "No. Invoice Sample"
+                } else {
+                    "Nomor Faktur / Invoice"
+                }
+                PaletteRow(
+                    label = labelText,
+                    hint = "Nomor faktur unik terbitan sistem.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorInvNumber))) },
+                    leading = { IconReceipt(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorDate = InvoiceBindingRegistry.descriptorFor("invoice.issueDate")
+            if (descriptorDate != null) {
+                PaletteRow(
+                    label = "Tanggal Terbit",
+                    hint = "Tanggal pencetakan / penerbitan invoice.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorDate))) },
+                    leading = { IconReceipt(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val tableExists = state.itemTableExists
+            PaletteRow(
+                label = "Tabel Produk / Jasa",
+                hint = if (tableExists) {
+                    "Template sudah memiliki tabel item pekerjaan."
+                } else {
+                    "Tabel dinamis: No, deskripsi pesanan, qty, harga satuan, dan subtotal."
+                },
+                enabled = !tableExists,
+                onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ItemTable)) },
+                leading = { IconLayers(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+            )
+
+            val descriptorTotal = InvoiceBindingRegistry.descriptorFor("invoice.total")
+            if (descriptorTotal != null) {
+                PaletteRow(
+                    label = "Total Tagihan",
+                    hint = "Grand total nilai faktur transaksi.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorTotal))) },
+                    leading = { IconReceipt(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorWords = InvoiceBindingRegistry.descriptorFor("invoice.totalInWords")
+            if (descriptorWords != null) {
+                PaletteRow(
+                    label = "Terbilang Rupiah",
+                    hint = "Konversi nominal ke kalimat terbilang rupiah.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorWords))) },
+                    leading = { IconNote(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            val descriptorBank = InvoiceBindingRegistry.descriptorFor("issuer.bankAccountNumber")
+            if (descriptorBank != null) {
+                PaletteRow(
+                    label = "Rekening Bank Penerbit",
+                    hint = "Instruksi transfer & no. rekening perusahaan.",
+                    onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptorBank))) },
+                    leading = { IconDatabase(Modifier.size(13.dp), color = WeMadeColors.Primary) }
+                )
+            }
+
+            PaletteSectionTitle("Elemen Tata Letak")
 
             PaletteRow(
-                label = "Teks",
-                hint = "Tulisan statis. Klik dua kali di kanvas untuk mengubah isinya.",
+                label = "Teks Bebas / Label",
+                hint = "Tulisan statis untuk judul kustom, catatan, atau instruksi.",
                 onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.StaticText)) },
                 leading = { IconNote(Modifier.size(13.dp), color = WeMadeColors.Primary) }
             )
 
             PaletteRow(
                 label = "Divider",
-                hint = "Garis pemisah. Hanya lebarnya yang bisa diatur.",
+                hint = "Garis pemisah horizontal antar bagian dokumen.",
                 onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.Divider)) },
                 leading = { IconDividerLine(Modifier.size(13.dp)) }
-            )
-
-            PaletteSectionTitle("Modul")
-
-            InvoiceBindingRegistry.standaloneModules().forEach { module ->
-                ModuleGroup(
-                    module = module,
-                    expanded = module in state.expandedModules,
-                    onToggle = { onEvent(TemplateDesignerUiEvent.ToggleModuleExpanded(module)) },
-                    onInsert = { descriptor ->
-                        onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ModuleField(descriptor)))
-                    }
-                )
-            }
-
-            PaletteSectionTitle("Tabel")
-
-            val tableExists = state.itemTableExists
-            PaletteRow(
-                label = "Tabel Baris Item",
-                hint = if (tableExists) {
-                    "Template sudah punya satu tabel — hapus dulu tabel yang ada."
-                } else {
-                    "Kolom nomor, deskripsi, qty, harga, dan subtotal. Barisnya ikut jumlah item faktur."
-                },
-                enabled = !tableExists,
-                onClick = { onEvent(TemplateDesignerUiEvent.InsertPreset(TemplateElementPreset.ItemTable)) },
-                leading = { IconLayers(Modifier.size(13.dp), color = WeMadeColors.Primary) }
             )
         }
     }
@@ -128,12 +200,6 @@ private fun PaletteSectionTitle(text: String) {
     )
 }
 
-/**
- * Satu baris elemen yang bisa diklik.
- *
- * Dipakai untuk elemen dasar, isian modul, dan tabel — satu bentuk untuk satu arti yang sama
- * ("klik untuk menambah"), sehingga pengguna tidak perlu belajar tiga pola penambahan.
- */
 @Composable
 private fun PaletteRow(
     label: String,
@@ -187,102 +253,7 @@ private fun PaletteRow(
 }
 
 /**
- * Satu grup modul: kepala yang bisa dibuka-tutup, berisi isian yang dihasilkannya.
- *
- * Terlipat secara bawaan karena satu modul bisa punya belasan isian; membuka semuanya sekaligus akan
- * membuat panel ini lebih panjang dari kertas yang sedang disusun.
- */
-@Composable
-private fun ModuleGroup(
-    module: BindingModuleSource,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    onInsert: (BindingDescriptor) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clayFlat(
-                    shape = ClayShapes.Chip,
-                    background = if (expanded) WeMadeColors.PrimaryContainer else WeMadeColors.SurfaceMuted,
-                    outline = if (expanded) WeMadeColors.Primary else WeMadeColors.Border,
-                    borderWidth = ClayBorder.Hairline
-                )
-                .clickable(onClick = onToggle)
-                .padding(horizontal = ClaySpacing.Sm, vertical = ClaySpacing.Sm),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ModuleIcon(module, if (expanded) WeMadeColors.PrimaryDark else WeMadeColors.Primary)
-
-            Text(
-                text = module.displayName,
-                modifier = Modifier.weight(1f, fill = false),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (expanded) WeMadeColors.PrimaryDark else WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.width(ClaySpacing.Xs))
-
-            if (expanded) {
-                IconChevronUp(Modifier.size(10.dp), color = WeMadeColors.PrimaryDark)
-            } else {
-                IconChevronDown(Modifier.size(10.dp), color = WeMadeColors.OnSurfaceMuted)
-            }
-        }
-
-        if (expanded) {
-            Text(
-                text = module.description,
-                fontSize = 10.sp,
-                color = WeMadeColors.OnSurfaceMuted,
-                modifier = Modifier.padding(start = ClaySpacing.Sm, bottom = ClaySpacing.Xs)
-            )
-
-            InvoiceBindingRegistry.descriptorsOf(module).forEach { descriptor ->
-                Box(modifier = Modifier.padding(start = ClaySpacing.Md)) {
-                    PaletteRow(
-                        label = descriptor.displayName,
-                        hint = descriptor.labelPreview(),
-                        onClick = { onInsert(descriptor) },
-                        leading = { IconPlus(Modifier.size(10.dp), color = WeMadeColors.OnSurfaceMuted) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Pratinjau label yang ikut terpasang saat isian disisipkan.
- *
- * Pengguna perlu tahu ini sebelum menempel: dua isian dari modul yang sama bisa tampil sangat berbeda
- * ("Telp: …" versus hanya nomornya), dan perbedaan itu datang dari `defaultPrefix` di registry.
- */
-private fun BindingDescriptor.labelPreview(): String =
-    if (defaultPrefix.isNotBlank()) "Berlabel \"${defaultPrefix.trim()}\"" else "Tanpa label di depan"
-
-@Composable
-private fun ModuleIcon(module: BindingModuleSource, color: Color) {
-    val modifier = Modifier.size(13.dp)
-    when (module.iconKey) {
-        "user" -> IconUser(modifier, color = color)
-        "receipt" -> IconReceipt(modifier, color = color)
-        "database" -> IconDatabase(modifier, color = color)
-        else -> IconLayers(modifier, color = color)
-    }
-}
-
-/**
  * Ikon garis pemisah.
- *
- * Digambar langsung sebagai vektor karena `ClayIcons` belum punya ikon "garis": memakai ikon menu
- * (tiga garis) akan terbaca sebagai tombol menu, dan emoji dilarang karena tidak punya fallback font
- * di Compose Wasm.
  */
 @Composable
 private fun IconDividerLine(modifier: Modifier = Modifier) {

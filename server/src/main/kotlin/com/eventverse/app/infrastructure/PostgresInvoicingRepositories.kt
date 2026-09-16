@@ -78,10 +78,14 @@ class PostgresInvoiceIssuerProfileRepository : InvoiceIssuerProfileRepository {
 
 class PostgresInvoiceTemplateRepository : InvoiceTemplateRepository {
 
-    override suspend fun findById(id: InvoiceTemplateId): InvoiceTemplate? =
-        DatabaseFactory.dbQuery {
+    override suspend fun findById(tenantId: TenantId, id: InvoiceTemplateId): InvoiceTemplate? =
+        DatabaseFactory.dbQuery(tenantId) {
             InvoiceTemplatesTable.selectAll()
-                .where { (InvoiceTemplatesTable.id eq id.value) and InvoiceTemplatesTable.archivedAt.isNull() }
+                .where {
+                    (InvoiceTemplatesTable.id eq id.value) and
+                        (InvoiceTemplatesTable.tenantId eq tenantId.value) and
+                        InvoiceTemplatesTable.archivedAt.isNull()
+                }
                 .singleOrNull()
                 ?.let(::toTemplate)
         }
@@ -167,9 +171,11 @@ class PostgresInvoiceTemplateRepository : InvoiceTemplateRepository {
             }
         }
 
-    override suspend fun archive(id: InvoiceTemplateId): Unit =
-        DatabaseFactory.dbQuery {
-            InvoiceTemplatesTable.update({ InvoiceTemplatesTable.id eq id.value }) {
+    override suspend fun archive(tenantId: TenantId, id: InvoiceTemplateId): Unit =
+        DatabaseFactory.dbQuery(tenantId) {
+            InvoiceTemplatesTable.update({
+                (InvoiceTemplatesTable.id eq id.value) and (InvoiceTemplatesTable.tenantId eq tenantId.value)
+            }) {
                 it[archivedAt] = Clock.System.now()
                 it[isDefault] = false
             }
@@ -204,24 +210,35 @@ class PostgresInvoiceTemplateRepository : InvoiceTemplateRepository {
 
 class PostgresInvoicePaymentRepository : InvoicePaymentRepository {
 
-    override suspend fun historyFor(invoiceId: InvoiceId): List<InvoicePayment> =
-        DatabaseFactory.dbQuery {
+    override suspend fun historyFor(tenantId: TenantId, invoiceId: InvoiceId): List<InvoicePayment> =
+        DatabaseFactory.dbQuery(tenantId) {
             InvoicePaymentsTable.selectAll()
-                .where { InvoicePaymentsTable.invoiceId eq invoiceId.value }
+                .where {
+                    (InvoicePaymentsTable.invoiceId eq invoiceId.value) and
+                        (InvoicePaymentsTable.tenantId eq tenantId.value)
+                }
                 .orderBy(InvoicePaymentsTable.paidAt, SortOrder.ASC)
                 .map(::toPayment)
         }
 
-    override suspend fun append(payment: InvoicePayment): Unit =
-        DatabaseFactory.dbQuery {
-            val invRow = InvoicesTable.selectAll()
-                .where { InvoicesTable.id eq payment.invoiceId.value }
-                .singleOrNull()
-            val tenantIdStr = invRow?.get(InvoicesTable.tenantId) ?: "unknown"
+    override suspend fun append(tenantId: TenantId, payment: InvoicePayment): Unit =
+        DatabaseFactory.dbQuery(tenantId) {
+            // Faktur yang dibayar wajib milik tenant yang sama. Sebelumnya pencarian ini tidak
+            // dibatasi tenant dan jatuh ke tenant_id "unknown" bila fakturnya tidak ketemu —
+            // menulis baris pembayaran yang tidak dimiliki siapa pun dan lolos dari RLS.
+            val ownsInvoice = InvoicesTable.selectAll()
+                .where {
+                    (InvoicesTable.id eq payment.invoiceId.value) and
+                        (InvoicesTable.tenantId eq tenantId.value)
+                }
+                .singleOrNull() != null
+            require(ownsInvoice) {
+                "Faktur '${payment.invoiceId.value}' tidak ditemukan pada tenant '${tenantId.value}'."
+            }
 
             InvoicePaymentsTable.insert {
                 it[id] = payment.id.value
-                it[tenantId] = tenantIdStr
+                it[InvoicePaymentsTable.tenantId] = tenantId.value
                 it[invoiceId] = payment.invoiceId.value
                 it[amountMinor] = payment.amount.minorUnits
                 it[currency] = payment.amount.currency.code
@@ -234,12 +251,15 @@ class PostgresInvoicePaymentRepository : InvoicePaymentRepository {
             }
         }
 
-    override suspend fun totalPaidFor(invoiceId: InvoiceId): Money =
-        DatabaseFactory.dbQuery {
+    override suspend fun totalPaidFor(tenantId: TenantId, invoiceId: InvoiceId): Money =
+        DatabaseFactory.dbQuery(tenantId) {
             val sumExpression = InvoicePaymentsTable.amountMinor.sum()
             val totalMinor = InvoicePaymentsTable
                 .select(sumExpression)
-                .where { InvoicePaymentsTable.invoiceId eq invoiceId.value }
+                .where {
+                    (InvoicePaymentsTable.invoiceId eq invoiceId.value) and
+                        (InvoicePaymentsTable.tenantId eq tenantId.value)
+                }
                 .singleOrNull()
                 ?.get(sumExpression) ?: 0L
             Money(totalMinor, CurrencyCode.IDR)
@@ -263,10 +283,10 @@ class PostgresInvoicePaymentRepository : InvoicePaymentRepository {
 
 class PostgresInvoiceRepository : InvoiceRepository {
 
-    override suspend fun findById(id: InvoiceId): Invoice? =
-        DatabaseFactory.dbQuery {
+    override suspend fun findById(tenantId: TenantId, id: InvoiceId): Invoice? =
+        DatabaseFactory.dbQuery(tenantId) {
             val row = InvoicesTable.selectAll()
-                .where { InvoicesTable.id eq id.value }
+                .where { (InvoicesTable.id eq id.value) and (InvoicesTable.tenantId eq tenantId.value) }
                 .singleOrNull() ?: return@dbQuery null
             loadInvoiceDetails(row)
         }
@@ -278,6 +298,28 @@ class PostgresInvoiceRepository : InvoiceRepository {
                 .singleOrNull() ?: return@dbQuery null
             loadInvoiceDetails(row)
         }
+
+    override suspend fun hasActiveInvoiceForSource(
+        tenantId: TenantId,
+        sourceKind: InvoiceSourceKind,
+        sourceRef: String
+    ): Boolean = DatabaseFactory.dbQuery(tenantId) {
+        val activeStatuses = listOf(
+            InvoiceStatus.ISSUED.name,
+            InvoiceStatus.PARTIALLY_PAID.name,
+            InvoiceStatus.PAID.name
+        )
+        InvoicesTable.selectAll()
+            .where {
+                (InvoicesTable.tenantId eq tenantId.value) and
+                    (InvoicesTable.sourceKind eq sourceKind.name) and
+                    (InvoicesTable.sourceReferenceId eq sourceRef) and
+                    (InvoicesTable.status inList activeStatuses)
+            }
+            .limit(1)
+            .empty()
+            .not()
+    }
 
     override suspend fun search(query: InvoiceQuery): InvoicePage =
         DatabaseFactory.dbQuery(query.tenantId) {
@@ -336,9 +378,13 @@ class PostgresInvoiceRepository : InvoiceRepository {
             InvoiceNumber("$prefix/$year/${month.toString().padStart(2, '0')}/${seq.toString().padStart(4, '0')}")
         }
 
-    override suspend fun deleteDraft(id: InvoiceId): Unit =
-        DatabaseFactory.dbQuery {
-            InvoicesTable.deleteWhere { (InvoicesTable.id eq id.value) and (InvoicesTable.status eq InvoiceStatus.DRAFT.name) }
+    override suspend fun deleteDraft(tenantId: TenantId, id: InvoiceId): Unit =
+        DatabaseFactory.dbQuery(tenantId) {
+            InvoicesTable.deleteWhere {
+                (InvoicesTable.id eq id.value) and
+                    (InvoicesTable.tenantId eq tenantId.value) and
+                    (InvoicesTable.status eq InvoiceStatus.DRAFT.name)
+            }
         }
 
     override suspend fun save(invoice: Invoice): Unit =

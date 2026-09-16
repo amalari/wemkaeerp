@@ -97,6 +97,10 @@ import com.eventverse.app.infrastructure.PostgresInvoicePaymentRepository
 import com.eventverse.app.infrastructure.PostgresInvoiceRepository
 import com.eventverse.app.infrastructure.PostgresInvoiceTemplateRepository
 import com.eventverse.app.routes.invoicingRoutes
+import com.eventverse.app.routes.dealRoutes
+import com.eventverse.app.infrastructure.PostgresContactRepository
+import com.eventverse.app.infrastructure.PostgresDealRepository
+import com.eventverse.app.infrastructure.storage.S3PoFileStorage
 
 
 fun main() {
@@ -125,6 +129,9 @@ fun Application.module(
     prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
     flowTranslator: FlowTranslator? = null,
     crmLeadRepository: CrmLeadRepository? = null,
+    contactRepository: com.eventverse.app.domain.crm.ContactRepository? = null,
+    dealRepository: com.eventverse.app.domain.deal.DealRepository? = null,
+    poFileStorage: com.eventverse.app.domain.deal.storage.PoFileStorage? = null,
     customFieldDefinitionRepository: CustomFieldDefinitionRepository? = null,
     leadActivityRepository: LeadActivityRepository? = null,
     samplingOrderRepository: com.eventverse.app.domain.sampling.SamplingOrderRepository? = null,
@@ -157,6 +164,9 @@ fun Application.module(
         moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
     val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
+    val crmContactRepo = contactRepository ?: PostgresContactRepository()
+    val crmDealRepo = dealRepository ?: PostgresDealRepository()
+    val poFileStorage = poFileStorage ?: S3PoFileStorage()
     val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
@@ -496,11 +506,22 @@ fun Application.module(
         )
         crmRoutes(
             leadRepository = crmLeadRepo,
+            contactRepository = crmContactRepo,
+            dealRepository = crmDealRepo,
             customFieldRepository = customFieldRepo,
             employeeRepository = empRepo,
             roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo,
+            invoiceRepository = invoiceRepo,
             leadActivityRepository = leadActivityRepo
+        )
+        dealRoutes(
+            dealRepository = crmDealRepo,
+            contactRepository = crmContactRepo,
+            employeeRepository = empRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo,
+            poFileStorage = poFileStorage
         )
         samplingRoutes(
             repository = samplingOrderRepo

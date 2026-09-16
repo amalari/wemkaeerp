@@ -225,6 +225,77 @@ data class TemplateDesignerUiState(
                 updatedAt = now
             )
         }
+
+        fun createDummySamplePreviewInvoice(now: Instant = Clock.System.now()): Invoice {
+            val issueDate = LocalDate(2026, 3, 16)
+            val dueDate = LocalDate(2026, 3, 23)
+            val line1 = InvoiceLine(
+                id = InvoiceLineId("line-smp-01"),
+                description = "Jasa Pembuatan Pola & Grading Ukuran (Kemeja Flanel S, M, L, XL)",
+                quantity = Quantity(1_000_000L, UnitOfMeasure.PIECE),
+                unitPrice = Money.idr(175_000),
+                discount = Ratio.ZERO,
+                sortOrder = 1
+            )
+            val line2 = InvoiceLine(
+                id = InvoiceLineId("line-smp-02"),
+                description = "Bahan Baku Sample Kain Cotton Flanel Kotak Premium (2 meter)",
+                quantity = Quantity(2_000_000L, UnitOfMeasure.METER),
+                unitPrice = Money.idr(65_000),
+                discount = Ratio.ZERO,
+                sortOrder = 2
+            )
+            val line3 = InvoiceLine(
+                id = InvoiceLineId("line-smp-03"),
+                description = "Jahit Prototipe Sample Garmen + Fitting Review & Labeling",
+                quantity = Quantity(1_000_000L, UnitOfMeasure.PIECE),
+                unitPrice = Money.idr(150_000),
+                discount = Ratio.ZERO,
+                sortOrder = 3
+            )
+            return Invoice(
+                id = InvoiceId("inv-smp-preview-001"),
+                tenantId = TenantId("ten-demo-001"),
+                number = InvoiceNumber("INV-SMP/2026/03/0018"),
+                kind = InvoiceKind.SAMPLE,
+                status = InvoiceStatus.DRAFT,
+                billTo = BillToParty(
+                    name = "Erigo Apparel Studio",
+                    contactPerson = "Ibu Sarah Kartika (Merchandiser)",
+                    address = "Jl. Bangka Raya No. 28, Kemang, Jakarta Selatan",
+                    phone = "0811-2233-4455",
+                    email = "merchandiser@erigo.co.id",
+                    taxId = "03.456.789.0-012.000"
+                ),
+                issuer = IssuerProfile(
+                    companyName = "PT WeMade Garment Indonesia",
+                    address = "Kawasan Industri Rancaekek Kav. 12, Bandung",
+                    taxId = "02.345.678.9-429.000",
+                    phone = "(022) 8765-4321",
+                    email = "billing@wemade.co.id",
+                    bankName = "Bank Central Asia (BCA)",
+                    bankAccountNumber = "8420-123-999",
+                    bankAccountHolder = "PT WEMADE GARMENT INDONESIA"
+                ),
+                lines = listOf(line1, line2, line3),
+                taxRatio = Ratio.percent(11.0),
+                globalDiscount = Ratio.ZERO,
+                currency = CurrencyCode.IDR,
+                issueDate = issueDate,
+                dueDate = dueDate,
+                templateId = InvoiceTemplateId("tpl-smp-001"),
+                renderedTemplate = null,
+                sourceKind = InvoiceSourceKind.SAMPLING,
+                sourceRef = "SMP-2026/FLN-09 (Kemeja Flanel Oversize Art-09)",
+                parentInvoiceId = null,
+                contractValue = Money.idr(455_000),
+                notes = "Faktur tagihan pembuatan prototipe sample garmen artikel Kemeja Flanel Oversized Art-09. Termasuk 1x revisi fitting gratis sebelum approval produksi massal.",
+                terms = "Pembayaran di muka 100% sebelum pengerjaan sample dimulai. Estimasi pengerjaan sample 5-7 hari kerja setelah kain tiba.",
+                createdBy = "Admin Sampling",
+                createdAt = now,
+                updatedAt = now
+            )
+        }
     }
 }
 
@@ -263,6 +334,8 @@ sealed interface TemplateDesignerUiEvent {
 
     data class DeleteElement(val elementId: String) : TemplateDesignerUiEvent
     data class UpdateTemplateName(val name: String) : TemplateDesignerUiEvent
+    data class SetApplicableKind(val kind: InvoiceKind) : TemplateDesignerUiEvent
+    data class ToggleApplicableKind(val kind: InvoiceKind) : TemplateDesignerUiEvent
     data class SetZoom(val percent: Int) : TemplateDesignerUiEvent
     data class SetCanvasTool(val tool: CanvasTool) : TemplateDesignerUiEvent
     data class ToggleGrid(val show: Boolean) : TemplateDesignerUiEvent

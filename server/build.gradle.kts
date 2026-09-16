@@ -32,6 +32,8 @@ dependencies {
     implementation(libs.flyway.database.postgresql)
     implementation("com.auth0:java-jwt:4.4.0")
     implementation(libs.pdfbox)
+    // Object storage (S3-compatible / MinIO) untuk berkas PO yang di-upload
+    implementation(libs.awssdk.s3)
 
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)

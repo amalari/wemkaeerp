@@ -36,7 +36,10 @@ import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.designsystem.claySurface
+import com.eventverse.app.presentation.designsystem.rememberFredokaFamily
+import com.eventverse.app.presentation.designsystem.rememberNunitoFamily
 import com.eventverse.app.presentation.theme.WeMadeColors
+import androidx.compose.ui.text.font.FontFamily
 import kotlin.math.roundToInt
 
 /**
@@ -142,20 +145,22 @@ fun TemplateCanvas(
                     )
             )
 
-            PaperContent(
-                state = state,
-                laidOutElements = laidOutElements,
-                paperWidthDp = paperWidthDp,
-                paperHeightDp = paperHeightDp,
-                mmToDp = mmToDp,
-                zoomFactor = zoomFactor,
-                invoice = invoice,
-                snapMm10 = snapMm10,
-                paperSize = paperSize,
-                isSelectTool = isSelectTool,
-                focusRequester = focusRequester,
-                onEvent = onEvent
-            )
+            ProvideInvoiceFontFaces {
+                PaperContent(
+                    state = state,
+                    laidOutElements = laidOutElements,
+                    paperWidthDp = paperWidthDp,
+                    paperHeightDp = paperHeightDp,
+                    mmToDp = mmToDp,
+                    zoomFactor = zoomFactor,
+                    invoice = invoice,
+                    snapMm10 = snapMm10,
+                    paperSize = paperSize,
+                    isSelectTool = isSelectTool,
+                    focusRequester = focusRequester,
+                    onEvent = onEvent
+                )
+            }
         }
     }
 }
@@ -390,10 +395,14 @@ private fun CanvasElementNode(
             .absoluteMmRect(laid.rect, mmToDp)
             .size(width = widthDp, height = heightDp)
             .then(
-                if (isSelected) {
-                    Modifier.border(ClayBorder.Thick, WeMadeColors.Primary, ClayShapes.Element)
-                } else {
-                    Modifier.border(
+                // Ketebalan outline dijaga tetap per peran (Kontrak 8 design system); yang
+                // membedakan state adalah warnanya. Luapan diberi warna peringatan karena ia satu-
+                // satunya keadaan di mana yang terlihat di kanvas tidak akan sama dengan hasil
+                // cetak — PDF menjepit offset perataannya ke nol dan teksnya menjulur keluar kotak.
+                when {
+                    isSelected -> Modifier.border(ClayBorder.Thick, WeMadeColors.Primary, ClayShapes.Element)
+                    laid.hasOverflow -> Modifier.border(ClayBorder.Thick, WeMadeColors.Warning, ClayShapes.Element)
+                    else -> Modifier.border(
                         ClayBorder.Hairline,
                         WeMadeColors.OnSurfaceDisabled.copy(alpha = 0.35f),
                         ClayShapes.Element
@@ -599,6 +608,9 @@ private fun InlineTextEditor(
 
     val fontSizeSp = (style.fontSizePt * zoomFactor).sp
     val lineHeightSp = (InvoiceTextLayout.lineHeightMm10(style) / 10f * mmToDp).sp
+    // Editor memakai font yang sama dengan lapisan gambar. Kalau berbeda, huruf akan "meloncat"
+    // bentuknya begitu editor ditutup, dan pengguna mengira perubahannya tidak tersimpan.
+    val (family, weight) = fontFor(style)
 
     Box(
         modifier = Modifier
@@ -630,7 +642,8 @@ private fun InlineTextEditor(
                 color = Color(style.colorHex),
                 fontSize = fontSizeSp,
                 lineHeight = lineHeightSp,
-                fontWeight = if (style.isBold) FontWeight.Bold else FontWeight.Normal
+                fontFamily = family,
+                fontWeight = weight
             ),
             cursorBrush = SolidColor(WeMadeColors.Primary)
         )
@@ -726,11 +739,13 @@ private fun BoxScope.RenderElementContent(
 
     when (element) {
         is TemplateElement.StaticText -> {
+            val (family, weight) = fontFor(element.style)
             Text(
                 text = laid.textLines.joinToString("\n"),
                 fontSize = (element.style.fontSizePt * zoomFactor).sp,
                 lineHeight = (InvoiceTextLayout.lineHeightMm10(element.style) / 10f * 3f * zoomFactor).sp,
-                fontWeight = if (element.style.isBold) FontWeight.Bold else FontWeight.Normal,
+                fontFamily = family,
+                fontWeight = weight,
                 color = Color(element.style.colorHex),
                 textAlign = toComposeTextAlign(element.style.align),
                 softWrap = false,
@@ -741,13 +756,15 @@ private fun BoxScope.RenderElementContent(
         is TemplateElement.BoundField -> {
             val resolved = InvoiceBindingResolver.resolve(element.binding, invoice, null, totalPaid)
             val isUnmapped = resolved is ResolvedBindingValue.Empty
+            val (family, weight) = fontFor(element.style)
             Text(
                 // Token yang belum bisa diresolusi tetap ditampilkan sebagai penanda agar pengguna
                 // melihat "ada yang salah" di kanvas, bukan kotak kosong tanpa penjelasan.
                 text = if (isUnmapped) "{{${element.binding.value}}}" else laid.textLines.joinToString("\n"),
                 fontSize = (element.style.fontSizePt * zoomFactor).sp,
                 lineHeight = (InvoiceTextLayout.lineHeightMm10(element.style) / 10f * 3f * zoomFactor).sp,
-                fontWeight = if (element.style.isBold) FontWeight.Bold else FontWeight.Normal,
+                fontFamily = family,
+                fontWeight = weight,
                 color = if (isUnmapped) WeMadeColors.Warning else Color(element.style.colorHex),
                 textAlign = toComposeTextAlign(element.style.align),
                 softWrap = false,
@@ -838,6 +855,7 @@ private fun BoxScope.ItemTablePreview(
             .border(1.dp, WeMadeColors.Border)
     ) {
         if (table.showHeader) {
+            val (headerFamily, headerWeight) = fontFor(table.headerStyle)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -848,7 +866,8 @@ private fun BoxScope.ItemTablePreview(
                     Text(
                         text = col.header,
                         fontSize = (table.headerStyle.fontSizePt * zoomFactor).sp,
-                        fontWeight = if (table.headerStyle.isBold) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = headerFamily,
+                        fontWeight = headerWeight,
                         color = Color(table.headerStyle.colorHex),
                         textAlign = toComposeTextAlign(col.align),
                         maxLines = 1,
@@ -858,6 +877,7 @@ private fun BoxScope.ItemTablePreview(
             }
         }
 
+        val (bodyFamily, bodyWeight) = fontFor(table.bodyStyle)
         invoice.lines.forEachIndexed { index, line ->
             val zebraFillHex = table.zebraFillHex
             Row(
@@ -881,7 +901,8 @@ private fun BoxScope.ItemTablePreview(
                     Text(
                         text = value,
                         fontSize = (table.bodyStyle.fontSizePt * zoomFactor).sp,
-                        fontWeight = if (table.bodyStyle.isBold) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = bodyFamily,
+                        fontWeight = bodyWeight,
                         color = Color(table.bodyStyle.colorHex),
                         textAlign = toComposeTextAlign(col.align),
                         maxLines = 1,
@@ -900,6 +921,60 @@ private fun toComposeTextAlign(align: TextAlign): ComposeTextAlign = when (align
     TextAlign.LEFT -> ComposeTextAlign.Left
     TextAlign.CENTER -> ComposeTextAlign.Center
     TextAlign.RIGHT -> ComposeTextAlign.Right
+}
+
+/**
+ * Keluarga font faktur yang sudah dirakit, siap dipetakan dari [InvoiceFont].
+ *
+ * Dipegang sebagai satu objek dan dibagikan lewat [LocalInvoiceFontFaces] karena
+ * [rememberNunitoFamily] dan [rememberFredokaFamily] **membangun** `FontFamily` baru setiap kali
+ * dipanggil — memanggilnya di dalam perulangan elemen berarti merakit ulang dua keluarga font pada
+ * setiap elemen di setiap recomposition.
+ */
+@Immutable
+private class InvoiceFontFaces(val nunito: FontFamily, val fredoka: FontFamily) {
+
+    fun familyFor(font: InvoiceFont): FontFamily = when (font) {
+        InvoiceFont.NUNITO_REGULAR, InvoiceFont.NUNITO_BOLD -> nunito
+        InvoiceFont.FREDOKA_MEDIUM, InvoiceFont.FREDOKA_BOLD -> fredoka
+    }
+
+    fun weightFor(font: InvoiceFont): FontWeight = when (font) {
+        InvoiceFont.NUNITO_REGULAR -> FontWeight.Normal
+        InvoiceFont.NUNITO_BOLD -> FontWeight.Bold
+        // Fredoka hanya dibundel dari Medium ke atas; meminta Normal akan memaksa Compose
+        // mensintesis bobot yang tidak ada dan lebarnya meleset dari PDF.
+        InvoiceFont.FREDOKA_MEDIUM -> FontWeight.Medium
+        InvoiceFont.FREDOKA_BOLD -> FontWeight.Bold
+    }
+}
+
+/**
+ * Wadah font kanvas.
+ *
+ * Nilai bawaannya sengaja melempar: setiap teks faktur **harus** digambar dengan font yang sama
+ * dengan yang dipakai PDF. Kalau ada pemanggil yang lupa memasang penyedianya, jatuh diam-diam ke
+ * font bawaan platform adalah persis bug yang sedang diperbaiki di sini, dan bug itu hanya terlihat
+ * setelah faktur dicetak.
+ */
+private val LocalInvoiceFontFaces = staticCompositionLocalOf<InvoiceFontFaces> {
+    error("LocalInvoiceFontFaces belum dipasang — bungkus kanvas dengan ProvideInvoiceFontFaces.")
+}
+
+@Composable
+private fun ProvideInvoiceFontFaces(content: @Composable () -> Unit) {
+    val nunito = rememberNunitoFamily()
+    val fredoka = rememberFredokaFamily()
+    val faces = remember(nunito, fredoka) { InvoiceFontFaces(nunito, fredoka) }
+    CompositionLocalProvider(LocalInvoiceFontFaces provides faces, content = content)
+}
+
+/** Keluarga + bobot font untuk sebuah gaya teks, memakai aturan yang sama dengan renderer PDF. */
+@Composable
+private fun fontFor(style: TextStyleSpec): Pair<FontFamily, FontWeight> {
+    val faces = LocalInvoiceFontFaces.current
+    val font = InvoiceFontResolver.resolve(style)
+    return faces.familyFor(font) to faces.weightFor(font)
 }
 
 

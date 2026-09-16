@@ -1,10 +1,17 @@
 package com.eventverse.app.presentation.invoicing.template
 
 import com.eventverse.app.domain.common.Money
+import com.eventverse.app.domain.crm.BrandName
+import com.eventverse.app.domain.crm.CrmLead
+import com.eventverse.app.domain.crm.LeadId
+import com.eventverse.app.domain.crm.LeadStage
+import com.eventverse.app.domain.crm.WhatsappNumber
 import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
 import com.eventverse.app.domain.invoicing.InvoiceStatus
 import com.eventverse.app.domain.invoicing.template.*
+import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.infrastructure.api.CrmRemoteDataSource
 import com.eventverse.app.presentation.invoicing.InvoicePrefillData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,6 +22,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
 import kotlinx.datetime.plus
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -61,14 +69,34 @@ class TemplateDesignerViewModelTest {
         openDesignerDirectly = true
     )
 
+    private lateinit var fakeCrm: FakeCrmRemoteDataSource
+
     private fun designer(
         prefill: InvoicePrefillData? = null,
-        templateId: String? = null
+        templateId: String? = null,
+        crm: CrmRemoteDataSource? = null
     ) = TemplateDesignerViewModel(
         tenantSlug = "wemade-demo",
         initialTemplateId = templateId,
         initialPrefill = prefill,
-        remoteDataSource = fakeRemote
+        remoteDataSource = fakeRemote,
+        crmDataSource = crm ?: FakeCrmRemoteDataSource()
+    )
+
+    /** Lead CRM nyata sebagaimana bentuknya dari backend. */
+    private fun realLead(
+        id: String = "lead-77",
+        brand: String = "CV Sinar Rejeki Abadi"
+    ) = CrmLead(
+        id = LeadId(id),
+        tenantId = TenantId("ten-demo-001"),
+        brandName = BrandName(brand),
+        contactPerson = "Bapak Rudi Hartono",
+        whatsappNumber = WhatsappNumber("6281234567890"),
+        email = "finance@sinarrejeki.co.id",
+        stage = LeadStage.QUALIFIED,
+        createdAt = Instant.fromEpochMilliseconds(0),
+        updatedAt = Instant.fromEpochMilliseconds(0)
     )
 
     @Test
@@ -457,6 +485,44 @@ class TemplateDesignerViewModelTest {
         viewModel.onEvent(TemplateDesignerUiEvent.MoveElementBy(elementId = "tidak-ada", dxMm10 = 50, dyMm10 = 50))
 
         assertEquals(before, viewModel.uiState.value.template.elements)
+    }
+
+    @Test
+    fun designerOpenedWithoutPrefill_sampleTemplate_loadsSampleDealPreviewData() = testScope.runTest {
+        val viewModel = designer()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+
+        assertEquals(InvoiceKind.SAMPLE, state.template.targetKind)
+        assertEquals("Erigo Apparel Studio", state.previewInvoice.billTo.name)
+        assertTrue(state.previewInvoice.lines.any { "Pola" in it.description })
+    }
+
+    @Test
+    fun designerOpenedWithPrefill_preservesDealPrefillData() = testScope.runTest {
+        val prefill = samplingPrefill(clientName = "CV Sinar Rejeki Abadi")
+        val viewModel = designer(prefill = prefill)
+        testDispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+
+        assertEquals("CV Sinar Rejeki Abadi", state.previewInvoice.billTo.name)
+        assertEquals("Bapak Hendra", state.previewInvoice.billTo.contactPerson)
+        assertEquals("0812-9876-5432", state.previewInvoice.billTo.phone)
+        assertEquals(InvoiceSourceKind.CRM_LEAD, state.previewInvoice.sourceKind)
+        assertEquals("lead-42", state.previewInvoice.sourceRef)
+    }
+
+    @Test
+    fun designerSwitchKind_updatesPreviewMatchingTargetKind() = testScope.runTest {
+        val viewModel = designer()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(TemplateDesignerUiEvent.SetApplicableKind(InvoiceKind.DOWN_PAYMENT))
+        assertEquals(InvoiceKind.DOWN_PAYMENT, viewModel.uiState.value.template.targetKind)
+
+        viewModel.onEvent(TemplateDesignerUiEvent.SetApplicableKind(InvoiceKind.SAMPLE))
+        assertEquals(InvoiceKind.SAMPLE, viewModel.uiState.value.template.targetKind)
+        assertEquals("Erigo Apparel Studio", viewModel.uiState.value.previewInvoice.billTo.name)
     }
 
     @Test

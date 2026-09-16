@@ -29,7 +29,7 @@ class PrefillInvoiceFromSamplingUseCase(
     private val issuerProfileRepository: InvoiceIssuerProfileRepository
 ) {
     suspend operator fun invoke(command: PrefillSamplingInvoiceCommand): Result<Invoice> = runCatching {
-        val template = templateRepository.findById(command.templateId)
+        val template = templateRepository.findById(command.tenantId, command.templateId)
             ?: error("Template invoice dengan ID '${command.templateId.value}' tidak ditemukan.")
         require(!template.isArchived) { "Template invoice '${template.name}' sudah diarsipkan." }
 

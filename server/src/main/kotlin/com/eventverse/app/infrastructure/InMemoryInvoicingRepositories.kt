@@ -20,8 +20,8 @@ class InMemoryInvoiceIssuerProfileRepository : InvoiceIssuerProfileRepository {
 class InMemoryInvoiceTemplateRepository : InvoiceTemplateRepository {
     private val templates = mutableMapOf<InvoiceTemplateId, InvoiceTemplate>()
 
-    override suspend fun findById(id: InvoiceTemplateId): InvoiceTemplate? =
-        templates[id]?.takeIf { !it.isArchived }
+    override suspend fun findById(tenantId: TenantId, id: InvoiceTemplateId): InvoiceTemplate? =
+        templates[id]?.takeIf { !it.isArchived && it.tenantId == tenantId }
 
     override suspend fun findAllByTenant(tenantId: TenantId, includeArchived: Boolean): List<InvoiceTemplate> =
         templates.values.filter { it.tenantId == tenantId && (includeArchived || !it.isArchived) }
@@ -42,25 +42,31 @@ class InMemoryInvoiceTemplateRepository : InvoiceTemplateRepository {
             .forEach { templates[it.id] = it.copy(isDefault = (it.id == id)) }
     }
 
-    override suspend fun archive(id: InvoiceTemplateId) {
-        templates[id]?.let {
+    override suspend fun archive(tenantId: TenantId, id: InvoiceTemplateId) {
+        templates[id]?.takeIf { it.tenantId == tenantId }?.let {
             templates[id] = it.copy(archivedAt = Clock.System.now(), isDefault = false)
         }
     }
 }
 
 class InMemoryInvoicePaymentRepository : InvoicePaymentRepository {
-    private val payments = mutableListOf<InvoicePayment>()
+    // Tenant disimpan berdampingan karena InvoicePayment sendiri tidak membawanya. Tanpa ini,
+    // fake repository akan melayani permintaan lintas-tenant yang ditolak repository sungguhan,
+    // dan test isolasi tenant akan hijau secara palsu.
+    private val payments = mutableListOf<Pair<TenantId, InvoicePayment>>()
 
-    override suspend fun historyFor(invoiceId: InvoiceId): List<InvoicePayment> =
-        payments.filter { it.invoiceId == invoiceId }.sortedBy { it.paidAt }
+    override suspend fun historyFor(tenantId: TenantId, invoiceId: InvoiceId): List<InvoicePayment> =
+        payments.filter { (owner, p) -> owner == tenantId && p.invoiceId == invoiceId }
+            .map { it.second }
+            .sortedBy { it.paidAt }
 
-    override suspend fun append(payment: InvoicePayment) {
-        payments.add(payment)
+    override suspend fun append(tenantId: TenantId, payment: InvoicePayment) {
+        payments.add(tenantId to payment)
     }
 
-    override suspend fun totalPaidFor(invoiceId: InvoiceId): Money {
-        val matching = payments.filter { it.invoiceId == invoiceId }
+    override suspend fun totalPaidFor(tenantId: TenantId, invoiceId: InvoiceId): Money {
+        val matching = payments.filter { (owner, p) -> owner == tenantId && p.invoiceId == invoiceId }
+            .map { it.second }
         val sumMinor = matching.sumOf { it.amount.minorUnits }
         val currency = matching.firstOrNull()?.amount?.currency ?: CurrencyCode.IDR
         return Money(sumMinor, currency)
@@ -71,7 +77,8 @@ class InMemoryInvoiceRepository : InvoiceRepository {
     private val invoices = mutableMapOf<InvoiceId, Invoice>()
     private val seqMap = mutableMapOf<String, Long>()
 
-    override suspend fun findById(id: InvoiceId): Invoice? = invoices[id]
+    override suspend fun findById(tenantId: TenantId, id: InvoiceId): Invoice? =
+        invoices[id]?.takeIf { it.tenantId == tenantId }
 
     override suspend fun findByNumber(tenantId: TenantId, number: InvoiceNumber): Invoice? =
         invoices.values.firstOrNull { it.tenantId == tenantId && it.number == number }
@@ -105,8 +112,8 @@ class InMemoryInvoiceRepository : InvoiceRepository {
         return InvoiceNumber("INV/$y/$m/${current.toString().padStart(4, '0')}")
     }
 
-    override suspend fun deleteDraft(id: InvoiceId) {
-        val inv = invoices[id]
+    override suspend fun deleteDraft(tenantId: TenantId, id: InvoiceId) {
+        val inv = invoices[id]?.takeIf { it.tenantId == tenantId }
         if (inv != null && inv.status == InvoiceStatus.DRAFT) {
             invoices.remove(id)
         }
@@ -114,5 +121,24 @@ class InMemoryInvoiceRepository : InvoiceRepository {
 
     override suspend fun save(invoice: Invoice) {
         invoices[invoice.id] = invoice
+    }
+
+    override suspend fun hasActiveInvoiceForSource(
+        tenantId: TenantId,
+        sourceKind: InvoiceSourceKind,
+        sourceRef: String
+    ): Boolean = invoices.values.any { inv ->
+        inv.tenantId == tenantId &&
+            inv.sourceKind == sourceKind &&
+            inv.sourceRef == sourceRef &&
+            inv.status in ACTIVE_INVOICE_STATUSES
+    }
+
+    private companion object {
+        val ACTIVE_INVOICE_STATUSES = setOf(
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.PARTIALLY_PAID,
+            InvoiceStatus.PAID
+        )
     }
 }

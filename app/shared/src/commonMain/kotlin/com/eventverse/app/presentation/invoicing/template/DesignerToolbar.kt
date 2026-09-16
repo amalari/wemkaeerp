@@ -10,6 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -47,12 +48,31 @@ fun DesignerToolbar(
                 )
 
                 Column {
-                    Text(
-                        text = state.template.name,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        color = WeMadeColors.OnSurface
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = state.template.name,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            color = WeMadeColors.OnSurface
+                        )
+                        if (state.template.applicableKinds.contains(InvoiceKind.SAMPLE)) {
+                            ClayBadge(
+                                text = "SAMPLE INVOICE",
+                                tint = WeMadeColors.Primary,
+                                fontSize = 10.sp
+                            )
+                        } else {
+                            val primaryKind = state.template.applicableKinds.firstOrNull() ?: InvoiceKind.FULL
+                            ClayBadge(
+                                text = primaryKind.displayName.uppercase(),
+                                tint = WeMadeColors.Accent,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
                     Text(
                         text = "Kertas: ${state.template.paperSize.name} (${state.template.paperSize.widthMm10 / 10} × ${state.template.paperSize.heightMm10 / 10} mm)",
                         fontSize = 11.sp,

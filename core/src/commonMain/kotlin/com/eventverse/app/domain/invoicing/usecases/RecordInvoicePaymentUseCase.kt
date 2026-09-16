@@ -2,10 +2,12 @@ package com.eventverse.app.domain.invoicing.usecases
 
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.invoicing.*
+import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 data class RecordInvoicePaymentCommand(
+    val tenantId: TenantId,
     val invoiceId: InvoiceId,
     val amount: Money,
     val method: String,
@@ -20,7 +22,7 @@ class RecordInvoicePaymentUseCase(
     private val paymentRepository: InvoicePaymentRepository
 ) {
     suspend operator fun invoke(command: RecordInvoicePaymentCommand): Result<InvoicePayment> = runCatching {
-        val invoice = invoiceRepository.findById(command.invoiceId)
+        val invoice = invoiceRepository.findById(command.tenantId, command.invoiceId)
             ?: error("Invoice dengan ID '${command.invoiceId.value}' tidak ditemukan.")
 
         require(invoice.status != InvoiceStatus.DRAFT) {
@@ -33,7 +35,7 @@ class RecordInvoicePaymentUseCase(
             "Mata uang pembayaran (${command.amount.currency.code}) berbeda dari mata uang invoice (${invoice.currency.code})."
         }
 
-        val currentTotalPaid = paymentRepository.totalPaidFor(invoice.id)
+        val currentTotalPaid = paymentRepository.totalPaidFor(command.tenantId, invoice.id)
         val newTotalPaid = currentTotalPaid + command.amount
         require(newTotalPaid <= invoice.total) {
             "Total pembayaran (${newTotalPaid.minorUnits}) melebihi nilai tagihan (${invoice.total.minorUnits})."
@@ -51,7 +53,7 @@ class RecordInvoicePaymentUseCase(
             recordedBy = command.recordedBy
         )
 
-        paymentRepository.append(payment)
+        paymentRepository.append(command.tenantId, payment)
 
         // Perbarui status invoice sesuai akumulasi pembayaran
         val updatedInvoice = invoice.evaluatePaymentStatus(paidAmount = newTotalPaid, at = command.paidAt)

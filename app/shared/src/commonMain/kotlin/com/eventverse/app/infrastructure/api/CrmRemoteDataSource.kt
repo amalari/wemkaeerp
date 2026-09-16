@@ -31,6 +31,17 @@ interface CrmRemoteDataSource {
 
     suspend fun updateStage(tenantSlug: String, leadId: LeadId, stage: LeadStage): Result<CrmLead>
 
+    /**
+     * Stage transition with the qualification handshake: when [stage] is QUALIFIED the server
+     * atomically creates (or idempotently returns) the Contact + Deal pair, and the response
+     * carries `dealId` so the UI can navigate straight to the deal.
+     */
+    suspend fun updateStageWithDeal(
+        tenantSlug: String,
+        leadId: LeadId,
+        stage: LeadStage
+    ): Result<LeadStageTransition>
+
     suspend fun archiveLead(tenantSlug: String, leadId: LeadId): Result<Unit>
 
     suspend fun addCustomField(
@@ -46,3 +57,10 @@ interface CrmRemoteDataSource {
 
     suspend fun addActivity(tenantSlug: String, leadId: LeadId, content: String): Result<com.eventverse.app.domain.crm.LeadActivity>
 }
+
+data class LeadStageTransition(
+    val lead: CrmLead,
+    /** Non-null when the transition created/confirmed a Deal (QUALIFIED). */
+    val dealId: String?,
+    val dealAlreadyExisted: Boolean
+)

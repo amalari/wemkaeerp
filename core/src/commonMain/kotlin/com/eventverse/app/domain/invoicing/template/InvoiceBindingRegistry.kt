@@ -169,6 +169,16 @@ object InvoiceBindingRegistry {
         (DOCUMENT + LINE).associateBy { it.token.value }
 
     /**
+     * Modul yang saat ini ditawarkan sebagai sumber isian bebas di Perpustakaan Elemen.
+     *
+     * Keputusan produk (sementara): **hanya CRM** yang dibuka. Grup "Invoicing — Dokumen &
+     * Tagihan" dan "Penerbit — Profil Perusahaan" tetap hidup di [DOCUMENT] karena masih dipakai
+     * resolver kanvas/PDF serta template seed; mereka hanya tidak lagi **ditawarkan** sebagai
+     * penyisipan baru. Membuka ulang sebuah grup cukup dengan menambahkan modulnya di sini.
+     */
+    val paletteModules: Set<BindingModuleSource> = setOf(BindingModuleSource.CRM_SALES)
+
+    /**
      * Token yang boleh disisipkan sebagai elemen bebas di kanvas.
      *
      * Token baris (`line.*`) sengaja tidak termasuk: resolver menerimanya bersama satu baris faktur,
@@ -176,7 +186,7 @@ object InvoiceBindingRegistry {
      * elemen kosong yang membingungkan — "sudah saya tempel, kok isinya tidak muncul".
      */
     val standaloneTokens: List<BindingDescriptor> =
-        DOCUMENT.filterNot { it.moduleSource.isLineScopedOnly }
+        DOCUMENT.filter { it.moduleSource in paletteModules }
 
     /** Token yang valid sebagai kolom tabel item. */
     val tableColumnTokens: List<BindingDescriptor> = LINE
@@ -186,7 +196,7 @@ object InvoiceBindingRegistry {
 
     /** Modul yang isiannya boleh disisipkan sebagai elemen bebas, terurut sesuai enum. */
     fun standaloneModules(): List<BindingModuleSource> =
-        BindingModuleSource.entries.filterNot { it.isLineScopedOnly }
+        BindingModuleSource.entries.filter { it in paletteModules }
 
     fun descriptorFor(token: BindingToken): BindingDescriptor? =
         allByToken[token.value]

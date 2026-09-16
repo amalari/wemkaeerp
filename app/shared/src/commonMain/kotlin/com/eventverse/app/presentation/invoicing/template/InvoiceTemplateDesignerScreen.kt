@@ -231,20 +231,32 @@ private fun DataSourceStrip(state: TemplateDesignerUiState) {
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconDatabase(Modifier.size(13.dp), color = WeMadeColors.OnSurfaceMuted)
+        IconReceipt(Modifier.size(14.dp), color = WeMadeColors.Primary)
 
         Text(
-            text = "Sumber data kanvas:",
+            text = "Pratinjau Tata Letak & Mapping Dokumen:",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.OnSurface
+        )
+
+        ClayBadge(
+            text = state.template.targetKind.displayName,
+            tint = WeMadeColors.Primary,
+            dot = true
+        )
+
+        Text(
+            text = "•",
             fontSize = 11.sp,
             color = WeMadeColors.OnSurfaceMuted
         )
 
         Text(
-            text = state.dataSourceLabel,
+            text = "Field transaksi (Client Name, Contact, No Invoice, Table Product, Total) otomatis terpetakan ke data transaksi Deal.",
             modifier = Modifier.weight(1f, fill = false),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface,
+            fontSize = 10.sp,
+            color = WeMadeColors.OnSurfaceMuted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -252,20 +264,8 @@ private fun DataSourceStrip(state: TemplateDesignerUiState) {
         Spacer(modifier = Modifier.weight(1f))
 
         ClayTag(
-            text = if (state.isSampleData) "CONTOH" else "DARI MODUL",
-            tint = if (state.isSampleData) WeMadeColors.Info else WeMadeColors.Success
-        )
-
-        Text(
-            text = if (state.isSampleData) {
-                "Nilai contoh — faktur sungguhan memakai data modul."
-            } else {
-                "Nilai mengikuti data modul; ubah di layar Invoicing."
-            },
-            fontSize = 10.sp,
-            color = WeMadeColors.OnSurfaceMuted,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            text = "MAPPING PDF AKTIF",
+            tint = WeMadeColors.Success
         )
     }
 }

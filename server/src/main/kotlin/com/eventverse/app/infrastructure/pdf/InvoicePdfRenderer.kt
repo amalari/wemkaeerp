@@ -44,11 +44,10 @@ class InvoicePdfRenderer {
 
             val pageHeightPt = pageSize.height
 
-            // Load TrueType fonts
-            val fontNunitoRegular = loadFont(doc, "/fonts/nunito_regular.ttf") ?: PDType1Font(Standard14Fonts.FontName.HELVETICA)
-            val fontNunitoBold = loadFont(doc, "/fonts/nunito_bold.ttf") ?: PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
-            val fontFredokaBold = loadFont(doc, "/fonts/fredoka_bold.ttf") ?: fontNunitoBold
-            val fontFredokaMedium = loadFont(doc, "/fonts/fredoka_medium.ttf") ?: fontNunitoRegular
+            // Setiap InvoiceFont dimuat sekali, lalu dicari lewat enumnya. Sebelumnya keempat font
+            // dioper sebagai empat parameter terpisah ke setiap fungsi gambar, sehingga aturan
+            // pemilihannya ikut tersebar; sekarang aturan itu tinggal di InvoiceFontResolver.
+            val fonts = loadFonts(doc)
 
             // Geometri dinamis (tinggi turunan + pergeseran elemen ber-anchor) dihitung oleh
             // InvoiceDocumentLayout, entity yang sama yang dipakai kanvas Compose. Sebelumnya
@@ -67,8 +66,7 @@ class InvoicePdfRenderer {
 
                     when (element) {
                         is TemplateElement.StaticText -> {
-                            val font = pickFont(element.style, fontNunitoRegular, fontNunitoBold, fontFredokaMedium, fontFredokaBold)
-                            drawText(cs, laid.textLines, font, element.style, xPt, topPt, widthPt)
+                            drawText(cs, laid.textLines, fonts.forStyle(element.style), element.style, xPt, topPt, widthPt)
                         }
 
                         is TemplateElement.BoundField -> {
@@ -76,8 +74,7 @@ class InvoicePdfRenderer {
                             // diselesaikan, sehingga PDF memotong baris di titik yang persis sama
                             // dengan kanvas — bukan dengan metrik fontnya sendiri.
                             if (laid.textLines.any { it.isNotBlank() }) {
-                                val font = pickFont(element.style, fontNunitoRegular, fontNunitoBold, fontFredokaMedium, fontFredokaBold)
-                                drawText(cs, laid.textLines, font, element.style, xPt, topPt, widthPt)
+                                drawText(cs, laid.textLines, fonts.forStyle(element.style), element.style, xPt, topPt, widthPt)
                             }
                         }
 
@@ -117,8 +114,7 @@ class InvoicePdfRenderer {
                                 xPt = xPt,
                                 topPt = topPt,
                                 widthPt = widthPt,
-                                fontRegular = fontNunitoRegular,
-                                fontBold = fontNunitoBold
+                                fonts = fonts
                             )
                         }
 
@@ -207,8 +203,7 @@ class InvoicePdfRenderer {
         xPt: Float,
         topPt: Float,
         widthPt: Float,
-        fontRegular: PDFont,
-        fontBold: PDFont
+        fonts: LoadedFonts
     ) {
         val rowHeightPt = table.rowHeight.value * MM10_TO_PT
         val headerHeightPt = if (table.showHeader) rowHeightPt else 0f
@@ -235,7 +230,7 @@ class InvoicePdfRenderer {
                     // Judul kolom sengaja satu baris: kolom tabel jauh lebih sempit dari elemen teks
                     // biasa, dan judul yang terpecah dua baris akan menabrak baris pertama data.
                     lines = listOf(col.header),
-                    font = fontBold,
+                    font = fonts.forStyle(headerStyle),
                     style = headerStyle,
                     xPt = currentColX + 4f,
                     topPt = topPt - 2f,
@@ -274,7 +269,7 @@ class InvoicePdfRenderer {
                 drawText(
                     cs = cs,
                     lines = listOf(cellText),
-                    font = fontRegular,
+                    font = fonts.forStyle(cellStyle),
                     style = cellStyle,
                     xPt = cellX + 4f,
                     topPt = currentRowTop - 3f,
@@ -302,19 +297,38 @@ class InvoicePdfRenderer {
         cs.stroke()
     }
 
-    private fun pickFont(
-        style: TextStyleSpec,
-        nunitoRegular: PDFont,
-        nunitoBold: PDFont,
-        fredokaMedium: PDFont,
-        fredokaBold: PDFont
-    ): PDFont {
-        return when {
-            style.fontSizePt >= 14 && style.isBold -> fredokaBold
-            style.fontSizePt >= 14 -> fredokaMedium
-            style.isBold -> nunitoBold
-            else -> nunitoRegular
-        }
+    /**
+     * Keempat font faktur yang sudah dimuat ke dalam satu dokumen, dicari lewat [InvoiceFont].
+     *
+     * Font PDFBox terikat pada `PDDocument` tempat ia di-embed, jadi pemetaan ini dibangun ulang
+     * setiap render dan tidak boleh dijadikan milik kelas renderer.
+     */
+    private class LoadedFonts(private val byFont: Map<InvoiceFont, PDFont>, private val fallback: PDFont) {
+        fun forStyle(style: TextStyleSpec): PDFont = byFont[InvoiceFontResolver.resolve(style)] ?: fallback
+    }
+
+    /**
+     * Memuat keempat berkas font.
+     *
+     * Jika Fredoka gagal dimuat, penggantinya adalah Nunito pada bobot setara — bukan Helvetica —
+     * supaya kegagalan memuat satu berkas tidak mengubah lebar seluruh judul dokumen. Helvetica
+     * hanya dipakai kalau Nunito pun tidak ada, yang berarti berkas font memang tidak terpaket.
+     */
+    private fun loadFonts(doc: PDDocument): LoadedFonts {
+        val nunitoRegular = loadFont(doc, "/fonts/nunito_regular.ttf")
+            ?: PDType1Font(Standard14Fonts.FontName.HELVETICA)
+        val nunitoBold = loadFont(doc, "/fonts/nunito_bold.ttf")
+            ?: PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
+
+        return LoadedFonts(
+            byFont = mapOf(
+                InvoiceFont.NUNITO_REGULAR to nunitoRegular,
+                InvoiceFont.NUNITO_BOLD to nunitoBold,
+                InvoiceFont.FREDOKA_MEDIUM to (loadFont(doc, "/fonts/fredoka_medium.ttf") ?: nunitoRegular),
+                InvoiceFont.FREDOKA_BOLD to (loadFont(doc, "/fonts/fredoka_bold.ttf") ?: nunitoBold)
+            ),
+            fallback = nunitoRegular
+        )
     }
 
     private fun colorFromHex(argb: Long): Color {

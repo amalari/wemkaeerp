@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -95,11 +96,46 @@ private fun TemplateSettings(
         )
 
         InfoRow(label = "Ukuran kertas", value = state.template.paperSize.displayName)
-        InfoRow(
-            label = "Berlaku untuk",
-            value = state.template.applicableKinds.joinToString(", ") { it.displayName }
-        )
         InfoRow(label = "Jumlah elemen", value = "${state.template.elements.size} elemen")
+
+        HorizontalDivider(color = WeMadeColors.Border)
+
+        SectionLabel("Jenis Tagihan Template Ini")
+        Text(
+            text = "Setiap template didedikasikan untuk 1 jenis tagihan khusus:",
+            fontSize = 11.sp,
+            color = WeMadeColors.OnSurfaceMuted
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+            InvoiceKind.entries.forEach { kind ->
+                val isSelected = kind == state.template.targetKind
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .claySurface(
+                            shape = ClayShapes.Chip,
+                            background = if (isSelected) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                            outline = if (isSelected) WeMadeColors.Primary else WeMadeColors.Border,
+                            borderWidth = if (isSelected) ClayBorder.Medium else ClayBorder.Hairline,
+                            offset = if (isSelected) ClayOffset.Pressed else ClayOffset.Flat
+                        )
+                        .clickable { onEvent(TemplateDesignerUiEvent.SetApplicableKind(kind)) }
+                        .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = kind.displayName,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) WeMadeColors.Primary else WeMadeColors.OnSurface
+                    )
+                    if (isSelected) {
+                        IconCheck(Modifier.size(13.dp), color = WeMadeColors.Primary)
+                    }
+                }
+            }
+        }
 
         HorizontalDivider(color = WeMadeColors.Border)
 

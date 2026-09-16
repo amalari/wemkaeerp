@@ -9,10 +9,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.invoicing.components.*
 import com.eventverse.app.presentation.invoicing.template.InvoiceTemplateDesignerScreen
+import com.eventverse.app.presentation.invoicing.template.InvoiceTemplateGalleryScreen
+import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.theme.WeMadeColors
+
+sealed interface InvoicingSubRoute {
+    data object Workspace : InvoicingSubRoute
+    data object TemplateGallery : InvoicingSubRoute
+    data class Designer(val templateId: String?) : InvoicingSubRoute
+}
+
+private fun resolveInvoicingSubRoute(path: String): InvoicingSubRoute {
+    val templateId = AppNavScreen.extractTemplateId(path)
+    val screen = AppNavScreen.fromPath(path)
+    return when {
+        templateId != null -> InvoicingSubRoute.Designer(templateId)
+        screen == AppNavScreen.INVOICING_TEMPLATES -> InvoicingSubRoute.TemplateGallery
+        else -> InvoicingSubRoute.Workspace
+    }
+}
 
 @Composable
 fun InvoiceWorkspaceScreen(
@@ -26,35 +45,72 @@ fun InvoiceWorkspaceScreen(
     val state by viewModel.uiState.collectAsState()
     var activePrefill by remember { mutableStateOf<InvoicePrefillData?>(null) }
 
+    val initialPath = remember { PlatformNavigation.getCurrentPath() }
+    var subRoute by remember { mutableStateOf(resolveInvoicingSubRoute(initialPath)) }
+
+    LaunchedEffect(Unit) {
+        PlatformNavigation.listenToPathChanges { newPath ->
+            subRoute = resolveInvoicingSubRoute(newPath)
+        }
+    }
+
     LaunchedEffect(tenantSlug) {
         viewModel.onEvent(InvoiceUiEvent.Load)
         if (InvoicePrefillCoordinator.hasPending()) {
             val pending = InvoicePrefillCoordinator.consumePending()
             activePrefill = pending
             if (pending?.openDesignerDirectly == true) {
-                viewModel.onEvent(InvoiceUiEvent.OpenDesigner(templateId = null))
+                subRoute = InvoicingSubRoute.Designer(null)
+                PlatformNavigation.pushPath("/invoicing/templates")
             } else {
                 viewModel.onEvent(InvoiceUiEvent.OpenCreateInvoiceDialog())
             }
         }
     }
 
-    if (state.isDesignerOpen) {
-        InvoiceTemplateDesignerScreen(
-            tenantSlug = tenantSlug,
-            templateId = state.editingTemplateId,
-            initialPrefill = activePrefill,
-            onClose = {
-                activePrefill = null
-                viewModel.onEvent(InvoiceUiEvent.CloseDesigner)
-                viewModel.onEvent(InvoiceUiEvent.Load)
-            },
-            onInvoiceCreated = { _ ->
-                viewModel.onEvent(InvoiceUiEvent.Load)
-            },
-            modifier = modifier
-        )
-        return
+    when (val current = subRoute) {
+        is InvoicingSubRoute.Designer -> {
+            InvoiceTemplateDesignerScreen(
+                tenantSlug = tenantSlug,
+                templateId = current.templateId ?: state.editingTemplateId,
+                initialPrefill = activePrefill,
+                onClose = {
+                    activePrefill = null
+                    viewModel.onEvent(InvoiceUiEvent.CloseDesigner)
+                    subRoute = InvoicingSubRoute.TemplateGallery
+                    PlatformNavigation.pushPath("/invoicing/templates")
+                    viewModel.onEvent(InvoiceUiEvent.Load)
+                },
+                onInvoiceCreated = { _ ->
+                    viewModel.onEvent(InvoiceUiEvent.Load)
+                },
+                modifier = modifier
+            )
+            return
+        }
+        is InvoicingSubRoute.TemplateGallery -> {
+            InvoiceTemplateGalleryScreen(
+                tenantSlug = tenantSlug,
+                onOpenDesigner = { templateId ->
+                    subRoute = InvoicingSubRoute.Designer(templateId)
+                    if (templateId != null) {
+                        PlatformNavigation.pushPath("/invoicing/templates/$templateId")
+                    } else {
+                        PlatformNavigation.pushPath("/invoicing/templates")
+                    }
+                },
+                onBackToWorkspace = {
+                    subRoute = InvoicingSubRoute.Workspace
+                    PlatformNavigation.pushPath("/invoicing")
+                    viewModel.onEvent(InvoiceUiEvent.Load)
+                },
+                modifier = modifier
+            )
+            return
+        }
+        InvoicingSubRoute.Workspace -> {
+            // Lanjut ke render workspace tabel penagihan utama
+        }
     }
 
     Column(
@@ -99,8 +155,11 @@ fun InvoiceWorkspaceScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayButton(
-                    text = "Desain Template",
-                    onClick = { viewModel.onEvent(InvoiceUiEvent.OpenDesigner(state.defaultTemplate?.id?.value)) },
+                    text = "Katalog & Desain Template",
+                    onClick = {
+                        subRoute = InvoicingSubRoute.TemplateGallery
+                        PlatformNavigation.pushPath("/invoicing/templates")
+                    },
                     style = ClayButtonStyle.Secondary,
                     fontSize = 12.sp,
                     leading = { IconRuler(Modifier.size(13.dp), color = WeMadeColors.Primary) }

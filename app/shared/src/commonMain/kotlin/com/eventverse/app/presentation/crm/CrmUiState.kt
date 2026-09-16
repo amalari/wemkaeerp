@@ -41,6 +41,9 @@ data class CrmUiState(
     val isLoadingActivities: Boolean = false,
     val isSubmittingActivity: Boolean = false,
 
+    /** Deal yang terakhir lahir dari kualifikasi lead — dipakai UI untuk navigasi ke Deal. */
+    val lastQualifiedDealId: String? = null,
+
     /** Cells being edited in the inspector but not yet committed to the server. */
     val pendingEdits: Map<String, JsonValue.Obj?> = emptyMap()
 ) {

@@ -138,12 +138,11 @@ fun Route.invoicingRoutes(
         get("/{id}") {
             val tenant = call.requireTenant() ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing id")
-            val invoice = invoiceRepository.findById(InvoiceId(id))
+            // Pencarian sudah dibatasi tenant di lapisan repository, jadi faktur milik tenant lain
+            // tidak pernah sampai ke sini. Perbandingan manual yang dulu ada di bawah baris ini
+            // sengaja dihapus: ia hanya ada di rute ini dan terlupa di tujuh rute lainnya.
+            val invoice = invoiceRepository.findById(tenant.tenantId, InvoiceId(id))
                 ?: return@get call.respond(HttpStatusCode.NotFound, "Invoice tidak ditemukan")
-
-            if (invoice.tenantId != tenant.tenantId) {
-                return@get call.respond(HttpStatusCode.Forbidden, "Access forbidden")
-            }
 
             call.respondJson(InvoiceCodec.encode(invoice).encode())
         }
@@ -169,6 +168,7 @@ fun Route.invoicingRoutes(
             val terms = json.string("terms") ?: ""
 
             val command = UpdateInvoiceDraftCommand(
+                tenantId = tenant.tenantId,
                 invoiceId = InvoiceId(id),
                 billTo = billTo,
                 kind = kind,
@@ -194,7 +194,7 @@ fun Route.invoicingRoutes(
         post("/{id}/issue") {
             val tenant = call.requireTenant() ?: return@post
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing id")
-            val result = issueInvoiceUseCase(IssueInvoiceCommand(InvoiceId(id)))
+            val result = issueInvoiceUseCase(IssueInvoiceCommand(tenant.tenantId, InvoiceId(id)))
             if (result.isSuccess) {
                 call.respondJson(InvoiceCodec.encode(result.getOrThrow()).encode())
             } else {
@@ -210,7 +210,7 @@ fun Route.invoicingRoutes(
             val json = JsonParser.parseObjectOrNull(body)
             val reason = json?.string("reason")?.trim() ?: "Dibatalkan oleh pengguna"
 
-            val result = voidInvoiceUseCase(VoidInvoiceCommand(InvoiceId(id), reason = reason))
+            val result = voidInvoiceUseCase(VoidInvoiceCommand(tenant.tenantId, InvoiceId(id), reason = reason))
             if (result.isSuccess) {
                 call.respondJson(InvoiceCodec.encode(result.getOrThrow()).encode())
             } else {
@@ -225,6 +225,7 @@ fun Route.invoicingRoutes(
             val caller = call.callerPrincipalOrNull?.userId ?: "system"
 
             val command = CreateSettlementFromDownPaymentCommand(
+                tenantId = tenant.tenantId,
                 downPaymentInvoiceId = InvoiceId(id),
                 issueDate = Clock.System.now().let { DateTimeCodec.parseLocalDateOrFallback(it.toString().substringBefore('T'), LocalDate(2026, 3, 1)) },
                 dueDate = null,
@@ -245,7 +246,7 @@ fun Route.invoicingRoutes(
         get("/{id}/payments") {
             val tenant = call.requireTenant() ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing id")
-            val payments = paymentRepository.historyFor(InvoiceId(id))
+            val payments = paymentRepository.historyFor(tenant.tenantId, InvoiceId(id))
             val json = jsonArrayOf(payments.map(InvoicePaymentCodec::encode)).encode()
             call.respondJson(json)
         }
@@ -265,6 +266,7 @@ fun Route.invoicingRoutes(
             val caller = call.callerPrincipalOrNull?.userId ?: "finance"
 
             val command = RecordInvoicePaymentCommand(
+                tenantId = tenant.tenantId,
                 invoiceId = InvoiceId(id),
                 amount = amount,
                 method = method,
@@ -287,15 +289,15 @@ fun Route.invoicingRoutes(
         get("/{id}/pdf") {
             val tenant = call.requireTenant() ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing id")
-            val invoice = invoiceRepository.findById(InvoiceId(id))
+            val invoice = invoiceRepository.findById(tenant.tenantId, InvoiceId(id))
                 ?: return@get call.respond(HttpStatusCode.NotFound, "Invoice tidak ditemukan")
 
             val template = invoice.renderedTemplate
-                ?: templateRepository.findById(invoice.templateId)
+                ?: templateRepository.findById(tenant.tenantId, invoice.templateId)
                 ?: templateRepository.findDefault(tenant.tenantId)
                 ?: InvoiceTemplateFactory.standardIndonesianInvoice(tenant.tenantId, invoice.createdAt)
 
-            val totalPaid = paymentRepository.totalPaidFor(invoice.id)
+            val totalPaid = paymentRepository.totalPaidFor(tenant.tenantId, invoice.id)
             val pdfBytes = pdfRenderer.render(invoice, template, totalPaid)
 
             val safeFilename = "${invoice.number.value.replace('/', '_')}.pdf"
@@ -329,7 +331,7 @@ fun Route.invoicingRoutes(
         get("/templates/{id}") {
             val tenant = call.requireTenant() ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing id")
-            val template = templateRepository.findById(InvoiceTemplateId(id))
+            val template = templateRepository.findById(tenant.tenantId, InvoiceTemplateId(id))
                 ?: return@get call.respond(HttpStatusCode.NotFound, "Template tidak ditemukan")
             call.respondJson(InvoiceTemplateCodec.encode(template).encode())
         }
@@ -375,7 +377,7 @@ fun Route.invoicingRoutes(
         delete("/templates/{id}") {
             val tenant = call.requireTenant() ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing id")
-            templateRepository.archive(InvoiceTemplateId(id))
+            templateRepository.archive(tenant.tenantId, InvoiceTemplateId(id))
             call.respond(HttpStatusCode.OK, "Template archived")
         }
 

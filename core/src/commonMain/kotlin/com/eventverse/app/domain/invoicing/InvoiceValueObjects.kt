@@ -67,7 +67,8 @@ enum class InvoiceSourceKind(val displayName: String) {
     SAMPLING("Order Sampling"),
     FULFILLMENT("Surat Jalan / Shipment"),
     COSTING("Kalkulasi Costing"),
-    CRM_LEAD("Prospek CRM");
+    CRM_LEAD("Prospek CRM"),
+    DEAL("Deal Penjualan");
 
     companion object {
         fun fromCode(code: String?): InvoiceSourceKind =

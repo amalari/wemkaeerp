@@ -132,8 +132,19 @@ class CrmViewModel(
     private fun updateStage(leadId: LeadId, newStage: com.eventverse.app.domain.crm.LeadStage) {
         if (!_uiState.value.canWrite) return
         scope.launch {
-            remoteDataSource.updateStage(tenantSlug, leadId, newStage)
-                .onSuccess { updated -> replaceLead(updated) }
+            remoteDataSource.updateStageWithDeal(tenantSlug, leadId, newStage)
+                .onSuccess { transition ->
+                    replaceLead(transition.lead)
+                    if (transition.dealId != null) {
+                        val verb = if (transition.dealAlreadyExisted) "dibuka kembali" else "dibuat"
+                        _uiState.update {
+                            it.copy(
+                                statusMessage = "Lead berkualifikasi — Deal $verb (ID: ${transition.dealId}).",
+                                lastQualifiedDealId = transition.dealId
+                            )
+                        }
+                    }
+                }
                 .onFailure { error -> _uiState.update { it.copy(error = error.message) } }
         }
     }

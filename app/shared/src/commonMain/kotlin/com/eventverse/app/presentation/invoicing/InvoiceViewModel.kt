@@ -187,6 +187,10 @@ class InvoiceViewModel(
         scope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val command = RecordInvoicePaymentCommand(
+                // Tidak ikut dikirim ke server: payload dibangun eksplisit di InvoicingApiClient,
+                // dan server selalu mengambil tenant dari konteks permintaan. Diisi dari faktur
+                // yang sedang dibuka supaya command tetap utuh sebagai objek domain.
+                tenantId = invoice.tenantId,
                 invoiceId = invoice.id,
                 amount = amount,
                 method = method,

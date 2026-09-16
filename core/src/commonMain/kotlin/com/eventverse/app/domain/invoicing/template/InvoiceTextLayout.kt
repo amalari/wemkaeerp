@@ -13,19 +13,22 @@ import kotlin.math.roundToInt
  * dirancang di kanvas tidak akan sama dengan hasil cetaknya — dan perbedaannya baru terlihat setelah
  * faktur dikirim ke klien, bukan saat mendesain.
  *
- * Karena itu **keputusan pemotongan baris dilakukan satu kali, di sini**. Komprominya: lebar teks
- * diperkirakan dengan tabel faktor `em` per kelas karakter, bukan metrik font sungguhan. Itu
- * disengaja dan aman, karena:
+ * Karena itu **keputusan pemotongan baris dilakukan satu kali, di sini**, dan kanvas maupun PDFBox
+ * memakai daftar baris hasilnya apa adanya. Titik potongnya identik secara konstruksi, bukan karena
+ * kebetulan dua mesin pengukur sepakat.
  *
- * 1. Kanvas dan PDFBox **memakai daftar baris hasil fungsi ini apa adanya** (bukan membiarkan
- *    masing-masing mesin wrap sendiri), jadi titik potongnya identik secara konstruksi.
- * 2. Metrik asli tetap dipakai mesin gambar untuk hal yang tidak mengubah struktur: perataan
- *    (`align`) dan penempatan glyph.
- * 3. Konsekuensi satu-satunya adalah sisa ruang di kanan baris bisa berbeda beberapa persen —
- *    kosmetik, bukan struktural.
+ * Alternatif "tiap mesin wrap sendiri dengan metrik aslinya" menciptakan bug yang sulit dilihat:
+ * 3 baris di layar, 4 baris di kertas, tanpa satu pun tes yang bisa menangkapnya.
  *
- * Alternatif "tiap mesin wrap sendiri dengan metrik aslinya" justru menciptakan bug yang lebih sulit
- * dilihat: 3 baris di layar, 4 baris di kertas, tanpa satu pun tes yang bisa menangkapnya.
+ * ## Lebar glyph berasal dari fontnya, bukan dari taksiran
+ *
+ * Versi awal objek ini menaksir lebar dengan tabel faktor `em` per kelas karakter. Taksiran itu
+ * meleset hingga −18% ke arah yang salah (lihat [InvoiceFontMetrics]), sehingga baris yang dinyatakan
+ * "muat" ternyata lebih lebar dari kotaknya. Sekarang lebarnya dibaca dari [InvoiceFontMetrics] —
+ * angka yang dibangkitkan dari berkas TTF yang sama yang dipakai PDFBox menggambar.
+ *
+ * Font mana yang berlaku ditentukan [InvoiceFontResolver] dari [TextStyleSpec], memakai aturan yang
+ * sama persis dengan yang dipakai renderer PDF memilih `PDFont`-nya.
  */
 object InvoiceTextLayout {
 
@@ -39,9 +42,6 @@ object InvoiceTextLayout {
      * di kanvas akan bergantung pada `lineHeight` gaya bawaan Compose di masing-masing platform.
      */
     const val LINE_HEIGHT_RATIO: Double = 1.35
-
-    /** Lebar spasi dalam satuan `em`. */
-    private const val SPACE_EM = 0.27
 
     /** Batas bawah lebar baris agar pemecahan selalu punya ruang minimal satu karakter. */
     private const val MIN_LINE_EM = 0.5
@@ -60,9 +60,10 @@ object InvoiceTextLayout {
         val normalized = text.replace("\r\n", "\n").replace('\r', '\n')
         if (normalized.isEmpty()) return listOf("")
 
+        val font = InvoiceFontResolver.resolve(style)
         val maxEm = maxEmFor(widthMm10, style)
         val lines = mutableListOf<String>()
-        normalized.split('\n').forEach { segment -> lines += wrapSegment(segment, maxEm) }
+        normalized.split('\n').forEach { segment -> lines += wrapSegment(segment, font, maxEm) }
         return lines.ifEmpty { listOf("") }
     }
 
@@ -76,9 +77,10 @@ object InvoiceTextLayout {
             .roundToInt()
             .coerceAtLeast(1)
 
-    /** Lebar teks dalam Mm10 menurut tabel perkiraan yang sama dengan pemecah baris. */
-    fun estimateWidthMm10(text: String, style: TextStyleSpec): Int =
-        (text.sumOf { advanceEm(it) } * style.fontSizePt.coerceAtLeast(1) * MM10_PER_PT)
+    /** Lebar teks dalam Mm10 menurut metrik font yang sama dengan pemecah baris. */
+    fun measureWidthMm10(text: String, style: TextStyleSpec): Int =
+        (InvoiceFontMetrics.advanceEm(InvoiceFontResolver.resolve(style), text) *
+            style.fontSizePt.coerceAtLeast(1) * MM10_PER_PT)
             .roundToInt()
 
     private fun maxEmFor(widthMm10: Int, style: TextStyleSpec): Double {
@@ -87,18 +89,19 @@ object InvoiceTextLayout {
             .coerceAtLeast(MIN_LINE_EM)
     }
 
-    private fun wrapSegment(segment: String, maxEm: Double): List<String> {
+    private fun wrapSegment(segment: String, font: InvoiceFont, maxEm: Double): List<String> {
         if (segment.isBlank()) return listOf("")
 
         val lines = mutableListOf<String>()
         var current = StringBuilder()
         var currentEm = 0.0
+        val spaceWidthEm = InvoiceFontMetrics.advanceEm(font, ' ')
 
         segment.trim().split(' ').filter { it.isNotEmpty() }.forEach { word ->
             var remaining = word
             while (remaining.isNotEmpty()) {
-                val spaceEm = if (current.isEmpty()) 0.0 else SPACE_EM
-                val remainingEm = remaining.sumOf { advanceEm(it) }
+                val spaceEm = if (current.isEmpty()) 0.0 else spaceWidthEm
+                val remainingEm = InvoiceFontMetrics.advanceEm(font, remaining)
 
                 if (currentEm + spaceEm + remainingEm <= maxEm) {
                     if (spaceEm > 0.0) current.append(' ')
@@ -114,7 +117,7 @@ object InvoiceTextLayout {
                     val head = StringBuilder()
                     var headEm = 0.0
                     for (ch in remaining) {
-                        val chEm = advanceEm(ch)
+                        val chEm = InvoiceFontMetrics.advanceEm(font, ch)
                         if (headEm + chEm > maxEm) break
                         head.append(ch)
                         headEm += chEm
@@ -135,23 +138,4 @@ object InvoiceTextLayout {
         return lines
     }
 
-    /**
-     * Perkiraan lebar satu karakter dalam satuan `em`.
-     *
-     * Nilainya dikelompokkan per kelas karakter, bukan per glyph: tabel per glyph untuk Nunito akan
-     * berarti memelihara ratusan angka yang harus ikut berubah setiap kali font diganti. Yang
-     * dibutuhkan pemecah baris hanyalah urutan relatif lebar — `m` lebih lebar dari `i`, digit di
-     * antaranya — dan itu sudah dipenuhi pengelompokan ini.
-     */
-    private fun advanceEm(char: Char): Double = when {
-        char == ' ' -> SPACE_EM
-        char == '\t' -> SPACE_EM * 4
-        char == '\n' -> SPACE_EM
-        char in ".,:;'’`!|" -> 0.28
-        char in "ijltfrI()[]{}/\\-" -> 0.34
-        char.isDigit() -> 0.56
-        char in "MWmw@%&" -> 0.90
-        char.isUpperCase() -> 0.68
-        else -> 0.52
-    }
 }

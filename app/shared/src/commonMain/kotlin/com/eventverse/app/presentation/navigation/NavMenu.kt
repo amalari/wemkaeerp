@@ -52,9 +52,11 @@ fun buildNavMenu(
 ): List<NavMenuSection> {
     val sections = mutableListOf<NavMenuSection>()
 
-    val screensByModule = AppNavScreen.entries.mapNotNull { screen ->
-        screen.businessModule?.let { it to screen }
-    }.toMap()
+    val screensByModule = AppNavScreen.entries
+        .filter { it.isNavMenuItem }
+        .mapNotNull { screen ->
+            screen.businessModule?.let { it to screen }
+        }.toMap()
 
     ModuleCategory.entries.forEach { category ->
         val entries = BusinessModule.entries

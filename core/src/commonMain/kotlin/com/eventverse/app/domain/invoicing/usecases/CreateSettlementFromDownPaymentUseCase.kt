@@ -4,11 +4,13 @@ import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.Ratio
 import com.eventverse.app.domain.common.UnitOfMeasure
 import com.eventverse.app.domain.invoicing.*
+import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
 data class CreateSettlementFromDownPaymentCommand(
+    val tenantId: TenantId,
     val downPaymentInvoiceId: InvoiceId,
     val issueDate: LocalDate,
     val dueDate: LocalDate? = null,
@@ -20,7 +22,7 @@ class CreateSettlementFromDownPaymentUseCase(
     private val invoiceRepository: InvoiceRepository
 ) {
     suspend operator fun invoke(command: CreateSettlementFromDownPaymentCommand): Result<Invoice> = runCatching {
-        val dpInvoice = invoiceRepository.findById(command.downPaymentInvoiceId)
+        val dpInvoice = invoiceRepository.findById(command.tenantId, command.downPaymentInvoiceId)
             ?: error("Invoice DP dengan ID '${command.downPaymentInvoiceId.value}' tidak ditemukan.")
 
         require(dpInvoice.kind == InvoiceKind.DOWN_PAYMENT) {

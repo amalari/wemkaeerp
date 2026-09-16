@@ -78,6 +78,26 @@ class CrmApiClient(
         decodeLeadOrThrow(response, "mengubah tahap lead")
     }
 
+    override suspend fun updateStageWithDeal(
+        tenantSlug: String,
+        leadId: LeadId,
+        stage: LeadStage
+    ): Result<LeadStageTransition> = runCatching {
+        val response = httpClient.post(resolveUrl("$LEADS_PATH/${leadId.value}/stage")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(CrmLeadCodec.encodeStageRequest(stage))
+        }
+        val body = response.requireBody("mengubah tahap lead")
+        val obj = JsonParser.parseObject(body)
+        val lead = CrmLeadCodec.decodeLead(obj) ?: error("Respons lead tidak valid")
+        LeadStageTransition(
+            lead = lead,
+            dealId = obj.string("dealId"),
+            dealAlreadyExisted = obj.boolean("dealAlreadyExisted") ?: false
+        )
+    }
+
     override suspend fun archiveLead(tenantSlug: String, leadId: LeadId): Result<Unit> = runCatching {
         val response = httpClient.delete(resolveUrl("$LEADS_PATH/${leadId.value}")) {
             tenantRequest(tenantSlug, tokenProvider)

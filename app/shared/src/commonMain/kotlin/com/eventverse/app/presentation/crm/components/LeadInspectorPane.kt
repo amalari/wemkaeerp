@@ -57,6 +57,8 @@ import com.eventverse.app.presentation.designsystem.IconCheck
 import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.IconInbox
 import com.eventverse.app.presentation.designsystem.IconNote
+import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
+import com.eventverse.app.presentation.deal.components.DealDetailDialog
 import com.eventverse.app.presentation.designsystem.IconPackage
 import com.eventverse.app.presentation.designsystem.IconReceipt
 import com.eventverse.app.presentation.designsystem.IconRuler
@@ -104,6 +106,7 @@ fun LeadInspectorPane(
     var selectedTab by remember { mutableStateOf(LeadInspectorTab.DETAIL) }
     var fieldPendingDeletion by remember { mutableStateOf<LeadFieldDescriptor?>(null) }
     var newCommentText by remember { mutableStateOf("") }
+    var isDealDialogOpen by remember { mutableStateOf(false) }
 
     if (lead == null) {
         Column(
@@ -117,6 +120,14 @@ fun LeadInspectorPane(
 
     val cells = LeadFieldProjection.cellsOf(lead)
     val owner = lead.ownerEmployeeId?.let { id -> employees.firstOrNull { it.id == id } }
+
+    if (isDealDialogOpen) {
+        DealDetailDialog(
+            tenantSlug = StoredTenantSlugProvider.currentTenantSlug() ?: "wemade-demo",
+            sourceLeadId = lead.id.value,
+            onDismiss = { isDealDialogOpen = false }
+        )
+    }
 
     Column(
         modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)
@@ -423,30 +434,11 @@ fun LeadInspectorPane(
                             Spacer(Modifier.height(ClaySpacing.Lg))
 
                             ClayButton(
-                                text = "+ Generate Invoice Sampling",
+                                text = "Buka Deal (PO & Invoice)",
                                 style = ClayButtonStyle.Primary,
                                 fontSize = 11.sp,
                                 leading = { IconRuler(Modifier.size(13.dp), color = WeMadeColors.Surface) },
-                                onClick = {
-                                    InvoicePrefillCoordinator.setPending(
-                                        InvoicePrefillData(
-                                            kind = InvoiceKind.SAMPLE,
-                                            clientName = lead.brandName.display(fallback = lead.contactPerson),
-                                            contactPerson = lead.contactPerson,
-                                            phone = lead.whatsappNumber?.value ?: "",
-                                            email = lead.email,
-                                            sourceKind = InvoiceSourceKind.CRM_LEAD,
-                                            sourceRef = lead.id.value,
-                                            // Alur CRM langsung membuka kanvas desainer A4, bukan modal form.
-                                            openDesignerDirectly = true,
-                                            lineDescription = "Jasa Pembuatan Prototype Sample Baju - ${lead.brandName.display(fallback = lead.contactPerson)}",
-                                            lineQty = 1.0,
-                                            linePrice = 150000L
-                                        )
-                                    )
-                                    onClose?.invoke()
-                                    navigator(AppNavScreen.INVOICING)
-                                },
+                                onClick = { isDealDialogOpen = true },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -493,29 +485,11 @@ fun LeadInspectorPane(
                             Spacer(Modifier.height(ClaySpacing.Lg))
 
                             ClayButton(
-                                text = "+ Generate Invoice DP",
+                                text = "Buka Deal (PO & Invoice)",
                                 style = ClayButtonStyle.Accent,
                                 fontSize = 11.sp,
                                 leading = { IconPackage(Modifier.size(13.dp), color = WeMadeColors.Surface) },
-                                onClick = {
-                                    InvoicePrefillCoordinator.setPending(
-                                        InvoicePrefillData(
-                                            kind = InvoiceKind.DOWN_PAYMENT,
-                                            clientName = lead.brandName.display(fallback = lead.contactPerson),
-                                            contactPerson = lead.contactPerson,
-                                            phone = lead.whatsappNumber?.value ?: "",
-                                            email = lead.email,
-                                            sourceKind = InvoiceSourceKind.CRM_LEAD,
-                                            sourceRef = lead.id.value,
-                                            openDesignerDirectly = true,
-                                            lineDescription = "Uang Muka (DP) Produksi Pakaian - ${lead.brandName.display(fallback = lead.contactPerson)}",
-                                            lineQty = 100.0,
-                                            linePrice = 150000L
-                                        )
-                                    )
-                                    onClose?.invoke()
-                                    navigator(AppNavScreen.INVOICING)
-                                },
+                                onClick = { isDealDialogOpen = true },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }

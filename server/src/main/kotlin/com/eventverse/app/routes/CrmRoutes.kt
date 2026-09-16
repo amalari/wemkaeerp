@@ -1,6 +1,11 @@
 package com.eventverse.app.routes
 
 import com.eventverse.app.domain.crm.CrmLeadRepository
+import com.eventverse.app.domain.crm.ContactRepository
+import com.eventverse.app.domain.deal.DealRepository
+import com.eventverse.app.domain.deal.usecases.DemoteQualifiedLeadUseCase
+import com.eventverse.app.domain.deal.usecases.QualifyLeadUseCase
+import com.eventverse.app.domain.invoicing.InvoiceRepository
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.crm.LeadActivityRepository
@@ -28,6 +33,7 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.infrastructure.DatabaseFactory
 import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
@@ -47,16 +53,26 @@ import io.ktor.server.routing.*
  */
 fun Route.crmRoutes(
     leadRepository: CrmLeadRepository,
+    contactRepository: ContactRepository,
+    dealRepository: DealRepository,
     customFieldRepository: CustomFieldDefinitionRepository,
     employeeRepository: EmployeeRepository,
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
+    invoiceRepository: InvoiceRepository,
     leadActivityRepository: LeadActivityRepository = PostgresLeadActivityRepository()
 ) {
     val listLeadsUseCase = ListLeadsUseCase(leadRepository)
     val createLeadUseCase = CreateLeadUseCase(leadRepository, customFieldRepository)
     val updateLeadUseCase = UpdateLeadUseCase(leadRepository, customFieldRepository)
     val updateLeadStageUseCase = UpdateLeadStageUseCase(leadRepository)
+    // Qualification replaces the plain stage write when the target stage is QUALIFIED:
+    // lead + contact + deal are created in ONE server-side transaction (the route wraps
+    // the call in DatabaseFactory.dbQuery) so the three writes commit or fail together.
+    val qualifyLeadUseCase = QualifyLeadUseCase(leadRepository, contactRepository, dealRepository)
+    // Demosi bersyarat: QUALIFIED -> NEW_LEAD hanya boleh bila deal-nya masih "bersih";
+    // kalau ya, deal ikut diarsipkan supaya tidak ada transaksi yatim di balik lead baru.
+    val demoteQualifiedLeadUseCase = DemoteQualifiedLeadUseCase(leadRepository, dealRepository, contactRepository, invoiceRepository)
     val archiveLeadUseCase = ArchiveLeadUseCase(leadRepository)
     val getLeadFormSchemaUseCase = GetLeadFormSchemaUseCase(customFieldRepository)
     val addCustomFieldUseCase = AddCustomFieldDefinitionUseCase(customFieldRepository)
@@ -181,6 +197,38 @@ fun Route.crmRoutes(
                 val newStage = body.string("stage")?.let { LeadStage.fromCode(it) }
                 if (newStage == null) {
                     call.respond(HttpStatusCode.BadRequest, "Invalid or missing 'stage'")
+                    return@post
+                }
+
+                if (newStage == LeadStage.NEW_LEAD && existing.stage == LeadStage.QUALIFIED) {
+                    // Demosi bersyarat di dalam satu transaksi: bila deal-nya masih bersih,
+                    // deal ikut diarsipkan; bila sudah ada PO/invoice, ditolak dengan pesan.
+                    DatabaseFactory.dbQuery(tenant.tenantId) {
+                        demoteQualifiedLeadUseCase(tenant.tenantId, leadId)
+                    }.onSuccess { demotion ->
+                        call.respondJson(CrmLeadCodec.encodeLead(demotion.lead).encode())
+                    }.onFailure { call.respondFailure(HttpStatusCode.Conflict, it) }
+                    return@post
+                }
+
+                if (newStage == LeadStage.QUALIFIED) {
+                    // Qualification is transactional: contact + deal + lead transition all
+                    // commit together (nested dbQuery calls join this outer transaction).
+                    DatabaseFactory.dbQuery(tenant.tenantId) {
+                        qualifyLeadUseCase(tenant.tenantId, leadId, newId = { newId("deal") })
+                    }.onSuccess { qualification ->
+                        // Lead JSON extended with the deal handshake the client navigates on.
+                        val payload = CrmLeadCodec.encodeLead(qualification.lead).entries +
+                            mapOf(
+                                "dealId" to com.eventverse.app.shared.json.jsonOf(qualification.deal.id.value),
+                                "dealAlreadyExisted" to com.eventverse.app.shared.json.jsonOf(qualification.dealAlreadyExisted)
+                            )
+                        call.respondJson(
+                            com.eventverse.app.shared.json.JsonValue.Obj(
+                                java.util.LinkedHashMap(payload)
+                            ).encode()
+                        )
+                    }.onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
                     return@post
                 }
 

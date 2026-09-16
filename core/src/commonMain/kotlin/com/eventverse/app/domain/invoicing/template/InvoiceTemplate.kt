@@ -16,7 +16,7 @@ data class InvoiceTemplate(
     val name: String,
     val paperSize: PaperSize = PaperSize.A4,
     val marginMm10: Int = 150, // 15 mm
-    val applicableKinds: Set<InvoiceKind> = InvoiceKind.entries.toSet(),
+    val applicableKinds: Set<InvoiceKind> = setOf(InvoiceKind.SAMPLE),
     val elements: List<TemplateElement> = emptyList(),
     val isDefault: Boolean = false,
     val archivedAt: Instant? = null,
@@ -33,6 +33,16 @@ data class InvoiceTemplate(
             "ID elemen template harus unik: terdeteksi duplikasi."
         }
     }
+
+    /**
+     * Jenis tagihan tunggal yang didukung template ini.
+     * Aturan bisnis: 1 template didedikasikan untuk tepat 1 jenis tagihan.
+     */
+    val targetKind: InvoiceKind
+        get() = applicableKinds.firstOrNull() ?: InvoiceKind.SAMPLE
+
+    fun withTargetKind(kind: InvoiceKind): InvoiceTemplate =
+        copy(applicableKinds = setOf(kind))
 
     val itemTable: TemplateElement.ItemTable?
         get() = elements.filterIsInstance<TemplateElement.ItemTable>().firstOrNull()
@@ -296,7 +306,7 @@ object InvoiceTemplateFactory {
             name = "Template Faktur Standar Indonesia",
             paperSize = PaperSize.A4,
             marginMm10 = 150,
-            applicableKinds = InvoiceKind.entries.toSet(),
+            applicableKinds = setOf(InvoiceKind.SAMPLE),
             elements = elements,
             isDefault = true,
             archivedAt = null,

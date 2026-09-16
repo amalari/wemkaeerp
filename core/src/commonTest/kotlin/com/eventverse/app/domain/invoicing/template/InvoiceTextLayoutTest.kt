@@ -32,7 +32,7 @@ class InvoiceTextLayoutTest {
         assertTrue(lines.size > 2, "Teks panjang pada kotak sempit harus terpecah, bukan meluber")
         lines.forEach { line ->
             assertTrue(
-                InvoiceTextLayout.estimateWidthMm10(line, body) <= 600,
+                InvoiceTextLayout.measureWidthMm10(line, body) <= 600,
                 "Baris '$line' lebih lebar dari kotaknya"
             )
         }
@@ -100,6 +100,73 @@ class InvoiceTextLayoutTest {
     fun `line height follows the shared ratio`() {
         assertEquals(48, InvoiceTextLayout.lineHeightMm10(TextStyleSpec(fontSizePt = 10)))
         assertEquals(95, InvoiceTextLayout.lineHeightMm10(TextStyleSpec(fontSizePt = 20)))
+    }
+
+    @Test
+    fun `currency string that nearly fills its box is not declared to fit`() {
+        // Regresi atas taksiran lebar lama. Digit Nunito lebarnya 0.600 em, tetapi ditaksir 0.560 em —
+        // 6.7% terlalu sempit, dan digit adalah isi utama kolom uang. Pada kotak 233 Mm10 taksiran lama
+        // menyatakan teks ini muat satu baris, padahal nyatanya melampaui kotaknya. Di PDF luapan itu
+        // tidak terlihat sebagai teks terpotong melainkan sebagai angka yang kehilangan rata kanannya,
+        // karena penjepit `(widthPt - textWidth).coerceAtLeast(0f)` memaksa offsetnya ke nol.
+        val money = "Rp 12.500.000"
+        val boxMm10 = 233
+
+        val lines = InvoiceTextLayout.wrap(money, widthMm10 = boxMm10, style = body)
+
+        // Inilah perubahan perilakunya: taksiran lama menghasilkan 6.510 em (229.7 Mm10) dan
+        // menyatakan satu baris cukup; metrik Nunito yang sebenarnya 6.864 em (242.1 Mm10) dan
+        // tidak cukup. Tanpa penegasan ini, tes hanya memeriksa dirinya sendiri — pengukur dan
+        // pemecah baris memakai tabel yang sama, jadi keduanya akan selalu "sepakat" walau salah.
+        assertEquals(listOf("Rp", "12.500.000"), lines)
+
+        lines.forEach { line ->
+            assertTrue(
+                InvoiceTextLayout.measureWidthMm10(line, body) <= boxMm10,
+                "Baris '$line' (${InvoiceTextLayout.measureWidthMm10(line, body)} Mm10) meluber dari kotak $boxMm10 Mm10"
+            )
+        }
+    }
+
+    @Test
+    fun `digit width comes from the font, not from a character class`() {
+        // Sepuluh digit Nunito Regular = 10 × 0.600 em. Pada 10pt itu 6.0 em × 35.278 Mm10/em.
+        // Taksiran lama menghasilkan 0.560 em per digit dan akan gagal di sini.
+        val tenDigits = "0123456789"
+        val expected = (6.0 * 10 * InvoiceTextLayout.MM10_PER_PT).toInt()
+
+        val actual = InvoiceTextLayout.measureWidthMm10(tenDigits, body)
+
+        assertTrue(
+            actual in (expected - 1)..(expected + 1),
+            "Lebar sepuluh digit seharusnya ~$expected Mm10, bukan $actual Mm10"
+        )
+    }
+
+    @Test
+    fun `heading sized text is measured with Fredoka, not Nunito`() {
+        // Ambang 14pt memindahkan teks ke Fredoka di renderer PDF. Kalau pemecah baris tidak ikut
+        // berpindah, ia mengukur Nunito untuk teks yang digambar Fredoka — dan `W` di Nunito 16%
+        // lebih lebar daripada di Fredoka, cukup untuk menggeser titik potong baris judul.
+        val heading = TextStyleSpec(fontSizePt = 14)
+        val bodyAtSameSize = TextStyleSpec(fontSizePt = 13)
+
+        assertEquals(InvoiceFont.FREDOKA_MEDIUM, InvoiceFontResolver.resolve(heading))
+        assertEquals(InvoiceFont.NUNITO_REGULAR, InvoiceFontResolver.resolve(bodyAtSameSize))
+
+        val fredokaW = InvoiceFontMetrics.advanceEm(InvoiceFont.FREDOKA_MEDIUM, 'W')
+        val nunitoW = InvoiceFontMetrics.advanceEm(InvoiceFont.NUNITO_REGULAR, 'W')
+        assertTrue(fredokaW < nunitoW, "Prasyarat tes: W Fredoka memang lebih sempit dari W Nunito")
+    }
+
+    @Test
+    fun `unknown characters are measured wide rather than narrow`() {
+        // Arah kesalahan yang aman: taksiran kelebaran hanya memecah baris lebih awal, taksiran
+        // kesempitan membuat teks meluber keluar kotak tanpa terlihat sampai faktur dicetak.
+        val exotic = '中' // aksara Han, pasti di luar tabel
+        val widest = InvoiceFontMetrics.advanceEm(InvoiceFont.NUNITO_REGULAR, 'M')
+
+        assertEquals(widest, InvoiceFontMetrics.advanceEm(InvoiceFont.NUNITO_REGULAR, exotic))
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.eventverse.app.domain.invoicing.*
 import com.eventverse.app.domain.invoicing.template.*
 import com.eventverse.app.domain.invoicing.usecases.CreateInvoiceCommand
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.infrastructure.api.CrmApiClient
+import com.eventverse.app.infrastructure.api.CrmRemoteDataSource
 import com.eventverse.app.infrastructure.api.InvoicingApiClient
 import com.eventverse.app.infrastructure.api.InvoicingRemoteDataSource
 import com.eventverse.app.presentation.invoicing.InvoicePrefillData
@@ -21,6 +23,7 @@ class TemplateDesignerViewModel(
     private val initialTemplateId: String? = null,
     private val initialPrefill: InvoicePrefillData? = null,
     private val remoteDataSource: InvoicingRemoteDataSource = InvoicingApiClient(),
+    private val crmDataSource: CrmRemoteDataSource = CrmApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val now = Clock.System.now()
@@ -61,6 +64,8 @@ class TemplateDesignerViewModel(
 
     private val initialPreview = if (initialPrefill != null) {
         TemplateDesignerUiState.fromPrefill(initialPrefill, tenantSlug, now)
+    } else if (initialTemplate.targetKind == InvoiceKind.SAMPLE) {
+        TemplateDesignerUiState.createDummySamplePreviewInvoice(now)
     } else {
         TemplateDesignerUiState.createDummyPreviewInvoice()
     }
@@ -85,11 +90,19 @@ class TemplateDesignerViewModel(
     private fun loadTemplate(id: InvoiceTemplateId) {
         scope.launch {
             remoteDataSource.getTemplate(tenantSlug, id).onSuccess { tpl ->
-                // Template dari server bisa dibuat sebelum tinggi elemen menjadi turunan, jadi
-                // tingginya diukur ulang di sini. Tanpa ini, kotak seleksi di kanvas akan memakai
-                // tinggi lama sampai pengguna kebetulan mengubah teksnya.
+                val isOnlySample = tpl.targetKind == InvoiceKind.SAMPLE
+                val preview = if (isOnlySample && _uiState.value.prefillData == null) {
+                    TemplateDesignerUiState.createDummySamplePreviewInvoice(now)
+                } else if (_uiState.value.prefillData == null) {
+                    TemplateDesignerUiState.createDummyPreviewInvoice()
+                } else {
+                    _uiState.value.previewInvoice
+                }
                 _uiState.update { current ->
-                    current.copy(template = measured(tpl, current.previewInvoice))
+                    current.copy(
+                        template = measured(tpl, preview),
+                        previewInvoice = preview
+                    )
                 }
             }.onFailure { err ->
                 _uiState.update { it.copy(error = "Gagal memuat template: ${err.message}") }
@@ -142,6 +155,28 @@ class TemplateDesignerViewModel(
             is TemplateDesignerUiEvent.EndTextEdit -> _uiState.update { it.copy(editingTextElementId = null) }
             is TemplateDesignerUiEvent.UpdateTemplateName -> _uiState.update {
                 it.copy(template = it.template.copy(name = event.name, updatedAt = Clock.System.now()))
+            }
+            is TemplateDesignerUiEvent.SetApplicableKind -> {
+                val updatedTemplate = _uiState.value.template.copy(
+                    applicableKinds = setOf(event.kind),
+                    updatedAt = Clock.System.now()
+                )
+                val newPreview = if (event.kind == InvoiceKind.SAMPLE && _uiState.value.prefillData == null) {
+                    TemplateDesignerUiState.createDummySamplePreviewInvoice(now)
+                } else if (_uiState.value.prefillData == null) {
+                    TemplateDesignerUiState.createDummyPreviewInvoice()
+                } else {
+                    _uiState.value.previewInvoice
+                }
+                _uiState.update { current ->
+                    current.copy(
+                        template = measured(updatedTemplate, newPreview),
+                        previewInvoice = newPreview
+                    )
+                }
+            }
+            is TemplateDesignerUiEvent.ToggleApplicableKind -> {
+                onEvent(TemplateDesignerUiEvent.SetApplicableKind(event.kind))
             }
             is TemplateDesignerUiEvent.SetZoom -> _uiState.update {
                 it.copy(zoomPercent = event.percent.coerceIn(MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM))

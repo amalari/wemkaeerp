@@ -18,6 +18,26 @@ data class LaidOutElement(
     val textLines: List<String> = emptyList()
 ) {
     val isText: Boolean get() = textLines.isNotEmpty()
+
+    /**
+     * Benar bila ada baris yang tetap lebih lebar dari kotaknya setelah dipecah.
+     *
+     * Dengan metrik font yang sebenarnya ([InvoiceFontMetrics]) sisa kasusnya tinggal satu: sebuah
+     * karakter tunggal yang lebih lebar dari elemennya, yang tidak bisa dipecah lagi. Renderer PDF
+     * menanganinya dengan menjepit offset perataan ke nol — teks tetap tergambar, tetapi kehilangan
+     * rata kanan/tengahnya dan menjulur melewati tepi kotak.
+     *
+     * Penjepit itu benar sebagai jaring pengaman, tetapi salah sebagai satu-satunya reaksi: ia
+     * membuat masalahnya tidak terlihat sampai faktur dicetak. Karena itu kanvas memakai penanda ini
+     * untuk menunjukkannya saat elemen masih bisa diperbaiki.
+     */
+    val hasOverflow: Boolean
+        get() {
+            val style = element.textStyleOrNull ?: return false
+            return textLines.any { line ->
+                InvoiceTextLayout.measureWidthMm10(line, style) > rect.width.value
+            }
+        }
 }
 
 /**

@@ -59,6 +59,28 @@ class AppNavScreenTest {
         assertTrue(AppNavScreen.ORG_CHART.isProtected)
         assertTrue(AppNavScreen.DYNAMIC_RBAC.isProtected)
         assertTrue(AppNavScreen.FACTORY_FLOW.isProtected)
+        assertTrue(AppNavScreen.INVOICING.isProtected)
+        assertTrue(AppNavScreen.INVOICING_TEMPLATES.isProtected)
         assertTrue(!AppNavScreen.LOGIN.isProtected)
+    }
+
+    @Test
+    fun invoicing_templates_subroute_and_template_id_resolve_correctly() {
+        // Base gallery route
+        assertEquals(AppNavScreen.INVOICING_TEMPLATES, AppNavScreen.fromPath("/invoicing/templates"))
+        assertEquals(AppNavScreen.INVOICING_TEMPLATES, AppNavScreen.fromPath("/invoicing/design"))
+        assertEquals(AppNavScreen.INVOICING_TEMPLATES, AppNavScreen.fromPath("#/invoicing/templates"))
+
+        // Subpath with template ID
+        assertEquals(AppNavScreen.INVOICING_TEMPLATES, AppNavScreen.fromPath("/invoicing/templates/tpl-sample-001"))
+        assertEquals(AppNavScreen.INVOICING_TEMPLATES, AppNavScreen.fromPath("/invoicing/design/tpl-sample-001"))
+
+        // Extraction
+        assertEquals("tpl-sample-001", AppNavScreen.extractTemplateId("/invoicing/templates/tpl-sample-001"))
+        assertEquals("tpl-sample-001", AppNavScreen.extractTemplateId("/invoicing/design/tpl-sample-001"))
+        assertEquals("tpl-sample-001", AppNavScreen.extractTemplateId("/invoicing/templates?templateId=tpl-sample-001"))
+        assertEquals("tpl-sample-001", AppNavScreen.extractTemplateId("/invoicing/templates?id=tpl-sample-001"))
+        assertNull(AppNavScreen.extractTemplateId("/invoicing/templates"))
+        assertNull(AppNavScreen.extractTemplateId("/invoicing"))
     }
 }

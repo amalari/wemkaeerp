@@ -37,7 +37,7 @@ class CreateInvoiceUseCase(
 ) {
     suspend operator fun invoke(command: CreateInvoiceCommand): Result<Invoice> = runCatching {
         // Validasi template aktif
-        val template = templateRepository.findById(command.templateId)
+        val template = templateRepository.findById(command.tenantId, command.templateId)
             ?: error("Template invoice dengan ID '${command.templateId.value}' tidak ditemukan.")
         require(!template.isArchived) { "Template invoice '${template.name}' sudah diarsipkan." }
 
