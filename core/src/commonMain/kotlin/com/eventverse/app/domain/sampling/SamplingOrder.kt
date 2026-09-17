@@ -364,6 +364,127 @@ data class SamplingOrder(
     /** Desain aktif = belum ACC dan belum dibatalkan (drop oleh buyer/admin). */
     val isActiveDesign: Boolean get() = status != SamplingStatus.ACC_APPROVED && status != SamplingStatus.CANCELLED
 
+    /**
+     * Menghitung status kronologis 8 langkah fisik garmen secara deterministik
+     * berdasarkan status SPK, setoran finishing, hasil QC, dan status pengiriman.
+     */
+    fun resolveGarmentTimeline(): List<GarmentStepState> {
+        val isDraft = status == SamplingStatus.DRAFT || pipelineStage == SamplingPipelineStage.NEW_INTAKE
+        val totalDeposited = finishingDeposits.sumOf { it.qtyPcs }
+        val isFinishingTuntas = totalDeposited >= sampleQuantity && totalDeposited > 0
+        val isDeliveredOrApproved = pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
+            pipelineStage == SamplingPipelineStage.ACC_APPROVED
+
+        return listOf(
+            // 1. Input Spek & Pola (Pra-Rilis) — aktif selama masih Draft belum terbit SPK
+            GarmentStepState(
+                step = GarmentTrackingStep.INPUT_SPEK,
+                isCompleted = !isDraft,
+                isActive = isDraft,
+                subtitle = if (isDraft) "Draft (Sedang Diisi Sales)" else "Spek & Pola Lengkap",
+                badgeText = if (isDraft) "Draft" else null
+            ),
+
+            // 2. Rilis SPK — selesai saat SPK resmi diterbitkan dari tombol Buat SPK
+            GarmentStepState(
+                step = GarmentTrackingStep.SPK_RELEASED,
+                isCompleted = !isDraft,
+                isActive = false,
+                subtitle = if (isDraft) "Menunggu Buat SPK" else "SPK #${spkNumber.value}",
+                badgeText = if (!isDraft) "Rilis" else null
+            ),
+
+            // 3. Rajut / Potong (CAM & Mesin)
+            GarmentStepState(
+                step = GarmentTrackingStep.KNITTING,
+                isCompleted = !isDraft && pipelineStage > SamplingPipelineStage.LINKING_ASSEMBLY,
+                isActive = !isDraft && (pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING ||
+                    pipelineStage == SamplingPipelineStage.MACHINE_KNITTING ||
+                    pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY),
+                subtitle = when {
+                    isDraft -> "Menunggu SPK"
+                    pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING -> "Program Mesin CAM"
+                    pipelineStage == SamplingPipelineStage.MACHINE_KNITTING -> "Rajut Turun Mesin"
+                    pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY -> "Linking & Jahit"
+                    else -> "Rajut & Jahit Tuntas"
+                }
+            ),
+
+            // 4. QC 1 (In-Line / Jahitan Mentah)
+            GarmentStepState(
+                step = GarmentTrackingStep.QC_IN_LINE,
+                isCompleted = !isDraft && (pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved),
+                isActive = !isDraft && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY && totalDeposited == 0,
+                subtitle = when {
+                    isDraft -> "Menunggu Rajut"
+                    pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved -> "Jahitan Mentah Sesuai"
+                    else -> "Inspeksi In-Line"
+                },
+                badgeText = if (!isDraft && (pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved)) "Lolos QC 1" else null
+            ),
+
+            // 5. Finishing & Steam (Washing, Setrika, Trimming)
+            GarmentStepState(
+                step = GarmentTrackingStep.FINISHING,
+                isCompleted = !isDraft && (isFinishingTuntas || isDeliveredOrApproved),
+                isActive = !isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingTuntas,
+                subtitle = when {
+                    isDraft -> "Menunggu QC 1"
+                    isFinishingTuntas || isDeliveredOrApproved -> "Cuci & Steam Tuntas ($totalDeposited pcs)"
+                    pipelineStage == SamplingPipelineStage.FINISHING_QC -> "Pencucian & Steam ($totalDeposited/$sampleQuantity pcs)"
+                    else -> "Menunggu Selesai Jahit"
+                },
+                badgeText = if (!isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingTuntas) "Finishing" else null
+            ),
+
+            // 6. QC 2 (Final Inspection Ukuran Jadi)
+            GarmentStepState(
+                step = GarmentTrackingStep.QC_FINAL,
+                isCompleted = !isDraft && isDeliveredOrApproved,
+                isActive = !isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingTuntas,
+                subtitle = when {
+                    isDeliveredOrApproved -> "Ukuran Jadi Lolos AQL 1.5"
+                    pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingTuntas -> "Inspeksi Akhir Garmen Jadi"
+                    else -> "Menunggu Selesai Finishing"
+                },
+                badgeText = if (isDeliveredOrApproved) "Lolos QC 2" else null
+            ),
+
+            // 7. Siap Kirim / Terkirim ke Buyer
+            GarmentStepState(
+                step = GarmentTrackingStep.READY_TO_SHIP,
+                isCompleted = !isDraft && !courierTracking.isNullOrBlank(),
+                isActive = !isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank(),
+                subtitle = when {
+                    !courierTracking.isNullOrBlank() -> "Resi: $courierTracking"
+                    pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim ke Buyer"
+                    else -> "Menunggu Lolos QC 2"
+                },
+                badgeText = if (!isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank()) "Siap Kirim" else null
+            ),
+
+            // 8. ACC Buyer
+            GarmentStepState(
+                step = GarmentTrackingStep.ACC_APPROVED,
+                isCompleted = isAccApproved,
+                isActive = status == SamplingStatus.REVISION,
+                subtitle = when {
+                    isAccApproved -> "Disetujui Buyer (Golden Sample)"
+                    status == SamplingStatus.REVISION -> "Perlu Revisi (Rev $revisionCount)"
+                    else -> "Menunggu Feedback Buyer"
+                },
+                badgeText = when {
+                    isAccApproved -> "ACC"
+                    status == SamplingStatus.REVISION -> "Revisi"
+                    else -> null
+                }
+            )
+        )
+    }
+
+    private val hasCompleteMeasurement: Boolean
+        get() = hasAtLeastOneCompleteMeasurementColumn(sizeMatrix)
+
     companion object {
         /** Batas foto mockup per desain — mockup terbaru yang ditampilkan. */
         const val MAX_MOCKUPS = 6

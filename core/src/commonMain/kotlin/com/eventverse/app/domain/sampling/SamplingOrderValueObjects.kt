@@ -277,3 +277,30 @@ object FactorySizePresets {
         TenselityEntry("23 MOTONG")
     )
 }
+
+/**
+ * 8 Tahapan kronologis fisik garmen (sejak pra-rilis sales sampai ACC buyer).
+ *
+ * Digunakan oleh Read-Only Process Stepper di modul Deals & Monitoring Sampling.
+ */
+enum class GarmentTrackingStep(val displayName: String, val order: Int) {
+    INPUT_SPEK("Input Spek & Pola", 1),
+    SPK_RELEASED("Rilis SPK", 2),
+    KNITTING("Rajut / Potong", 3),
+    QC_IN_LINE("QC 1 (In-Line)", 4),
+    FINISHING("Finishing & Steam", 5),
+    QC_FINAL("QC 2 (Final)", 6),
+    READY_TO_SHIP("Siap Kirim", 7),
+    ACC_APPROVED("ACC Buyer", 8);
+}
+
+/**
+ * Status riil satu node stepper garmen pada saat tertentu.
+ */
+data class GarmentStepState(
+    val step: GarmentTrackingStep,
+    val isCompleted: Boolean,
+    val isActive: Boolean,
+    val subtitle: String? = null,
+    val badgeText: String? = null
+)

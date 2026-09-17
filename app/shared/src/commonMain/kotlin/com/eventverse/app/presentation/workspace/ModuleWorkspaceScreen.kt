@@ -70,9 +70,11 @@ fun ModuleWorkspaceScreen(
         return
     }
 
+    val resolvedSlug = persona?.tenantSlug?.takeIf { it.isNotBlank() } ?: "wemade-demo"
+
     if (module == BusinessModule.CRM_SALES) {
         CrmWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             access = access,
             modifier = modifier.fillMaxSize()
         )
@@ -81,7 +83,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.SAMPLING_ORDER) {
         SamplingWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -91,7 +93,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.MASTER_DATA) {
         MasterDataWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -101,7 +103,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.TECH_PACK_BOM) {
         TechPackWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -111,7 +113,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.INVOICING) {
         com.eventverse.app.presentation.invoicing.InvoiceWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             access = access,
             modifier = modifier.fillMaxSize()
         )
@@ -120,7 +122,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.COSTING_HPP) {
         com.eventverse.app.presentation.costing.CostingWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -130,7 +132,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.OPERATOR_EXEC) {
         com.eventverse.app.presentation.finishing.FinishingOperatorWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -140,7 +142,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.QUALITY_CONTROL) {
         com.eventverse.app.presentation.qc.QcInspectorWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()
@@ -150,7 +152,7 @@ fun ModuleWorkspaceScreen(
 
     if (module == BusinessModule.PRODUCTION_MRP) {
         com.eventverse.app.presentation.production.ProductionWorkspaceScreen(
-            tenantSlug = persona?.tenantSlug ?: "",
+            tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,
             modifier = modifier.fillMaxSize()

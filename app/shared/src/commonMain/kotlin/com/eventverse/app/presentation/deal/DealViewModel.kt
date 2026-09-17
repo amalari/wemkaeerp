@@ -138,10 +138,39 @@ class DealViewModel(
         }
     }
 
-    /** Ganti order dengan id sama di posisinya; hanya order yang benar-benar baru yang di-append. */
+    /** Ganti order dengan id sama di posisinya; pertahankan foto mockup URL jika respon autosave belum presign. */
     private fun List<SamplingOrder>.replaceOrAppendById(saved: SamplingOrder): List<SamplingOrder> =
         if (any { it.id == saved.id }) {
-            map { if (it.id == saved.id) saved else it }
+            map { existing ->
+                if (existing.id == saved.id) {
+                    val existingFront = existing.mockupFrontKey
+                    val savedFront = saved.mockupFrontKey
+                    val keepExistingFront = (savedFront.isNullOrBlank() || (!savedFront.startsWith("http") && !savedFront.startsWith("data:"))) &&
+                        (existingFront?.startsWith("http") == true || existingFront?.startsWith("data:") == true)
+
+                    val existingBack = existing.mockupBackKey
+                    val savedBack = saved.mockupBackKey
+                    val keepExistingBack = (savedBack.isNullOrBlank() || (!savedBack.startsWith("http") && !savedBack.startsWith("data:"))) &&
+                        (existingBack?.startsWith("http") == true || existingBack?.startsWith("data:") == true)
+
+                    if (keepExistingFront || keepExistingBack) {
+                        val mergedUrls = mutableListOf<String>()
+                        if (keepExistingFront && existingFront != null) {
+                            mergedUrls.add("front:$existingFront")
+                        } else if (!savedFront.isNullOrBlank()) {
+                            mergedUrls.add("front:$savedFront")
+                        }
+                        if (keepExistingBack && existingBack != null) {
+                            mergedUrls.add("back:$existingBack")
+                        } else if (!savedBack.isNullOrBlank()) {
+                            mergedUrls.add("back:$savedBack")
+                        }
+                        saved.copy(knitSpec = saved.knitSpec.copy(mockupImageUrls = mergedUrls))
+                    } else {
+                        saved
+                    }
+                } else existing
+            }
         } else {
             this + saved
         }

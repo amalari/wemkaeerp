@@ -703,6 +703,37 @@ private fun SamplingDesignCard(
             RevisionCarryOverCallout(revision = order.revisionCount)
         }
 
+        // ── Process Stepper (8 Langkah Alur Fisik Garmen: Pra-Rilis s/d ACC) ──
+        Spacer(Modifier.height(ClaySpacing.Md))
+        val garmentTimeline = remember(order) { order.resolveGarmentTimeline() }
+        val stepperSteps = remember(garmentTimeline) {
+            garmentTimeline.map { stepState ->
+                ClayStepData(
+                    title = stepState.step.displayName,
+                    subtitle = stepState.subtitle,
+                    status = when {
+                        stepState.isCompleted -> ClayStepStatus.COMPLETED
+                        stepState.isActive -> ClayStepStatus.ACTIVE
+                        else -> ClayStepStatus.PENDING
+                    },
+                    badgeText = stepState.badgeText,
+                    stepNumber = stepState.step.order
+                )
+            }
+        }
+        ClayProcessStepper(
+            steps = stepperSteps,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clayFlat(
+                    shape = ClayShapes.Card,
+                    background = WeMadeColors.SurfaceMuted.copy(alpha = 0.45f),
+                    outline = WeMadeColors.Border,
+                    borderWidth = ClayBorder.Hairline
+                )
+                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
+        )
+
         Spacer(Modifier.height(ClaySpacing.Lg))
 
         // ── Grid 2 Kolom: Kiri (Slot Foto Depan & Belakang Atas-Bawah) vs Kanan (Size Chart & Detail Lainnya) ──
@@ -1116,16 +1147,19 @@ private fun ConfirmSpkDialog(
     val sizeAllocations = qtyRow?.values?.entries
         ?.mapNotNull { (col, v) ->
             val count = v.trim().toIntOrNull() ?: 0
-            if (count > 0 && isSizeColumnActive(sizeMatrix, col)) "$col ($count pcs)" else null
+            if (count > 0 && isSizeColumnActive(sizeMatrix, col)) Pair(col, count) else null
         } ?: emptyList()
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         ClayCard(
             modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .widthIn(min = 480.dp, max = 620.dp),
+                .fillMaxWidth(0.42f)
+                .widthIn(min = 440.dp, max = 520.dp),
             shape = ClayShapes.Panel,
-            contentPadding = PaddingValues(ClaySpacing.Xxl)
+            contentPadding = PaddingValues(ClaySpacing.Xl)
         ) {
             // Header
             Row(
@@ -1152,7 +1186,7 @@ private fun ConfirmSpkDialog(
                     Spacer(Modifier.height(ClaySpacing.Xxs))
                     Text(
                         text = "Pastikan data pesanan benar karena SPK ini akan diteruskan ke Divisi Sampling.",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
                 }
@@ -1160,11 +1194,11 @@ private fun ConfirmSpkDialog(
                     onClick = onDismiss,
                     contentPadding = PaddingValues(ClaySpacing.Xs)
                 ) {
-                    IconClose(Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
+                    IconClose(Modifier.size(18.dp), color = WeMadeColors.OnSurfaceMuted)
                 }
             }
 
-            Spacer(Modifier.height(ClaySpacing.Md))
+            Spacer(Modifier.height(ClaySpacing.Lg))
 
             // Callout Edukasi Alur
             Box(
@@ -1182,22 +1216,22 @@ private fun ConfirmSpkDialog(
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                     verticalAlignment = Alignment.Top
                 ) {
-                    IconClipboard(Modifier.size(18.dp), color = WeMadeColors.Primary)
+                    IconClipboard(Modifier.size(20.dp), color = WeMadeColors.Primary)
                     Text(
                         text = "Setelah diterbitkan, SPK akan langsung masuk ke antrean kerja Divisi Sampling pada tahap Pemrograman Mesin (CAM). Tim sampling akan merajut/membuat sampel fisik sesuai spesifikasi ini.",
-                        fontSize = 11.5.sp,
+                        fontSize = 12.5.sp,
                         color = WeMadeColors.OnSurface,
-                        lineHeight = 16.sp
+                        lineHeight = 18.sp
                     )
                 }
             }
 
-            Spacer(Modifier.height(ClaySpacing.Md))
+            Spacer(Modifier.height(ClaySpacing.Lg))
 
             // Ringkasan Data yang Akan Diteruskan
             Text(
                 text = "Ringkasan Data SPK:",
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
             )
@@ -1212,9 +1246,9 @@ private fun ConfirmSpkDialog(
                         outline = WeMadeColors.Border,
                         borderWidth = ClayBorder.Hairline
                     )
-                    .padding(ClaySpacing.Md)
+                    .padding(ClaySpacing.Lg)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                     // Nama Desain
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1223,12 +1257,12 @@ private fun ConfirmSpkDialog(
                     ) {
                         Text(
                             text = "Nama Desain",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                         Text(
                             text = order.styleName.ifBlank { "—" },
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = WeMadeColors.OnSurface
                         )
@@ -1242,15 +1276,28 @@ private fun ConfirmSpkDialog(
                     ) {
                         Text(
                             text = "Jumlah Sampel",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
-                        Text(
-                            text = "$totalQty pcs" + if (sizeAllocations.isNotEmpty()) " (${sizeAllocations.joinToString(", ")})" else "",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (totalQty > 0) WeMadeColors.Primary else WeMadeColors.Error
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                        ) {
+                            Text(
+                                text = "$totalQty pcs",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (totalQty > 0) WeMadeColors.Primary else WeMadeColors.Error
+                            )
+                            if (sizeAllocations.isNotEmpty()) {
+                                sizeAllocations.forEach { (sizeName, count) ->
+                                    ClayTag(
+                                        text = "$sizeName: $count",
+                                        tint = WeMadeColors.Primary
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Foto Mockup
@@ -1261,7 +1308,7 @@ private fun ConfirmSpkDialog(
                     ) {
                         Text(
                             text = "Foto Mockup Visual",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                         if (!order.mockupFrontKey.isNullOrBlank()) {
@@ -1269,10 +1316,10 @@ private fun ConfirmSpkDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                IconCheckCircle(Modifier.size(14.dp), color = WeMadeColors.Success)
+                                IconCheckCircle(Modifier.size(15.dp), color = WeMadeColors.Success)
                                 Text(
                                     text = "Tampak Depan Terlampir" + if (!order.mockupBackKey.isNullOrBlank()) " (+ Belakang)" else "",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = WeMadeColors.Success
                                 )
@@ -1282,10 +1329,10 @@ private fun ConfirmSpkDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                IconBan(Modifier.size(14.dp), color = WeMadeColors.Error)
+                                IconBan(Modifier.size(15.dp), color = WeMadeColors.Error)
                                 Text(
                                     text = "Belum Diunggah (Wajib)",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = WeMadeColors.Error
                                 )
@@ -1301,12 +1348,12 @@ private fun ConfirmSpkDialog(
                     ) {
                         Text(
                             text = "Biaya Sampling",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
                         Text(
                             text = if (order.samplingFeeIdr > 0L) formatIdr(order.samplingFeeIdr) else "Gratis / Termasuk Deal",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = WeMadeColors.OnSurface
                         )
@@ -1321,12 +1368,12 @@ private fun ConfirmSpkDialog(
                         ) {
                             Text(
                                 text = "Catatan Khusus",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = WeMadeColors.OnSurfaceMuted
                             )
                             Text(
                                 text = order.notes,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = WeMadeColors.OnSurface,
                                 modifier = Modifier.fillMaxWidth(0.65f)
                             )
@@ -1353,18 +1400,18 @@ private fun ConfirmSpkDialog(
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.Top
                     ) {
-                        IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
+                        IconBan(Modifier.size(18.dp), color = WeMadeColors.Error)
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = "Data Belum Lengkap (SPK belum bisa diterbitkan):",
-                                fontSize = 12.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.Error
                             )
                             missingReqs.forEach { req ->
                                 Text(
                                     text = "• $req",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 12.sp,
                                     color = WeMadeColors.Error
                                 )
                             }
@@ -1388,18 +1435,18 @@ private fun ConfirmSpkDialog(
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.Top
                     ) {
-                        IconWarning(Modifier.size(16.dp), color = WeMadeColors.Warning)
+                        IconWarning(Modifier.size(18.dp), color = WeMadeColors.Warning)
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = "Perhatian Sebelum Menerbitkan:",
-                                fontSize = 12.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = WeMadeColors.Warning
                             )
                             warnings.forEach { warn ->
                                 Text(
                                     text = "• $warn",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 12.sp,
                                     color = WeMadeColors.OnSurface
                                 )
                             }
@@ -1420,7 +1467,7 @@ private fun ConfirmSpkDialog(
                     text = "Batal / Cek Kembali",
                     onClick = onDismiss,
                     style = ClayButtonStyle.Ghost,
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
                 Spacer(Modifier.width(ClaySpacing.Sm))
                 ClayButton(
@@ -1428,8 +1475,8 @@ private fun ConfirmSpkDialog(
                     onClick = onConfirm,
                     enabled = missingReqs.isEmpty(),
                     style = ClayButtonStyle.Primary,
-                    leading = { IconCheck(Modifier.size(13.dp), color = WeMadeColors.Surface) },
-                    fontSize = 12.sp
+                    leading = { IconCheck(Modifier.size(14.dp), color = WeMadeColors.Surface) },
+                    fontSize = 13.sp
                 )
             }
         }

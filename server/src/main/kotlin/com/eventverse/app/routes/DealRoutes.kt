@@ -369,10 +369,13 @@ fun Route.dealRoutes(
                 )
             }.takeIf { it.isNotEmpty() }
 
+            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName
+                ?: existing.contactId.value
+
             val command = SamplingFromDealCommand(
                 tenantId = tenant.tenantId,
                 dealId = dealId.value,
-                clientName = existing.contactId.value,
+                clientName = clientNameResolved,
                 styleName = json.string("styleName") ?: "",
                 samplingOrderId = null,
                 sampleQuantity = json.int("sampleQuantity") ?: 2,
@@ -384,7 +387,8 @@ fun Route.dealRoutes(
 
             useCase(command)
                 .onSuccess { order ->
-                    call.respondJson(SamplingOrderCodec.encode(order).encode())
+                    val resolved = withResolvedMockups(order, poFileStorage)
+                    call.respondJson(SamplingOrderCodec.encode(resolved).encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
         }
@@ -428,10 +432,13 @@ fun Route.dealRoutes(
                 )
             }.takeIf { it.isNotEmpty() }
 
+            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName
+                ?: existing.contactId.value
+
             val command = SamplingFromDealCommand(
                 tenantId = tenant.tenantId,
                 dealId = dealId.value,
-                clientName = existing.contactId.value,
+                clientName = clientNameResolved,
                 styleName = json.string("styleName") ?: "",
                 samplingOrderId = call.parameters["samplingId"] ?: "",
                 sampleQuantity = json.int("sampleQuantity") ?: 2,
@@ -443,7 +450,8 @@ fun Route.dealRoutes(
 
             useCase(command)
                 .onSuccess { order ->
-                    call.respondJson(SamplingOrderCodec.encode(order).encode())
+                    val resolved = withResolvedMockups(order, poFileStorage)
+                    call.respondJson(SamplingOrderCodec.encode(resolved).encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
         }

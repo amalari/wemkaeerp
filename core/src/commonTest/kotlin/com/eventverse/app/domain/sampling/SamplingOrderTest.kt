@@ -95,4 +95,69 @@ class SamplingOrderTest {
         assertEquals(order.finishedSizeCharts.first().bodyLength, decoded.finishedSizeCharts.first().bodyLength)
         assertEquals(order.rawKnitSizeCharts.first().bodyLength, decoded.rawKnitSizeCharts.first().bodyLength)
     }
+
+    @Test
+    fun resolveGarmentTimeline_inDraftState_shouldHaveInputSpekActive() {
+        val order = createSampleOrder() // DRAFT, NEW_INTAKE
+        val timeline = order.resolveGarmentTimeline()
+
+        assertEquals(8, timeline.size)
+        val step1 = timeline[0]
+        assertEquals(GarmentTrackingStep.INPUT_SPEK, step1.step)
+        assertFalse(step1.isCompleted)
+        assertTrue(step1.isActive)
+        assertEquals("Draft", step1.badgeText)
+
+        val step2 = timeline[1]
+        assertEquals(GarmentTrackingStep.SPK_RELEASED, step2.step)
+        assertFalse(step2.isCompleted)
+    }
+
+    @Test
+    fun resolveGarmentTimeline_inKnittingState_shouldCompleteInputAndRelease() {
+        val order = createSampleOrder().copy(
+            status = SamplingStatus.IN_PROGRESS,
+            pipelineStage = SamplingPipelineStage.MACHINE_KNITTING
+        )
+        val timeline = order.resolveGarmentTimeline()
+
+        val step1 = timeline[0]
+        assertTrue(step1.isCompleted)
+
+        val step2 = timeline[1]
+        assertTrue(step2.isCompleted)
+
+        val step3 = timeline[2]
+        assertEquals(GarmentTrackingStep.KNITTING, step3.step)
+        assertTrue(step3.isActive)
+        assertEquals("Rajut Turun Mesin", step3.subtitle)
+    }
+
+    @Test
+    fun resolveGarmentTimeline_inDeliveryState_shouldHaveReadyToShipActive() {
+        val order = createSampleOrder().copy(
+            status = SamplingStatus.IN_PROGRESS,
+            pipelineStage = SamplingPipelineStage.IN_DELIVERY,
+            courierTracking = null
+        )
+        val timeline = order.resolveGarmentTimeline()
+
+        val step7 = timeline[6]
+        assertEquals(GarmentTrackingStep.READY_TO_SHIP, step7.step)
+        assertTrue(step7.isActive)
+        assertEquals("Siap Kirim", step7.badgeText)
+    }
+
+    @Test
+    fun resolveGarmentTimeline_accApproved_shouldCompleteAllSteps() {
+        val order = createSampleOrder()
+            .copy(courierTracking = "JNE12345678")
+            .approveAcc("ACC BUYER", now)
+
+        val timeline = order.resolveGarmentTimeline()
+        val step8 = timeline[7]
+        assertEquals(GarmentTrackingStep.ACC_APPROVED, step8.step)
+        assertTrue(step8.isCompleted)
+        assertEquals("ACC", step8.badgeText)
+    }
 }
