@@ -427,6 +427,17 @@ private fun KanbanOrderCard(
                     else -> {}
                 }
             } else {
+                // Sinyal visual hasil QC terakhir di kolom read-only "Di Meja Finishing & QC":
+                // kartu rework/reject sebelumnya identik dengan kartu yang belum diperiksa.
+                // Badge ini murni informasi — tidak menambah aksi apa pun (tetap showActions = false).
+                val qcResult = order.latestQcReport?.qcResult
+                if (qcResult == QcInspectionResult.REWORK || qcResult == QcInspectionResult.REJECT) {
+                    ClayBadge(
+                        text = if (qcResult == QcInspectionResult.REJECT) "QC: Rajut Ulang" else "QC: Perbaikan Ulang",
+                        tint = if (qcResult == QcInspectionResult.REJECT) WeMadeColors.Error else WeMadeColors.Warning,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 ClayBadge(
                     text = order.pipelineStage.displayName,
                     tint = samplingStageTint(order.pipelineStage),

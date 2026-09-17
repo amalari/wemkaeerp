@@ -42,6 +42,11 @@ import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingStatus
+import com.eventverse.app.domain.sampling.GarmentStepState
+import com.eventverse.app.domain.sampling.GarmentTrackingStep
+import com.eventverse.app.domain.sampling.MilestoneStep
+import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.deal.DealDetailTab
 import com.eventverse.app.presentation.deal.DealUiEvent
@@ -464,9 +469,14 @@ private fun SamplingDesignCard(
         isRenaming = false
     }
 
+    // Garis batas mode: Draft (Step 1 - masih isi formulir) vs Produksi/Arsip (Step 2-8 - Spek Terkunci)
+    val isDraft = order.status == SamplingStatus.DRAFT || order.pipelineStage == SamplingPipelineStage.NEW_INTAKE
+    val isFormReadOnly = !isDraft || isHistoricRevision
+    val navigator = LocalAppNavigator.current
+
     LaunchedEffect(feeInput, notesInput, sizeMatrixInput) {
-        if (!detailTouched) {
-            detailTouched = true
+        if (!detailTouched || !isDraft) {
+            if (!detailTouched) detailTouched = true
             return@LaunchedEffect
         }
         delay(800)
@@ -544,7 +554,7 @@ private fun SamplingDesignCard(
                 val isStyleNameError = showValidationErrors && styleNameInput.isBlank()
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isRenaming) {
+                        if (isDraft && isRenaming) {
                             ClayTextField(
                                 value = styleNameInput,
                                 onValueChange = { styleNameInput = it },
@@ -564,21 +574,23 @@ private fun SamplingDesignCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Spacer(Modifier.width(ClaySpacing.Xs))
-                        ClayIconButton(
-                            onClick = {
-                                if (isRenaming) {
-                                    commitRename()
-                                } else {
-                                    styleNameInput = order.styleName
-                                    isRenaming = true
+                        if (isDraft) {
+                            Spacer(Modifier.width(ClaySpacing.Xs))
+                            ClayIconButton(
+                                onClick = {
+                                    if (isRenaming) {
+                                        commitRename()
+                                    } else {
+                                        styleNameInput = order.styleName
+                                        isRenaming = true
+                                    }
                                 }
-                            }
-                        ) {
-                            if (isRenaming) {
-                                IconCheck(Modifier.size(14.dp), color = WeMadeColors.Success)
-                            } else {
-                                IconEdit(Modifier.size(13.dp))
+                            ) {
+                                if (isRenaming) {
+                                    IconCheck(Modifier.size(14.dp), color = WeMadeColors.Success)
+                                } else {
+                                    IconEdit(Modifier.size(13.dp))
+                                }
                             }
                         }
                     }
@@ -734,6 +746,49 @@ private fun SamplingDesignCard(
                 .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
         )
 
+        // ── Status Produksi Aktif & Banner Acuan Spek Terkunci (Saat SPK sudah rilis) ──
+        if (!isDraft) {
+            Spacer(Modifier.height(ClaySpacing.Md))
+            SamplingActiveStepCard(
+                order = order,
+                garmentTimeline = garmentTimeline,
+                onNavigateToSampling = { navigator(AppNavScreen.SAMPLING_ORDER) }
+            )
+            Spacer(Modifier.height(ClaySpacing.Sm))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayFlat(
+                        shape = ClayShapes.Chip,
+                        background = WeMadeColors.SurfaceMuted,
+                        outline = WeMadeColors.Border,
+                        borderWidth = ClayBorder.Hairline
+                    )
+                    .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    IconLock(Modifier.size(13.dp), color = WeMadeColors.Primary)
+                    Text(
+                        text = "Spesifikasi Fisik Terkunci (Golden Sample SPK #${order.spkNumber.value})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                }
+                Text(
+                    text = "Hanya Baca • Acuan Produksi",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+        }
+
         Spacer(Modifier.height(ClaySpacing.Lg))
 
         // ── Grid 2 Kolom: Kiri (Slot Foto Depan & Belakang Atas-Bawah) vs Kanan (Size Chart & Detail Lainnya) ──
@@ -752,10 +807,10 @@ private fun SamplingDesignCard(
                     DesignMockupSlot(
                         label = "Tampak Depan",
                         bitmap = frontBitmap,
-                        readOnly = isHistoricRevision,
+                        readOnly = isFormReadOnly,
                         isError = isFrontMockupError,
                         onUpload = {
-                            if (!isHistoricRevision) {
+                            if (!isFormReadOnly) {
                                 pendingCropSlot = "front"
                                 cardScope.launch { pendingCropPick = pickLocalFile(MOCKUP_IMAGE_ACCEPT) }
                             }
@@ -774,9 +829,9 @@ private fun SamplingDesignCard(
                 DesignMockupSlot(
                     label = "Tampak Belakang",
                     bitmap = backBitmap,
-                    readOnly = isHistoricRevision,
+                    readOnly = isFormReadOnly,
                     onUpload = {
-                        if (!isHistoricRevision) {
+                        if (!isFormReadOnly) {
                             pendingCropSlot = "back"
                             cardScope.launch { pendingCropPick = pickLocalFile(MOCKUP_IMAGE_ACCEPT) }
                         }
@@ -796,22 +851,22 @@ private fun SamplingDesignCard(
                 Column {
                     SamplingSizeChartTable(
                         pomRows = displayedSizeMatrix.filter { !it.isQtyRow },
-                        readOnly = isHistoricRevision,
+                        readOnly = isFormReadOnly,
                         isError = isSizeChartError,
                         onUpdateRow = { updatedRow ->
-                            if (!isHistoricRevision) {
+                            if (!isFormReadOnly) {
                                 val updated = sizeMatrixInput.map { if (it.id == updatedRow.id) updatedRow else it }
                                 sizeMatrixInput = updated
                             }
                         },
                         onDeleteRow = { rowId ->
-                            if (!isHistoricRevision) {
+                            if (!isFormReadOnly) {
                                 val updated = sizeMatrixInput.filter { it.id != rowId }
                                 sizeMatrixInput = sanitizeSamplingMatrix(updated)
                             }
                         },
                         onAddRow = {
-                            if (!isHistoricRevision) {
+                            if (!isFormReadOnly) {
                                 val nextId = "pom_${Clock.System.now().toEpochMilliseconds()}"
                                 val newRow = SizeChartRow(
                                     id = nextId,
@@ -845,10 +900,10 @@ private fun SamplingDesignCard(
                         qtyRow = currentQtyRow,
                         fullMatrix = displayedSizeMatrix,
                         totalQty = totalSampleQty,
-                        readOnly = isHistoricRevision,
+                        readOnly = isFormReadOnly,
                         isError = isQtyError,
                         onUpdateQty = { col, newQty ->
-                            if (!isHistoricRevision) {
+                            if (!isFormReadOnly) {
                                 val withQty = ensureSamplingQtyRow(sizeMatrixInput)
                                 val qtyRow = withQty.first { it.isQtyRow }
                                 val newValues = qtyRow.values.toMutableMap()
@@ -890,7 +945,7 @@ private fun SamplingDesignCard(
                 ClayTextField(
                     value = displayedFee,
                     onValueChange = { input ->
-                        if (!isHistoricRevision) {
+                        if (!isFormReadOnly) {
                             // Fee default 0 — mengosongkan input mengembalikannya ke "0", tak pernah blank.
                             feeInput = input.filter { it.isDigit() }.ifBlank { "0" }
                         }
@@ -898,21 +953,20 @@ private fun SamplingDesignCard(
                     label = "Sampling Fee (Rp)",
                     placeholder = "mis. 350000",
                     leadingIcon = { IconReceipt(Modifier.size(13.dp)) },
-                    readOnly = isHistoricRevision
+                    readOnly = isFormReadOnly
                 )
                 ClayTextField(
                     value = displayedNotes,
-                    onValueChange = { if (!isHistoricRevision) notesInput = it },
+                    onValueChange = { if (!isFormReadOnly) notesInput = it },
                     label = "Catatan",
                     placeholder = "Penempatan bahan, catatan khusus… detail teknis diisi tim sampling.",
                     singleLine = false,
                     minLines = 3,
-                    readOnly = isHistoricRevision
+                    readOnly = isFormReadOnly
                 )
 
                 // ── Aksi: Terbitkan Invoice (jika ACC), ACC & Revisi (jika status pengiriman), atau Buat SPK Sampling ──
                 if (!isHistoricRevision && order.status != SamplingStatus.CANCELLED) {
-                    val navigator = LocalAppNavigator.current
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.CenterVertically
@@ -959,7 +1013,7 @@ private fun SamplingDesignCard(
                             )
                         } else {
                             // Belum di status pengiriman: sembunyikan tombol ACC & Revisi, tampilkan Buat SPK Sampling
-                            if (order.pipelineStage == com.eventverse.app.domain.sampling.SamplingPipelineStage.NEW_INTAKE || order.status == SamplingStatus.DRAFT) {
+                            if (isDraft) {
                                 ClayButton(
                                     text = "Buat SPK Sampling",
                                     onClick = {
@@ -997,7 +1051,7 @@ private fun SamplingDesignCard(
                                 ClayButton(
                                     text = "Kirim ke Buyer",
                                     onClick = {
-                                        onEvent(DealUiEvent.AdvanceSamplingStage(order.id.value, com.eventverse.app.domain.sampling.SamplingPipelineStage.IN_DELIVERY))
+                                        onEvent(DealUiEvent.AdvanceSamplingStage(order.id.value, SamplingPipelineStage.IN_DELIVERY))
                                     },
                                     style = ClayButtonStyle.Accent,
                                     fontSize = 11.sp
@@ -2109,6 +2163,345 @@ private fun statusTint(status: SamplingStatus): Color = when (status) {
     SamplingStatus.REVISION -> WeMadeColors.Accent
     SamplingStatus.ACC_APPROVED -> WeMadeColors.Success
     SamplingStatus.CANCELLED -> WeMadeColors.Error
+}
+
+@Composable
+private fun SamplingActiveStepCard(
+    order: SamplingOrder,
+    garmentTimeline: List<GarmentStepState>,
+    onNavigateToSampling: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeStep = garmentTimeline.firstOrNull { it.isActive }
+        ?: garmentTimeline.lastOrNull { it.isCompleted }
+        ?: garmentTimeline.first()
+
+    val currentStep = activeStep.step
+    val stageBg = when (currentStep) {
+        GarmentTrackingStep.INPUT_SPEK -> WeMadeColors.SurfaceMuted
+        GarmentTrackingStep.SPK_RELEASED -> WeMadeColors.Primary.copy(alpha = 0.08f)
+        GarmentTrackingStep.KNITTING -> WeMadeColors.Warning.copy(alpha = 0.08f)
+        GarmentTrackingStep.QC_IN_LINE -> WeMadeColors.Warning.copy(alpha = 0.12f)
+        GarmentTrackingStep.FINISHING -> WeMadeColors.Primary.copy(alpha = 0.08f)
+        GarmentTrackingStep.QC_FINAL -> WeMadeColors.Success.copy(alpha = 0.08f)
+        GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent.copy(alpha = 0.10f)
+        GarmentTrackingStep.ACC_APPROVED -> if (order.isAccApproved) WeMadeColors.Success.copy(alpha = 0.12f) else WeMadeColors.Warning.copy(alpha = 0.08f)
+    }
+
+    val stageOutline = when (currentStep) {
+        GarmentTrackingStep.KNITTING -> WeMadeColors.Warning.copy(alpha = 0.5f)
+        GarmentTrackingStep.QC_FINAL, GarmentTrackingStep.ACC_APPROVED -> WeMadeColors.Success.copy(alpha = 0.5f)
+        GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent.copy(alpha = 0.5f)
+        else -> WeMadeColors.Primary.copy(alpha = 0.35f)
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clayFlat(
+                shape = ClayShapes.Card,
+                background = stageBg,
+                outline = stageOutline,
+                borderWidth = ClayBorder.Medium
+            )
+            .padding(ClaySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+    ) {
+        // ── Header Status Aktif ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                ClayTag(
+                    text = "Langkah ${currentStep.order} dari 8: ${currentStep.displayName}",
+                    tint = when (currentStep) {
+                        GarmentTrackingStep.KNITTING, GarmentTrackingStep.QC_IN_LINE -> WeMadeColors.Warning
+                        GarmentTrackingStep.ACC_APPROVED, GarmentTrackingStep.QC_FINAL -> WeMadeColors.Success
+                        GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent
+                        else -> WeMadeColors.Primary
+                    }
+                )
+                Text(
+                    text = activeStep.subtitle ?: currentStep.displayName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+            }
+
+            ClayActionSurface(
+                onClick = onNavigateToSampling,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                ) {
+                    Text(
+                        text = "Buka Modul Sampling",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.Primary
+                    )
+                    IconArrowForward(Modifier.size(10.dp), color = WeMadeColors.Primary)
+                }
+            }
+        }
+
+        // ── Konten Spesifik per Langkah Operasional ──
+        when (currentStep) {
+            GarmentTrackingStep.INPUT_SPEK, GarmentTrackingStep.SPK_RELEASED -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusDetailChip(label = "Nomor SPK", value = "#${order.spkNumber.value}")
+                    StatusDetailChip(label = "Jumlah Sampel", value = "${order.sampleQuantity} pcs")
+                    StatusDetailChip(label = "Status Alur", value = "Menunggu Pemrograman CAM")
+                }
+            }
+
+            GarmentTrackingStep.KNITTING -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    Text(
+                        text = "Produksi fisik sedang berlangsung di lantai sampling. Teknisi CAM menyiapkan program mesin & operator merakit potongan panel garmen.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Spacer(Modifier.height(ClaySpacing.Xxs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                    ) {
+                        val isCamDone = order.milestones.any { it.step == MilestoneStep.PROGRAM && it.isCompleted }
+                        val isKnitDone = order.milestones.any { it.step == MilestoneStep.RAJUT && it.isCompleted }
+                        val isLinkDone = order.milestones.any { it.step == MilestoneStep.LINKING && it.isCompleted }
+
+                        MilestoneMiniBadge(
+                            label = "1. Program CAM",
+                            status = if (isCamDone) "Selesai ✓" else "Pengerjaan",
+                            isDone = isCamDone,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MilestoneMiniBadge(
+                            label = "2. Rajut Mesin",
+                            status = if (isKnitDone) "Selesai ✓" else if (order.pipelineStage >= SamplingPipelineStage.MACHINE_KNITTING) "Sedang Rajut" else "Antrean",
+                            isDone = isKnitDone,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MilestoneMiniBadge(
+                            label = "3. Linking & Jahit",
+                            status = if (isLinkDone) "Selesai ✓" else if (order.pipelineStage >= SamplingPipelineStage.LINKING_ASSEMBLY) "Sedang Jahit" else "Menunggu Panel",
+                            isDone = isLinkDone,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(Modifier.height(ClaySpacing.Xxs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                    ) {
+                        StatusDetailChip(label = "Benang", value = order.knitSpec.yarnType.ifBlank { "Cotton / Acrylic" })
+                        StatusDetailChip(label = "Gauge Mesin", value = order.machineProgram.effectiveTenselity.firstOrNull()?.parameter?.ifBlank { "12G CAM" } ?: "12G CAM")
+                        StatusDetailChip(label = "Rajutan", value = order.knitSpec.knitType.ifBlank { "Jaquard" })
+                    }
+                }
+            }
+
+            GarmentTrackingStep.QC_IN_LINE -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    Text(
+                        text = "Inspeksi In-Line memeriksa kerapatan rajutan panel mentah, sambungan linking, dan tenselity benang sebelum masuk ke proses pencucian & setrika uap.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                    ) {
+                        val qcResult = order.latestQcReport?.qcResult?.displayName ?: "Dalam Pemeriksaan In-Line"
+                        StatusDetailChip(label = "Status QC 1", value = qcResult)
+                        StatusDetailChip(label = "Fokus Pemeriksaan", value = "Sambungan Linking & Tenselity Benang")
+                        StatusDetailChip(label = "Tahap Lanjutan", value = "Finishing & Steam Uap")
+                    }
+                }
+            }
+
+            GarmentTrackingStep.FINISHING -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    val deposited = order.totalFinishedDepositedQty
+                    val target = order.sampleQuantity
+                    val pct = if (target > 0) (deposited * 100 / target).coerceIn(0, 100) else 0
+
+                    Text(
+                        text = "Pencucian sampel garmen untuk mengunci ukuran benang, setrika uap panas (steam), pemasangan label merek/care, dan trimming benang.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Spacer(Modifier.height(ClaySpacing.Xxs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusDetailChip(
+                            label = "Setoran Finishing",
+                            value = "$deposited dari $target pcs ($pct%)"
+                        )
+                        StatusDetailChip(
+                            label = "Jalur Finishing",
+                            value = order.finishingPath.displayName
+                        )
+                        if (order.finishingPath == FinishingPath.MAKLOON_VENDOR && order.vendorInfo.vendorName.isNotBlank()) {
+                            StatusDetailChip(
+                                label = "Vendor",
+                                value = "${order.vendorInfo.vendorName} (${order.vendorInfo.status.displayName})"
+                            )
+                        }
+                    }
+                }
+            }
+
+            GarmentTrackingStep.QC_FINAL -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    Text(
+                        text = "Pemeriksaan akhir sampel garmen jadi: memastikan ukuran fisik sesuai toleransi POM Size Chart (+/- 1-2 cm) dan lolos metal detector jarum patah.",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                    ) {
+                        StatusDetailChip(
+                            label = "Hasil QC Ukuran Jadi",
+                            value = order.latestQcReport?.qcResult?.displayName ?: "Pengujian Toleransi POM Selesai"
+                        )
+                        StatusDetailChip(
+                            label = "Inspeksi Metal Detector",
+                            value = "Bebas Jarum Patah (Lolos)"
+                        )
+                        StatusDetailChip(
+                            label = "Kesiapan",
+                            value = "Siap Dikemas & Dikirim ke Buyer"
+                        )
+                    }
+                }
+            }
+
+            GarmentTrackingStep.READY_TO_SHIP -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    Text(
+                        text = "Sampel fisik telah selesai diproduksi dan sedang dikirimkan ke buyer untuk evaluasi fitting dan persetujuan (ACC).",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusDetailChip(
+                            label = "Nomor Resi Pengiriman",
+                            value = order.courierTracking?.ifBlank { "Belum ada resi (Kurir)" } ?: "Belum ada resi (Kurir)"
+                        )
+                        StatusDetailChip(
+                            label = "Status Ekspedisi",
+                            value = if (!order.courierTracking.isNullOrBlank()) "Dalam Perjalanan ke Buyer" else "Siap Diserahkan ke Kurir"
+                        )
+                    }
+                }
+            }
+
+            GarmentTrackingStep.ACC_APPROVED -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    if (order.isAccApproved) {
+                        Text(
+                            text = "Sampel telah disetujui buyer (ACC). Pola fisik, jenis benang, dan gramasi ini terkunci sebagai acuan Golden Sample untuk Produksi Massal di Tab 2.",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = WeMadeColors.Success
+                        )
+                    } else {
+                        Text(
+                            text = "Sampel telah diterima buyer. Menunggu keputusan buyer: ACC (disetujui) untuk lanjut ke PO Massal, atau Ajukan Revisi jika perlu penyesuaian ukuran/detail.",
+                            fontSize = 11.sp,
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusDetailChip(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .clayFlat(
+                shape = ClayShapes.Pill,
+                background = WeMadeColors.Surface.copy(alpha = 0.85f),
+                outline = WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.OnSurfaceMuted
+        )
+        Text(
+            text = value,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = WeMadeColors.OnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun MilestoneMiniBadge(
+    label: String,
+    status: String,
+    isDone: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clayFlat(
+                shape = ClayShapes.Pill,
+                background = if (isDone) WeMadeColors.Success.copy(alpha = 0.12f) else WeMadeColors.Surface.copy(alpha = 0.85f),
+                outline = if (isDone) WeMadeColors.Success.copy(alpha = 0.4f) else WeMadeColors.Border,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isDone) WeMadeColors.Success else WeMadeColors.OnSurface
+        )
+        Text(
+            text = status,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isDone) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
+        )
+    }
 }
 
 @Composable
