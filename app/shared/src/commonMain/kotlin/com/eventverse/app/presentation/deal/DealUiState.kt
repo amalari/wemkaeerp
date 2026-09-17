@@ -45,6 +45,13 @@ sealed interface DealUiEvent {
     data object DismissError : DealUiEvent
     data object DismissStatusMessage : DealUiEvent
     data class ChangeStage(val stage: DealStage) : DealUiEvent
+
+    /**
+     * Menerbitkan SPK Produksi Massal ke modul `PRODUCTION_MRP` dan memindahkan deal ke
+     * `IN_PRODUCTION`. Sebelumnya tombol ini hanya menggeser stage, sehingga lantai produksi
+     * tidak pernah menerima dokumen kerja apa pun.
+     */
+    data object LaunchBulkProduction : DealUiEvent
     data class AttachManualPo(
         val poNumber: String,
         val description: String,
@@ -64,7 +71,8 @@ sealed interface DealUiEvent {
         val sampleQuantity: Int,
         val courierTracking: String?,
         val samplingFeeIdr: Long,
-        val notes: String
+        val notes: String,
+        val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
     ) : DealUiEvent
 
     data class ToggleSampleAcc(
@@ -73,6 +81,21 @@ sealed interface DealUiEvent {
         val notes: String
     ) : DealUiEvent
 
-    /** Membuka picker foto platform lalu mengunggahnya sebagai mockup desain ini. */
-    data class UploadSamplingMockup(val samplingId: String) : DealUiEvent
+    /** Unggah foto mockup hasil cropper kotak (bytes sudah 1:1, slot: front / back). */
+    data class UploadSamplingMockup(
+        val samplingId: String,
+        val fileName: String,
+        val mimeType: String,
+        val bytes: ByteArray,
+        val slot: String = "front"
+    ) : DealUiEvent
+
+    /** Menerbitkan lembar sampling di deal menjadi SPK resmi ke Divisi Sampling. */
+    data class CreateSamplingSpk(val samplingId: String) : DealUiEvent
+
+    /** Memindahkan stage lembar sampling (misal: ke IN_DELIVERY / status pengiriman). */
+    data class AdvanceSamplingStage(
+        val samplingId: String,
+        val targetStage: com.eventverse.app.domain.sampling.SamplingPipelineStage
+    ) : DealUiEvent
 }

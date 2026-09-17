@@ -1,25 +1,40 @@
 package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.sampling.*
+import kotlinx.datetime.LocalDate
 
 enum class SamplingMobileTab(val displayName: String) {
     INFO("Info & Desain"),
     SIZE("Ukuran Ganda"),
     MACHINE("Mesin & Feeder"),
+    TENSELITY("Tenselity Matrix"),
     STATUS("Status Alur");
+}
+
+enum class SamplingViewTab(val displayName: String) {
+    WORKBENCH("SPK Workbench"),
+    PIPELINE_KANBAN("Pipeline Kanban"),
+    VENDOR_MONITORING("Monitoring Vendor");
 }
 
 data class SamplingUiState(
     val orders: List<SamplingOrder> = emptyList(),
     val selectedOrderId: SamplingOrderId? = null,
+    val activeViewTab: SamplingViewTab = SamplingViewTab.WORKBENCH,
     val activeMobileTab: SamplingMobileTab = SamplingMobileTab.INFO,
     val selectedStatusFilter: SamplingStatus? = null,
+    val selectedStageFilter: SamplingPipelineStage? = null,
     val searchQuery: String = "",
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val statusMessage: String? = null,
     val isErrorMessage: Boolean = false,
-    val isCreateDialogOpen: Boolean = false
+    val isCreateDialogOpen: Boolean = false,
+    val isFinishingDialogOpen: Boolean = false,
+    val isQcDialogOpen: Boolean = false,
+    val isVendorDialogOpen: Boolean = false,
+    val isRevisionDialogOpen: Boolean = false,
+    val targetOrderForAction: SamplingOrder? = null
 ) {
     val selectedOrder: SamplingOrder?
         get() = (selectedOrderId?.let { id -> orders.firstOrNull { it.id == id } } ?: orders.firstOrNull())
@@ -27,19 +42,26 @@ data class SamplingUiState(
     val filteredOrders: List<SamplingOrder>
         get() = orders.filter { order ->
             val matchStatus = selectedStatusFilter == null || order.status == selectedStatusFilter
+            val matchStage = selectedStageFilter == null || order.pipelineStage == selectedStageFilter
             val matchSearch = searchQuery.isBlank() ||
                 order.clientName.contains(searchQuery, ignoreCase = true) ||
                 order.styleName.contains(searchQuery, ignoreCase = true) ||
-                order.spkNumber.value.contains(searchQuery, ignoreCase = true)
-            matchStatus && matchSearch
+                order.spkNumber.value.contains(searchQuery, ignoreCase = true) ||
+                order.vendorInfo.vendorName.contains(searchQuery, ignoreCase = true)
+            matchStatus && matchStage && matchSearch
         }
+
+    val ordersWithVendor: List<SamplingOrder>
+        get() = orders.filter { it.finishingPath == FinishingPath.MAKLOON_VENDOR && it.vendorInfo.status != VendorFollowUpStatus.NONE }
 }
 
 sealed interface SamplingUiEvent {
     data object Load : SamplingUiEvent
     data class SelectOrder(val orderId: SamplingOrderId) : SamplingUiEvent
+    data class SelectViewTab(val tab: SamplingViewTab) : SamplingUiEvent
     data class SelectMobileTab(val tab: SamplingMobileTab) : SamplingUiEvent
     data class SetFilter(val status: SamplingStatus?) : SamplingUiEvent
+    data class SetStageFilter(val stage: SamplingPipelineStage?) : SamplingUiEvent
     data class UpdateSearchQuery(val query: String) : SamplingUiEvent
     data object OpenCreateDialog : SamplingUiEvent
     data object CloseCreateDialog : SamplingUiEvent
@@ -60,5 +82,22 @@ sealed interface SamplingUiEvent {
         val notes: String
     ) : SamplingUiEvent
     data class SaveTechnicalSpec(val updatedOrder: SamplingOrder) : SamplingUiEvent
+    data class AdvanceStage(val orderId: SamplingOrderId, val targetStage: SamplingPipelineStage) : SamplingUiEvent
+    data class AddFinishingDeposit(val orderId: SamplingOrderId, val deposit: FinishingDeposit) : SamplingUiEvent
+    data class AssignMakloonVendor(val orderId: SamplingOrderId, val info: MakloonVendorInfo) : SamplingUiEvent
+    data class ConfirmVendorReturn(val orderId: SamplingOrderId, val returnedAt: LocalDate? = null) : SamplingUiEvent
+    data class SubmitQcInspection(val orderId: SamplingOrderId, val report: QcInspectionReport) : SamplingUiEvent
+    data class RequestRevision(val orderId: SamplingOrderId, val notes: String) : SamplingUiEvent
+    data class SaveFullOrder(val order: SamplingOrder) : SamplingUiEvent
+
+    data class OpenFinishingDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseFinishingDialog : SamplingUiEvent
+    data class OpenQcDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseQcDialog : SamplingUiEvent
+    data class OpenVendorDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseVendorDialog : SamplingUiEvent
+    data class OpenRevisionDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseRevisionDialog : SamplingUiEvent
+
     data object DismissStatusMessage : SamplingUiEvent
 }

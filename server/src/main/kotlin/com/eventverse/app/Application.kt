@@ -83,6 +83,7 @@ import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.infrastructure.PostgresCrmLeadRepository
 import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
+import com.eventverse.app.infrastructure.PostgresBulkWorkOrderRepository
 import com.eventverse.app.infrastructure.PostgresSamplingOrderRepository
 import com.eventverse.app.domain.masterdata.MaterialItemRepository
 import com.eventverse.app.domain.masterdata.MaterialPriceRepository
@@ -90,6 +91,7 @@ import com.eventverse.app.infrastructure.PostgresMaterialItemRepository
 import com.eventverse.app.infrastructure.PostgresMaterialPriceRepository
 import com.eventverse.app.routes.crmRoutes
 import com.eventverse.app.routes.masterDataRoutes
+import com.eventverse.app.routes.productionRoutes
 import com.eventverse.app.routes.samplingRoutes
 import com.eventverse.app.domain.techpack.TechPackRepository
 import com.eventverse.app.infrastructure.PostgresTechPackRepository
@@ -177,6 +179,7 @@ fun Application.module(
     val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
+    val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository()
     val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
     val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
     val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
@@ -553,6 +556,11 @@ fun Application.module(
         )
         samplingRoutes(
             repository = samplingOrderRepo
+        )
+        productionRoutes(
+            workOrderRepository = bulkWorkOrderRepo,
+            dealRepository = crmDealRepo,
+            samplingOrderRepository = samplingOrderRepo
         )
         masterDataRoutes(
             materialRepository = materialRepo,

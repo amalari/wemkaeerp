@@ -1,39 +1,49 @@
 package com.eventverse.app.presentation.deal
 
-import kotlin.coroutines.resume
-import kotlin.js.JsFun
+import kotlinx.browser.document
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.w3c.dom.HTMLInputElement
+import org.w3c.files.FileReader
+import kotlin.coroutines.resume
 
-/** Varian JS dari picker web — isinya sengaja identik dengan target Wasm. */
-@JsFun(
-    """(accept, cb) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = accept;
-        input.style.display = 'none';
-        document.body.appendChild(input);
-        const finish = (value) => {
-            if (input.parentNode) { input.parentNode.removeChild(input); }
-            cb(value);
-        };
-        input.onchange = () => {
-            const file = input.files && input.files[0];
-            if (!file) { finish(null); return; }
-            const reader = new FileReader();
-            reader.onload = () => finish(typeof reader.result === 'string' ? reader.result : null);
-            reader.onerror = () => finish(null);
-            reader.readAsDataURL(file);
-        };
-        input.click();
-    }"""
-)
-private external fun openFilePickerJs(accept: String, onLoaded: (String?) -> Unit)
-
+/**
+ * Varian JS dari picker web.
+ *
+ * Perilakunya identik dengan target Wasm (buat `<input type="file">` sementara, baca berkasnya
+ * sebagai **data URL**), tapi caranya berbeda: target Wasm memanggil JavaScript lewat `@JsFun`,
+ * sedangkan target JS memakai binding DOM `kotlinx.browser`/`org.w3c` yang sudah tersedia
+ * langsung — sama seperti `PlatformLocalStorage.js.kt` di modul ini. `@JsFun` sendiri adalah
+ * anotasi khusus Kotlin/Wasm dan tidak ada di Kotlin/JS.
+ */
 actual suspend fun pickLocalFile(accept: String): PickedLocalFile? =
     suspendCancellableCoroutine { continuation ->
-        openFilePickerJs(accept) { dataUrl ->
+        val input = document.createElement("input") as HTMLInputElement
+        input.type = "file"
+        input.accept = accept
+        input.style.display = "none"
+        document.body?.appendChild(input)
+
+        // Dipanggil sekali saja: `onchange` tidak pernah terpicu kalau pengguna menekan Cancel,
+        // jadi coroutine-nya diselesaikan lewat pembatalan, bukan lewat cabang kedua di sini.
+        fun finish(dataUrl: String?) {
+            input.parentNode?.removeChild(input)
             if (continuation.isActive) {
                 continuation.resume(dataUrl?.let { decodeDataUrlToPickedFile(it) })
             }
         }
+
+        input.onchange = {
+            val file = input.files?.item(0)
+            if (file == null) {
+                finish(null)
+            } else {
+                val reader = FileReader()
+                reader.onload = { _ -> finish(reader.result as? String) }
+                reader.onerror = { _ -> finish(null) }
+                reader.readAsDataURL(file)
+            }
+        }
+
+        continuation.invokeOnCancellation { input.parentNode?.removeChild(input) }
+        input.click()
     }

@@ -128,6 +128,36 @@ fun ModuleWorkspaceScreen(
         return
     }
 
+    if (module == BusinessModule.OPERATOR_EXEC) {
+        com.eventverse.app.presentation.finishing.FinishingOperatorWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.QUALITY_CONTROL) {
+        com.eventverse.app.presentation.qc.QcInspectorWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.PRODUCTION_MRP) {
+        com.eventverse.app.presentation.production.ProductionWorkspaceScreen(
+            tenantSlug = persona?.tenantSlug ?: "",
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
 }
 

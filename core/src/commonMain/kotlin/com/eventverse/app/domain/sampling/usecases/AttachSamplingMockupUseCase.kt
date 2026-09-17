@@ -16,7 +16,8 @@ import kotlinx.datetime.Clock
 data class AttachSamplingMockupCommand(
     val tenantId: TenantId,
     val samplingOrderId: SamplingOrderId,
-    val storageKey: String
+    val storageKey: String,
+    val slot: String = "front"
 )
 
 class AttachSamplingMockupUseCase(
@@ -29,6 +30,6 @@ class AttachSamplingMockupUseCase(
             ?: error("SPK Sample tidak ditemukan")
         require(existing.tenantId == command.tenantId) { "Sampling order bukan milik tenant ini" }
 
-        repository.save(existing.attachMockup(command.storageKey, Clock.System.now()))
+        repository.save(existing.attachMockup(command.storageKey, command.slot, Clock.System.now()))
     }
 }

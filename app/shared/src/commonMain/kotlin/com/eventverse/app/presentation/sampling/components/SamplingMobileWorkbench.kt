@@ -25,7 +25,12 @@ fun SamplingMobileWorkbench(
     onToggleMilestone: (MilestoneStep, Boolean) -> Unit,
     onApproveOrder: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
-    onCreateTechPack: ((SamplingOrder) -> Unit)? = null
+    onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
+    onOpenFinishingDialog: () -> Unit = {},
+    onOpenQcDialog: () -> Unit = {},
+    onOpenVendorDialog: () -> Unit = {},
+    onConfirmVendorReceive: () -> Unit = {},
+    onUpdateTenselity: (List<com.eventverse.app.domain.sampling.TenselityEntry>) -> Unit = {}
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -151,6 +156,13 @@ fun SamplingMobileWorkbench(
                     }
                 }
 
+                SamplingMobileTab.TENSELITY -> {
+                    TenselityTable(
+                        entries = order.machineProgram.tenselityEntries,
+                        onEntriesChanged = onUpdateTenselity
+                    )
+                }
+
                 SamplingMobileTab.STATUS -> {
                     ClayCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -161,6 +173,48 @@ fun SamplingMobileWorkbench(
                             milestones = order.milestones,
                             onToggleMilestone = onToggleMilestone
                         )
+                    }
+
+                    VendorMakloonCard(
+                        order = order,
+                        onOpenVendorDialog = onOpenVendorDialog,
+                        onConfirmReceive = onConfirmVendorReceive
+                    )
+
+                    // Quick Finishing & QC info
+                    ClayCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = ClayShapes.Card,
+                        contentPadding = PaddingValues(ClaySpacing.Md)
+                    ) {
+                        Text(text = "PROGRES FINISHING & QC", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+                        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Setoran Finishing:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                            Text(text = "${order.totalFinishedDepositedQty} / ${order.sampleQuantity} Pcs", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Primary)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Sisa Belum:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                            Text(text = "${order.remainingFinishingQty} Pcs", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Accent)
+                        }
+                        Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            ClayButton(
+                                text = "+ Setor",
+                                style = ClayButtonStyle.Primary,
+                                modifier = Modifier.weight(1f),
+                                onClick = onOpenFinishingDialog
+                            )
+                            ClayButton(
+                                text = "QC",
+                                style = ClayButtonStyle.Success,
+                                modifier = Modifier.weight(1f),
+                                onClick = onOpenQcDialog
+                            )
+                        }
                     }
                 }
             }

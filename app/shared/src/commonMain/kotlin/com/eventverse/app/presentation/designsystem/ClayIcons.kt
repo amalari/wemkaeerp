@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -498,6 +499,24 @@ fun IconPlus(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary)
             color = color,
             start = Offset(w * 0.50f, h * 0.20f),
             end = Offset(w * 0.50f, h * 0.80f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+fun IconMinus(modifier: Modifier = Modifier, color: Color = WeMadeColors.Primary) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.0f * density
+
+        // Horizontal line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.20f, h * 0.50f),
+            end = Offset(w * 0.80f, h * 0.50f),
             strokeWidth = stroke,
             cap = StrokeCap.Round
         )
@@ -1219,5 +1238,117 @@ fun IconImage(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfa
             color = color,
             style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
+    }
+}
+
+@Composable
+fun IconRotateCcw(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val stroke = 1.8f * density
+        // Busur lingkaran dengan celah di sisi kiri
+        drawArc(
+            color = color,
+            startAngle = 225f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.12f, size.height * 0.12f),
+            size = Size(size.width * 0.76f, size.height * 0.76f),
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+        // Kepala panah di sisi kiri (arah putaran berlawanan jarum jam)
+        val path = Path().apply {
+            moveTo(size.width * 0.14f, size.height * 0.36f)
+            lineTo(size.width * 0.14f, size.height * 0.64f)
+            lineTo(size.width * 0.02f, size.height * 0.50f)
+            close()
+        }
+        drawPath(path, color)
+    }
+}
+
+@Composable
+fun IconRotateCw(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val stroke = 1.8f * density
+        // Busur lingkaran dengan celah di sisi kanan
+        drawArc(
+            color = color,
+            startAngle = 45f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.12f, size.height * 0.12f),
+            size = Size(size.width * 0.76f, size.height * 0.76f),
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+        // Kepala panah di sisi kanan (arah putaran searah jarum jam)
+        val path = Path().apply {
+            moveTo(size.width * 0.86f, size.height * 0.36f)
+            lineTo(size.width * 0.86f, size.height * 0.64f)
+            lineTo(size.width * 0.98f, size.height * 0.50f)
+            close()
+        }
+        drawPath(path, color)
+    }
+}
+
+@Composable
+fun IconFlipHorizontal(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        // Garis sumbu cermin putus-putus vertikal
+        drawLine(
+            color = color.copy(alpha = 0.55f),
+            start = Offset(w / 2f, h * 0.08f),
+            end = Offset(w / 2f, h * 0.92f),
+            strokeWidth = 1.4f * density,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f * density, 3f * density), 0f)
+        )
+        // Segitiga kiri & kanan yang menunjuk keluar
+        val left = Path().apply {
+            moveTo(w * 0.44f, h * 0.5f)
+            lineTo(w * 0.10f, h * 0.28f)
+            lineTo(w * 0.10f, h * 0.72f)
+            close()
+        }
+        drawPath(left, color)
+        val right = Path().apply {
+            moveTo(w * 0.56f, h * 0.5f)
+            lineTo(w * 0.90f, h * 0.28f)
+            lineTo(w * 0.90f, h * 0.72f)
+            close()
+        }
+        drawPath(right, color)
+    }
+}
+
+@Composable
+fun IconFlipVertical(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        // Garis sumbu cermin putus-putus horizontal
+        drawLine(
+            color = color.copy(alpha = 0.55f),
+            start = Offset(w * 0.08f, h / 2f),
+            end = Offset(w * 0.92f, h / 2f),
+            strokeWidth = 1.4f * density,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f * density, 3f * density), 0f)
+        )
+        // Segitiga atas & bawah yang menunjuk keluar
+        val top = Path().apply {
+            moveTo(w * 0.5f, h * 0.44f)
+            lineTo(w * 0.28f, h * 0.10f)
+            lineTo(w * 0.72f, h * 0.10f)
+            close()
+        }
+        drawPath(top, color)
+        val bottom = Path().apply {
+            moveTo(w * 0.5f, h * 0.56f)
+            lineTo(w * 0.28f, h * 0.90f)
+            lineTo(w * 0.72f, h * 0.90f)
+            close()
+        }
+        drawPath(bottom, color)
     }
 }

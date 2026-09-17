@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.crm.components.AddCustomFieldDialog
 import com.eventverse.app.presentation.crm.components.CreateLeadDialog
 import com.eventverse.app.presentation.crm.components.CrmKanbanBoard
@@ -37,6 +38,7 @@ import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -56,7 +58,28 @@ fun CrmWorkspaceScreen(
     val viewModel = remember(tenantSlug) { CrmViewModel(tenantSlug = tenantSlug, access = access) }
     val state by viewModel.uiState.collectAsState()
     val employees by RbacAccessPolicyRepository.shared.employees.collectAsState()
-    var directoryTab by remember { mutableStateOf(CrmDirectoryTab.LEADS) }
+
+    // Tab direktori hidup di URL, bukan hanya di state Compose: memuat ulang halaman saat
+    // sedang membuka Deal harus kembali ke Deal, dan tombol Back browser harus memindahkan
+    // tab, bukan melempar keluar dari modul. Polanya sama dengan sub-rute Invoicing.
+    val initialPath = remember { PlatformNavigation.getCurrentPath() }
+    var directoryTab by remember { mutableStateOf(resolveCrmDirectoryTab(initialPath) ?: CrmDirectoryTab.LEADS) }
+
+    LaunchedEffect(Unit) {
+        // URL telanjang "/crm-sales" dinormalkan ke sub-rutenya supaya alamat yang tersalin
+        // selalu menyebut tab yang sedang dilihat. replace, bukan push: ini bukan langkah baru.
+        if (resolveCrmDirectoryTab(PlatformNavigation.getCurrentPath()) == null) {
+            PlatformNavigation.replacePath(directoryTab.route)
+        }
+
+        PlatformNavigation.listenToPathChanges { newPath ->
+            if (AppNavScreen.fromPath(newPath) == AppNavScreen.CRM_SALES) {
+                resolveCrmDirectoryTab(newPath)?.let { tab ->
+                    if (tab != directoryTab) directoryTab = tab
+                }
+            }
+        }
+    }
 
     LaunchedEffect(tenantSlug) { viewModel.onEvent(CrmUiEvent.Load) }
 
@@ -117,7 +140,12 @@ fun CrmWorkspaceScreen(
                 val isSelected = directoryTab == tab
                 ClayButton(
                     text = tab.label,
-                    onClick = { directoryTab = tab },
+                    onClick = {
+                        if (directoryTab != tab) {
+                            directoryTab = tab
+                            PlatformNavigation.pushPath(tab.route)
+                        }
+                    },
                     style = if (isSelected) ClayButtonStyle.Primary else ClayButtonStyle.Ghost,
                     fontSize = 12.sp
                 )
@@ -306,8 +334,27 @@ fun CrmWorkspaceScreen(
  * dan master data kontak. Deal/Kontak sengaja bukan menu modul tersendiri —
  * keduanya bagian dari bounded context CRM_SALES yang sama (RBAC & entitlement ikut CRM).
  */
-private enum class CrmDirectoryTab(val label: String) {
-    LEADS("Leads"),
-    DEALS("Deal"),
-    CONTACTS("Kontak")
+private enum class CrmDirectoryTab(val label: String, val slug: String) {
+    LEADS("Leads", "leads"),
+    DEALS("Deal", "deals"),
+    CONTACTS("Kontak", "contacts");
+
+    /** Sub-rute kanonik tab ini; dipakai untuk push/replace URL dan deep link. */
+    val route: String get() = "${AppNavScreen.CRM_SALES.route}/$slug"
+}
+
+/**
+ * Membaca tab direktori dari URL. Mencocokkan segmen terakhir saja agar semua alias
+ * modul CRM ("/crm-sales", "/crm", "/sales") ikut bekerja tanpa didaftar satu per satu.
+ * Mengembalikan null bila URL belum menyebut sub-rute apa pun.
+ */
+private fun resolveCrmDirectoryTab(rawPath: String): CrmDirectoryTab? {
+    val normalized = rawPath.trim()
+        .removePrefix("#")
+        .substringBefore("?")
+        .substringBefore("#")
+        .removeSuffix("/")
+        .lowercase()
+    val segment = normalized.substringAfterLast('/')
+    return CrmDirectoryTab.entries.firstOrNull { it.slug == segment }
 }

@@ -21,7 +21,8 @@ data class SamplingFromDealCommand(
     val sampleQuantity: Int = 2,
     val courierTracking: String? = null,
     val samplingFeeIdr: Long = 0L,
-    val notes: String = ""
+    val notes: String = "",
+    val sizeMatrix: List<SizeChartRow>? = null
 )
 
 class CreateSamplingOrderFromDealUseCase(
@@ -29,10 +30,11 @@ class CreateSamplingOrderFromDealUseCase(
 ) {
     suspend operator fun invoke(command: SamplingFromDealCommand): Result<SamplingOrder> = runCatching {
         require(command.dealId.isNotBlank()) { "DealId tidak boleh kosong" }
-        require(command.styleName.isNotBlank()) { "Nama desain / style tidak boleh kosong" }
 
         val existingId = command.samplingOrderId?.takeIf { it.isNotBlank() }
         if (existingId != null) {
+            // Jalur update: styleName boleh kosong (berarti tidak di-rename) karena kartu desain
+            // dibuat dengan kode autogenerate (DSG-01, …) yang bisa di-rename belakangan.
             val existing = samplingRepository.findById(SamplingOrderId(existingId))
                 ?: error("Sampling order tidak ditemukan")
             require(existing.tenantId == command.tenantId) { "Sampling order bukan milik tenant ini" }
@@ -43,14 +45,20 @@ class CreateSamplingOrderFromDealUseCase(
                 existing
                     .linkToDeal(command.dealId, Clock.System.now())
                     .copy(
+                        styleName = command.styleName.trim().ifBlank { existing.styleName },
                         sampleQuantity = command.sampleQuantity.coerceIn(1, 3),
                         samplingFeeIdr = command.samplingFeeIdr.coerceAtLeast(0L),
-                        notes = command.notes.ifBlank { existing.notes },
+                        // Dikirim langsung tanpa fallback: UI selalu mengirim isi textarea terkini,
+                        // jadi admin juga bisa mengosongkan catatan (fallback lama mencegah clear).
+                        notes = command.notes,
+                        sizeMatrix = command.sizeMatrix ?: existing.sizeMatrix,
                         updatedAt = Clock.System.now()
                     )
                     .updateCourierTracking(command.courierTracking ?: existing.courierTracking ?: "", Clock.System.now())
             )
         }
+
+        require(command.styleName.isNotBlank()) { "Nama desain / style tidak boleh kosong" }
 
         val create = CreateSamplingOrderCommand(
             tenantId = command.tenantId,
@@ -59,7 +67,8 @@ class CreateSamplingOrderFromDealUseCase(
             dealId = command.dealId,
             sampleQuantity = command.sampleQuantity,
             samplingFeeIdr = command.samplingFeeIdr,
-            notes = command.notes
+            notes = command.notes,
+            sizeMatrix = command.sizeMatrix ?: defaultSamplingSizeMatrix()
         )
         CreateSamplingOrderUseCase(samplingRepository)(create).getOrThrow()
     }

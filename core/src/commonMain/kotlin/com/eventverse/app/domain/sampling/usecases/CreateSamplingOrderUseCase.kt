@@ -19,6 +19,7 @@ data class CreateSamplingOrderCommand(
     val sampleQuantity: Int = 2,
     val samplingFeeIdr: Long = 0L,
     val notes: String = "",
+    val sizeMatrix: List<SizeChartRow> = defaultSamplingSizeMatrix(),
     val useFactoryAllSizePreset: Boolean = true
 ) {
     init {
@@ -68,6 +69,7 @@ class CreateSamplingOrderUseCase(
             notes = command.notes.trim(),
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawSizes,
+            sizeMatrix = command.sizeMatrix,
             createdAt = now,
             updatedAt = now
         )

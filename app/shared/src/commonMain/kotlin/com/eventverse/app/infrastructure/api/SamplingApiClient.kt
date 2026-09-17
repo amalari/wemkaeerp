@@ -31,6 +31,13 @@ interface SamplingRemoteDataSource {
         isApproved: Boolean,
         accNotes: String
     ): Result<SamplingOrder>
+    suspend fun saveOrder(tenantSlug: String, order: SamplingOrder): Result<SamplingOrder>
+    suspend fun advanceStage(tenantSlug: String, orderId: String, targetStage: SamplingPipelineStage): Result<SamplingOrder>
+    suspend fun addFinishingDeposit(tenantSlug: String, orderId: String, deposit: FinishingDeposit): Result<SamplingOrder>
+    suspend fun assignMakloonVendor(tenantSlug: String, orderId: String, info: MakloonVendorInfo): Result<SamplingOrder>
+    suspend fun confirmVendorReturn(tenantSlug: String, orderId: String, returnedAt: kotlinx.datetime.LocalDate? = null): Result<SamplingOrder>
+    suspend fun submitQcInspection(tenantSlug: String, orderId: String, report: QcInspectionReport): Result<SamplingOrder>
+    suspend fun requestRevision(tenantSlug: String, orderId: String, notes: String): Result<SamplingOrder>
 }
 
 class SamplingApiClient(
@@ -137,6 +144,122 @@ class SamplingApiClient(
         }
         val body = response.requireBody("memproses persetujuan ACC produksi")
         val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons ACC tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun saveOrder(tenantSlug: String, order: SamplingOrder): Result<SamplingOrder> = runCatching {
+        val payload = SamplingOrderCodec.encode(order).encode()
+        val response = httpClient.put(resolveUrl("$ORDERS_PATH/${order.id.value}")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("menyimpan data SPK")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons SPK tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun advanceStage(tenantSlug: String, orderId: String, targetStage: SamplingPipelineStage): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf("targetStage" to jsonOf(targetStage.name)).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/stage")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("memperbarui tahapan pipeline")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons tahapan tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun addFinishingDeposit(tenantSlug: String, orderId: String, deposit: FinishingDeposit): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf(
+            "depositDate" to jsonOf(deposit.depositDate.toString()),
+            "qtyPcs" to jsonOf(deposit.qtyPcs),
+            "weightKg" to jsonOf(deposit.weightKg),
+            "scalePhotoKey" to jsonOf(deposit.scalePhotoKey),
+            "garmentPhotoKey" to jsonOf(deposit.garmentPhotoKey),
+            "operatorName" to jsonOf(deposit.operatorName),
+            "notes" to jsonOf(deposit.notes)
+        ).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/finishing/deposits")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("mencatat setoran finishing")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons setoran tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun assignMakloonVendor(tenantSlug: String, orderId: String, info: MakloonVendorInfo): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf(
+            "vendorName" to jsonOf(info.vendorName),
+            "vendorPhone" to jsonOf(info.vendorPhone),
+            "sentAt" to jsonOf(info.sentAt?.toString()),
+            "expectedReturnAt" to jsonOf(info.expectedReturnAt?.toString()),
+            "costPerPcsIdr" to jsonOf(info.costPerPcsIdr),
+            "notes" to jsonOf(info.notes)
+        ).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/finishing/vendor")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("menugaskan vendor makloon")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons vendor tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun confirmVendorReturn(tenantSlug: String, orderId: String, returnedAt: kotlinx.datetime.LocalDate?): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf(
+            "returnedAt" to jsonOf(returnedAt?.toString())
+        ).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/finishing/vendor-receive")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("mengonfirmasi pengembalian dari vendor")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons konfirmasi vendor tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun submitQcInspection(tenantSlug: String, orderId: String, report: QcInspectionReport): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf(
+            "inspectorName" to jsonOf(report.inspectorName),
+            "pomMeasurements" to jsonArrayOf(report.pomMeasurements.map {
+                jsonObjectOf(
+                    "pomName" to jsonOf(it.pomName),
+                    "targetCm" to jsonOf(it.targetCm),
+                    "actualCm" to jsonOf(it.actualCm),
+                    "toleranceCm" to jsonOf(it.toleranceCm)
+                )
+            }),
+            "defectsFound" to jsonArrayOf(report.defectsFound.map { jsonOf(it) }),
+            "qcResult" to jsonOf(report.qcResult.name),
+            "qcNotes" to jsonOf(report.qcNotes),
+            "verifiedPhotoFrontKey" to jsonOf(report.verifiedPhotoFrontKey),
+            "verifiedPhotoBackKey" to jsonOf(report.verifiedPhotoBackKey)
+        ).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/qc/inspect")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("mengirim hasil inspeksi QC")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons QC tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun requestRevision(tenantSlug: String, orderId: String, notes: String): Result<SamplingOrder> = runCatching {
+        val payload = jsonObjectOf("notes" to jsonOf(notes)).encode()
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/revision")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        val body = response.requireBody("mengajukan revisi sample")
+        val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons revisi tidak valid")
         SamplingOrderCodec.decode(parsed)
     }
 

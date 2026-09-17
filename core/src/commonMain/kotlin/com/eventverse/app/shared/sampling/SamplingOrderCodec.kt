@@ -15,6 +15,9 @@ object SamplingOrderCodec {
         "clientName" to jsonOf(order.clientName),
         "styleName" to jsonOf(order.styleName),
         "status" to jsonOf(order.status.name),
+        "pipelineStage" to jsonOf(order.pipelineStage.name),
+        "finishingPath" to jsonOf(order.finishingPath.name),
+        "vendorInfo" to encodeVendorInfo(order.vendorInfo),
         "sizeMode" to jsonOf(order.sizeMode.name),
         "deadlineProgram" to jsonOf(order.deadlineProgram?.toString()),
         "deadlineFinishing" to jsonOf(order.deadlineFinishing?.toString()),
@@ -25,13 +28,51 @@ object SamplingOrderCodec {
         "courierTracking" to jsonOf(order.courierTracking),
         "samplingFeeIdr" to jsonOf(order.samplingFeeIdr),
         "revisionCount" to jsonOf(order.revisionCount),
+        "revisionHistory" to jsonArrayOf(order.revisionHistory.map { entry ->
+            val pairs = mutableListOf(
+                "revision" to jsonOf(entry.revision),
+                "notes" to jsonOf(entry.notes),
+                "at" to jsonOf(entry.at.toString())
+            )
+            entry.snapshot?.let { snap ->
+                pairs.add("snapshot" to jsonObjectOf(
+                    "mockupFrontKey" to jsonOf(snap.mockupFrontKey),
+                    "mockupBackKey" to jsonOf(snap.mockupBackKey),
+                    "sampleQuantity" to jsonOf(snap.sampleQuantity),
+                    "samplingFeeIdr" to jsonOf(snap.samplingFeeIdr),
+                    "notes" to jsonOf(snap.notes),
+                    "pipelineStage" to jsonOf(snap.pipelineStage.name),
+                    "finishingPath" to jsonOf(snap.finishingPath.name),
+                    "vendorInfo" to encodeVendorInfo(snap.vendorInfo),
+                    "finishingDeposits" to jsonArrayOf(snap.finishingDeposits.map(::encodeFinishingDeposit)),
+                    "qcInspections" to jsonArrayOf(snap.qcInspections.map(::encodeQcInspectionReport)),
+                    "sizeMatrix" to jsonArrayOf(snap.sizeMatrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    })
+                ))
+            }
+            JsonValue.Obj(pairs.toMap())
+        }),
         "accNotes" to jsonOf(order.accNotes),
         "notes" to jsonOf(order.notes),
         "knitSpec" to encodeKnitSpec(order.knitSpec),
         "finishedSizeCharts" to jsonArrayOf(order.finishedSizeCharts.map(::encodeSizeMeasurement)),
         "rawKnitSizeCharts" to jsonArrayOf(order.rawKnitSizeCharts.map(::encodeSizeMeasurement)),
+        "sizeMatrix" to jsonArrayOf(order.sizeMatrix.map { row ->
+            jsonObjectOf(
+                "id" to jsonOf(row.id),
+                "pomName" to jsonOf(row.pomName),
+                "values" to jsonStringMapOf(row.values)
+            )
+        }),
         "machineProgram" to encodeMachineProgram(order.machineProgram),
         "yieldAndTiming" to encodeYieldAndTiming(order.yieldAndTiming),
+        "finishingDeposits" to jsonArrayOf(order.finishingDeposits.map(::encodeFinishingDeposit)),
+        "qcInspections" to jsonArrayOf(order.qcInspections.map(::encodeQcInspectionReport)),
         "milestones" to jsonArrayOf(order.milestones.map(::encodeMilestoneProgress)),
         "createdAt" to jsonOf(order.createdAt.toString()),
         "updatedAt" to jsonOf(order.updatedAt.toString()),
@@ -45,6 +86,16 @@ object SamplingOrderCodec {
         val clientName = obj.string("clientName") ?: ""
         val styleName = obj.string("styleName") ?: ""
         val status = obj.string("status")?.let { runCatching { SamplingStatus.valueOf(it) }.getOrNull() } ?: SamplingStatus.DRAFT
+        val pipelineStage = obj.string("pipelineStage")?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() }
+            ?: when (status) {
+                SamplingStatus.DRAFT -> SamplingPipelineStage.NEW_INTAKE
+                SamplingStatus.IN_PROGRESS -> SamplingPipelineStage.MACHINE_KNITTING
+                SamplingStatus.REVISION -> SamplingPipelineStage.CAM_PROGRAMMING
+                SamplingStatus.ACC_APPROVED -> SamplingPipelineStage.ACC_APPROVED
+                SamplingStatus.CANCELLED -> SamplingPipelineStage.NEW_INTAKE
+            }
+        val finishingPath = obj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
+        val vendorInfo = decodeVendorInfo(obj.obj("vendorInfo")) ?: MakloonVendorInfo()
         val sizeMode = obj.string("sizeMode")?.let { runCatching { SizeMode.valueOf(it) }.getOrNull() } ?: SizeMode.ALL_SIZE
 
         val deadlineProgram = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineProgram"))
@@ -67,8 +118,25 @@ object SamplingOrderCodec {
         val rawSizes = obj.objectArray("rawKnitSizeCharts").map(::decodeSizeMeasurement).ifEmpty {
             listOf(FactorySizePresets.ALL_SIZE_CARDIGAN_RAW_KNIT)
         }
+        val sizeMatrix = obj.objectArray("sizeMatrix").map { rowObj ->
+            val valuesMap = mutableMapOf<String, String>()
+            rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                when (v) {
+                    is JsonValue.Str -> valuesMap[k] = v.value
+                    is JsonValue.Num -> valuesMap[k] = v.raw
+                    else -> Unit
+                }
+            }
+            SizeChartRow(
+                id = rowObj.string("id") ?: "",
+                pomName = rowObj.string("pomName") ?: "",
+                values = valuesMap
+            )
+        }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
         val machineProgram = obj.obj("machineProgram")?.let(::decodeMachineProgram) ?: MachineProgram()
         val yieldAndTiming = obj.obj("yieldAndTiming")?.let(::decodeYieldAndTiming) ?: YieldAndTiming()
+        val finishingDeposits = obj.objectArray("finishingDeposits").map(::decodeFinishingDeposit)
+        val qcInspections = obj.objectArray("qcInspections").map(::decodeQcInspectionReport)
         val milestones = obj.objectArray("milestones").map(::decodeMilestoneProgress).ifEmpty {
             SamplingOrder.defaultMilestones()
         }
@@ -81,6 +149,53 @@ object SamplingOrderCodec {
             obj.string("updatedAt"),
             createdAt
         )
+        val revisionHistory = obj.objectArray("revisionHistory").map { entry ->
+            val snapObj = entry.obj("snapshot")
+            val snap = snapObj?.let { sObj ->
+                val snapMatrix = sObj.objectArray("sizeMatrix").map { rowObj ->
+                    val valuesMap = mutableMapOf<String, String>()
+                    rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                        when (v) {
+                            is JsonValue.Str -> valuesMap[k] = v.value
+                            is JsonValue.Num -> valuesMap[k] = v.raw
+                            else -> Unit
+                        }
+                    }
+                    SizeChartRow(
+                        id = rowObj.string("id") ?: "",
+                        pomName = rowObj.string("pomName") ?: "",
+                        values = valuesMap
+                    )
+                }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
+                val snapStage = sObj.string("pipelineStage")?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() } ?: SamplingPipelineStage.NEW_INTAKE
+                val snapPath = sObj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
+                val snapVendor = decodeVendorInfo(sObj.obj("vendorInfo")) ?: MakloonVendorInfo()
+                val snapDeposits = sObj.objectArray("finishingDeposits").map(::decodeFinishingDeposit)
+                val snapInspections = sObj.objectArray("qcInspections").map(::decodeQcInspectionReport)
+                SamplingSnapshot(
+                    mockupFrontKey = sObj.string("mockupFrontKey"),
+                    mockupBackKey = sObj.string("mockupBackKey"),
+                    sizeMatrix = snapMatrix,
+                    sampleQuantity = sObj.int("sampleQuantity") ?: 1,
+                    samplingFeeIdr = sObj.long("samplingFeeIdr") ?: 0L,
+                    notes = sObj.string("notes") ?: "",
+                    pipelineStage = snapStage,
+                    finishingPath = snapPath,
+                    vendorInfo = snapVendor,
+                    finishingDeposits = snapDeposits,
+                    qcInspections = snapInspections
+                )
+            }
+            RevisionFeedback(
+                revision = entry.int("revision") ?: 0,
+                notes = entry.string("notes") ?: "",
+                at = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
+                    entry.string("at"),
+                    updatedAt
+                ),
+                snapshot = snap
+            )
+        }
         val archivedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrNull(obj.string("archivedAt"))
 
         return SamplingOrder(
@@ -90,6 +205,9 @@ object SamplingOrderCodec {
             clientName = clientName,
             styleName = styleName,
             status = status,
+            pipelineStage = pipelineStage,
+            finishingPath = finishingPath,
+            vendorInfo = vendorInfo,
             sizeMode = sizeMode,
             deadlineProgram = deadlineProgram,
             deadlineFinishing = deadlineFinishing,
@@ -100,13 +218,17 @@ object SamplingOrderCodec {
             courierTracking = courierTracking,
             samplingFeeIdr = samplingFeeIdr,
             revisionCount = revisionCount,
+            revisionHistory = revisionHistory,
             accNotes = accNotes,
             notes = notes,
             knitSpec = knitSpec,
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawSizes,
+            sizeMatrix = sizeMatrix,
             machineProgram = machineProgram,
             yieldAndTiming = yieldAndTiming,
+            finishingDeposits = finishingDeposits,
+            qcInspections = qcInspections,
             milestones = milestones,
             createdAt = createdAt,
             updatedAt = updatedAt,
@@ -183,7 +305,8 @@ object SamplingOrderCodec {
             "bodyWidthN" to jsonOf(prog.patternFormulas.bodyWidthN),
             "ribK" to jsonOf(prog.patternFormulas.ribK)
         ),
-        "tensionSettings" to JsonValue.Obj(prog.tensionSettings.mapValues { jsonOf(it.value) })
+        "tensionSettings" to JsonValue.Obj(prog.tensionSettings.mapValues { jsonOf(it.value) }),
+        "tenselityEntries" to jsonArrayOf(prog.tenselityEntries.map(::encodeTenselityEntry))
     )
 
     private fun decodeMachineProgram(obj: JsonValue.Obj): MachineProgram {
@@ -202,6 +325,7 @@ object SamplingOrderCodec {
             ribK = formulasObj?.double("ribK") ?: 4.7
         )
         val tension = obj.stringMap("tensionSettings")
+        val tenselityList = obj.objectArray("tenselityEntries").map(::decodeTenselityEntry)
 
         return MachineProgram(
             programFront = obj.string("programFront") ?: "",
@@ -211,7 +335,8 @@ object SamplingOrderCodec {
             programPlacket = obj.string("programPlacket") ?: "",
             feederInstructions = feederList,
             patternFormulas = formulas,
-            tensionSettings = tension
+            tensionSettings = tension,
+            tenselityEntries = tenselityList
         )
     }
 
@@ -277,4 +402,109 @@ object SamplingOrderCodec {
         val notes = obj.string("notes") ?: ""
         return MilestoneProgress(step, isCompleted, completedAt, notes)
     }
+
+    private fun encodeTenselityEntry(entry: TenselityEntry): JsonValue.Obj = jsonObjectOf(
+        "parameter" to jsonOf(entry.parameter),
+        "body" to jsonOf(entry.body),
+        "sleeve" to jsonOf(entry.sleeve),
+        "collar" to jsonOf(entry.collar)
+    )
+
+    private fun decodeTenselityEntry(obj: JsonValue.Obj): TenselityEntry = TenselityEntry(
+        parameter = obj.string("parameter") ?: "",
+        body = obj.string("body") ?: "",
+        sleeve = obj.string("sleeve") ?: "",
+        collar = obj.string("collar") ?: ""
+    )
+
+    private fun encodeVendorInfo(vendor: MakloonVendorInfo?): JsonValue = if (vendor == null) JsonValue.Null else jsonObjectOf(
+        "vendorName" to jsonOf(vendor.vendorName),
+        "vendorPhone" to jsonOf(vendor.vendorPhone),
+        "sentAt" to jsonOf(vendor.sentAt?.toString()),
+        "expectedReturnAt" to jsonOf(vendor.expectedReturnAt?.toString()),
+        "returnedAt" to jsonOf(vendor.returnedAt?.toString()),
+        "costPerPcsIdr" to jsonOf(vendor.costPerPcsIdr),
+        "status" to jsonOf(vendor.status.name),
+        "notes" to jsonOf(vendor.notes)
+    )
+
+    private fun decodeVendorInfo(obj: JsonValue.Obj?): MakloonVendorInfo? {
+        if (obj == null) return null
+        return MakloonVendorInfo(
+            vendorName = obj.string("vendorName") ?: "",
+            vendorPhone = obj.string("vendorPhone") ?: "",
+            sentAt = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("sentAt")),
+            expectedReturnAt = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("expectedReturnAt")),
+            returnedAt = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("returnedAt")),
+            costPerPcsIdr = obj.long("costPerPcsIdr") ?: 0L,
+            status = obj.string("status")?.let { runCatching { VendorFollowUpStatus.valueOf(it) }.getOrNull() } ?: VendorFollowUpStatus.NONE,
+            notes = obj.string("notes") ?: ""
+        )
+    }
+
+    private fun encodeFinishingDeposit(dep: FinishingDeposit): JsonValue.Obj = jsonObjectOf(
+        "id" to jsonOf(dep.id),
+        "samplingOrderId" to jsonOf(dep.samplingOrderId),
+        "depositDate" to jsonOf(dep.depositDate.toString()),
+        "qtyPcs" to jsonOf(dep.qtyPcs),
+        "weightKg" to jsonOf(dep.weightKg),
+        "scalePhotoKey" to jsonOf(dep.scalePhotoKey),
+        "garmentPhotoKey" to jsonOf(dep.garmentPhotoKey),
+        "operatorName" to jsonOf(dep.operatorName),
+        "notes" to jsonOf(dep.notes),
+        "createdAt" to jsonOf(dep.createdAt?.toString())
+    )
+
+    private fun decodeFinishingDeposit(obj: JsonValue.Obj): FinishingDeposit = FinishingDeposit(
+        id = obj.string("id") ?: "",
+        samplingOrderId = obj.string("samplingOrderId") ?: "",
+        depositDate = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("depositDate")) ?: LocalDate(2026, 1, 1),
+        qtyPcs = obj.int("qtyPcs") ?: 0,
+        weightKg = obj.double("weightKg") ?: 0.0,
+        scalePhotoKey = obj.string("scalePhotoKey"),
+        garmentPhotoKey = obj.string("garmentPhotoKey"),
+        operatorName = obj.string("operatorName") ?: "",
+        notes = obj.string("notes") ?: "",
+        createdAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrNull(obj.string("createdAt"))
+    )
+
+    private fun encodeQcInspectionReport(report: QcInspectionReport): JsonValue.Obj = jsonObjectOf(
+        "id" to jsonOf(report.id),
+        "samplingOrderId" to jsonOf(report.samplingOrderId),
+        "inspectorName" to jsonOf(report.inspectorName),
+        "inspectedAt" to jsonOf(report.inspectedAt.toString()),
+        "pomMeasurements" to jsonArrayOf(report.pomMeasurements.map {
+            jsonObjectOf(
+                "pomName" to jsonOf(it.pomName),
+                "targetCm" to jsonOf(it.targetCm),
+                "actualCm" to jsonOf(it.actualCm),
+                "toleranceCm" to jsonOf(it.toleranceCm)
+            )
+        }),
+        "defectsFound" to jsonArrayOf(report.defectsFound.map { jsonOf(it) }),
+        "qcResult" to jsonOf(report.qcResult.name),
+        "qcNotes" to jsonOf(report.qcNotes),
+        "verifiedPhotoFrontKey" to jsonOf(report.verifiedPhotoFrontKey),
+        "verifiedPhotoBackKey" to jsonOf(report.verifiedPhotoBackKey)
+    )
+
+    private fun decodeQcInspectionReport(obj: JsonValue.Obj): QcInspectionReport = QcInspectionReport(
+        id = obj.string("id") ?: "",
+        samplingOrderId = obj.string("samplingOrderId") ?: "",
+        inspectorName = obj.string("inspectorName") ?: "",
+        inspectedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(obj.string("inspectedAt"), Instant.fromEpochMilliseconds(0)),
+        pomMeasurements = obj.objectArray("pomMeasurements").map {
+            QcPomMeasurement(
+                pomName = it.string("pomName") ?: "",
+                targetCm = it.double("targetCm") ?: 0.0,
+                actualCm = it.double("actualCm") ?: 0.0,
+                toleranceCm = it.double("toleranceCm") ?: 1.0
+            )
+        },
+        defectsFound = obj.stringArray("defectsFound"),
+        qcResult = obj.string("qcResult")?.let { runCatching { QcInspectionResult.valueOf(it) }.getOrNull() } ?: QcInspectionResult.PASSED,
+        qcNotes = obj.string("qcNotes") ?: "",
+        verifiedPhotoFrontKey = obj.string("verifiedPhotoFrontKey"),
+        verifiedPhotoBackKey = obj.string("verifiedPhotoBackKey")
+    )
 }

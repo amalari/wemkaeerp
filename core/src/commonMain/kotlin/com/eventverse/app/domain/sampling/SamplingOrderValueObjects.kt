@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.sampling
 
 import kotlin.jvm.JvmInline
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
 @JvmInline
@@ -46,6 +47,88 @@ enum class MilestoneStep(val displayName: String, val defaultOrder: Int) {
     KIRIM("Kirim Sample", 6),
     HPP("Kalkulasi HPP", 7);
 }
+
+enum class SamplingPipelineStage(val displayName: String, val order: Int) {
+    NEW_INTAKE("SPK Baru (Sales Deal)", 1),
+    CAM_PROGRAMMING("Program CAM", 2),
+    MACHINE_KNITTING("Rajut Turun Mesin", 3),
+    LINKING_ASSEMBLY("Linking & Tambahan", 4),
+    FINISHING_QC("Finishing & QC", 5),
+    IN_DELIVERY("Terkirim (Tunggu ACC)", 6),
+    ACC_APPROVED("ACC Produksi", 7);
+}
+
+enum class FinishingPath(val displayName: String) {
+    INTERNAL("Internal Pabrik"),
+    MAKLOON_VENDOR("Vendor Luar (Makloon)");
+}
+
+enum class VendorFollowUpStatus(val displayName: String) {
+    NONE("Belum Ada"),
+    WITH_VENDOR("Sedang di Vendor"),
+    OVERDUE("Terlambat"),
+    RETURNED("Sudah Kembali");
+}
+
+data class MakloonVendorInfo(
+    val vendorName: String = "",
+    val vendorPhone: String = "",
+    val sentAt: LocalDate? = null,
+    val expectedReturnAt: LocalDate? = null,
+    val returnedAt: LocalDate? = null,
+    val costPerPcsIdr: Long = 0L,
+    val status: VendorFollowUpStatus = VendorFollowUpStatus.NONE,
+    val notes: String = ""
+)
+
+enum class QcInspectionResult(val displayName: String) {
+    PASSED("Lolos QC (Passed)"),
+    REWORK("Perlu Perbaikan (Rework)"),
+    REJECT("Ditolak / Rajut Ulang (Reject)");
+}
+
+data class FinishingDeposit(
+    val id: String = "",
+    val samplingOrderId: String = "",
+    val depositDate: LocalDate,
+    val qtyPcs: Int,
+    val weightKg: Double = 0.0,
+    val scalePhotoKey: String? = null,
+    val garmentPhotoKey: String? = null,
+    val operatorName: String = "",
+    val notes: String = "",
+    val createdAt: Instant? = null
+)
+
+data class QcPomMeasurement(
+    val pomName: String,
+    val targetCm: Double,
+    val actualCm: Double,
+    val toleranceCm: Double = 1.0
+) {
+    val deviationCm: Double get() = kotlin.math.abs(actualCm - targetCm)
+    val isWithinTolerance: Boolean get() = deviationCm <= toleranceCm
+}
+
+data class QcInspectionReport(
+    val id: String = "",
+    val samplingOrderId: String = "",
+    val inspectorName: String,
+    val inspectedAt: Instant,
+    val pomMeasurements: List<QcPomMeasurement> = emptyList(),
+    val defectsFound: List<String> = emptyList(),
+    val qcResult: QcInspectionResult = QcInspectionResult.PASSED,
+    val qcNotes: String = "",
+    val verifiedPhotoFrontKey: String? = null,
+    val verifiedPhotoBackKey: String? = null
+)
+
+data class TenselityEntry(
+    val parameter: String,
+    val body: String = "",
+    val sleeve: String = "",
+    val collar: String = ""
+)
 
 data class SizeMeasurement(
     val sizeLabel: String = "ALL SIZE",
@@ -93,8 +176,12 @@ data class MachineProgram(
     val programPlacket: String = "",
     val feederInstructions: List<FeederEntry> = emptyList(),
     val patternFormulas: PatternFormulas = PatternFormulas(),
-    val tensionSettings: Map<String, String> = emptyMap()
-)
+    val tensionSettings: Map<String, String> = emptyMap(),
+    val tenselityEntries: List<TenselityEntry> = emptyList()
+) {
+    val effectiveTenselity: List<TenselityEntry>
+        get() = tenselityEntries.ifEmpty { FactorySizePresets.DEFAULT_TENSELITY }
+}
 
 data class PanelWeightGrams(
     val front: Double = 0.0,
@@ -174,5 +261,19 @@ object FactorySizePresets {
         FeederEntry(5, "STRIPE", "1 PLAY", "DARK GREY"),
         FeederEntry(6, "RIB", "1 PLAY", "HITAM"),
         FeederEntry(7, "BS POLY", "-", "-")
+    )
+
+    val DEFAULT_TENSELITY = listOf(
+        TenselityEntry("1 BS POLY"),
+        TenselityEntry("2 BS TARIK"),
+        TenselityEntry("3 BS TARIK"),
+        TenselityEntry("4 SILANG"),
+        TenselityEntry("5 SILANG"),
+        TenselityEntry("6 RIB"),
+        TenselityEntry("7 TIF RIB"),
+        TenselityEntry("8 PRODUKSI"),
+        TenselityEntry("10 JAIT MATI"),
+        TenselityEntry("16 BS WARNA"),
+        TenselityEntry("23 MOTONG")
     )
 }

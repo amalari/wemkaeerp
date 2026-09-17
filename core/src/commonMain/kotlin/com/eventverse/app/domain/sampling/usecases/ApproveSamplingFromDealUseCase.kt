@@ -34,6 +34,16 @@ class ApproveSamplingFromDealUseCase(
                 "Sampling order tidak menempel pada deal ini"
             }
 
+            // Defense in depth: gerbang ACC juga dikunci di server, bukan hanya di UI.
+            // Desain hanya boleh di-ACC buyer jika sudah memenuhi syarat wajib
+            // (mockup depan, minimal 1 ukuran size chart lengkap, jumlah sampel >= 1 pcs).
+            if (command.isApproved) {
+                val issues = existing.missingApprovalRequirements()
+                require(issues.isEmpty()) {
+                    "Desain belum memenuhi syarat ACC: ${issues.joinToString(" ")}"
+                }
+            }
+
             ApproveSamplingOrderUseCase(samplingRepository)(
                 ApproveSamplingOrderCommand(
                     orderId = existing.id,

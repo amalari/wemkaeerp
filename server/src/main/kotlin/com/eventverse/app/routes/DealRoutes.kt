@@ -19,6 +19,7 @@ import com.eventverse.app.domain.deal.storage.PoFileStorage as PoStorage
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
+import com.eventverse.app.domain.sampling.SizeChartRow
 import com.eventverse.app.domain.sampling.usecases.AttachSamplingMockupCommand
 import com.eventverse.app.domain.sampling.usecases.AttachSamplingMockupUseCase
 import com.eventverse.app.domain.sampling.usecases.ApproveSamplingFromDealCommand
@@ -342,16 +343,102 @@ fun Route.dealRoutes(
             if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@post
 
             val json = com.eventverse.app.shared.json.JsonParser.parseObject(call.receiveText())
+            // POST = khusus membuat lembar sampling BARU. Pembaruan memakai PUT
+            // /{id}/sampling-orders/{samplingId} — id lewat path, bukan body, supaya create
+            // dan update tidak lagi berbagi satu pintu dan saling menimpa satu sama lain.
+            if (!json.string("samplingOrderId").isNullOrBlank()) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    "samplingOrderId tidak boleh dikirim lewat POST. Gunakan PUT /{id}/sampling-orders/{samplingId} untuk memperbarui lembar sampling."
+                )
+                return@post
+            }
+            val postSizeMatrix = json.objectArray("sizeMatrix").map { rowObj ->
+                val valuesMap = mutableMapOf<String, String>()
+                rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                    when (v) {
+                        is com.eventverse.app.shared.json.JsonValue.Str -> valuesMap[k] = v.value
+                        is com.eventverse.app.shared.json.JsonValue.Num -> valuesMap[k] = v.raw
+                        else -> Unit
+                    }
+                }
+                SizeChartRow(
+                    id = rowObj.string("id") ?: "",
+                    pomName = rowObj.string("pomName") ?: "",
+                    values = valuesMap
+                )
+            }.takeIf { it.isNotEmpty() }
+
             val command = SamplingFromDealCommand(
                 tenantId = tenant.tenantId,
                 dealId = dealId.value,
                 clientName = existing.contactId.value,
                 styleName = json.string("styleName") ?: "",
-                samplingOrderId = json.string("samplingOrderId"),
+                samplingOrderId = null,
                 sampleQuantity = json.int("sampleQuantity") ?: 2,
                 courierTracking = json.string("courierTracking"),
                 samplingFeeIdr = json.long("samplingFeeIdr") ?: 0L,
-                notes = json.string("notes") ?: ""
+                notes = json.string("notes") ?: "",
+                sizeMatrix = postSizeMatrix
+            )
+
+            useCase(command)
+                .onSuccess { order ->
+                    call.respondJson(SamplingOrderCodec.encode(order).encode())
+                }
+                .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        // PUT /{id}/sampling-orders/{samplingId} — khusus pembaruan lembar sampling yang sudah
+        // ada (rename, quantity, resi kurir, biaya, catatan). ID resmi sumber kebenaran ada di
+        // path, sehingga tidak mungkin payload update yang salah id membuat lembar baru.
+        put("/{id}/sampling-orders/{samplingId}") {
+            val tenant = call.requireTenant() ?: return@put
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@put
+            val useCase = createSamplingFromDealUseCase
+            if (useCase == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@put
+            }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val existing = dealRepository.findById(tenant.tenantId, dealId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@put
+            }
+            val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
+            if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@put
+
+            val json = com.eventverse.app.shared.json.JsonParser.parseObject(call.receiveText())
+            val putSizeMatrix = json.objectArray("sizeMatrix").map { rowObj ->
+                val valuesMap = mutableMapOf<String, String>()
+                rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                    when (v) {
+                        is com.eventverse.app.shared.json.JsonValue.Str -> valuesMap[k] = v.value
+                        is com.eventverse.app.shared.json.JsonValue.Num -> valuesMap[k] = v.raw
+                        else -> Unit
+                    }
+                }
+                SizeChartRow(
+                    id = rowObj.string("id") ?: "",
+                    pomName = rowObj.string("pomName") ?: "",
+                    values = valuesMap
+                )
+            }.takeIf { it.isNotEmpty() }
+
+            val command = SamplingFromDealCommand(
+                tenantId = tenant.tenantId,
+                dealId = dealId.value,
+                clientName = existing.contactId.value,
+                styleName = json.string("styleName") ?: "",
+                samplingOrderId = call.parameters["samplingId"] ?: "",
+                sampleQuantity = json.int("sampleQuantity") ?: 2,
+                courierTracking = json.string("courierTracking"),
+                samplingFeeIdr = json.long("samplingFeeIdr") ?: 0L,
+                notes = json.string("notes") ?: "",
+                sizeMatrix = putSizeMatrix
             )
 
             useCase(command)
@@ -430,6 +517,7 @@ fun Route.dealRoutes(
             }
 
             val query = call.request.queryParameters
+            val slot = query["slot"]?.takeIf { it == "back" } ?: "front"
             val fileName = query["fileName"]?.takeIf { it.isNotBlank() }
             val mimeType = query["mimeType"]?.takeIf { it.isNotBlank() } ?: "application/octet-stream"
             if (fileName == null) {
@@ -481,7 +569,8 @@ fun Route.dealRoutes(
                 AttachSamplingMockupCommand(
                     tenantId = tenant.tenantId,
                     samplingOrderId = SamplingOrderId(samplingId),
-                    storageKey = reference
+                    storageKey = reference,
+                    slot = slot
                 )
             ).onSuccess { order ->
                 call.respondJson(
@@ -534,12 +623,19 @@ private suspend fun withResolvedMockups(
     val entries = order.knitSpec.mockupImageUrls
     if (entries.isEmpty()) return order
     val resolved = entries.mapNotNull { entry ->
-        when {
-            entry.startsWith("http") -> entry
-            entry.startsWith("data:") -> entry
-            storage?.isConfigured == true -> storage.downloadUrl(entry).getOrNull()
+        val prefix = when {
+            entry.startsWith("front:") -> "front:"
+            entry.startsWith("back:") -> "back:"
+            else -> ""
+        }
+        val key = entry.removePrefix(prefix)
+        val url = when {
+            key.startsWith("http") -> key
+            key.startsWith("data:") -> key
+            storage?.isConfigured == true -> storage.downloadUrl(key).getOrNull()
             else -> null
         }
+        url?.let { prefix + it }
     }
     return order.copy(knitSpec = order.knitSpec.copy(mockupImageUrls = resolved))
 }

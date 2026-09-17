@@ -2,9 +2,16 @@ package com.eventverse.app.presentation.deal
 
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrderLine
+import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.infrastructure.api.SamplingApiClient
+import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
+import com.eventverse.app.infrastructure.api.CreateSamplingOrderFromDealRequest
 import com.eventverse.app.infrastructure.api.DealApiClient
 import com.eventverse.app.infrastructure.api.DealRemoteDataSource
-import com.eventverse.app.infrastructure.api.SaveSamplingOrderFromDealRequest
+import com.eventverse.app.infrastructure.api.ProductionApiClient
+import com.eventverse.app.infrastructure.api.ProductionRemoteDataSource
+import com.eventverse.app.infrastructure.api.UpdateSamplingOrderFromDealRequest
 import com.eventverse.app.shared.deal.DealCodec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -26,6 +35,8 @@ class DealViewModel(
     private val dealId: String? = null,
     private val sourceLeadId: String? = null,
     private val remoteDataSource: DealRemoteDataSource = DealApiClient(),
+    private val productionDataSource: ProductionRemoteDataSource = ProductionApiClient(),
+    private val samplingDataSource: SamplingRemoteDataSource = SamplingApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(DealUiState())
@@ -37,6 +48,7 @@ class DealViewModel(
             is DealUiEvent.DismissError -> _uiState.update { it.copy(error = null) }
             is DealUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null) }
             is DealUiEvent.ChangeStage -> changeStage(event.stage)
+            is DealUiEvent.LaunchBulkProduction -> launchBulkProduction()
             is DealUiEvent.AttachManualPo -> attachManualPo(event)
             is DealUiEvent.UploadPoFile -> uploadPoFile()
             is DealUiEvent.OpenPoDownload -> openDownload(event.poId)
@@ -44,6 +56,8 @@ class DealViewModel(
             is DealUiEvent.SaveSamplingOrder -> saveSamplingOrder(event)
             is DealUiEvent.ToggleSampleAcc -> toggleSampleAcc(event)
             is DealUiEvent.UploadSamplingMockup -> uploadSamplingMockup(event)
+            is DealUiEvent.CreateSamplingSpk -> createSamplingSpk(event.samplingId)
+            is DealUiEvent.AdvanceSamplingStage -> advanceSamplingStage(event.samplingId, event.targetStage)
         }
     }
 
@@ -62,33 +76,60 @@ class DealViewModel(
         _uiState.update { it.copy(activeTab = tab) }
     }
 
+    /**
+     * Autosave ada dua sumber (commit rename + debounce fee/catatan) dan bisa nyaris bersamaan.
+     * Tanpa serialisasi, dua PUT read-modify-write bisa saling menimpa (lost update).
+     */
+    private val samplingSaveMutex = Mutex()
+
     private fun saveSamplingOrder(event: DealUiEvent.SaveSamplingOrder) {
         val deal = _uiState.value.deal ?: return
         if (!_uiState.value.canWrite) return
         _uiState.update { it.copy(isSaving = true) }
+        val isCreate = event.samplingOrderId == null
         scope.launch {
-            remoteDataSource.saveSamplingOrderFromDeal(
-                tenantSlug = tenantSlug,
-                dealId = deal.id.value,
-                request = SaveSamplingOrderFromDealRequest(
-                    samplingOrderId = event.samplingOrderId,
-                    styleName = event.styleName.trim(),
-                    sampleQuantity = event.sampleQuantity,
-                    courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
-                    samplingFeeIdr = event.samplingFeeIdr,
-                    notes = event.notes
-                )
-            ).onSuccess { saved ->
+            samplingSaveMutex.withLock {
+                if (isCreate) {
+                    remoteDataSource.createSamplingOrderFromDeal(
+                        tenantSlug = tenantSlug,
+                        dealId = deal.id.value,
+                        request = CreateSamplingOrderFromDealRequest(
+                            styleName = event.styleName.trim(),
+                            sampleQuantity = event.sampleQuantity,
+                            courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
+                            samplingFeeIdr = event.samplingFeeIdr,
+                            notes = event.notes,
+                            sizeMatrix = event.sizeMatrix
+                        )
+                    )
+                } else {
+                    remoteDataSource.updateSamplingOrderFromDeal(
+                        tenantSlug = tenantSlug,
+                        dealId = deal.id.value,
+                        samplingOrderId = event.samplingOrderId,
+                        request = UpdateSamplingOrderFromDealRequest(
+                            styleName = event.styleName.trim(),
+                            sampleQuantity = event.sampleQuantity,
+                            courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
+                            samplingFeeIdr = event.samplingFeeIdr,
+                            notes = event.notes,
+                            sizeMatrix = event.sizeMatrix
+                        )
+                    )
+                }
+            }.onSuccess { saved ->
                 _uiState.update { current ->
                     current.copy(
                         isSaving = false,
-                        statusMessage = if (event.samplingOrderId == null) {
+                        statusMessage = if (isCreate) {
                             "Desain \"${saved.styleName}\" ditambahkan ke siklus sampling."
                         } else {
                             "Lembar sampling \"${saved.styleName}\" diperbarui."
                         },
-                        samplingOrders = current.samplingOrders
-                            .filterNot { it.id == saved.id } + saved
+                        // Ganti di tempat, BUKAN filter+append: kode desain (DSG-01/02/…) dihitung
+                        // dari posisi kartu, jadi memindahkan kartu yang disave ke akhir list akan
+                        // membuat kode desain saling bertukar di layar.
+                        samplingOrders = current.samplingOrders.replaceOrAppendById(saved)
                     )
                 }
             }.onFailure { error ->
@@ -96,6 +137,14 @@ class DealViewModel(
             }
         }
     }
+
+    /** Ganti order dengan id sama di posisinya; hanya order yang benar-benar baru yang di-append. */
+    private fun List<SamplingOrder>.replaceOrAppendById(saved: SamplingOrder): List<SamplingOrder> =
+        if (any { it.id == saved.id }) {
+            map { if (it.id == saved.id) saved else it }
+        } else {
+            this + saved
+        }
 
     private fun toggleSampleAcc(event: DealUiEvent.ToggleSampleAcc) {
         val deal = _uiState.value.deal ?: return
@@ -135,34 +184,22 @@ class DealViewModel(
     }
 
     /**
-     * Memilih foto lewat picker platform lalu mengunggahnya sebagai mockup desain.
-     *
-     * Picker boleh mengembalikan `null` (dibatalkan pengguna, atau platform belum punya
-     * picker) — itu bukan error, jadi ia dilaporkan sebagai pesan status, bukan `error`.
+     * Mengunggah foto mockup yang SUDAH dipotong kotak (1:1) lewat cropper di dialog detail.
+     * Pemilihan & pemotongan berkas terjadi di lapisan UI; ViewModel hanya mengirim hasilnya.
      */
     private fun uploadSamplingMockup(event: DealUiEvent.UploadSamplingMockup) {
         val deal = _uiState.value.deal ?: return
         if (!_uiState.value.canWrite) return
+        _uiState.update { it.copy(isSaving = true) }
         scope.launch {
-            val picked = pickLocalFile(MOCKUP_IMAGE_ACCEPT)
-            if (picked == null) {
-                _uiState.update {
-                    it.copy(
-                        statusMessage = "Pemilihan foto dibatalkan, atau picker berkas belum " +
-                            "tersedia di platform ini."
-                    )
-                }
-                return@launch
-            }
-
-            _uiState.update { it.copy(isSaving = true) }
             remoteDataSource.uploadSamplingMockup(
                 tenantSlug = tenantSlug,
                 dealId = deal.id.value,
                 samplingOrderId = event.samplingId,
-                fileName = picked.fileName,
-                mimeType = picked.mimeType,
-                bytes = picked.bytes
+                fileName = event.fileName,
+                mimeType = event.mimeType,
+                bytes = event.bytes,
+                slot = event.slot
             ).onSuccess { updated ->
                 _uiState.update { current ->
                     current.copy(
@@ -176,6 +213,52 @@ class DealViewModel(
             }.onFailure { error ->
                 _uiState.update { it.copy(isSaving = false, error = error.message) }
             }
+        }
+    }
+
+    private fun createSamplingSpk(samplingId: String) {
+        val deal = _uiState.value.deal ?: return
+        val currentOrder = _uiState.value.samplingOrders.firstOrNull { it.id.value == samplingId } ?: return
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            val targetStage = if (currentOrder.pipelineStage == SamplingPipelineStage.NEW_INTAKE) {
+                SamplingPipelineStage.CAM_PROGRAMMING
+            } else {
+                currentOrder.pipelineStage
+            }
+            samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
+                .onSuccess { updatedOrder ->
+                    _uiState.update { current ->
+                        current.copy(
+                            isSaving = false,
+                            statusMessage = "SPK #${updatedOrder.spkNumber.value} (${updatedOrder.styleName}) berhasil diterbitkan ke Divisi Sampling.",
+                            samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _uiState.update { it.copy(isSaving = false, error = "Gagal menerbitkan SPK: ${err.message}") }
+                }
+        }
+    }
+
+    private fun advanceSamplingStage(samplingId: String, targetStage: SamplingPipelineStage) {
+        val deal = _uiState.value.deal ?: return
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
+                .onSuccess { updatedOrder ->
+                    _uiState.update { current ->
+                        current.copy(
+                            isSaving = false,
+                            statusMessage = "Status lembar sampling diubah ke ${updatedOrder.pipelineStage.displayName}.",
+                            samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _uiState.update { it.copy(isSaving = false, error = "Gagal mengubah stage: ${err.message}") }
+                }
         }
     }
 
@@ -233,6 +316,35 @@ class DealViewModel(
             remoteDataSource.updateStage(tenantSlug, deal.id.value, stage)
                 .onSuccess { updated -> _uiState.update { it.copy(deal = updated) } }
                 .onFailure { error -> _uiState.update { it.copy(error = error.message) } }
+        }
+    }
+
+    /**
+     * Menerbitkan SPK massal, lalu baru memindahkan stage deal.
+     *
+     * Urutannya penting: kalau stage digeser lebih dulu dan penerbitan SPK gagal (belum ada
+     * sampel ACC, belum ada PO), deal akan tampak "sedang diproduksi" padahal lantai produksi
+     * tidak memegang dokumen apa pun.
+     */
+    private fun launchBulkProduction() {
+        val deal = _uiState.value.deal ?: return
+        if (!_uiState.value.canWrite) return
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            productionDataSource.launchFromDeal(tenantSlug, deal.id.value)
+                .onSuccess { workOrder ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            statusMessage = "SPK massal ${workOrder.spkNumber.value} diterbitkan " +
+                                "(${workOrder.totalOrderedPcs} pcs)."
+                        )
+                    }
+                    changeStage(DealStage.IN_PRODUCTION)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isSaving = false, error = error.message) }
+                }
         }
     }
 

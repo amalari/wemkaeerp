@@ -88,6 +88,10 @@ class CostingBenchmarkApiTest {
         application {
             module(
                 tenantRepository = tenantRepo(),
+                // Pipeline repo wajib disuntik: /estimate-quick membaca koefisien rumus tenant dari
+                // node COSTING_HPP, jadi tanpa ini rute jatuh ke PostgresTenantPipelineRepository
+                // dan menggantung menunggu koneksi yang tidak ada.
+                pipelineRepository = InMemoryTenantPipelineRepository(),
                 materialItemRepository = InMemoryMaterialItemRepository(),
                 materialPriceRepository = InMemoryMaterialPriceRepository(),
                 costingSheetRepository = InMemoryCostingSheetRepository(),

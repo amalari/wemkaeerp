@@ -12,13 +12,14 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import software.amazon.awssdk.services.s3.S3Configuration
 import java.net.URI
 import java.time.Duration
 
 /**
  * Adapter S3-compatible (MinIO / AWS S3) untuk [PoFileStorage].
  *
- * Konfigurasi lewat environment variables:
+ * Konfigurasi lewat environment variables (diisi di `.env`, dimuat oleh `dev.sh`):
  * - `S3_ENDPOINT`  (mis. `http://localhost:9000` untuk MinIO; kosong = AWS default)
  * - `S3_REGION`    (default `us-east-1`, MinIO mengabaikannya)
  * - `S3_ACCESS_KEY`, `S3_SECRET_KEY`
@@ -38,9 +39,19 @@ class S3PoFileStorage(
     override val isConfigured: Boolean
         get() = !accessKey.isNullOrBlank() && !secretKey.isNullOrBlank()
 
+    /**
+     * MinIO tidak mendukung virtual-hosted style (`http://{bucket}.endpoint`) — tanpa
+     * path-style, SDK mengarahkan request ke `http://{bucket}.localhost:9000` yang gagal
+     * DNS. `pathStyleAccessEnabled(true)` memaksa bentuk `http://endpoint/{bucket}` yang
+     * dimengerti MinIO (dan tetap valid untuk AWS S3).
+     */
+    private val pathStyle: S3Configuration =
+        S3Configuration.builder().pathStyleAccessEnabled(true).build()
+
     private val s3: S3Client by lazy {
         val builder = S3Client.builder().region(Region.of(region))
         if (!endpoint.isNullOrBlank()) builder.endpointOverride(URI.create(endpoint))
+        builder.serviceConfiguration(pathStyle)
         builder.credentialsProvider(
             StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
         )
@@ -50,6 +61,7 @@ class S3PoFileStorage(
     private val presigner: S3Presigner by lazy {
         val builder = S3Presigner.builder().region(Region.of(region))
         if (!endpoint.isNullOrBlank()) builder.endpointOverride(URI.create(endpoint))
+        builder.serviceConfiguration(pathStyle)
         builder.credentialsProvider(
             StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
         )

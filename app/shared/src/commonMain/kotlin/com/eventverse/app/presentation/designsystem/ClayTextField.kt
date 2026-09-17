@@ -44,6 +44,7 @@ fun ClayTextField(
      */
     minLines: Int = 1,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -65,11 +66,11 @@ fun ClayTextField(
                 .fillMaxWidth()
                 .claySurface(
                     shape = ClayShapes.Chip,
-                    background = if (enabled) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
-                    outline = if (isFocused) focusColor else WeMadeColors.Outline,
-                    offset = if (isFocused) ClayOffset.Small else ClayOffset.Pressed,
-                    borderWidth = if (isFocused) ClayBorder.Thick else ClayBorder.Medium,
-                    shadowColor = if (isFocused) focusColor else WeMadeColors.Outline,
+                    background = if (enabled && !readOnly) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                    outline = if (isFocused && !readOnly) focusColor else WeMadeColors.Outline,
+                    offset = if (isFocused && !readOnly) ClayOffset.Small else ClayOffset.Pressed,
+                    borderWidth = if (isFocused && !readOnly) ClayBorder.Thick else ClayBorder.Medium,
+                    shadowColor = if (isFocused && !readOnly) focusColor else WeMadeColors.Outline,
                     innerShade = false
                 )
                 .padding(horizontal = ClaySpacing.Lg, vertical = 10.dp),
@@ -105,12 +106,13 @@ fun ClayTextField(
                         // BasicTextField melempar pengecualian bila minLines > 1 pada mode satu baris.
                         minLines = if (singleLine) 1 else minLines.coerceAtLeast(1),
                         enabled = enabled,
+                        readOnly = readOnly,
                         textStyle = LocalTextStyle.current.copy(
-                            color = WeMadeColors.OnSurface,
+                            color = if (enabled && !readOnly) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(focusColor),
+                        cursorBrush = if (readOnly) SolidColor(Color.Transparent) else SolidColor(focusColor),
                         keyboardOptions = keyboardOptions,
                         keyboardActions = keyboardActions
                     )

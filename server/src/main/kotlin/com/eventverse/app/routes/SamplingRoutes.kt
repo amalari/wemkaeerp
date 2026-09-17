@@ -11,7 +11,10 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 fun Route.samplingRoutes(
     repository: SamplingOrderRepository
@@ -161,6 +164,151 @@ fun Route.samplingRoutes(
                     call.respondJson(SamplingOrderCodec.encode(order).encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        // PUT /api/tenant/sampling/orders/{id} (Full update)
+        put("/{id}") {
+            val idParam = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+                ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid JSON body")
+
+            val decodedOrder = SamplingOrderCodec.decode(json)
+            val updated = repository.save(decodedOrder.copy(id = SamplingOrderId(idParam), updatedAt = Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/stage (Advance / Change stage)
+        post("/{id}/stage") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+            val stageName = json?.string("targetStage") ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing targetStage")
+            val targetStage = runCatching { SamplingPipelineStage.valueOf(stageName) }.getOrNull()
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid stage: $stageName")
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+            val updated = repository.save(order.advancePipelineStage(targetStage, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/finishing/deposits (Finishing Setoran Pcs & Kg)
+        post("/{id}/finishing/deposits") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid JSON body")
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val deposit = FinishingDeposit(
+                id = "dep_${order.id.value}_${Clock.System.now().toEpochMilliseconds()}",
+                samplingOrderId = order.id.value,
+                depositDate = json.string("depositDate")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
+                qtyPcs = json.int("qtyPcs") ?: 1,
+                weightKg = json.double("weightKg") ?: 0.0,
+                scalePhotoKey = json.string("scalePhotoKey"),
+                garmentPhotoKey = json.string("garmentPhotoKey"),
+                operatorName = json.string("operatorName") ?: "",
+                notes = json.string("notes") ?: "",
+                createdAt = Clock.System.now()
+            )
+
+            val updated = repository.save(order.addFinishingDeposit(deposit, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/finishing/vendor (Assign to Makloon Vendor)
+        post("/{id}/finishing/vendor") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid JSON body")
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val info = MakloonVendorInfo(
+                vendorName = json.string("vendorName") ?: "",
+                vendorPhone = json.string("vendorPhone") ?: "",
+                sentAt = json.string("sentAt")?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+                expectedReturnAt = json.string("expectedReturnAt")?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+                costPerPcsIdr = json.long("costPerPcsIdr") ?: 0L,
+                notes = json.string("notes") ?: ""
+            )
+
+            val updated = repository.save(order.assignMakloonVendor(info, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/finishing/vendor-receive (Receive from Makloon Vendor)
+        post("/{id}/finishing/vendor-receive") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+            val returnedAt = json?.string("returnedAt")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val updated = repository.save(order.recordVendorReturn(returnedAt, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/qc/inspect (Submit QC Report)
+        post("/{id}/qc/inspect") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid JSON body")
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val pomList = json.objectArray("pomMeasurements").map {
+                QcPomMeasurement(
+                    pomName = it.string("pomName") ?: "",
+                    targetCm = it.double("targetCm") ?: 0.0,
+                    actualCm = it.double("actualCm") ?: 0.0,
+                    toleranceCm = it.double("toleranceCm") ?: 1.0
+                )
+            }
+            val defects = json.stringArray("defectsFound")
+            val qcResult = json.string("qcResult")?.let { runCatching { QcInspectionResult.valueOf(it) }.getOrNull() } ?: QcInspectionResult.PASSED
+
+            val report = QcInspectionReport(
+                id = "qc_${order.id.value}_${Clock.System.now().toEpochMilliseconds()}",
+                samplingOrderId = order.id.value,
+                inspectorName = json.string("inspectorName") ?: "",
+                inspectedAt = Clock.System.now(),
+                pomMeasurements = pomList,
+                defectsFound = defects,
+                qcResult = qcResult,
+                qcNotes = json.string("qcNotes") ?: "",
+                verifiedPhotoFrontKey = json.string("verifiedPhotoFrontKey"),
+                verifiedPhotoBackKey = json.string("verifiedPhotoBackKey")
+            )
+
+            val updated = repository.save(order.completeQcInspection(report, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // POST /api/tenant/sampling/orders/{id}/revision (Request Revision)
+        post("/{id}/revision") {
+            val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val body = call.receiveText()
+            val json = JsonParser.parse(body) as? JsonValue.Obj
+            val notes = json?.string("notes") ?: ""
+
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val updated = repository.save(order.requestRevision(notes, Clock.System.now()))
+            call.respondJson(SamplingOrderCodec.encode(updated).encode())
         }
     }
 }

@@ -48,11 +48,19 @@ interface DealRemoteDataSource {
     /** Seluruh order sampling (per desain) yang menempel pada deal. */
     suspend fun getDealSamplingOrders(tenantSlug: String, dealId: String): Result<List<SamplingOrder>>
 
-    /** Membuat lembar sampling baru ATAU memperbarui quantity/kurir/biaya milik yang sudah ada. */
-    suspend fun saveSamplingOrderFromDeal(
+    /** Membuat lembar sampling BARU dari deal (POST, tanpa id). */
+    suspend fun createSamplingOrderFromDeal(
         tenantSlug: String,
         dealId: String,
-        request: SaveSamplingOrderFromDealRequest
+        request: CreateSamplingOrderFromDealRequest
+    ): Result<SamplingOrder>
+
+    /** Memperbarui lembar sampling yang SUDAH ada (PUT, id lewat path). */
+    suspend fun updateSamplingOrderFromDeal(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String,
+        request: UpdateSamplingOrderFromDealRequest
     ): Result<SamplingOrder>
 
     /** ACC / revisi satu desain; mengembalikan seluruh daftar sampling deal (gerbang Tab 2). */
@@ -74,18 +82,29 @@ interface DealRemoteDataSource {
         samplingOrderId: String,
         fileName: String,
         mimeType: String,
-        bytes: ByteArray
+        bytes: ByteArray,
+        slot: String = "front"
     ): Result<SamplingOrder>
 }
 
-/** Payload tombol simpan lembar sampling di Tab 1 dialog detail deal. */
-data class SaveSamplingOrderFromDealRequest(
-    val samplingOrderId: String?,
+/** Payload POST /deals/{id}/sampling-orders — membuat lembar sampling baru (tanpa id). */
+data class CreateSamplingOrderFromDealRequest(
     val styleName: String,
     val sampleQuantity: Int,
     val courierTracking: String?,
     val samplingFeeIdr: Long,
-    val notes: String
+    val notes: String,
+    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
+)
+
+/** Payload PUT /deals/{id}/sampling-orders/{samplingId} — memperbarui lembar sampling. */
+data class UpdateSamplingOrderFromDealRequest(
+    val styleName: String,
+    val sampleQuantity: Int,
+    val courierTracking: String?,
+    val samplingFeeIdr: Long,
+    val notes: String,
+    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
 )
 
 data class DealDetailResponse(

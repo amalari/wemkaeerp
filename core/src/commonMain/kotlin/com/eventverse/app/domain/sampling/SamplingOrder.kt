@@ -4,6 +4,28 @@ import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
+data class SamplingSnapshot(
+    val mockupFrontKey: String? = null,
+    val mockupBackKey: String? = null,
+    val sizeMatrix: List<SizeChartRow> = emptyList(),
+    val sampleQuantity: Int = 1,
+    val samplingFeeIdr: Long = 0L,
+    val notes: String = "",
+    val pipelineStage: SamplingPipelineStage = SamplingPipelineStage.NEW_INTAKE,
+    val finishingPath: FinishingPath = FinishingPath.INTERNAL,
+    val vendorInfo: MakloonVendorInfo = MakloonVendorInfo(),
+    val finishingDeposits: List<FinishingDeposit> = emptyList(),
+    val qcInspections: List<QcInspectionReport> = emptyList()
+)
+
+data class RevisionFeedback(
+    /** Nomor revisi — nomor revisi yang sedang diarsipkan atau diajukan. */
+    val revision: Int,
+    val notes: String,
+    val at: Instant,
+    val snapshot: SamplingSnapshot? = null
+)
+
 data class SamplingOrder(
     val id: SamplingOrderId,
     val tenantId: TenantId,
@@ -11,6 +33,9 @@ data class SamplingOrder(
     val clientName: String,
     val styleName: String,
     val status: SamplingStatus = SamplingStatus.DRAFT,
+    val pipelineStage: SamplingPipelineStage = SamplingPipelineStage.NEW_INTAKE,
+    val finishingPath: FinishingPath = FinishingPath.INTERNAL,
+    val vendorInfo: MakloonVendorInfo = MakloonVendorInfo(),
     val sizeMode: SizeMode = SizeMode.ALL_SIZE,
     val deadlineProgram: LocalDate? = null,
     val deadlineFinishing: LocalDate? = null,
@@ -23,13 +48,22 @@ data class SamplingOrder(
     val samplingFeeIdr: Long = 0L,
     /** Jumlah revisi yang pernah diminta buyer — 0 berarti masih sampel awal (Rev 0). */
     val revisionCount: Int = 0,
+    /**
+     * Riwayat feedback revisi per nomor revisi — supaya admin bisa menelusuri catatan buyer
+     * dari revisi ke revisi (Rev 1, Rev 2, …), bukan hanya feedback terakhir yang menimpa
+     * [accNotes]. Kosong pada data lama; fallback tampilan tetap membaca [accNotes].
+     */
+    val revisionHistory: List<RevisionFeedback> = emptyList(),
     val accNotes: String = "",
     val notes: String = "",
     val knitSpec: KnitSpec = KnitSpec(),
     val finishedSizeCharts: List<SizeMeasurement> = listOf(FactorySizePresets.ALL_SIZE_CARDIGAN_FINISHED),
     val rawKnitSizeCharts: List<SizeMeasurement> = listOf(FactorySizePresets.ALL_SIZE_CARDIGAN_RAW_KNIT),
+    val sizeMatrix: List<SizeChartRow> = defaultSamplingSizeMatrix(),
     val machineProgram: MachineProgram = MachineProgram(feederInstructions = FactorySizePresets.DEFAULT_FEEDERS),
     val yieldAndTiming: YieldAndTiming = YieldAndTiming(),
+    val finishingDeposits: List<FinishingDeposit> = emptyList(),
+    val qcInspections: List<QcInspectionReport> = emptyList(),
     val milestones: List<MilestoneProgress> = defaultMilestones(),
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -37,6 +71,16 @@ data class SamplingOrder(
 ) {
     val isAccApproved: Boolean get() = status == SamplingStatus.ACC_APPROVED
     val isArchived: Boolean get() = archivedAt != null
+    val isInDelivery: Boolean get() = pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
+        pipelineStage == SamplingPipelineStage.ACC_APPROVED ||
+        isAccApproved ||
+        !courierTracking.isNullOrBlank() ||
+        milestones.any { it.step == MilestoneStep.KIRIM && it.isCompleted }
+
+    val totalFinishedDepositedQty: Int get() = finishingDeposits.sumOf { it.qtyPcs }
+    val remainingFinishingQty: Int get() = (sampleQuantity - totalFinishedDepositedQty).coerceAtLeast(0)
+    val isFinishingComplete: Boolean get() = remainingFinishingQty == 0
+    val latestQcReport: QcInspectionReport? get() = qcInspections.lastOrNull()
 
     fun updateTechnicalSpec(
         knitSpec: KnitSpec,
@@ -82,12 +126,182 @@ data class SamplingOrder(
         updatedAt = updatedAt
     )
 
-    fun requestRevision(notes: String, updatedAt: Instant): SamplingOrder = copy(
-        status = SamplingStatus.REVISION,
-        accNotes = notes,
-        revisionCount = revisionCount + 1,
-        updatedAt = updatedAt
-    )
+    fun requestRevision(notes: String, updatedAt: Instant): SamplingOrder {
+        val nextRevision = revisionCount + 1
+        val currentSnapshot = SamplingSnapshot(
+            mockupFrontKey = mockupFrontKey,
+            mockupBackKey = mockupBackKey,
+            sizeMatrix = sizeMatrix,
+            sampleQuantity = sampleQuantity,
+            samplingFeeIdr = samplingFeeIdr,
+            notes = this.notes,
+            pipelineStage = pipelineStage,
+            finishingPath = finishingPath,
+            vendorInfo = vendorInfo,
+            finishingDeposits = finishingDeposits,
+            qcInspections = qcInspections
+        )
+        return copy(
+            status = SamplingStatus.REVISION,
+            pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING,
+            accNotes = notes,
+            revisionCount = nextRevision,
+            // Simpan snapshot keadaan saat ini yang diasosiasikan dengan revisionCount sebelum naik
+            revisionHistory = revisionHistory + RevisionFeedback(
+                revision = revisionCount,
+                notes = notes,
+                at = updatedAt,
+                snapshot = currentSnapshot
+            ),
+            updatedAt = updatedAt
+        )
+    }
+
+    fun advancePipelineStage(target: SamplingPipelineStage, updatedAt: Instant): SamplingOrder =
+        copy(
+            pipelineStage = target,
+            status = if (status == SamplingStatus.DRAFT && target != SamplingPipelineStage.NEW_INTAKE) {
+                SamplingStatus.IN_PROGRESS
+            } else status,
+            updatedAt = updatedAt
+        )
+
+    fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant): SamplingOrder =
+        copy(
+            finishingPath = FinishingPath.MAKLOON_VENDOR,
+            vendorInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR),
+            pipelineStage = SamplingPipelineStage.LINKING_ASSEMBLY,
+            updatedAt = updatedAt
+        )
+
+    fun recordVendorReturn(returnedAt: LocalDate, updatedAt: Instant): SamplingOrder =
+        copy(
+            vendorInfo = vendorInfo.copy(
+                returnedAt = returnedAt,
+                status = VendorFollowUpStatus.RETURNED
+            ),
+            pipelineStage = SamplingPipelineStage.FINISHING_QC,
+            updatedAt = updatedAt
+        )
+
+    fun updateTenselity(entries: List<TenselityEntry>, updatedAt: Instant): SamplingOrder =
+        copy(
+            machineProgram = machineProgram.copy(tenselityEntries = entries),
+            updatedAt = updatedAt
+        )
+
+    fun updateActualGramasiAndTiming(
+        weights: PanelWeightGrams,
+        minutes: PanelKnittingMinutes,
+        updatedAt: Instant
+    ): SamplingOrder =
+        copy(
+            yieldAndTiming = yieldAndTiming.copy(panelWeights = weights, panelMinutes = minutes),
+            updatedAt = updatedAt
+        )
+
+    fun addFinishingDeposit(deposit: FinishingDeposit, updatedAt: Instant): SamplingOrder {
+        val updatedDeposits = finishingDeposits + deposit
+        val newFinishedQty = updatedDeposits.sumOf { it.qtyPcs }
+        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) {
+            SamplingPipelineStage.FINISHING_QC
+        } else {
+            pipelineStage
+        }
+        return copy(
+            finishingDeposits = updatedDeposits,
+            pipelineStage = newStage,
+            updatedAt = updatedAt
+        )
+    }
+
+    fun completeQcInspection(report: QcInspectionReport, updatedAt: Instant): SamplingOrder {
+        val updatedInspections = qcInspections + report
+        val newStage = if (report.qcResult == QcInspectionResult.PASSED && pipelineStage == SamplingPipelineStage.FINISHING_QC) {
+            SamplingPipelineStage.IN_DELIVERY
+        } else {
+            pipelineStage
+        }
+        return copy(
+            qcInspections = updatedInspections,
+            pipelineStage = newStage,
+            updatedAt = updatedAt
+        )
+    }
+
+    /** Snapshot arsip desain untuk nomor revisi tertentu; `null` bila belum ada snapshot. */
+    fun snapshotFor(revision: Int): SamplingSnapshot? =
+        revisionHistory.firstOrNull { it.revision == revision }?.snapshot
+            ?: revisionHistory.firstOrNull { it.revision == revision + 1 }?.snapshot
+
+    /** Feedback yang tercatat untuk satu nomor revisi; `null` bila revisi tak ditemukan. */
+    fun revisionFeedback(revision: Int): RevisionFeedback? =
+        revisionHistory.firstOrNull { it.revision == revision }
+            ?: revisionHistory.firstOrNull { it.revision == revision - 1 }
+
+    /**
+     * Daftar syarat wajib ACC buyer yang BELUM terpenuhi. List kosong = desain siap di-ACC.
+     *
+     * 1. Foto mockup **Tampak Depan** wajib diunggah; Tampak Belakang opsional.
+     * 2. Size chart harus punya minimal 1 ukuran yang datanya lengkap — semua baris POM
+     *    yang ada di tabel wajib terisi untuk ukuran tersebut.
+     * 3. Jumlah sampel minimal 1 pcs (dihitung dari kolom ukuran yang lengkap).
+     *
+     * Catatan (`notes`) bersifat opsional dan sengaja tidak divalidasi.
+     * [sizeMatrix] boleh di-override pemanggil (mis. nilai input UI yang belum ter-autosave);
+     * default memakai matriks milik order ini.
+     */
+    fun missingApprovalRequirements(sizeMatrix: List<SizeChartRow> = this.sizeMatrix): List<String> = buildList {
+        if (mockupFrontKey.isNullOrBlank()) {
+            add("Foto mockup Tampak Depan wajib diunggah (Tampak Belakang opsional).")
+        }
+        if (firstCompleteSizeColumn(sizeMatrix) == null) {
+            add("Size chart wajib punya minimal 1 ukuran dengan seluruh baris pengukuran terisi lengkap.")
+        }
+        if (calculateTotalSampleQuantity(sizeMatrix) < 1) {
+            add("Jumlah sampel minimal 1 pcs.")
+        }
+    }
+
+    /** Gerbang tombol ACC: true hanya jika seluruh syarat wajib sudah terpenuhi. */
+    val isReadyForAcc: Boolean get() = missingApprovalRequirements().isEmpty()
+
+    /**
+     * Syarat wajib penerbitan SPK ke Divisi Sampling.
+     * Mengembalikan daftar string kesalahan fatal yang menghalangi terbitnya SPK.
+     *
+     * 1. Nama desain wajib diisi (tidak boleh kosong/blank).
+     * 2. Foto mockup Tampak Depan wajib diunggah (Divisi Sampling memerlukan acuan visual produk).
+     * 3. Size chart wajib memiliki minimal 1 ukuran dengan seluruh baris spesifikasi POM terisi lengkap.
+     * 4. Jumlah sampel minimal 1 pcs (dihitung dari baris Qty pada matriks ukuran untuk kolom yang aktif).
+     */
+    fun missingSpkRequirements(sizeMatrix: List<SizeChartRow> = this.sizeMatrix): List<String> = buildList {
+        if (styleName.isBlank()) {
+            add("Nama desain tidak boleh kosong.")
+        }
+        if (mockupFrontKey.isNullOrBlank()) {
+            add("Foto mockup Tampak Depan wajib diunggah.")
+        }
+        if (!hasAtLeastOneCompleteMeasurementColumn(sizeMatrix)) {
+            add("Size chart wajib memiliki minimal 1 ukuran dengan seluruh baris spesifikasi (POM) terisi lengkap (misal: ALL SIZE terisi seluruhnya).")
+        }
+        val totalQty = calculateTotalSampleQuantity(sizeMatrix, sampleQuantity)
+        if (totalQty < 1) {
+            add("Jumlah sampel minimal 1 pcs. Silakan tentukan alokasi kuantitas pada kolom ukuran yang aktif di tabel Size Chart.")
+        }
+    }
+
+    /**
+     * Peringatan kelengkapan data (non-fatal) sebelum SPK diteruskan ke Divisi Sampling.
+     */
+    fun spkValidationWarnings(): List<String> = buildList {
+        if (mockupBackKey.isNullOrBlank()) {
+            add("Foto mockup Tampak Belakang belum diunggah (opsional).")
+        }
+    }
+
+    /** Gerbang penerbitan SPK: true jika seluruh syarat wajib terpenuhi. */
+    val isReadyForSpk: Boolean get() = missingSpkRequirements().isEmpty()
 
     fun cancel(notes: String, updatedAt: Instant): SamplingOrder = copy(
         status = SamplingStatus.CANCELLED,
@@ -115,15 +329,37 @@ data class SamplingOrder(
      * Idempotent per key dan dibatasi [MAX_MOCKUPS] foto agar satu desain tidak menumpuk
      * puluhan foto yang membuat kartu accordion berat.
      */
-    fun attachMockup(storageKey: String, updatedAt: Instant): SamplingOrder {
+    /**
+     * Menempelkan satu foto mockup desain (slot 'front' atau 'back').
+     * Nilai yang disimpan adalah KEY object storage.
+     */
+    fun attachMockup(storageKey: String, slot: String = "front", updatedAt: Instant): SamplingOrder {
         val key = storageKey.trim()
-        if (key.isEmpty() || key in knitSpec.mockupImageUrls) return this
-        val next = (knitSpec.mockupImageUrls + key).takeLast(MAX_MOCKUPS)
-        return copy(knitSpec = knitSpec.copy(mockupImageUrls = next), updatedAt = updatedAt)
+        if (key.isEmpty()) return this
+        val front = if (slot == "front") key else mockupFrontKey ?: ""
+        val back = if (slot == "back") key else mockupBackKey ?: ""
+        val list = listOfNotNull(
+            front.takeIf { it.isNotBlank() }?.let { if (!it.startsWith("front:") && !it.startsWith("back:")) "front:$it" else it },
+            back.takeIf { it.isNotBlank() }?.let { if (!it.startsWith("front:") && !it.startsWith("back:")) "back:$it" else it }
+        )
+        return copy(knitSpec = knitSpec.copy(mockupImageUrls = list), updatedAt = updatedAt)
     }
 
-    /** Foto mockup terbaru — yang ditampilkan besar di kartu accordion desain. */
-    val latestMockupKey: String? get() = knitSpec.mockupImageUrls.lastOrNull()
+    val mockupFrontKey: String? get() {
+        val tagged = knitSpec.mockupImageUrls.firstOrNull { it.startsWith("front:") }?.removePrefix("front:")
+        if (tagged != null) return tagged
+        return knitSpec.mockupImageUrls.firstOrNull { !it.startsWith("back:") }
+    }
+
+    val mockupBackKey: String? get() {
+        val tagged = knitSpec.mockupImageUrls.firstOrNull { it.startsWith("back:") }?.removePrefix("back:")
+        if (tagged != null) return tagged
+        val untagged = knitSpec.mockupImageUrls.filter { !it.startsWith("front:") && !it.startsWith("back:") }
+        return untagged.getOrNull(1)
+    }
+
+    /** Foto mockup terbaru (fallback backward-compatible). */
+    val latestMockupKey: String? get() = mockupFrontKey ?: knitSpec.mockupImageUrls.lastOrNull()
 
     /** Desain aktif = belum ACC dan belum dibatalkan (drop oleh buyer/admin). */
     val isActiveDesign: Boolean get() = status != SamplingStatus.ACC_APPROVED && status != SamplingStatus.CANCELLED

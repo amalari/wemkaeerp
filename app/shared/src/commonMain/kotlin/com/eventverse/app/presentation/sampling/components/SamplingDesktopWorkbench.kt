@@ -12,8 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.MilestoneStep
+import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingStatus
+import com.eventverse.app.domain.sampling.TenselityEntry
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -23,7 +25,13 @@ fun SamplingDesktopWorkbench(
     onToggleMilestone: (MilestoneStep, Boolean) -> Unit,
     onApproveOrder: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
-    onCreateTechPack: ((SamplingOrder) -> Unit)? = null
+    onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
+    onOpenFinishingDialog: () -> Unit = {},
+    onOpenQcDialog: () -> Unit = {},
+    onOpenVendorDialog: () -> Unit = {},
+    onConfirmVendorReceive: () -> Unit = {},
+    onOpenRevisionDialog: () -> Unit = {},
+    onUpdateTenselity: (List<TenselityEntry>) -> Unit = {}
 ) {
     var revisionNotes by remember(order.id) { mutableStateOf(order.accNotes) }
     var showRevisionInput by remember(order.id) { mutableStateOf(false) }
@@ -99,9 +107,21 @@ fun SamplingDesktopWorkbench(
                         }
 
                         ClayButton(
+                            text = "Setor Finishing",
+                            style = ClayButtonStyle.Primary,
+                            onClick = onOpenFinishingDialog
+                        )
+
+                        ClayButton(
+                            text = "QC Inspeksi",
+                            style = ClayButtonStyle.Success,
+                            onClick = onOpenQcDialog
+                        )
+
+                        ClayButton(
                             text = "Ajukan Revisi",
                             style = ClayButtonStyle.Secondary,
-                            onClick = { showRevisionInput = !showRevisionInput }
+                            onClick = onOpenRevisionDialog
                         )
 
                         ClayButton(
@@ -177,13 +197,19 @@ fun SamplingDesktopWorkbench(
                 formulas = order.machineProgram.patternFormulas
             )
 
-            // 4. Dual Size Chart Table
+            // 4. Tenselity Matrix Table (11 Parameters)
+            TenselityTable(
+                entries = order.machineProgram.tenselityEntries,
+                onEntriesChanged = onUpdateTenselity
+            )
+
+            // 5. Dual Size Chart Table
             SizeChartComparisonTable(
                 finishedSizes = order.finishedSizeCharts,
                 rawKnitSizes = order.rawKnitSizeCharts
             )
 
-            // 5. Yield Gramasi & Cycle Time
+            // 6. Yield Gramasi & Cycle Time
             ClayCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ClayShapes.Card,
@@ -235,9 +261,16 @@ fun SamplingDesktopWorkbench(
                     }
                 }
             }
+
+            // 7. Vendor Makloon & Jalur Finishing
+            VendorMakloonCard(
+                order = order,
+                onOpenVendorDialog = onOpenVendorDialog,
+                onConfirmReceive = onConfirmVendorReceive
+            )
         }
 
-        // Kolom Kanan: Sticky Milestone Step Tracker (32%)
+        // Kolom Kanan: Sticky Milestone Step Tracker & Finishing/QC Summary (32%)
         Column(
             modifier = Modifier
                 .weight(0.32f)
@@ -245,6 +278,7 @@ fun SamplingDesktopWorkbench(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
+            // Milestone Progress
             ClayCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ClayShapes.Card,
@@ -254,6 +288,88 @@ fun SamplingDesktopWorkbench(
                     milestones = order.milestones,
                     onToggleMilestone = onToggleMilestone
                 )
+            }
+
+            // Ringkasan Finishing & QC
+            ClayCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = ClayShapes.Card,
+                contentPadding = PaddingValues(ClaySpacing.Md)
+            ) {
+                Text(
+                    text = "PROGRES FINISHING & QC",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Setoran Finishing:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                    Text(
+                        text = "${order.totalFinishedDepositedQty} / ${order.sampleQuantity} Pcs",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (order.isFinishingComplete) WeMadeColors.Success else WeMadeColors.Primary
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Sisa Belum Selesai:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                    Text(
+                        text = "${order.remainingFinishingQty} Pcs",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (order.remainingFinishingQty == 0) WeMadeColors.Success else WeMadeColors.Accent
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Hasil QC Terakhir:", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                    val qcStatus = order.latestQcReport?.qcResult
+                    val qcBadgeTint = when (qcStatus) {
+                        QcInspectionResult.PASSED -> WeMadeColors.Success
+                        QcInspectionResult.REWORK -> WeMadeColors.Warning
+                        QcInspectionResult.REJECT -> WeMadeColors.Error
+                        null -> WeMadeColors.OnSurfaceMuted
+                    }
+                    ClayBadge(
+                        text = qcStatus?.displayName ?: "Belum Diperiksa",
+                        tint = qcBadgeTint
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    ClayButton(
+                        text = "+ Setor",
+                        style = ClayButtonStyle.Primary,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenFinishingDialog
+                    )
+                    ClayButton(
+                        text = "QC",
+                        style = ClayButtonStyle.Success,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenQcDialog
+                    )
+                }
             }
 
             ClayCard(

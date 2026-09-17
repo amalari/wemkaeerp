@@ -9,6 +9,8 @@ import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.shared.json.jsonObjectOf
+import com.eventverse.app.shared.json.jsonArrayOf
+import com.eventverse.app.shared.json.jsonStringMapOf
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -140,26 +142,68 @@ class DealApiClient(
                 .map { SamplingOrderCodec.decode(it) }
         }
 
-    override suspend fun saveSamplingOrderFromDeal(
+    override suspend fun createSamplingOrderFromDeal(
         tenantSlug: String,
         dealId: String,
-        request: SaveSamplingOrderFromDealRequest
+        request: CreateSamplingOrderFromDealRequest
     ): Result<SamplingOrder> = runCatching {
         val response = httpClient.post(resolveUrl("$DEALS_PATH/$dealId/sampling-orders")) {
             tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
-            setBody(
-                jsonObjectOf(
-                    "samplingOrderId" to jsonOf(request.samplingOrderId),
-                    "styleName" to jsonOf(request.styleName),
-                    "sampleQuantity" to jsonOf(request.sampleQuantity),
-                    "courierTracking" to jsonOf(request.courierTracking),
-                    "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
-                    "notes" to jsonOf(request.notes)
-                ).encode()
+            val fields = mutableListOf(
+                "styleName" to jsonOf(request.styleName),
+                "sampleQuantity" to jsonOf(request.sampleQuantity),
+                "courierTracking" to jsonOf(request.courierTracking),
+                "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
+                "notes" to jsonOf(request.notes)
             )
+            request.sizeMatrix?.let { matrix ->
+                fields.add(
+                    "sizeMatrix" to jsonArrayOf(matrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    })
+                )
+            }
+            setBody(JsonValue.Obj(fields.toMap()).encode())
         }
         val body = response.requireBody("menyimpan lembar sampling")
+        SamplingOrderCodec.decode(JsonParser.parseObject(body))
+    }
+
+    override suspend fun updateSamplingOrderFromDeal(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String,
+        request: UpdateSamplingOrderFromDealRequest
+    ): Result<SamplingOrder> = runCatching {
+        val response = httpClient.put(resolveUrl("$DEALS_PATH/$dealId/sampling-orders/$samplingOrderId")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            val fields = mutableListOf(
+                "styleName" to jsonOf(request.styleName),
+                "sampleQuantity" to jsonOf(request.sampleQuantity),
+                "courierTracking" to jsonOf(request.courierTracking),
+                "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
+                "notes" to jsonOf(request.notes)
+            )
+            request.sizeMatrix?.let { matrix ->
+                fields.add(
+                    "sizeMatrix" to jsonArrayOf(matrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    })
+                )
+            }
+            setBody(JsonValue.Obj(fields.toMap()).encode())
+        }
+        val body = response.requireBody("memperbarui lembar sampling")
         SamplingOrderCodec.decode(JsonParser.parseObject(body))
     }
 
@@ -193,7 +237,8 @@ class DealApiClient(
         samplingOrderId: String,
         fileName: String,
         mimeType: String,
-        bytes: ByteArray
+        bytes: ByteArray,
+        slot: String
     ): Result<SamplingOrder> = runCatching {
         val response = httpClient.post(
             resolveUrl("$DEALS_PATH/$dealId/sampling-orders/$samplingOrderId/mockup")
@@ -201,6 +246,7 @@ class DealApiClient(
             tenantRequest(tenantSlug, tokenProvider)
             parameter("fileName", fileName)
             parameter("mimeType", mimeType)
+            parameter("slot", slot)
             contentType(ContentType.parse(mimeType))
             setBody(bytes)
         }

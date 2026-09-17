@@ -5,6 +5,7 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -72,6 +73,16 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[clientName] = order.clientName
                     it[styleName] = order.styleName
                     it[status] = order.status.name
+                    it[pipelineStage] = order.pipelineStage.name
+                    it[finishingPath] = order.finishingPath.name
+                    it[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
+                    it[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
+                    it[vendorSentAt] = order.vendorInfo.sentAt
+                    it[vendorTargetAt] = order.vendorInfo.expectedReturnAt
+                    it[vendorReturnedAt] = order.vendorInfo.returnedAt
+                    it[vendorCostPerPcs] = order.vendorInfo.costPerPcsIdr
+                    it[vendorStatus] = order.vendorInfo.status.name
+                    it[vendorNotes] = order.vendorInfo.notes
                     it[sizeMode] = order.sizeMode.name
                     it[deadlineProgram] = order.deadlineProgram
                     it[deadlineFinishing] = order.deadlineFinishing
@@ -82,6 +93,14 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[courierTracking] = order.courierTracking
                     it[samplingFeeIdr] = order.samplingFeeIdr
                     it[revisionCount] = order.revisionCount
+                    it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
+                    it[sizeMatrix] = jsonArrayOf(order.sizeMatrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    }).encode()
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[createdAt] = order.createdAt
@@ -92,6 +111,16 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[clientName] = order.clientName
                     it[styleName] = order.styleName
                     it[status] = order.status.name
+                    it[pipelineStage] = order.pipelineStage.name
+                    it[finishingPath] = order.finishingPath.name
+                    it[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
+                    it[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
+                    it[vendorSentAt] = order.vendorInfo.sentAt
+                    it[vendorTargetAt] = order.vendorInfo.expectedReturnAt
+                    it[vendorReturnedAt] = order.vendorInfo.returnedAt
+                    it[vendorCostPerPcs] = order.vendorInfo.costPerPcsIdr
+                    it[vendorStatus] = order.vendorInfo.status.name
+                    it[vendorNotes] = order.vendorInfo.notes
                     it[sizeMode] = order.sizeMode.name
                     it[deadlineProgram] = order.deadlineProgram
                     it[deadlineFinishing] = order.deadlineFinishing
@@ -102,6 +131,14 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[courierTracking] = order.courierTracking
                     it[samplingFeeIdr] = order.samplingFeeIdr
                     it[revisionCount] = order.revisionCount
+                    it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
+                    it[sizeMatrix] = jsonArrayOf(order.sizeMatrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    }).encode()
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[updatedAt] = order.updatedAt
@@ -160,6 +197,14 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     "ribK" to jsonOf(order.machineProgram.patternFormulas.ribK)
                 ).encode()
                 it[tensionSettings] = JsonValue.Obj(order.machineProgram.tensionSettings.mapValues { (_, value) -> jsonOf(value) }).encode()
+                it[tenselityEntries] = jsonArrayOf(order.machineProgram.tenselityEntries.map { t ->
+                    jsonObjectOf(
+                        "parameter" to jsonOf(t.parameter),
+                        "body" to jsonOf(t.body),
+                        "sleeve" to jsonOf(t.sleeve),
+                        "collar" to jsonOf(t.collar)
+                    )
+                }).encode()
                 it[createdAt] = order.createdAt
                 it[updatedAt] = order.updatedAt
             }
@@ -204,6 +249,51 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[completedAt] = m.completedAt
                     it[stepOrder] = idx + 1
                     it[notes] = m.notes
+                }
+            }
+
+            // Save Finishing Deposits
+            SamplingFinishingDepositsTable.deleteWhere { samplingOrderId eq order.id.value }
+            order.finishingDeposits.forEachIndexed { idx, dep ->
+                val depId = dep.id.ifBlank { "dep_${order.id.value}_$idx" }
+                SamplingFinishingDepositsTable.insert {
+                    it[id] = depId
+                    it[tenantId] = order.tenantId.value
+                    it[samplingOrderId] = order.id.value
+                    it[depositDate] = dep.depositDate
+                    it[qtyPcs] = dep.qtyPcs
+                    it[weightKg] = dep.weightKg
+                    it[scalePhotoKey] = dep.scalePhotoKey
+                    it[garmentPhotoKey] = dep.garmentPhotoKey
+                    it[operatorName] = dep.operatorName
+                    it[notes] = dep.notes
+                    it[createdAt] = dep.createdAt ?: order.updatedAt
+                }
+            }
+
+            // Save QC Inspections
+            SamplingQcInspectionsTable.deleteWhere { samplingOrderId eq order.id.value }
+            order.qcInspections.forEachIndexed { idx, qc ->
+                val qcId = qc.id.ifBlank { "qc_${order.id.value}_$idx" }
+                SamplingQcInspectionsTable.insert {
+                    it[id] = qcId
+                    it[tenantId] = order.tenantId.value
+                    it[samplingOrderId] = order.id.value
+                    it[inspectorName] = qc.inspectorName
+                    it[inspectedAt] = qc.inspectedAt
+                    it[measuredPomValues] = jsonArrayOf(qc.pomMeasurements.map { m ->
+                        jsonObjectOf(
+                            "pomName" to jsonOf(m.pomName),
+                            "targetCm" to jsonOf(m.targetCm),
+                            "actualCm" to jsonOf(m.actualCm),
+                            "toleranceCm" to jsonOf(m.toleranceCm)
+                        )
+                    }).encode()
+                    it[defectsFound] = jsonArrayOf(qc.defectsFound.map { d -> jsonOf(d) }).encode()
+                    it[qcResult] = qc.qcResult.name
+                    it[qcNotes] = qc.qcNotes
+                    it[verifiedPhotoFrontKey] = qc.verifiedPhotoFrontKey
+                    it[verifiedPhotoBackKey] = qc.verifiedPhotoBackKey
                 }
             }
 
@@ -321,6 +411,16 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
 
             val tensionObj = JsonParser.parse(mpRow[SamplingMachineProgramsTable.tensionSettings]) as? JsonValue.Obj
             val tensions = tensionObj?.stringMap("") ?: emptyMap()
+            val tenselities = (JsonParser.parse(mpRow[SamplingMachineProgramsTable.tenselityEntries]) as? JsonValue.Arr)
+                ?.items?.mapNotNull { item ->
+                    val obj = item as? JsonValue.Obj ?: return@mapNotNull null
+                    TenselityEntry(
+                        parameter = obj.string("parameter") ?: "",
+                        body = obj.string("body") ?: "",
+                        sleeve = obj.string("sleeve") ?: "",
+                        collar = obj.string("collar") ?: ""
+                    )
+                } ?: emptyList()
 
             MachineProgram(
                 programFront = mpRow[SamplingMachineProgramsTable.programFront],
@@ -330,7 +430,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                 programPlacket = mpRow[SamplingMachineProgramsTable.programPlacket],
                 feederInstructions = feeders,
                 patternFormulas = formulas,
-                tensionSettings = tensions
+                tensionSettings = tensions,
+                tenselityEntries = tenselities
             )
         } else MachineProgram()
 
@@ -383,6 +484,69 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             }
         } else SamplingOrder.defaultMilestones()
 
+        // 6. Finishing Deposits
+        val finishingDeposits = SamplingFinishingDepositsTable.selectAll()
+            .where { SamplingFinishingDepositsTable.samplingOrderId eq orderId }
+            .orderBy(SamplingFinishingDepositsTable.depositDate, SortOrder.ASC)
+            .map { row ->
+                FinishingDeposit(
+                    id = row[SamplingFinishingDepositsTable.id],
+                    samplingOrderId = row[SamplingFinishingDepositsTable.samplingOrderId],
+                    depositDate = row[SamplingFinishingDepositsTable.depositDate],
+                    qtyPcs = row[SamplingFinishingDepositsTable.qtyPcs],
+                    weightKg = row[SamplingFinishingDepositsTable.weightKg],
+                    scalePhotoKey = row[SamplingFinishingDepositsTable.scalePhotoKey],
+                    garmentPhotoKey = row[SamplingFinishingDepositsTable.garmentPhotoKey],
+                    operatorName = row[SamplingFinishingDepositsTable.operatorName],
+                    notes = row[SamplingFinishingDepositsTable.notes],
+                    createdAt = row[SamplingFinishingDepositsTable.createdAt]
+                )
+            }
+
+        // 7. QC Inspections
+        val qcInspections = SamplingQcInspectionsTable.selectAll()
+            .where { SamplingQcInspectionsTable.samplingOrderId eq orderId }
+            .orderBy(SamplingQcInspectionsTable.inspectedAt, SortOrder.ASC)
+            .map { row ->
+                val pomList = (JsonParser.parse(row[SamplingQcInspectionsTable.measuredPomValues]) as? JsonValue.Arr)
+                    ?.items?.mapNotNull { item ->
+                        val obj = item as? JsonValue.Obj ?: return@mapNotNull null
+                        QcPomMeasurement(
+                            pomName = obj.string("pomName") ?: "",
+                            targetCm = obj.double("targetCm") ?: 0.0,
+                            actualCm = obj.double("actualCm") ?: 0.0,
+                            toleranceCm = obj.double("toleranceCm") ?: 1.0
+                        )
+                    } ?: emptyList()
+                val defects = (JsonParser.parse(row[SamplingQcInspectionsTable.defectsFound]) as? JsonValue.Arr)
+                    ?.items?.mapNotNull { (it as? JsonValue.Str)?.value } ?: emptyList()
+                val qcResult = runCatching { QcInspectionResult.valueOf(row[SamplingQcInspectionsTable.qcResult]) }.getOrNull() ?: QcInspectionResult.PASSED
+
+                QcInspectionReport(
+                    id = row[SamplingQcInspectionsTable.id],
+                    samplingOrderId = row[SamplingQcInspectionsTable.samplingOrderId],
+                    inspectorName = row[SamplingQcInspectionsTable.inspectorName],
+                    inspectedAt = row[SamplingQcInspectionsTable.inspectedAt],
+                    pomMeasurements = pomList,
+                    defectsFound = defects,
+                    qcResult = qcResult,
+                    qcNotes = row[SamplingQcInspectionsTable.qcNotes],
+                    verifiedPhotoFrontKey = row[SamplingQcInspectionsTable.verifiedPhotoFrontKey],
+                    verifiedPhotoBackKey = row[SamplingQcInspectionsTable.verifiedPhotoBackKey]
+                )
+            }
+
+        val vendorInfo = MakloonVendorInfo(
+            vendorName = orderRow[SamplingOrdersTable.vendorName] ?: "",
+            vendorPhone = orderRow[SamplingOrdersTable.vendorPhone] ?: "",
+            sentAt = orderRow[SamplingOrdersTable.vendorSentAt],
+            expectedReturnAt = orderRow[SamplingOrdersTable.vendorTargetAt],
+            returnedAt = orderRow[SamplingOrdersTable.vendorReturnedAt],
+            costPerPcsIdr = orderRow[SamplingOrdersTable.vendorCostPerPcs],
+            status = runCatching { VendorFollowUpStatus.valueOf(orderRow[SamplingOrdersTable.vendorStatus]) }.getOrNull() ?: VendorFollowUpStatus.NONE,
+            notes = orderRow[SamplingOrdersTable.vendorNotes]
+        )
+
         return SamplingOrder(
             id = SamplingOrderId(orderId),
             tenantId = TenantId(orderRow[SamplingOrdersTable.tenantId]),
@@ -390,6 +554,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             clientName = orderRow[SamplingOrdersTable.clientName],
             styleName = orderRow[SamplingOrdersTable.styleName],
             status = runCatching { SamplingStatus.valueOf(orderRow[SamplingOrdersTable.status]) }.getOrNull() ?: SamplingStatus.DRAFT,
+            pipelineStage = runCatching { SamplingPipelineStage.valueOf(orderRow[SamplingOrdersTable.pipelineStage]) }.getOrNull() ?: SamplingPipelineStage.NEW_INTAKE,
+            finishingPath = runCatching { FinishingPath.valueOf(orderRow[SamplingOrdersTable.finishingPath]) }.getOrNull() ?: FinishingPath.INTERNAL,
+            vendorInfo = vendorInfo,
             sizeMode = runCatching { SizeMode.valueOf(orderRow[SamplingOrdersTable.sizeMode]) }.getOrNull() ?: SizeMode.ALL_SIZE,
             deadlineProgram = orderRow[SamplingOrdersTable.deadlineProgram],
             deadlineFinishing = orderRow[SamplingOrdersTable.deadlineFinishing],
@@ -400,19 +567,119 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             courierTracking = orderRow[SamplingOrdersTable.courierTracking],
             samplingFeeIdr = orderRow[SamplingOrdersTable.samplingFeeIdr],
             revisionCount = orderRow[SamplingOrdersTable.revisionCount],
+            revisionHistory = parseRevisionHistory(
+                raw = orderRow[SamplingOrdersTable.revisionHistory],
+                fallbackAt = orderRow[SamplingOrdersTable.updatedAt]
+            ),
             accNotes = orderRow[SamplingOrdersTable.accNotes],
             notes = orderRow[SamplingOrdersTable.notes],
             knitSpec = knitSpec,
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawKnitSizes,
+            sizeMatrix = parseSizeMatrix(orderRow[SamplingOrdersTable.sizeMatrix]),
             machineProgram = machineProgram,
             yieldAndTiming = yieldAndTiming,
+            finishingDeposits = finishingDeposits,
+            qcInspections = qcInspections,
             milestones = milestones,
             createdAt = orderRow[SamplingOrdersTable.createdAt],
             updatedAt = orderRow[SamplingOrdersTable.updatedAt],
             archivedAt = orderRow[SamplingOrdersTable.archivedAt]
         )
     }
+
+    /** Jsonb `size_matrix` -> daftar baris ukuran; fallback ke default jika kosong. */
+    private fun parseSizeMatrix(raw: String?): List<SizeChartRow> =
+        runCatching {
+            if (raw.isNullOrBlank()) return@runCatching defaultSamplingSizeMatrix()
+            JsonParser.parseArray(raw)
+                .filterIsInstance<JsonValue.Obj>()
+                .map { rowObj ->
+                    val valuesMap = mutableMapOf<String, String>()
+                    rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                        when (v) {
+                            is JsonValue.Str -> valuesMap[k] = v.value
+                            is JsonValue.Num -> valuesMap[k] = v.raw
+                            else -> Unit
+                        }
+                    }
+                    SizeChartRow(
+                        id = rowObj.string("id") ?: "",
+                        pomName = rowObj.string("pomName") ?: "",
+                        values = valuesMap
+                    )
+                }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
+        }.getOrDefault(defaultSamplingSizeMatrix()).let(::ensureSamplingQtyRow)
+
+    private fun encodeRevisionHistory(history: List<RevisionFeedback>): String =
+        jsonArrayOf(history.map { entry ->
+            val pairs = mutableListOf(
+                "revision" to jsonOf(entry.revision),
+                "notes" to jsonOf(entry.notes),
+                "at" to jsonOf(entry.at.toString())
+            )
+            entry.snapshot?.let { snap ->
+                pairs.add("snapshot" to jsonObjectOf(
+                    "mockupFrontKey" to jsonOf(snap.mockupFrontKey),
+                    "mockupBackKey" to jsonOf(snap.mockupBackKey),
+                    "sampleQuantity" to jsonOf(snap.sampleQuantity),
+                    "samplingFeeIdr" to jsonOf(snap.samplingFeeIdr),
+                    "notes" to jsonOf(snap.notes),
+                    "sizeMatrix" to jsonArrayOf(snap.sizeMatrix.map { row ->
+                        jsonObjectOf(
+                            "id" to jsonOf(row.id),
+                            "pomName" to jsonOf(row.pomName),
+                            "values" to jsonStringMapOf(row.values)
+                        )
+                    })
+                ))
+            }
+            JsonValue.Obj(pairs.toMap())
+        }).encode()
+
+    /** Jsonb `revision_history` -> daftar feedback + snapshot; data rusak/lama = daftar kosong, bukan error. */
+    private fun parseRevisionHistory(raw: String, fallbackAt: Instant): List<RevisionFeedback> =
+        runCatching {
+            JsonParser.parseArray(raw)
+                .filterIsInstance<JsonValue.Obj>()
+                .mapNotNull { entry ->
+                    val at = runCatching { Instant.parse(entry.string("at") ?: "") }
+                        .getOrDefault(fallbackAt)
+                    val revision = entry.int("revision") ?: return@mapNotNull null
+                    val snapObj = entry.obj("snapshot")
+                    val snap = snapObj?.let { sObj ->
+                        val snapMatrix = sObj.objectArray("sizeMatrix").map { rowObj ->
+                            val valuesMap = mutableMapOf<String, String>()
+                            rowObj.obj("values")?.entries?.forEach { (k, v) ->
+                                when (v) {
+                                    is JsonValue.Str -> valuesMap[k] = v.value
+                                    is JsonValue.Num -> valuesMap[k] = v.raw
+                                    else -> Unit
+                                }
+                            }
+                            SizeChartRow(
+                                id = rowObj.string("id") ?: "",
+                                pomName = rowObj.string("pomName") ?: "",
+                                values = valuesMap
+                            )
+                        }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
+                        SamplingSnapshot(
+                            mockupFrontKey = sObj.string("mockupFrontKey"),
+                            mockupBackKey = sObj.string("mockupBackKey"),
+                            sizeMatrix = snapMatrix,
+                            sampleQuantity = sObj.int("sampleQuantity") ?: 1,
+                            samplingFeeIdr = sObj.long("samplingFeeIdr") ?: 0L,
+                            notes = sObj.string("notes") ?: ""
+                        )
+                    }
+                    RevisionFeedback(
+                        revision = revision,
+                        notes = entry.string("notes") ?: "",
+                        at = at,
+                        snapshot = snap
+                    )
+                }
+        }.getOrDefault(emptyList())
 
     private fun toSizeMeasurement(row: ResultRow): SizeMeasurement = SizeMeasurement(
         sizeLabel = row[SamplingSizeChartsTable.sizeLabel],

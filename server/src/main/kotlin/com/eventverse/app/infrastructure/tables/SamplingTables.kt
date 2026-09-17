@@ -16,6 +16,16 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val clientName = varchar("client_name", 150)
     val styleName = varchar("style_name", 150)
     val status = varchar("status", 30).default("DRAFT")
+    val pipelineStage = varchar("pipeline_stage", 50).default("NEW_INTAKE")
+    val finishingPath = varchar("finishing_path", 50).default("INTERNAL")
+    val vendorName = varchar("vendor_name", 150).nullable()
+    val vendorPhone = varchar("vendor_phone", 50).nullable()
+    val vendorSentAt = date("vendor_sent_at").nullable()
+    val vendorTargetAt = date("vendor_target_at").nullable()
+    val vendorReturnedAt = date("vendor_returned_at").nullable()
+    val vendorCostPerPcs = long("vendor_cost_per_pcs").default(0L)
+    val vendorStatus = varchar("vendor_status", 50).default("NONE")
+    val vendorNotes = text("vendor_notes").default("")
     val sizeMode = varchar("size_mode", 20).default("ALL_SIZE")
 
     val deadlineProgram = date("deadline_program").nullable()
@@ -28,6 +38,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val courierTracking = varchar("courier_tracking", 150).nullable()
     val samplingFeeIdr = long("sampling_fee_idr").default(0L)
     val revisionCount = integer("revision_count").default(0)
+    val revisionHistory = jsonbText("revision_history").default("[]")
+    val sizeMatrix = jsonbText("size_matrix").default("[]")
     val accNotes = text("acc_notes").default("")
     val notes = text("notes").default("")
 
@@ -97,6 +109,7 @@ object SamplingMachineProgramsTable : Table("sampling_machine_programs") {
     val feederInstructions = jsonbText("feeder_instructions").default("[]")
     val patternFormulas = jsonbText("pattern_formulas").default("{}")
     val tensionSettings = jsonbText("tension_settings").default("{}")
+    val tenselityEntries = jsonbText("tenselity_entries").default("[]")
 
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
@@ -132,6 +145,40 @@ object SamplingMilestonesTable : Table("sampling_milestones") {
     val completedAt = date("completed_at").nullable()
     val stepOrder = integer("step_order").default(0)
     val notes = text("notes").default("")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object SamplingFinishingDepositsTable : Table("sampling_finishing_deposits") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
+
+    val depositDate = date("deposit_date")
+    val qtyPcs = integer("qty_pcs")
+    val weightKg = double("weight_kg").default(0.0)
+    val scalePhotoKey = text("scale_photo_key").nullable()
+    val garmentPhotoKey = text("garment_photo_key").nullable()
+    val operatorName = varchar("operator_name", 100).default("")
+    val notes = text("notes").default("")
+    val createdAt = timestamp("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object SamplingQcInspectionsTable : Table("sampling_qc_inspections") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
+
+    val inspectorName = varchar("inspector_name", 100).default("")
+    val inspectedAt = timestamp("inspected_at")
+    val measuredPomValues = jsonbText("measured_pom_values").default("[]")
+    val defectsFound = jsonbText("defects_found").default("[]")
+    val qcResult = varchar("qc_result", 30).default("PASSED")
+    val qcNotes = text("qc_notes").default("")
+    val verifiedPhotoFrontKey = text("verified_photo_front_key").nullable()
+    val verifiedPhotoBackKey = text("verified_photo_back_key").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -1,8 +1,6 @@
 package com.eventverse.app.presentation.deal
 
 import kotlin.coroutines.resume
-import kotlin.js.ExperimentalWasmJsInterop
-import kotlin.js.JsFun
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
@@ -12,6 +10,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * Dipilih data URL, bukan ArrayBuffer, karena konversi typed-array berbeda antara JS dan Wasm;
  * data URL hanya `String` sehingga satu implementasi cukup untuk kedua target web.
  */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """(accept, cb) => {
         const input = document.createElement('input');
@@ -36,7 +35,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 )
 private external fun openFilePickerJs(accept: String, onLoaded: (String?) -> Unit)
 
-@OptIn(ExperimentalWasmJsInterop::class)
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 actual suspend fun pickLocalFile(accept: String): PickedLocalFile? =
     suspendCancellableCoroutine { continuation ->
         openFilePickerJs(accept) { dataUrl ->
