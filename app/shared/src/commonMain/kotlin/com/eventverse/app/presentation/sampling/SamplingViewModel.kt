@@ -46,10 +46,6 @@ class SamplingViewModel(
             is SamplingUiEvent.SubmitQcInspection -> submitQcInspection(event.orderId, event.report)
             is SamplingUiEvent.RequestRevision -> requestRevision(event.orderId, event.notes)
 
-            is SamplingUiEvent.OpenFinishingDialog -> _uiState.update { it.copy(isFinishingDialogOpen = true, targetOrderForAction = event.order) }
-            is SamplingUiEvent.CloseFinishingDialog -> _uiState.update { it.copy(isFinishingDialogOpen = false, targetOrderForAction = null) }
-            is SamplingUiEvent.OpenQcDialog -> _uiState.update { it.copy(isQcDialogOpen = true, targetOrderForAction = event.order) }
-            is SamplingUiEvent.CloseQcDialog -> _uiState.update { it.copy(isQcDialogOpen = false, targetOrderForAction = null) }
             is SamplingUiEvent.OpenVendorDialog -> _uiState.update { it.copy(isVendorDialogOpen = true, targetOrderForAction = event.order) }
             is SamplingUiEvent.CloseVendorDialog -> _uiState.update { it.copy(isVendorDialogOpen = false, targetOrderForAction = null) }
             is SamplingUiEvent.OpenRevisionDialog -> _uiState.update { it.copy(isRevisionDialogOpen = true, targetOrderForAction = event.order) }
@@ -251,7 +247,6 @@ class SamplingViewModel(
                         current.copy(
                             orders = newOrders,
                             isSubmitting = false,
-                            isFinishingDialogOpen = false,
                             targetOrderForAction = null,
                             statusMessage = "Setoran ${deposit.qtyPcs} pcs (${deposit.weightKg} kg) berhasil dicatat",
                             isErrorMessage = false
@@ -336,7 +331,6 @@ class SamplingViewModel(
                         current.copy(
                             orders = newOrders,
                             isSubmitting = false,
-                            isQcDialogOpen = false,
                             targetOrderForAction = null,
                             statusMessage = "Laporan inspeksi QC tersimpan (${report.qcResult.displayName})",
                             isErrorMessage = false

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.MilestoneStep
 import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.TenselityEntry
 import com.eventverse.app.presentation.designsystem.*
@@ -26,11 +27,10 @@ fun SamplingDesktopWorkbench(
     onApproveOrder: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
-    onOpenFinishingDialog: () -> Unit = {},
-    onOpenQcDialog: () -> Unit = {},
     onOpenVendorDialog: () -> Unit = {},
     onConfirmVendorReceive: () -> Unit = {},
     onOpenRevisionDialog: () -> Unit = {},
+    onAdvanceStage: (SamplingPipelineStage) -> Unit = {},
     onUpdateTenselity: (List<TenselityEntry>) -> Unit = {}
 ) {
     var revisionNotes by remember(order.id) { mutableStateOf(order.accNotes) }
@@ -82,6 +82,13 @@ fun SamplingDesktopWorkbench(
                                 tint = statusColor,
                                 dot = true
                             )
+                            // Tahap pipeline tampil di samping status — user yang masuk
+                            // langsung ke Workbench tetap tahu posisi SPK di alur pabrik,
+                            // dengan warna tahap yang sama dengan Pipeline Kanban.
+                            ClayBadge(
+                                text = order.pipelineStage.displayName,
+                                tint = samplingStageTint(order.pipelineStage)
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(ClaySpacing.Xs))
@@ -98,38 +105,68 @@ fun SamplingDesktopWorkbench(
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (order.isAccApproved) {
-                            ClayButton(
-                                text = "Buat Tech Pack BOM",
-                                style = ClayButtonStyle.Primary,
-                                onClick = { onCreateTechPack?.invoke(order) }
-                            )
+                        // Batas ranah divisi (planning 4-modul): Sampling berakhir di
+                        // turun mesin. Tiga tahap pertama = aksi maju; linking/finishing/
+                        // QC read-only (ranah modul OPERATOR_EXEC & QUALITY_CONTROL);
+                        // ACC buyer = keputusan admin; golden sample = buka Tech Pack.
+                        when (order.pipelineStage) {
+                            SamplingPipelineStage.NEW_INTAKE -> {
+                                ClayButton(
+                                    text = "Mulai Program CAM",
+                                    style = ClayButtonStyle.Primary,
+                                    onClick = { onAdvanceStage(SamplingPipelineStage.CAM_PROGRAMMING) }
+                                )
+                            }
+
+                            SamplingPipelineStage.CAM_PROGRAMMING -> {
+                                ClayButton(
+                                    text = "Masuk Mesin Rajut",
+                                    style = ClayButtonStyle.Accent,
+                                    onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
+                                )
+                            }
+
+                            SamplingPipelineStage.MACHINE_KNITTING -> {
+                                ClayButton(
+                                    text = "Selesai Turun Mesin -> Serah ke Finishing",
+                                    style = ClayButtonStyle.Primary,
+                                    onClick = { onAdvanceStage(SamplingPipelineStage.LINKING_ASSEMBLY) }
+                                )
+                            }
+
+                            SamplingPipelineStage.LINKING_ASSEMBLY,
+                            SamplingPipelineStage.FINISHING_QC -> {
+                                ClayBadge(
+                                    text = "Di meja Finishing & QC — pantau di modulnya",
+                                    tint = WeMadeColors.OnSurfaceMuted
+                                )
+                            }
+
+                            SamplingPipelineStage.IN_DELIVERY -> {
+                                ClayButton(
+                                    text = "Ajukan Revisi",
+                                    style = ClayButtonStyle.Secondary,
+                                    onClick = onOpenRevisionDialog
+                                )
+                                ClayButton(
+                                    text = "ACC PRODUKSI",
+                                    style = ClayButtonStyle.Accent,
+                                    onClick = { onApproveOrder(true, revisionNotes) }
+                                )
+                            }
+
+                            SamplingPipelineStage.ACC_APPROVED -> {
+                                ClayBadge(
+                                    text = "GOLDEN SAMPLE LOCKED",
+                                    tint = WeMadeColors.Success
+                                )
+                                ClayButton(
+                                    text = "Buat Tech Pack BOM",
+                                    style = ClayButtonStyle.Primary,
+                                    onClick = { onCreateTechPack?.invoke(order) }
+                                )
+                            }
                         }
-
-                        ClayButton(
-                            text = "Setor Finishing",
-                            style = ClayButtonStyle.Primary,
-                            onClick = onOpenFinishingDialog
-                        )
-
-                        ClayButton(
-                            text = "QC Inspeksi",
-                            style = ClayButtonStyle.Success,
-                            onClick = onOpenQcDialog
-                        )
-
-                        ClayButton(
-                            text = "Ajukan Revisi",
-                            style = ClayButtonStyle.Secondary,
-                            onClick = onOpenRevisionDialog
-                        )
-
-                        ClayButton(
-                            text = if (order.isAccApproved) "SUDAH DI-ACC" else "ACC PRODUKSI",
-                            style = ClayButtonStyle.Accent,
-                            enabled = !order.isAccApproved,
-                            onClick = { onApproveOrder(true, revisionNotes) }
-                        )
                     }
                 }
 
@@ -352,26 +389,11 @@ fun SamplingDesktopWorkbench(
                 }
 
                 Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                ) {
-                    ClayButton(
-                        text = "+ Setor",
-                        style = ClayButtonStyle.Primary,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenFinishingDialog
-                    )
-                    ClayButton(
-                        text = "QC",
-                        style = ClayButtonStyle.Success,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenQcDialog
-                    )
-                }
             }
 
+            // Info finishing & QC bersifat read-only di modul Sampling: input setoran
+            // adalah ranah layar Operator Finishing (OPERATOR_EXEC), inspeksi ranah
+            // layar QC Inspector (QUALITY_CONTROL).
             ClayCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ClayShapes.Card,

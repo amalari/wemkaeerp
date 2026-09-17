@@ -20,7 +20,12 @@ enum class SamplingViewTab(val displayName: String) {
 data class SamplingUiState(
     val orders: List<SamplingOrder> = emptyList(),
     val selectedOrderId: SamplingOrderId? = null,
-    val activeViewTab: SamplingViewTab = SamplingViewTab.WORKBENCH,
+    /**
+     * Landing view = Pipeline Kanban: lead sampling butuh gambaran antrian pabrik
+     * (SPK mana di tahap apa, kolom mana kosong) sebelum masuk ke lembar kerja
+     * teknis satu SPK. Workbench tetap bisa dibuka via klik kartu kanban.
+     */
+    val activeViewTab: SamplingViewTab = SamplingViewTab.PIPELINE_KANBAN,
     val activeMobileTab: SamplingMobileTab = SamplingMobileTab.INFO,
     val selectedStatusFilter: SamplingStatus? = null,
     val selectedStageFilter: SamplingPipelineStage? = null,
@@ -30,8 +35,6 @@ data class SamplingUiState(
     val statusMessage: String? = null,
     val isErrorMessage: Boolean = false,
     val isCreateDialogOpen: Boolean = false,
-    val isFinishingDialogOpen: Boolean = false,
-    val isQcDialogOpen: Boolean = false,
     val isVendorDialogOpen: Boolean = false,
     val isRevisionDialogOpen: Boolean = false,
     val targetOrderForAction: SamplingOrder? = null
@@ -53,6 +56,16 @@ data class SamplingUiState(
 
     val ordersWithVendor: List<SamplingOrder>
         get() = orders.filter { it.finishingPath == FinishingPath.MAKLOON_VENDOR && it.vendorInfo.status != VendorFollowUpStatus.NONE }
+
+    /**
+     * Urutan chip selector SPK di Workbench: mengikuti alur pipeline (tahap 1 -> 7),
+     * lalu nomor SPK di dalam tahap yang sama — bukan urutan kedatangan data dari API,
+     * supaya mental model antrian pabrik konsisten dengan Pipeline Kanban.
+     */
+    val spkSelectorOrders: List<SamplingOrder>
+        get() = orders.sortedWith(
+            compareBy({ it.pipelineStage.order }, { it.spkNumber.value })
+        )
 }
 
 sealed interface SamplingUiEvent {
@@ -90,10 +103,6 @@ sealed interface SamplingUiEvent {
     data class RequestRevision(val orderId: SamplingOrderId, val notes: String) : SamplingUiEvent
     data class SaveFullOrder(val order: SamplingOrder) : SamplingUiEvent
 
-    data class OpenFinishingDialog(val order: SamplingOrder) : SamplingUiEvent
-    data object CloseFinishingDialog : SamplingUiEvent
-    data class OpenQcDialog(val order: SamplingOrder) : SamplingUiEvent
-    data object CloseQcDialog : SamplingUiEvent
     data class OpenVendorDialog(val order: SamplingOrder) : SamplingUiEvent
     data object CloseVendorDialog : SamplingUiEvent
     data class OpenRevisionDialog(val order: SamplingOrder) : SamplingUiEvent

@@ -29,14 +29,29 @@ fun SamplingPipelineKanbanBoard(
     selectedOrderId: SamplingOrderId?,
     onSelectOrder: (SamplingOrderId) -> Unit,
     onAdvanceStage: (SamplingOrderId, SamplingPipelineStage) -> Unit,
-    onOpenFinishingDialog: (SamplingOrder) -> Unit,
-    onOpenVendorDialog: (SamplingOrder) -> Unit,
-    onOpenQcDialog: (SamplingOrder) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+
+    // Batas ranah divisi (planning 4-modul Sampling/Finishing/QC/Admin Tower):
+    // modul Sampling berakhir di turun mesin. Linking/finishing/QC adalah ranah
+    // modul OPERATOR_EXEC & QUALITY_CONTROL — di board ini hanya dipantau
+    // read-only; keputusan buyer (ACC/revisi) tetap milik admin di kolom terakhir.
+    val samplingStages = listOf(
+        SamplingPipelineStage.NEW_INTAKE,
+        SamplingPipelineStage.CAM_PROGRAMMING,
+        SamplingPipelineStage.MACHINE_KNITTING
+    )
+    val finishingStages = listOf(
+        SamplingPipelineStage.LINKING_ASSEMBLY,
+        SamplingPipelineStage.FINISHING_QC
+    )
+    val buyerStages = listOf(
+        SamplingPipelineStage.IN_DELIVERY,
+        SamplingPipelineStage.ACC_APPROVED
+    )
 
     Row(
         modifier = modifier
@@ -45,22 +60,44 @@ fun SamplingPipelineKanbanBoard(
             .padding(ClaySpacing.Md),
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
-        SamplingPipelineStage.entries.sortedBy { it.order }.forEach { stage ->
-            val stageOrders = orders.filter { it.pipelineStage == stage }
+        samplingStages.forEach { stage ->
             KanbanStageColumn(
                 stage = stage,
-                orders = stageOrders,
+                orders = orders.filter { it.pipelineStage == stage },
                 selectedOrderId = selectedOrderId,
                 onSelectOrder = onSelectOrder,
                 onAdvanceStage = onAdvanceStage,
-                onOpenFinishingDialog = onOpenFinishingDialog,
-                onOpenVendorDialog = onOpenVendorDialog,
-                onOpenQcDialog = onOpenQcDialog,
                 onOpenRevisionDialog = onOpenRevisionDialog,
                 onApproveOrder = onApproveOrder,
                 modifier = Modifier.width(300.dp).fillMaxHeight()
             )
         }
+
+        KanbanGroupColumn(
+            title = "Di Meja Finishing & QC",
+            subtitle = "Ranah divisi Finishing & QC — pantau saja",
+            tint = WeMadeColors.Teal,
+            orders = orders.filter { it.pipelineStage in finishingStages },
+            selectedOrderId = selectedOrderId,
+            onSelectOrder = onSelectOrder,
+            onOpenRevisionDialog = onOpenRevisionDialog,
+            onApproveOrder = onApproveOrder,
+            showActions = false,
+            modifier = Modifier.width(300.dp).fillMaxHeight()
+        )
+
+        KanbanGroupColumn(
+            title = "Tunggu ACC Buyer",
+            subtitle = "Keputusan buyer / admin",
+            tint = WeMadeColors.Info,
+            orders = orders.filter { it.pipelineStage in buyerStages },
+            selectedOrderId = selectedOrderId,
+            onSelectOrder = onSelectOrder,
+            onOpenRevisionDialog = onOpenRevisionDialog,
+            onApproveOrder = onApproveOrder,
+            showActions = true,
+            modifier = Modifier.width(300.dp).fillMaxHeight()
+        )
     }
 }
 
@@ -71,22 +108,11 @@ private fun KanbanStageColumn(
     selectedOrderId: SamplingOrderId?,
     onSelectOrder: (SamplingOrderId) -> Unit,
     onAdvanceStage: (SamplingOrderId, SamplingPipelineStage) -> Unit,
-    onOpenFinishingDialog: (SamplingOrder) -> Unit,
-    onOpenVendorDialog: (SamplingOrder) -> Unit,
-    onOpenQcDialog: (SamplingOrder) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val headerTint = when (stage) {
-        SamplingPipelineStage.NEW_INTAKE -> WeMadeColors.OnSurfaceMuted
-        SamplingPipelineStage.CAM_PROGRAMMING -> WeMadeColors.Primary
-        SamplingPipelineStage.MACHINE_KNITTING -> WeMadeColors.Warning
-        SamplingPipelineStage.LINKING_ASSEMBLY -> WeMadeColors.Purple
-        SamplingPipelineStage.FINISHING_QC -> WeMadeColors.Teal
-        SamplingPipelineStage.IN_DELIVERY -> WeMadeColors.Info
-        SamplingPipelineStage.ACC_APPROVED -> WeMadeColors.Success
-    }
+    val headerTint = samplingStageTint(stage)
 
     Column(
         modifier = modifier
@@ -147,11 +173,99 @@ private fun KanbanStageColumn(
                     KanbanOrderCard(
                         order = order,
                         isSelected = order.id == selectedOrderId,
+                        showActions = true,
                         onSelectOrder = { onSelectOrder(order.id) },
                         onAdvanceStage = { onAdvanceStage(order.id, it) },
-                        onOpenFinishingDialog = { onOpenFinishingDialog(order) },
-                        onOpenVendorDialog = { onOpenVendorDialog(order) },
-                        onOpenQcDialog = { onOpenQcDialog(order) },
+                        onOpenRevisionDialog = { onOpenRevisionDialog(order) },
+                        onApproveOrder = { onApproveOrder(order.id, "ACC Golden Sample") }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Kolom agregat lintas-tahap: dipakai untuk ranah DI LUAR divisi Sampling
+ * (linking/finishing/QC — kartu read-only, hanya dipantau) dan kelompok
+ * keputusan buyer (IN_DELIVERY + ACC_APPROVED — aksi ACC/revisi tetap aktif
+ * karena itu tugas admin, bukan operator sampling).
+ */
+@Composable
+private fun KanbanGroupColumn(
+    title: String,
+    subtitle: String,
+    tint: Color,
+    orders: List<SamplingOrder>,
+    selectedOrderId: SamplingOrderId?,
+    onSelectOrder: (SamplingOrderId) -> Unit,
+    onOpenRevisionDialog: (SamplingOrder) -> Unit,
+    onApproveOrder: (SamplingOrderId, String) -> Unit,
+    showActions: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(WeMadeColors.SurfaceMuted, ClayShapes.Card)
+            .padding(ClaySpacing.Sm)
+    ) {
+        // Group Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = ClaySpacing.Sm),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 10.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+            ClayBadge(
+                text = "${orders.size}",
+                tint = tint
+            )
+        }
+
+        // Cards list
+        val verticalScrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(verticalScrollState),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
+            if (orders.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp)
+                        .background(WeMadeColors.Surface.copy(alpha = 0.5f), ClayShapes.Tile),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Kosong",
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                }
+            } else {
+                orders.forEach { order ->
+                    KanbanOrderCard(
+                        order = order,
+                        isSelected = order.id == selectedOrderId,
+                        showActions = showActions,
+                        onSelectOrder = { onSelectOrder(order.id) },
+                        onAdvanceStage = { },
                         onOpenRevisionDialog = { onOpenRevisionDialog(order) },
                         onApproveOrder = { onApproveOrder(order.id, "ACC Golden Sample") }
                     )
@@ -165,11 +279,9 @@ private fun KanbanStageColumn(
 private fun KanbanOrderCard(
     order: SamplingOrder,
     isSelected: Boolean,
+    showActions: Boolean,
     onSelectOrder: () -> Unit,
     onAdvanceStage: (SamplingPipelineStage) -> Unit,
-    onOpenFinishingDialog: () -> Unit,
-    onOpenVendorDialog: () -> Unit,
-    onOpenQcDialog: () -> Unit,
     onOpenRevisionDialog: () -> Unit,
     onApproveOrder: () -> Unit
 ) {
@@ -256,95 +368,70 @@ private fun KanbanOrderCard(
                 }
             }
 
-            // Stage specific action buttons
-            when (order.pipelineStage) {
-                SamplingPipelineStage.NEW_INTAKE -> {
-                    ClayButton(
-                        text = "Mulai Program CAM ->",
-                        style = ClayButtonStyle.Primary,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onAdvanceStage(SamplingPipelineStage.CAM_PROGRAMMING) }
-                    )
-                }
-                SamplingPipelineStage.CAM_PROGRAMMING -> {
-                    ClayButton(
-                        text = "Masuk Mesin Rajut ->",
-                        style = ClayButtonStyle.Accent,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
-                    )
-                }
-                SamplingPipelineStage.MACHINE_KNITTING -> {
-                    ClayButton(
-                        text = "Turun Mesin Selesai ->",
-                        style = ClayButtonStyle.Primary,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onAdvanceStage(SamplingPipelineStage.LINKING_ASSEMBLY) }
-                    )
-                }
-                SamplingPipelineStage.LINKING_ASSEMBLY -> {
-                    if (order.finishingPath == FinishingPath.MAKLOON_VENDOR) {
-                        if (order.vendorInfo.status == VendorFollowUpStatus.WITH_VENDOR || order.vendorInfo.status == VendorFollowUpStatus.OVERDUE) {
+            // Aksi tahap — hanya untuk kartu di kolom ranah Sampling dan kelompok
+            // keputusan buyer. Kartu di kolom divisi lain (finishing/QC) read-only:
+            // posisinya cukup ditampilkan sebagai badge, aksinya milik modul
+            // OPERATOR_EXEC / QUALITY_CONTROL masing-masing.
+            if (showActions) {
+                when (order.pipelineStage) {
+                    SamplingPipelineStage.NEW_INTAKE -> {
+                        ClayButton(
+                            text = "Mulai Program CAM ->",
+                            style = ClayButtonStyle.Primary,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onAdvanceStage(SamplingPipelineStage.CAM_PROGRAMMING) }
+                        )
+                    }
+                    SamplingPipelineStage.CAM_PROGRAMMING -> {
+                        ClayButton(
+                            text = "Masuk Mesin Rajut ->",
+                            style = ClayButtonStyle.Accent,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
+                        )
+                    }
+                    SamplingPipelineStage.MACHINE_KNITTING -> {
+                        ClayButton(
+                            text = "Turun Mesin Selesai -> Serah ke Finishing",
+                            style = ClayButtonStyle.Primary,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onAdvanceStage(SamplingPipelineStage.LINKING_ASSEMBLY) }
+                        )
+                    }
+                    SamplingPipelineStage.IN_DELIVERY -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                        ) {
                             ClayButton(
-                                text = "Konfirmasi Terima Vendor ->",
+                                text = "ACC Buyer",
                                 style = ClayButtonStyle.Success,
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { onAdvanceStage(SamplingPipelineStage.FINISHING_QC) }
+                                modifier = Modifier.weight(1f),
+                                onClick = onApproveOrder
                             )
-                        } else {
                             ClayButton(
-                                text = "Kirim ke Vendor Makloon",
-                                style = ClayButtonStyle.Primary,
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = onOpenVendorDialog
+                                text = "Revisi",
+                                style = ClayButtonStyle.Secondary,
+                                modifier = Modifier.weight(1f),
+                                onClick = onOpenRevisionDialog
                             )
                         }
-                    } else {
-                        val sisa = order.remainingFinishingQty
-                        ClayButton(
-                            text = if (sisa > 0) "+ Setor Finishing ($sisa sisa)" else "Selesai -> Ke QC",
-                            style = if (sisa > 0) ClayButtonStyle.Primary else ClayButtonStyle.Success,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                if (sisa > 0) onOpenFinishingDialog() else onAdvanceStage(SamplingPipelineStage.FINISHING_QC)
-                            }
+                    }
+                    SamplingPipelineStage.ACC_APPROVED -> {
+                        ClayBadge(
+                            text = "GOLDEN SAMPLE LOCKED",
+                            tint = WeMadeColors.Success,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
+                    else -> {}
                 }
-                SamplingPipelineStage.FINISHING_QC -> {
-                    ClayButton(
-                        text = "Inspeksi Fisik QC ->",
-                        style = ClayButtonStyle.Accent,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onOpenQcDialog
-                    )
-                }
-                SamplingPipelineStage.IN_DELIVERY -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
-                    ) {
-                        ClayButton(
-                            text = "ACC Buyer",
-                            style = ClayButtonStyle.Success,
-                            modifier = Modifier.weight(1f),
-                            onClick = onApproveOrder
-                        )
-                        ClayButton(
-                            text = "Revisi",
-                            style = ClayButtonStyle.Secondary,
-                            modifier = Modifier.weight(1f),
-                            onClick = onOpenRevisionDialog
-                        )
-                    }
-                }
-                SamplingPipelineStage.ACC_APPROVED -> {
-                    ClayBadge(
-                        text = "GOLDEN SAMPLE LOCKED",
-                        tint = WeMadeColors.Success,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+            } else {
+                ClayBadge(
+                    text = order.pipelineStage.displayName,
+                    tint = samplingStageTint(order.pipelineStage),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

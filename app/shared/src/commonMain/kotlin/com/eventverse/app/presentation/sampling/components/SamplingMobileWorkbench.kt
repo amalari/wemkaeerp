@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.MilestoneStep
 import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.sampling.SamplingMobileTab
@@ -26,10 +27,9 @@ fun SamplingMobileWorkbench(
     onApproveOrder: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
-    onOpenFinishingDialog: () -> Unit = {},
-    onOpenQcDialog: () -> Unit = {},
     onOpenVendorDialog: () -> Unit = {},
     onConfirmVendorReceive: () -> Unit = {},
+    onAdvanceStage: (SamplingPipelineStage) -> Unit = {},
     onUpdateTenselity: (List<com.eventverse.app.domain.sampling.TenselityEntry>) -> Unit = {}
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -198,23 +198,6 @@ fun SamplingMobileWorkbench(
                             Text(text = "${order.remainingFinishingQty} Pcs", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Accent)
                         }
                         Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                        ) {
-                            ClayButton(
-                                text = "+ Setor",
-                                style = ClayButtonStyle.Primary,
-                                modifier = Modifier.weight(1f),
-                                onClick = onOpenFinishingDialog
-                            )
-                            ClayButton(
-                                text = "QC",
-                                style = ClayButtonStyle.Success,
-                                modifier = Modifier.weight(1f),
-                                onClick = onOpenQcDialog
-                            )
-                        }
                     }
                 }
             }
@@ -235,33 +218,33 @@ fun SamplingMobileWorkbench(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (order.isAccApproved) {
-                    ClayButton(
-                        text = "Buat Tech Pack BOM",
-                        style = ClayButtonStyle.Primary,
-                        modifier = Modifier.weight(0.55f),
-                        onClick = { onCreateTechPack?.invoke(order) }
-                    )
-                    ClayButton(
-                        text = "Revisi",
-                        style = ClayButtonStyle.Secondary,
-                        modifier = Modifier.weight(0.45f),
-                        onClick = { onApproveOrder(false, "Revisi via mobile") }
-                    )
-                } else {
-                    ClayButton(
-                        text = "Revisi",
-                        style = ClayButtonStyle.Secondary,
-                        modifier = Modifier.weight(0.35f),
-                        onClick = { onApproveOrder(false, "Revisi via mobile") }
-                    )
+                when {
+                    // Keputusan buyer hanya relevan saat sample menunggu ACC (tugas admin,
+                    // bukan operator sampling); setelah ACC -> lanjut Tech Pack.
+                    order.pipelineStage == SamplingPipelineStage.IN_DELIVERY -> {
+                        ClayButton(
+                            text = "Revisi",
+                            style = ClayButtonStyle.Secondary,
+                            modifier = Modifier.weight(0.35f),
+                            onClick = { onApproveOrder(false, "Revisi via mobile") }
+                        )
 
-                    ClayButton(
-                        text = "ACC PRODUKSI",
-                        style = ClayButtonStyle.Accent,
-                        modifier = Modifier.weight(0.65f),
-                        onClick = { onApproveOrder(true, "ACC Produksi via mobile") }
-                    )
+                        ClayButton(
+                            text = "ACC PRODUKSI",
+                            style = ClayButtonStyle.Accent,
+                            modifier = Modifier.weight(0.65f),
+                            onClick = { onApproveOrder(true, "ACC Produksi via mobile") }
+                        )
+                    }
+
+                    order.isAccApproved -> {
+                        ClayButton(
+                            text = "Buat Tech Pack BOM",
+                            style = ClayButtonStyle.Primary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onCreateTechPack?.invoke(order) }
+                        )
+                    }
                 }
             }
         }

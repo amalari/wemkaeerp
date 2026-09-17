@@ -109,7 +109,7 @@ fun SamplingWorkspaceScreen(
                             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            state.orders.take(5).forEach { order ->
+                            state.spkSelectorOrders.forEach { order ->
                                 val isSelected = order.id == state.selectedOrderId
                                 ClayButton(
                                     text = order.spkNumber.value,
@@ -161,15 +161,6 @@ fun SamplingWorkspaceScreen(
                         onAdvanceStage = { id, stage ->
                             viewModel.onEvent(SamplingUiEvent.AdvanceStage(id, stage))
                         },
-                        onOpenFinishingDialog = {
-                            viewModel.onEvent(SamplingUiEvent.OpenFinishingDialog(it))
-                        },
-                        onOpenVendorDialog = {
-                            viewModel.onEvent(SamplingUiEvent.OpenVendorDialog(it))
-                        },
-                        onOpenQcDialog = {
-                            viewModel.onEvent(SamplingUiEvent.OpenQcDialog(it))
-                        },
                         onOpenRevisionDialog = {
                             viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(it))
                         },
@@ -200,17 +191,11 @@ fun SamplingWorkspaceScreen(
                                 onApproveOrder = { isApproved, notes ->
                                     viewModel.onEvent(SamplingUiEvent.ApproveOrder(selectedOrder.id, isApproved, notes))
                                 },
-                                onOpenFinishingDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenFinishingDialog(selectedOrder))
-                                },
-                                onOpenQcDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenQcDialog(selectedOrder))
-                                },
-                                onOpenVendorDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenVendorDialog(selectedOrder))
-                                },
                                 onConfirmVendorReceive = {
                                     viewModel.onEvent(SamplingUiEvent.ConfirmVendorReturn(selectedOrder.id))
+                                },
+                                onAdvanceStage = { stage ->
+                                    viewModel.onEvent(SamplingUiEvent.AdvanceStage(selectedOrder.id, stage))
                                 },
                                 onUpdateTenselity = { entries ->
                                     val updatedProgram = selectedOrder.machineProgram.copy(tenselityEntries = entries)
@@ -228,20 +213,14 @@ fun SamplingWorkspaceScreen(
                                 onApproveOrder = { isApproved, notes ->
                                     viewModel.onEvent(SamplingUiEvent.ApproveOrder(selectedOrder.id, isApproved, notes))
                                 },
-                                onOpenFinishingDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenFinishingDialog(selectedOrder))
-                                },
-                                onOpenQcDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenQcDialog(selectedOrder))
-                                },
-                                onOpenVendorDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenVendorDialog(selectedOrder))
-                                },
                                 onConfirmVendorReceive = {
                                     viewModel.onEvent(SamplingUiEvent.ConfirmVendorReturn(selectedOrder.id))
                                 },
                                 onOpenRevisionDialog = {
                                     viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(selectedOrder))
+                                },
+                                onAdvanceStage = { stage ->
+                                    viewModel.onEvent(SamplingUiEvent.AdvanceStage(selectedOrder.id, stage))
                                 },
                                 onUpdateTenselity = { entries ->
                                     val updatedProgram = selectedOrder.machineProgram.copy(tenselityEntries = entries)
@@ -293,31 +272,7 @@ fun SamplingWorkspaceScreen(
         }
     )
 
-    // 2. Finishing Setoran Dialog
-    FinishingSetoranDialog(
-        isOpen = state.isFinishingDialogOpen,
-        order = state.targetOrderForAction ?: state.selectedOrder,
-        isSubmitting = state.isSubmitting,
-        onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseFinishingDialog) },
-        onSubmit = { deposit ->
-            val targetId = (state.targetOrderForAction ?: state.selectedOrder)?.id ?: return@FinishingSetoranDialog
-            viewModel.onEvent(SamplingUiEvent.AddFinishingDeposit(targetId, deposit))
-        }
-    )
-
-    // 3. QC Inspection Dialog
-    QcInspectionDialog(
-        isOpen = state.isQcDialogOpen,
-        order = state.targetOrderForAction ?: state.selectedOrder,
-        isSubmitting = state.isSubmitting,
-        onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseQcDialog) },
-        onSubmit = { report ->
-            val targetId = (state.targetOrderForAction ?: state.selectedOrder)?.id ?: return@QcInspectionDialog
-            viewModel.onEvent(SamplingUiEvent.SubmitQcInspection(targetId, report))
-        }
-    )
-
-    // 4. Assign Vendor Dialog
+    // 2. Assign Vendor Dialog
     AssignVendorDialog(
         isOpen = state.isVendorDialogOpen,
         order = state.targetOrderForAction ?: state.selectedOrder,
