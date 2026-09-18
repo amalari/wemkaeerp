@@ -101,7 +101,7 @@ class SamplingOrderTest {
         val order = createSampleOrder() // DRAFT, NEW_INTAKE
         val timeline = order.resolveGarmentTimeline()
 
-        assertEquals(8, timeline.size)
+        assertEquals(5, timeline.size)
         val step1 = timeline[0]
         assertEquals(GarmentTrackingStep.INPUT_SPEK, step1.step)
         assertFalse(step1.isCompleted)
@@ -128,7 +128,7 @@ class SamplingOrderTest {
         assertTrue(step2.isCompleted)
 
         val step3 = timeline[2]
-        assertEquals(GarmentTrackingStep.KNITTING, step3.step)
+        assertEquals(GarmentTrackingStep.SAMPLING, step3.step)
         assertTrue(step3.isActive)
         assertEquals("Rajut Turun Mesin", step3.subtitle)
     }
@@ -142,10 +142,10 @@ class SamplingOrderTest {
         )
         val timeline = order.resolveGarmentTimeline()
 
-        val step7 = timeline[6]
-        assertEquals(GarmentTrackingStep.READY_TO_SHIP, step7.step)
-        assertTrue(step7.isActive)
-        assertEquals("Siap Kirim", step7.badgeText)
+        val step4 = timeline[3]
+        assertEquals(GarmentTrackingStep.READY_TO_SHIP, step4.step)
+        assertTrue(step4.isActive)
+        assertEquals("Siap Kirim", step4.badgeText)
     }
 
     @Test
@@ -155,9 +155,102 @@ class SamplingOrderTest {
             .approveAcc("ACC BUYER", now)
 
         val timeline = order.resolveGarmentTimeline()
-        val step8 = timeline[7]
-        assertEquals(GarmentTrackingStep.ACC_APPROVED, step8.step)
-        assertTrue(step8.isCompleted)
-        assertEquals("ACC", step8.badgeText)
+        val step5 = timeline[4]
+        assertEquals(GarmentTrackingStep.ACC_APPROVED, step5.step)
+        assertTrue(step5.isCompleted)
+        assertEquals("ACC", step5.badgeText)
+    }
+
+    // ==========================================================================
+    // Gerbang tahap & lembar input dinamis (StageWorkInput)
+    // ==========================================================================
+
+    private fun orderAtCam(): SamplingOrder = createSampleOrder().copy(
+        status = SamplingStatus.IN_PROGRESS,
+        pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING
+    )
+
+    private fun filledCamSections(): List<StageInputSection> = listOf(
+        StageInputSection.of(
+            StageSectionNames.PROGRAM,
+            "DEPAN" to "BIAN-D",
+            "BELAKANG" to "BIAN-B"
+        ),
+        StageInputSection.of(
+            StageSectionNames.FEEDER_INSTRUCTIONS,
+            "1" to "RIB STRIPE 1 PLAY ( HITAM )"
+        ),
+        StageInputSection.of(
+            StageSectionNames.PATTERN_FORMULAS,
+            "P BADAN" to "2.94 K"
+        )
+    )
+
+    @Test
+    fun advanceToMachineKnitting_withoutCamInputs_shouldBeRejected() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            orderAtCam().advancePipelineStage(SamplingPipelineStage.MACHINE_KNITTING, now)
+        }
+        assertTrue((error.message ?: "").contains("Program CAM"))
+    }
+
+    @Test
+    fun advanceToMachineKnitting_withCompleteCamInputs_shouldRecordAudit() {
+        val order = orderAtCam().fillStageInput(
+            SamplingPipelineStage.CAM_PROGRAMMING,
+            filledCamSections(),
+            now
+        ).advancePipelineStage(
+            SamplingPipelineStage.MACHINE_KNITTING,
+            now,
+            actorEmail = "admin@wemade.id",
+            actorRole = "TENANT_ADMIN"
+        )
+
+        assertEquals(SamplingPipelineStage.MACHINE_KNITTING, order.pipelineStage)
+        assertEquals(1, order.stageHistory.size)
+        val audit = order.stageHistory.single()
+        assertEquals(SamplingPipelineStage.CAM_PROGRAMMING, audit.fromStage)
+        assertEquals(SamplingPipelineStage.MACHINE_KNITTING, audit.toStage)
+        assertEquals("admin@wemade.id", audit.actorEmail)
+    }
+
+    @Test
+    fun advanceWithoutGate_fromNewIntakeToCam_shouldSucceedWithoutInputs() {
+        val order = createSampleOrder().advancePipelineStage(
+            SamplingPipelineStage.CAM_PROGRAMMING,
+            now,
+            actorEmail = "sales@wemade.id",
+            actorRole = "TENANT_ADMIN"
+        )
+
+        assertEquals(SamplingPipelineStage.CAM_PROGRAMMING, order.pipelineStage)
+        assertEquals("sales@wemade.id", order.stageHistory.single().actorEmail)
+    }
+
+    @Test
+    fun fillStageInput_twiceForSameStage_shouldReplaceNotDuplicate() {
+        val order = orderAtCam()
+            .fillStageInput(SamplingPipelineStage.CAM_PROGRAMMING, filledCamSections(), now)
+            .fillStageInput(SamplingPipelineStage.CAM_PROGRAMMING, filledCamSections(), now)
+
+        assertEquals(1, order.stageInputs.size)
+    }
+
+    @Test
+    fun samplingOrderCodec_stageInputsAndHistory_roundTripShouldPreserveData() {
+        val order = orderAtCam()
+            .fillStageInput(SamplingPipelineStage.CAM_PROGRAMMING, filledCamSections(), now)
+            .advancePipelineStage(SamplingPipelineStage.MACHINE_KNITTING, now, "a@b.id", "TENANT_ADMIN")
+
+        val decoded = SamplingOrderCodec.decode(SamplingOrderCodec.encode(order))
+
+        assertEquals(1, decoded.stageInputs.size)
+        assertEquals(
+            filledCamSections().map { it.section },
+            decoded.stageInputs.single().sections.map { it.section }
+        )
+        assertEquals(1, decoded.stageHistory.size)
+        assertEquals("a@b.id", decoded.stageHistory.single().actorEmail)
     }
 }

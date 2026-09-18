@@ -65,6 +65,13 @@ data class SamplingOrder(
     val finishingDeposits: List<FinishingDeposit> = emptyList(),
     val qcInspections: List<QcInspectionReport> = emptyList(),
     val milestones: List<MilestoneProgress> = defaultMilestones(),
+    /**
+     * Lembar input dinamis per tahap (CAM, Rajut, dst.) — label & value bebas mengikuti
+     * kebutuhan lembar kerja pabrik. Kosong pada data lama; gerbang tahap membacanya.
+     */
+    val stageInputs: List<StageWorkInput> = emptyList(),
+    /** Jejak audit perpindahan tahap: siapa yang memindahkan dan kapan. Diisi server. */
+    val stageHistory: List<StageTransitionAudit> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
     val archivedAt: Instant? = null
@@ -157,14 +164,57 @@ data class SamplingOrder(
         )
     }
 
-    fun advancePipelineStage(target: SamplingPipelineStage, updatedAt: Instant): SamplingOrder =
-        copy(
+    /**
+     * Simpan lembar input dinamis untuk satu tahap — menggantikan entry tahap yang sama
+     * bila sudah ada (satu tahap = satu lembar kerja aktif).
+     */
+    fun fillStageInput(stage: SamplingPipelineStage, sections: List<StageInputSection>, updatedAt: Instant): SamplingOrder {
+        require(sections.isNotEmpty()) { "Lembar input tahap tidak boleh kosong" }
+        val entry = StageWorkInput(stage = stage, sections = sections)
+        val updated = stageInputs.filterNot { it.stage == stage } + entry
+        return copy(stageInputs = updated, updatedAt = updatedAt)
+    }
+
+    /** Section input yang sudah diisi untuk satu tahap (untuk tampilan read-only antar tahap). */
+    fun stageInputFor(stage: SamplingPipelineStage): StageWorkInput? = stageInputs.firstOrNull { it.stage == stage }
+
+    fun advancePipelineStage(
+        target: SamplingPipelineStage,
+        updatedAt: Instant,
+        actorEmail: String = "",
+        actorRole: String = ""
+    ): SamplingOrder {
+        requireStageGate(target)
+        return copy(
             pipelineStage = target,
             status = if (status == SamplingStatus.DRAFT && target != SamplingPipelineStage.NEW_INTAKE) {
                 SamplingStatus.IN_PROGRESS
             } else status,
+            stageHistory = stageHistory + StageTransitionAudit(
+                fromStage = pipelineStage,
+                toStage = target,
+                actorEmail = actorEmail,
+                actorRole = actorRole,
+                at = updatedAt
+            ),
             updatedAt = updatedAt
         )
+    }
+
+    /**
+     * Gerbang antar tahap: transisi CAM -> Mesin Rajut hanya sah setelah section wajib
+     * lembar CAM (PROGRAM, INSTRUKSI PANAH, RUMUS POLA) memiliki minimal satu baris terisi.
+     */
+    private fun requireStageGate(target: SamplingPipelineStage) {
+        if (pipelineStage != SamplingPipelineStage.CAM_PROGRAMMING || target != SamplingPipelineStage.MACHINE_KNITTING) return
+        val camInput = stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
+        val missing = StageSectionNames.CAM_REQUIRED.filter { name ->
+            camInput?.section(name)?.hasFilledRow != true
+        }
+        require(missing.isEmpty()) {
+            "Lembar Program CAM belum lengkap — isi dulu: ${missing.joinToString(", ")}"
+        }
+    }
 
     fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant): SamplingOrder =
         copy(
@@ -217,7 +267,12 @@ data class SamplingOrder(
 
     fun completeQcInspection(report: QcInspectionReport, updatedAt: Instant): SamplingOrder {
         val updatedInspections = qcInspections + report
-        val newStage = if (report.qcResult == QcInspectionResult.PASSED && pipelineStage == SamplingPipelineStage.FINISHING_QC) {
+        // Hanya QC finishing yang boleh mendorong SPK ke pengiriman. QC rajut memeriksa panel
+        // yang bahkan belum dirakit — meloloskannya tidak berarti bajunya siap jalan.
+        val newStage = if (report.kind == QcInspectionKind.FINISHING &&
+            report.qcResult == QcInspectionResult.PASSED &&
+            pipelineStage == SamplingPipelineStage.FINISHING_QC
+        ) {
             SamplingPipelineStage.IN_DELIVERY
         } else {
             pipelineStage
@@ -364,123 +419,9 @@ data class SamplingOrder(
     /** Desain aktif = belum ACC dan belum dibatalkan (drop oleh buyer/admin). */
     val isActiveDesign: Boolean get() = status != SamplingStatus.ACC_APPROVED && status != SamplingStatus.CANCELLED
 
-    /**
-     * Menghitung status kronologis 8 langkah fisik garmen secara deterministik
-     * berdasarkan status SPK, setoran finishing, hasil QC, dan status pengiriman.
-     */
-    fun resolveGarmentTimeline(): List<GarmentStepState> {
-        val isDraft = status == SamplingStatus.DRAFT || pipelineStage == SamplingPipelineStage.NEW_INTAKE
-        val totalDeposited = finishingDeposits.sumOf { it.qtyPcs }
-        val isFinishingTuntas = totalDeposited >= sampleQuantity && totalDeposited > 0
-        val isDeliveredOrApproved = pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
-            pipelineStage == SamplingPipelineStage.ACC_APPROVED
-
-        return listOf(
-            // 1. Input Spek & Pola (Pra-Rilis) — aktif selama masih Draft belum terbit SPK
-            GarmentStepState(
-                step = GarmentTrackingStep.INPUT_SPEK,
-                isCompleted = !isDraft,
-                isActive = isDraft,
-                subtitle = if (isDraft) "Draft (Sedang Diisi Sales)" else "Spek & Pola Lengkap",
-                badgeText = if (isDraft) "Draft" else null
-            ),
-
-            // 2. Rilis SPK — selesai saat SPK resmi diterbitkan dari tombol Buat SPK
-            GarmentStepState(
-                step = GarmentTrackingStep.SPK_RELEASED,
-                isCompleted = !isDraft,
-                isActive = false,
-                subtitle = if (isDraft) "Menunggu Buat SPK" else "SPK #${spkNumber.value}",
-                badgeText = if (!isDraft) "Rilis" else null
-            ),
-
-            // 3. Rajut / Potong (CAM & Mesin)
-            GarmentStepState(
-                step = GarmentTrackingStep.KNITTING,
-                isCompleted = !isDraft && pipelineStage > SamplingPipelineStage.LINKING_ASSEMBLY,
-                isActive = !isDraft && (pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING ||
-                    pipelineStage == SamplingPipelineStage.MACHINE_KNITTING ||
-                    pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY),
-                subtitle = when {
-                    isDraft -> "Menunggu SPK"
-                    pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING -> "Program Mesin CAM"
-                    pipelineStage == SamplingPipelineStage.MACHINE_KNITTING -> "Rajut Turun Mesin"
-                    pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY -> "Linking & Jahit"
-                    else -> "Rajut & Jahit Tuntas"
-                }
-            ),
-
-            // 4. QC 1 (In-Line / Jahitan Mentah)
-            GarmentStepState(
-                step = GarmentTrackingStep.QC_IN_LINE,
-                isCompleted = !isDraft && (pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved),
-                isActive = !isDraft && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY && totalDeposited == 0,
-                subtitle = when {
-                    isDraft -> "Menunggu Rajut"
-                    pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved -> "Jahitan Mentah Sesuai"
-                    else -> "Inspeksi In-Line"
-                },
-                badgeText = if (!isDraft && (pipelineStage >= SamplingPipelineStage.FINISHING_QC || isDeliveredOrApproved)) "Lolos QC 1" else null
-            ),
-
-            // 5. Finishing & Steam (Washing, Setrika, Trimming)
-            GarmentStepState(
-                step = GarmentTrackingStep.FINISHING,
-                isCompleted = !isDraft && (isFinishingTuntas || isDeliveredOrApproved),
-                isActive = !isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingTuntas,
-                subtitle = when {
-                    isDraft -> "Menunggu QC 1"
-                    isFinishingTuntas || isDeliveredOrApproved -> "Cuci & Steam Tuntas ($totalDeposited pcs)"
-                    pipelineStage == SamplingPipelineStage.FINISHING_QC -> "Pencucian & Steam ($totalDeposited/$sampleQuantity pcs)"
-                    else -> "Menunggu Selesai Jahit"
-                },
-                badgeText = if (!isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingTuntas) "Finishing" else null
-            ),
-
-            // 6. QC 2 (Final Inspection Ukuran Jadi)
-            GarmentStepState(
-                step = GarmentTrackingStep.QC_FINAL,
-                isCompleted = !isDraft && isDeliveredOrApproved,
-                isActive = !isDraft && pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingTuntas,
-                subtitle = when {
-                    isDeliveredOrApproved -> "Ukuran Jadi Lolos AQL 1.5"
-                    pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingTuntas -> "Inspeksi Akhir Garmen Jadi"
-                    else -> "Menunggu Selesai Finishing"
-                },
-                badgeText = if (isDeliveredOrApproved) "Lolos QC 2" else null
-            ),
-
-            // 7. Siap Kirim / Terkirim ke Buyer
-            GarmentStepState(
-                step = GarmentTrackingStep.READY_TO_SHIP,
-                isCompleted = !isDraft && !courierTracking.isNullOrBlank(),
-                isActive = !isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank(),
-                subtitle = when {
-                    !courierTracking.isNullOrBlank() -> "Resi: $courierTracking"
-                    pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim ke Buyer"
-                    else -> "Menunggu Lolos QC 2"
-                },
-                badgeText = if (!isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank()) "Siap Kirim" else null
-            ),
-
-            // 8. ACC Buyer
-            GarmentStepState(
-                step = GarmentTrackingStep.ACC_APPROVED,
-                isCompleted = isAccApproved,
-                isActive = status == SamplingStatus.REVISION,
-                subtitle = when {
-                    isAccApproved -> "Disetujui Buyer (Golden Sample)"
-                    status == SamplingStatus.REVISION -> "Perlu Revisi (Rev $revisionCount)"
-                    else -> "Menunggu Feedback Buyer"
-                },
-                badgeText = when {
-                    isAccApproved -> "ACC"
-                    status == SamplingStatus.REVISION -> "Revisi"
-                    else -> null
-                }
-            )
-        )
-    }
+    // Timeline 5 langkah garment (Input Spek -> Rilis SPK -> Sampling -> Siap Kirim -> ACC)
+    // tinggal di SamplingTimelineCalculator.kt sebagai extension function murni —
+    // call site `order.resolveGarmentTimeline()` tidak berubah.
 
     private val hasCompleteMeasurement: Boolean
         get() = hasAtLeastOneCompleteMeasurementColumn(sizeMatrix)

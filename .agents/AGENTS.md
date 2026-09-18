@@ -334,6 +334,56 @@ Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubaha
 
 ---
 
+### 14. Batas Ukuran File (File Size & Decomposition)
+
+Panjang file adalah *proxy* termurah untuk tiga penyakit nyata: pelanggaran Single Responsibility,
+pola yang disalin alih-alih diangkat jadi komponen bersama, dan file yang tidak lagi bisa direview
+sekali duduk. Karena itu ada ambangnya, **per lapisan** — satu angka global tidak masuk akal karena
+Compose secara struktural lebih panjang dari domain murni.
+
+| Lingkup | Soft (peringatan) | Hard (tolak merge) |
+|---|---|---|
+| `core/**` (domain murni) | **250** | **400** |
+| `app/shared/**/presentation/**` | **400** | **600** |
+| `server/src/main/**` | **300** | **500** |
+| `**/commonTest/**`, `**/jvmTest/**` | **500** | **800** |
+| ragu / tidak terdaftar | **400** | **600** |
+
+Kontrak wajibnya:
+
+1. **Hard limit berlaku ke file setelah diubah, bukan ke diff-nya.** Menambah 10 baris ke file 700
+   baris tetap pelanggaran.
+2. **Aturan Ratchet** — file yang sudah di atas hard limit sebelum aturan ini ada tidak wajib
+   dinormalkan dalam satu PR, tapi **setiap perubahan padanya wajib membuatnya tidak lebih panjang**.
+   Catat `wc -l` sebelum dan sesudah.
+3. **Memecah file mengikuti batas tanggung jawab, bukan batas baris.** Dilarang
+   `…Part2.kt` / `…Extra.kt` / `…Helpers.kt` tanpa tema.
+4. **Pengecualian hanya untuk data terurut, bukan logika** — katalog ikon, seed preset, codec
+   eksplisit, kode ter-generate. Wajib dideklarasikan di baris pertama file:
+   ```kotlin
+   // FILE-SIZE-EXEMPT: katalog aset — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
+   ```
+   Screen/Dialog/ViewModel/Route **tidak pernah** memenuhi syarat pengecualian — panjangnya selalu
+   gejala desain, bukan gejala data.
+5. **Sebelum memecah UI, cek dulu apakah bagian yang berulang seharusnya naik ke
+   `presentation/designsystem/`** (Aturan Tiga Kali). Sering kali separuh panjang file itu adalah
+   styling yang disalin, bukan fitur.
+
+Baca **[`.claude/rules/file-size-rules.md`](.claude/rules/file-size-rules.md)** secara penuh untuk
+pola pemecahan per jenis file, daftar pengecualian, skrip audit, dan tabel utang teknis (21 file
+yang saat ini melanggar). Jalankan checklist Definition of Done di file tersebut sebelum menganggap
+pemecahan selesai — termasuk kompilasi 5 target dan **melihat UI-nya dengan mata**, karena memecah
+Compose mudah menggeser `Modifier` chain tanpa memecahkan kompilasi.
+
+Audit cepat file yang disentuh:
+
+```bash
+git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
+  | xargs wc -l 2>/dev/null | sort -rn | head -20
+```
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - **Frontend-Only Planning** — Merencanakan atau membuat modul sebatas mockup UI tanpa merancang skema database, migrasi Flyway, API endpoint Ktor, dan integrasi data backend
@@ -348,3 +398,5 @@ Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubaha
 - **Literal warna/radius/border di dalam Composable fitur** — Gunakan token (lihat §12)
 - **Menyalin blok styling** alih-alih mengangkatnya jadi komponen bersama
 - **`Modifier.shadow()` di `presentation/`** — Bayangannya selalu blur, berlawanan dengan bahasa visual
+- **God File** — satu file melewati hard limit lapisannya (lihat §14) tanpa alasan pengecualian yang sah
+- **Memecah file per baris, bukan per tanggung jawab** — `FooScreenPart2.kt`, `FooExtra.kt`, `FooHelpers.kt` tanpa tema

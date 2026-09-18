@@ -31,12 +31,15 @@ import com.eventverse.app.domain.sampling.STANDARD_SAMPLING_SIZE_COLUMNS
 import com.eventverse.app.domain.sampling.SizeChartRow
 import com.eventverse.app.domain.sampling.defaultSamplingSizeMatrix
 import com.eventverse.app.domain.sampling.ensureSamplingQtyRow
+import com.eventverse.app.domain.sampling.resolveGarmentTimeline
 import com.eventverse.app.domain.sampling.sanitizeSamplingMatrix
 import com.eventverse.app.domain.sampling.isSizeColumnActive
 import com.eventverse.app.domain.sampling.hasAtLeastOneCompleteMeasurementColumn
 import com.eventverse.app.domain.sampling.calculateTotalSampleQuantity
 import com.eventverse.app.domain.sampling.isQtyRow
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Instant
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
@@ -47,6 +50,7 @@ import com.eventverse.app.domain.sampling.GarmentTrackingStep
 import com.eventverse.app.domain.sampling.MilestoneStep
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.FinishingPath
+import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.deal.DealDetailTab
 import com.eventverse.app.presentation.deal.DealUiEvent
@@ -668,6 +672,41 @@ private fun SamplingDesignCard(
             }
         }
 
+        // ── Process Stepper (5 Langkah Alur Fisik Garmen: Pra-Rilis s/d ACC) ──
+        // Tampil baik saat Accordion Expanded maupun Collapsed (ketika collapsed tetap muncul steppernya)
+        Spacer(Modifier.height(ClaySpacing.Md))
+        val garmentTimeline = remember(order) { order.resolveGarmentTimeline() }
+        val stepperSteps = remember(garmentTimeline) {
+            garmentTimeline.map { stepState ->
+                ClayStepData(
+                    title = stepState.step.displayName,
+                    subtitle = stepState.subtitle,
+                    status = when {
+                        stepState.isCompleted -> ClayStepStatus.COMPLETED
+                        stepState.isActive -> ClayStepStatus.ACTIVE
+                        else -> ClayStepStatus.PENDING
+                    },
+                    badgeText = stepState.badgeText,
+                    stepNumber = stepState.step.order
+                )
+            }
+        }
+        ClayProcessStepper(
+            steps = stepperSteps,
+            activeColor = if (order.status == SamplingStatus.REVISION) WeMadeColors.Warning else WeMadeColors.Purple,
+            completedColor = WeMadeColors.Success,
+            fullWidth = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clayFlat(
+                    shape = ClayShapes.Card,
+                    background = WeMadeColors.SurfaceMuted.copy(alpha = 0.45f),
+                    outline = WeMadeColors.Border,
+                    borderWidth = ClayBorder.Hairline
+                )
+                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
+        )
+
         if (!expanded) {
             return@ClayCard
         }
@@ -714,37 +753,6 @@ private fun SamplingDesignCard(
             Spacer(Modifier.height(ClaySpacing.Sm))
             RevisionCarryOverCallout(revision = order.revisionCount)
         }
-
-        // ── Process Stepper (8 Langkah Alur Fisik Garmen: Pra-Rilis s/d ACC) ──
-        Spacer(Modifier.height(ClaySpacing.Md))
-        val garmentTimeline = remember(order) { order.resolveGarmentTimeline() }
-        val stepperSteps = remember(garmentTimeline) {
-            garmentTimeline.map { stepState ->
-                ClayStepData(
-                    title = stepState.step.displayName,
-                    subtitle = stepState.subtitle,
-                    status = when {
-                        stepState.isCompleted -> ClayStepStatus.COMPLETED
-                        stepState.isActive -> ClayStepStatus.ACTIVE
-                        else -> ClayStepStatus.PENDING
-                    },
-                    badgeText = stepState.badgeText,
-                    stepNumber = stepState.step.order
-                )
-            }
-        }
-        ClayProcessStepper(
-            steps = stepperSteps,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clayFlat(
-                    shape = ClayShapes.Card,
-                    background = WeMadeColors.SurfaceMuted.copy(alpha = 0.45f),
-                    outline = WeMadeColors.Border,
-                    borderWidth = ClayBorder.Hairline
-                )
-                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
-        )
 
         // ── Status Produksi Aktif & Banner Acuan Spek Terkunci (Saat SPK sudah rilis) ──
         if (!isDraft) {
@@ -2159,8 +2167,8 @@ private fun SamplingStatusBadge(status: SamplingStatus) {
 
 private fun statusTint(status: SamplingStatus): Color = when (status) {
     SamplingStatus.DRAFT -> WeMadeColors.OnSurfaceMuted
-    SamplingStatus.IN_PROGRESS -> WeMadeColors.Warning
-    SamplingStatus.REVISION -> WeMadeColors.Accent
+    SamplingStatus.IN_PROGRESS -> WeMadeColors.Purple
+    SamplingStatus.REVISION -> WeMadeColors.Warning
     SamplingStatus.ACC_APPROVED -> WeMadeColors.Success
     SamplingStatus.CANCELLED -> WeMadeColors.Error
 }
@@ -2177,22 +2185,21 @@ private fun SamplingActiveStepCard(
         ?: garmentTimeline.first()
 
     val currentStep = activeStep.step
+    val isRevisionActive = order.status == SamplingStatus.REVISION
+
     val stageBg = when (currentStep) {
         GarmentTrackingStep.INPUT_SPEK -> WeMadeColors.SurfaceMuted
-        GarmentTrackingStep.SPK_RELEASED -> WeMadeColors.Primary.copy(alpha = 0.08f)
-        GarmentTrackingStep.KNITTING -> WeMadeColors.Warning.copy(alpha = 0.08f)
-        GarmentTrackingStep.QC_IN_LINE -> WeMadeColors.Warning.copy(alpha = 0.12f)
-        GarmentTrackingStep.FINISHING -> WeMadeColors.Primary.copy(alpha = 0.08f)
-        GarmentTrackingStep.QC_FINAL -> WeMadeColors.Success.copy(alpha = 0.08f)
+        GarmentTrackingStep.SPK_RELEASED -> WeMadeColors.Purple.copy(alpha = 0.08f)
+        GarmentTrackingStep.SAMPLING -> if (isRevisionActive) WeMadeColors.Warning.copy(alpha = 0.08f) else WeMadeColors.Purple.copy(alpha = 0.08f)
         GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent.copy(alpha = 0.10f)
         GarmentTrackingStep.ACC_APPROVED -> if (order.isAccApproved) WeMadeColors.Success.copy(alpha = 0.12f) else WeMadeColors.Warning.copy(alpha = 0.08f)
     }
 
     val stageOutline = when (currentStep) {
-        GarmentTrackingStep.KNITTING -> WeMadeColors.Warning.copy(alpha = 0.5f)
-        GarmentTrackingStep.QC_FINAL, GarmentTrackingStep.ACC_APPROVED -> WeMadeColors.Success.copy(alpha = 0.5f)
+        GarmentTrackingStep.SAMPLING -> if (isRevisionActive) WeMadeColors.Warning.copy(alpha = 0.6f) else WeMadeColors.Purple.copy(alpha = 0.45f)
+        GarmentTrackingStep.ACC_APPROVED -> if (order.isAccApproved) WeMadeColors.Success.copy(alpha = 0.5f) else WeMadeColors.Warning.copy(alpha = 0.5f)
         GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent.copy(alpha = 0.5f)
-        else -> WeMadeColors.Primary.copy(alpha = 0.35f)
+        else -> WeMadeColors.Purple.copy(alpha = 0.35f)
     }
 
     Column(
@@ -2207,7 +2214,7 @@ private fun SamplingActiveStepCard(
             .padding(ClaySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
     ) {
-        // ── Header Status Aktif ──
+        // ── Header Status Aktif Stepper ──
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -2218,12 +2225,12 @@ private fun SamplingActiveStepCard(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 ClayTag(
-                    text = "Langkah ${currentStep.order} dari 8: ${currentStep.displayName}",
+                    text = "Langkah ${currentStep.order} dari 5: ${currentStep.displayName}",
                     tint = when (currentStep) {
-                        GarmentTrackingStep.KNITTING, GarmentTrackingStep.QC_IN_LINE -> WeMadeColors.Warning
-                        GarmentTrackingStep.ACC_APPROVED, GarmentTrackingStep.QC_FINAL -> WeMadeColors.Success
+                        GarmentTrackingStep.SAMPLING -> if (isRevisionActive) WeMadeColors.Warning else WeMadeColors.Purple
+                        GarmentTrackingStep.ACC_APPROVED -> if (order.isAccApproved) WeMadeColors.Success else WeMadeColors.Warning
                         GarmentTrackingStep.READY_TO_SHIP -> WeMadeColors.Accent
-                        else -> WeMadeColors.Primary
+                        else -> WeMadeColors.Purple
                     }
                 )
                 Text(
@@ -2253,7 +2260,12 @@ private fun SamplingActiveStepCard(
             }
         }
 
-        // ── Konten Spesifik per Langkah Operasional ──
+        // ── Card Khusus Catatan Revisi Buyer (Jika status revisi atau pernah revisi) ──
+        if (order.status == SamplingStatus.REVISION || order.revisionCount > 0) {
+            SamplingRevisionNoticeCard(order = order)
+        }
+
+        // ── Konten Monitoring Berdasarkan Tahap Transaksi ──
         when (currentStep) {
             GarmentTrackingStep.INPUT_SPEK, GarmentTrackingStep.SPK_RELEASED -> {
                 Row(
@@ -2267,131 +2279,16 @@ private fun SamplingActiveStepCard(
                 }
             }
 
-            GarmentTrackingStep.KNITTING -> {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+            GarmentTrackingStep.SAMPLING -> {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     Text(
-                        text = "Produksi fisik sedang berlangsung di lantai sampling. Teknisi CAM menyiapkan program mesin & operator merakit potongan panel garmen.",
+                        text = "Monitoring alur fisik sampel di lantai produksi: CAM, Rajut Mesin, QC In-Line, Finishing, hingga QC Final Ukuran Jadi.",
                         fontSize = 11.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
-                    Spacer(Modifier.height(ClaySpacing.Xxs))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                    ) {
-                        val isCamDone = order.milestones.any { it.step == MilestoneStep.PROGRAM && it.isCompleted }
-                        val isKnitDone = order.milestones.any { it.step == MilestoneStep.RAJUT && it.isCompleted }
-                        val isLinkDone = order.milestones.any { it.step == MilestoneStep.LINKING && it.isCompleted }
 
-                        MilestoneMiniBadge(
-                            label = "1. Program CAM",
-                            status = if (isCamDone) "Selesai ✓" else "Pengerjaan",
-                            isDone = isCamDone,
-                            modifier = Modifier.weight(1f)
-                        )
-                        MilestoneMiniBadge(
-                            label = "2. Rajut Mesin",
-                            status = if (isKnitDone) "Selesai ✓" else if (order.pipelineStage >= SamplingPipelineStage.MACHINE_KNITTING) "Sedang Rajut" else "Antrean",
-                            isDone = isKnitDone,
-                            modifier = Modifier.weight(1f)
-                        )
-                        MilestoneMiniBadge(
-                            label = "3. Linking & Jahit",
-                            status = if (isLinkDone) "Selesai ✓" else if (order.pipelineStage >= SamplingPipelineStage.LINKING_ASSEMBLY) "Sedang Jahit" else "Menunggu Panel",
-                            isDone = isLinkDone,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(Modifier.height(ClaySpacing.Xxs))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                    ) {
-                        StatusDetailChip(label = "Benang", value = order.knitSpec.yarnType.ifBlank { "Cotton / Acrylic" })
-                        StatusDetailChip(label = "Gauge Mesin", value = order.machineProgram.effectiveTenselity.firstOrNull()?.parameter?.ifBlank { "12G CAM" } ?: "12G CAM")
-                        StatusDetailChip(label = "Rajutan", value = order.knitSpec.knitType.ifBlank { "Jaquard" })
-                    }
-                }
-            }
-
-            GarmentTrackingStep.QC_IN_LINE -> {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                    Text(
-                        text = "Inspeksi In-Line memeriksa kerapatan rajutan panel mentah, sambungan linking, dan tenselity benang sebelum masuk ke proses pencucian & setrika uap.",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                    ) {
-                        val qcResult = order.latestQcReport?.qcResult?.displayName ?: "Dalam Pemeriksaan In-Line"
-                        StatusDetailChip(label = "Status QC 1", value = qcResult)
-                        StatusDetailChip(label = "Fokus Pemeriksaan", value = "Sambungan Linking & Tenselity Benang")
-                        StatusDetailChip(label = "Tahap Lanjutan", value = "Finishing & Steam Uap")
-                    }
-                }
-            }
-
-            GarmentTrackingStep.FINISHING -> {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                    val deposited = order.totalFinishedDepositedQty
-                    val target = order.sampleQuantity
-                    val pct = if (target > 0) (deposited * 100 / target).coerceIn(0, 100) else 0
-
-                    Text(
-                        text = "Pencucian sampel garmen untuk mengunci ukuran benang, setrika uap panas (steam), pemasangan label merek/care, dan trimming benang.",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                    Spacer(Modifier.height(ClaySpacing.Xxs))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        StatusDetailChip(
-                            label = "Setoran Finishing",
-                            value = "$deposited dari $target pcs ($pct%)"
-                        )
-                        StatusDetailChip(
-                            label = "Jalur Finishing",
-                            value = order.finishingPath.displayName
-                        )
-                        if (order.finishingPath == FinishingPath.MAKLOON_VENDOR && order.vendorInfo.vendorName.isNotBlank()) {
-                            StatusDetailChip(
-                                label = "Vendor",
-                                value = "${order.vendorInfo.vendorName} (${order.vendorInfo.status.displayName})"
-                            )
-                        }
-                    }
-                }
-            }
-
-            GarmentTrackingStep.QC_FINAL -> {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                    Text(
-                        text = "Pemeriksaan akhir sampel garmen jadi: memastikan ukuran fisik sesuai toleransi POM Size Chart (+/- 1-2 cm) dan lolos metal detector jarum patah.",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                    ) {
-                        StatusDetailChip(
-                            label = "Hasil QC Ukuran Jadi",
-                            value = order.latestQcReport?.qcResult?.displayName ?: "Pengujian Toleransi POM Selesai"
-                        )
-                        StatusDetailChip(
-                            label = "Inspeksi Metal Detector",
-                            value = "Bebas Jarum Patah (Lolos)"
-                        )
-                        StatusDetailChip(
-                            label = "Kesiapan",
-                            value = "Siap Dikemas & Dikirim ke Buyer"
-                        )
-                    }
+                    // Timeline 5 Fase Monitoring Produksi Sampling
+                    SamplingMonitoringTimeline(order = order)
                 }
             }
 
@@ -2439,6 +2336,365 @@ private fun SamplingActiveStepCard(
             }
         }
     }
+}
+
+@Composable
+private fun SamplingMonitoringTimeline(
+    order: SamplingOrder,
+    modifier: Modifier = Modifier
+) {
+    val camMilestone = order.milestones.find { it.step == MilestoneStep.PROGRAM }
+    val isCamDone = camMilestone?.isCompleted == true || order.pipelineStage > SamplingPipelineStage.CAM_PROGRAMMING
+    val isCamActive = order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+
+    val knitMilestone = order.milestones.find { it.step == MilestoneStep.RAJUT }
+    val linkMilestone = order.milestones.find { it.step == MilestoneStep.LINKING }
+    val isKnitDone = (knitMilestone?.isCompleted == true && linkMilestone?.isCompleted == true) || order.pipelineStage > SamplingPipelineStage.LINKING_ASSEMBLY
+    val isKnitActive = order.pipelineStage == SamplingPipelineStage.MACHINE_KNITTING || order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY
+
+    val inlineQc = order.qcInspections.firstOrNull()
+    val isQc1Done = order.pipelineStage >= SamplingPipelineStage.FINISHING_QC || order.isInDelivery || inlineQc?.qcResult == QcInspectionResult.PASSED
+    val isQc1Active = order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY && order.finishingDeposits.isEmpty()
+
+    val isFinishingDone = order.isFinishingComplete || order.isInDelivery
+    val isFinishingActive = order.pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingDone
+    val isMakloon = order.finishingPath == FinishingPath.MAKLOON_VENDOR
+
+    val finalQc = order.latestQcReport
+    val isQc2Done = order.isInDelivery || order.isAccApproved || (finalQc?.qcResult == QcInspectionResult.PASSED && isFinishingDone)
+    val isQc2Active = order.pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingDone
+
+    val camMulai = formatInstantWithTime(order.createdAt)
+    val camSelesai = if (isCamDone) {
+        camMilestone?.completedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "10:30") }
+            ?: formatInstantWithTime(order.updatedAt)
+    } else "-"
+
+    val knitMulai = if (isKnitActive || isKnitDone) {
+        if (camSelesai != "-") camSelesai else formatInstantWithTime(order.updatedAt)
+    } else "-"
+    val knitSelesai = if (isKnitDone) {
+        (linkMilestone?.completedAt ?: knitMilestone?.completedAt)?.let {
+            formatLocalDateWithTime(it, order.updatedAt, "15:45")
+        } ?: formatInstantWithTime(order.updatedAt)
+    } else "-"
+
+    val qc1Mulai = if (isQc1Active || isQc1Done) {
+        if (knitSelesai != "-") knitSelesai else formatInstantWithTime(order.updatedAt)
+    } else "-"
+    val qc1Selesai = if (isQc1Done) {
+        inlineQc?.inspectedAt?.let { formatInstantWithTime(it) }
+            ?: linkMilestone?.completedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "16:15") }
+            ?: formatInstantWithTime(order.updatedAt)
+    } else "-"
+
+    val finishingMulai = if (isFinishingActive || isFinishingDone) {
+        if (isMakloon) {
+            order.vendorInfo.sentAt?.let { formatLocalDateWithTime(it, order.updatedAt, "08:30") }
+                ?: if (qc1Selesai != "-") qc1Selesai else formatInstantWithTime(order.updatedAt)
+        } else {
+            order.finishingDeposits.firstOrNull()?.createdAt?.let { formatInstantWithTime(it) }
+                ?: order.finishingDeposits.firstOrNull()?.depositDate?.let { formatLocalDateWithTime(it, order.updatedAt, "08:30") }
+                ?: if (qc1Selesai != "-") qc1Selesai else formatInstantWithTime(order.updatedAt)
+        }
+    } else "-"
+    val finishingSelesai = if (isFinishingDone) {
+        if (isMakloon) {
+            order.vendorInfo.returnedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "14:00") }
+                ?: formatInstantWithTime(order.updatedAt)
+        } else {
+            order.finishingDeposits.lastOrNull()?.createdAt?.let { formatInstantWithTime(it) }
+                ?: order.finishingDeposits.lastOrNull()?.depositDate?.let { formatLocalDateWithTime(it, order.updatedAt, "14:00") }
+                ?: formatInstantWithTime(order.updatedAt)
+        }
+    } else "-"
+
+    val qc2Mulai = if (isQc2Active || isQc2Done) {
+        if (finishingSelesai != "-") finishingSelesai else formatInstantWithTime(order.updatedAt)
+    } else "-"
+    val qc2Selesai = if (isQc2Done) {
+        finalQc?.inspectedAt?.let { formatInstantWithTime(it) } ?: formatInstantWithTime(order.updatedAt)
+    } else "-"
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+    ) {
+        // 1. Program CAM
+        TimelineStepCard(
+            stepNumber = "1",
+            title = "Program CAM",
+            status = if (isCamDone) "Selesai" else if (isCamActive) "Pengerjaan" else "Antrean",
+            isDone = isCamDone,
+            isActive = isCamActive,
+            mulaiText = camMulai,
+            selesaiText = camSelesai,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 2. Rajut Mesin & Linking
+        TimelineStepCard(
+            stepNumber = "2",
+            title = "Rajut & Jahit",
+            status = if (isKnitDone) "Selesai" else if (order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) "Sedang Jahit" else if (order.pipelineStage == SamplingPipelineStage.MACHINE_KNITTING) "Sedang Rajut" else "Antrean",
+            isDone = isKnitDone,
+            isActive = isKnitActive,
+            mulaiText = knitMulai,
+            selesaiText = knitSelesai,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 3. QC 1 (In-Line)
+        TimelineStepCard(
+            stepNumber = "3",
+            title = "QC In-Line",
+            status = if (isQc1Done) "Lolos QC 1" else if (isQc1Active) "Inspeksi Mentah" else "Menunggu Rajut",
+            isDone = isQc1Done,
+            isActive = isQc1Active,
+            mulaiText = qc1Mulai,
+            selesaiText = qc1Selesai,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 4. Finishing & Steam
+        TimelineStepCard(
+            stepNumber = "4",
+            title = "Finishing",
+            status = if (isFinishingDone) "Tuntas (${order.totalFinishedDepositedQty} pcs)" else if (isMakloon) "Di Vendor Makloon" else if (isFinishingActive) "Cuci & Steam" else "Menunggu QC 1",
+            isDone = isFinishingDone,
+            isActive = isFinishingActive,
+            mulaiText = finishingMulai,
+            selesaiText = finishingSelesai,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 5. QC 2 (Final)
+        TimelineStepCard(
+            stepNumber = "5",
+            title = "QC 2 (Final)",
+            status = if (isQc2Done) "Lolos Final" else if (isQc2Active) "Inspeksi Akhir" else "Menunggu Finishing",
+            isDone = isQc2Done,
+            isActive = isQc2Active,
+            mulaiText = qc2Mulai,
+            selesaiText = qc2Selesai,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun TimelineStepCard(
+    stepNumber: String,
+    title: String,
+    status: String,
+    isDone: Boolean,
+    isActive: Boolean,
+    mulaiText: String,
+    selesaiText: String,
+    modifier: Modifier = Modifier
+) {
+    val cardBg = when {
+        isDone -> WeMadeColors.Success.copy(alpha = 0.08f)
+        isActive -> WeMadeColors.Purple.copy(alpha = 0.08f)
+        else -> WeMadeColors.Surface.copy(alpha = 0.90f)
+    }
+    val cardOutline = when {
+        isDone -> WeMadeColors.Success.copy(alpha = 0.5f)
+        isActive -> WeMadeColors.Purple.copy(alpha = 0.55f)
+        else -> WeMadeColors.Border
+    }
+
+    Column(
+        modifier = modifier
+            .clayFlat(
+                shape = ClayShapes.Card,
+                background = cardBg,
+                outline = cardOutline,
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(ClaySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$stepNumber. $title",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    isDone -> WeMadeColors.Success
+                    isActive -> WeMadeColors.Purple
+                    else -> WeMadeColors.OnSurface
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (isDone) {
+                IconCheck(Modifier.size(11.dp), color = WeMadeColors.Success)
+            } else if (isActive) {
+                IconActivity(Modifier.size(11.dp), color = WeMadeColors.Purple)
+            }
+        }
+
+        ClayBadge(
+            text = status,
+            tint = when {
+                isDone -> WeMadeColors.Success
+                isActive -> WeMadeColors.Purple
+                else -> WeMadeColors.OnSurfaceMuted
+            },
+            fontSize = 9.sp
+        )
+
+        Spacer(Modifier.height(2.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = "Mulai:",
+                    fontSize = 9.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Text(
+                    text = mulaiText,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = "Selesai:",
+                    fontSize = 9.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                Text(
+                    text = selesaiText,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDone) WeMadeColors.Success else WeMadeColors.OnSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SamplingRevisionNoticeCard(order: SamplingOrder) {
+    val latestRev = order.revisionHistory.lastOrNull()
+    val revNumber = order.revisionCount.coerceAtLeast(1)
+    val revDate = latestRev?.at?.let { formatInstantWithTime(it) } ?: formatInstantWithTime(order.updatedAt)
+    val revNotes = latestRev?.notes?.ifBlank { null }
+        ?: order.accNotes.ifBlank { "Menunggu penyesuaian spesifikasi fisik dari buyer." }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clayFlat(
+                shape = ClayShapes.Card,
+                background = WeMadeColors.Warning.copy(alpha = 0.10f),
+                outline = WeMadeColors.Warning.copy(alpha = 0.6f),
+                borderWidth = ClayBorder.Hairline
+            )
+            .padding(ClaySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+            ) {
+                IconWarning(Modifier.size(14.dp), color = WeMadeColors.Warning)
+                Text(
+                    text = "Informasi Revisi Buyer (Revisi ke-$revNumber)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Warning
+                )
+            }
+            Text(
+                text = "Diajukan: $revDate",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = WeMadeColors.OnSurfaceMuted
+            )
+        }
+
+        Text(
+            text = "\"$revNotes\"",
+            fontSize = 11.sp,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+            color = WeMadeColors.OnSurface,
+            modifier = Modifier.padding(start = 18.dp)
+        )
+
+        Text(
+            text = "Status Alur: SPK diturunkan kembali ke lantai sampling untuk pengerjaan ulang.",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = WeMadeColors.OnSurfaceMuted,
+            modifier = Modifier.padding(start = 18.dp)
+        )
+    }
+}
+
+private fun formatLocalDate(date: LocalDate?): String {
+    if (date == null) return "-"
+    val months = listOf("", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+    val m = months.getOrNull(date.monthNumber) ?: date.monthNumber.toString()
+    return "${date.dayOfMonth} $m ${date.year}"
+}
+
+private fun formatInstant(instant: Instant?): String {
+    if (instant == null) return "-"
+    val dateStr = instant.toString().take(10)
+    val parsed = runCatching { LocalDate.parse(dateStr) }.getOrNull()
+    return if (parsed != null) formatLocalDate(parsed) else dateStr
+}
+
+private fun formatInstantWithTime(instant: Instant?): String {
+    if (instant == null) return "-"
+    val str = instant.toString()
+    val dateStr = str.take(10)
+    val timeStr = if (str.contains('T')) str.substringAfter('T').take(5) else "00:00"
+    val parsed = runCatching { LocalDate.parse(dateStr) }.getOrNull()
+    val formattedDate = if (parsed != null) {
+        val months = listOf("", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+        val m = months.getOrNull(parsed.monthNumber) ?: parsed.monthNumber.toString()
+        "${parsed.dayOfMonth} $m ${parsed.year}"
+    } else dateStr
+    return "$formattedDate, $timeStr"
+}
+
+private fun formatLocalDateWithTime(date: LocalDate?, updatedAt: Instant? = null, defaultTime: String = "09:00"): String {
+    if (date == null) {
+        return if (updatedAt != null) formatInstantWithTime(updatedAt) else "-"
+    }
+    val months = listOf("", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+    val m = months.getOrNull(date.monthNumber) ?: date.monthNumber.toString()
+    val datePart = "${date.dayOfMonth} $m ${date.year}"
+    val timePart = if (updatedAt != null && updatedAt.toString().startsWith(date.toString())) {
+        updatedAt.toString().substringAfter('T').take(5)
+    } else {
+        defaultTime
+    }
+    return "$datePart, $timePart"
 }
 
 @Composable

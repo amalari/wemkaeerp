@@ -81,12 +81,6 @@ data class MakloonVendorInfo(
     val notes: String = ""
 )
 
-enum class QcInspectionResult(val displayName: String) {
-    PASSED("Lolos QC (Passed)"),
-    REWORK("Perlu Perbaikan (Rework)"),
-    REJECT("Ditolak / Rajut Ulang (Reject)");
-}
-
 data class FinishingDeposit(
     val id: String = "",
     val samplingOrderId: String = "",
@@ -98,29 +92,6 @@ data class FinishingDeposit(
     val operatorName: String = "",
     val notes: String = "",
     val createdAt: Instant? = null
-)
-
-data class QcPomMeasurement(
-    val pomName: String,
-    val targetCm: Double,
-    val actualCm: Double,
-    val toleranceCm: Double = 1.0
-) {
-    val deviationCm: Double get() = kotlin.math.abs(actualCm - targetCm)
-    val isWithinTolerance: Boolean get() = deviationCm <= toleranceCm
-}
-
-data class QcInspectionReport(
-    val id: String = "",
-    val samplingOrderId: String = "",
-    val inspectorName: String,
-    val inspectedAt: Instant,
-    val pomMeasurements: List<QcPomMeasurement> = emptyList(),
-    val defectsFound: List<String> = emptyList(),
-    val qcResult: QcInspectionResult = QcInspectionResult.PASSED,
-    val qcNotes: String = "",
-    val verifiedPhotoFrontKey: String? = null,
-    val verifiedPhotoBackKey: String? = null
 )
 
 data class TenselityEntry(
@@ -279,19 +250,21 @@ object FactorySizePresets {
 }
 
 /**
- * 8 Tahapan kronologis fisik garmen (sejak pra-rilis sales sampai ACC buyer).
+ * 5 Tahapan proses transaksi & fisik garmen di level Sales Deal:
+ * 1. Input Spek & Pola
+ * 2. Rilis SPK
+ * 3. Sampling (mencakup CAM, Rajut, Linking, QC 1, Finishing, dan QC 2)
+ * 4. Siap Kirim
+ * 5. ACC Buyer
  *
- * Digunakan oleh Read-Only Process Stepper di modul Deals & Monitoring Sampling.
+ * Detail operasional fisik sampling dimonitor melalui Sampling Monitoring Timeline di kartu deal.
  */
 enum class GarmentTrackingStep(val displayName: String, val order: Int) {
     INPUT_SPEK("Input Spek & Pola", 1),
     SPK_RELEASED("Rilis SPK", 2),
-    KNITTING("Rajut / Potong", 3),
-    QC_IN_LINE("QC 1 (In-Line)", 4),
-    FINISHING("Finishing & Steam", 5),
-    QC_FINAL("QC 2 (Final)", 6),
-    READY_TO_SHIP("Siap Kirim", 7),
-    ACC_APPROVED("ACC Buyer", 8);
+    SAMPLING("Sampling", 3),
+    READY_TO_SHIP("Siap Kirim", 4),
+    ACC_APPROVED("ACC Buyer", 5);
 }
 
 /**

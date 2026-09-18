@@ -40,6 +40,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val revisionCount = integer("revision_count").default(0)
     val revisionHistory = jsonbText("revision_history").default("[]")
     val sizeMatrix = jsonbText("size_matrix").default("[]")
+    val stageInputs = jsonbText("stage_inputs").default("{}")
+    val stageHistory = jsonbText("stage_history").default("[]")
     val accNotes = text("acc_notes").default("")
     val notes = text("notes").default("")
 
@@ -171,8 +173,11 @@ object SamplingQcInspectionsTable : Table("sampling_qc_inspections") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
 
+    val kind = varchar("kind", 30).default("FINISHING")
     val inspectorName = varchar("inspector_name", 100).default("")
     val inspectedAt = timestamp("inspected_at")
+    val inspectedQty = integer("inspected_qty").default(1)
+    val pieceNo = integer("piece_no").default(1)
     val measuredPomValues = jsonbText("measured_pom_values").default("[]")
     val defectsFound = jsonbText("defects_found").default("[]")
     val qcResult = varchar("qc_result", 30).default("PASSED")

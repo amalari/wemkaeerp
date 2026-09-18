@@ -3,6 +3,7 @@ package com.eventverse.app.infrastructure.api
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
+import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -32,7 +33,12 @@ interface SamplingRemoteDataSource {
         accNotes: String
     ): Result<SamplingOrder>
     suspend fun saveOrder(tenantSlug: String, order: SamplingOrder): Result<SamplingOrder>
-    suspend fun advanceStage(tenantSlug: String, orderId: String, targetStage: SamplingPipelineStage): Result<SamplingOrder>
+    suspend fun advanceStage(
+        tenantSlug: String,
+        orderId: String,
+        targetStage: SamplingPipelineStage,
+        stageInputs: List<StageWorkInput> = emptyList()
+    ): Result<SamplingOrder>
     suspend fun addFinishingDeposit(tenantSlug: String, orderId: String, deposit: FinishingDeposit): Result<SamplingOrder>
     suspend fun assignMakloonVendor(tenantSlug: String, orderId: String, info: MakloonVendorInfo): Result<SamplingOrder>
     suspend fun confirmVendorReturn(tenantSlug: String, orderId: String, returnedAt: kotlinx.datetime.LocalDate? = null): Result<SamplingOrder>
@@ -159,8 +165,20 @@ class SamplingApiClient(
         SamplingOrderCodec.decode(parsed)
     }
 
-    override suspend fun advanceStage(tenantSlug: String, orderId: String, targetStage: SamplingPipelineStage): Result<SamplingOrder> = runCatching {
-        val payload = jsonObjectOf("targetStage" to jsonOf(targetStage.name)).encode()
+    override suspend fun advanceStage(
+        tenantSlug: String,
+        orderId: String,
+        targetStage: SamplingPipelineStage,
+        stageInputs: List<StageWorkInput>
+    ): Result<SamplingOrder> = runCatching {
+        val payload = if (stageInputs.isEmpty()) {
+            jsonObjectOf("targetStage" to jsonOf(targetStage.name))
+        } else {
+            jsonObjectOf(
+                "targetStage" to jsonOf(targetStage.name),
+                "stageInputs" to jsonArrayOf(stageInputs.map { StageWorkInputCodec.encodeInput(it) })
+            )
+        }.encode()
         val response = httpClient.post(resolveUrl("$ORDERS_PATH/$orderId/stage")) {
             tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
@@ -226,13 +244,18 @@ class SamplingApiClient(
 
     override suspend fun submitQcInspection(tenantSlug: String, orderId: String, report: QcInspectionReport): Result<SamplingOrder> = runCatching {
         val payload = jsonObjectOf(
+            "kind" to jsonOf(report.kind.name),
             "inspectorName" to jsonOf(report.inspectorName),
+            "pieceNo" to jsonOf(report.pieceNo),
+            "inspectedQty" to jsonOf(report.inspectedQty),
             "pomMeasurements" to jsonArrayOf(report.pomMeasurements.map {
                 jsonObjectOf(
                     "pomName" to jsonOf(it.pomName),
                     "targetCm" to jsonOf(it.targetCm),
                     "actualCm" to jsonOf(it.actualCm),
-                    "toleranceCm" to jsonOf(it.toleranceCm)
+                    "toleranceCm" to jsonOf(it.toleranceCm),
+                    "notes" to jsonOf(it.notes),
+                    "carriedOver" to jsonOf(it.carriedOver)
                 )
             }),
             "defectsFound" to jsonArrayOf(report.defectsFound.map { jsonOf(it) }),

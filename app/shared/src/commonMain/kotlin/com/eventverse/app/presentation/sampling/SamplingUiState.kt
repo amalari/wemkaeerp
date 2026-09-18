@@ -37,7 +37,13 @@ data class SamplingUiState(
     val isCreateDialogOpen: Boolean = false,
     val isVendorDialogOpen: Boolean = false,
     val isRevisionDialogOpen: Boolean = false,
-    val targetOrderForAction: SamplingOrder? = null
+    val targetOrderForAction: SamplingOrder? = null,
+    /**
+     * Tahap tujuan yang sedang membuka dialog input dinamis (CAM -> Rajut, Rajut -> Finishing).
+     * Null = tidak ada dialog tahap terbuka.
+     */
+    val stageAdvanceTarget: SamplingOrder? = null,
+    val stageAdvanceTargetStage: SamplingPipelineStage? = null
 ) {
     val selectedOrder: SamplingOrder?
         get() = (selectedOrderId?.let { id -> orders.firstOrNull { it.id == id } } ?: orders.firstOrNull())
@@ -96,6 +102,13 @@ sealed interface SamplingUiEvent {
     ) : SamplingUiEvent
     data class SaveTechnicalSpec(val updatedOrder: SamplingOrder) : SamplingUiEvent
     data class AdvanceStage(val orderId: SamplingOrderId, val targetStage: SamplingPipelineStage) : SamplingUiEvent
+    data class OpenStageAdvanceDialog(val order: SamplingOrder, val targetStage: SamplingPipelineStage) : SamplingUiEvent
+    data object CloseStageAdvanceDialog : SamplingUiEvent
+    data class ConfirmStageAdvance(
+        val orderId: SamplingOrderId,
+        val targetStage: SamplingPipelineStage,
+        val sections: List<StageInputSection>
+    ) : SamplingUiEvent
     data class AddFinishingDeposit(val orderId: SamplingOrderId, val deposit: FinishingDeposit) : SamplingUiEvent
     data class AssignMakloonVendor(val orderId: SamplingOrderId, val info: MakloonVendorInfo) : SamplingUiEvent
     data class ConfirmVendorReturn(val orderId: SamplingOrderId, val returnedAt: LocalDate? = null) : SamplingUiEvent

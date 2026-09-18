@@ -54,28 +54,45 @@ fun ClayProcessStepper(
     modifier: Modifier = Modifier,
     activeColor: Color = WeMadeColors.Primary,
     completedColor: Color = WeMadeColors.Success,
-    nodeSize: Dp = 28.dp
+    nodeSize: Dp = 28.dp,
+    fullWidth: Boolean = true
 ) {
     if (steps.isEmpty()) return
 
     val scrollState = rememberScrollState()
 
-    Row(
-        modifier = modifier
+    val rowModifier = if (fullWidth) {
+        modifier
+            .fillMaxWidth()
+            .padding(vertical = ClaySpacing.Sm)
+    } else {
+        modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
-            .padding(vertical = ClaySpacing.Sm),
+            .padding(vertical = ClaySpacing.Sm)
+    }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.Top
     ) {
         steps.forEachIndexed { index, step ->
             val isFirst = index == 0
             val isLast = index == steps.size - 1
 
+            val colModifier = if (fullWidth) {
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 2.dp)
+            } else {
+                Modifier
+                    .widthIn(min = 96.dp, max = 120.dp)
+                    .padding(horizontal = 2.dp)
+            }
+
             // Satu segmen langkah: [Garis Kiri] -> [Bulatan Node] -> [Garis Kanan] + Teks di bawahnya
             Column(
-                modifier = Modifier
-                    .widthIn(min = 96.dp, max = 120.dp)
-                    .padding(horizontal = 2.dp),
+                modifier = colModifier,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Baris Node + Garis Penghubung

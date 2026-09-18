@@ -69,11 +69,14 @@ object SamplingOrderCodec {
                 "values" to jsonStringMapOf(row.values)
             )
         }),
-        "machineProgram" to encodeMachineProgram(order.machineProgram),
-        "yieldAndTiming" to encodeYieldAndTiming(order.yieldAndTiming),
+        "machineProgram" to SamplingProgramCodec.encodeMachineProgram(order.machineProgram),
+        "yieldAndTiming" to SamplingProgramCodec.encodeYieldAndTiming(order.yieldAndTiming),
         "finishingDeposits" to jsonArrayOf(order.finishingDeposits.map(::encodeFinishingDeposit)),
         "qcInspections" to jsonArrayOf(order.qcInspections.map(::encodeQcInspectionReport)),
         "milestones" to jsonArrayOf(order.milestones.map(::encodeMilestoneProgress)),
+        // jsonb dikirim sebagai string — konsisten dengan kolom jsonbText di server
+        "stageInputs" to jsonOf(StageWorkInputCodec.encodeInputs(order.stageInputs)),
+        "stageHistory" to jsonOf(StageWorkInputCodec.encodeHistory(order.stageHistory)),
         "createdAt" to jsonOf(order.createdAt.toString()),
         "updatedAt" to jsonOf(order.updatedAt.toString()),
         "archivedAt" to jsonOf(order.archivedAt?.toString())
@@ -133,8 +136,8 @@ object SamplingOrderCodec {
                 values = valuesMap
             )
         }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
-        val machineProgram = obj.obj("machineProgram")?.let(::decodeMachineProgram) ?: MachineProgram()
-        val yieldAndTiming = obj.obj("yieldAndTiming")?.let(::decodeYieldAndTiming) ?: YieldAndTiming()
+        val machineProgram = obj.obj("machineProgram")?.let { SamplingProgramCodec.decodeMachineProgram(it) } ?: MachineProgram()
+        val yieldAndTiming = obj.obj("yieldAndTiming")?.let { SamplingProgramCodec.decodeYieldAndTiming(it) } ?: YieldAndTiming()
         val finishingDeposits = obj.objectArray("finishingDeposits").map(::decodeFinishingDeposit)
         val qcInspections = obj.objectArray("qcInspections").map(::decodeQcInspectionReport)
         val milestones = obj.objectArray("milestones").map(::decodeMilestoneProgress).ifEmpty {
@@ -145,6 +148,8 @@ object SamplingOrderCodec {
             obj.string("createdAt"),
             Instant.fromEpochMilliseconds(0)
         )
+        val stageInputs = StageWorkInputCodec.decodeInputs(obj.string("stageInputs"))
+        val stageHistory = StageWorkInputCodec.decodeHistory(obj.string("stageHistory"), createdAt)
         val updatedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
             obj.string("updatedAt"),
             createdAt
@@ -230,6 +235,8 @@ object SamplingOrderCodec {
             finishingDeposits = finishingDeposits,
             qcInspections = qcInspections,
             milestones = milestones,
+            stageInputs = stageInputs,
+            stageHistory = stageHistory,
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = archivedAt
@@ -286,108 +293,6 @@ object SamplingOrderCodec {
         sleeveOpening = obj.double("sleeveOpening") ?: 0.0
     )
 
-    private fun encodeMachineProgram(prog: MachineProgram): JsonValue.Obj = jsonObjectOf(
-        "programFront" to jsonOf(prog.programFront),
-        "programBack" to jsonOf(prog.programBack),
-        "programSleeve" to jsonOf(prog.programSleeve),
-        "programCollar" to jsonOf(prog.programCollar),
-        "programPlacket" to jsonOf(prog.programPlacket),
-        "feederInstructions" to jsonArrayOf(prog.feederInstructions.map {
-            jsonObjectOf(
-                "feederNumber" to jsonOf(it.feederNumber),
-                "name" to jsonOf(it.name),
-                "ply" to jsonOf(it.ply),
-                "color" to jsonOf(it.color)
-            )
-        }),
-        "patternFormulas" to jsonObjectOf(
-            "bodyLengthK" to jsonOf(prog.patternFormulas.bodyLengthK),
-            "bodyWidthN" to jsonOf(prog.patternFormulas.bodyWidthN),
-            "ribK" to jsonOf(prog.patternFormulas.ribK)
-        ),
-        "tensionSettings" to JsonValue.Obj(prog.tensionSettings.mapValues { jsonOf(it.value) }),
-        "tenselityEntries" to jsonArrayOf(prog.tenselityEntries.map(::encodeTenselityEntry))
-    )
-
-    private fun decodeMachineProgram(obj: JsonValue.Obj): MachineProgram {
-        val feederList = obj.objectArray("feederInstructions").map {
-            FeederEntry(
-                feederNumber = it.int("feederNumber") ?: 1,
-                name = it.string("name") ?: "",
-                ply = it.string("ply") ?: "",
-                color = it.string("color") ?: ""
-            )
-        }
-        val formulasObj = obj.obj("patternFormulas")
-        val formulas = PatternFormulas(
-            bodyLengthK = formulasObj?.double("bodyLengthK") ?: 2.94,
-            bodyWidthN = formulasObj?.double("bodyWidthN") ?: 6.6,
-            ribK = formulasObj?.double("ribK") ?: 4.7
-        )
-        val tension = obj.stringMap("tensionSettings")
-        val tenselityList = obj.objectArray("tenselityEntries").map(::decodeTenselityEntry)
-
-        return MachineProgram(
-            programFront = obj.string("programFront") ?: "",
-            programBack = obj.string("programBack") ?: "",
-            programSleeve = obj.string("programSleeve") ?: "",
-            programCollar = obj.string("programCollar") ?: "",
-            programPlacket = obj.string("programPlacket") ?: "",
-            feederInstructions = feederList,
-            patternFormulas = formulas,
-            tensionSettings = tension,
-            tenselityEntries = tenselityList
-        )
-    }
-
-    private fun encodeYieldAndTiming(y: YieldAndTiming): JsonValue.Obj = jsonObjectOf(
-        "panelWeights" to jsonObjectOf(
-            "front" to jsonOf(y.panelWeights.front),
-            "back" to jsonOf(y.panelWeights.back),
-            "sleeve" to jsonOf(y.panelWeights.sleeve),
-            "collar" to jsonOf(y.panelWeights.collar),
-            "placket" to jsonOf(y.panelWeights.placket)
-        ),
-        "panelMinutes" to jsonObjectOf(
-            "front" to jsonOf(y.panelMinutes.front),
-            "back" to jsonOf(y.panelMinutes.back),
-            "sleeve" to jsonOf(y.panelMinutes.sleeve),
-            "collar" to jsonOf(y.panelMinutes.collar),
-            "placket" to jsonOf(y.panelMinutes.placket)
-        ),
-        "linkingNotes" to jsonOf(y.linkingNotes),
-        "additionalProcess" to jsonOf(y.additionalProcess),
-        "isWashed" to jsonOf(y.isWashed),
-        "estimatedHppIdr" to jsonOf(y.estimatedHppIdr)
-    )
-
-    private fun decodeYieldAndTiming(obj: JsonValue.Obj): YieldAndTiming {
-        val weightsObj = obj.obj("panelWeights")
-        val minutesObj = obj.obj("panelMinutes")
-        val weights = PanelWeightGrams(
-            front = weightsObj?.double("front") ?: 0.0,
-            back = weightsObj?.double("back") ?: 0.0,
-            sleeve = weightsObj?.double("sleeve") ?: 0.0,
-            collar = weightsObj?.double("collar") ?: 0.0,
-            placket = weightsObj?.double("placket") ?: 0.0
-        )
-        val minutes = PanelKnittingMinutes(
-            front = minutesObj?.int("front") ?: 0,
-            back = minutesObj?.int("back") ?: 0,
-            sleeve = minutesObj?.int("sleeve") ?: 0,
-            collar = minutesObj?.int("collar") ?: 0,
-            placket = minutesObj?.int("placket") ?: 0
-        )
-        return YieldAndTiming(
-            panelWeights = weights,
-            panelMinutes = minutes,
-            linkingNotes = obj.string("linkingNotes") ?: "",
-            additionalProcess = obj.string("additionalProcess") ?: "Pasang Kancing",
-            isWashed = obj.boolean("isWashed") ?: false,
-            estimatedHppIdr = obj.long("estimatedHppIdr") ?: 0L
-        )
-    }
-
     private fun encodeMilestoneProgress(m: MilestoneProgress): JsonValue.Obj = jsonObjectOf(
         "step" to jsonOf(m.step.name),
         "isCompleted" to jsonOf(m.isCompleted),
@@ -402,20 +307,6 @@ object SamplingOrderCodec {
         val notes = obj.string("notes") ?: ""
         return MilestoneProgress(step, isCompleted, completedAt, notes)
     }
-
-    private fun encodeTenselityEntry(entry: TenselityEntry): JsonValue.Obj = jsonObjectOf(
-        "parameter" to jsonOf(entry.parameter),
-        "body" to jsonOf(entry.body),
-        "sleeve" to jsonOf(entry.sleeve),
-        "collar" to jsonOf(entry.collar)
-    )
-
-    private fun decodeTenselityEntry(obj: JsonValue.Obj): TenselityEntry = TenselityEntry(
-        parameter = obj.string("parameter") ?: "",
-        body = obj.string("body") ?: "",
-        sleeve = obj.string("sleeve") ?: "",
-        collar = obj.string("collar") ?: ""
-    )
 
     private fun encodeVendorInfo(vendor: MakloonVendorInfo?): JsonValue = if (vendor == null) JsonValue.Null else jsonObjectOf(
         "vendorName" to jsonOf(vendor.vendorName),
@@ -471,14 +362,19 @@ object SamplingOrderCodec {
     private fun encodeQcInspectionReport(report: QcInspectionReport): JsonValue.Obj = jsonObjectOf(
         "id" to jsonOf(report.id),
         "samplingOrderId" to jsonOf(report.samplingOrderId),
+        "kind" to jsonOf(report.kind.name),
         "inspectorName" to jsonOf(report.inspectorName),
         "inspectedAt" to jsonOf(report.inspectedAt.toString()),
+        "pieceNo" to jsonOf(report.pieceNo),
+        "inspectedQty" to jsonOf(report.inspectedQty),
         "pomMeasurements" to jsonArrayOf(report.pomMeasurements.map {
             jsonObjectOf(
                 "pomName" to jsonOf(it.pomName),
                 "targetCm" to jsonOf(it.targetCm),
                 "actualCm" to jsonOf(it.actualCm),
-                "toleranceCm" to jsonOf(it.toleranceCm)
+                "toleranceCm" to jsonOf(it.toleranceCm),
+                "notes" to jsonOf(it.notes),
+                "carriedOver" to jsonOf(it.carriedOver)
             )
         }),
         "defectsFound" to jsonArrayOf(report.defectsFound.map { jsonOf(it) }),
@@ -491,14 +387,21 @@ object SamplingOrderCodec {
     private fun decodeQcInspectionReport(obj: JsonValue.Obj): QcInspectionReport = QcInspectionReport(
         id = obj.string("id") ?: "",
         samplingOrderId = obj.string("samplingOrderId") ?: "",
+        // Lembar lama tidak punya "kind" — semuanya dulu inspeksi finishing.
+        kind = obj.string("kind")?.let { runCatching { QcInspectionKind.valueOf(it) }.getOrNull() }
+            ?: QcInspectionKind.FINISHING,
         inspectorName = obj.string("inspectorName") ?: "",
         inspectedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(obj.string("inspectedAt"), Instant.fromEpochMilliseconds(0)),
+        pieceNo = (obj.int("pieceNo") ?: 1).coerceAtLeast(1),
+        inspectedQty = (obj.int("inspectedQty") ?: 1).coerceAtLeast(1),
         pomMeasurements = obj.objectArray("pomMeasurements").map {
             QcPomMeasurement(
                 pomName = it.string("pomName") ?: "",
                 targetCm = it.double("targetCm") ?: 0.0,
                 actualCm = it.double("actualCm") ?: 0.0,
-                toleranceCm = it.double("toleranceCm") ?: 1.0
+                toleranceCm = it.double("toleranceCm") ?: 1.0,
+                notes = it.string("notes") ?: "",
+                carriedOver = it.boolean("carriedOver") ?: false
             )
         },
         defectsFound = obj.stringArray("defectsFound"),

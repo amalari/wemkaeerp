@@ -3,9 +3,11 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
 import com.eventverse.app.domain.tenant.TenantContext
+import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
+import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -179,6 +181,10 @@ fun Route.samplingRoutes(
         }
 
         // POST /api/tenant/sampling/orders/{id}/stage (Advance / Change stage)
+        //
+        // Body opsional memuat `stageInputs`: lembar kerja dinamis tahap terkait.
+        // Jejak audit (siapa yang memindahkan + kapan) dirakit SERVER dari JWT —
+        // bukan dari body — supaya identitas aktor tidak bisa dipalsukan klien.
         post("/{id}/stage") {
             val idParam = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
             val body = call.receiveText()
@@ -189,8 +195,28 @@ fun Route.samplingRoutes(
 
             val order = repository.findById(SamplingOrderId(idParam))
                 ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
-            val updated = repository.save(order.advancePipelineStage(targetStage, Clock.System.now()))
-            call.respondJson(SamplingOrderCodec.encode(updated).encode())
+
+            val now = Clock.System.now()
+            val stageInputs = StageWorkInputCodec.decodeInputs(json?.string("stageInputs"))
+            val withInputs = stageInputs.firstOrNull()?.let {
+                order.fillStageInput(it.stage, it.sections, now)
+            } ?: order
+
+            val caller = call.callerPrincipalOrNull
+            try {
+                val updated = repository.save(
+                    withInputs.advancePipelineStage(
+                        target = targetStage,
+                        updatedAt = now,
+                        actorEmail = caller?.email ?: "unknown",
+                        actorRole = caller?.role?.name ?: "UNKNOWN"
+                    )
+                )
+                call.respondJson(SamplingOrderCodec.encode(updated).encode())
+            } catch (e: IllegalArgumentException) {
+                // Gerbang tahap gagal (mis. lembar CAM belum lengkap) — 422 + pesan domain.
+                call.respondFailure(HttpStatusCode.UnprocessableEntity, e)
+            }
         }
 
         // POST /api/tenant/sampling/orders/{id}/finishing/deposits (Finishing Setoran Pcs & Kg)
@@ -274,21 +300,30 @@ fun Route.samplingRoutes(
                     pomName = it.string("pomName") ?: "",
                     targetCm = it.double("targetCm") ?: 0.0,
                     actualCm = it.double("actualCm") ?: 0.0,
-                    toleranceCm = it.double("toleranceCm") ?: 1.0
+                    toleranceCm = it.double("toleranceCm") ?: 1.0,
+                    notes = it.string("notes") ?: "",
+                    carriedOver = it.boolean("carriedOver") ?: false
                 )
             }
             val defects = json.stringArray("defectsFound")
-            val qcResult = json.string("qcResult")?.let { runCatching { QcInspectionResult.valueOf(it) }.getOrNull() } ?: QcInspectionResult.PASSED
+            val qcNotes = json.string("qcNotes") ?: ""
+            val kind = json.string("kind")?.let { runCatching { QcInspectionKind.valueOf(it) }.getOrNull() }
+                ?: QcInspectionKind.FINISHING
 
             val report = QcInspectionReport(
                 id = "qc_${order.id.value}_${Clock.System.now().toEpochMilliseconds()}",
                 samplingOrderId = order.id.value,
+                kind = kind,
                 inspectorName = json.string("inspectorName") ?: "",
                 inspectedAt = Clock.System.now(),
+                pieceNo = (json.int("pieceNo") ?: 1).coerceAtLeast(1),
+                inspectedQty = (json.int("inspectedQty") ?: 1).coerceAtLeast(1),
                 pomMeasurements = pomList,
                 defectsFound = defects,
-                qcResult = qcResult,
-                qcNotes = json.string("qcNotes") ?: "",
+                // Hasil diturunkan di server, bukan diterima dari klien: aturannya milik domain,
+                // dan klien mana pun (termasuk yang belum ditulis) harus tunduk pada aturan yang sama.
+                qcResult = QcInspectionReport.deriveResult(pomList, qcNotes),
+                qcNotes = qcNotes,
                 verifiedPhotoFrontKey = json.string("verifiedPhotoFrontKey"),
                 verifiedPhotoBackKey = json.string("verifiedPhotoBackKey")
             )

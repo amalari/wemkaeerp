@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.requiresStageWorksheet
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.sampling.components.*
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -158,8 +159,15 @@ fun SamplingWorkspaceScreen(
                             viewModel.onEvent(SamplingUiEvent.SelectOrder(it))
                             viewModel.onEvent(SamplingUiEvent.SelectViewTab(SamplingViewTab.WORKBENCH))
                         },
-                        onAdvanceStage = { id, stage ->
-                            viewModel.onEvent(SamplingUiEvent.AdvanceStage(id, stage))
+                        onAdvanceStageRequested = { order, stage ->
+                            // Satu sumber kebenaran: transisi yang menuntut lembar kerja
+                            // membuka dialog dulu; sisanya langsung maju (backend tetap
+                            // memvalidasi gerbang + mencatat audit aktor).
+                            if (stage.requiresStageWorksheet()) {
+                                viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
+                            } else {
+                                viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, stage))
+                            }
                         },
                         onOpenRevisionDialog = {
                             viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(it))
@@ -295,4 +303,21 @@ fun SamplingWorkspaceScreen(
             viewModel.onEvent(SamplingUiEvent.RequestRevision(targetId, notes))
         }
     )
+
+    // 6. Stage Advance Dialog — lembar kerja dinamis (CAM -> Rajut, Rajut -> Finishing)
+    val advanceTarget = state.stageAdvanceTarget
+    val advanceTargetStage = state.stageAdvanceTargetStage
+    if (advanceTarget != null && advanceTargetStage != null) {
+        StageAdvanceDialog(
+            order = advanceTarget,
+            targetStage = advanceTargetStage,
+            isSubmitting = state.isSubmitting,
+            onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseStageAdvanceDialog) },
+            onConfirm = { sections ->
+                viewModel.onEvent(
+                    SamplingUiEvent.ConfirmStageAdvance(advanceTarget.id, advanceTargetStage, sections)
+                )
+            }
+        )
+    }
 }

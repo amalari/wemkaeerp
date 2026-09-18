@@ -40,6 +40,15 @@ class SamplingViewModel(
             is SamplingUiEvent.SaveTechnicalSpec -> saveTechnicalSpec(event.updatedOrder)
             is SamplingUiEvent.SaveFullOrder -> saveFullOrder(event.order)
             is SamplingUiEvent.AdvanceStage -> advanceStage(event.orderId, event.targetStage)
+            is SamplingUiEvent.OpenStageAdvanceDialog -> _uiState.update {
+                it.copy(stageAdvanceTarget = event.order, stageAdvanceTargetStage = event.targetStage)
+            }
+            SamplingUiEvent.CloseStageAdvanceDialog -> _uiState.update {
+                it.copy(stageAdvanceTarget = null, stageAdvanceTargetStage = null)
+            }
+            is SamplingUiEvent.ConfirmStageAdvance -> confirmStageAdvance(
+                event.orderId, event.targetStage, event.sections
+            )
             is SamplingUiEvent.AddFinishingDeposit -> addFinishingDeposit(event.orderId, event.deposit)
             is SamplingUiEvent.AssignMakloonVendor -> assignMakloonVendor(event.orderId, event.info)
             is SamplingUiEvent.ConfirmVendorReturn -> confirmVendorReturn(event.orderId, event.returnedAt)
@@ -234,6 +243,42 @@ class SamplingViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    private fun confirmStageAdvance(
+        orderId: SamplingOrderId,
+        targetStage: SamplingPipelineStage,
+        sections: List<StageInputSection>
+    ) {
+        scope.launch {
+            _uiState.update { it.copy(isSubmitting = true) }
+            remoteDataSource.advanceStage(
+                tenantSlug = tenantSlug,
+                orderId = orderId.value,
+                targetStage = targetStage,
+                stageInputs = listOf(StageWorkInput(stage = targetStage, sections = sections))
+            ).onSuccess { updated ->
+                _uiState.update { current ->
+                    val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
+                    current.copy(
+                        orders = newOrders,
+                        isSubmitting = false,
+                        stageAdvanceTarget = null,
+                        stageAdvanceTargetStage = null,
+                        statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${targetStage.displayName}",
+                        isErrorMessage = false
+                    )
+                }
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        statusMessage = "Gagal pindah tahap: ${err.message}",
+                        isErrorMessage = true
+                    )
+                }
+            }
         }
     }
 

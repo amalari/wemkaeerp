@@ -157,8 +157,13 @@ fun DealsPane(
                 onStageFilterChange = { stageFilter = it },
                 onOpenDeal = { openDealId = it },
                 onCreateInvoice = { deal, contact ->
+                    val kind = if (deal.stage == DealStage.IN_PRODUCTION || deal.stage == DealStage.WON) {
+                        com.eventverse.app.domain.invoicing.InvoiceKind.SETTLEMENT
+                    } else {
+                        com.eventverse.app.domain.invoicing.InvoiceKind.DOWN_PAYMENT
+                    }
                     InvoicePrefillCoordinator.setPending(
-                        InvoicePrefillData.fromDeal(deal, contact)
+                        InvoicePrefillData.fromDeal(deal, contact, kind = kind)
                     )
                     navigator(AppNavScreen.INVOICING)
                 }
@@ -193,8 +198,8 @@ private fun DealsContent(
     val activeDealsCount = remember(allDeals) {
         allDeals.count { it.stage != DealStage.WON && it.stage != DealStage.LOST }
     }
-    val pendingInvoiceCount = remember(allDeals) {
-        allDeals.count { it.stage == DealStage.PO_RECEIVED || it.stage == DealStage.IN_PRODUCTION }
+    val samplingCount = remember(allDeals) {
+        allDeals.count { it.stage == DealStage.PO_RECEIVED }
     }
     val winRate = remember(allDeals) { winRateOf(allDeals) }
 
@@ -215,8 +220,8 @@ private fun DealsContent(
             modifier = Modifier.weight(1f)
         )
         PipelineKpiCard(
-            label = "Pending Invoices",
-            value = "$pendingInvoiceCount PO Terbit",
+            label = "Siklus Sampling",
+            value = "$samplingCount Berjalan",
             indicatorColor = Color(0xFFF59E0B),
             modifier = Modifier.weight(1f)
         )
@@ -416,8 +421,9 @@ private fun StageFilterChip(
             .height(36.dp)
             .claySurface(
                 shape = CircleShape,
-                background = if (selected) WeMadeColors.Primary.copy(alpha = 0.12f) else WeMadeColors.Surface,
-                outline = if (selected) WeMadeColors.Primary else WeMadeColors.Outline,
+                background = if (selected) WeMadeColors.Primary else WeMadeColors.Surface,
+                outline = WeMadeColors.Outline,
+                shadowColor = WeMadeColors.Outline,
                 borderWidth = ClayBorder.Medium,
                 offset = if (selected) ClayOffset.Pressed else ClayOffset.Small
             )
@@ -429,10 +435,8 @@ private fun StageFilterChip(
         Text(
             text = label,
             fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            // Chip non-aktif memakai OnSurface penuh (bukan OnSurfaceMuted) agar label
-            // "Semua" dan tahapan tetap terbaca tajam di atas permukaan clay terang.
-            color = if (selected) WeMadeColors.Primary else WeMadeColors.OnSurface,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) Color.White else WeMadeColors.OnSurface,
             maxLines = 1
         )
         if (selected && onClear != null) {
@@ -443,7 +447,7 @@ private fun StageFilterChip(
                     .clickable(onClick = onClear),
                 contentAlignment = Alignment.Center
             ) {
-                IconClose(modifier = Modifier.size(10.dp), color = WeMadeColors.Primary)
+                IconClose(modifier = Modifier.size(10.dp), color = Color.White)
             }
         }
     }
@@ -502,13 +506,7 @@ private fun DealGridCard(
                 )
             }
 
-            val stageColor = when (deal.stage) {
-                DealStage.PO_RECEIVED -> Color(0xFFF59E0B)
-                DealStage.OPEN -> WeMadeColors.Info
-                DealStage.IN_PRODUCTION -> WeMadeColors.Accent
-                DealStage.WON -> WeMadeColors.Success
-                DealStage.LOST -> WeMadeColors.Error
-            }
+            val stageColor = deal.stage.tint()
 
             Box(
                 modifier = Modifier
@@ -539,6 +537,7 @@ private fun DealGridCard(
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurface,
+            minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -608,18 +607,23 @@ private fun DealGridCard(
                 }
             }
 
-            // Action buttons: Upload PO (Orange) & Create Invoice (Green)
+            // Action buttons: PO Opsional & Invoice Kontekstual (DP / Pelunasan)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayCardButton(
-                    text = "Upload PO",
+                    text = "+ PO (Opsional)",
                     containerColor = Color(0xFFF59E0B),
                     onClick = onUploadPo
                 )
+                val invoiceLabel = if (deal.stage == DealStage.IN_PRODUCTION || deal.stage == DealStage.WON) {
+                    "Invoice Pelunasan"
+                } else {
+                    "Invoice DP (50%)"
+                }
                 ClayCardButton(
-                    text = "Create Invoice",
+                    text = invoiceLabel,
                     containerColor = WeMadeColors.Success,
                     onClick = onCreateInvoice
                 )
@@ -666,175 +670,9 @@ private fun ClayCardButton(
     }
 }
 
-/** Stepper milestone 3 tahap: Qualify -> PO -> Invoice dengan konektor panah. */
-@Composable
-private fun MiniPipelineIndicator(stage: DealStage) {
-    val isPoActive = stage == DealStage.PO_RECEIVED ||
-        stage == DealStage.IN_PRODUCTION ||
-        stage == DealStage.WON
-    val isPoDone = stage == DealStage.WON
-    val isInvoiceDone = stage == DealStage.WON
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Step 1: Qualify
-        MilestoneStep(
-            circleContent = {
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF59E0B))
-                        .border(ClayBorder.Medium, WeMadeColors.Outline, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconCheck(modifier = Modifier.size(13.dp), color = Color.White)
-                }
-            },
-            label = "Qualify",
-            labelColor = WeMadeColors.OnSurface
-        )
-
-        // Connector 1 -> 2
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            StepperConnector(active = isPoActive, modifier = Modifier.fillMaxWidth())
-        }
-
-        // Step 2: PO
-        MilestoneStep(
-            circleContent = {
-                if (isPoActive) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.Success)
-                            .border(ClayBorder.Medium, WeMadeColors.Outline, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isPoDone) {
-                            IconCheck(modifier = Modifier.size(13.dp), color = Color.White)
-                        } else {
-                            IconArrowForward(modifier = Modifier.size(13.dp), color = Color.White)
-                        }
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.Surface)
-                            .border(ClayBorder.Medium, WeMadeColors.Border, CircleShape)
-                    )
-                }
-            },
-            label = "PO",
-            labelColor = if (isPoActive) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted
-        )
-
-        // Connector 2 -> 3
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            StepperConnector(active = isInvoiceDone, modifier = Modifier.fillMaxWidth())
-        }
-
-        // Step 3: Invoice
-        MilestoneStep(
-            circleContent = {
-                if (isInvoiceDone) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.Success)
-                            .border(ClayBorder.Medium, WeMadeColors.Outline, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconCheck(modifier = Modifier.size(13.dp), color = Color.White)
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.Surface)
-                            .border(ClayBorder.Medium, WeMadeColors.Border, CircleShape)
-                    )
-                }
-            },
-            label = "Invoice",
-            labelColor = if (isInvoiceDone) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted
-        )
-    }
-}
-
-@Composable
-private fun MilestoneStep(
-    circleContent: @Composable () -> Unit,
-    label: String,
-    labelColor: Color = WeMadeColors.OnSurface
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(54.dp)
-    ) {
-        circleContent()
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = labelColor,
-            textAlign = TextAlign.Center,
-            maxLines = 1
-        )
-    }
-}
-
-@Composable
-private fun StepperConnector(active: Boolean, modifier: Modifier = Modifier) {
-    val lineColor = if (active) WeMadeColors.Success else WeMadeColors.Border
-    Canvas(modifier = modifier.height(26.dp)) {
-        val w = size.width
-        val midY = size.height * 0.5f
-        val stroke = 2.dp.toPx()
-
-        // Horizontal connecting line
-        drawLine(
-            color = lineColor,
-            start = Offset(0f, midY),
-            end = Offset(w - 6.dp.toPx(), midY),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-
-        // Arrowhead pointing right
-        val arrowSize = 6.dp.toPx()
-        val endX = w - 4.dp.toPx()
-        val path = Path().apply {
-            moveTo(endX, midY)
-            lineTo(endX - arrowSize, midY - arrowSize * 0.7f)
-            moveTo(endX, midY)
-            lineTo(endX - arrowSize, midY + arrowSize * 0.7f)
-        }
-        drawPath(path, color = lineColor, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-}
-
 internal fun DealStage.mockupLabel(): String = when (this) {
-    DealStage.OPEN -> "Deal Open"
-    DealStage.PO_RECEIVED -> "PO Received"
+    DealStage.OPEN -> "Qualify"
+    DealStage.PO_RECEIVED -> "Sampling"
     DealStage.IN_PRODUCTION -> "In Production"
     DealStage.WON -> "Won"
     DealStage.LOST -> "Lost"
@@ -842,7 +680,7 @@ internal fun DealStage.mockupLabel(): String = when (this) {
 
 internal fun DealStage.tint(): Color = when (this) {
     DealStage.OPEN -> WeMadeColors.Info
-    DealStage.PO_RECEIVED -> WeMadeColors.Primary
+    DealStage.PO_RECEIVED -> Color(0xFFF59E0B)
     DealStage.IN_PRODUCTION -> WeMadeColors.Accent
     DealStage.WON -> WeMadeColors.Success
     DealStage.LOST -> WeMadeColors.Error

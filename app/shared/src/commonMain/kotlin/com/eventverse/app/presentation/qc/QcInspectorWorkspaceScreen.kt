@@ -1,30 +1,55 @@
 package com.eventverse.app.presentation.qc
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
-import com.eventverse.app.domain.sampling.QcInspectionReport
-import com.eventverse.app.domain.sampling.QcInspectionResult
-import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.domain.sampling.QcInspectionKind
+import com.eventverse.app.domain.sampling.SamplingOrderId
+import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayBreakpoints
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayPaneWidth
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.qc.components.QcInspectionPane
+import com.eventverse.app.presentation.qc.components.QcQueuePane
 import com.eventverse.app.presentation.sampling.SamplingUiEvent
 import com.eventverse.app.presentation.sampling.SamplingViewModel
-import com.eventverse.app.presentation.sampling.components.QcInspectionDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlinx.datetime.Clock
 
+/**
+ * Stasiun kerja QC: antrean di kiri, lembar ukur satu pcs di kanan.
+ *
+ * Dua meja (rajut & finishing) berbagi layar ini lewat tab, bukan lewat dua modul terpisah —
+ * wewenangnya sama dan perbedaannya hanya pada tahap mana barangnya diperiksa.
+ *
+ * File ini hanya merakit; antreannya dihitung di [buildQcQueue], panelnya merender sendiri.
+ */
 @Composable
 fun QcInspectorWorkspaceScreen(
     tenantSlug: String,
@@ -34,213 +59,174 @@ fun QcInspectorWorkspaceScreen(
     viewModel: SamplingViewModel = remember(tenantSlug) { SamplingViewModel(tenantSlug) }
 ) {
     val state by viewModel.uiState.collectAsState()
-    var targetOrderForQc by remember { mutableStateOf<SamplingOrder?>(null) }
+    // Meja rajut yang lebih dulu tersentuh di alur produksi, jadi itu yang terbuka lebih dulu.
+    var activeKind by remember { mutableStateOf(QcInspectionKind.KNITTING) }
+    var selectedOrderId by remember { mutableStateOf<SamplingOrderId?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
-    // QC memeriksa order yang berada pada tahap FINISHING_QC, IN_DELIVERY, atau yang sudah punya setoran finishing
-    val qcQueue = remember(state.orders) {
-        state.orders.filter { order ->
-            order.pipelineStage == SamplingPipelineStage.FINISHING_QC ||
-            order.pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
-            order.qcInspections.isNotEmpty() ||
-            order.totalFinishedDepositedQty > 0
-        }
+    // Petugas diambil dari sesi, tidak diketik. Nama yang bisa diketik bisa diketik nama orang
+    // lain, dan lembar QC kehilangan artinya sebagai tanda tangan.
+    val inspectorName = persona?.name.orEmpty()
+
+    // Jam dibaca sekali per perubahan daftar: lama tunggu tidak perlu berdetik-detik, dan
+    // membaca Clock di dalam Composable akan membuatnya menghitung ulang tiap rekomposisi.
+    val queue = remember(state.orders, activeKind) {
+        buildQcQueue(state.orders, Clock.System.now(), activeKind)
     }
 
-    val pendingQc = qcQueue.count { it.pipelineStage == SamplingPipelineStage.FINISHING_QC }
-    val passedQc = qcQueue.count { it.latestQcReport?.qcResult == QcInspectionResult.PASSED }
-    val reworkQc = qcQueue.count { it.latestQcReport?.qcResult == QcInspectionResult.REWORK }
+    val visibleQueue = remember(queue, searchQuery) {
+        val needle = searchQuery.trim()
+        if (needle.isBlank()) queue else queue.filter { it.matches(needle) }
+    }
+
+    // Pilihan mengikuti antrean: begitu ada yang bisa dikerjakan, yang teratas langsung terbuka.
+    LaunchedEffect(visibleQueue) {
+        val stillVisible = visibleQueue.any { it.order.id == selectedOrderId }
+        if (!stillVisible) selectedOrderId = visibleQueue.firstOrNull()?.order?.id
+    }
+
+    val selectedItem = visibleQueue.firstOrNull { it.order.id == selectedOrderId }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(ClaySpacing.Md),
+        modifier = modifier.fillMaxSize().padding(ClaySpacing.Xl),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
-        // Header
-        ClayCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = ClayShapes.Card,
-            contentPadding = PaddingValues(ClaySpacing.Md)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
+        QcWorkspaceHeader(
+            queue = queue,
+            activeKind = activeKind,
+            inspectorName = inspectorName,
+            onKindChange = {
+                activeKind = it
+                selectedOrderId = null
+            }
+        )
+
+        when {
+            state.isLoading && state.orders.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = WeMadeColors.Primary)
+                }
+            }
+
+            else -> BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val isCompact = maxWidth < ClayBreakpoints.MasterDetail
+                val queuePane: @Composable (Modifier) -> Unit = { paneModifier ->
+                    QcQueuePane(
+                        items = visibleQueue,
+                        selectedOrderId = selectedOrderId,
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { searchQuery = it },
+                        onSelect = { selectedOrderId = it },
+                        modifier = paneModifier
+                    )
+                }
+                val inspectionPane: @Composable (Modifier) -> Unit = { paneModifier ->
+                    QcInspectionPane(
+                        item = selectedItem,
+                        inspectorName = inspectorName,
+                        isSubmitting = state.isSubmitting,
+                        onSubmit = { report ->
+                            selectedItem?.let {
+                                viewModel.onEvent(SamplingUiEvent.SubmitQcInspection(it.order.id, report))
+                            }
+                        },
+                        modifier = paneModifier
+                    )
+                }
+
+                if (isCompact) {
+                    // Di lebar sempit dua panel akan saling menghimpit; antrean dipendekkan
+                    // menjadi pita di atas dan lembar ukur mengambil sisa tinggi.
+                    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+                        queuePane(Modifier.fillMaxWidth().heightIn(max = 280.dp))
+                        inspectionPane(Modifier.fillMaxWidth().weight(1f))
+                    }
+                } else {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xl)
                     ) {
-                        Text(
-                            text = "KONTROL KUALITAS (QUALITY CONTROL)",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        ClayBadge(text = "Divisi QC Inspeksi", tint = WeMadeColors.Success)
-                    }
-                    Text(
-                        text = "Verifikasi fisik POM vs toleransi spesifikasi buyer (maks. +/- 1.0 cm) & checklist cacat",
-                        fontSize = 12.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-                    ClayBadge(
-                        text = "$pendingQc Menunggu QC",
-                        tint = if (pendingQc > 0) WeMadeColors.Warning else WeMadeColors.OnSurfaceMuted
-                    )
-                    ClayBadge(
-                        text = "$passedQc Lolos QC",
-                        tint = WeMadeColors.Success
-                    )
-                    if (reworkQc > 0) {
-                        ClayBadge(
-                            text = "$reworkQc Perlu Rework",
-                            tint = WeMadeColors.Error
-                        )
-                    }
-                }
-            }
-        }
-
-        // Queue
-        if (state.isLoading && state.orders.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = WeMadeColors.Primary)
-            }
-        } else if (qcQueue.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                ClayCard(
-                    modifier = Modifier.widthIn(max = 420.dp).padding(ClaySpacing.Xl),
-                    shape = ClayShapes.Card,
-                    contentPadding = PaddingValues(ClaySpacing.Xl)
-                ) {
-                    Text(
-                        text = "Tidak Ada Antrean QC",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.OnSurface
-                    )
-                    Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-                    Text(
-                        text = "Belum ada pakaian sampel jadi dari finishing yang siap diinspeksi.",
-                        fontSize = 12.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-            ) {
-                items(qcQueue, key = { it.id.value }) { order ->
-                    val latestQc = order.latestQcReport
-                    val resultBadgeColor = when (latestQc?.qcResult) {
-                        QcInspectionResult.PASSED -> WeMadeColors.Success
-                        QcInspectionResult.REWORK -> WeMadeColors.Warning
-                        QcInspectionResult.REJECT -> WeMadeColors.Error
-                        null -> WeMadeColors.OnSurfaceMuted
-                    }
-
-                    ClayCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = ClayShapes.Card,
-                        contentPadding = PaddingValues(ClaySpacing.Lg)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = order.spkNumber.value,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = WeMadeColors.Primary
-                                        )
-                                        ClayBadge(
-                                            text = latestQc?.qcResult?.displayName ?: "Belum Diinspeksi",
-                                            tint = resultBadgeColor
-                                        )
-                                    }
-                                    Text(
-                                        text = "${order.clientName} • ${order.styleName} (${order.sampleQuantity} Pcs)",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = WeMadeColors.OnSurface
-                                    )
-                                }
-
-                                ClayButton(
-                                    text = if (latestQc != null) "Inspeksi Ulang" else "+ Lakukan Inspeksi QC",
-                                    style = ClayButtonStyle.Success,
-                                    onClick = { targetOrderForQc = order }
-                                )
-                            }
-
-                            // Summary of measurements if any
-                            if (latestQc != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(WeMadeColors.SurfaceMuted, ClayShapes.Tile)
-                                        .padding(ClaySpacing.Md)
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                                        Text(
-                                            text = "Inspektor: ${latestQc.inspectorName} (${latestQc.inspectedAt.toString().take(10)})",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = WeMadeColors.OnSurface
-                                        )
-                                        if (latestQc.qcNotes.isNotBlank()) {
-                                            Text(
-                                                text = "Catatan: ${latestQc.qcNotes}",
-                                                fontSize = 11.sp,
-                                                color = WeMadeColors.OnSurfaceMuted
-                                            )
-                                        }
-                                        if (latestQc.defectsFound.isNotEmpty()) {
-                                            Text(
-                                                text = "Temuan Cacat: ${latestQc.defectsFound.joinToString(", ")}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = WeMadeColors.Error
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        queuePane(Modifier.width(ClayPaneWidth.List).fillMaxHeight())
+                        inspectionPane(Modifier.weight(1f).fillMaxHeight())
                     }
                 }
             }
         }
     }
+}
 
-    // QC Dialog
-    QcInspectionDialog(
-        isOpen = targetOrderForQc != null,
-        order = targetOrderForQc,
-        isSubmitting = state.isSubmitting,
-        onDismiss = { targetOrderForQc = null },
-        onSubmit = { report ->
-            val order = targetOrderForQc ?: return@QcInspectionDialog
-            viewModel.onEvent(SamplingUiEvent.SubmitQcInspection(order.id, report))
-            targetOrderForQc = null
+/** Pencocokan pencarian dibuat longgar: inspektor mengetik "0011", bukan "SPK-SMP-0011". */
+private fun QcQueueItem.matches(needle: String): Boolean =
+    spk.contains(needle, ignoreCase = true) ||
+        order.clientName.contains(needle, ignoreCase = true) ||
+        order.styleName.contains(needle, ignoreCase = true)
+
+@Composable
+private fun QcWorkspaceHeader(
+    queue: List<QcQueueItem>,
+    activeKind: QcInspectionKind,
+    inspectorName: String,
+    onKindChange: (QcInspectionKind) -> Unit
+) {
+    // Dihitung dari antrean yang sama dengan yang dirender — angka badge yang tidak cocok
+    // dengan jumlah baris terbaca sebagai sistem rusak.
+    val waiting = queue.count { it.bucket == QcQueueBucket.WAITING }
+    val rework = queue.count { it.bucket == QcQueueBucket.REWORK }
+
+    ClayCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = ClayShapes.Card,
+        contentPadding = PaddingValues(ClaySpacing.Lg)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = "KONTROL KUALITAS (QUALITY CONTROL)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (inspectorName.isBlank()) {
+                        "Sesi tidak mengenali petugas — lembar tidak bisa ditandatangani."
+                    } else {
+                        "Petugas: $inspectorName  •  satu lembar = satu pcs"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (inspectorName.isBlank()) WeMadeColors.Error else WeMadeColors.OnSurfaceMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(ClaySpacing.Md))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                if (waiting > 0) {
+                    ClayBadge(text = "$waiting Menunggu", tint = WeMadeColors.Warning, dot = true)
+                }
+                if (rework > 0) {
+                    ClayBadge(text = "$rework Perlu Rework", tint = WeMadeColors.Accent)
+                }
+            }
         }
-    )
+
+        Spacer(modifier = Modifier.height(ClaySpacing.Md))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+            QcInspectionKind.entries.forEach { kind ->
+                ClayButton(
+                    text = kind.shortLabel,
+                    style = if (kind == activeKind) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+                    onClick = { onKindChange(kind) }
+                )
+            }
+        }
+    }
 }

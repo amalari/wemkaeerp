@@ -4,6 +4,7 @@ import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
+import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -94,13 +95,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[samplingFeeIdr] = order.samplingFeeIdr
                     it[revisionCount] = order.revisionCount
                     it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
-                    it[sizeMatrix] = jsonArrayOf(order.sizeMatrix.map { row ->
-                        jsonObjectOf(
-                            "id" to jsonOf(row.id),
-                            "pomName" to jsonOf(row.pomName),
-                            "values" to jsonStringMapOf(row.values)
-                        )
-                    }).encode()
+                    it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
+                    it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
+                    it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[createdAt] = order.createdAt
@@ -132,13 +129,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[samplingFeeIdr] = order.samplingFeeIdr
                     it[revisionCount] = order.revisionCount
                     it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
-                    it[sizeMatrix] = jsonArrayOf(order.sizeMatrix.map { row ->
-                        jsonObjectOf(
-                            "id" to jsonOf(row.id),
-                            "pomName" to jsonOf(row.pomName),
-                            "values" to jsonStringMapOf(row.values)
-                        )
-                    }).encode()
+                    it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
+                    it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
+                    it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[updatedAt] = order.updatedAt
@@ -279,14 +272,19 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[id] = qcId
                     it[tenantId] = order.tenantId.value
                     it[samplingOrderId] = order.id.value
+                    it[kind] = qc.kind.name
                     it[inspectorName] = qc.inspectorName
                     it[inspectedAt] = qc.inspectedAt
+                    it[inspectedQty] = qc.inspectedQty
+                    it[pieceNo] = qc.pieceNo
                     it[measuredPomValues] = jsonArrayOf(qc.pomMeasurements.map { m ->
                         jsonObjectOf(
                             "pomName" to jsonOf(m.pomName),
                             "targetCm" to jsonOf(m.targetCm),
                             "actualCm" to jsonOf(m.actualCm),
-                            "toleranceCm" to jsonOf(m.toleranceCm)
+                            "toleranceCm" to jsonOf(m.toleranceCm),
+                            "notes" to jsonOf(m.notes),
+                            "carriedOver" to jsonOf(m.carriedOver)
                         )
                     }).encode()
                     it[defectsFound] = jsonArrayOf(qc.defectsFound.map { d -> jsonOf(d) }).encode()
@@ -515,7 +513,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                             pomName = obj.string("pomName") ?: "",
                             targetCm = obj.double("targetCm") ?: 0.0,
                             actualCm = obj.double("actualCm") ?: 0.0,
-                            toleranceCm = obj.double("toleranceCm") ?: 1.0
+                            toleranceCm = obj.double("toleranceCm") ?: 1.0,
+                            notes = obj.string("notes") ?: "",
+                            carriedOver = obj.boolean("carriedOver") ?: false
                         )
                     } ?: emptyList()
                 val defects = (JsonParser.parse(row[SamplingQcInspectionsTable.defectsFound]) as? JsonValue.Arr)
@@ -525,8 +525,12 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                 QcInspectionReport(
                     id = row[SamplingQcInspectionsTable.id],
                     samplingOrderId = row[SamplingQcInspectionsTable.samplingOrderId],
+                    kind = runCatching { QcInspectionKind.valueOf(row[SamplingQcInspectionsTable.kind]) }
+                        .getOrDefault(QcInspectionKind.FINISHING),
                     inspectorName = row[SamplingQcInspectionsTable.inspectorName],
                     inspectedAt = row[SamplingQcInspectionsTable.inspectedAt],
+                    inspectedQty = row[SamplingQcInspectionsTable.inspectedQty],
+                    pieceNo = row[SamplingQcInspectionsTable.pieceNo],
                     pomMeasurements = pomList,
                     defectsFound = defects,
                     qcResult = qcResult,
@@ -577,6 +581,11 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawKnitSizes,
             sizeMatrix = parseSizeMatrix(orderRow[SamplingOrdersTable.sizeMatrix]),
+            stageInputs = StageWorkInputCodec.decodeInputs(orderRow[SamplingOrdersTable.stageInputs]),
+            stageHistory = StageWorkInputCodec.decodeHistory(
+                raw = orderRow[SamplingOrdersTable.stageHistory],
+                fallbackAt = orderRow[SamplingOrdersTable.updatedAt]
+            ),
             machineProgram = machineProgram,
             yieldAndTiming = yieldAndTiming,
             finishingDeposits = finishingDeposits,
@@ -594,22 +603,36 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             if (raw.isNullOrBlank()) return@runCatching defaultSamplingSizeMatrix()
             JsonParser.parseArray(raw)
                 .filterIsInstance<JsonValue.Obj>()
-                .map { rowObj ->
-                    val valuesMap = mutableMapOf<String, String>()
-                    rowObj.obj("values")?.entries?.forEach { (k, v) ->
-                        when (v) {
-                            is JsonValue.Str -> valuesMap[k] = v.value
-                            is JsonValue.Num -> valuesMap[k] = v.raw
-                            else -> Unit
-                        }
-                    }
-                    SizeChartRow(
-                        id = rowObj.string("id") ?: "",
-                        pomName = rowObj.string("pomName") ?: "",
-                        values = valuesMap
-                    )
-                }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
+                .map(::parseSizeChartRow)
+                .ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
         }.getOrDefault(defaultSamplingSizeMatrix()).let(::ensureSamplingQtyRow)
+
+    /** Satu baris jsonb size_matrix -> SizeChartRow (dipakai parseSizeMatrix & snapshot revisi). */
+    private fun parseSizeChartRow(rowObj: JsonValue.Obj): SizeChartRow {
+        val valuesMap = mutableMapOf<String, String>()
+        rowObj.obj("values")?.entries?.forEach { (k, v) ->
+            when (v) {
+                is JsonValue.Str -> valuesMap[k] = v.value
+                is JsonValue.Num -> valuesMap[k] = v.raw
+                else -> Unit
+            }
+        }
+        return SizeChartRow(
+            id = rowObj.string("id") ?: "",
+            pomName = rowObj.string("pomName") ?: "",
+            values = valuesMap
+        )
+    }
+
+    /** Satu bentuk encoding size_matrix untuk insert, update, dan snapshot revisi. */
+    private fun sizeMatrixJson(rows: List<SizeChartRow>) =
+        jsonArrayOf(rows.map { row ->
+            jsonObjectOf(
+                "id" to jsonOf(row.id),
+                "pomName" to jsonOf(row.pomName),
+                "values" to jsonStringMapOf(row.values)
+            )
+        })
 
     private fun encodeRevisionHistory(history: List<RevisionFeedback>): String =
         jsonArrayOf(history.map { entry ->
@@ -625,13 +648,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     "sampleQuantity" to jsonOf(snap.sampleQuantity),
                     "samplingFeeIdr" to jsonOf(snap.samplingFeeIdr),
                     "notes" to jsonOf(snap.notes),
-                    "sizeMatrix" to jsonArrayOf(snap.sizeMatrix.map { row ->
-                        jsonObjectOf(
-                            "id" to jsonOf(row.id),
-                            "pomName" to jsonOf(row.pomName),
-                            "values" to jsonStringMapOf(row.values)
-                        )
-                    })
+                    "sizeMatrix" to sizeMatrixJson(snap.sizeMatrix)
                 ))
             }
             JsonValue.Obj(pairs.toMap())
@@ -648,21 +665,9 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     val revision = entry.int("revision") ?: return@mapNotNull null
                     val snapObj = entry.obj("snapshot")
                     val snap = snapObj?.let { sObj ->
-                        val snapMatrix = sObj.objectArray("sizeMatrix").map { rowObj ->
-                            val valuesMap = mutableMapOf<String, String>()
-                            rowObj.obj("values")?.entries?.forEach { (k, v) ->
-                                when (v) {
-                                    is JsonValue.Str -> valuesMap[k] = v.value
-                                    is JsonValue.Num -> valuesMap[k] = v.raw
-                                    else -> Unit
-                                }
-                            }
-                            SizeChartRow(
-                                id = rowObj.string("id") ?: "",
-                                pomName = rowObj.string("pomName") ?: "",
-                                values = valuesMap
-                            )
-                        }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
+                        val snapMatrix = sObj.objectArray("sizeMatrix")
+                            .map(::parseSizeChartRow)
+                            .ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
                         SamplingSnapshot(
                             mockupFrontKey = sObj.string("mockupFrontKey"),
                             mockupBackKey = sObj.string("mockupBackKey"),
