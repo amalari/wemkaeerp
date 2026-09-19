@@ -28,7 +28,6 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputRow
 import com.eventverse.app.domain.sampling.StageInputSection
-import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -42,30 +41,6 @@ import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconTrash
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
-
-/** Konfigurasi section input untuk satu transisi tahap. */
-data class StageAdvanceSectionSpec(val sectionName: String, val hint: String)
-
-/** Section + hint per transisi — sumber kebenaran satu-satunya untuk dialog tahap. */
-private val CAM_SECTIONS = listOf(
-    StageAdvanceSectionSpec(StageSectionNames.PROGRAM, "mis. DEPAN : BIAN-D"),
-    StageAdvanceSectionSpec(StageSectionNames.FEEDER_INSTRUCTIONS, "mis. 1 RIB STRIPE 1 PLAY ( HITAM )"),
-    StageAdvanceSectionSpec(StageSectionNames.PATTERN_FORMULAS, "mis. P BADAN : 2.94 K")
-)
-
-private val KNITTING_SECTIONS = listOf(
-    StageAdvanceSectionSpec(StageSectionNames.PANEL_WEIGHTS, "mis. DEPAN : 117 GR"),
-    StageAdvanceSectionSpec(StageSectionNames.PANEL_MINUTES, "mis. DEPAN : 37 MENIT"),
-    StageAdvanceSectionSpec(StageSectionNames.SIZE_CHART, "mis. P BADAN : 55 CM"),
-    StageAdvanceSectionSpec(StageSectionNames.TENSELITY, "mis. 1 BS POLY")
-)
-
-private fun sectionsFor(targetStage: SamplingPipelineStage): List<StageAdvanceSectionSpec> =
-    when (targetStage) {
-        SamplingPipelineStage.MACHINE_KNITTING -> CAM_SECTIONS
-        SamplingPipelineStage.LINKING_ASSEMBLY -> KNITTING_SECTIONS
-        else -> emptyList()
-    }
 
 /**
  * Dialog lembar kerja dinamis saat pindah tahap (drag ATAU tombol).
@@ -82,7 +57,7 @@ fun StageAdvanceDialog(
     onConfirm: (List<StageInputSection>) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sectionSpecs = remember(targetStage) { sectionsFor(targetStage) }
+    val sectionSpecs = remember(targetStage) { stageSectionsFor(targetStage) }
     var sections by remember(targetStage, order.id) {
         mutableStateOf(sectionSpecs.map { StageInputSection(section = it.sectionName, rows = emptyList()) })
     }
@@ -224,9 +199,10 @@ private fun PreviousStageSummary(order: SamplingOrder, targetStage: SamplingPipe
  * Satu section tabel dinamis: header + baris label/value yang bisa ditambah-hapus.
  * Dipakai ulang oleh SEMUA section (gramasi, waktu, size chart, tenselity, program, …)
  * — Aturan Tiga Kali: satu komponen, bukan enam blok yang disalin.
+ * Dipakai bersama oleh [StageAdvanceDialog] dan [SamplingSpkDetailDialog].
  */
 @Composable
-private fun DynamicSectionTable(
+fun DynamicSectionTable(
     sectionName: String,
     hint: String,
     rows: List<StageInputRow>,

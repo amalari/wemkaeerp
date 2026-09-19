@@ -31,7 +31,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 fun QcPomChecklist(
     form: QcInspectionFormState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCompact: Boolean = false
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -44,6 +45,7 @@ fun QcPomChecklist(
                 noteText = form.noteOf(field.key),
                 carriedCm = form.carriedValueOf(field.key)?.actualCm,
                 isRequired = field.key in form.requiredKeys,
+                isCompact = isCompact,
                 onActualChange = { form.setActual(field.key, it) },
                 onNoteChange = { form.setNote(field.key, it) }
             )
@@ -66,6 +68,7 @@ private fun QcPomInputRow(
     noteText: String,
     carriedCm: Double?,
     isRequired: Boolean,
+    isCompact: Boolean,
     onActualChange: (String) -> Unit,
     onNoteChange: (String) -> Unit
 ) {
@@ -82,15 +85,33 @@ private fun QcPomInputRow(
         else -> WeMadeColors.Border
     }
 
+    val blockModifier = Modifier
+        .fillMaxWidth()
+        .clayFlat(
+            shape = ClayShapes.Tile,
+            background = WeMadeColors.SurfaceMuted,
+            outline = outline
+        )
+        .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Md)
+
+    if (isCompact) {
+        QcPomInputBlockCompact(
+            modifier = blockModifier,
+            field = field,
+            actualText = actualText,
+            noteText = noteText,
+            carriedCm = carriedCm,
+            deviation = deviation,
+            isWithinTolerance = isWithinTolerance,
+            hasNote = hasNote,
+            onActualChange = onActualChange,
+            onNoteChange = onNoteChange
+        )
+        return
+    }
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clayFlat(
-                shape = ClayShapes.Tile,
-                background = WeMadeColors.SurfaceMuted,
-                outline = outline
-            )
-            .padding(horizontal = ClaySpacing.Lg, vertical = ClaySpacing.Md),
+        modifier = blockModifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
@@ -121,7 +142,7 @@ private fun QcPomInputRow(
             placeholder = if (carriedCm != null) formatCm(carriedCm) else "cm",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             focusColor = if (isWithinTolerance == false) WeMadeColors.Error else WeMadeColors.Primary,
-            modifier = Modifier.width(96.dp)
+            modifier = Modifier.width(POM_ACTUAL_WIDTH)
         )
 
         ClayTextField(
@@ -141,8 +162,103 @@ private fun QcPomInputRow(
     }
 }
 
+/**
+ * Titik ukur versi layar sempit: dua baris — keterangan di atas, isian di bawah.
+ *
+ * Di lebar telepon, kolom label 230dp + kotak cm 96dp sudah menghabiskan seluruh lebar, dan
+ * kolom catatan yang `weight(1f)` tersisa nol — yang terlihat di layar sebagai kotak abu-abu
+ * kosong. Susunannya dibalik: baris atas murni keterangan (nama titik & targetnya di kiri,
+ * status hasil ukur di kanan), baris bawah murni isian (angka cm lalu catatan).
+ *
+ * Memisahkan "yang dibaca" dari "yang diisi" seperti ini membuat jempol punya satu garis
+ * mendatar berisi seluruh kotak yang perlu disentuh, dan mata punya satu garis di atasnya
+ * berisi seluruh yang perlu dibaca — alih-alih keduanya berselang-seling tiga baris.
+ */
+@Composable
+private fun QcPomInputBlockCompact(
+    modifier: Modifier,
+    field: QcPomField,
+    actualText: String,
+    noteText: String,
+    carriedCm: Double?,
+    deviation: Double?,
+    isWithinTolerance: Boolean?,
+    hasNote: Boolean,
+    onActualChange: (String) -> Unit,
+    onNoteChange: (String) -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+    ) {
+        // Baris keterangan. Badge status ditaruh di kanan atas, sebaris dengan nama titiknya,
+        // karena status itu menerangkan titik ini — bukan langkah tersendiri yang perlu
+        // barisnya sendiri di antara nama dan kotak isian.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = field.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Target ${formatCm(field.targetCm)} cm  •  ±1.0 cm",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = WeMadeColors.OnSurfaceMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            QcDeviationBadge(
+                deviation = deviation,
+                isWithinTolerance = isWithinTolerance,
+                hasNote = hasNote,
+                carriedCm = carriedCm
+            )
+        }
+
+        // Baris isian. Kotak cm tetap selebar [POM_ACTUAL_WIDTH] seperti di layar lebar, jadi
+        // seluruh angka tetap sejajar di satu garis vertikal dari titik ukur pertama sampai
+        // terakhir — properti yang jadi alasan lebar tetap itu ada sejak awal.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+        ) {
+            ClayTextField(
+                value = actualText,
+                onValueChange = onActualChange,
+                placeholder = if (carriedCm != null) formatCm(carriedCm) else "cm",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                focusColor = if (isWithinTolerance == false) WeMadeColors.Error else WeMadeColors.Primary,
+                modifier = Modifier.width(POM_ACTUAL_WIDTH)
+            )
+
+            ClayTextField(
+                value = noteText,
+                onValueChange = onNoteChange,
+                // Placeholder panjang terpotong di lebar telepon dan tidak menjelaskan apa pun.
+                placeholder = "Catatan temuan",
+                focusColor = if (hasNote) WeMadeColors.Error else WeMadeColors.Primary,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 /** Lebar kolom label agar seluruh kotak isian cm sejajar dari atas ke bawah. */
 private val POM_LABEL_WIDTH = 230.dp
+
+/** Lebar kotak angka cm — sama di kedua layout supaya kolomnya tetap sejajar. */
+private val POM_ACTUAL_WIDTH = 96.dp
 
 @Composable
 private fun QcDeviationBadge(deviation: Double?, isWithinTolerance: Boolean?, hasNote: Boolean, carriedCm: Double? = null) {

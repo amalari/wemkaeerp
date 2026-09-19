@@ -3,30 +3,15 @@ package com.eventverse.app.presentation.sampling
 import com.eventverse.app.domain.sampling.*
 import kotlinx.datetime.LocalDate
 
-enum class SamplingMobileTab(val displayName: String) {
-    INFO("Info & Desain"),
-    SIZE("Ukuran Ganda"),
-    MACHINE("Mesin & Feeder"),
-    TENSELITY("Tenselity Matrix"),
-    STATUS("Status Alur");
-}
-
-enum class SamplingViewTab(val displayName: String) {
-    WORKBENCH("SPK Workbench"),
-    PIPELINE_KANBAN("Pipeline Kanban"),
-    VENDOR_MONITORING("Monitoring Vendor");
-}
-
 data class SamplingUiState(
     val orders: List<SamplingOrder> = emptyList(),
     val selectedOrderId: SamplingOrderId? = null,
     /**
-     * Landing view = Pipeline Kanban: lead sampling butuh gambaran antrian pabrik
-     * (SPK mana di tahap apa, kolom mana kosong) sebelum masuk ke lembar kerja
-     * teknis satu SPK. Workbench tetap bisa dibuka via klik kartu kanban.
+     * SPK yang sedang membuka dialog detail — dibuka saat kartu di kolom "SPK Baru"
+     * diklik. Dialog ini sekaligus meja persiapan Program CAM tim sampling.
+     * Null = tidak ada dialog detail terbuka.
      */
-    val activeViewTab: SamplingViewTab = SamplingViewTab.PIPELINE_KANBAN,
-    val activeMobileTab: SamplingMobileTab = SamplingMobileTab.INFO,
+    val spkDetailTarget: SamplingOrder? = null,
     val selectedStatusFilter: SamplingStatus? = null,
     val selectedStageFilter: SamplingPipelineStage? = null,
     val searchQuery: String = "",
@@ -62,23 +47,13 @@ data class SamplingUiState(
 
     val ordersWithVendor: List<SamplingOrder>
         get() = orders.filter { it.finishingPath == FinishingPath.MAKLOON_VENDOR && it.vendorInfo.status != VendorFollowUpStatus.NONE }
-
-    /**
-     * Urutan chip selector SPK di Workbench: mengikuti alur pipeline (tahap 1 -> 7),
-     * lalu nomor SPK di dalam tahap yang sama — bukan urutan kedatangan data dari API,
-     * supaya mental model antrian pabrik konsisten dengan Pipeline Kanban.
-     */
-    val spkSelectorOrders: List<SamplingOrder>
-        get() = orders.sortedWith(
-            compareBy({ it.pipelineStage.order }, { it.spkNumber.value })
-        )
 }
 
 sealed interface SamplingUiEvent {
     data object Load : SamplingUiEvent
     data class SelectOrder(val orderId: SamplingOrderId) : SamplingUiEvent
-    data class SelectViewTab(val tab: SamplingViewTab) : SamplingUiEvent
-    data class SelectMobileTab(val tab: SamplingMobileTab) : SamplingUiEvent
+    data class OpenSpkDetailDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseSpkDetailDialog : SamplingUiEvent
     data class SetFilter(val status: SamplingStatus?) : SamplingUiEvent
     data class SetStageFilter(val stage: SamplingPipelineStage?) : SamplingUiEvent
     data class UpdateSearchQuery(val query: String) : SamplingUiEvent

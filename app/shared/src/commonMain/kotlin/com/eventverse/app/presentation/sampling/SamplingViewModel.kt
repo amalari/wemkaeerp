@@ -27,8 +27,8 @@ class SamplingViewModel(
         when (event) {
             is SamplingUiEvent.Load -> load()
             is SamplingUiEvent.SelectOrder -> _uiState.update { it.copy(selectedOrderId = event.orderId) }
-            is SamplingUiEvent.SelectViewTab -> _uiState.update { it.copy(activeViewTab = event.tab) }
-            is SamplingUiEvent.SelectMobileTab -> _uiState.update { it.copy(activeMobileTab = event.tab) }
+            is SamplingUiEvent.OpenSpkDetailDialog -> _uiState.update { it.copy(spkDetailTarget = event.order) }
+            SamplingUiEvent.CloseSpkDetailDialog -> _uiState.update { it.copy(spkDetailTarget = null) }
             is SamplingUiEvent.SetFilter -> _uiState.update { it.copy(selectedStatusFilter = event.status) }
             is SamplingUiEvent.SetStageFilter -> _uiState.update { it.copy(selectedStageFilter = event.stage) }
             is SamplingUiEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }

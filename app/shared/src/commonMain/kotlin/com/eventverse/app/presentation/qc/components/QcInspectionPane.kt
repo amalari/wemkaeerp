@@ -34,6 +34,7 @@ import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -59,7 +60,8 @@ fun QcInspectionPane(
     inspectorName: String,
     isSubmitting: Boolean,
     onSubmit: (QcInspectionReport) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCompact: Boolean = false
 ) {
     if (item == null) {
         QcEmptyInspectionPane(modifier = modifier)
@@ -105,7 +107,7 @@ fun QcInspectionPane(
             modifier = Modifier.weight(1f).verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            QcInspectionHeader(item = item, sizeLabel = chart.sizeLabel)
+            QcInspectionHeader(item = item, sizeLabel = chart.sizeLabel, isCompact = isCompact)
 
             QcInspectorTallyPanel(
                 contributions = item.contributions,
@@ -116,7 +118,7 @@ fun QcInspectionPane(
             if (item.isFullyInspected) {
                 QcAllPiecesDoneCard()
             } else {
-                QcPomChecklist(form = form)
+                QcPomChecklist(form = form, isCompact = isCompact)
             }
 
             Spacer(modifier = Modifier.height(ClaySpacing.Md))
@@ -129,6 +131,7 @@ fun QcInspectionPane(
                 inspectorName = inspectorName,
                 isSubmitting = isSubmitting,
                 isDraftSaved = savedAt,
+                isCompact = isCompact,
                 onSubmit = {
                     // Draf hanya berlaku sampai lembarnya jadi fakta.
                     QcDraftStore.clear(draftKey)
@@ -188,35 +191,55 @@ private fun QcAllPiecesDoneCard() {
 }
 
 @Composable
-private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String) {
+private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: Boolean = false) {
+    val pieceBadge: @Composable () -> Unit = {
+        ClayBadge(
+            text = when {
+                item.isFullyInspected -> "Selesai"
+                item.isRecheck -> "Periksa ulang pcs ke-${item.nextPieceNo}"
+                else -> "Pcs ke-${item.nextPieceNo} dari ${item.targetQty}"
+            },
+            tint = when {
+                item.isFullyInspected -> WeMadeColors.Success
+                item.isRecheck -> WeMadeColors.Accent
+                else -> WeMadeColors.Primary
+            }
+        )
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        // Di lebar telepon nomor SPK dan badge pcs tidak muat sebaris: badge "Periksa ulang
+        // pcs ke-2" sendirian sudah selebar setengah layar, dan memaksanya sebaris memotong
+        // nomor SPK — satu-satunya penanda yang dipakai petugas untuk memastikan ia mengukur
+        // baju yang benar.
+        if (isCompact) {
             Text(
                 text = item.spk,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.width(ClaySpacing.Md))
-            ClayBadge(
-                text = when {
-                    item.isFullyInspected -> "Selesai"
-                    item.isRecheck -> "Periksa ulang pcs ke-${item.nextPieceNo}"
-                    else -> "Pcs ke-${item.nextPieceNo} dari ${item.targetQty}"
-                },
-                tint = when {
-                    item.isFullyInspected -> WeMadeColors.Success
-                    item.isRecheck -> WeMadeColors.Accent
-                    else -> WeMadeColors.Primary
-                }
-            )
+            pieceBadge()
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.spk,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(ClaySpacing.Md))
+                pieceBadge()
+            }
         }
 
         Text(
@@ -226,7 +249,7 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String) {
             color = WeMadeColors.OnSurface
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+        ClayFlowRow {
             ClayTag(text = item.kind.shortLabel, tint = WeMadeColors.Primary)
             ClayTag(text = "Size $sizeLabel", tint = WeMadeColors.OnSurfaceMuted)
             ClayTag(text = "Menunggu ${item.waitingLabel}", tint = WeMadeColors.OnSurfaceMuted)
@@ -245,6 +268,7 @@ private fun QcSubmitBar(
     inspectorName: String,
     isSubmitting: Boolean,
     isDraftSaved: Boolean,
+    isCompact: Boolean,
     onSubmit: () -> Unit
 ) {
     val result = form.result
@@ -262,32 +286,21 @@ private fun QcSubmitBar(
             .padding(ClaySpacing.Lg),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = when {
-                    inspectorName.isBlank() -> "Sesi tidak mengenali petugas — lembar tidak bisa ditandatangani."
-                    !form.isComplete && form.isRecheck ->
-                        "Pemeriksaan ulang — tinggal ${form.requiredCount} titik yang dulu bermasalah (terisi ${form.filledCount})."
-                    !form.isComplete -> "Terisi ${form.filledCount} dari ${form.requiredCount} titik ukur."
-                    form.flaggedCount > 0 -> "${form.flaggedCount} titik bermasalah — pcs ini tercatat perlu perbaikan."
-                    else -> "Semua titik sesuai — pcs ini tercatat lolos."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = when {
-                    inspectorName.isBlank() || !form.isComplete -> WeMadeColors.Warning
-                    form.flaggedCount > 0 -> WeMadeColors.Error
-                    else -> WeMadeColors.OnSurfaceMuted
-                },
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            Spacer(modifier = Modifier.width(ClaySpacing.Sm))
-            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+        val statusText = when {
+            inspectorName.isBlank() -> "Sesi tidak mengenali petugas — lembar tidak bisa ditandatangani."
+            !form.isComplete && form.isRecheck ->
+                "Pemeriksaan ulang — tinggal ${form.requiredCount} titik yang dulu bermasalah (terisi ${form.filledCount})."
+            !form.isComplete -> "Terisi ${form.filledCount} dari ${form.requiredCount} titik ukur."
+            form.flaggedCount > 0 -> "${form.flaggedCount} titik bermasalah — pcs ini tercatat perlu perbaikan."
+            else -> "Semua titik sesuai — pcs ini tercatat lolos."
+        }
+        val statusColor = when {
+            inspectorName.isBlank() || !form.isComplete -> WeMadeColors.Warning
+            form.flaggedCount > 0 -> WeMadeColors.Error
+            else -> WeMadeColors.OnSurfaceMuted
+        }
+        val statusBadges: @Composable () -> Unit = {
+            ClayFlowRow {
                 if (isDraftSaved && !form.isComplete) {
                     ClayBadge(text = "Tersimpan otomatis", tint = WeMadeColors.Info)
                 }
@@ -297,6 +310,36 @@ private fun QcSubmitBar(
                         tint = if (result == QcInspectionResult.PASSED) WeMadeColors.Success else WeMadeColors.Error
                     )
                 }
+            }
+        }
+
+        // Di telepon kalimat status dan badge-nya bertumpuk: dipaksa sebaris, kalimatnya
+        // tersisa beberapa dp dan pecah per suku kata — padahal justru kalimat inilah yang
+        // menjelaskan kenapa tombol submit masih mati.
+        if (isCompact) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = statusColor,
+                modifier = Modifier.fillMaxWidth()
+            )
+            statusBadges()
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = statusColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(ClaySpacing.Sm))
+                statusBadges()
             }
         }
 

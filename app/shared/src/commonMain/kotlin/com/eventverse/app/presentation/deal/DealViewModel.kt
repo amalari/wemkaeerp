@@ -264,6 +264,9 @@ class DealViewModel(
                             samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
                         )
                     }
+                    if (_uiState.value.deal?.stage == DealStage.OPEN) {
+                        changeStage(DealStage.PO_RECEIVED)
+                    }
                 }
                 .onFailure { err ->
                     _uiState.update { it.copy(isSaving = false, error = "Gagal menerbitkan SPK: ${err.message}") }
@@ -283,6 +286,9 @@ class DealViewModel(
                             statusMessage = "Status lembar sampling diubah ke ${updatedOrder.pipelineStage.displayName}.",
                             samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
                         )
+                    }
+                    if (_uiState.value.deal?.stage == DealStage.OPEN) {
+                        changeStage(DealStage.PO_RECEIVED)
                     }
                 }
                 .onFailure { err ->

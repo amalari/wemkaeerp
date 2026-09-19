@@ -112,8 +112,10 @@ enum class SamplingStageZone(
  *
  * Aturan main:
  * - Kartu HANYA bisa di-drop ke container tahap BERIKUTNYA ([SamplingDragDropState]).
- * - Drop CAM -> Mesin Rajut & Mesin Rajut -> Finishing membuka dialog lembar kerja dinamis
- *   via [onAdvanceStageRequested]; pindahan tanpa lembar (SPK Baru -> CAM) langsung jalan.
+ * - Setiap transisi antar kolom menuntut lembar kerja (SPK Baru -> CAM, CAM -> Mesin Rajut,
+ *   Mesin Rajut -> Finishing) dan membuka dialog via [onAdvanceStageRequested].
+ * - Klik kartu di kolom "SPK Baru" membuka dialog detail SPK ([onOpenSpkDetail]) — meja
+ *   persiapan Program CAM tim sampling.
  * - Kolom yang menerima hover kartu sah di-highlight; kolom ilegal hanya redup.
  */
 @Composable
@@ -121,6 +123,7 @@ fun SamplingPipelineKanbanBoard(
     orders: List<SamplingOrder>,
     selectedOrderId: SamplingOrderId?,
     onSelectOrder: (SamplingOrderId) -> Unit,
+    onOpenSpkDetail: (SamplingOrder) -> Unit,
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
@@ -158,6 +161,7 @@ fun SamplingPipelineKanbanBoard(
                             dragState = dragState,
                             isWide = isWide,
                             onSelectOrder = onSelectOrder,
+                            onOpenSpkDetail = onOpenSpkDetail,
                             onAdvanceStageRequested = onAdvanceStageRequested,
                             onOpenRevisionDialog = onOpenRevisionDialog,
                             onApproveOrder = onApproveOrder
@@ -187,6 +191,7 @@ private fun RowScope.KanbanStageZoneColumn(
     dragState: SamplingDragDropState,
     isWide: Boolean,
     onSelectOrder: (SamplingOrderId) -> Unit,
+    onOpenSpkDetail: (SamplingOrder) -> Unit,
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit
@@ -293,14 +298,19 @@ private fun RowScope.KanbanStageZoneColumn(
                         onAdvanceStage = { target -> onAdvanceStageRequested(order, target) },
                         onOpenRevisionDialog = { onOpenRevisionDialog(order) },
                         onApproveOrder = { onApproveOrder(order.id, "ACC Golden Sample") },
-                        // Klik kartu yang transisinya menuntut lembar kerja (CAM -> Rajut,
-                        // Rajut -> Finishing) langsung membuka dialog; kartu lain memakai
-                        // perilaku lama: seleksi + pindah ke Workbench.
+                        // Klik kartu:
+                        // - di "SPK Baru" -> dialog detail SPK (persiapan Program CAM tim sampling);
+                        // - transisi lain yang menuntut lembar kerja (CAM -> Rajut,
+                        //   Rajut -> Finishing) langsung membuka dialog lembar kerja;
+                        // - sisanya cukup menandai kartu terpilih.
                         onSelectOrder = {
-                            if (nextStage != null && nextStage.requiresStageWorksheet()) {
-                                onAdvanceStageRequested(order, nextStage)
-                            } else {
-                                onSelectOrder(order.id)
+                            when {
+                                order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ->
+                                    onOpenSpkDetail(order)
+                                nextStage != null && nextStage.requiresStageWorksheet() ->
+                                    onAdvanceStageRequested(order, nextStage)
+                                else ->
+                                    onSelectOrder(order.id)
                             }
                         }
                     )

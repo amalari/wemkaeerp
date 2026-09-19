@@ -1,5 +1,8 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.deal.DealId
+import com.eventverse.app.domain.deal.DealRepository
+import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
 import com.eventverse.app.domain.tenant.TenantContext
@@ -19,7 +22,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 fun Route.samplingRoutes(
-    repository: SamplingOrderRepository
+    repository: SamplingOrderRepository,
+    dealRepository: DealRepository? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -212,6 +216,18 @@ fun Route.samplingRoutes(
                         actorRole = caller?.role?.name ?: "UNKNOWN"
                     )
                 )
+
+                val dealId = updated.dealId
+                if (!dealId.isNullOrBlank() && dealRepository != null) {
+                    val deal = dealRepository.findById(updated.tenantId, DealId(dealId))
+                    if (deal != null && deal.stage == DealStage.OPEN) {
+                        dealRepository.save(
+                            deal.transitionTo(DealStage.PO_RECEIVED, now)
+                                .getOrDefault(deal.copy(stage = DealStage.PO_RECEIVED, updatedAt = now))
+                        )
+                    }
+                }
+
                 call.respondJson(SamplingOrderCodec.encode(updated).encode())
             } catch (e: IllegalArgumentException) {
                 // Gerbang tahap gagal (mis. lembar CAM belum lengkap) — 422 + pesan domain.

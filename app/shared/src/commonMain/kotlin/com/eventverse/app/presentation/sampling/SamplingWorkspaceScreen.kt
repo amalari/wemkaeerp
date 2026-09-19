@@ -1,11 +1,21 @@
 package com.eventverse.app.presentation.sampling
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -14,11 +24,30 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.SamplingOrder
+import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.requiresStageWorksheet
-import com.eventverse.app.presentation.designsystem.*
-import com.eventverse.app.presentation.sampling.components.*
+import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.sampling.components.CreateSamplingOrderDialog
+import com.eventverse.app.presentation.sampling.components.RevisionNotesDialog
+import com.eventverse.app.presentation.sampling.components.SamplingPipelineKanbanBoard
+import com.eventverse.app.presentation.sampling.components.SamplingSpkDetailDialog
+import com.eventverse.app.presentation.sampling.components.StageAdvanceDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 
+/**
+ * Layar modul Order Sampling — murni Pipeline Kanban.
+ *
+ * - Tidak ada lagi tab Workbench/Monitoring Vendor: papan kanban adalah satu-satunya view.
+ * - Klik kartu di kolom "SPK Baru" membuka dialog detail SPK ([SamplingSpkDetailDialog]) —
+ *   meja persiapan Program CAM tim sampling.
+ * - Transisi antar kolom yang menuntut lembar kerja (CAM, Rajut, Finishing) membuka
+ *   dialog tahap masing-masing via [StageAdvanceDialog].
+ */
 @Composable
 fun SamplingWorkspaceScreen(
     tenantSlug: String,
@@ -37,92 +66,42 @@ fun SamplingWorkspaceScreen(
             shape = ClayShapes.Card,
             contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "ORDER SAMPLING & WORKBENCH",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.OnSurface
-                            )
-                            Text(
-                                text = "R&D Rajut, Dual Size Chart, Finishing Setoran, QC & Monitoring Makloon",
-                                fontSize = 11.sp,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-                        }
-
-                        if (state.orders.isNotEmpty()) {
-                            ClayBadge(
-                                text = "${state.orders.size} SPK",
-                                tint = WeMadeColors.Primary
-                            )
-                        }
+                    Column {
+                        Text(
+                            text = "ORDER SAMPLING",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WeMadeColors.OnSurface
+                        )
+                        Text(
+                            text = "Pipeline Kanban SPK — Program CAM, Rajut, Finishing & ACC Buyer",
+                            fontSize = 11.sp,
+                            color = WeMadeColors.OnSurfaceMuted
+                        )
                     }
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ClayButton(
-                            text = "+ Buat SPK Sample",
-                            style = ClayButtonStyle.Primary,
-                            onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
+                    if (state.orders.isNotEmpty()) {
+                        ClayBadge(
+                            text = "${state.orders.size} SPK",
+                            tint = WeMadeColors.Primary
                         )
                     }
                 }
 
-                // View Tabs (Workbench, Kanban, Vendor Monitoring)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SamplingViewTab.entries.forEach { tab ->
-                            val isSelected = state.activeViewTab == tab
-                            ClayButton(
-                                text = tab.displayName,
-                                style = if (isSelected) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
-                                fontSize = 11.sp,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                onClick = { viewModel.onEvent(SamplingUiEvent.SelectViewTab(tab)) }
-                            )
-                        }
-                    }
-
-                    // Quick SPK Selector when in Workbench view
-                    if (state.activeViewTab == SamplingViewTab.WORKBENCH && state.orders.size > 1) {
-                        Row(
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            state.spkSelectorOrders.forEach { order ->
-                                val isSelected = order.id == state.selectedOrderId
-                                ClayButton(
-                                    text = order.spkNumber.value,
-                                    style = if (isSelected) ClayButtonStyle.Accent else ClayButtonStyle.Secondary,
-                                    fontSize = 10.sp,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    onClick = { viewModel.onEvent(SamplingUiEvent.SelectOrder(order.id)) }
-                                )
-                            }
-                        }
-                    }
-                }
+                ClayButton(
+                    text = "+ Buat SPK Sample",
+                    style = ClayButtonStyle.Primary,
+                    onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
+                )
             }
         }
 
@@ -140,136 +119,67 @@ fun SamplingWorkspaceScreen(
                 )
             }
         }
-
-        // Main Content Area
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isCompact = maxWidth < 840.dp
-            val selectedOrder = state.selectedOrder
-
+        // Main Content — Pipeline Kanban murni
+        Box(modifier = Modifier.fillMaxSize()) {
             if (state.isLoading && state.orders.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = WeMadeColors.Primary)
                 }
-            } else when (state.activeViewTab) {
-                SamplingViewTab.PIPELINE_KANBAN -> {
-                    SamplingPipelineKanbanBoard(
-                        orders = state.filteredOrders,
-                        selectedOrderId = state.selectedOrderId,
-                        onSelectOrder = {
-                            viewModel.onEvent(SamplingUiEvent.SelectOrder(it))
-                            viewModel.onEvent(SamplingUiEvent.SelectViewTab(SamplingViewTab.WORKBENCH))
-                        },
-                        onAdvanceStageRequested = { order, stage ->
-                            // Satu sumber kebenaran: transisi yang menuntut lembar kerja
-                            // membuka dialog dulu; sisanya langsung maju (backend tetap
-                            // memvalidasi gerbang + mencatat audit aktor).
-                            if (stage.requiresStageWorksheet()) {
-                                viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
-                            } else {
-                                viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, stage))
-                            }
-                        },
-                        onOpenRevisionDialog = {
-                            viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(it))
-                        },
-                        onApproveOrder = { id, notes ->
-                            viewModel.onEvent(SamplingUiEvent.ApproveOrder(id, true, notes))
-                        }
-                    )
-                }
-
-                SamplingViewTab.VENDOR_MONITORING -> {
-                    SamplingVendorMonitoringView(
-                        orders = state.orders,
-                        onOpenVendorDialog = { viewModel.onEvent(SamplingUiEvent.OpenVendorDialog(it)) },
-                        onConfirmReceive = { viewModel.onEvent(SamplingUiEvent.ConfirmVendorReturn(it.id)) }
-                    )
-                }
-
-                SamplingViewTab.WORKBENCH -> {
-                    if (selectedOrder != null) {
-                        if (isCompact) {
-                            SamplingMobileWorkbench(
-                                order = selectedOrder,
-                                activeTab = state.activeMobileTab,
-                                onTabSelected = { viewModel.onEvent(SamplingUiEvent.SelectMobileTab(it)) },
-                                onToggleMilestone = { step, done ->
-                                    viewModel.onEvent(SamplingUiEvent.ToggleMilestone(selectedOrder.id, step, done))
-                                },
-                                onApproveOrder = { isApproved, notes ->
-                                    viewModel.onEvent(SamplingUiEvent.ApproveOrder(selectedOrder.id, isApproved, notes))
-                                },
-                                onConfirmVendorReceive = {
-                                    viewModel.onEvent(SamplingUiEvent.ConfirmVendorReturn(selectedOrder.id))
-                                },
-                                onAdvanceStage = { stage ->
-                                    viewModel.onEvent(SamplingUiEvent.AdvanceStage(selectedOrder.id, stage))
-                                },
-                                onUpdateTenselity = { entries ->
-                                    val updatedProgram = selectedOrder.machineProgram.copy(tenselityEntries = entries)
-                                    viewModel.onEvent(SamplingUiEvent.SaveFullOrder(selectedOrder.copy(machineProgram = updatedProgram)))
-                                },
-                                onCreateTechPack = onCreateTechPack
+            } else if (state.orders.isEmpty()) {
+                // Empty state
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    ClayCard(
+                        modifier = Modifier.widthIn(max = 420.dp).padding(ClaySpacing.Xl),
+                        shape = ClayShapes.Card,
+                        contentPadding = PaddingValues(ClaySpacing.Xl)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Belum Ada SPK Sample",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.OnSurface
                             )
-                        } else {
-                            SamplingDesktopWorkbench(
-                                order = selectedOrder,
-                                onCreateTechPack = onCreateTechPack,
-                                onToggleMilestone = { step, done ->
-                                    viewModel.onEvent(SamplingUiEvent.ToggleMilestone(selectedOrder.id, step, done))
-                                },
-                                onApproveOrder = { isApproved, notes ->
-                                    viewModel.onEvent(SamplingUiEvent.ApproveOrder(selectedOrder.id, isApproved, notes))
-                                },
-                                onConfirmVendorReceive = {
-                                    viewModel.onEvent(SamplingUiEvent.ConfirmVendorReturn(selectedOrder.id))
-                                },
-                                onOpenRevisionDialog = {
-                                    viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(selectedOrder))
-                                },
-                                onAdvanceStage = { stage ->
-                                    viewModel.onEvent(SamplingUiEvent.AdvanceStage(selectedOrder.id, stage))
-                                },
-                                onUpdateTenselity = { entries ->
-                                    val updatedProgram = selectedOrder.machineProgram.copy(tenselityEntries = entries)
-                                    viewModel.onEvent(SamplingUiEvent.SaveFullOrder(selectedOrder.copy(machineProgram = updatedProgram)))
-                                }
+                            Spacer(Modifier.padding(ClaySpacing.Sm))
+                            Text(
+                                text = "Buat SPK Sample pertama untuk mulai memprogram mesin rajut dan mencatat ukuran sampel.",
+                                fontSize = 12.sp,
+                                color = WeMadeColors.OnSurfaceMuted
                             )
-                        }
-                    } else {
-                        // Empty state
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            ClayCard(
-                                modifier = Modifier.widthIn(max = 420.dp).padding(ClaySpacing.Xl),
-                                shape = ClayShapes.Card,
-                                contentPadding = PaddingValues(ClaySpacing.Xl)
-                            ) {
-                                Text(
-                                    text = "Belum Ada SPK Sample",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.OnSurface
-                                )
-                                Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-                                Text(
-                                    text = "Buat SPK Sample pertama untuk mulai memprogram mesin rajut dan mencatat ukuran sampel.",
-                                    fontSize = 12.sp,
-                                    color = WeMadeColors.OnSurfaceMuted
-                                )
-                                Spacer(modifier = Modifier.height(ClaySpacing.Lg))
-                                ClayButton(
-                                    text = "Buat SPK Sample Sekarang",
-                                    style = ClayButtonStyle.Accent,
-                                    onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
-                                )
-                            }
+                            Spacer(Modifier.padding(ClaySpacing.Lg))
+                            ClayButton(
+                                text = "Buat SPK Sample Sekarang",
+                                style = ClayButtonStyle.Accent,
+                                onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
+                            )
                         }
                     }
                 }
+            } else {
+                SamplingPipelineKanbanBoard(
+                    orders = state.filteredOrders,
+                    selectedOrderId = state.selectedOrderId,
+                    onSelectOrder = { viewModel.onEvent(SamplingUiEvent.SelectOrder(it)) },
+                    onOpenSpkDetail = { viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(it)) },
+                    onAdvanceStageRequested = { order, stage ->
+                        // Satu sumber kebenaran: transisi yang menuntut lembar kerja
+                        // membuka dialog dulu; sisanya langsung maju (backend tetap
+                        // memvalidasi gerbang + mencatat audit aktor).
+                        if (stage.requiresStageWorksheet()) {
+                            viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
+                        } else {
+                            viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, stage))
+                        }
+                    },
+                    onOpenRevisionDialog = {
+                        viewModel.onEvent(SamplingUiEvent.OpenRevisionDialog(it))
+                    },
+                    onApproveOrder = { id, notes ->
+                        viewModel.onEvent(SamplingUiEvent.ApproveOrder(id, true, notes))
+                    }
+                )
             }
         }
-    }
-
     // 1. Create SPK Dialog
     CreateSamplingOrderDialog(
         isOpen = state.isCreateDialogOpen,
@@ -280,19 +190,24 @@ fun SamplingWorkspaceScreen(
         }
     )
 
-    // 2. Assign Vendor Dialog
-    AssignVendorDialog(
-        isOpen = state.isVendorDialogOpen,
-        order = state.targetOrderForAction ?: state.selectedOrder,
-        isSubmitting = state.isSubmitting,
-        onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseVendorDialog) },
-        onSubmit = { vendorInfo ->
-            val targetId = (state.targetOrderForAction ?: state.selectedOrder)?.id ?: return@AssignVendorDialog
-            viewModel.onEvent(SamplingUiEvent.AssignMakloonVendor(targetId, vendorInfo))
-        }
-    )
+    // 2. SPK Detail Dialog — klik kartu di kolom "SPK Baru" (persiapan Program CAM)
+    state.spkDetailTarget?.let { target ->
+        SamplingSpkDetailDialog(
+            order = target,
+            isSubmitting = state.isSubmitting,
+            onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },
+            onStartCamProgram = { sections ->
+                viewModel.onEvent(
+                    SamplingUiEvent.ConfirmStageAdvance(
+                        target.id, SamplingPipelineStage.CAM_PROGRAMMING, sections
+                    )
+                )
+            },
+            onCreateTechPack = onCreateTechPack
+        )
+    }
 
-    // 5. Revision Dialog
+    // 3. Revision Dialog
     RevisionNotesDialog(
         isOpen = state.isRevisionDialogOpen,
         order = state.targetOrderForAction ?: state.selectedOrder,
@@ -304,7 +219,7 @@ fun SamplingWorkspaceScreen(
         }
     )
 
-    // 6. Stage Advance Dialog — lembar kerja dinamis (CAM -> Rajut, Rajut -> Finishing)
+    // 4. Stage Advance Dialog — lembar kerja dinamis (CAM, Rajut, Finishing)
     val advanceTarget = state.stageAdvanceTarget
     val advanceTargetStage = state.stageAdvanceTargetStage
     if (advanceTarget != null && advanceTargetStage != null) {
@@ -319,5 +234,6 @@ fun SamplingWorkspaceScreen(
                 )
             }
         )
+    }
     }
 }

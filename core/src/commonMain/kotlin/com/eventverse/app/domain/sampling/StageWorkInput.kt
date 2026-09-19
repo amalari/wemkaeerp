@@ -74,6 +74,12 @@ object StageSectionNames {
  * Transisi menuju tahap [SamplingPipelineStage] ini menuntut lembar kerja dinamis
  * diisi dulu sebelum boleh maju. Satu sumber kebenaran untuk UI (klik kartu / tombol
  * membuka dialog) maupun gerbang domain.
+ *
+ * NEW_INTAKE -> CAM_PROGRAMMING ikut menuntut lembar: persiapan tim sampling adalah
+ * mengisi program CAM (program, instruksi panah, rumus pola) — tanpa lembar itu SPK
+ * tidak boleh meninggalkan kolom "SPK Baru".
  */
 fun SamplingPipelineStage.requiresStageWorksheet(): Boolean =
-    this == SamplingPipelineStage.MACHINE_KNITTING || this == SamplingPipelineStage.LINKING_ASSEMBLY
+    this == SamplingPipelineStage.CAM_PROGRAMMING ||
+        this == SamplingPipelineStage.MACHINE_KNITTING ||
+        this == SamplingPipelineStage.LINKING_ASSEMBLY

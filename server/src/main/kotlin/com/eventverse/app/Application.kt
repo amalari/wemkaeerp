@@ -555,7 +555,8 @@ fun Application.module(
             samplingOrderRepository = samplingOrderRepo
         )
         samplingRoutes(
-            repository = samplingOrderRepo
+            repository = samplingOrderRepo,
+            dealRepository = crmDealRepo
         )
         productionRoutes(
             workOrderRepository = bulkWorkOrderRepo,
