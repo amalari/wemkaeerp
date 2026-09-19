@@ -85,6 +85,7 @@ import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
 import com.eventverse.app.infrastructure.PostgresBulkWorkOrderRepository
 import com.eventverse.app.infrastructure.PostgresTraceContainerRepository
+import com.eventverse.app.infrastructure.PostgresInternalTransferRepository
 import com.eventverse.app.infrastructure.traceability.BulkTraceWorkOrderProvider
 import com.eventverse.app.infrastructure.traceability.CompositeTraceWorkOrderProvider
 import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
@@ -186,6 +187,7 @@ fun Application.module(
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository()
     val traceContainerRepo = PostgresTraceContainerRepository()
+    val internalTransferRepo = PostgresInternalTransferRepository()
     val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
         sampling = SamplingTraceWorkOrderProvider(samplingOrderRepo, traceContainerRepo),
         bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
@@ -590,6 +592,7 @@ fun Application.module(
             designVisionAnalyzer = designVisionAnalyzer,
             benchmarkImageStorage = benchmarkImageStorage,
             traceContainerRepo = traceContainerRepo,
+            transferRepo = internalTransferRepo,
             traceWorkOrderProvider = traceWorkOrderProvider,
             knitWorksheetBuilder = knitWorksheetBuilder,
             traceScanHost = traceScanHost

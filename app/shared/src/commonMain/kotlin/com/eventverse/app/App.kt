@@ -20,6 +20,7 @@ import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
+import com.eventverse.app.presentation.fulfillment.FulfillmentWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -342,6 +343,30 @@ fun App() {
                                 )
                             }
                         }
+                        // FULFILLMENT punya layar kerjanya sendiri (kurir antar karung),
+                        // tapi gerbangnya tetap ganda seperti modul lain: sesi dulu, baru wewenang.
+                        AppNavScreen.FULFILLMENT -> {
+                            val module = screen.businessModule
+                            if (isAuthenticated && module != null) {
+                                FulfillmentWorkspaceScreen(
+                                    decision = accessDecisions[module] ?: AccessDecision(
+                                        config = ModuleAccessConfig(),
+                                        source = AccessSource.NONE,
+                                        fromRole = ModuleAccessConfig(),
+                                        fromDepartment = ModuleAccessConfig()
+                                    ),
+                                    persona = activePersona
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
                         AppNavScreen.MASTER_DATA,
@@ -351,7 +376,6 @@ fun App() {
                         AppNavScreen.PRODUCTION_MRP,
                         AppNavScreen.OPERATOR_EXEC,
                         AppNavScreen.QUALITY_CONTROL,
-                        AppNavScreen.FULFILLMENT,
                         AppNavScreen.INVOICING,
                         AppNavScreen.INVOICING_TEMPLATES -> {
                             val module = screen.businessModule

@@ -11,6 +11,7 @@ import com.eventverse.app.domain.invoicing.InvoiceRepository
 import com.eventverse.app.domain.invoicing.InvoiceTemplateRepository
 import com.eventverse.app.domain.masterdata.MaterialItemRepository
 import com.eventverse.app.domain.masterdata.MaterialPriceRepository
+import com.eventverse.app.domain.fulfillment.InternalTransferRepository
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 import com.eventverse.app.domain.production.BulkWorkOrderRepository
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
@@ -58,6 +59,7 @@ fun Route.operationalModuleRoutes(
     designVisionAnalyzer: DesignVisionAnalyzer,
     benchmarkImageStorage: BenchmarkImageStorage,
     traceContainerRepo: TraceContainerRepository,
+    transferRepo: InternalTransferRepository,
     traceWorkOrderProvider: TraceWorkOrderProvider,
     knitWorksheetBuilder: KnitWorksheetBuilder,
     traceScanHost: String
@@ -115,5 +117,12 @@ fun Route.operationalModuleRoutes(
         workOrders = traceWorkOrderProvider,
         worksheets = knitWorksheetBuilder,
         scanHost = traceScanHost
+    )
+
+    fulfillmentTransferRoutes(
+        transfers = transferRepo,
+        containers = traceContainerRepo,
+        imageStorage = benchmarkImageStorage,
+        roleRepository = roleRepo
     )
 }
