@@ -3,6 +3,7 @@ package com.eventverse.app.shared.sampling
 import com.eventverse.app.domain.sampling.FeederEntry
 import com.eventverse.app.domain.sampling.MachineProgram
 import com.eventverse.app.domain.sampling.PanelKnittingMinutes
+import com.eventverse.app.domain.sampling.PanelSizeSpec
 import com.eventverse.app.domain.sampling.PanelWeightGrams
 import com.eventverse.app.domain.sampling.PatternFormulas
 import com.eventverse.app.domain.sampling.TenselityEntry
@@ -15,8 +16,24 @@ import com.eventverse.app.shared.json.jsonOf
 /**
  * Codec jsonb sub-bagian "program mesin & yield" — dipisah dari [SamplingOrderCodec]
  * yang sudah di atas batas ukuran lapisan core. Satu sub-konsep, satu file.
+ *
+ * Publik, bukan internal, sejak repository Postgres di modul `server` ikut menyimpan
+ * `panel_size_specs` pada kolomnya sendiri dan butuh bentuk JSON yang sama persis dengan
+ * yang dipakai API. Dua penulis dengan dua format untuk satu data adalah cara termurah
+ * menciptakan bug yang hanya muncul setelah restart.
  */
-internal object SamplingProgramCodec {
+object SamplingProgramCodec {
+
+    /** Dipakai repository server untuk kolom `sampling_yield_timings.panel_size_specs`. */
+    fun encodePanelSizeSpecs(specs: List<PanelSizeSpec>): JsonValue =
+        jsonArrayOf(specs.map(::encodePanelSizeSpec))
+
+    fun decodePanelSizeSpecs(raw: String?): List<PanelSizeSpec> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val parsed = runCatching { com.eventverse.app.shared.json.JsonParser.parse(raw) }.getOrNull()
+        val array = parsed as? JsonValue.Arr ?: return emptyList()
+        return array.items.filterIsInstance<JsonValue.Obj>().mapNotNull(::decodePanelSizeSpec)
+    }
 
     fun encodeMachineProgram(prog: MachineProgram): JsonValue.Obj = jsonObjectOf(
         "programFront" to jsonOf(prog.programFront),
@@ -73,20 +90,9 @@ internal object SamplingProgramCodec {
     }
 
     fun encodeYieldAndTiming(y: YieldAndTiming): JsonValue.Obj = jsonObjectOf(
-        "panelWeights" to jsonObjectOf(
-            "front" to jsonOf(y.panelWeights.front),
-            "back" to jsonOf(y.panelWeights.back),
-            "sleeve" to jsonOf(y.panelWeights.sleeve),
-            "collar" to jsonOf(y.panelWeights.collar),
-            "placket" to jsonOf(y.panelWeights.placket)
-        ),
-        "panelMinutes" to jsonObjectOf(
-            "front" to jsonOf(y.panelMinutes.front),
-            "back" to jsonOf(y.panelMinutes.back),
-            "sleeve" to jsonOf(y.panelMinutes.sleeve),
-            "collar" to jsonOf(y.panelMinutes.collar),
-            "placket" to jsonOf(y.panelMinutes.placket)
-        ),
+        "panelWeights" to encodeWeights(y.panelWeights),
+        "panelMinutes" to encodeMinutes(y.panelMinutes),
+        "perSize" to jsonArrayOf(y.perSize.map(::encodePanelSizeSpec)),
         "linkingNotes" to jsonOf(y.linkingNotes),
         "additionalProcess" to jsonOf(y.additionalProcess),
         "isWashed" to jsonOf(y.isWashed),
@@ -94,29 +100,68 @@ internal object SamplingProgramCodec {
     )
 
     fun decodeYieldAndTiming(obj: JsonValue.Obj): YieldAndTiming {
-        val weightsObj = obj.obj("panelWeights")
-        val minutesObj = obj.obj("panelMinutes")
-        val weights = PanelWeightGrams(
-            front = weightsObj?.double("front") ?: 0.0,
-            back = weightsObj?.double("back") ?: 0.0,
-            sleeve = weightsObj?.double("sleeve") ?: 0.0,
-            collar = weightsObj?.double("collar") ?: 0.0,
-            placket = weightsObj?.double("placket") ?: 0.0
-        )
-        val minutes = PanelKnittingMinutes(
-            front = minutesObj?.int("front") ?: 0,
-            back = minutesObj?.int("back") ?: 0,
-            sleeve = minutesObj?.int("sleeve") ?: 0,
-            collar = minutesObj?.int("collar") ?: 0,
-            placket = minutesObj?.int("placket") ?: 0
-        )
         return YieldAndTiming(
-            panelWeights = weights,
-            panelMinutes = minutes,
+            panelWeights = decodeWeights(obj.obj("panelWeights")),
+            panelMinutes = decodeMinutes(obj.obj("panelMinutes")),
+            perSize = obj.objectArray("perSize").mapNotNull(::decodePanelSizeSpec),
             linkingNotes = obj.string("linkingNotes") ?: "",
             additionalProcess = obj.string("additionalProcess") ?: "Pasang Kancing",
             isWashed = obj.boolean("isWashed") ?: false,
             estimatedHppIdr = obj.long("estimatedHppIdr") ?: 0L
+        )
+    }
+
+    private fun encodeWeights(w: PanelWeightGrams): JsonValue.Obj = jsonObjectOf(
+        "front" to jsonOf(w.front),
+        "back" to jsonOf(w.back),
+        "sleeve" to jsonOf(w.sleeve),
+        "collar" to jsonOf(w.collar),
+        "placket" to jsonOf(w.placket)
+    )
+
+    private fun decodeWeights(obj: JsonValue.Obj?): PanelWeightGrams = PanelWeightGrams(
+        front = obj?.double("front") ?: 0.0,
+        back = obj?.double("back") ?: 0.0,
+        sleeve = obj?.double("sleeve") ?: 0.0,
+        collar = obj?.double("collar") ?: 0.0,
+        placket = obj?.double("placket") ?: 0.0
+    )
+
+    private fun encodeMinutes(m: PanelKnittingMinutes): JsonValue.Obj = jsonObjectOf(
+        "front" to jsonOf(m.front),
+        "back" to jsonOf(m.back),
+        "sleeve" to jsonOf(m.sleeve),
+        "collar" to jsonOf(m.collar),
+        "placket" to jsonOf(m.placket)
+    )
+
+    private fun decodeMinutes(obj: JsonValue.Obj?): PanelKnittingMinutes = PanelKnittingMinutes(
+        front = obj?.int("front") ?: 0,
+        back = obj?.int("back") ?: 0,
+        sleeve = obj?.int("sleeve") ?: 0,
+        collar = obj?.int("collar") ?: 0,
+        placket = obj?.int("placket") ?: 0
+    )
+
+    private fun encodePanelSizeSpec(spec: PanelSizeSpec): JsonValue.Obj = jsonObjectOf(
+        "sizeLabel" to jsonOf(spec.sizeLabel),
+        "weights" to encodeWeights(spec.weights),
+        "minutes" to encodeMinutes(spec.minutes),
+        "programs" to (spec.programs?.let(::encodeMachineProgram) ?: JsonValue.Null),
+        "derivedFromSize" to jsonOf(spec.derivedFromSize)
+    )
+
+    /** Baris tanpa label ukuran dibuang, bukan dipaksa jadi objek tak sah yang meledak saat dibaca. */
+    private fun decodePanelSizeSpec(obj: JsonValue.Obj): PanelSizeSpec? {
+        val sizeLabel = obj.string("sizeLabel")?.takeIf { it.isNotBlank() } ?: return null
+        val derived = obj.string("derivedFromSize")
+            ?.takeIf { it.isNotBlank() && !it.equals(sizeLabel, ignoreCase = true) }
+        return PanelSizeSpec(
+            sizeLabel = sizeLabel,
+            weights = decodeWeights(obj.obj("weights")),
+            minutes = decodeMinutes(obj.obj("minutes")),
+            programs = obj.obj("programs")?.let(::decodeMachineProgram),
+            derivedFromSize = derived
         )
     }
 

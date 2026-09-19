@@ -157,6 +157,7 @@ class DealApiClient(
                 "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
                 "notes" to jsonOf(request.notes)
             )
+            request.deadlineDelivery?.let { fields.add("deadlineDelivery" to jsonOf(it.toString())) }
             request.sizeMatrix?.let { matrix ->
                 fields.add(
                     "sizeMatrix" to jsonArrayOf(matrix.map { row ->
@@ -190,6 +191,7 @@ class DealApiClient(
                 "samplingFeeIdr" to jsonOf(request.samplingFeeIdr),
                 "notes" to jsonOf(request.notes)
             )
+            request.deadlineDelivery?.let { fields.add("deadlineDelivery" to jsonOf(it.toString())) }
             request.sizeMatrix?.let { matrix ->
                 fields.add(
                     "sizeMatrix" to jsonArrayOf(matrix.map { row ->

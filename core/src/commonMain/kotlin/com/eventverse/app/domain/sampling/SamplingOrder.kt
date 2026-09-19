@@ -344,6 +344,9 @@ data class SamplingOrder(
         if (totalQty < 1) {
             add("Jumlah sampel minimal 1 pcs. Silakan tentukan alokasi kuantitas pada kolom ukuran yang aktif di tabel Size Chart.")
         }
+        if (deadlineDelivery == null) {
+            add("Target deadline pengiriman sampel wajib diisi.")
+        }
     }
 
     /**
@@ -378,15 +381,8 @@ data class SamplingOrder(
     )
 
     /**
-     * Menempelkan satu foto mockup desain. Nilai yang disimpan adalah KEY object storage
-     * (bukan presigned URL yang kedaluwarsa) — URL segar dibuat saat pembacaan.
-     *
-     * Idempotent per key dan dibatasi [MAX_MOCKUPS] foto agar satu desain tidak menumpuk
-     * puluhan foto yang membuat kartu accordion berat.
-     */
-    /**
      * Menempelkan satu foto mockup desain (slot 'front' atau 'back').
-     * Nilai yang disimpan adalah KEY object storage.
+     * Nilai yang disimpan adalah KEY object storage (bukan presigned URL).
      */
     fun attachMockup(storageKey: String, slot: String = "front", updatedAt: Instant): SamplingOrder {
         val key = storageKey.trim()

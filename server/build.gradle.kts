@@ -32,6 +32,7 @@ dependencies {
     implementation(libs.flyway.database.postgresql)
     implementation("com.auth0:java-jwt:4.4.0")
     implementation(libs.pdfbox)
+    implementation(libs.zxing.core)
     // Membaca berkas .xlsx HPP lama beserta gambar mockup yang tertanam di dalam sheet.
     implementation(libs.poi.ooxml)
     // Object storage (S3-compatible / MinIO) untuk berkas PO yang di-upload

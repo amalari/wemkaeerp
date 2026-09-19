@@ -5,6 +5,7 @@ import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrder
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.shared.deal.DealCodec
+import kotlinx.datetime.LocalDate
 
 /**
  * Remote operations the Deal screen needs — the same interface-for-testability pattern as
@@ -94,7 +95,8 @@ data class CreateSamplingOrderFromDealRequest(
     val courierTracking: String?,
     val samplingFeeIdr: Long,
     val notes: String,
-    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
+    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null,
+    val deadlineDelivery: LocalDate? = null
 )
 
 /** Payload PUT /deals/{id}/sampling-orders/{samplingId} — memperbarui lembar sampling. */
@@ -104,7 +106,8 @@ data class UpdateSamplingOrderFromDealRequest(
     val courierTracking: String?,
     val samplingFeeIdr: Long,
     val notes: String,
-    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
+    val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null,
+    val deadlineDelivery: LocalDate? = null
 )
 
 data class DealDetailResponse(

@@ -84,6 +84,11 @@ import com.eventverse.app.infrastructure.PostgresCrmLeadRepository
 import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
 import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
 import com.eventverse.app.infrastructure.PostgresBulkWorkOrderRepository
+import com.eventverse.app.infrastructure.PostgresTraceContainerRepository
+import com.eventverse.app.infrastructure.traceability.BulkTraceWorkOrderProvider
+import com.eventverse.app.infrastructure.traceability.CompositeTraceWorkOrderProvider
+import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
+import com.eventverse.app.infrastructure.traceability.SamplingTraceWorkOrderProvider
 import com.eventverse.app.infrastructure.PostgresSamplingOrderRepository
 import com.eventverse.app.domain.masterdata.MaterialItemRepository
 import com.eventverse.app.domain.masterdata.MaterialPriceRepository
@@ -180,6 +185,15 @@ fun Application.module(
     val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository()
+    val traceContainerRepo = PostgresTraceContainerRepository()
+    val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
+        sampling = SamplingTraceWorkOrderProvider(samplingOrderRepo, traceContainerRepo),
+        bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
+    )
+    val knitWorksheetBuilder = KnitWorksheetBuilder(samplingOrderRepo)
+    // Host ini ikut tercetak di dalam setiap QR. Kartu yang sudah keluar printer tidak bisa
+    // diperbarui, jadi mengubah nilai ini kelak akan mematikan seluruh kartu yang beredar di lantai.
+    val traceScanHost = System.getenv("TRACE_SCAN_HOST")?.takeIf { it.isNotBlank() } ?: "wemade.local"
     val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
     val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
     val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
@@ -554,48 +568,31 @@ fun Application.module(
             poFileStorage = poFileStorage,
             samplingOrderRepository = samplingOrderRepo
         )
-        samplingRoutes(
-            repository = samplingOrderRepo,
-            dealRepository = crmDealRepo
-        )
-        productionRoutes(
-            workOrderRepository = bulkWorkOrderRepo,
-            dealRepository = crmDealRepo,
-            samplingOrderRepository = samplingOrderRepo
-        )
-        masterDataRoutes(
-            materialRepository = materialRepo,
-            priceRepository = materialPriceRepo,
-            customFieldRepository = customFieldRepo
-        )
-        techPackRoutes(
-            techPackRepository = techPackRepo,
-            samplingOrderRepository = samplingOrderRepo,
-            materialRepository = materialRepo,
-            materialPriceRepository = materialPriceRepo,
-            roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo
-        )
-        invoicingRoutes(
-            invoiceRepository = invoiceRepo,
-            templateRepository = invoiceTemplateRepo,
-            paymentRepository = invoicePaymentRepo,
-            issuerProfileRepository = invoiceIssuerProfileRepo,
-            samplingOrderRepository = samplingOrderRepo
-        )
-        costingRoutes(
-            sheetRepository = costingSheetRepo,
-            rateCardRepository = costingRateCardRepo,
-            techPackRepository = techPackRepo,
-            materialRepository = materialRepo,
-            materialPriceRepository = materialPriceRepo,
-            roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo,
-            benchmarkRepository = costingBenchmarkRepo,
-            tenantPipelineRepository = pipeRepo,
+        operationalModuleRoutes(
+            samplingOrderRepo = samplingOrderRepo,
+            crmDealRepo = crmDealRepo,
+            bulkWorkOrderRepo = bulkWorkOrderRepo,
+            materialRepo = materialRepo,
+            materialPriceRepo = materialPriceRepo,
+            customFieldRepo = customFieldRepo,
+            techPackRepo = techPackRepo,
+            roleRepo = roleRepo,
+            assignmentRepo = assignmentRepo,
+            invoiceRepo = invoiceRepo,
+            invoiceTemplateRepo = invoiceTemplateRepo,
+            invoicePaymentRepo = invoicePaymentRepo,
+            invoiceIssuerProfileRepo = invoiceIssuerProfileRepo,
+            costingSheetRepo = costingSheetRepo,
+            costingRateCardRepo = costingRateCardRepo,
+            costingBenchmarkRepo = costingBenchmarkRepo,
+            pipeRepo = pipeRepo,
             historicalCostingParser = historicalCostingParser,
             designVisionAnalyzer = designVisionAnalyzer,
-            benchmarkImageStorage = benchmarkImageStorage
+            benchmarkImageStorage = benchmarkImageStorage,
+            traceContainerRepo = traceContainerRepo,
+            traceWorkOrderProvider = traceWorkOrderProvider,
+            knitWorksheetBuilder = knitWorksheetBuilder,
+            traceScanHost = traceScanHost
         )
     }
 }

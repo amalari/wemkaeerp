@@ -216,13 +216,13 @@ private fun DealsContent(
         PipelineKpiCard(
             label = "Active Deals",
             value = "$activeDealsCount Transaksi",
-            indicatorColor = Color(0xFFF59E0B),
+            indicatorColor = WeMadeColors.Warning,
             modifier = Modifier.weight(1f)
         )
         PipelineKpiCard(
             label = "Siklus Sampling",
             value = "$samplingCount Berjalan",
-            indicatorColor = Color(0xFFF59E0B),
+            indicatorColor = WeMadeColors.Warning,
             modifier = Modifier.weight(1f)
         )
         PipelineKpiCard(
@@ -558,63 +558,57 @@ private fun DealGridCard(
 
         Spacer(Modifier.height(ClaySpacing.Lg))
 
-        // ── Baris Bawah: Sales PIC + Tombol Upload PO & Create Invoice ──────
+        // ── Baris Bawah: Sales PIC + Aksi (Secondary + PO & Primary Invoice) ──
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sales PIC Info
-            Column {
-                Text(
-                    text = "Sales PIC",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Sales PIC: Avatar inisial bersih & label
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(WeMadeColors.Warning)
+                        .border(ClayBorder.Hairline, WeMadeColors.Outline, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Profile avatar circle
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(WeMadeColors.SurfaceMuted)
-                            .border(ClayBorder.Hairline, WeMadeColors.Outline, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconUser(modifier = Modifier.size(15.dp), color = WeMadeColors.OnSurfaceMuted)
-                    }
-                    // Initials circle badge (e.g. JM)
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFF59E0B))
-                            .border(ClayBorder.Hairline, WeMadeColors.Outline, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = picInitials,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                    }
+                    Text(
+                        text = picInitials,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Sales PIC",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
                 }
             }
 
-            // Action buttons: PO Opsional & Invoice Kontekstual (DP / Pelunasan)
+            // Action buttons: Compact Secondary "+ PO" & Primary "Invoice DP (50%)"
             Row(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayCardButton(
-                    text = "+ PO (Opsional)",
-                    containerColor = Color(0xFFF59E0B),
+                    text = "+ PO",
+                    containerColor = WeMadeColors.SurfaceMuted,
+                    leadingIcon = {
+                        IconNote(
+                            modifier = Modifier.size(13.dp),
+                            color = WeMadeColors.OnSurface
+                        )
+                    },
+                    horizontalPadding = 10.dp,
                     onClick = onUploadPo
                 )
                 val invoiceLabel = if (deal.stage == DealStage.IN_PRODUCTION || deal.stage == DealStage.WON) {
@@ -638,7 +632,9 @@ private fun ClayCardButton(
     text: String,
     containerColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 14.dp,
+    leadingIcon: (@Composable () -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -653,20 +649,23 @@ private fun ClayCardButton(
                 offset = ClayOffset.Small,
                 pressed = isPressed
             )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = WeMadeColors.OnSurface
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            leadingIcon?.invoke()
+            Text(
+                text = text,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -680,7 +679,7 @@ internal fun DealStage.mockupLabel(): String = when (this) {
 
 internal fun DealStage.tint(): Color = when (this) {
     DealStage.OPEN -> WeMadeColors.Info
-    DealStage.PO_RECEIVED -> Color(0xFFF59E0B)
+    DealStage.PO_RECEIVED -> WeMadeColors.Warning
     DealStage.IN_PRODUCTION -> WeMadeColors.Accent
     DealStage.WON -> WeMadeColors.Success
     DealStage.LOST -> WeMadeColors.Error

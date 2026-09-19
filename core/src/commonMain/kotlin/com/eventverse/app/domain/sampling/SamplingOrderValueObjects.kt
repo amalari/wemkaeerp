@@ -175,8 +175,11 @@ data class PanelKnittingMinutes(
 }
 
 data class YieldAndTiming(
+    /** Angka acuan tingkat SPK; tetap dipakai costing dan jadi fallback size yang belum ditimbang. */
     val panelWeights: PanelWeightGrams = PanelWeightGrams(),
     val panelMinutes: PanelKnittingMinutes = PanelKnittingMinutes(),
+    /** Spek per ukuran; kosong berarti seluruh ukuran memakai angka acuan di atas. Lihat [PanelSizeSpec]. */
+    val perSize: List<PanelSizeSpec> = emptyList(),
     val linkingNotes: String = "",
     val additionalProcess: String = "Pasang Kancing",
     val isWashed: Boolean = false,

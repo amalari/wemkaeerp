@@ -115,10 +115,10 @@ fun MiniPipelineIndicator(stage: DealStage, modifier: Modifier = Modifier) {
             )
         }
 
-        // Step 4: Pelunasan
+        // Step 4: Lunas
         MilestoneStep(
             iconState = if (settlementDone) StepIconState.DONE else StepIconState.PENDING,
-            label = "Pelunasan",
+            label = "Lunas",
             labelColor = if (settlementDone) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted
         )
     }
@@ -154,7 +154,7 @@ private fun MilestoneStep(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF59E0B))
+                        .background(WeMadeColors.Warning)
                         .border(ClayBorder.Medium, WeMadeColors.Outline, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {

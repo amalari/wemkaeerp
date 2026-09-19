@@ -99,7 +99,8 @@ class DealViewModel(
                             courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
                             samplingFeeIdr = event.samplingFeeIdr,
                             notes = event.notes,
-                            sizeMatrix = event.sizeMatrix
+                            sizeMatrix = event.sizeMatrix,
+                            deadlineDelivery = event.deadlineDelivery
                         )
                     )
                 } else {
@@ -113,7 +114,8 @@ class DealViewModel(
                             courierTracking = event.courierTracking?.trim()?.takeIf { it.isNotEmpty() },
                             samplingFeeIdr = event.samplingFeeIdr,
                             notes = event.notes,
-                            sizeMatrix = event.sizeMatrix
+                            sizeMatrix = event.sizeMatrix,
+                            deadlineDelivery = event.deadlineDelivery
                         )
                     )
                 }
@@ -252,9 +254,7 @@ class DealViewModel(
         scope.launch {
             val targetStage = if (currentOrder.pipelineStage == SamplingPipelineStage.NEW_INTAKE) {
                 SamplingPipelineStage.CAM_PROGRAMMING
-            } else {
-                currentOrder.pipelineStage
-            }
+            } else currentOrder.pipelineStage
             samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
                 .onSuccess { updatedOrder ->
                     _uiState.update { current ->

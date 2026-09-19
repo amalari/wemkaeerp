@@ -126,6 +126,8 @@ object SamplingYieldTimingsTable : Table("sampling_yield_timings") {
 
     val panelWeightsGrams = jsonbText("panel_weights_grams").default("{}")
     val panelKnittingMinutes = jsonbText("panel_knitting_minutes").default("{}")
+    /** Gramasi/waktu/program per ukuran; kosong berarti seluruh ukuran memakai angka acuan di atas. */
+    val panelSizeSpecs = jsonbText("panel_size_specs").default("[]")
     val linkingNotes = text("linking_notes").default("")
     val additionalProcess = text("additional_process").default("")
     val isWashed = bool("is_washed").default(false)

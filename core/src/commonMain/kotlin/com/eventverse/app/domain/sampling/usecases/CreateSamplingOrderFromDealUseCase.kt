@@ -3,6 +3,7 @@ package com.eventverse.app.domain.sampling.usecases
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 
 /**
  * Menyiapkan (atau memperbarui) lembar sampling yang menempel pada satu deal CRM.
@@ -22,7 +23,8 @@ data class SamplingFromDealCommand(
     val courierTracking: String? = null,
     val samplingFeeIdr: Long = 0L,
     val notes: String = "",
-    val sizeMatrix: List<SizeChartRow>? = null
+    val sizeMatrix: List<SizeChartRow>? = null,
+    val deadlineDelivery: LocalDate? = null
 )
 
 class CreateSamplingOrderFromDealUseCase(
@@ -52,6 +54,7 @@ class CreateSamplingOrderFromDealUseCase(
                         // jadi admin juga bisa mengosongkan catatan (fallback lama mencegah clear).
                         notes = command.notes,
                         sizeMatrix = command.sizeMatrix ?: existing.sizeMatrix,
+                        deadlineDelivery = command.deadlineDelivery ?: existing.deadlineDelivery,
                         updatedAt = Clock.System.now()
                     )
                     .updateCourierTracking(command.courierTracking ?: existing.courierTracking ?: "", Clock.System.now())
@@ -64,6 +67,7 @@ class CreateSamplingOrderFromDealUseCase(
             tenantId = command.tenantId,
             clientName = command.clientName,
             styleName = command.styleName,
+            deadlineDelivery = command.deadlineDelivery,
             dealId = command.dealId,
             sampleQuantity = command.sampleQuantity,
             samplingFeeIdr = command.samplingFeeIdr,

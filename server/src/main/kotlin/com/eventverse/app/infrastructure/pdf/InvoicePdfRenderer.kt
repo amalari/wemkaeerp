@@ -8,12 +8,10 @@ import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDFont
-import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 import java.awt.Color
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 
 /**
  * Renderer dokumen faktur PDF server-side menggunakan Apache PDFBox 3.x.
@@ -338,12 +336,6 @@ class InvoicePdfRenderer {
         return Color(r, g, b)
     }
 
-    private fun loadFont(doc: PDDocument, resourcePath: String): PDFont? {
-        return try {
-            val stream: InputStream = javaClass.getResourceAsStream(resourcePath) ?: return null
-            PDType0Font.load(doc, stream)
-        } catch (_: Exception) {
-            null
-        }
-    }
+    private fun loadFont(doc: PDDocument, resourcePath: String): PDFont? =
+        PdfFonts.loadTtf(doc, resourcePath)
 }

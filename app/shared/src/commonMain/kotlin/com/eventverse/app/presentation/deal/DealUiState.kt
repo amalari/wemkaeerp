@@ -4,6 +4,7 @@ import com.eventverse.app.domain.deal.Deal
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrder
 import com.eventverse.app.domain.sampling.SamplingOrder
+import kotlinx.datetime.LocalDate
 
 /** Tab di dalam dialog detail deal: siklus sampling vs produksi massal & PO. */
 enum class DealDetailTab(val label: String) {
@@ -72,7 +73,8 @@ sealed interface DealUiEvent {
         val courierTracking: String?,
         val samplingFeeIdr: Long,
         val notes: String,
-        val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null
+        val sizeMatrix: List<com.eventverse.app.domain.sampling.SizeChartRow>? = null,
+        val deadlineDelivery: LocalDate? = null
     ) : DealUiEvent
 
     data class ToggleSampleAcc(

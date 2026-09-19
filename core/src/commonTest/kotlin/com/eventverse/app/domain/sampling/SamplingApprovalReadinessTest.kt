@@ -2,6 +2,7 @@ package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -45,7 +46,8 @@ class SamplingApprovalReadinessTest {
     private fun newOrder(
         mockupUrls: List<String> = emptyList(),
         matrix: List<SizeChartRow> = completeMatrix(),
-        notes: String = ""
+        notes: String = "",
+        deadlineDelivery: LocalDate? = LocalDate(2026, 9, 30)
     ) = SamplingOrder(
         id = SamplingOrderId("smp_acc_001"),
         tenantId = tenantId,
@@ -54,6 +56,7 @@ class SamplingApprovalReadinessTest {
         styleName = "KNIT CARDIGAN",
         knitSpec = KnitSpec(mockupImageUrls = mockupUrls),
         sizeMatrix = matrix,
+        deadlineDelivery = deadlineDelivery,
         sampleQuantity = 2,
         notes = notes,
         createdAt = now,
@@ -230,6 +233,18 @@ class SamplingApprovalReadinessTest {
         ).copy(sampleQuantity = 0)
         val errors = order.missingSpkRequirements()
         assertTrue(errors.any { it.contains("Jumlah sampel") })
+        assertFalse(order.isReadyForSpk)
+    }
+
+    @Test
+    fun missingSpkRequirements_whenDeadlineDeliveryIsMissing_shouldReportError() {
+        val order = newOrder(
+            mockupUrls = listOf("front:mockup.png"),
+            matrix = completeMatrix(qty = 2),
+            deadlineDelivery = null
+        )
+        val errors = order.missingSpkRequirements()
+        assertTrue(errors.any { it.contains("deadline") || it.contains("Deadline") })
         assertFalse(order.isReadyForSpk)
     }
 

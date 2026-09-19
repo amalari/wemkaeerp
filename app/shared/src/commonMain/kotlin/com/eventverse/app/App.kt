@@ -327,6 +327,21 @@ fun App() {
                         // sesi dulu (AuthGuardCard), baru wewenang (AccessDeniedCard di dalam
                         // ModuleWorkspaceScreen) — belum login dan tidak berwenang adalah dua
                         // keadaan berbeda dan pantas memberi pesan yang berbeda.
+                        AppNavScreen.TRACEABILITY -> {
+                            if (isAuthenticated) {
+                                com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(
+                                    tenantSlug = session?.tenantSlug ?: "wemade-demo"
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
                         AppNavScreen.MASTER_DATA,

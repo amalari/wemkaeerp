@@ -40,6 +40,10 @@ import com.eventverse.app.domain.sampling.isQtyRow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Instant
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
@@ -424,6 +428,9 @@ private fun SamplingDesignCard(
         mutableStateOf(ensureSamplingQtyRow(order.sizeMatrix))
     }
     var detailTouched by remember(order.id) { mutableStateOf(false) }
+    var deadlineInput by remember(order.id, order.deadlineDelivery) {
+        mutableStateOf(order.deadlineDelivery?.toString() ?: "")
+    }
     var isRevisionDialogOpen by remember(order.id) { mutableStateOf(false) }
     var isRevisionDropdownOpen by remember(order.id) { mutableStateOf(false) }
     var isConfirmSpkDialogOpen by remember(order.id) { mutableStateOf(false) }
@@ -458,6 +465,7 @@ private fun SamplingDesignCard(
             styleNameInput = order.styleName
         } else if (newName != order.styleName) {
             val totalQty = calculateTotalSampleQuantity(sizeMatrixInput, order.sampleQuantity)
+            val parsedDeadline = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(deadlineInput.trim()) ?: order.deadlineDelivery
             onEvent(
                 DealUiEvent.SaveSamplingOrder(
                     samplingOrderId = order.id.value,
@@ -466,7 +474,8 @@ private fun SamplingDesignCard(
                     courierTracking = null,
                     samplingFeeIdr = feeInput.toLongOrNull() ?: 0L,
                     notes = notesInput,
-                    sizeMatrix = sizeMatrixInput
+                    sizeMatrix = sizeMatrixInput,
+                    deadlineDelivery = parsedDeadline
                 )
             )
         }
@@ -478,7 +487,7 @@ private fun SamplingDesignCard(
     val isFormReadOnly = !isDraft || isHistoricRevision
     val navigator = LocalAppNavigator.current
 
-    LaunchedEffect(feeInput, notesInput, sizeMatrixInput) {
+    LaunchedEffect(feeInput, notesInput, sizeMatrixInput, deadlineInput) {
         if (!detailTouched || !isDraft) {
             if (!detailTouched) detailTouched = true
             return@LaunchedEffect
@@ -486,6 +495,7 @@ private fun SamplingDesignCard(
         delay(800)
         val calculatedQty = calculateTotalSampleQuantity(sizeMatrixInput)
         val totalQty = if (calculatedQty > 0) calculatedQty else order.sampleQuantity
+        val parsedDeadline = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(deadlineInput.trim())
         onEvent(
             DealUiEvent.SaveSamplingOrder(
                 samplingOrderId = order.id.value,
@@ -494,7 +504,8 @@ private fun SamplingDesignCard(
                 courierTracking = null,
                 samplingFeeIdr = feeInput.toLongOrNull() ?: 0L,
                 notes = notesInput,
-                sizeMatrix = sizeMatrixInput
+                sizeMatrix = sizeMatrixInput,
+                deadlineDelivery = parsedDeadline
             )
         )
     }
@@ -963,6 +974,63 @@ private fun SamplingDesignCard(
                     leadingIcon = { IconReceipt(Modifier.size(13.dp)) },
                     readOnly = isFormReadOnly
                 )
+
+                // ── Input Target Deadline Selesai / Kirim Sampel (Wajib) ──────────────
+                val parsedDeadline = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(deadlineInput.trim()) ?: order.deadlineDelivery
+                val isDeadlineError = showValidationErrors && parsedDeadline == null
+
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xxs)) {
+                    ClayTextField(
+                        value = if (isHistoricRevision) order.deadlineDelivery?.toString() ?: "" else deadlineInput,
+                        onValueChange = { input ->
+                            if (!isFormReadOnly) deadlineInput = input.trim()
+                        },
+                        label = "Deadline Pengiriman Sampel (Wajib)",
+                        placeholder = "YYYY-MM-DD (cth: 2026-09-30)",
+                        leadingIcon = {
+                            IconCalendarGrid(
+                                Modifier.size(14.dp),
+                                color = if (isDeadlineError) WeMadeColors.Error else WeMadeColors.Primary
+                            )
+                        },
+                        readOnly = isFormReadOnly
+                    )
+                    if (isDeadlineError) {
+                        Text(
+                            text = "Target deadline pengiriman/selesai sampel wajib diisi (format: YYYY-MM-DD).",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WeMadeColors.Error
+                        )
+                    }
+                    if (!isFormReadOnly) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Preset:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WeMadeColors.OnSurfaceMuted
+                            )
+                            listOf(3, 7, 14).forEach { days ->
+                                val presetDate = remember(days) {
+                                    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                                    today.plus(days, DateTimeUnit.DAY)
+                                }
+                                ClayTag(
+                                    text = "+$days Hari (${presetDate})",
+                                    tint = if (deadlineInput == presetDate.toString()) WeMadeColors.Success else WeMadeColors.Primary,
+                                    modifier = Modifier.clickable {
+                                        deadlineInput = presetDate.toString()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 ClayTextField(
                     value = displayedNotes,
                     onValueChange = { if (!isFormReadOnly) notesInput = it },
@@ -1030,8 +1098,9 @@ private fun SamplingDesignCard(
                                         val hasName = styleNameInput.isNotBlank()
                                         val hasCompleteSize = hasAtLeastOneCompleteMeasurementColumn(sizeMatrixInput)
                                         val hasValidQty = totalQty >= 1
+                                        val hasValidDeadline = (com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(deadlineInput.trim()) ?: order.deadlineDelivery) != null
 
-                                        if (!hasName || !hasMockup || !hasCompleteSize || !hasValidQty) {
+                                        if (!hasName || !hasMockup || !hasCompleteSize || !hasValidQty || !hasValidDeadline) {
                                             showValidationErrors = true
                                             if (!expanded) {
                                                 onToggleExpanded()
@@ -1092,11 +1161,13 @@ private fun SamplingDesignCard(
 
     // ── Popup konfirmasi penerbitan SPK ke Divisi Sampling ──
     if (isConfirmSpkDialogOpen) {
+        val parsedDeadline = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(deadlineInput.trim()) ?: order.deadlineDelivery
         ConfirmSpkDialog(
             order = order.copy(
                 styleName = styleNameInput,
                 notes = notesInput,
-                samplingFeeIdr = feeInput.toLongOrNull() ?: order.samplingFeeIdr
+                samplingFeeIdr = feeInput.toLongOrNull() ?: order.samplingFeeIdr,
+                deadlineDelivery = parsedDeadline
             ),
             sizeMatrix = sizeMatrixInput,
             onDismiss = { isConfirmSpkDialogOpen = false },
@@ -1125,423 +1196,6 @@ private fun SamplingDesignCard(
             },
             onDismiss = { pendingCropPick = null }
         )
-    }
-}
-
-/**
- * Popup "Ajukan Revisi": textarea multi-baris biasa untuk menuliskan catatan revisi buyer.
- * Tombol kirim aktif hanya ketika catatan tidak kosong — revisi tanpa alasan ditolak UI.
- */
-@Composable
-private fun RevisionNotesDialog(
-    designCode: String,
-    onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
-) {
-    var notes by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        ClayCard(
-            modifier = Modifier
-                .fillMaxWidth(0.55f)
-                .widthIn(min = 420.dp, max = 560.dp),
-            shape = ClayShapes.Panel,
-            contentPadding = PaddingValues(ClaySpacing.Xxl)
-        ) {
-            Text(
-                text = "Ajukan Revisi — $designCode",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
-            Spacer(Modifier.height(ClaySpacing.Xs))
-            Text(
-                text = "Tuliskan catatan revisi buyer untuk desain ini.",
-                fontSize = 12.sp,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-            Spacer(Modifier.height(ClaySpacing.Md))
-            ClayTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                placeholder = "Catatan revisi… (mis. warna terlalu gelap, ganti ke Navy Tua)",
-                singleLine = false,
-                minLines = 4
-            )
-            Spacer(Modifier.height(ClaySpacing.Lg))
-            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-                ClayButton(
-                    text = "Batal",
-                    onClick = onDismiss,
-                    style = ClayButtonStyle.Ghost,
-                    fontSize = 12.sp
-                )
-                ClayButton(
-                    text = "Ajukan Revisi",
-                    onClick = { onSubmit(notes.trim()) },
-                    enabled = notes.isNotBlank(),
-                    style = ClayButtonStyle.Accent,
-                    fontSize = 12.sp
-                )
-            }
-        }
-    }
-}
-
-/**
- * Popup konfirmasi sebelum SPK diterbitkan ke antrean kerja Divisi Sampling.
- * Menampilkan ringkasan spesifikasi, validasi kelengkapan data (nama, qty, foto),
- * serta edukasi perubahan status alur kerja produksi.
- */
-@Composable
-private fun ConfirmSpkDialog(
-    order: SamplingOrder,
-    sizeMatrix: List<SizeChartRow>,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    val totalQty = calculateTotalSampleQuantity(sizeMatrix, order.sampleQuantity)
-    val missingReqs = order.missingSpkRequirements(sizeMatrix)
-    val warnings = order.spkValidationWarnings()
-
-    // Rincian alokasi kuantitas per ukuran yang aktif
-    val qtyRow = sizeMatrix.firstOrNull { it.isQtyRow }
-    val sizeAllocations = qtyRow?.values?.entries
-        ?.mapNotNull { (col, v) ->
-            val count = v.trim().toIntOrNull() ?: 0
-            if (count > 0 && isSizeColumnActive(sizeMatrix, col)) Pair(col, count) else null
-        } ?: emptyList()
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        ClayCard(
-            modifier = Modifier
-                .fillMaxWidth(0.42f)
-                .widthIn(min = 440.dp, max = 520.dp),
-            shape = ClayShapes.Panel,
-            contentPadding = PaddingValues(ClaySpacing.Xl)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                    ) {
-                        Text(
-                            text = "Konfirmasi Terbitkan SPK",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        ClayTag(
-                            text = order.styleName.ifBlank { "Tanpa Nama" },
-                            tint = WeMadeColors.Primary
-                        )
-                    }
-                    Spacer(Modifier.height(ClaySpacing.Xxs))
-                    Text(
-                        text = "Pastikan data pesanan benar karena SPK ini akan diteruskan ke Divisi Sampling.",
-                        fontSize = 13.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-                ClayActionSurface(
-                    onClick = onDismiss,
-                    contentPadding = PaddingValues(ClaySpacing.Xs)
-                ) {
-                    IconClose(Modifier.size(18.dp), color = WeMadeColors.OnSurfaceMuted)
-                }
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Lg))
-
-            // Callout Edukasi Alur
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clayFlat(
-                        shape = ClayShapes.Card,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Primary.copy(alpha = 0.35f),
-                        borderWidth = ClayBorder.Hairline
-                    )
-                    .padding(ClaySpacing.Md)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    IconClipboard(Modifier.size(20.dp), color = WeMadeColors.Primary)
-                    Text(
-                        text = "Setelah diterbitkan, SPK akan langsung masuk ke antrean kerja Divisi Sampling pada tahap Pemrograman Mesin (CAM). Tim sampling akan merajut/membuat sampel fisik sesuai spesifikasi ini.",
-                        fontSize = 12.5.sp,
-                        color = WeMadeColors.OnSurface,
-                        lineHeight = 18.sp
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Lg))
-
-            // Ringkasan Data yang Akan Diteruskan
-            Text(
-                text = "Ringkasan Data SPK:",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
-            Spacer(Modifier.height(ClaySpacing.Xs))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clayFlat(
-                        shape = ClayShapes.Card,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Border,
-                        borderWidth = ClayBorder.Hairline
-                    )
-                    .padding(ClaySpacing.Lg)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                    // Nama Desain
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Nama Desain",
-                            fontSize = 13.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                        Text(
-                            text = order.styleName.ifBlank { "—" },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WeMadeColors.OnSurface
-                        )
-                    }
-
-                    // Total Sampel & Rincian Ukuran
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Jumlah Sampel",
-                            fontSize = 13.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
-                        ) {
-                            Text(
-                                text = "$totalQty pcs",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (totalQty > 0) WeMadeColors.Primary else WeMadeColors.Error
-                            )
-                            if (sizeAllocations.isNotEmpty()) {
-                                sizeAllocations.forEach { (sizeName, count) ->
-                                    ClayTag(
-                                        text = "$sizeName: $count",
-                                        tint = WeMadeColors.Primary
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Foto Mockup
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Foto Mockup Visual",
-                            fontSize = 13.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                        if (!order.mockupFrontKey.isNullOrBlank()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                IconCheckCircle(Modifier.size(15.dp), color = WeMadeColors.Success)
-                                Text(
-                                    text = "Tampak Depan Terlampir" + if (!order.mockupBackKey.isNullOrBlank()) " (+ Belakang)" else "",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = WeMadeColors.Success
-                                )
-                            }
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                IconBan(Modifier.size(15.dp), color = WeMadeColors.Error)
-                                Text(
-                                    text = "Belum Diunggah (Wajib)",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.Error
-                                )
-                            }
-                        }
-                    }
-
-                    // Biaya Sampling
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Biaya Sampling",
-                            fontSize = 13.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                        Text(
-                            text = if (order.samplingFeeIdr > 0L) formatIdr(order.samplingFeeIdr) else "Gratis / Termasuk Deal",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = WeMadeColors.OnSurface
-                        )
-                    }
-
-                    // Catatan Khusus
-                    if (order.notes.isNotBlank()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Text(
-                                text = "Catatan Khusus",
-                                fontSize = 13.sp,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-                            Text(
-                                text = order.notes,
-                                fontSize = 13.sp,
-                                color = WeMadeColors.OnSurface,
-                                modifier = Modifier.fillMaxWidth(0.65f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Validasi: Error fatal atau Peringatan
-            if (missingReqs.isNotEmpty()) {
-                Spacer(Modifier.height(ClaySpacing.Md))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clayFlat(
-                            shape = ClayShapes.Card,
-                            background = WeMadeColors.SurfaceMuted,
-                            outline = WeMadeColors.Error,
-                            borderWidth = ClayBorder.Hairline
-                        )
-                        .padding(ClaySpacing.Md)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        IconBan(Modifier.size(18.dp), color = WeMadeColors.Error)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Data Belum Lengkap (SPK belum bisa diterbitkan):",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Error
-                            )
-                            missingReqs.forEach { req ->
-                                Text(
-                                    text = "• $req",
-                                    fontSize = 12.sp,
-                                    color = WeMadeColors.Error
-                                )
-                            }
-                        }
-                    }
-                }
-            } else if (warnings.isNotEmpty()) {
-                Spacer(Modifier.height(ClaySpacing.Md))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clayFlat(
-                            shape = ClayShapes.Card,
-                            background = WeMadeColors.WarningBg,
-                            outline = WeMadeColors.Warning,
-                            borderWidth = ClayBorder.Hairline
-                        )
-                        .padding(ClaySpacing.Md)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        IconWarning(Modifier.size(18.dp), color = WeMadeColors.Warning)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Perhatian Sebelum Menerbitkan:",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Warning
-                            )
-                            warnings.forEach { warn ->
-                                Text(
-                                    text = "• $warn",
-                                    fontSize = 12.sp,
-                                    color = WeMadeColors.OnSurface
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Xl))
-
-            // Tombol Aksi
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ClayButton(
-                    text = "Batal / Cek Kembali",
-                    onClick = onDismiss,
-                    style = ClayButtonStyle.Ghost,
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.width(ClaySpacing.Sm))
-                ClayButton(
-                    text = "Ya, Terbitkan SPK",
-                    onClick = onConfirm,
-                    enabled = missingReqs.isEmpty(),
-                    style = ClayButtonStyle.Primary,
-                    leading = { IconCheck(Modifier.size(14.dp), color = WeMadeColors.Surface) },
-                    fontSize = 13.sp
-                )
-            }
-        }
     }
 }
 
@@ -2988,6 +2642,10 @@ private fun MassProductionTabContent(
 
         Spacer(Modifier.height(ClaySpacing.Lg))
 
+        SpkPrintActions(samplingOrderId = state.approvedDesigns.firstOrNull()?.id?.value.orEmpty())
+
+        Spacer(Modifier.height(ClaySpacing.Lg))
+
         // ── Action footer: invoice DP + SPK massal ──────────────────────────
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             ClayButton(
@@ -3019,33 +2677,3 @@ private fun MassProductionTabContent(
         }
     }
 }
-
-@Composable
-private fun SizeBreakdownRow(cells: List<String>, header: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(if (header) WeMadeColors.SurfaceMuted else Color.Transparent)
-            .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        cells.forEachIndexed { index, cell ->
-            Text(
-                text = cell,
-                fontSize = 12.sp,
-                fontWeight = if (header) FontWeight.Bold else FontWeight.Medium,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = when (index) {
-                    0 -> Modifier.weight(2f, fill = false)
-                    else -> Modifier.weight(1f, fill = false)
-                },
-                textAlign = if (index == 0) TextAlign.Start else TextAlign.End
-            )
-        }
-    }
-}
-
-private fun formatQty(quantity: Double): String =
-    if (quantity % 1.0 == 0.0) quantity.toInt().toString() else quantity.toString()

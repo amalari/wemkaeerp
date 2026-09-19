@@ -2,6 +2,7 @@ package com.eventverse.app.infrastructure
 
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.sampling.SamplingProgramCodec
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
@@ -222,6 +223,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     "collar" to jsonOf(order.yieldAndTiming.panelMinutes.collar),
                     "placket" to jsonOf(order.yieldAndTiming.panelMinutes.placket)
                 ).encode()
+                it[panelSizeSpecs] = SamplingProgramCodec
+                    .encodePanelSizeSpecs(order.yieldAndTiming.perSize).encode()
                 it[linkingNotes] = order.yieldAndTiming.linkingNotes
                 it[additionalProcess] = order.yieldAndTiming.additionalProcess
                 it[isWashed] = order.yieldAndTiming.isWashed
@@ -457,6 +460,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     collar = minutesObj?.int("collar") ?: 0,
                     placket = minutesObj?.int("placket") ?: 0
                 ),
+                perSize = SamplingProgramCodec
+                    .decodePanelSizeSpecs(ytRow[SamplingYieldTimingsTable.panelSizeSpecs]),
                 linkingNotes = ytRow[SamplingYieldTimingsTable.linkingNotes],
                 additionalProcess = ytRow[SamplingYieldTimingsTable.additionalProcess],
                 isWashed = ytRow[SamplingYieldTimingsTable.isWashed],

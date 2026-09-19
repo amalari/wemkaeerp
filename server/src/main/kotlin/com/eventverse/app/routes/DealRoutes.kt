@@ -369,8 +369,7 @@ fun Route.dealRoutes(
                 )
             }.takeIf { it.isNotEmpty() }
 
-            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName
-                ?: existing.contactId.value
+            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName ?: existing.contactId.value
 
             val command = SamplingFromDealCommand(
                 tenantId = tenant.tenantId,
@@ -382,7 +381,8 @@ fun Route.dealRoutes(
                 courierTracking = json.string("courierTracking"),
                 samplingFeeIdr = json.long("samplingFeeIdr") ?: 0L,
                 notes = json.string("notes") ?: "",
-                sizeMatrix = postSizeMatrix
+                sizeMatrix = postSizeMatrix,
+                deadlineDelivery = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(json.string("deadlineDelivery"))
             )
 
             useCase(command)
@@ -432,8 +432,7 @@ fun Route.dealRoutes(
                 )
             }.takeIf { it.isNotEmpty() }
 
-            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName
-                ?: existing.contactId.value
+            val clientNameResolved = contactRepository.findById(tenant.tenantId, existing.contactId)?.displayName ?: existing.contactId.value
 
             val command = SamplingFromDealCommand(
                 tenantId = tenant.tenantId,
@@ -445,7 +444,8 @@ fun Route.dealRoutes(
                 courierTracking = json.string("courierTracking"),
                 samplingFeeIdr = json.long("samplingFeeIdr") ?: 0L,
                 notes = json.string("notes") ?: "",
-                sizeMatrix = putSizeMatrix
+                sizeMatrix = putSizeMatrix,
+                deadlineDelivery = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(json.string("deadlineDelivery"))
             )
 
             useCase(command)

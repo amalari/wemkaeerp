@@ -89,6 +89,15 @@ enum class AppNavScreen(
         aliases = listOf("/operator", "/shopfloor"),
         businessModule = BusinessModule.OPERATOR_EXEC
     ),
+    TRACEABILITY(
+        route = "/telusur",
+        title = "Telusur Bundel & Karung",
+        aliases = listOf("/trace", "/telusur-qr"),
+        // Bergerbang pada modul lantai produksi yang sudah ada, bukan BusinessModule baru:
+        // menambah nilai enum merembet ke matriks RBAC, penugasan divisi, entitlement, dan seed
+        // tiap tenant — biaya besar untuk satu layar.
+        businessModule = BusinessModule.OPERATOR_EXEC
+    ),
     QUALITY_CONTROL(
         route = "/quality-control",
         title = "Quality Control",
