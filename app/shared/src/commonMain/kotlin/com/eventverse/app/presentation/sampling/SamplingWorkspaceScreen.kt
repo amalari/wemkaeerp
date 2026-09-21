@@ -8,19 +8,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.SamplingOrder
@@ -32,7 +40,9 @@ import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.IconClose
 import com.eventverse.app.presentation.sampling.components.CreateSamplingOrderDialog
+import com.eventverse.app.presentation.sampling.components.ProcessFlowAdjusterPanel
 import com.eventverse.app.presentation.sampling.components.RevisionNotesDialog
 import com.eventverse.app.presentation.sampling.components.SamplingPipelineKanbanBoard
 import com.eventverse.app.presentation.sampling.components.SamplingSpkDetailDialog
@@ -58,6 +68,34 @@ fun SamplingWorkspaceScreen(
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    val processFlowViewModel = remember(tenantSlug) { ProcessFlowViewModel() }
+    var isDefaultFlowDialogOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.orders) {
+        val scopeItems = state.orders.map {
+            SamplingOrderScopeItem(
+                orderId = it.id.value,
+                styleName = it.styleName,
+                spkNumber = it.spkNumber.value,
+                isCustomFlow = it.isCustomFlow
+            )
+        }
+        processFlowViewModel.onEvent(ProcessFlowUiEvent.SetAvailableOrders(scopeItems))
+    }
+
+    LaunchedEffect(state.selectedOrderId) {
+        val selectedId = state.selectedOrderId?.value
+        if (selectedId != null) {
+            val selected = state.orders.firstOrNull { it.id.value == selectedId }
+            if (selected != null) {
+                processFlowViewModel.onEvent(
+                    ProcessFlowUiEvent.SelectScope(
+                        ProcessFlowScope.Design(selected.id.value, selected.styleName, selected.spkNumber.value)
+                    )
+                )
+            }
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         // Top Toolbar
@@ -97,11 +135,21 @@ fun SamplingWorkspaceScreen(
                     }
                 }
 
-                ClayButton(
-                    text = "+ Buat SPK Sample",
-                    style = ClayButtonStyle.Primary,
-                    onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ClayButton(
+                        text = "Template Flow Pabrik",
+                        style = ClayButtonStyle.Secondary,
+                        onClick = { isDefaultFlowDialogOpen = true }
+                    )
+                    ClayButton(
+                        text = "+ Buat SPK Sample",
+                        style = ClayButtonStyle.Primary,
+                        onClick = { viewModel.onEvent(SamplingUiEvent.OpenCreateDialog) }
+                    )
+                }
             }
         }
 
@@ -119,7 +167,8 @@ fun SamplingWorkspaceScreen(
                 )
             }
         }
-        // Main Content — Pipeline Kanban murni
+
+        // Main Content — Pipeline Kanban murni (tanpa panel flow di halaman list)
         Box(modifier = Modifier.fillMaxSize()) {
             if (state.isLoading && state.orders.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -190,7 +239,7 @@ fun SamplingWorkspaceScreen(
         }
     )
 
-    // 2. SPK Detail Dialog — klik kartu di kolom "SPK Baru" (persiapan Program CAM)
+    // 2. SPK Detail Dialog — klik kartu di kolom Kanban (persiapan Program CAM & atur alur proses desain)
     state.spkDetailTarget?.let { target ->
         SamplingSpkDetailDialog(
             order = target,
@@ -203,7 +252,8 @@ fun SamplingWorkspaceScreen(
                     )
                 )
             },
-            onCreateTechPack = onCreateTechPack
+            onCreateTechPack = onCreateTechPack,
+            processFlowViewModel = processFlowViewModel
         )
     }
 
@@ -234,6 +284,65 @@ fun SamplingWorkspaceScreen(
                 )
             }
         )
+    }
+
+    // 5. Template Alur Default Pabrik Dialog
+    if (isDefaultFlowDialogOpen) {
+        LaunchedEffect(Unit) {
+            processFlowViewModel.onEvent(ProcessFlowUiEvent.SelectScope(ProcessFlowScope.DefaultTenant))
+        }
+        Dialog(
+            onDismissRequest = { isDefaultFlowDialogOpen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ClayCard(
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .heightIn(max = 620.dp),
+                contentPadding = PaddingValues(ClaySpacing.Lg)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Template Alur Default Pabrik",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.OnSurface
+                            )
+                            Text(
+                                text = "Mengatur alur standar bawaan untuk seluruh pesanan sampling baru.",
+                                fontSize = 11.sp,
+                                color = WeMadeColors.OnSurfaceMuted
+                            )
+                        }
+                        IconButton(onClick = { isDefaultFlowDialogOpen = false }) {
+                            IconClose(modifier = Modifier.size(18.dp))
+                        }
+                    }
+
+                    ProcessFlowAdjusterPanel(
+                        viewModel = processFlowViewModel,
+                        hideScopeSelector = true
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        ClayButton(
+                            text = "Tutup",
+                            style = ClayButtonStyle.Primary,
+                            onClick = { isDefaultFlowDialogOpen = false }
+                        )
+                    }
+                }
+            }
+        }
     }
     }
 }

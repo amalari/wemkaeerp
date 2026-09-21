@@ -110,6 +110,13 @@ enum class AppNavScreen(
         aliases = listOf("/packing", "/pengiriman"),
         businessModule = BusinessModule.FULFILLMENT
     ),
+    SURAT_JALAN(
+        route = "/surat-jalan",
+        title = "Surat Jalan & Transfer",
+        aliases = listOf("/transfer", "/makloon-transfer", "/sj"),
+        businessModule = BusinessModule.FULFILLMENT,
+        isNavMenuItem = false
+    ),
     MASTER_DATA(
         route = "/master-data",
         title = "Master Data Bahan & Harga",

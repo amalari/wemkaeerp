@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +35,9 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.designsystem.IconPackage
+import com.eventverse.app.presentation.designsystem.IconTruck
+import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.traceability.scanTraceCode
 import kotlinx.coroutines.launch
@@ -62,13 +66,19 @@ fun FulfillmentWorkspaceScreen(
     val canWork = level.weight >= AccessLevel.OPERATE.weight
     val canApprove = level.weight >= AccessLevel.MANAGE.weight || persona?.isOwnerOrSuperAdmin == true
 
+    val navigator = LocalAppNavigator.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(ClaySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
-        HeaderCard(state, canApprove)
+        HeaderCard(
+            state = state,
+            canApprove = canApprove,
+            onNavigateToSuratJalan = { navigator(AppNavScreen.SURAT_JALAN) }
+        )
 
         state.error?.let { message ->
             ClayCard(containerColor = WeMadeColors.Error.copy(alpha = 0.08f)) {
@@ -132,7 +142,11 @@ fun FulfillmentWorkspaceScreen(
 }
 
 @Composable
-private fun HeaderCard(state: FulfillmentUiState, canApprove: Boolean) {
+private fun HeaderCard(
+    state: FulfillmentUiState,
+    canApprove: Boolean,
+    onNavigateToSuratJalan: () -> Unit = {}
+) {
     ClayCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -158,10 +172,21 @@ private fun HeaderCard(state: FulfillmentUiState, canApprove: Boolean) {
                     color = WeMadeColors.OnSurfaceMuted
                 )
             }
-            ClayBadge(
-                text = if (canApprove) "Anda bisa ACC" else "Wewenang kerja",
-                tint = if (canApprove) WeMadeColors.Primary else WeMadeColors.Info
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ClayBadge(
+                    text = if (canApprove) "Anda bisa ACC" else "Wewenang kerja",
+                    tint = if (canApprove) WeMadeColors.Primary else WeMadeColors.Info
+                )
+                ClayButton(
+                    text = "Surat Jalan",
+                    style = ClayButtonStyle.Secondary,
+                    leading = { IconTruck(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurface) },
+                    onClick = onNavigateToSuratJalan
+                )
+            }
         }
         Row(
             modifier = Modifier

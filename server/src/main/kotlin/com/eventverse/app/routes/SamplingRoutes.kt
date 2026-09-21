@@ -3,12 +3,14 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.deal.DealId
 import com.eventverse.app.domain.deal.DealRepository
 import com.eventverse.app.domain.deal.DealStage
+import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.*
+import com.eventverse.app.shared.process.ProcessCatalogCodec
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import io.ktor.http.*
@@ -23,7 +25,8 @@ import kotlinx.datetime.toLocalDateTime
 
 fun Route.samplingRoutes(
     repository: SamplingOrderRepository,
-    dealRepository: DealRepository? = null
+    dealRepository: DealRepository? = null,
+    processCatalogRepository: TenantProcessCatalogRepository? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -360,6 +363,72 @@ fun Route.samplingRoutes(
 
             val updated = repository.save(order.requestRevision(notes, Clock.System.now()))
             call.respondJson(SamplingOrderCodec.encode(updated).encode())
+        }
+
+        // GET /api/tenant/sampling/orders/{id}/flow — Alur proses efektif untuk SPK/desain
+        get("/{id}/flow") {
+            val tenant = call.requireTenant() ?: return@get
+            val idParam = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@get call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val isCustom = order.isCustomFlow && order.customFlowProcesses != null
+            val processes = if (isCustom) {
+                order.customFlowProcesses ?: emptyList()
+            } else {
+                processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
+            }
+
+            val response = jsonObjectOf(
+                "orderId" to jsonOf(order.id.value),
+                "isCustomFlow" to jsonOf(isCustom),
+                "processes" to ProcessCatalogCodec.encodeProcesses(processes)
+            )
+            call.respondJson(response.encode())
+        }
+
+        // PUT /api/tenant/sampling/orders/{id}/flow — Simpan alur kustom untuk SPK/desain
+        put("/{id}/flow") {
+            val tenant = call.requireTenant() ?: return@put
+            val idParam = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@put call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val body = call.receiveText()
+            val json = JsonParser.parse(body)
+            val processItems = when (json) {
+                is JsonValue.Arr -> json.items
+                is JsonValue.Obj -> json.array("processes")
+                else -> null
+            } ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid processes JSON payload")
+
+            val processes = ProcessCatalogCodec.decodeProcesses(processItems, tenant.tenantId)
+            val updated = repository.save(order.customizeProcessFlow(processes, Clock.System.now()))
+
+            val response = jsonObjectOf(
+                "orderId" to jsonOf(updated.id.value),
+                "isCustomFlow" to jsonOf(true),
+                "processes" to ProcessCatalogCodec.encodeProcesses(updated.customFlowProcesses ?: emptyList())
+            )
+            call.respondJson(response.encode())
+        }
+
+        // DELETE /api/tenant/sampling/orders/{id}/flow — Reset alur SPK/desain ke default pabrik
+        delete("/{id}/flow") {
+            val tenant = call.requireTenant() ?: return@delete
+            val idParam = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing ID")
+            val order = repository.findById(SamplingOrderId(idParam))
+                ?: return@delete call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+
+            val updated = repository.save(order.resetProcessFlowToDefault(Clock.System.now()))
+            val defaultProcesses = processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
+
+            val response = jsonObjectOf(
+                "orderId" to jsonOf(updated.id.value),
+                "isCustomFlow" to jsonOf(false),
+                "processes" to ProcessCatalogCodec.encodeProcesses(defaultProcesses)
+            )
+            call.respondJson(response.encode())
         }
     }
 }

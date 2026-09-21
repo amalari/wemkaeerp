@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -72,6 +73,9 @@ data class SamplingOrder(
     val stageInputs: List<StageWorkInput> = emptyList(),
     /** Jejak audit perpindahan tahap: siapa yang memindahkan dan kapan. Diisi server. */
     val stageHistory: List<StageTransitionAudit> = emptyList(),
+    /** Alur proses opsional kustom khusus desain ini. `null` = mewarisi alur default pabrik. */
+    val customFlowProcesses: List<TenantOptionalProcess>? = null,
+    val isCustomFlow: Boolean = false,
     val createdAt: Instant,
     val updatedAt: Instant,
     val archivedAt: Instant? = null
@@ -295,71 +299,23 @@ data class SamplingOrder(
             ?: revisionHistory.firstOrNull { it.revision == revision - 1 }
 
     /**
-     * Daftar syarat wajib ACC buyer yang BELUM terpenuhi. List kosong = desain siap di-ACC.
-     *
-     * 1. Foto mockup **Tampak Depan** wajib diunggah; Tampak Belakang opsional.
-     * 2. Size chart harus punya minimal 1 ukuran yang datanya lengkap — semua baris POM
-     *    yang ada di tabel wajib terisi untuk ukuran tersebut.
-     * 3. Jumlah sampel minimal 1 pcs (dihitung dari kolom ukuran yang lengkap).
-     *
-     * Catatan (`notes`) bersifat opsional dan sengaja tidak divalidasi.
-     * [sizeMatrix] boleh di-override pemanggil (mis. nilai input UI yang belum ter-autosave);
-     * default memakai matriks milik order ini.
+     * Menyesuaikan alur proses khusus untuk desain ini.
+     * Mengesampingkan alur default tenant.
      */
-    fun missingApprovalRequirements(sizeMatrix: List<SizeChartRow> = this.sizeMatrix): List<String> = buildList {
-        if (mockupFrontKey.isNullOrBlank()) {
-            add("Foto mockup Tampak Depan wajib diunggah (Tampak Belakang opsional).")
-        }
-        if (firstCompleteSizeColumn(sizeMatrix) == null) {
-            add("Size chart wajib punya minimal 1 ukuran dengan seluruh baris pengukuran terisi lengkap.")
-        }
-        if (calculateTotalSampleQuantity(sizeMatrix) < 1) {
-            add("Jumlah sampel minimal 1 pcs.")
-        }
-    }
-
-    /** Gerbang tombol ACC: true hanya jika seluruh syarat wajib sudah terpenuhi. */
-    val isReadyForAcc: Boolean get() = missingApprovalRequirements().isEmpty()
+    fun customizeProcessFlow(processes: List<TenantOptionalProcess>, updatedAt: Instant): SamplingOrder = copy(
+        customFlowProcesses = processes,
+        isCustomFlow = true,
+        updatedAt = updatedAt
+    )
 
     /**
-     * Syarat wajib penerbitan SPK ke Divisi Sampling.
-     * Mengembalikan daftar string kesalahan fatal yang menghalangi terbitnya SPK.
-     *
-     * 1. Nama desain wajib diisi (tidak boleh kosong/blank).
-     * 2. Foto mockup Tampak Depan wajib diunggah (Divisi Sampling memerlukan acuan visual produk).
-     * 3. Size chart wajib memiliki minimal 1 ukuran dengan seluruh baris spesifikasi POM terisi lengkap.
-     * 4. Jumlah sampel minimal 1 pcs (dihitung dari baris Qty pada matriks ukuran untuk kolom yang aktif).
+     * Mengembalikan alur proses desain ini ke alur default tenant (pabrik).
      */
-    fun missingSpkRequirements(sizeMatrix: List<SizeChartRow> = this.sizeMatrix): List<String> = buildList {
-        if (styleName.isBlank()) {
-            add("Nama desain tidak boleh kosong.")
-        }
-        if (mockupFrontKey.isNullOrBlank()) {
-            add("Foto mockup Tampak Depan wajib diunggah.")
-        }
-        if (!hasAtLeastOneCompleteMeasurementColumn(sizeMatrix)) {
-            add("Size chart wajib memiliki minimal 1 ukuran dengan seluruh baris spesifikasi (POM) terisi lengkap (misal: ALL SIZE terisi seluruhnya).")
-        }
-        val totalQty = calculateTotalSampleQuantity(sizeMatrix, sampleQuantity)
-        if (totalQty < 1) {
-            add("Jumlah sampel minimal 1 pcs. Silakan tentukan alokasi kuantitas pada kolom ukuran yang aktif di tabel Size Chart.")
-        }
-        if (deadlineDelivery == null) {
-            add("Target deadline pengiriman sampel wajib diisi.")
-        }
-    }
-
-    /**
-     * Peringatan kelengkapan data (non-fatal) sebelum SPK diteruskan ke Divisi Sampling.
-     */
-    fun spkValidationWarnings(): List<String> = buildList {
-        if (mockupBackKey.isNullOrBlank()) {
-            add("Foto mockup Tampak Belakang belum diunggah (opsional).")
-        }
-    }
-
-    /** Gerbang penerbitan SPK: true jika seluruh syarat wajib terpenuhi. */
-    val isReadyForSpk: Boolean get() = missingSpkRequirements().isEmpty()
+    fun resetProcessFlowToDefault(updatedAt: Instant): SamplingOrder = copy(
+        customFlowProcesses = null,
+        isCustomFlow = false,
+        updatedAt = updatedAt
+    )
 
     fun cancel(notes: String, updatedAt: Instant): SamplingOrder = copy(
         status = SamplingStatus.CANCELLED,

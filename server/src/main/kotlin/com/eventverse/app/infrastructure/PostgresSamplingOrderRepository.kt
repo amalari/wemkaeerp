@@ -5,6 +5,7 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.sampling.SamplingProgramCodec
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
+import com.eventverse.app.shared.process.ProcessCatalogCodec
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -99,6 +100,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
                     it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
                     it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
+                    it[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
+                    it[isCustomFlow] = order.isCustomFlow
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[createdAt] = order.createdAt
@@ -133,6 +136,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
                     it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
                     it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
+                    it[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
+                    it[isCustomFlow] = order.isCustomFlow
                     it[accNotes] = order.accNotes
                     it[notes] = order.notes
                     it[updatedAt] = order.updatedAt
@@ -596,6 +601,16 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             finishingDeposits = finishingDeposits,
             qcInspections = qcInspections,
             milestones = milestones,
+            customFlowProcesses = if (orderRow[SamplingOrdersTable.isCustomFlow]) {
+                orderRow[SamplingOrdersTable.customFlowProcesses]?.let { raw ->
+                    runCatching {
+                        (JsonParser.parse(raw) as? JsonValue.Arr)?.let { arr ->
+                            ProcessCatalogCodec.decodeProcesses(arr.items, TenantId(orderRow[SamplingOrdersTable.tenantId]))
+                        }
+                    }.getOrNull()
+                }
+            } else null,
+            isCustomFlow = orderRow[SamplingOrdersTable.isCustomFlow],
             createdAt = orderRow[SamplingOrdersTable.createdAt],
             updatedAt = orderRow[SamplingOrdersTable.updatedAt],
             archivedAt = orderRow[SamplingOrdersTable.archivedAt]

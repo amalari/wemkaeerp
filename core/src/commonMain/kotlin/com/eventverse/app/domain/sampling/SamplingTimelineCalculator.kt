@@ -20,6 +20,7 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
     val samplingSubtitle = when {
         isDraft -> "Menunggu Rilis SPK"
         status == SamplingStatus.REVISION -> "Perlu Revisi (Rev $revisionCount)"
+        pipelineStage == SamplingPipelineStage.FLOW_REVIEW -> "Penentuan Alur Desain"
         pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING -> "Program Mesin CAM"
         pipelineStage == SamplingPipelineStage.MACHINE_KNITTING -> "Rajut Turun Mesin"
         pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY -> "Linking & Jahit"
@@ -39,6 +40,7 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
         isSamplingComplete -> "Selesai"
         isSamplingActive -> when (pipelineStage) {
             SamplingPipelineStage.NEW_INTAKE -> "Draft"
+            SamplingPipelineStage.FLOW_REVIEW -> "Alur"
             SamplingPipelineStage.CAM_PROGRAMMING -> "CAM"
             SamplingPipelineStage.MACHINE_KNITTING -> "Rajut"
             SamplingPipelineStage.LINKING_ASSEMBLY -> "Jahit"

@@ -14,6 +14,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  */
 fun samplingStageTint(stage: SamplingPipelineStage): Color = when (stage) {
     SamplingPipelineStage.NEW_INTAKE -> WeMadeColors.OnSurfaceMuted
+    SamplingPipelineStage.FLOW_REVIEW -> WeMadeColors.Accent
     SamplingPipelineStage.CAM_PROGRAMMING -> WeMadeColors.Primary
     SamplingPipelineStage.MACHINE_KNITTING -> WeMadeColors.Warning
     SamplingPipelineStage.LINKING_ASSEMBLY -> WeMadeColors.Purple

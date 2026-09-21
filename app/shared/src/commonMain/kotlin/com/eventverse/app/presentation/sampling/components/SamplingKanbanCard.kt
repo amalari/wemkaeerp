@@ -222,6 +222,12 @@ private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
             text = if (order.finishingPath == FinishingPath.MAKLOON_VENDOR) "Makloon" else "Internal",
             tint = WeMadeColors.Success
         )
+        if (order.isCustomFlow) {
+            ClayTag(
+                text = "Alur Kustom",
+                tint = WeMadeColors.Accent
+            )
+        }
     }
 }
 
@@ -236,7 +242,15 @@ private fun SamplingKanbanCardActions(
     when (order.pipelineStage) {
         SamplingPipelineStage.NEW_INTAKE -> {
             ClayButton(
-                text = "Mulai Program CAM ->",
+                text = "Tentukan Alur Desain ->",
+                style = ClayButtonStyle.Primary,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onAdvanceStage(SamplingPipelineStage.FLOW_REVIEW) }
+            )
+        }
+        SamplingPipelineStage.FLOW_REVIEW -> {
+            ClayButton(
+                text = "Alur Siap -> Mulai CAM ->",
                 style = ClayButtonStyle.Primary,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onAdvanceStage(SamplingPipelineStage.CAM_PROGRAMMING) }

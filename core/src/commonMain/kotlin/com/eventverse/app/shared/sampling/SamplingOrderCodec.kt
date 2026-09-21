@@ -3,6 +3,7 @@ package com.eventverse.app.shared.sampling
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.*
+import com.eventverse.app.shared.process.ProcessCatalogCodec
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
@@ -77,6 +78,8 @@ object SamplingOrderCodec {
         // jsonb dikirim sebagai string — konsisten dengan kolom jsonbText di server
         "stageInputs" to jsonOf(StageWorkInputCodec.encodeInputs(order.stageInputs)),
         "stageHistory" to jsonOf(StageWorkInputCodec.encodeHistory(order.stageHistory)),
+        "isCustomFlow" to jsonOf(order.isCustomFlow),
+        "customFlowProcesses" to (order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it) } ?: JsonValue.Null),
         "createdAt" to jsonOf(order.createdAt.toString()),
         "updatedAt" to jsonOf(order.updatedAt.toString()),
         "archivedAt" to jsonOf(order.archivedAt?.toString())
@@ -202,6 +205,10 @@ object SamplingOrderCodec {
             )
         }
         val archivedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrNull(obj.string("archivedAt"))
+        val isCustomFlow = obj.boolean("isCustomFlow") ?: false
+        val customFlowProcesses = if (isCustomFlow) {
+            obj.array("customFlowProcesses")?.let { ProcessCatalogCodec.decodeProcesses(it, tenantId) }
+        } else null
 
         return SamplingOrder(
             id = id,
@@ -237,6 +244,8 @@ object SamplingOrderCodec {
             milestones = milestones,
             stageInputs = stageInputs,
             stageHistory = stageHistory,
+            customFlowProcesses = customFlowProcesses,
+            isCustomFlow = isCustomFlow,
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = archivedAt

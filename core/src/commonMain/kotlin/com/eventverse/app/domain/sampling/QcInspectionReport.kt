@@ -1,7 +1,6 @@
 package com.eventverse.app.domain.sampling
 
-import com.eventverse.app.domain.sampling.qc.DefectLiability
-import com.eventverse.app.domain.sampling.qc.QcDefectType
+import com.eventverse.app.domain.pipeline.DefectLiability
 import kotlinx.datetime.Instant
 
 /**

@@ -49,13 +49,14 @@ enum class MilestoneStep(val displayName: String, val defaultOrder: Int) {
 }
 
 enum class SamplingPipelineStage(val displayName: String, val order: Int) {
-    NEW_INTAKE("SPK Baru (Sales Deal)", 1),
-    CAM_PROGRAMMING("Program CAM", 2),
-    MACHINE_KNITTING("Rajut Turun Mesin", 3),
-    LINKING_ASSEMBLY("Linking & Tambahan", 4),
-    FINISHING_QC("Finishing & QC", 5),
-    IN_DELIVERY("Terkirim (Tunggu ACC)", 6),
-    ACC_APPROVED("ACC Produksi", 7);
+    NEW_INTAKE("SPK Masuk (Sales Deal)", 1),
+    FLOW_REVIEW("Penentuan Alur Desain", 2),
+    CAM_PROGRAMMING("Program CAM", 3),
+    MACHINE_KNITTING("Rajut Turun Mesin", 4),
+    LINKING_ASSEMBLY("Linking & Tambahan", 5),
+    FINISHING_QC("Finishing & QC", 6),
+    IN_DELIVERY("Terkirim (Tunggu ACC)", 7),
+    ACC_APPROVED("ACC Produksi", 8);
 }
 
 enum class FinishingPath(val displayName: String) {

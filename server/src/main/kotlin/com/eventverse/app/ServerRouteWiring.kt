@@ -64,10 +64,14 @@ fun Route.operationalModuleRoutes(
     knitWorksheetBuilder: KnitWorksheetBuilder,
     traceScanHost: String
 ) {
-            samplingRoutes(
-                repository = samplingOrderRepo,
-                dealRepository = crmDealRepo
-            )
+    val tenantProcessCatalogRepository: com.eventverse.app.domain.process.TenantProcessCatalogRepository =
+        com.eventverse.app.infrastructure.PostgresTenantProcessRepository()
+
+    samplingRoutes(
+        repository = samplingOrderRepo,
+        dealRepository = crmDealRepo,
+        processCatalogRepository = tenantProcessCatalogRepository
+    )
             productionRoutes(
                 workOrderRepository = bulkWorkOrderRepo,
                 dealRepository = crmDealRepo,
@@ -125,4 +129,29 @@ fun Route.operationalModuleRoutes(
         imageStorage = benchmarkImageStorage,
         roleRepository = roleRepo
     )
+
+    val workCardRepository: com.eventverse.app.domain.workqueue.WorkCardRepository =
+        com.eventverse.app.infrastructure.PostgresWorkCardRepository()
+    val workDepositRepository: com.eventverse.app.domain.workqueue.WorkDepositRepository =
+        com.eventverse.app.infrastructure.PostgresWorkDepositRepository()
+    val reworkTicketRepository: com.eventverse.app.domain.workqueue.ReworkTicketRepository =
+        com.eventverse.app.infrastructure.PostgresReworkTicketRepository()
+    val suratJalanRepository: com.eventverse.app.domain.transfer.SuratJalanRepository =
+        com.eventverse.app.infrastructure.PostgresSuratJalanRepository()
+
+
+
+    workQueueRoutes(
+        cardRepository = workCardRepository,
+        depositRepository = workDepositRepository,
+        ticketRepository = reworkTicketRepository
+    )
+
+    suratJalanRoutes(
+        suratJalanRepository = suratJalanRepository,
+        cardRepository = workCardRepository
+    )
+
+    tenantProcessRoutes(repository = tenantProcessCatalogRepository)
 }
+

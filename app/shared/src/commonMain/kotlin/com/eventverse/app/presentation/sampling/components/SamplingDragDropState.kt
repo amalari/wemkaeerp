@@ -86,7 +86,8 @@ class SamplingDragDropState {
 
     /** Tahap tujuan yang sah untuk kartu ini — CUMA tahap berikutnya, tidak ada loncatan. */
     fun allowedTargetsFor(order: SamplingOrder): Set<SamplingPipelineStage> = when (order.pipelineStage) {
-        SamplingPipelineStage.NEW_INTAKE -> setOf(SamplingPipelineStage.CAM_PROGRAMMING)
+        SamplingPipelineStage.NEW_INTAKE -> setOf(SamplingPipelineStage.FLOW_REVIEW, SamplingPipelineStage.CAM_PROGRAMMING)
+        SamplingPipelineStage.FLOW_REVIEW -> setOf(SamplingPipelineStage.CAM_PROGRAMMING)
         SamplingPipelineStage.CAM_PROGRAMMING -> setOf(SamplingPipelineStage.MACHINE_KNITTING)
         SamplingPipelineStage.MACHINE_KNITTING -> setOf(SamplingPipelineStage.LINKING_ASSEMBLY)
         SamplingPipelineStage.FINISHING_QC -> setOf(SamplingPipelineStage.IN_DELIVERY)

@@ -65,29 +65,36 @@ enum class SamplingStageZone(
     val showActions: Boolean
 ) {
     SPK_BARU(
-        title = SamplingPipelineStage.NEW_INTAKE.displayName,
-        subtitle = "Tahap 1 dari 7",
+        title = "1. SPK Masuk",
+        subtitle = "Order baru dari deal/klien",
         stages = listOf(SamplingPipelineStage.NEW_INTAKE),
         dropStage = SamplingPipelineStage.NEW_INTAKE,
         showActions = true
     ),
+    PENENTUAN_ALUR(
+        title = "2. Penentuan Alur",
+        subtitle = "Setup bordir/sablon per desain",
+        stages = listOf(SamplingPipelineStage.FLOW_REVIEW),
+        dropStage = SamplingPipelineStage.FLOW_REVIEW,
+        showActions = true
+    ),
     PROGRAM_CAM(
-        title = SamplingPipelineStage.CAM_PROGRAMMING.displayName,
-        subtitle = "Tahap 2 dari 7",
+        title = "3. Program CAM",
+        subtitle = "Program pola & instruksi",
         stages = listOf(SamplingPipelineStage.CAM_PROGRAMMING),
         dropStage = SamplingPipelineStage.CAM_PROGRAMMING,
         showActions = true
     ),
     MESIN_RAJUT(
-        title = SamplingPipelineStage.MACHINE_KNITTING.displayName,
-        subtitle = "Tahap 3 dari 7",
+        title = "4. Mesin Rajut",
+        subtitle = "Perajutan panel kain",
         stages = listOf(SamplingPipelineStage.MACHINE_KNITTING),
         dropStage = SamplingPipelineStage.MACHINE_KNITTING,
         showActions = true
     ),
     FINISHING_QC(
-        title = "Di Meja Finishing & QC",
-        subtitle = "Ranah divisi Finishing & QC — pantau saja",
+        title = "5. Finishing & QC",
+        subtitle = "Linking, cuci, steam & QC",
         stages = listOf(
             SamplingPipelineStage.LINKING_ASSEMBLY,
             SamplingPipelineStage.FINISHING_QC
@@ -96,8 +103,8 @@ enum class SamplingStageZone(
         showActions = false
     ),
     TUNGGU_ACC(
-        title = "Tunggu ACC Buyer",
-        subtitle = "Keputusan buyer / admin",
+        title = "6. Tunggu ACC Buyer",
+        subtitle = "Keputusan golden sample",
         stages = listOf(
             SamplingPipelineStage.IN_DELIVERY,
             SamplingPipelineStage.ACC_APPROVED
@@ -298,20 +305,11 @@ private fun RowScope.KanbanStageZoneColumn(
                         onAdvanceStage = { target -> onAdvanceStageRequested(order, target) },
                         onOpenRevisionDialog = { onOpenRevisionDialog(order) },
                         onApproveOrder = { onApproveOrder(order.id, "ACC Golden Sample") },
-                        // Klik kartu:
-                        // - di "SPK Baru" -> dialog detail SPK (persiapan Program CAM tim sampling);
-                        // - transisi lain yang menuntut lembar kerja (CAM -> Rajut,
-                        //   Rajut -> Finishing) langsung membuka dialog lembar kerja;
-                        // - sisanya cukup menandai kartu terpilih.
+                        // Klik kartu: membuka dialog detail SPK untuk memeriksa data & alur proses.
+                        // Memajukan tahap dilakukan lewat tombol aksi kartu atau drag & drop.
                         onSelectOrder = {
-                            when {
-                                order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ->
-                                    onOpenSpkDetail(order)
-                                nextStage != null && nextStage.requiresStageWorksheet() ->
-                                    onAdvanceStageRequested(order, nextStage)
-                                else ->
-                                    onSelectOrder(order.id)
-                            }
+                            onSelectOrder(order.id)
+                            onOpenSpkDetail(order)
                         }
                     )
                 }

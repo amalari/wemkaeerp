@@ -367,6 +367,19 @@ fun App() {
                                 )
                             }
                         }
+                        AppNavScreen.SURAT_JALAN -> {
+                            if (isAuthenticated) {
+                                com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen()
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
                         AppNavScreen.MASTER_DATA,

@@ -42,6 +42,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val sizeMatrix = jsonbText("size_matrix").default("[]")
     val stageInputs = jsonbText("stage_inputs").default("{}")
     val stageHistory = jsonbText("stage_history").default("[]")
+    val customFlowProcesses = jsonbText("custom_flow_processes").nullable()
+    val isCustomFlow = bool("is_custom_flow").default(false)
     val accNotes = text("acc_notes").default("")
     val notes = text("notes").default("")
 
