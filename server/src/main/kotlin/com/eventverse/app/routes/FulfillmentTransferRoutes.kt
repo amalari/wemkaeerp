@@ -3,9 +3,9 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.auth.Permission
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
-import com.eventverse.app.domain.fulfillment.TransferId
-import com.eventverse.app.domain.fulfillment.TransferLeg
-import com.eventverse.app.domain.fulfillment.TransferStatus
+import com.eventverse.app.domain.fulfillment.SackTransferId
+import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.fulfillment.usecases.ApproveTransferUseCase
 import com.eventverse.app.domain.fulfillment.usecases.ListTransfersUseCase
@@ -64,7 +64,7 @@ fun Route.fulfillmentTransferRoutes(
         get("/transfers") {
             val tenant = call.requireFulfillmentTenant() ?: return@get
             val statuses = call.request.queryParameters["status"].orEmpty()
-                .split(",").mapNotNull { raw -> TransferStatus.entries.firstOrNull { it.name == raw.trim() } }
+                .split(",").mapNotNull { raw -> SackTransferStatus.entries.firstOrNull { it.name == raw.trim() } }
                 .toSet()
 
             list(tenant.tenantId, statuses)
@@ -85,7 +85,7 @@ fun Route.fulfillmentTransferRoutes(
             val body = call.fulfillmentBody()
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
 
-            val leg = TransferLeg.entries.firstOrNull { it.name == body.string("leg") }
+            val leg = SackRoute.entries.firstOrNull { it.name == body.string("leg") }
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Rute perjalanan (leg) tidak dikenali")
             val weightRaw = body.string("dispatchWeightKg")?.takeIf { it.isNotBlank() }
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Berat timbangan wajib diisi")
@@ -123,7 +123,7 @@ fun Route.fulfillmentTransferRoutes(
 
             approve(
                 tenantId = tenant.tenantId,
-                transferId = TransferId(call.parameters["id"].orEmpty()),
+                transferId = SackTransferId(call.parameters["id"].orEmpty()),
                 approverName = body.string("approverName").orEmpty(),
                 signatureKey = body.string("signatureKey").orEmpty(),
                 now = Clock.System.now()
@@ -145,7 +145,7 @@ fun Route.fulfillmentTransferRoutes(
 
             reject(
                 tenantId = tenant.tenantId,
-                transferId = TransferId(call.parameters["id"].orEmpty()),
+                transferId = SackTransferId(call.parameters["id"].orEmpty()),
                 reason = body.string("reason").orEmpty(),
                 rejectedBy = body.string("approverName").orEmpty(),
                 now = Clock.System.now()
@@ -166,7 +166,7 @@ fun Route.fulfillmentTransferRoutes(
 
             resubmitUseCase(
                 tenantId = tenant.tenantId,
-                transferId = TransferId(call.parameters["id"].orEmpty()),
+                transferId = SackTransferId(call.parameters["id"].orEmpty()),
                 dispatchWeightKg = weight,
                 dispatchScalePhotoKey = body.string("dispatchScalePhotoKey").orEmpty(),
                 requestedBy = body.string("requestedBy").orEmpty(),
@@ -191,7 +191,7 @@ fun Route.fulfillmentTransferRoutes(
 
             receive(
                 tenantId = tenant.tenantId,
-                transferId = TransferId(call.parameters["id"].orEmpty()),
+                transferId = SackTransferId(call.parameters["id"].orEmpty()),
                 proof = proof,
                 receivedWeightKg = body.string("receivedWeightKg")?.let(WeightKg::parse),
                 receivedPcs = body.int("receivedPcs"),

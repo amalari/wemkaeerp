@@ -3,7 +3,7 @@ package com.eventverse.app.domain.fulfillment.usecases
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
-import com.eventverse.app.domain.fulfillment.TransferId
+import com.eventverse.app.domain.fulfillment.SackTransferId
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
@@ -23,7 +23,7 @@ class ReceiveTransferUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         proof: HandoverProof,
         receivedWeightKg: WeightKg?,
         receivedPcs: Int?,

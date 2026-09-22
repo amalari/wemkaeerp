@@ -9,7 +9,9 @@ import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.domain.transfer.FlowLegBoard
 import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.transfer.FlowLegCodec
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -48,6 +50,14 @@ interface ProcessCatalogRemoteDataSource {
     suspend fun fetchOrderFlow(orderId: String): Result<OrderFlowDto>
     suspend fun saveOrderFlow(orderId: String, processes: List<TenantOptionalProcess>): Result<OrderFlowDto>
     suspend fun resetOrderFlow(orderId: String): Result<OrderFlowDto>
+
+    /**
+     * Perpindahan barang yang tersirat di alur SPK ini, berikut status dokumennya.
+     *
+     * Diturunkan di server dari konfigurasi lokasi tenant — klien tidak menghitungnya sendiri,
+     * supaya konektor yang tampil dan gerbang yang menolak selalu berasal dari sumber yang sama.
+     */
+    suspend fun fetchFlowLegs(orderId: String): Result<FlowLegBoard>
 }
 
 class ProcessCatalogApiClient(
@@ -124,6 +134,14 @@ class ProcessCatalogApiClient(
         val isCustom = obj.boolean("isCustomFlow") ?: false
         val processes = obj.objectArray("processes").mapNotNull { ProcessCatalogCodec.decodeProcess(it, FALLBACK_TENANT) }
         OrderFlowDto(orderId, isCustom, processes)
+    }
+
+    override suspend fun fetchFlowLegs(orderId: String): Result<FlowLegBoard> = runCatching {
+        val response = httpClient.get("$baseUrl/api/tenant/sampling/orders/$orderId/flow-legs") {
+            tenantRequest(tenantSlug, tokenProvider)
+        }
+        val obj = decodeBody(response.bodyAsText(), response.status.isSuccess())
+        FlowLegCodec.decodeBoard(obj)
     }
 
     override suspend fun saveOrderFlow(

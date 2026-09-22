@@ -1,5 +1,6 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.deal.storage.PoFileStorage
 import com.eventverse.app.domain.deal.DealId
 import com.eventverse.app.domain.deal.DealRepository
 import com.eventverse.app.domain.deal.DealStage
@@ -7,6 +8,7 @@ import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
 import com.eventverse.app.domain.tenant.TenantContext
+import com.eventverse.app.domain.transfer.usecases.GetFlowTransferLegsUseCase
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.*
@@ -26,7 +28,13 @@ import kotlinx.datetime.toLocalDateTime
 fun Route.samplingRoutes(
     repository: SamplingOrderRepository,
     dealRepository: DealRepository? = null,
-    processCatalogRepository: TenantProcessCatalogRepository? = null
+    processCatalogRepository: TenantProcessCatalogRepository? = null,
+    poFileStorage: PoFileStorage? = null,
+    /**
+     * Gerbang perpindahan barang antar lokasi. `null` mematikan gerbang — mempertahankan
+     * perilaku lama bagi pemasangan route dan pengujian yang tidak menyuntikkannya.
+     */
+    flowLegsUseCase: GetFlowTransferLegsUseCase? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -46,7 +54,10 @@ fun Route.samplingRoutes(
 
             listOrdersUseCase(tenant.tenantId, statusParam)
                 .onSuccess { orders ->
-                    val jsonArray = jsonArrayOf(orders.map { SamplingOrderCodec.encode(it) })
+                    // Presign URL mockup segar per order — client menerima link gambar valid,
+                    // bukan storage key mentah (lihat SamplingMockupResolution.kt).
+                    val resolved = orders.map { withResolvedMockups(it, poFileStorage) }
+                    val jsonArray = jsonArrayOf(resolved.map { SamplingOrderCodec.encode(it) })
                     call.respondJson(jsonArray.encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it) }
@@ -97,7 +108,8 @@ fun Route.samplingRoutes(
             val idParam = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing ID")
             getDetailUseCase(SamplingOrderId(idParam))
                 .onSuccess { order ->
-                    call.respondJson(SamplingOrderCodec.encode(order).encode())
+                    val resolved = withResolvedMockups(order, poFileStorage)
+                    call.respondJson(SamplingOrderCodec.encode(resolved).encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.NotFound, it) }
         }
@@ -211,14 +223,27 @@ fun Route.samplingRoutes(
 
             val caller = call.callerPrincipalOrNull
             try {
-                val updated = repository.save(
-                    withInputs.advancePipelineStage(
+                // Gerbang perpindahan barang butuh alur efektif SPK ini: alur kustomnya bila ada,
+                // kalau tidak template pabrik. Sumber yang sama dipakai panel alur, supaya yang
+                // ditolak gerbang persis yang ditandai merah di layar.
+                val effectiveProcesses = withInputs.customFlowProcesses
+                    ?: processCatalogRepository?.findByTenantId(withInputs.tenantId)?.processes
+                    ?: emptyList()
+
+                val advanced = AdvanceSamplingStageUseCase(flowLegsUseCase)(
+                    AdvanceSamplingStageCommand(
+                        order = withInputs,
                         target = targetStage,
-                        updatedAt = now,
+                        stages = SamplingPipelineStage.entries,
+                        processes = effectiveProcesses,
                         actorEmail = caller?.email ?: "unknown",
-                        actorRole = caller?.role?.name ?: "UNKNOWN"
+                        actorRole = caller?.role?.name ?: "UNKNOWN",
+                        overrideReason = json.string("overrideReason")?.takeIf { it.isNotBlank() },
+                        now = now
                     )
-                )
+                ).getOrThrow()
+
+                val updated = repository.save(advanced)
 
                 val dealId = updated.dealId
                 if (!dealId.isNullOrBlank() && dealRepository != null) {
@@ -365,71 +390,11 @@ fun Route.samplingRoutes(
             call.respondJson(SamplingOrderCodec.encode(updated).encode())
         }
 
-        // GET /api/tenant/sampling/orders/{id}/flow — Alur proses efektif untuk SPK/desain
-        get("/{id}/flow") {
-            val tenant = call.requireTenant() ?: return@get
-            val idParam = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing ID")
-            val order = repository.findById(SamplingOrderId(idParam))
-                ?: return@get call.respond(HttpStatusCode.NotFound, "Sampling order not found")
-
-            val isCustom = order.isCustomFlow && order.customFlowProcesses != null
-            val processes = if (isCustom) {
-                order.customFlowProcesses ?: emptyList()
-            } else {
-                processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
-            }
-
-            val response = jsonObjectOf(
-                "orderId" to jsonOf(order.id.value),
-                "isCustomFlow" to jsonOf(isCustom),
-                "processes" to ProcessCatalogCodec.encodeProcesses(processes)
-            )
-            call.respondJson(response.encode())
-        }
-
-        // PUT /api/tenant/sampling/orders/{id}/flow — Simpan alur kustom untuk SPK/desain
-        put("/{id}/flow") {
-            val tenant = call.requireTenant() ?: return@put
-            val idParam = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing ID")
-            val order = repository.findById(SamplingOrderId(idParam))
-                ?: return@put call.respond(HttpStatusCode.NotFound, "Sampling order not found")
-
-            val body = call.receiveText()
-            val json = JsonParser.parse(body)
-            val processItems = when (json) {
-                is JsonValue.Arr -> json.items
-                is JsonValue.Obj -> json.array("processes")
-                else -> null
-            } ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid processes JSON payload")
-
-            val processes = ProcessCatalogCodec.decodeProcesses(processItems, tenant.tenantId)
-            val updated = repository.save(order.customizeProcessFlow(processes, Clock.System.now()))
-
-            val response = jsonObjectOf(
-                "orderId" to jsonOf(updated.id.value),
-                "isCustomFlow" to jsonOf(true),
-                "processes" to ProcessCatalogCodec.encodeProcesses(updated.customFlowProcesses ?: emptyList())
-            )
-            call.respondJson(response.encode())
-        }
-
-        // DELETE /api/tenant/sampling/orders/{id}/flow — Reset alur SPK/desain ke default pabrik
-        delete("/{id}/flow") {
-            val tenant = call.requireTenant() ?: return@delete
-            val idParam = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing ID")
-            val order = repository.findById(SamplingOrderId(idParam))
-                ?: return@delete call.respond(HttpStatusCode.NotFound, "Sampling order not found")
-
-            val updated = repository.save(order.resetProcessFlowToDefault(Clock.System.now()))
-            val defaultProcesses = processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
-
-            val response = jsonObjectOf(
-                "orderId" to jsonOf(updated.id.value),
-                "isCustomFlow" to jsonOf(false),
-                "processes" to ProcessCatalogCodec.encodeProcesses(defaultProcesses)
-            )
-            call.respondJson(response.encode())
-        }
+        samplingFlowRoutes(
+            repository = repository,
+            processCatalogRepository = processCatalogRepository,
+            flowLegsUseCase = flowLegsUseCase
+        )
     }
 }
 

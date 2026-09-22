@@ -15,7 +15,6 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
-import com.eventverse.app.domain.deal.storage.PoFileStorage as PoStorage
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
@@ -618,35 +617,6 @@ private const val MAX_MOCKUP_BYTES = 5 * 1024 * 1024
  * 2 MB adalah kompromi paling jauh yang masih sehat untuk lingkungan pengembangan.
  */
 private const val MAX_INLINE_MOCKUP_BYTES = 2 * 1024 * 1024
-
-/**
- * Mengganti key object storage di `knitSpec.mockupImageUrls` dengan presigned URL segar.
- * Entri yang sudah berupa URL absolut dibiarkan; entri yang gagal di-resolve dibuang supaya
- * UI tidak menerima tautan mati.
- */
-private suspend fun withResolvedMockups(
-    order: SamplingOrder,
-    storage: PoStorage?
-): SamplingOrder {
-    val entries = order.knitSpec.mockupImageUrls
-    if (entries.isEmpty()) return order
-    val resolved = entries.mapNotNull { entry ->
-        val prefix = when {
-            entry.startsWith("front:") -> "front:"
-            entry.startsWith("back:") -> "back:"
-            else -> ""
-        }
-        val key = entry.removePrefix(prefix)
-        val url = when {
-            key.startsWith("http") -> key
-            key.startsWith("data:") -> key
-            storage?.isConfigured == true -> storage.downloadUrl(key).getOrNull()
-            else -> null
-        }
-        url?.let { prefix + it }
-    }
-    return order.copy(knitSpec = order.knitSpec.copy(mockupImageUrls = resolved))
-}
 
 private val ALLOWED_PO_MIME_TYPES = setOf(
     "application/pdf",

@@ -3,9 +3,9 @@ package com.eventverse.app.infrastructure
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
-import com.eventverse.app.domain.fulfillment.TransferId
-import com.eventverse.app.domain.fulfillment.TransferLeg
-import com.eventverse.app.domain.fulfillment.TransferStatus
+import com.eventverse.app.domain.fulfillment.SackTransferId
+import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.TraceCode
@@ -24,7 +24,7 @@ import org.jetbrains.exposed.sql.update
 
 class PostgresInternalTransferRepository : InternalTransferRepository {
 
-    override suspend fun findById(tenantId: TenantId, id: TransferId): InternalTransfer? =
+    override suspend fun findById(tenantId: TenantId, id: SackTransferId): InternalTransfer? =
         DatabaseFactory.dbQuery(tenantId) {
             FulfillmentTransfersTable.selectAll()
                 .where {
@@ -56,10 +56,10 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
                     (FulfillmentTransfersTable.tenantId eq tenantId.value) and
                         (FulfillmentTransfersTable.sackCode eq sackCode.value) and
                         (FulfillmentTransfersTable.status inList listOf(
-                            TransferStatus.MENUNGGU_ACC.name,
-                            TransferStatus.DIANTAR.name,
-                            TransferStatus.DITOLAK.name,
-                            TransferStatus.DIPERIKSA.name
+                            SackTransferStatus.MENUNGGU_ACC.name,
+                            SackTransferStatus.DIANTAR.name,
+                            SackTransferStatus.DITOLAK.name,
+                            SackTransferStatus.DIPERIKSA.name
                         ))
                 }
                 .singleOrNull()
@@ -88,7 +88,7 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
 
     override suspend fun recordEvent(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         eventType: String,
         actor: String,
         detail: String,
@@ -172,17 +172,17 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
         }
 
         return InternalTransfer(
-            id = TransferId(row[FulfillmentTransfersTable.id]),
+            id = SackTransferId(row[FulfillmentTransfersTable.id]),
             tenantId = TenantId(row[FulfillmentTransfersTable.tenantId]),
             sackCode = TraceCode(row[FulfillmentTransfersTable.sackCode]),
             workOrder = workOrder,
             sizeLabel = row[FulfillmentTransfersTable.sizeLabel],
             colorway = row[FulfillmentTransfersTable.colorway],
             declaredPcs = row[FulfillmentTransfersTable.declaredPcs],
-            leg = TransferLeg.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.leg] }
-                ?: TransferLeg.QC_RAJUT_TO_FINISHING,
-            status = TransferStatus.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.status] }
-                ?: TransferStatus.MENUNGGU_ACC,
+            leg = SackRoute.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.leg] }
+                ?: SackRoute.QC_RAJUT_TO_FINISHING,
+            status = SackTransferStatus.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.status] }
+                ?: SackTransferStatus.MENUNGGU_ACC,
             dispatchWeightKg = WeightKg(row[FulfillmentTransfersTable.dispatchWeightKg].toDouble()),
             dispatchScalePhotoKey = row[FulfillmentTransfersTable.dispatchScalePhotoKey],
             requestedBy = row[FulfillmentTransfersTable.requestedBy],

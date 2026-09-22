@@ -63,6 +63,7 @@ object SuratJalanCodec {
         "driverName" to (manifest.driverName?.let(::jsonOf) ?: JsonValue.Null),
         "vehiclePlate" to (manifest.vehiclePlate?.let(::jsonOf) ?: JsonValue.Null),
         "status" to jsonOf(manifest.status.name),
+        "legKey" to (manifest.legKey?.let(::jsonOf) ?: JsonValue.Null),
         "items" to jsonArrayOf(manifest.items.map(::encodeItem)),
         "unitServiceFeeIdr" to jsonOf(manifest.unitServiceFeeIdr),
         "expectedReturnDate" to (manifest.expectedReturnDate?.let { jsonOf(it.toString()) } ?: JsonValue.Null),
@@ -102,6 +103,7 @@ object SuratJalanCodec {
             status = runCatching {
                 TransferStatus.valueOf(obj.string("status") ?: TransferStatus.DRAFT.name)
             }.getOrDefault(TransferStatus.DRAFT),
+            legKey = obj.string("legKey"),
             items = itemsList,
             unitServiceFeeIdr = obj.long("unitServiceFeeIdr") ?: 0L,
             expectedReturnDate = obj.string("expectedReturnDate")?.let { runCatching { LocalDate.parse(it) }.getOrNull() },

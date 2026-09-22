@@ -11,29 +11,29 @@ import kotlinx.datetime.Instant
  * pcs diselidiki, bukan saat karung disortir.
  */
 sealed interface InternalTransferEvent {
-    val transferId: TransferId
+    val transferId: SackTransferId
     val sackCode: TraceCode
     val occurredAt: Instant
 }
 
 data class TransferSubmitted(
-    override val transferId: TransferId,
+    override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val requestedBy: String,
-    val leg: TransferLeg,
+    val leg: SackRoute,
     val dispatchWeightKg: WeightKg,
     override val occurredAt: Instant
 ) : InternalTransferEvent
 
 data class TransferApproved(
-    override val transferId: TransferId,
+    override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val approvedBy: String,
     override val occurredAt: Instant
 ) : InternalTransferEvent
 
 data class TransferRejected(
-    override val transferId: TransferId,
+    override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val rejectedBy: String,
     val reason: String,
@@ -41,14 +41,14 @@ data class TransferRejected(
 ) : InternalTransferEvent
 
 data class TransferResubmitted(
-    override val transferId: TransferId,
+    override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val requestedBy: String,
     override val occurredAt: Instant
 ) : InternalTransferEvent
 
 data class TransferReceived(
-    override val transferId: TransferId,
+    override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val receivedBy: String,
     val withDiscrepancy: Boolean,

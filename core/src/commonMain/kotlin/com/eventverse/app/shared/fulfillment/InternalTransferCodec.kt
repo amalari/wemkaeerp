@@ -2,9 +2,9 @@ package com.eventverse.app.shared.fulfillment
 
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.TransferId
-import com.eventverse.app.domain.fulfillment.TransferLeg
-import com.eventverse.app.domain.fulfillment.TransferStatus
+import com.eventverse.app.domain.fulfillment.SackTransferId
+import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.TraceCode
@@ -57,15 +57,15 @@ object InternalTransferCodec {
     fun decode(obj: JsonValue.Obj): InternalTransfer {
         val requestedAt = DateTimeCodec.parseInstantOrFallback(obj.string("requestedAt"), EPOCH)
         return InternalTransfer(
-            id = TransferId(obj.string("id") ?: ""),
+            id = SackTransferId(obj.string("id") ?: ""),
             tenantId = TenantId(obj.string("tenantId") ?: ""),
             sackCode = TraceCode(obj.string("sackCode") ?: ""),
             workOrder = decodeWorkOrder(obj),
             sizeLabel = obj.string("sizeLabel") ?: "",
             colorway = obj.string("colorway") ?: "",
             declaredPcs = obj.int("declaredPcs") ?: 0,
-            leg = enumOrNull<TransferLeg>(obj.string("leg")) ?: TransferLeg.QC_RAJUT_TO_FINISHING,
-            status = enumOrNull<TransferStatus>(obj.string("status")) ?: TransferStatus.MENUNGGU_ACC,
+            leg = enumOrNull<SackRoute>(obj.string("leg")) ?: SackRoute.QC_RAJUT_TO_FINISHING,
+            status = enumOrNull<SackTransferStatus>(obj.string("status")) ?: SackTransferStatus.MENUNGGU_ACC,
             dispatchWeightKg = WeightKg(obj.double("dispatchWeightKg") ?: 0.0),
             dispatchScalePhotoKey = obj.string("dispatchScalePhotoKey") ?: "",
             requestedBy = obj.string("requestedBy") ?: "",

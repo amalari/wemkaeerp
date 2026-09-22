@@ -15,16 +15,16 @@ class InternalTransferTest {
     private val now = Instant.fromEpochMilliseconds(1_700_000_000_000)
 
     private fun aTransfer(
-        status: TransferStatus = TransferStatus.MENUNGGU_ACC,
+        status: SackTransferStatus = SackTransferStatus.MENUNGGU_ACC,
         declaredPcs: Int = 120
     ) = InternalTransfer(
-        id = TransferId("trf-1"),
+        id = SackTransferId("trf-1"),
         tenantId = tenant,
         sackCode = sack,
         sizeLabel = "M",
         colorway = "Hitam",
         declaredPcs = declaredPcs,
-        leg = TransferLeg.QC_RAJUT_TO_FINISHING,
+        leg = SackRoute.QC_RAJUT_TO_FINISHING,
         status = status,
         dispatchWeightKg = WeightKg(8.40),
         dispatchScalePhotoKey = "uploads/timbang-dispatch.jpg",
@@ -33,8 +33,8 @@ class InternalTransferTest {
         approvedBy = if (status.sudahDisetujui) "Admin" else null,
         approvedAt = if (status.sudahDisetujui) now else null,
         approvalSignatureKey = if (status.sudahDisetujui) "{\"v\":1}" else null,
-        rejectedBy = if (status == TransferStatus.DITOLAK) "Admin" else null,
-        rejectReason = if (status == TransferStatus.DITOLAK) "isi tidak sesuai" else null,
+        rejectedBy = if (status == SackTransferStatus.DITOLAK) "Admin" else null,
+        rejectReason = if (status == SackTransferStatus.DITOLAK) "isi tidak sesuai" else null,
         createdAt = now,
         updatedAt = now
     )
@@ -49,7 +49,7 @@ class InternalTransferTest {
 
     @Test
     fun `approve transfer when already approved should throw exception`() {
-        val approved = aTransfer(status = TransferStatus.MENUNGGU_ACC)
+        val approved = aTransfer(status = SackTransferStatus.MENUNGGU_ACC)
             .approve("Admin", "{\"v\":1}", now)
 
         assertFailsWith<IllegalArgumentException> {
@@ -69,13 +69,13 @@ class InternalTransferTest {
         val rejected = aTransfer().reject("size campur", "Admin", now)
         val resubmitted = rejected.resubmit(WeightKg(8.40), "uploads/timbang-baru.jpg", "Rian", now)
 
-        assertEquals(TransferStatus.MENUNGGU_ACC, resubmitted.status)
+        assertEquals(SackTransferStatus.MENUNGGU_ACC, resubmitted.status)
         assertEquals(null, resubmitted.rejectReason)
     }
 
     @Test
     fun `receive transfer when pcs shortage should mark discrepancy`() {
-        val inTransit = aTransfer(status = TransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
+        val inTransit = aTransfer(status = SackTransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
         val received = inTransit.receive(
             proof = HandoverProof.ReceiverHandover(
                 receiverName = "Sugeng",
@@ -87,12 +87,12 @@ class InternalTransferTest {
             now = now
         )
 
-        assertEquals(TransferStatus.DITERIMA_SELISIH, received.status)
+        assertEquals(SackTransferStatus.DITERIMA_SELISIH, received.status)
     }
 
     @Test
     fun `receive transfer when everything matches should be accepted`() {
-        val inTransit = aTransfer(status = TransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
+        val inTransit = aTransfer(status = SackTransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
         val received = inTransit.receive(
             proof = HandoverProof.ReceiverHandover(
                 receiverName = "Sugeng",
@@ -104,12 +104,12 @@ class InternalTransferTest {
             now = now
         )
 
-        assertEquals(TransferStatus.DITERIMA, received.status)
+        assertEquals(SackTransferStatus.DITERIMA, received.status)
     }
 
     @Test
     fun `receive transfer without receiver signature should throw exception`() {
-        val inTransit = aTransfer(status = TransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
+        val inTransit = aTransfer(status = SackTransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
 
         assertFailsWith<IllegalArgumentException> {
             inTransit.receive(

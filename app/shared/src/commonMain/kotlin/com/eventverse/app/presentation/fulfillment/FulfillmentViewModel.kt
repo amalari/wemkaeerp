@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.TransferLeg
+import com.eventverse.app.domain.fulfillment.SackRoute
 
 data class FulfillmentUiState(
     val transfers: List<InternalTransfer> = emptyList(),
@@ -33,7 +33,7 @@ sealed interface FulfillmentUiEvent {
     data object DismissScan : FulfillmentUiEvent
     data class SubmitTransfer(
         val sackPayload: String,
-        val leg: TransferLeg,
+        val leg: SackRoute,
         val dispatchWeightKg: String,
         val dispatchScalePhotoKey: String,
         val requestedBy: String,

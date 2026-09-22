@@ -5,6 +5,7 @@ import com.eventverse.app.domain.costing.CostingRateCardRepository
 import com.eventverse.app.domain.costing.CostingSheetRepository
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.domain.deal.DealRepository
+import com.eventverse.app.domain.deal.storage.PoFileStorage
 import com.eventverse.app.domain.invoicing.InvoiceIssuerProfileRepository
 import com.eventverse.app.domain.invoicing.InvoicePaymentRepository
 import com.eventverse.app.domain.invoicing.InvoiceRepository
@@ -62,15 +63,29 @@ fun Route.operationalModuleRoutes(
     transferRepo: InternalTransferRepository,
     traceWorkOrderProvider: TraceWorkOrderProvider,
     knitWorksheetBuilder: KnitWorksheetBuilder,
-    traceScanHost: String
+    traceScanHost: String,
+    poFileStorage: PoFileStorage? = null
 ) {
     val tenantProcessCatalogRepository: com.eventverse.app.domain.process.TenantProcessCatalogRepository =
         com.eventverse.app.infrastructure.PostgresTenantProcessRepository()
 
+    // Dideklarasikan di sini, bukan di dekat rute Surat Jalan di bawah, karena gerbang
+    // perpindahan tahap pada samplingRoutes membutuhkan keduanya.
+    val suratJalanRepository: com.eventverse.app.domain.transfer.SuratJalanRepository =
+        com.eventverse.app.infrastructure.PostgresSuratJalanRepository()
+    val tenantLocationRepository: com.eventverse.app.domain.transfer.TenantLocationConfigRepository =
+        com.eventverse.app.infrastructure.PostgresTenantLocationRepository()
+    val flowLegsUseCase = com.eventverse.app.domain.transfer.usecases.GetFlowTransferLegsUseCase(
+        locationConfigRepository = tenantLocationRepository,
+        suratJalanRepository = suratJalanRepository
+    )
+
     samplingRoutes(
         repository = samplingOrderRepo,
         dealRepository = crmDealRepo,
-        processCatalogRepository = tenantProcessCatalogRepository
+        processCatalogRepository = tenantProcessCatalogRepository,
+        poFileStorage = poFileStorage,
+        flowLegsUseCase = flowLegsUseCase
     )
             productionRoutes(
                 workOrderRepository = bulkWorkOrderRepo,
@@ -136,8 +151,6 @@ fun Route.operationalModuleRoutes(
         com.eventverse.app.infrastructure.PostgresWorkDepositRepository()
     val reworkTicketRepository: com.eventverse.app.domain.workqueue.ReworkTicketRepository =
         com.eventverse.app.infrastructure.PostgresReworkTicketRepository()
-    val suratJalanRepository: com.eventverse.app.domain.transfer.SuratJalanRepository =
-        com.eventverse.app.infrastructure.PostgresSuratJalanRepository()
 
 
 
@@ -149,9 +162,16 @@ fun Route.operationalModuleRoutes(
 
     suratJalanRoutes(
         suratJalanRepository = suratJalanRepository,
-        cardRepository = workCardRepository
+        cardRepository = workCardRepository,
+        locationConfigRepository = tenantLocationRepository
     )
 
     tenantProcessRoutes(repository = tenantProcessCatalogRepository)
+
+    tenantLocationRoutes(
+        repository = tenantLocationRepository,
+        roleRepository = roleRepo,
+        moduleAssignmentRepository = assignmentRepo
+    )
 }
 

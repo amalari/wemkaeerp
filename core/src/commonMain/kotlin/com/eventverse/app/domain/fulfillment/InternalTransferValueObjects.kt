@@ -3,10 +3,10 @@ package com.eventverse.app.domain.fulfillment
 import kotlin.jvm.JvmInline
 
 @JvmInline
-value class TransferId(val value: String) {
+value class SackTransferId(val value: String) {
     init {
-        require(value.isNotBlank()) { "TransferId tidak boleh kosong" }
-        require(value.length <= 64) { "TransferId maksimal 64 karakter" }
+        require(value.isNotBlank()) { "SackTransferId tidak boleh kosong" }
+        require(value.length <= 64) { "SackTransferId maksimal 64 karakter" }
     }
 }
 
@@ -17,7 +17,7 @@ value class TransferId(val value: String) {
  * yang harus dijaga sinkron dengan Org Chart. Rute baru (mis. ke vendor rekanan) tinggal
  * ditambah di sini tanpa menyentuh mesin transfernya.
  */
-enum class TransferLeg(val displayName: String) {
+enum class SackRoute(val displayName: String) {
     QC_RAJUT_TO_FINISHING("QC Rajut ke Finishing"),
     FINISHING_TO_QC_FINISHING("Finishing ke QC Finishing")
 }
@@ -29,7 +29,7 @@ enum class TransferLeg(val displayName: String) {
  * dan lewat [resubmit] naik lagi — bukan hapus-buat-ulang, karena riwayat penolakan adalah
  * bagian dari pengawasan.
  */
-enum class TransferStatus(val displayName: String) {
+enum class SackTransferStatus(val displayName: String) {
     MENUNGGU_ACC("Menunggu ACC Admin"),
     DIANTAR("Diantar"),
     DITERIMA("Diterima"),

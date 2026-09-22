@@ -1,15 +1,12 @@
 package com.eventverse.app.presentation.sampling.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,29 +23,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.transfer.FlowLegView
+import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.workqueue.WorkStationCatalog
 import com.eventverse.app.domain.workqueue.WorkStationSpec
 import com.eventverse.app.presentation.designsystem.ClayBadge
-import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconChevronDown
-import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.sampling.ProcessFlowScope
 import com.eventverse.app.presentation.sampling.ProcessFlowUiEvent
 import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
@@ -65,13 +55,17 @@ private val ADJUSTABLE_STAGES = listOf(
     SamplingPipelineStage.IN_DELIVERY
 )
 
-private val GAP_SIZE = 28.dp
-
 /**
- * Panel "Adjust Flow" divisi sampling — flow wajib dirender sebagai kerangka, dan
- * divisi sampling bisa menyisipkan proses opsional (Bordir, Sablon, dst.) dua cara:
- * tombol `+` di celah mana pun, atau drag chip dari palet ke celah yang diinginkan.
- * Chip yang sudah terpasang juga bisa didrag ke celah lain untuk reposisi.
+ * Panel "Adjust Flow" divisi sampling.
+ *
+ * Perannya hanya **merakit**: kerangka tahap wajib, chip proses tersisip, celah di antaranya,
+ * dan palet di bawah. Yang merender masing-masing tinggal di berkasnya sendiri —
+ * [ProcessFlowChips], [ProcessFlowGap], [ProcessFlowInsertDialog].
+ *
+ * Celah antar chip berubah menjadi konektor pengiriman **dengan sendirinya** ketika perpindahan
+ * itu melintasi gedung atau keluar ke vendor. Tidak ada chip "Pengiriman" yang bisa diseret
+ * orang ke tempat yang salah: perpindahan adalah sifat sambungan, diturunkan dari konfigurasi
+ * lokasi, bukan simpul yang diketik.
  */
 @Composable
 fun ProcessFlowAdjusterPanel(
@@ -83,6 +77,10 @@ fun ProcessFlowAdjusterPanel(
     val dragState = rememberProcessFlowDragState()
     val available = availableTemplates(state.processes)
 
+    // Templat yang sedang ditanyakan "dikerjakan di mana", beserta celah tujuannya.
+    var pendingInsert by remember { mutableStateOf<Pair<WorkStationSpec, SamplingPipelineStage>?>(null) }
+    var inspectedLeg by remember { mutableStateOf<FlowLegView?>(null) }
+
     ClayCard(
         modifier = modifier
             .fillMaxWidth()
@@ -91,76 +89,13 @@ fun ProcessFlowAdjusterPanel(
         contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                    ) {
-                        Text(
-                            text = "ALUR PROSES",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        if (!hideScopeSelector) {
-                            FlowScopeSelector(
-                                currentScope = state.scope,
-                                availableOrders = state.availableOrders,
-                                onSelectScope = { viewModel.onEvent(ProcessFlowUiEvent.SelectScope(it)) }
-                            )
-                        }
-                        when (val currentScope = state.scope) {
-                            is ProcessFlowScope.DefaultTenant -> {
-                                ClayBadge(
-                                    text = "Template Default Pabrik",
-                                    tint = WeMadeColors.Primary
-                                )
-                            }
-                            is ProcessFlowScope.Design -> {
-                                if (state.isCustomFlow) {
-                                    ClayBadge(
-                                        text = "Alur Kustom Desain",
-                                        tint = WeMadeColors.Secondary
-                                    )
-                                    ClayButton(
-                                        text = "Reset ke Default",
-                                        onClick = { viewModel.onEvent(ProcessFlowUiEvent.ResetToDefault) },
-                                        style = ClayButtonStyle.Secondary,
-                                        fontSize = 10.sp,
-                                        contentPadding = PaddingValues(horizontal = ClaySpacing.Sm, vertical = 4.dp)
-                                    )
-                                } else {
-                                    ClayBadge(
-                                        text = "Mengikuti Alur Default",
-                                        tint = WeMadeColors.Success
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    val subtitle = when (val scope = state.scope) {
-                        is ProcessFlowScope.DefaultTenant ->
-                            "Mengatur alur template standar untuk seluruh artikel baru. Seret proses opsional ke celah flow."
-                        is ProcessFlowScope.Design ->
-                            "Menyesuaikan alur khusus untuk ${scope.spkNumber} (${scope.styleName}). Mengubah flow di sini tidak mempengaruhi alur default."
-                    }
-                    Text(
-                        text = subtitle,
-                        fontSize = 10.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-                if (state.error != null) {
-                    ClayBadge(text = state.error ?: "", tint = WeMadeColors.Error)
-                }
-            }
+            FlowPanelHeader(
+                state = state,
+                hideScopeSelector = hideScopeSelector,
+                onSelectScope = { viewModel.onEvent(ProcessFlowUiEvent.SelectScope(it)) },
+                onReset = { viewModel.onEvent(ProcessFlowUiEvent.ResetToDefault) }
+            )
 
-            // Baris flow: tahap wajib, chip proses tersisip, dan celah drop (+)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -170,67 +105,73 @@ fun ProcessFlowAdjusterPanel(
             ) {
                 ADJUSTABLE_STAGES.forEach { stage ->
                     StagePill(stage.displayName)
-                    state.processes
-                        .filter { it.samplingAnchorAfter == stage }
-                        .forEach { process ->
-                            PlacedProcessChip(
-                                process = process,
-                                dragState = dragState,
-                                onMove = { _, anchor ->
-                                    viewModel.onEvent(ProcessFlowUiEvent.MoveProcess(process.processId, anchor))
-                                },
-                                onRemove = {
-                                    viewModel.onEvent(ProcessFlowUiEvent.RemoveProcess(process.processId))
-                                }
-                            )
-                        }
-                    GapDropSlot(
+
+                    val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
+                    anchored.forEach { process ->
+                        PlacedProcessChip(
+                            process = process,
+                            dragState = dragState,
+                            onMove = { pid, anchor ->
+                                viewModel.onEvent(ProcessFlowUiEvent.MoveProcess(pid, anchor))
+                            },
+                            onRemove = {
+                                viewModel.onEvent(ProcessFlowUiEvent.RemoveProcess(process.processId))
+                            }
+                        )
+                    }
+
+                    // Celah berada setelah seluruh proses yang berjangkar di tahap ini, jadi
+                    // leg yang digambar di sini adalah yang berangkat dari simpul terakhir —
+                    // proses paling buncit bila ada, kalau tidak tahapnya sendiri.
+                    ProcessFlowGap(
                         anchor = stage,
+                        legs = state.legsLeaving(lastNodeAt(stage, anchored)),
                         dragState = dragState,
                         availableTemplates = available,
-                        onInsertFromMenu = { template ->
-                            viewModel.onEvent(
-                                ProcessFlowUiEvent.InsertProcess(template.code.value, template.displayName, stage)
-                            )
-                        }
+                        onInsertFromMenu = { template -> pendingInsert = template to stage },
+                        onLegClick = { inspectedLeg = it }
                     )
                 }
             }
 
-            // Palet: template opsional yang belum terpasang — bisa didrag ke celah mana pun
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "PALET OPSIONAL",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-                if (available.isEmpty()) {
-                    Text(
-                        text = "Semua proses opsional sudah terpasang di flow",
-                        fontSize = 10.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                } else {
-                    available.forEach { template ->
-                        PaletteChip(
-                            template = template,
-                            dragState = dragState,
-                            onInsert = { anchor ->
-                                viewModel.onEvent(
-                                    ProcessFlowUiEvent.InsertProcess(template.code.value, template.displayName, anchor)
-                                )
-                            }
-                        )
-                    }
-                }
-            }
+            FlowPalette(
+                available = available,
+                dragState = dragState,
+                onInsert = { template, anchor -> pendingInsert = template to anchor }
+            )
         }
     }
+
+    pendingInsert?.let { (template, anchor) ->
+        ProcessFlowInsertDialog(
+            template = template,
+            onDismiss = { pendingInsert = null },
+            onConfirm = { mode, vendorRef ->
+                pendingInsert = null
+                viewModel.onEvent(
+                    ProcessFlowUiEvent.InsertProcess(
+                        code = template.code.value,
+                        displayName = template.displayName,
+                        anchorAfter = anchor,
+                        executionMode = mode,
+                        vendorRef = vendorRef
+                    )
+                )
+            }
+        )
+    }
+
+    inspectedLeg?.let { view ->
+        TransferLegDetailDialog(view = view, onDismiss = { inspectedLeg = null })
+    }
 }
+
+/** Simpul terakhir sebelum celah: proses paling buncit di tahap ini, atau tahapnya sendiri. */
+private fun lastNodeAt(
+    stage: SamplingPipelineStage,
+    anchored: List<TenantOptionalProcess>
+): FlowNodeRef =
+    anchored.lastOrNull()?.let { FlowNodeRef.Process(it.code) } ?: FlowNodeRef.Stage(stage)
 
 private fun availableTemplates(placed: List<TenantOptionalProcess>): List<WorkStationSpec> {
     val placedCodes = placed.map { it.code }.toSet()
@@ -238,168 +179,104 @@ private fun availableTemplates(placed: List<TenantOptionalProcess>): List<WorkSt
 }
 
 @Composable
-private fun StagePill(label: String) {
-    Box(
-        modifier = Modifier.clayFlat(
-            shape = ClayShapes.Chip,
-            background = WeMadeColors.SurfaceMuted,
-            outline = WeMadeColors.Outline
-        )
-    ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface,
-            modifier = Modifier.padding(horizontal = ClaySpacing.Sm, vertical = 6.dp)
-        )
-    }
-}
-
-/** Celah antar tahap: klik `+` untuk menu sisip, atau target drop saat drag chip. */
-@Composable
-private fun GapDropSlot(
-    anchor: SamplingPipelineStage,
-    dragState: ProcessFlowDragState,
-    availableTemplates: List<WorkStationSpec>,
-    onInsertFromMenu: (WorkStationSpec) -> Unit
+private fun FlowPanelHeader(
+    state: com.eventverse.app.presentation.sampling.ProcessFlowUiState,
+    hideScopeSelector: Boolean,
+    onSelectScope: (ProcessFlowScope) -> Unit,
+    onReset: () -> Unit
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-    val isHovered = dragState.hoveredGap == anchor
-
-    Box(
-        modifier = Modifier
-            .size(GAP_SIZE)
-            .onGloballyPositioned { coordinates ->
-                dragState.registerGap(anchor, Rect(coordinates.positionInWindow(), coordinates.size.toSize()))
-            }
-            .clayFlat(
-                shape = ClayShapes.Chip,
-                background = if (isHovered) WeMadeColors.PrimaryContainer else WeMadeColors.SurfaceMuted,
-                outline = if (isHovered) WeMadeColors.Primary else WeMadeColors.OutlineSoft
-            )
-            .clickable { menuOpen = true },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "+",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isHovered) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
-        )
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            if (availableTemplates.isEmpty()) {
-                DropdownMenuItem(text = { Text("Tidak ada proses tersisa", fontSize = 11.sp) }, onClick = {})
-            } else {
-                availableTemplates.forEach { template ->
-                    DropdownMenuItem(
-                        text = { Text(template.displayName, fontSize = 12.sp) },
-                        onClick = {
-                            menuOpen = false
-                            onInsertFromMenu(template)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlacedProcessChip(
-    process: TenantOptionalProcess,
-    dragState: ProcessFlowDragState,
-    onMove: (processId: String, anchor: SamplingPipelineStage) -> Unit,
-    onRemove: () -> Unit
-) {
-    DraggableChipFrame(
-        processId = process.processId,
-        templateCode = null,
-        dragState = dragState,
-        onDrop = { pid, _, anchor -> if (pid != null) onMove(pid, anchor) }
-    ) {
-        ClayBadge(
-            text = process.displayName,
-            tint = WeMadeColors.Accent,
-            trailing = {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(ClayShapes.Chip)
-                        .background(WeMadeColors.OutlineSoft)
-                        .clickable(onClick = onRemove),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "x", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun PaletteChip(
-    template: WorkStationSpec,
-    dragState: ProcessFlowDragState,
-    onInsert: (anchor: SamplingPipelineStage) -> Unit
-) {
-    DraggableChipFrame(
-        processId = null,
-        templateCode = template.code.value,
-        dragState = dragState,
-        onDrop = { _, templateCode, anchor ->
-            if (templateCode != null) onInsert(anchor)
-        }
-    ) {
-        ClayBadge(text = template.displayName, tint = WeMadeColors.Primary)
-    }
-}
-
-/**
- * Bingkai chip yang bisa didrag: mencatat posisi window chip, mengalirkan gesture
- * drag ke [ProcessFlowDragState], dan melakukan commit drop lewat [onDrop] hanya
- * bila chip dilepas di atas celah sah.
- */
-@Composable
-private fun DraggableChipFrame(
-    processId: String?,
-    templateCode: String?,
-    dragState: ProcessFlowDragState,
-    onDrop: (processId: String?, templateCode: String?, anchor: SamplingPipelineStage) -> Unit,
-    content: @Composable RowScope.() -> Unit
-) {
-    var chipWindowPos by remember { mutableStateOf(Offset.Zero) }
     Row(
-        modifier = Modifier
-            .onGloballyPositioned { chipWindowPos = it.positionInWindow() }
-            .pointerInput(processId, templateCode) {
-                detectDragGestures(
-                    onDragStart = { local ->
-                        dragState.onDragStart(processId, templateCode, chipWindowPos + local)
-                    },
-                    onDrag = { change, amount ->
-                        if (dragState.isDragging) {
-                            change.consume()
-                            dragState.onDrag(amount)
-                        }
-                    },
-                    onDragEnd = {
-                        dragState.onDragEnd { pid, tcode, anchor ->
-                            if (anchor != null) onDrop(pid, tcode, anchor)
-                        }
-                    },
-                    onDragCancel = { dragState.onDragCancel() }
-                )
-            },
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        content()
+        Column(modifier = Modifier.weight(1f, fill = false)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                Text(
+                    text = "ALUR PROSES",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                if (!hideScopeSelector) {
+                    FlowScopeSelector(
+                        currentScope = state.scope,
+                        availableOrders = state.availableOrders,
+                        onSelectScope = onSelectScope
+                    )
+                }
+                when (val currentScope = state.scope) {
+                    is ProcessFlowScope.DefaultTenant ->
+                        ClayBadge(text = "Template Default Pabrik", tint = WeMadeColors.Primary)
+                    is ProcessFlowScope.Design -> {
+                        if (state.isCustomFlow) {
+                            ClayBadge(text = "Alur Kustom Desain", tint = WeMadeColors.Accent)
+                            ClayButton(
+                                text = "Reset ke Default",
+                                style = ClayButtonStyle.Secondary,
+                                onClick = onReset
+                            )
+                        } else {
+                            ClayBadge(text = "Mengikuti Alur Default", tint = WeMadeColors.Success)
+                        }
+                        Unit
+                    }
+                }
+            }
+            when (val currentScope = state.scope) {
+                is ProcessFlowScope.Design -> Text(
+                    text = "Menyesuaikan alur khusus untuk ${currentScope.spkNumber} " +
+                        "(${currentScope.styleName}). Mengubah flow di sini tidak mempengaruhi alur default.",
+                    fontSize = 10.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                is ProcessFlowScope.DefaultTenant -> Unit
+            }
+        }
+        state.error?.let { message ->
+            ClayBadge(text = message, tint = WeMadeColors.Error)
+        }
     }
 }
 
-/**
- * Komponen pemilih ruang lingkup flow: Template Default Pabrik atau Alur Kustom per SPK/Desain.
- */
+@Composable
+private fun FlowPalette(
+    available: List<WorkStationSpec>,
+    dragState: ProcessFlowDragState,
+    onInsert: (WorkStationSpec, SamplingPipelineStage) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "PALET OPSIONAL",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = WeMadeColors.OnSurfaceMuted
+        )
+        if (available.isEmpty()) {
+            Text(
+                text = "Semua proses opsional sudah terpasang di flow",
+                fontSize = 10.sp,
+                color = WeMadeColors.OnSurfaceMuted
+            )
+        } else {
+            available.forEach { template ->
+                PaletteChip(
+                    template = template,
+                    dragState = dragState,
+                    onInsert = { anchor -> onInsert(template, anchor) }
+                )
+            }
+        }
+    }
+}
+
+/** Pemilih ruang lingkup flow: Template Default Pabrik atau Alur Kustom per SPK/Desain. */
 @Composable
 private fun FlowScopeSelector(
     currentScope: ProcessFlowScope,
@@ -428,22 +305,20 @@ private fun FlowScopeSelector(
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.Primary
             )
-            IconChevronDown(
-                color = WeMadeColors.Primary,
-                modifier = Modifier.size(12.dp)
-            )
+            IconChevronDown(color = WeMadeColors.Primary, modifier = Modifier.size(12.dp))
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = {
                     Text(
                         text = "Template Default Pabrik",
                         fontSize = 12.sp,
-                        fontWeight = if (currentScope is ProcessFlowScope.DefaultTenant) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (currentScope is ProcessFlowScope.DefaultTenant) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
+                        }
                     )
                 },
                 onClick = {
@@ -451,29 +326,28 @@ private fun FlowScopeSelector(
                     expanded = false
                 }
             )
-            if (availableOrders.isNotEmpty()) {
-                availableOrders.forEach { item ->
-                    val isSelected = currentScope is ProcessFlowScope.Design && currentScope.orderId == item.orderId
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = "${item.spkNumber} • ${item.styleName}",
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            availableOrders.forEach { item ->
+                val isSelected = currentScope is ProcessFlowScope.Design &&
+                    currentScope.orderId == item.orderId
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "${item.spkNumber} • ${item.styleName}",
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        onSelectScope(
+                            ProcessFlowScope.Design(
+                                orderId = item.orderId,
+                                styleName = item.styleName,
+                                spkNumber = item.spkNumber
                             )
-                        },
-                        onClick = {
-                            onSelectScope(
-                                ProcessFlowScope.Design(
-                                    orderId = item.orderId,
-                                    styleName = item.styleName,
-                                    spkNumber = item.spkNumber
-                                )
-                            )
-                            expanded = false
-                        }
-                    )
-                }
+                        )
+                        expanded = false
+                    }
+                )
             }
         }
     }

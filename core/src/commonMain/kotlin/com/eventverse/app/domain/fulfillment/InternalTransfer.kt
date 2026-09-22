@@ -17,17 +17,32 @@ import kotlinx.datetime.Instant
  * - Pengajuan wajib punya berat + foto timbangan dispatch — timbang dulu, foto, baru ajukan.
  * - Status diterima wajib punya [HandoverProof] lengkap — foto adalah bukti utama; angka
  *   ketikan hanya keterangan pelengkap untuk pencocokan otomatis.
+ *
+ * ## Pembagian tugas dengan [com.eventverse.app.domain.transfer.SuratJalanManifest]
+ *
+ * Keduanya mencatat barang berpindah, tapi menjawab pertanyaan yang berbeda dan **tidak boleh
+ * disatukan**: satuan hitungnya berbeda (karung berkilogram vs bundel/karton/pcs), dan disiplin
+ * buktinya bertentangan — di sini foto timbangan wajib sebelum boleh diajukan, sedangkan
+ * `SuratJalanManifest.dispatch()` hanya menuntut item tidak kosong. Menyatukannya memaksa salah
+ * satu invarian dilemahkan, dan yang dilemahkan selalu yang lebih ketat.
+ *
+ * Aturannya:
+ * - **Surat Jalan diterbitkan per-leg** — satu dokumen sah untuk barang yang keluar gedung.
+ * - **Perjalanan karung ini diterbitkan per-karung di dalam leg itu.**
+ * - Untuk tenant multi-gedung, penerbitan Surat Jalan sebuah leg *mengumpulkan* karung yang
+ *   sudah ber-ACC sebagai itemnya — operator tidak mengetik ulang kuantitas.
+ * - Untuk tenant satu atap, perjalanan karung berdiri sendiri tanpa Surat Jalan.
  */
 data class InternalTransfer(
-    val id: TransferId,
+    val id: SackTransferId,
     val tenantId: TenantId,
     val sackCode: TraceCode,
     val workOrder: TraceWorkOrderRef? = null,
     val sizeLabel: String,
     val colorway: String = "",
     val declaredPcs: Int,
-    val leg: TransferLeg,
-    val status: TransferStatus = TransferStatus.MENUNGGU_ACC,
+    val leg: SackRoute,
+    val status: SackTransferStatus = SackTransferStatus.MENUNGGU_ACC,
 
     /** Bukti dispatch — diisi sejak pengajuan: timbang dulu, foto, baru ajukan. */
     val dispatchWeightKg: WeightKg,
@@ -67,7 +82,7 @@ data class InternalTransfer(
             requireNotNull(handover) { "Karung berstatus ${status.displayName} wajib punya bukti serah terima" }
             requireNotNull(receivedAt) { "Waktu diterima wajib dicatat" }
         }
-        if (status == TransferStatus.DITOLAK) {
+        if (status == SackTransferStatus.DITOLAK) {
             require(!rejectReason.isNullOrBlank()) { "Penolakan tanpa alasan tidak bisa diaudit" }
             requireNotNull(rejectedBy) { "Penolakan wajib mencatat siapa yang menolak" }
         }
@@ -82,13 +97,13 @@ data class InternalTransfer(
      * dibedakan dari penerimaan barang saat selisih kuantitas diselidiki.
      */
     fun approve(approverName: String, signatureKey: String, now: Instant): InternalTransfer {
-        require(status == TransferStatus.MENUNGGU_ACC) {
+        require(status == SackTransferStatus.MENUNGGU_ACC) {
             "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa di-ACC"
         }
         require(approverName.isNotBlank()) { "Nama penyetuju wajib dicatat" }
         require(signatureKey.isNotBlank()) { "ACC wajib ditandatangani" }
         return copy(
-            status = TransferStatus.DIANTAR,
+            status = SackTransferStatus.DIANTAR,
             approvedBy = approverName,
             approvedAt = now,
             approvalSignatureKey = signatureKey,
@@ -99,13 +114,13 @@ data class InternalTransfer(
 
     /** Menolak pengajuan — alasan wajib, karena inilah yang dibaca saat karung diperiksa ulang. */
     fun reject(reason: String, approverName: String, now: Instant): InternalTransfer {
-        require(status == TransferStatus.MENUNGGU_ACC) {
+        require(status == SackTransferStatus.MENUNGGU_ACC) {
             "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa ditolak"
         }
         require(reason.isNotBlank()) { "Alasan penolakan wajib diisi" }
         require(approverName.isNotBlank()) { "Nama penolak wajib dicatat" }
         return copy(
-            status = TransferStatus.DITOLAK,
+            status = SackTransferStatus.DITOLAK,
             rejectedBy = approverName,
             rejectReason = reason,
             updatedAt = now
@@ -122,14 +137,14 @@ data class InternalTransfer(
         requestedBy: String,
         now: Instant
     ): InternalTransfer {
-        require(status == TransferStatus.DITOLAK) {
+        require(status == SackTransferStatus.DITOLAK) {
             "Hanya karung yang ditolak bisa diajukan ulang — $humanCode berstatus ${status.displayName}"
         }
         require(dispatchWeightKg.value > 0.0) { "Timbang ulang karung sebelum mengajukan lagi" }
         require(dispatchScalePhotoKey.isNotBlank()) { "Foto timbangan terbaru wajib ada" }
         require(requestedBy.isNotBlank()) { "Nama pengirim wajib dicatat" }
         return copy(
-            status = TransferStatus.MENUNGGU_ACC,
+            status = SackTransferStatus.MENUNGGU_ACC,
             dispatchWeightKg = dispatchWeightKg,
             dispatchScalePhotoKey = dispatchScalePhotoKey,
             requestedBy = requestedBy,
@@ -153,7 +168,7 @@ data class InternalTransfer(
         receivedPcs: Int?,
         now: Instant
     ): InternalTransfer {
-        require(status == TransferStatus.DIANTAR) {
+        require(status == SackTransferStatus.DIANTAR) {
             "Karung $humanCode berstatus ${status.displayName} — yang bisa diterima hanya karung yang sedang diantar"
         }
         when (proof) {
@@ -179,7 +194,7 @@ data class InternalTransfer(
             (dispatchWeightKg.value - referenceWeight.value) > WEIGHT_TOLERANCE_KG
 
         return copy(
-            status = if (pcsBeda || beratBeda) TransferStatus.DITERIMA_SELISIH else TransferStatus.DITERIMA,
+            status = if (pcsBeda || beratBeda) SackTransferStatus.DITERIMA_SELISIH else SackTransferStatus.DITERIMA,
             handover = proof,
             receivedWeightKg = when (proof) {
                 is HandoverProof.ReceiverHandover -> receivedWeightKg

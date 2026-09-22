@@ -4,8 +4,15 @@ import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.domain.transfer.FlowLegView
+import com.eventverse.app.domain.transfer.FlowNodeRef
+import com.eventverse.app.domain.workqueue.WorkExecutionMode
+import com.eventverse.app.domain.workqueue.WorkStationCatalog
+import com.eventverse.app.domain.workqueue.WorkStationCode
+import com.eventverse.app.domain.workqueue.WorkStationSpec
 import com.eventverse.app.infrastructure.api.ProcessCatalogApiClient
 import com.eventverse.app.infrastructure.api.ProcessCatalogRemoteDataSource
+import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,21 +46,44 @@ data class ProcessFlowUiState(
     val scope: ProcessFlowScope = ProcessFlowScope.DefaultTenant,
     val isCustomFlow: Boolean = false,
     val processes: List<TenantOptionalProcess> = emptyList(),
+    /**
+     * Perpindahan barang yang tersirat di alur ini. Kosong untuk pabrik satu atap tanpa
+     * makloon — dan itu kasus yang paling sering, jadi panel harus terlihat persis seperti
+     * sebelum fitur ini ada ketika daftarnya kosong.
+     */
+    val legs: List<FlowLegView> = emptyList(),
     val availableOrders: List<SamplingOrderScopeItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
-)
+) {
+    /**
+     * Leg yang berangkat dari sebuah simpul — inilah yang digambar di celah setelahnya.
+     *
+     * Dikunci pada simpul asal, bukan tujuan, karena celah di panel memang berada sesudah
+     * chip asalnya.
+     */
+    fun legsLeaving(node: FlowNodeRef): List<FlowLegView> = legs.filter { it.leg.fromNode == node }
+}
 
 sealed interface ProcessFlowUiEvent {
     data object Load : ProcessFlowUiEvent
     data class SetAvailableOrders(val orders: List<SamplingOrderScopeItem>) : ProcessFlowUiEvent
     data class SelectScope(val scope: ProcessFlowScope) : ProcessFlowUiEvent
 
-    /** Sisipkan proses baru (dari palet) di celah setelah tahap [anchorAfter]. */
+    /**
+     * Sisipkan proses baru (dari palet) di celah setelah tahap [anchorAfter].
+     *
+     * [executionMode] dan [vendorRef] adalah *di mana* proses itu dikerjakan. Templat di
+     * `WorkStationCatalog` tidak bisa memutuskannya — Bordir Komputer bisa in-house di satu
+     * pabrik dan makloon di pabrik lain — jadi pemanggil yang menentukannya. Default
+     * `IN_HOUSE` menjaga perilaku lama untuk pemanggil yang belum menanyakannya.
+     */
     data class InsertProcess(
         val code: String,
         val displayName: String,
-        val anchorAfter: SamplingPipelineStage
+        val anchorAfter: SamplingPipelineStage,
+        val executionMode: WorkExecutionMode = WorkExecutionMode.IN_HOUSE,
+        val vendorRef: String? = null
     ) : ProcessFlowUiEvent
 
     /** Pindahkan posisi proses (drag-and-drop antar celah). */
@@ -80,6 +110,18 @@ class ProcessFlowViewModel(
 ) {
     private val _uiState = MutableStateFlow(ProcessFlowUiState())
     val uiState: StateFlow<ProcessFlowUiState> = _uiState.asStateFlow()
+
+    /**
+     * Tenant untuk membangun [TenantOptionalProcess] di sisi klien pada jalur per-desain.
+     *
+     * Server tetap menimpanya dengan tenant dari sesi saat decode
+     * (`ProcessCatalogCodec.decodeProcesses(items, tenant.tenantId)`), jadi nilai ini tidak
+     * pernah menjadi sumber kebenaran. Tapi ia harus sah: [TenantId] menolak string kosong,
+     * dan konstruktor entity dievaluasi sebelum request dikirim — sebelumnya di sini ada
+     * `TenantId("")` yang membuat penyisipan proses di alur per-desain selalu melempar.
+     */
+    private val clientTenantId: TenantId
+        get() = TenantId(StoredTenantSlugProvider.currentTenantSlug() ?: "demo-tenant")
 
     init {
         loadCurrentScope()
@@ -124,6 +166,7 @@ class ProcessFlowViewModel(
                                     isLoading = false
                                 )
                             }
+                            refreshLegs(currentScope.orderId)
                         }
                         .onFailure { setError(it) }
                 }
@@ -137,21 +180,34 @@ class ProcessFlowViewModel(
             setBusy()
             when (currentScope) {
                 is ProcessFlowScope.DefaultTenant -> {
+                    val template = templateFor(event.code)
                     remote.addProcess(
                         code = event.code,
                         displayName = event.displayName,
-                        anchorAfter = event.anchorAfter
+                        anchorAfter = event.anchorAfter,
+                        executionMode = event.executionMode,
+                        vendorRef = event.vendorRef,
+                        piecerateTariffIdr = template?.piecerateTariffIdr ?: 0L,
+                        standardMinutesPerPiece = template?.standardMinutesPerPiece ?: 0.0
                     ).onSuccess { loadCurrentScope() }
                         .onFailure { setError(it) }
                 }
                 is ProcessFlowScope.Design -> {
+                    val template = templateFor(event.code)
                     val newProc = TenantOptionalProcess(
                         processId = "proc-${event.code.lowercase()}",
-                        tenantId = TenantId(""),
+                        tenantId = clientTenantId,
                         code = event.code,
                         displayName = event.displayName,
-                        archetype = ModuleArchetype.CUSTOM_EXTENSION,
-                        samplingAnchorAfter = event.anchorAfter
+                        // Archetype asli templat, bukan CUSTOM_EXTENSION untuk semuanya:
+                        // Laundry misalnya ber-archetype FINISHING, dan menyeragamkannya
+                        // membuat proses itu tidak lagi sepadan dengan slot finishing.
+                        archetype = template?.archetype ?: ModuleArchetype.CUSTOM_EXTENSION,
+                        samplingAnchorAfter = event.anchorAfter,
+                        executionMode = event.executionMode,
+                        vendorRef = event.vendorRef,
+                        piecerateTariffIdr = template?.piecerateTariffIdr ?: 0L,
+                        standardMinutesPerPiece = template?.standardMinutesPerPiece ?: 0.0
                     )
                     val updatedList = _uiState.value.processes.filterNot { it.code == event.code } + newProc
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
@@ -159,6 +215,7 @@ class ProcessFlowViewModel(
                             _uiState.update {
                                 it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
                             }
+                            refreshLegs(currentScope.orderId)
                         }
                         .onFailure { setError(it) }
                 }
@@ -185,6 +242,7 @@ class ProcessFlowViewModel(
                             _uiState.update {
                                 it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
                             }
+                            refreshLegs(currentScope.orderId)
                         }
                         .onFailure { setError(it) }
                 }
@@ -209,6 +267,7 @@ class ProcessFlowViewModel(
                             _uiState.update {
                                 it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
                             }
+                            refreshLegs(currentScope.orderId)
                         }
                         .onFailure { setError(it) }
                 }
@@ -225,9 +284,30 @@ class ProcessFlowViewModel(
                     _uiState.update {
                         it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
                     }
+                    refreshLegs(currentScope.orderId)
                 }
                 .onFailure { setError(it) }
         }
+    }
+
+    /**
+     * Templat stasiun opsional untuk sebuah kode proses, sumber archetype dan tarif bawaan.
+     * `null` untuk proses yang tenant definisikan sendiri di luar katalog bawaan.
+     */
+    private fun templateFor(code: String): WorkStationSpec? =
+        WorkStationCatalog.optionalStations().firstOrNull { it.code == WorkStationCode(code) }
+
+    /**
+     * Memuat ulang konektor setelah alur berubah.
+     *
+     * Kegagalannya sengaja tidak dinaikkan menjadi error layar: alurnya sendiri sudah tersimpan,
+     * dan menampilkan pesan merah untuk konektor yang gagal dimuat akan membuat operator mengira
+     * pekerjaannya batal. Konektor hilang sementara lebih jujur daripada kesalahan palsu.
+     */
+    private suspend fun refreshLegs(orderId: String) {
+        remote.fetchFlowLegs(orderId)
+            .onSuccess { board -> _uiState.update { it.copy(legs = board.legs) } }
+            .onFailure { _uiState.update { state -> state.copy(legs = emptyList()) } }
     }
 
     private fun setBusy() = _uiState.update { it.copy(isLoading = true, error = null) }

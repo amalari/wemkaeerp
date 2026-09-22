@@ -2,8 +2,8 @@ package com.eventverse.app.domain.fulfillment.usecases
 
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
-import com.eventverse.app.domain.fulfillment.TransferId
-import com.eventverse.app.domain.fulfillment.TransferLeg
+import com.eventverse.app.domain.fulfillment.SackTransferId
+import com.eventverse.app.domain.fulfillment.SackRoute
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.TraceCodec
@@ -24,7 +24,7 @@ class SubmitTransferUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         rawSackPayload: String,
-        leg: TransferLeg,
+        leg: SackRoute,
         dispatchWeightKg: WeightKg,
         dispatchScalePhotoKey: String,
         requestedBy: String,
@@ -44,7 +44,7 @@ class SubmitTransferUseCase(
         }
 
         val transfer = InternalTransfer(
-            id = TransferId("trf_${code.value}_${now.toEpochMilliseconds()}"),
+            id = SackTransferId("trf_${code.value}_${now.toEpochMilliseconds()}"),
             tenantId = tenantId,
             sackCode = code,
             workOrder = sack.workOrder,
@@ -72,7 +72,7 @@ class ResubmitTransferUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         dispatchWeightKg: WeightKg,
         dispatchScalePhotoKey: String,
         requestedBy: String,
@@ -98,7 +98,7 @@ class ApproveTransferUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         approverName: String,
         signatureKey: String,
         now: Instant
@@ -118,7 +118,7 @@ class RejectTransferUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         reason: String,
         rejectedBy: String,
         now: Instant
@@ -138,7 +138,7 @@ class ListTransfersUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        statuses: Set<com.eventverse.app.domain.fulfillment.TransferStatus> = emptySet()
+        statuses: Set<com.eventverse.app.domain.fulfillment.SackTransferStatus> = emptySet()
     ): Result<List<InternalTransfer>> = runCatching {
         val all = transfers.findAll(tenantId).sortedByDescending { it.requestedAt }
         if (statuses.isEmpty()) all else all.filter { it.status in statuses }

@@ -2,7 +2,7 @@ package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.TransferLeg
+import com.eventverse.app.domain.fulfillment.SackRoute
 import com.eventverse.app.shared.fulfillment.InternalTransferCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -20,7 +20,7 @@ interface FulfillmentTransferRemoteDataSource {
     suspend fun submit(
         tenantSlug: String,
         sackPayload: String,
-        leg: TransferLeg,
+        leg: SackRoute,
         dispatchWeightKg: String,
         dispatchScalePhotoKey: String,
         requestedBy: String,
@@ -89,7 +89,7 @@ class FulfillmentTransferApiClient(
     override suspend fun submit(
         tenantSlug: String,
         sackPayload: String,
-        leg: TransferLeg,
+        leg: SackRoute,
         dispatchWeightKg: String,
         dispatchScalePhotoKey: String,
         requestedBy: String,

@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.transfer
 
 import com.eventverse.app.domain.workqueue.WorkCardId
+import com.eventverse.app.domain.workqueue.WorkSubjectKind
 import com.eventverse.app.domain.workqueue.WorkSubjectRef
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -28,6 +29,17 @@ data class SuratJalanItem(
  * - Pada [TransferType.INTERNAL_SITE_TRANSFER]: Mempertahankan rincian tiket bundle individual ([bundleNo]).
  * - Pada [TransferType.SUBCONTRACT_OUTBOUND]: Mengunci vendor rekanan, ongkos jasa makloon, dan SLA tanggal kembali.
  * - Pada [TransferType.CUSTOMER_DISPATCH]: Mendukung pengiriman bertahap berbasis nomor kardus/karung ([cartonId]).
+ *
+ * ## Pembagian tugas dengan [com.eventverse.app.domain.fulfillment.InternalTransfer]
+ *
+ * Agregat ini adalah **dokumen lintas batas**: bukti sah yang menyertai barang keluar gedung
+ * atau keluar pabrik, dihitung per bundel/karton/pcs. `InternalTransfer` adalah **perjalanan
+ * satu karung** di dalamnya, dihitung per kilogram dengan foto timbangan dan tanda tangan.
+ * Keduanya sengaja tidak disatukan — lihat KDoc di sana untuk alasannya.
+ *
+ * Aturannya: **Surat Jalan per-leg, perjalanan karung per-karung di dalam leg.** Untuk tenant
+ * multi-gedung, penerbitan Surat Jalan mengumpulkan karung yang sudah ber-ACC sebagai itemnya
+ * alih-alih meminta operator mengetik ulang kuantitas.
  */
 data class SuratJalanManifest(
     val id: SuratJalanId,
@@ -44,6 +56,17 @@ data class SuratJalanManifest(
     val driverName: String? = null,
     val vehiclePlate: String? = null,
     val status: TransferStatus = TransferStatus.DRAFT,
+    /**
+     * Leg alur yang dokumen ini layani, bila diterbitkan dari panel alur.
+     *
+     * Ini jembatan ke [FlowTransferLeg.legKey]. Tanpanya, status sebuah leg hanya bisa dicari
+     * dengan mencocokkan tuple asal/tujuan — yang langsung ambigu begitu satu SPK melewati
+     * gedung yang sama dua kali, atau memakai vendor yang sama untuk dua proses.
+     *
+     * `null` untuk dokumen yang diterbitkan manual dari workspace Surat Jalan, dan untuk
+     * seluruh dokumen yang terbit sebelum kolom ini ada.
+     */
+    val legKey: String? = null,
     val items: List<SuratJalanItem> = emptyList(),
     val unitServiceFeeIdr: Long = 0L,
     val expectedReturnDate: LocalDate? = null,
@@ -61,8 +84,20 @@ data class SuratJalanManifest(
                 require(originLocationId != destinationLocationId) {
                     "Internal transfer origin and destination must be different physical locations"
                 }
-                require(items.all { it.bundleNo != null }) {
-                    "Internal transfer must preserve individual bundle numbers for all items"
+                // Identitas bundle wajib diteruskan pada produksi masal: tanpa nomor bundle,
+                // operator di gedung tujuan tidak tahu ikatan mana milik siapa dan upah
+                // borongannya tidak bisa dihitung.
+                //
+                // SPK sampling dikecualikan karena di sana bundle memang tidak pernah ada.
+                // Sampel berjumlah beberapa potong dan tidak melewati meja potong yang
+                // menerbitkan WorkCard, jadi menuntut nomor bundle berarti menuntut sesuatu
+                // yang secara struktural mustahil dipenuhi — dan efeknya bukan data yang lebih
+                // rapi, melainkan mutasi antar-gedung untuk sampel tidak bisa dicatat sama
+                // sekali.
+                if (subject.kind != WorkSubjectKind.SAMPLING_ORDER) {
+                    require(items.all { it.bundleNo != null }) {
+                        "Internal transfer must preserve individual bundle numbers for all items"
+                    }
                 }
             }
             TransferType.SUBCONTRACT_OUTBOUND -> {

@@ -40,6 +40,9 @@ object SuratJalanManifestsTable : Table("surat_jalan_manifests") {
     val driverName = varchar("driver_name", 100).nullable()
     val vehiclePlate = varchar("vehicle_plate", 50).nullable()
     val status = varchar("status", 30).default("DRAFT")
+
+    /** Leg alur yang dokumen ini layani. NULL untuk penerbitan manual. Cermin V58. */
+    val legKey = varchar("leg_key", 120).nullable()
     val unitServiceFeeIdr = long("unit_service_fee_idr").default(0L)
     val expectedReturnDate = date("expected_return_date").nullable()
     val dispatchedAt = timestamp("dispatched_at").nullable()
@@ -64,4 +67,32 @@ object SuratJalanItemsTable : Table("surat_jalan_items") {
     val notes = text("notes").default("")
 
     override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Saklar lokasi per tenant. Cermin V59.
+ */
+object TenantLocationSettingsTable : Table("tenant_location_settings") {
+    val tenantId = varchar("tenant_id", 64)
+    val isMultiSiteEnabled = bool("is_multi_site_enabled").default(false)
+    val requireCustomerDispatchSj = bool("require_customer_dispatch_sj").default(true)
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId)
+}
+
+/**
+ * Pemetaan simpul alur ke gedung tempatnya dikerjakan. Cermin V59.
+ *
+ * Satu tabel untuk ketiga lapisan alur ([nodeKind] = STAGE / PROC / STATION), bukan satu tabel
+ * per lapisan — lihat KDoc `FlowNodeRef` untuk alasannya.
+ */
+object TenantFlowNodeLocationsTable : Table("tenant_flow_node_locations") {
+    val tenantId = varchar("tenant_id", 64)
+    val nodeKind = varchar("node_kind", 16)
+    val nodeKey = varchar("node_key", 64)
+    val locationId = varchar("location_id", 64).references(TenantLocationsTable.id)
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId, nodeKind, nodeKey)
 }

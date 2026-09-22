@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.fulfillment.HandoverProof
-import com.eventverse.app.domain.fulfillment.TransferLeg
+import com.eventverse.app.domain.fulfillment.SackRoute
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import androidx.compose.material3.HorizontalDivider
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -77,11 +77,11 @@ internal fun EvidencePhotoField(
 internal fun SubmitSackForm(
     sackPayload: String,
     isSubmitting: Boolean,
-    onSubmit: (leg: TransferLeg, weight: String, photoKey: String, requestedBy: String) -> Unit,
+    onSubmit: (leg: SackRoute, weight: String, photoKey: String, requestedBy: String) -> Unit,
     onUploadEvidence: (fileName: String, mimeType: String, bytes: ByteArray, onDone: (Result<String>) -> Unit) -> Unit,
     onCancel: () -> Unit
 ) {
-    var leg by remember { mutableStateOf(TransferLeg.QC_RAJUT_TO_FINISHING) }
+    var leg by remember { mutableStateOf(SackRoute.QC_RAJUT_TO_FINISHING) }
     var weight by remember { mutableStateOf("") }
     var photoKey by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
@@ -93,7 +93,7 @@ internal fun SubmitSackForm(
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
         Text("Ajukan Antar Karung", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            TransferLeg.entries.forEach { candidate ->
+            SackRoute.entries.forEach { candidate ->
                 ClayButton(
                     text = candidate.displayName,
                     style = if (leg == candidate) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,

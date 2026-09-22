@@ -6,6 +6,7 @@ import com.eventverse.app.domain.transfer.LocationId
 import com.eventverse.app.domain.transfer.SuratJalanId
 import com.eventverse.app.domain.transfer.SuratJalanNumber
 import com.eventverse.app.domain.transfer.SuratJalanRepository
+import com.eventverse.app.domain.transfer.TenantLocationConfigRepository
 import com.eventverse.app.domain.transfer.TransferType
 import com.eventverse.app.domain.transfer.usecases.CreateInternalTransferCommand
 import com.eventverse.app.domain.transfer.usecases.CreateInternalTransferSuratJalanUseCase
@@ -41,7 +42,13 @@ import kotlinx.datetime.LocalDate
 
 fun Route.suratJalanRoutes(
     suratJalanRepository: SuratJalanRepository,
-    cardRepository: WorkCardRepository
+    cardRepository: WorkCardRepository,
+    /**
+     * Dipakai memastikan gedung asal dan tujuan benar-benar terdaftar milik tenant ini.
+     * `null` mempertahankan perilaku lama (hanya memeriksa field terisi), supaya pemasangan
+     * route lama dan pengujian tidak pecah.
+     */
+    locationConfigRepository: TenantLocationConfigRepository? = null
 ) {
     val internalTransferUseCase = CreateInternalTransferSuratJalanUseCase(cardRepository, suratJalanRepository)
     val makloonOutboundUseCase = CreateMakloonOutboundSuratJalanUseCase(cardRepository, suratJalanRepository)
@@ -87,6 +94,16 @@ fun Route.suratJalanRoutes(
             val cardIds = body.stringArray("cardIds").map(::WorkCardId)
             val now = Clock.System.now()
 
+            // Lokasi divalidasi di sini, bukan dibiarkan meledak di konstruktor LocationId.
+            // Sebelumnya `LocationId(body.string(...) ?: "")` melempar pada field yang hilang,
+            // dan penolakan yang sah itu sampai ke klien sebagai 500.
+            val origin = call.requireKnownLocation(
+                tenant, locationConfigRepository, body.string("originLocationId"), "originLocationId"
+            ) ?: return@post
+            val destination = call.requireKnownLocation(
+                tenant, locationConfigRepository, body.string("destinationLocationId"), "destinationLocationId"
+            ) ?: return@post
+
             val command = CreateInternalTransferCommand(
                 tenantId = tenant.tenantId.value,
                 sjNumber = SuratJalanNumber(body.string("sjNumber") ?: "SJ-INT-${now.toEpochMilliseconds()}"),
@@ -96,8 +113,8 @@ fun Route.suratJalanRoutes(
                     orderNumber = body.string("orderNumber") ?: "",
                     articleName = body.string("articleName") ?: ""
                 ),
-                originLocationId = LocationId(body.string("originLocationId") ?: ""),
-                destinationLocationId = LocationId(body.string("destinationLocationId") ?: ""),
+                originLocationId = origin,
+                destinationLocationId = destination,
                 cardIdsToTransfer = cardIds,
                 carrierName = body.string("carrierName"),
                 driverName = body.string("driverName"),
@@ -266,3 +283,30 @@ private suspend fun ApplicationCall.respondSuratJalanError(status: HttpStatusCod
         status = status,
         contentType = ContentType.Application.Json
     )
+
+/**
+ * Membaca satu id lokasi dari muatan dan memastikan ia memang gedung milik tenant ini.
+ *
+ * Mengembalikan `null` **dan sudah menjawab**; pemanggil tinggal `return@post`.
+ */
+private suspend fun ApplicationCall.requireKnownLocation(
+    tenant: TenantContext,
+    repository: TenantLocationConfigRepository?,
+    raw: String?,
+    fieldName: String
+): LocationId? {
+    val value = raw?.takeIf { it.isNotBlank() } ?: run {
+        respondSuratJalanError(HttpStatusCode.BadRequest, "Field '$fieldName' wajib diisi")
+        return null
+    }
+    val locationId = LocationId(value)
+    val config = repository?.findByTenantId(tenant.tenantId.value) ?: return locationId
+    if (config.locations.none { it.id == locationId }) {
+        respondSuratJalanError(
+            HttpStatusCode.UnprocessableEntity,
+            "Lokasi '$value' tidak terdaftar pada pabrik ini"
+        )
+        return null
+    }
+    return locationId
+}

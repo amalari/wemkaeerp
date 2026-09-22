@@ -12,7 +12,7 @@ import com.eventverse.app.domain.traceability.TraceCode
  */
 interface InternalTransferRepository {
 
-    suspend fun findById(tenantId: TenantId, id: TransferId): InternalTransfer?
+    suspend fun findById(tenantId: TenantId, id: SackTransferId): InternalTransfer?
 
     suspend fun findAll(tenantId: TenantId): List<InternalTransfer>
 
@@ -27,7 +27,7 @@ interface InternalTransferRepository {
     /** Jejak audit per perubahan status — aktor, kejadian, dan kapan. */
     suspend fun recordEvent(
         tenantId: TenantId,
-        transferId: TransferId,
+        transferId: SackTransferId,
         eventType: String,
         actor: String,
         detail: String,

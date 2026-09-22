@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.TransferStatus
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -27,13 +27,13 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * Warna status diambil dari palet sinyal produksi — bukan dekoratif: hijau berarti aman,
  * amber berarti menunggu orang, merah berarti ada masalah yang harus dibuka.
  */
-internal fun transferStatusTint(status: TransferStatus): Color = when (status) {
-    TransferStatus.MENUNGGU_ACC -> WeMadeColors.Warning
-    TransferStatus.DIANTAR -> WeMadeColors.Info
-    TransferStatus.DITERIMA -> WeMadeColors.Success
-    TransferStatus.DITERIMA_SELISIH -> WeMadeColors.Accent
-    TransferStatus.DITOLAK -> WeMadeColors.Error
-    TransferStatus.DIPERIKSA -> WeMadeColors.Warning
+internal fun transferStatusTint(status: SackTransferStatus): Color = when (status) {
+    SackTransferStatus.MENUNGGU_ACC -> WeMadeColors.Warning
+    SackTransferStatus.DIANTAR -> WeMadeColors.Info
+    SackTransferStatus.DITERIMA -> WeMadeColors.Success
+    SackTransferStatus.DITERIMA_SELISIH -> WeMadeColors.Accent
+    SackTransferStatus.DITOLAK -> WeMadeColors.Error
+    SackTransferStatus.DIPERIKSA -> WeMadeColors.Warning
 }
 
 /**
@@ -55,7 +55,7 @@ fun TransferCard(
         TransferFootnote(transfer)
 
         when {
-            transfer.status == TransferStatus.MENUNGGU_ACC && canApprove ->
+            transfer.status == SackTransferStatus.MENUNGGU_ACC && canApprove ->
                 ApproveSection(
                     isSubmitting = isSubmitting,
                     onDecide = { approved, name, signature, reason ->
@@ -66,7 +66,7 @@ fun TransferCard(
                     }
                 )
 
-            transfer.status == TransferStatus.DIANTAR && canWork ->
+            transfer.status == SackTransferStatus.DIANTAR && canWork ->
                 ReceiveSection(
                     declaredPcs = transfer.declaredPcs,
                     isSubmitting = isSubmitting,
@@ -86,7 +86,7 @@ fun TransferCard(
                     }
                 )
 
-            transfer.status == TransferStatus.DITOLAK && canWork ->
+            transfer.status == SackTransferStatus.DITOLAK && canWork ->
                 ResubmitSection(
                     isSubmitting = isSubmitting,
                     onResubmit = { weight, photoKey, requestedBy ->
@@ -99,7 +99,7 @@ fun TransferCard(
                     }
                 )
 
-            transfer.status == TransferStatus.MENUNGGU_ACC -> WaitingNote()
+            transfer.status == SackTransferStatus.MENUNGGU_ACC -> WaitingNote()
         }
     }
 }
@@ -173,14 +173,14 @@ private fun TransferFootnote(transfer: InternalTransfer) {
             HandoverNote(
                 text = "Diterima oleh ${proof.receiverName}" +
                     (transfer.receivedPcs?.let { " · fisik $it pcs" } ?: ""),
-                color = if (transfer.status == TransferStatus.DITERIMA_SELISIH) WeMadeColors.Accent
+                color = if (transfer.status == SackTransferStatus.DITERIMA_SELISIH) WeMadeColors.Accent
                 else WeMadeColors.Success
             )
 
         is HandoverProof.CourierShipment ->
             HandoverNote(
                 text = "Resi ${proof.trackingNumber} (${proof.carrier}) · ${proof.chargeableWeightKg.formatted()}",
-                color = if (transfer.status == TransferStatus.DITERIMA_SELISIH) WeMadeColors.Accent
+                color = if (transfer.status == SackTransferStatus.DITERIMA_SELISIH) WeMadeColors.Accent
                 else WeMadeColors.Success
             )
 

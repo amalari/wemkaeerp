@@ -245,11 +245,13 @@ fun SamplingWorkspaceScreen(
             order = target,
             isSubmitting = state.isSubmitting,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },
-            onStartCamProgram = { sections ->
+            onStartCam = {
+                // "Alur Siap -> Mulai CAM" membuka gerbang transisi tahap yang sama dengan
+                // kolom Kanban: lembar Program CAM diisi di StageAdvanceDialog (Kontrak 6 —
+                // telemetri & lembar kerja per tahap), bukan di dialog referensi ini.
+                viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog)
                 viewModel.onEvent(
-                    SamplingUiEvent.ConfirmStageAdvance(
-                        target.id, SamplingPipelineStage.CAM_PROGRAMMING, sections
-                    )
+                    SamplingUiEvent.OpenStageAdvanceDialog(target, SamplingPipelineStage.CAM_PROGRAMMING)
                 )
             },
             onCreateTechPack = onCreateTechPack,

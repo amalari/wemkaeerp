@@ -128,6 +128,7 @@ class PostgresSuratJalanRepository : SuratJalanRepository {
                     it[driverName] = manifest.driverName
                     it[vehiclePlate] = manifest.vehiclePlate
                     it[status] = manifest.status.name
+                    it[legKey] = manifest.legKey
                     it[unitServiceFeeIdr] = manifest.unitServiceFeeIdr
                     it[expectedReturnDate] = manifest.expectedReturnDate
                     it[dispatchedAt] = manifest.dispatchedAt
@@ -137,6 +138,7 @@ class PostgresSuratJalanRepository : SuratJalanRepository {
             } else {
                 SuratJalanManifestsTable.update({ SuratJalanManifestsTable.id eq manifest.id.value }) {
                     it[status] = manifest.status.name
+                    it[legKey] = manifest.legKey
                     it[carrierName] = manifest.carrierName
                     it[driverName] = manifest.driverName
                     it[vehiclePlate] = manifest.vehiclePlate
@@ -198,6 +200,7 @@ class PostgresSuratJalanRepository : SuratJalanRepository {
             driverName = manifestRow[SuratJalanManifestsTable.driverName],
             vehiclePlate = manifestRow[SuratJalanManifestsTable.vehiclePlate],
             status = TransferStatus.valueOf(manifestRow[SuratJalanManifestsTable.status]),
+            legKey = manifestRow[SuratJalanManifestsTable.legKey],
             items = items,
             unitServiceFeeIdr = manifestRow[SuratJalanManifestsTable.unitServiceFeeIdr],
             expectedReturnDate = manifestRow[SuratJalanManifestsTable.expectedReturnDate],
