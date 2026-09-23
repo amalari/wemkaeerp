@@ -31,7 +31,13 @@ class ProcessFlowDragState {
     var hoveredGap by mutableStateOf<SamplingPipelineStage?>(null)
         private set
 
-    private var dragPointerWindowPos = Offset.Zero
+    /** Label chip yang sedang diseret — dirender ulang sebagai ghost yang mengikuti pointer. */
+    var draggedLabel by mutableStateOf("")
+        private set
+
+    /** Posisi pointer (koordinat window) — state agar ghost ikut bergerak tiap frame drag. */
+    var dragPointerWindowPos by mutableStateOf(Offset.Zero)
+        private set
     private val gapBounds = mutableStateMapOf<SamplingPipelineStage, Rect>()
 
     fun registerGap(stage: SamplingPipelineStage, bounds: Rect) {
@@ -42,7 +48,8 @@ class ProcessFlowDragState {
         gapBounds.remove(stage)
     }
 
-    fun onDragStart(processId: String?, templateCode: String?, pointerWindowPos: Offset) {
+    fun onDragStart(processId: String?, templateCode: String?, label: String, pointerWindowPos: Offset) {
+        draggedLabel = label
         draggedProcessId = processId
         draggedTemplateCode = templateCode
         dragPointerWindowPos = pointerWindowPos
@@ -80,6 +87,7 @@ class ProcessFlowDragState {
         draggedProcessId = null
         draggedTemplateCode = null
         hoveredGap = null
+        draggedLabel = ""
         dragPointerWindowPos = Offset.Zero
     }
 }

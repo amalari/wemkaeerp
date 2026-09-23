@@ -27,8 +27,12 @@ class SamplingViewModel(
         when (event) {
             is SamplingUiEvent.Load -> load()
             is SamplingUiEvent.SelectOrder -> _uiState.update { it.copy(selectedOrderId = event.orderId) }
-            is SamplingUiEvent.OpenSpkDetailDialog -> _uiState.update { it.copy(spkDetailTarget = event.order) }
-            SamplingUiEvent.CloseSpkDetailDialog -> _uiState.update { it.copy(spkDetailTarget = null) }
+            is SamplingUiEvent.OpenSpkDetailDialog -> _uiState.update {
+                it.copy(spkDetailTarget = event.order, spkDetailFocusFlow = event.focusFlow)
+            }
+            SamplingUiEvent.CloseSpkDetailDialog -> _uiState.update {
+                it.copy(spkDetailTarget = null, spkDetailFocusFlow = false)
+            }
             is SamplingUiEvent.SetFilter -> _uiState.update { it.copy(selectedStatusFilter = event.status) }
             is SamplingUiEvent.SetStageFilter -> _uiState.update { it.copy(selectedStageFilter = event.stage) }
             is SamplingUiEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
@@ -39,6 +43,7 @@ class SamplingViewModel(
             is SamplingUiEvent.ApproveOrder -> approveOrder(event.orderId, event.isApproved, event.notes)
             is SamplingUiEvent.SaveTechnicalSpec -> saveTechnicalSpec(event.updatedOrder)
             is SamplingUiEvent.SaveFullOrder -> saveFullOrder(event.order)
+            is SamplingUiEvent.DetermineFlow -> determineFlow(event.orderId)
             is SamplingUiEvent.AdvanceStage -> advanceStage(event.orderId, event.targetStage)
             is SamplingUiEvent.OpenStageAdvanceDialog -> _uiState.update {
                 it.copy(stageAdvanceTarget = event.order, stageAdvanceTargetStage = event.targetStage)
@@ -219,6 +224,21 @@ class SamplingViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    private fun determineFlow(orderId: SamplingOrderId) {
+        val order = _uiState.value.orders.firstOrNull { it.id == orderId } ?: return
+        if (order.pipelineStage != SamplingPipelineStage.NEW_INTAKE) return
+        advanceStage(orderId, SamplingPipelineStage.FLOW_REVIEW)
+        // Dialog memegang snapshot order; ikut dimajukan agar gerbangnya konsisten dengan kolom.
+        _uiState.update { state ->
+            state.copy(
+                spkDetailTarget = state.spkDetailTarget
+                    ?.takeIf { it.id == orderId }
+                    ?.copy(pipelineStage = SamplingPipelineStage.FLOW_REVIEW)
+                    ?: state.spkDetailTarget
+            )
         }
     }
 

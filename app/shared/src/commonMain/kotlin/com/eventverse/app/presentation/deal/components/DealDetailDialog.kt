@@ -51,10 +51,7 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.GarmentStepState
 import com.eventverse.app.domain.sampling.GarmentTrackingStep
-import com.eventverse.app.domain.sampling.MilestoneStep
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.FinishingPath
-import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.deal.DealDetailTab
 import com.eventverse.app.presentation.deal.DealUiEvent
@@ -1386,7 +1383,7 @@ private fun SamplingSizeChartTable(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.OnSurfaceMuted,
-                        modifier = Modifier.width(115.dp)
+                        modifier = Modifier.width(100.dp)
                     )
                     for (col in STANDARD_SAMPLING_SIZE_COLUMNS) {
                         Text(
@@ -1395,10 +1392,10 @@ private fun SamplingSizeChartTable(
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurfaceMuted,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.width(52.dp)
+                            modifier = Modifier.width(48.dp)
                         )
                     }
-                    Spacer(Modifier.width(28.dp)) // ruang tombol hapus
+                    Spacer(Modifier.width(24.dp)) // ruang tombol hapus
                 }
 
                 Spacer(Modifier.height(ClaySpacing.Xs))
@@ -1427,7 +1424,7 @@ private fun SamplingSizeChartTable(
                             // Input nama POM
                             Box(
                                 modifier = Modifier
-                                    .width(115.dp)
+                                    .width(100.dp)
                                     .clayFlat(
                                         shape = ClayShapes.Pill,
                                         background = WeMadeColors.SurfaceMuted,
@@ -1459,7 +1456,7 @@ private fun SamplingSizeChartTable(
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 2.dp)
-                                        .width(48.dp)
+                                        .width(44.dp)
                                         .clayFlat(
                                             shape = ClayShapes.Pill,
                                             background = WeMadeColors.SurfaceMuted,
@@ -1498,8 +1495,8 @@ private fun SamplingSizeChartTable(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     IconClose(
-                                        modifier = Modifier.size(12.dp),
-                                        color = WeMadeColors.OnSurfaceMuted
+                                        modifier = Modifier.size(14.dp),
+                                        color = WeMadeColors.OnSurface
                                     )
                                 }
                             } else {
@@ -1936,7 +1933,7 @@ private fun SamplingActiveStepCard(
             GarmentTrackingStep.SAMPLING -> {
                 Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     Text(
-                        text = "Monitoring alur fisik sampel di lantai produksi: CAM, Rajut Mesin, QC In-Line, Finishing, hingga QC Final Ukuran Jadi.",
+                        text = "Monitoring alur fisik sampel di lantai produksi: Program CAM, Rajut, Linking, Cuci & Softener, Setrika Uap, QC Finishing, hingga Pengemasan.",
                         fontSize = 11.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -1987,259 +1984,6 @@ private fun SamplingActiveStepCard(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SamplingMonitoringTimeline(
-    order: SamplingOrder,
-    modifier: Modifier = Modifier
-) {
-    val camMilestone = order.milestones.find { it.step == MilestoneStep.PROGRAM }
-    val isCamDone = camMilestone?.isCompleted == true || order.pipelineStage > SamplingPipelineStage.CAM_PROGRAMMING
-    val isCamActive = order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
-
-    val knitMilestone = order.milestones.find { it.step == MilestoneStep.RAJUT }
-    val linkMilestone = order.milestones.find { it.step == MilestoneStep.LINKING }
-    val isKnitDone = (knitMilestone?.isCompleted == true && linkMilestone?.isCompleted == true) || order.pipelineStage > SamplingPipelineStage.LINKING_ASSEMBLY
-    val isKnitActive = order.pipelineStage == SamplingPipelineStage.MACHINE_KNITTING || order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY
-
-    val inlineQc = order.qcInspections.firstOrNull()
-    val isQc1Done = order.pipelineStage >= SamplingPipelineStage.CUCI_SOFTENER || order.isInDelivery || inlineQc?.qcResult == QcInspectionResult.PASSED
-    val isQc1Active = order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY && order.finishingDeposits.isEmpty()
-
-    val isFinishingDone = order.isFinishingComplete || order.isInDelivery
-    val isFinishingActive = order.pipelineStage.isWetOrPressWork && !isFinishingDone
-    val isMakloon = order.finishingPath == FinishingPath.MAKLOON_VENDOR
-
-    val finalQc = order.latestQcReport
-    val isQc2Done = order.isInDelivery || order.isAccApproved || (finalQc?.qcResult == QcInspectionResult.PASSED && isFinishingDone)
-    val isQc2Active = order.pipelineStage == SamplingPipelineStage.QC_FINISHING
-
-    val camMulai = formatInstantWithTime(order.createdAt)
-    val camSelesai = if (isCamDone) {
-        camMilestone?.completedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "10:30") }
-            ?: formatInstantWithTime(order.updatedAt)
-    } else "-"
-
-    val knitMulai = if (isKnitActive || isKnitDone) {
-        if (camSelesai != "-") camSelesai else formatInstantWithTime(order.updatedAt)
-    } else "-"
-    val knitSelesai = if (isKnitDone) {
-        (linkMilestone?.completedAt ?: knitMilestone?.completedAt)?.let {
-            formatLocalDateWithTime(it, order.updatedAt, "15:45")
-        } ?: formatInstantWithTime(order.updatedAt)
-    } else "-"
-
-    val qc1Mulai = if (isQc1Active || isQc1Done) {
-        if (knitSelesai != "-") knitSelesai else formatInstantWithTime(order.updatedAt)
-    } else "-"
-    val qc1Selesai = if (isQc1Done) {
-        inlineQc?.inspectedAt?.let { formatInstantWithTime(it) }
-            ?: linkMilestone?.completedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "16:15") }
-            ?: formatInstantWithTime(order.updatedAt)
-    } else "-"
-
-    val finishingMulai = if (isFinishingActive || isFinishingDone) {
-        if (isMakloon) {
-            order.vendorInfo.sentAt?.let { formatLocalDateWithTime(it, order.updatedAt, "08:30") }
-                ?: if (qc1Selesai != "-") qc1Selesai else formatInstantWithTime(order.updatedAt)
-        } else {
-            order.finishingDeposits.firstOrNull()?.createdAt?.let { formatInstantWithTime(it) }
-                ?: order.finishingDeposits.firstOrNull()?.depositDate?.let { formatLocalDateWithTime(it, order.updatedAt, "08:30") }
-                ?: if (qc1Selesai != "-") qc1Selesai else formatInstantWithTime(order.updatedAt)
-        }
-    } else "-"
-    val finishingSelesai = if (isFinishingDone) {
-        if (isMakloon) {
-            order.vendorInfo.returnedAt?.let { formatLocalDateWithTime(it, order.updatedAt, "14:00") }
-                ?: formatInstantWithTime(order.updatedAt)
-        } else {
-            order.finishingDeposits.lastOrNull()?.createdAt?.let { formatInstantWithTime(it) }
-                ?: order.finishingDeposits.lastOrNull()?.depositDate?.let { formatLocalDateWithTime(it, order.updatedAt, "14:00") }
-                ?: formatInstantWithTime(order.updatedAt)
-        }
-    } else "-"
-
-    val qc2Mulai = if (isQc2Active || isQc2Done) {
-        if (finishingSelesai != "-") finishingSelesai else formatInstantWithTime(order.updatedAt)
-    } else "-"
-    val qc2Selesai = if (isQc2Done) {
-        finalQc?.inspectedAt?.let { formatInstantWithTime(it) } ?: formatInstantWithTime(order.updatedAt)
-    } else "-"
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-    ) {
-        // 1. Program CAM
-        TimelineStepCard(
-            stepNumber = "1",
-            title = "Program CAM",
-            status = if (isCamDone) "Selesai" else if (isCamActive) "Pengerjaan" else "Antrean",
-            isDone = isCamDone,
-            isActive = isCamActive,
-            mulaiText = camMulai,
-            selesaiText = camSelesai,
-            modifier = Modifier.weight(1f)
-        )
-
-        // 2. Rajut Mesin & Linking
-        TimelineStepCard(
-            stepNumber = "2",
-            title = "Rajut & Jahit",
-            status = if (isKnitDone) "Selesai" else if (order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) "Sedang Jahit" else if (order.pipelineStage == SamplingPipelineStage.MACHINE_KNITTING) "Sedang Rajut" else "Antrean",
-            isDone = isKnitDone,
-            isActive = isKnitActive,
-            mulaiText = knitMulai,
-            selesaiText = knitSelesai,
-            modifier = Modifier.weight(1f)
-        )
-
-        // 3. QC 1 (In-Line)
-        TimelineStepCard(
-            stepNumber = "3",
-            title = "QC In-Line",
-            status = if (isQc1Done) "Lolos QC 1" else if (isQc1Active) "Inspeksi Mentah" else "Menunggu Rajut",
-            isDone = isQc1Done,
-            isActive = isQc1Active,
-            mulaiText = qc1Mulai,
-            selesaiText = qc1Selesai,
-            modifier = Modifier.weight(1f)
-        )
-
-        // 4. Finishing & Steam
-        TimelineStepCard(
-            stepNumber = "4",
-            title = "Finishing",
-            status = if (isFinishingDone) "Tuntas (${order.totalFinishedDepositedQty} pcs)" else if (isMakloon) "Di Vendor Makloon" else if (isFinishingActive) "Cuci & Steam" else "Menunggu QC 1",
-            isDone = isFinishingDone,
-            isActive = isFinishingActive,
-            mulaiText = finishingMulai,
-            selesaiText = finishingSelesai,
-            modifier = Modifier.weight(1f)
-        )
-
-        // 5. QC 2 (Final)
-        TimelineStepCard(
-            stepNumber = "5",
-            title = "QC 2 (Final)",
-            status = if (isQc2Done) "Lolos Final" else if (isQc2Active) "Inspeksi Akhir" else "Menunggu Finishing",
-            isDone = isQc2Done,
-            isActive = isQc2Active,
-            mulaiText = qc2Mulai,
-            selesaiText = qc2Selesai,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun TimelineStepCard(
-    stepNumber: String,
-    title: String,
-    status: String,
-    isDone: Boolean,
-    isActive: Boolean,
-    mulaiText: String,
-    selesaiText: String,
-    modifier: Modifier = Modifier
-) {
-    val cardBg = when {
-        isDone -> WeMadeColors.Success.copy(alpha = 0.08f)
-        isActive -> WeMadeColors.Purple.copy(alpha = 0.08f)
-        else -> WeMadeColors.Surface.copy(alpha = 0.90f)
-    }
-    val cardOutline = when {
-        isDone -> WeMadeColors.Success.copy(alpha = 0.5f)
-        isActive -> WeMadeColors.Purple.copy(alpha = 0.55f)
-        else -> WeMadeColors.Border
-    }
-
-    Column(
-        modifier = modifier
-            .clayFlat(
-                shape = ClayShapes.Card,
-                background = cardBg,
-                outline = cardOutline,
-                borderWidth = ClayBorder.Hairline
-            )
-            .padding(ClaySpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "$stepNumber. $title",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = when {
-                    isDone -> WeMadeColors.Success
-                    isActive -> WeMadeColors.Purple
-                    else -> WeMadeColors.OnSurface
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (isDone) {
-                IconCheck(Modifier.size(11.dp), color = WeMadeColors.Success)
-            } else if (isActive) {
-                IconActivity(Modifier.size(11.dp), color = WeMadeColors.Purple)
-            }
-        }
-
-        ClayBadge(
-            text = status,
-            tint = when {
-                isDone -> WeMadeColors.Success
-                isActive -> WeMadeColors.Purple
-                else -> WeMadeColors.OnSurfaceMuted
-            },
-            fontSize = 9.sp
-        )
-
-        Spacer(Modifier.height(2.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(
-                    text = "Mulai:",
-                    fontSize = 9.sp,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-                Text(
-                    text = mulaiText,
-                    fontSize = 9.sp,
-                    lineHeight = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(
-                    text = "Selesai:",
-                    fontSize = 9.sp,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-                Text(
-                    text = selesaiText,
-                    fontSize = 9.sp,
-                    lineHeight = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDone) WeMadeColors.Success else WeMadeColors.OnSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
@@ -2322,7 +2066,7 @@ private fun formatInstant(instant: Instant?): String {
     return if (parsed != null) formatLocalDate(parsed) else dateStr
 }
 
-private fun formatInstantWithTime(instant: Instant?): String {
+internal fun formatInstantWithTime(instant: Instant?): String {
     if (instant == null) return "-"
     val str = instant.toString()
     val dateStr = str.take(10)
@@ -2334,21 +2078,6 @@ private fun formatInstantWithTime(instant: Instant?): String {
         "${parsed.dayOfMonth} $m ${parsed.year}"
     } else dateStr
     return "$formattedDate, $timeStr"
-}
-
-private fun formatLocalDateWithTime(date: LocalDate?, updatedAt: Instant? = null, defaultTime: String = "09:00"): String {
-    if (date == null) {
-        return if (updatedAt != null) formatInstantWithTime(updatedAt) else "-"
-    }
-    val months = listOf("", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
-    val m = months.getOrNull(date.monthNumber) ?: date.monthNumber.toString()
-    val datePart = "${date.dayOfMonth} $m ${date.year}"
-    val timePart = if (updatedAt != null && updatedAt.toString().startsWith(date.toString())) {
-        updatedAt.toString().substringAfter('T').take(5)
-    } else {
-        defaultTime
-    }
-    return "$datePart, $timePart"
 }
 
 @Composable

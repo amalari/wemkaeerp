@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
@@ -17,13 +18,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
@@ -46,20 +51,36 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /** Tahap wajib: kerangka alur yang tidak bisa dihapus, hanya disisipi. */
 @Composable
-internal fun StagePill(label: String) {
-    Box(
-        modifier = Modifier.clayFlat(
-            shape = ClayShapes.Chip,
-            background = WeMadeColors.SurfaceMuted,
-            outline = WeMadeColors.Outline
-        )
+internal fun StagePill(step: Int, label: String) {
+    Row(
+        modifier = Modifier
+            .clayFlat(
+                shape = ClayShapes.Chip,
+                background = WeMadeColors.SurfaceMuted,
+                outline = WeMadeColors.Outline
+            )
+            .padding(start = ClaySpacing.Sm, end = ClaySpacing.Md, top = ClaySpacing.Sm, bottom = ClaySpacing.Sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
     ) {
+        // Nomor urut membuat kerangka wajib terbaca sebagai urutan, bukan deretan tombol.
+        Box(
+            modifier = Modifier.size(18.dp).clip(ClayShapes.Pill).background(WeMadeColors.Primary),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = step.toString(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.Surface
+            )
+        }
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurface,
-            modifier = Modifier.padding(horizontal = ClaySpacing.Sm, vertical = 6.dp)
+            maxLines = 1
         )
     }
 }
@@ -88,6 +109,7 @@ internal fun PlacedProcessChip(
     DraggableChipFrame(
         processId = process.processId,
         templateCode = null,
+        label = label,
         dragState = dragState,
         onDrop = { pid, _, anchor -> if (pid != null) onMove(process.processId, anchor) }
     ) {
@@ -120,6 +142,7 @@ internal fun PaletteChip(
     DraggableChipFrame(
         processId = null,
         templateCode = template.code.value,
+        label = template.displayName,
         dragState = dragState,
         onDrop = { _, templateCode, anchor ->
             if (templateCode != null) onInsert(anchor)
@@ -138,18 +161,24 @@ internal fun PaletteChip(
 private fun DraggableChipFrame(
     processId: String?,
     templateCode: String?,
+    label: String,
     dragState: ProcessFlowDragState,
     onDrop: (processId: String?, templateCode: String?, anchor: SamplingPipelineStage) -> Unit,
     content: @Composable RowScope.() -> Unit
 ) {
     var chipWindowPos by remember { mutableStateOf(Offset.Zero) }
+    // Chip asal dipudarkan selama diseret; yang terlihat bergerak adalah ghost di panel.
+    val isSource = dragState.isDragging &&
+        dragState.draggedProcessId == processId &&
+        dragState.draggedTemplateCode == templateCode
     Row(
         modifier = Modifier
+            .alpha(if (isSource) 0.35f else 1f)
             .onGloballyPositioned { chipWindowPos = it.positionInWindow() }
             .pointerInput(processId, templateCode) {
                 detectDragGestures(
                     onDragStart = { local ->
-                        dragState.onDragStart(processId, templateCode, chipWindowPos + local)
+                        dragState.onDragStart(processId, templateCode, label, chipWindowPos + local)
                     },
                     onDrag = { change, amount ->
                         if (dragState.isDragging) {
@@ -171,3 +200,29 @@ private fun DraggableChipFrame(
         content()
     }
 }
+
+/**
+ * Ghost chip yang mengikuti pointer selama drag, digambar di atas seluruh panel.
+ *
+ * [panelWindowPos] adalah posisi window kontainer tempat ghost ini ditaruh — pointer disimpan
+ * dalam koordinat window, jadi perlu dikurangi agar jatuh tepat di bawah kursor.
+ */
+@Composable
+internal fun ProcessFlowDragGhost(dragState: ProcessFlowDragState, panelWindowPos: Offset) {
+    if (!dragState.isDragging) return
+    val local = dragState.dragPointerWindowPos - panelWindowPos
+    Box(
+        modifier = Modifier
+            .zIndex(10f)
+            .offset { IntOffset(local.x.roundToInt() + GHOST_POINTER_GAP, local.y.roundToInt() + GHOST_POINTER_GAP) }
+            .alpha(0.9f)
+    ) {
+        ClayBadge(
+            text = dragState.draggedLabel,
+            tint = if (dragState.hoveredGap != null) WeMadeColors.Success else WeMadeColors.Primary
+        )
+    }
+}
+
+/** Ghost digeser sedikit dari ujung kursor supaya celah di bawahnya tetap terlihat. */
+private const val GHOST_POINTER_GAP = 12

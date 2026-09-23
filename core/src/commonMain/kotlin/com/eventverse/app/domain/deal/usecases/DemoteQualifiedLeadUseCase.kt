@@ -48,8 +48,12 @@ class DemoteQualifiedLeadUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         leadId: LeadId,
-        now: Instant = Clock.System.now()
+        now: Instant = Clock.System.now(),
+        target: LeadStage = LeadStage.NEW_LEAD
     ): Result<Demotion> = runCatching {
+        require(target == LeadStage.NEW_LEAD || target == LeadStage.FOLLOW_UP) {
+            "Demosi hanya ke New Lead atau Follow Up, bukan ${target.displayName}."
+        }
         val lead = requireNotNull(leadRepository.findById(tenantId, leadId)) {
             "Lead tidak ditemukan: ${leadId.value}"
         }
@@ -59,7 +63,7 @@ class DemoteQualifiedLeadUseCase(
 
         val deal = dealRepository.findBySourceLeadId(tenantId, leadId)
         if (deal == null || deal.isArchived) {
-            val demoted = lead.transitionTo(LeadStage.NEW_LEAD, now).getOrThrow()
+            val demoted = lead.transitionTo(target, now).getOrThrow()
             leadRepository.save(demoted).getOrThrow()
             return@runCatching Demotion(demoted, archivedDeal = null, deletedContact = false)
         }
@@ -101,7 +105,7 @@ class DemoteQualifiedLeadUseCase(
             }
         }
 
-        val demoted = lead.transitionTo(LeadStage.NEW_LEAD, now).getOrThrow()
+        val demoted = lead.transitionTo(target, now).getOrThrow()
         leadRepository.save(demoted).getOrThrow()
 
         Demotion(demoted, archivedDeal = archived, deletedContact = deletedContact)

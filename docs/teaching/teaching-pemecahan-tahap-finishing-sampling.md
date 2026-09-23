@@ -238,9 +238,13 @@ fun completeQcInspection(report: QcInspectionReport, updatedAt: Instant): Sampli
   tanpa gerbang serah terima. KDoc di use case itu sudah menandainya sebagai utang. Saat memecah
   tahap, ketiganya wajib dibidik bersamaan; memperbaiki enum tapi membiarkan tiga pintu belakang
   ini berarti setengah SPK akan melompati tahap baru tanpa jejak.
-- **`addFinishingDeposit` diubah dari `== LINKING_ASSEMBLY` jadi rentang.** Setoran finishing kini
-  bisa dicatat dari tahap mana pun sepanjang lantai penyelesaian akhir. Syarat `==` yang lama akan
-  membuat operator di tahap `CUCI_SOFTENER` mencatat setoran dan… tidak terjadi apa-apa.
+- **`addFinishingDeposit` tetap bersyarat `== LINKING_ASSEMBLY`, tapi targetnya jadi
+  `CUCI_SOFTENER`.** Setoran itu adalah setoran hasil **perakitan**; ketika genap, yang selesai
+  adalah perakitannya, jadi barang berpindah ke tangan pertama lantai penyelesaian akhir.
+  Percobaan pertama saya membuatnya melompat ke `QC_FINISHING` — dan itu **kesalahan yang sama
+  persis** dengan memetakan baris lama ke QC saat migrasi: mengklaim cuci dan setrika sudah terjadi
+  tanpa satu pun catatan yang mengatakannya. Kalau sebuah aturan sudah kamu tetapkan di satu
+  lapisan, periksa apakah kamu melanggarnya sendiri di lapisan lain.
 
 ### Blok E: UI — Lima Tahap, Satu Kolom
 

@@ -1,7 +1,6 @@
 package com.eventverse.app.presentation.sampling.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -23,6 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,6 +84,7 @@ fun ProcessFlowAdjusterPanel(
     // Templat yang sedang ditanyakan "dikerjakan di mana", beserta celah tujuannya.
     var pendingInsert by remember { mutableStateOf<Pair<WorkStationSpec, SamplingPipelineStage>?>(null) }
     var inspectedLeg by remember { mutableStateOf<FlowLegView?>(null) }
+    var panelWindowPos by remember { mutableStateOf(Offset.Zero) }
 
     ClayCard(
         modifier = modifier
@@ -91,6 +93,7 @@ fun ProcessFlowAdjusterPanel(
         shape = ClayShapes.Card,
         contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
     ) {
+        Box(modifier = Modifier.onGloballyPositioned { panelWindowPos = it.positionInWindow() }) {
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             FlowPanelHeader(
                 state = state,
@@ -99,15 +102,9 @@ fun ProcessFlowAdjusterPanel(
                 onReset = { viewModel.onEvent(ProcessFlowUiEvent.ResetToDefault) }
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ADJUSTABLE_STAGES.forEach { stage ->
-                    StagePill(stage.displayName)
+            ProcessFlowCarousel(modifier = Modifier.fillMaxWidth()) {
+                ADJUSTABLE_STAGES.forEachIndexed { index, stage ->
+                    StagePill(step = index + 1, label = stage.displayName)
 
                     val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
                     anchored.forEach { process ->
@@ -126,7 +123,10 @@ fun ProcessFlowAdjusterPanel(
                     // Celah berada setelah seluruh proses yang berjangkar di tahap ini, jadi
                     // leg yang digambar di sini adalah yang berangkat dari simpul terakhir —
                     // proses paling buncit bila ada, kalau tidak tahapnya sendiri.
+                    // Tahap terakhir tidak punya "sesudah"; celahnya tetap ada agar proses bisa
+                    // disisipkan di ujung, tapi tanpa garis yang menggantung ke ruang kosong.
                     ProcessFlowGap(
+                        isLast = index == ADJUSTABLE_STAGES.lastIndex,
                         anchor = stage,
                         legs = state.legsLeaving(lastNodeAt(stage, anchored)),
                         dragState = dragState,
@@ -142,6 +142,8 @@ fun ProcessFlowAdjusterPanel(
                 dragState = dragState,
                 onInsert = { template, anchor -> pendingInsert = template to anchor }
             )
+        }
+        ProcessFlowDragGhost(dragState = dragState, panelWindowPos = panelWindowPos)
         }
     }
 

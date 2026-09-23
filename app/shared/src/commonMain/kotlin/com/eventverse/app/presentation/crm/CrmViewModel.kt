@@ -42,7 +42,6 @@ class CrmViewModel(
     fun onEvent(event: CrmUiEvent) {
         when (event) {
             is CrmUiEvent.Load, is CrmUiEvent.Retry -> load()
-            is CrmUiEvent.SetViewMode -> _uiState.update { it.copy(viewMode = event.mode) }
             is CrmUiEvent.SetMobileStage -> _uiState.update { it.copy(activeMobileStage = event.stage) }
             is CrmUiEvent.SelectLead -> {
                 _uiState.update { it.copy(selectedLeadId = event.leadId) }

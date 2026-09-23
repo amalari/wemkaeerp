@@ -65,8 +65,10 @@ class SamplingMultiDivisionWorkflowTest {
         assertEquals(75, afterDep2.totalFinishedDepositedQty)
         assertEquals(0, afterDep2.remainingFinishingQty)
         assertTrue(afterDep2.isFinishingComplete)
-        // Setoran tuntas memindahkan barang ke meja pemeriksa, bukan sekadar menandai "finishing"
-        assertEquals(SamplingPipelineStage.QC_FINISHING, afterDep2.pipelineStage)
+        // Setoran tuntas = PERAKITAN selesai, jadi barang berpindah ke tangan pertama lantai
+        // penyelesaian akhir. Bukan ke QC: melompat ke sana berarti mengklaim sampel sudah
+        // dicuci dan disetrika tanpa ada catatan yang mengatakannya.
+        assertEquals(SamplingPipelineStage.CUCI_SOFTENER, afterDep2.pipelineStage)
     }
 
     @Test

@@ -47,7 +47,6 @@ import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.orgchart.OrgNodeId
-import com.eventverse.app.presentation.crm.CrmViewMode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.IconChevronDown
@@ -78,10 +77,8 @@ fun CrmKanbanBoard(
     employees: List<OrgNode>,
     selectedLeadId: LeadId?,
     searchQuery: String,
-    viewMode: CrmViewMode,
     canWrite: Boolean,
     canManage: Boolean,
-    onViewModeChange: (CrmViewMode) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectLead: (LeadId?) -> Unit,
     onAddLead: ((LeadStage) -> Unit)?,
@@ -104,9 +101,7 @@ fun CrmKanbanBoard(
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
 
-    val newLeads = leads.filter { it.stage == LeadStage.NEW_LEAD }
-    val qualifiedLeads = leads.filter { it.stage == LeadStage.QUALIFIED }
-    val unqualifiedLeads = leads.filter { it.stage == LeadStage.UNQUALIFIED }
+    val leadsByStage = leads.groupBy { it.stage }
 
     val dragDropState = rememberCrmDragDropState()
     var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
@@ -238,11 +233,6 @@ fun CrmKanbanBoard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                     ) {
-                        CrmViewToggle(
-                            currentMode = viewMode,
-                            onModeChange = onViewModeChange
-                        )
-
                         if (onAddLead != null) {
                             ClayButton(
                                 text = "+ Tambah Lead",
@@ -252,52 +242,27 @@ fun CrmKanbanBoard(
                     }
                 }
 
-                // Area 3 Kolom Kanban Utama (memenuhi seluruh lebar papan)
+                // Satu kolom per stage (memenuhi seluruh lebar papan). Lead baru hanya masuk
+                // lewat New Lead; stage lain dicapai dengan memindahkan kartu, supaya Qualified
+                // selalu melewati QualifyLeadUseCase (kontak + deal dibuat bersama).
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
                 ) {
-                    // Kolom 1: New Lead
-                    CrmKanbanColumn(
-                        stage = LeadStage.NEW_LEAD,
-                        leads = newLeads,
-                        employees = employees,
-                        selectedLeadId = selectedLeadId,
-                        canWrite = canWrite,
-                        onSelectLead = { onSelectLead(it) },
-                        onUpdateStage = onUpdateStage,
-                        onAddLead = onAddLead?.let { { it(LeadStage.NEW_LEAD) } },
-                        onOpenActivities = onOpenActivities,
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    )
-
-                    // Kolom 2: Qualified Lead (bisa langsung tambah lead)
-                    CrmKanbanColumn(
-                        stage = LeadStage.QUALIFIED,
-                        leads = qualifiedLeads,
-                        employees = employees,
-                        selectedLeadId = selectedLeadId,
-                        canWrite = canWrite,
-                        onSelectLead = { onSelectLead(it) },
-                        onUpdateStage = onUpdateStage,
-                        onAddLead = onAddLead?.let { { it(LeadStage.QUALIFIED) } },
-                        onOpenActivities = onOpenActivities,
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    )
-
-                    // Kolom 3: Unqualified (tidak ada tombol tambah lead)
-                    CrmKanbanColumn(
-                        stage = LeadStage.UNQUALIFIED,
-                        leads = unqualifiedLeads,
-                        employees = employees,
-                        selectedLeadId = selectedLeadId,
-                        canWrite = canWrite,
-                        onSelectLead = { onSelectLead(it) },
-                        onUpdateStage = onUpdateStage,
-                        onAddLead = null,
-                        onOpenActivities = onOpenActivities,
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    )
+                    LeadStage.entries.forEach { stage ->
+                        CrmKanbanColumn(
+                            stage = stage,
+                            leads = leadsByStage[stage].orEmpty(),
+                            employees = employees,
+                            selectedLeadId = selectedLeadId,
+                            canWrite = canWrite,
+                            onSelectLead = { onSelectLead(it) },
+                            onUpdateStage = onUpdateStage,
+                            onAddLead = if (stage == LeadStage.NEW_LEAD) onAddLead?.let { { it(stage) } } else null,
+                            onOpenActivities = onOpenActivities,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                    }
                 }
             }
 

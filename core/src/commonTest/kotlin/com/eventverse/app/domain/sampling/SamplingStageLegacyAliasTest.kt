@@ -45,6 +45,17 @@ class SamplingStageLegacyAliasTest {
     }
 
     @Test
+    fun `tiap tahap lantai finishing punya tahap berikutnya yang berurutan`() {
+        // Tombol "Selesai -> serahkan" membaca `nextStage`. Kalau ia melompat, operator akan
+        // menyerahkan barang ke meja yang salah tanpa ada yang menolak.
+        assertEquals(SamplingPipelineStage.SETRIKA_UAP, SamplingPipelineStage.CUCI_SOFTENER.nextStage)
+        assertEquals(SamplingPipelineStage.QC_FINISHING, SamplingPipelineStage.SETRIKA_UAP.nextStage)
+        assertEquals(SamplingPipelineStage.PENGEMASAN, SamplingPipelineStage.QC_FINISHING.nextStage)
+        assertEquals(SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.PENGEMASAN.nextStage)
+        assertNull(SamplingPipelineStage.ACC_APPROVED.nextStage)
+    }
+
+    @Test
     fun `lantai penyelesaian akhir membentang dari linking sampai pengemasan`() {
         val onFloor = SamplingPipelineStage.entries.filter { it.isOnFinishingFloor }
         assertEquals(

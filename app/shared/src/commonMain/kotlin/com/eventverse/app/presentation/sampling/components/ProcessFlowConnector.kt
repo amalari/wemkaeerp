@@ -1,12 +1,15 @@
 package com.eventverse.app.presentation.sampling.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -31,6 +34,7 @@ import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.workqueue.WorkStationSpec
+import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconTruck
@@ -53,6 +57,7 @@ private val CONNECTOR_MIN_WIDTH = 116.dp
  */
 @Composable
 internal fun ProcessFlowGap(
+    isLast: Boolean,
     anchor: SamplingPipelineStage,
     legs: List<FlowLegView>,
     dragState: ProcessFlowDragState,
@@ -60,11 +65,37 @@ internal fun ProcessFlowGap(
     onInsertFromMenu: (WorkStationSpec) -> Unit,
     onLegClick: (FlowLegView) -> Unit
 ) {
-    if (legs.isEmpty()) {
-        PlainGapSlot(anchor, dragState, availableTemplates, onInsertFromMenu)
-        return
+    // Seluruh celah (garis + slot/konektor) adalah zona drop, supaya chip palet bisa dijatuhkan
+    // juga di celah yang sudah menjadi konektor pengiriman — bukan cuma di tombol `+` kecil.
+    Row(
+        modifier = Modifier.onGloballyPositioned { coordinates ->
+            dragState.registerGap(anchor, Rect(coordinates.positionInWindow(), coordinates.size.toSize()))
+        },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FlowLine()
+        if (legs.isEmpty()) {
+            PlainGapSlot(anchor, dragState, availableTemplates, onInsertFromMenu)
+        } else {
+            LegStack(legs, onLegClick)
+        }
+        if (!isLast) FlowLine()
     }
+}
 
+/** Garis penghubung antar simpul — memberi napas sekaligus membaca arah alur kiri → kanan. */
+@Composable
+private fun FlowLine() {
+    Box(
+        modifier = Modifier
+            .width(ClaySpacing.Lg)
+            .height(ClayBorder.Medium)
+            .background(WeMadeColors.OnSurfaceDisabled)
+    )
+}
+
+@Composable
+private fun LegStack(legs: List<FlowLegView>, onLegClick: (FlowLegView) -> Unit) {
     // Beberapa leg bisa berbagi satu celah ketika dua proses berurutan memakai vendor berbeda;
     // model datanya belum punya urutan di dalam satu jangkar, jadi keduanya ditumpuk apa adanya
     // alih-alih berpura-pura tahu mana yang lebih dulu.
@@ -87,9 +118,6 @@ private fun PlainGapSlot(
     Box(
         modifier = Modifier
             .size(GAP_SIZE)
-            .onGloballyPositioned { coordinates ->
-                dragState.registerGap(anchor, Rect(coordinates.positionInWindow(), coordinates.size.toSize()))
-            }
             .clayDashedOutline(
                 shape = ClayShapes.Chip,
                 background = if (isHovered) WeMadeColors.PrimaryContainer else WeMadeColors.SurfaceMuted,

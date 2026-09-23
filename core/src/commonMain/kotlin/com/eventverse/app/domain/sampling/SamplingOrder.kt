@@ -259,12 +259,16 @@ data class SamplingOrder(
     fun addFinishingDeposit(deposit: FinishingDeposit, updatedAt: Instant): SamplingOrder {
         val updatedDeposits = finishingDeposits + deposit
         val newFinishedQty = updatedDeposits.sumOf { it.qtyPcs }
-        // Setoran finishing bisa dicatat dari tahap mana pun sepanjang lantai penyelesaian akhir
-        // (linking, cuci, setrika) — sejak tahapnya dipecah, tidak lagi benar mensyaratkan
-        // LINKING_ASSEMBLY saja. Begitu seluruh pcs tersetor, barangnya siap diperiksa.
-        val beforeQc = pipelineStage.order <= SamplingPipelineStage.SETRIKA_UAP.order
-        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage.isOnFinishingFloor && beforeQc) {
-            SamplingPipelineStage.QC_FINISHING
+        // Setoran ini adalah setoran hasil PERAKITAN (linking, obras, pasang aksesori). Ketika
+        // seluruh pcs tersetor, yang selesai adalah perakitannya — barangnya lalu berpindah ke
+        // tangan pertama lantai penyelesaian akhir, yaitu pencuci.
+        //
+        // Sengaja TIDAK melompat ke QC. Melompat berarti menyatakan sampel sudah dicuci dan
+        // disetrika padahal tidak ada satu pun catatan yang mengatakan begitu — kesalahan yang
+        // sama persis dengan memetakan baris lama ke QC saat migrasi. Dua tahap di antaranya
+        // dimajukan oleh orang yang benar-benar mengerjakannya, lewat tombol di meja finishing.
+        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) {
+            SamplingPipelineStage.CUCI_SOFTENER
         } else {
             pipelineStage
         }

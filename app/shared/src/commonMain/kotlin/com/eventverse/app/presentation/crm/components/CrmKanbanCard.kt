@@ -1,21 +1,25 @@
 package com.eventverse.app.presentation.crm.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,10 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
@@ -37,6 +37,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
@@ -44,19 +46,13 @@ import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
-import com.eventverse.app.presentation.crm.tint
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayCard
-import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClaySpacing
-import com.eventverse.app.presentation.designsystem.ClayTag
-import com.eventverse.app.presentation.designsystem.IconBan
 import com.eventverse.app.presentation.designsystem.IconChat
-import com.eventverse.app.presentation.designsystem.IconCheck
-import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.IconInbox
-import com.eventverse.app.presentation.designsystem.IconMail
 import com.eventverse.app.presentation.designsystem.IconPhone
 import com.eventverse.app.presentation.designsystem.IconUser
 import com.eventverse.app.presentation.designsystem.clayFlat
@@ -75,6 +71,20 @@ fun formatRupiah(amount: Long): String {
     return "Rp " + builder.toString()
 }
 
+/** Versi ringkas untuk pill sempit di footer kartu: `Rp 125 jt`, `Rp 4,5 M`. */
+private fun formatRupiahCompact(amount: Long): String = when {
+    amount >= 1_000_000_000L -> "Rp ${decimalOne(amount, 1_000_000_000L)} M"
+    amount >= 1_000_000L -> "Rp ${decimalOne(amount, 1_000_000L)} jt"
+    amount >= 1_000L -> "Rp ${amount / 1_000L} rb"
+    else -> "Rp $amount"
+}
+
+private fun decimalOne(amount: Long, unit: Long): String {
+    val whole = amount / unit
+    val tenth = (amount % unit) * 10 / unit
+    return if (tenth == 0L || whole >= 100) "$whole" else "$whole,$tenth"
+}
+
 private fun getInitials(name: String): String {
     val parts = name.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
     return when {
@@ -85,14 +95,13 @@ private fun getInitials(name: String): String {
 }
 
 /**
- * Kartu Kanban Lead untuk modul CRM Sales.
+ * Kartu Kanban Lead untuk modul CRM Sales — tata letak "tag di atas, judul, deskripsi, footer
+ * pill" ala papan tugas, dengan bahasa visual clay WeMade:
+ * - Baris atas: tag sumber channel + tombol pindah stage
+ * - Judul lead (maks. 2 baris) dan deskripsi satu baris (pcs · kategori · PIC klien)
+ * - Footer: avatar PIC sales di kiri, pill nilai deal / WhatsApp / aktivitas di kanan
  *
- * Mengikuti bahasa visual Claymorphism WeMade:
- * - Outline tebal 3dp, hard shadow tanpa blur
- * - Dropdown stage di pojok kanan atas badge
- * - Tag HP & Email berdampingan
- * - Estimasi nilai & kuantiti pcs
- * - Footer: Ikon aktivitas sales dengan counter di kiri, Avatar bulat PIC di kanan
+ * Warna stage sudah dibawa oleh kolom (header & tint), jadi kartunya sendiri netral.
  */
 @Composable
 fun CrmKanbanCard(
@@ -105,7 +114,6 @@ fun CrmKanbanCard(
     onOpenActivities: (CrmLead) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var stageMenuExpanded by remember { mutableStateOf(false) }
     val owner = lead.ownerEmployeeId?.let { id -> employees.firstOrNull { it.id == id } }
 
     val dragDropState = LocalCrmDragDropState.current
@@ -113,16 +121,10 @@ fun CrmKanbanCard(
     var cardWindowOffset by remember { mutableStateOf(Offset.Zero) }
     var cardSize by remember { mutableStateOf(Size.Zero) }
 
-    val cardOutline = when (lead.stage) {
-        LeadStage.NEW_LEAD -> WeMadeColors.Primary
-        LeadStage.QUALIFIED -> WeMadeColors.Success
-        LeadStage.UNQUALIFIED -> WeMadeColors.Error
-    }
-
     ClayCard(
         modifier = modifier
             .fillMaxWidth()
-            .pointerHoverIcon(if (canWrite) PointerIcon.Hand else PointerIcon.Default)
+            .pointerHoverIcon(PointerIcon.Hand)
             .onGloballyPositioned { coords ->
                 if (coords.isAttached) {
                     cardWindowOffset = coords.positionInWindow()
@@ -130,330 +132,205 @@ fun CrmKanbanCard(
                 }
             }
             .then(
-                if (canWrite) {
+                if (canWrite && dragDropState != null) {
                     Modifier.pointerInput(lead.id, lead.stage) {
-                        detectDragGestures(
-                            onDragStart = { pointerOffset ->
-                                dragDropState?.onDragStart(lead, cardWindowOffset, cardSize, pointerOffset)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                dragDropState?.onDrag(dragAmount)
-                            },
-                            onDragEnd = {
-                                dragDropState?.onDragEnd { targetStage ->
-                                    onUpdateStage(targetStage)
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            var drag: PointerInputChange? = null
+                            var overSlop = Offset.Zero
+                            do {
+                                drag = awaitTouchSlopOrCancellation(down.id) { change, over ->
+                                    change.consume()
+                                    overSlop = over
                                 }
-                            },
-                            onDragCancel = {
-                                dragDropState?.onDragCancel()
+                            } while (drag != null && !drag.isConsumed)
+
+                            if (drag != null) {
+                                dragDropState.onDragStart(lead, cardWindowOffset, cardSize, drag.position)
+                                dragDropState.onDrag(overSlop)
+                                val success = drag(drag.id) { change ->
+                                    dragDropState.onDrag(change.positionChange())
+                                    change.consume()
+                                }
+                                if (success) {
+                                    dragDropState.onDragEnd { targetStage -> onUpdateStage(targetStage) }
+                                } else {
+                                    dragDropState.onDragCancel()
+                                }
+                            } else if (!down.isConsumed) {
+                                onSelectLead(lead.id)
                             }
-                        )
+                        }
                     }
                 } else Modifier
             ),
-        outlineColor = if (isBeingDragged) WeMadeColors.OutlineSoft else cardOutline,
+        outlineColor = when {
+            isBeingDragged -> WeMadeColors.OutlineSoft
+            selected -> WeMadeColors.Primary
+            else -> WeMadeColors.Outline
+        },
         containerColor = if (isBeingDragged) WeMadeColors.SurfaceMuted else WeMadeColors.Surface,
-        borderWidth = if (isBeingDragged) ClayBorder.Hairline else ClayBorder.Medium,
+        borderWidth = ClayBorder.Medium,
+        offset = ClayOffset.Small,
         selected = selected,
-        onClick = null,
+        onClick = { onSelectLead(lead.id) },
         contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
         if (isBeingDragged) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(with(LocalDensity.current) {
-                        (cardSize.height - 32f).coerceAtLeast(64f).toDp()
-                    }),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                ) {
-                    IconInbox(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
-                    Text(
-                        text = "Memindahkan ${lead.title}…",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-                }
-            }
+            DraggedPlaceholder(title = lead.title, heightPx = cardSize.height)
         } else {
-            val uriHandler = LocalUriHandler.current
-
-            // Baris Atas: Title (Brand / Kontak) & Order Archetype + Badge Status Dropdown
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                val titleInteractionSource = remember { MutableInteractionSource() }
-                val pcs = lead.estimatedPcs
-                val orderSpecs = buildString {
-                    if (pcs != null && pcs > 0) append("$pcs pcs ")
-                    if (lead.productCategory.value.isNotBlank()) append(lead.productCategory.value)
-                }
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(
-                            interactionSource = titleInteractionSource,
-                            indication = null,
-                            enabled = canWrite
-                        ) { onSelectLead(lead.id) }
-                ) {
-                    Text(
-                        text = lead.title,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.OnSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (orderSpecs.isNotBlank()) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = orderSpecs,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WeMadeColors.Primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(ClaySpacing.Sm))
-
-                val badgeInteractionSource = remember { MutableInteractionSource() }
-                Box {
-                    ClayBadge(
-                        text = lead.stage.displayName,
-                        tint = lead.stage.tint(),
-                        fontSize = 10.sp,
-                        trailing = if (canWrite) {
-                            { IconChevronDown(Modifier.size(9.dp), color = lead.stage.tint()) }
-                        } else null,
-                        modifier = if (canWrite) {
-                            Modifier.clickable(
-                                interactionSource = badgeInteractionSource,
-                                indication = null
-                            ) { stageMenuExpanded = true }
-                        } else Modifier
-                    )
-                    if (canWrite) {
-                        DropdownMenu(
-                            expanded = stageMenuExpanded,
-                            onDismissRequest = { stageMenuExpanded = false }
-                        ) {
-                            LeadStage.entries.filter { it != lead.stage }.forEach { targetStage ->
-                                val itemColor = when (targetStage) {
-                                    LeadStage.QUALIFIED -> WeMadeColors.Success
-                                    LeadStage.UNQUALIFIED -> WeMadeColors.Error
-                                    LeadStage.NEW_LEAD -> WeMadeColors.Primary
-                                }
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        when (targetStage) {
-                                            LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = WeMadeColors.Success)
-                                            LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
-                                            LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = WeMadeColors.Primary)
-                                        }
-                                    },
-                                    text = {
-                                        Text(
-                                            text = when (targetStage) {
-                                                LeadStage.NEW_LEAD -> "Pindahkan ke Inquiry / New Lead"
-                                                LeadStage.QUALIFIED -> "Kualifikasi (Qualified)"
-                                                LeadStage.UNQUALIFIED -> "Tandai Unqualified"
-                                            },
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = itemColor
-                                        )
-                                    },
-                                    onClick = {
-                                        stageMenuExpanded = false
-                                        onUpdateStage(targetStage)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Md))
-
-            // Estimasi Nilai & Tombol Cepat WhatsApp
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        enabled = canWrite
-                    ) { onSelectLead(lead.id) }
-            ) {
-                Text(
-                    text = "Est. Deal Value",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-                Spacer(Modifier.height(2.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val estValue = lead.estimatedValue
-                    Text(
-                        text = if (estValue != null) formatRupiah(estValue.amount) else "Nilai Belum Diestimasi",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (estValue != null) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
-                    )
-
-                    val whatsapp = lead.whatsappNumber
-                    if (whatsapp != null) {
-                        Row(
-                            modifier = Modifier
-                                .clayFlat(
-                                    shape = ClayShapes.Pill,
-                                    background = WeMadeColors.SuccessBg,
-                                    outline = WeMadeColors.Success,
-                                    borderWidth = ClayBorder.Hairline
-                                )
-                                .clickable {
-                                    runCatching { uriHandler.openUri(whatsapp.waLink) }
-                                }
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            IconPhone(Modifier.size(10.dp), color = WeMadeColors.Success)
-                            Text(
-                                text = "WhatsApp",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Success
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Md))
-
-            // Kontak Klien & Avatar Sales PIC
+            // Baris atas: tag sumber channel + tombol pindah stage
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    IconUser(Modifier.size(12.dp), color = WeMadeColors.OnSurfaceMuted)
-                    Text(
-                        text = if (lead.contactPerson.isNotBlank()) lead.contactPerson else "PIC Klien Belum Diisi",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.OnSurfaceMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                val sourceLabel = lead.source.value.ifBlank { "Inquiry Langsung" }
+                Box(modifier = Modifier.weight(1f, fill = false)) {
+                    ClayBadge(text = sourceLabel, tint = WeMadeColors.Primary, fontSize = 11.sp)
                 }
-
-                // Avatar Bulat PIC dengan Inisial
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    owner?.let {
-                        Text(
-                            text = it.name,
-                            fontSize = 10.sp,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clayFlat(
-                                shape = CircleShape,
-                                background = if (owner != null) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
-                                outline = WeMadeColors.Outline,
-                                borderWidth = ClayBorder.Hairline
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (owner != null) getInitials(owner.name) else "?",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (owner != null) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
-                        )
-                    }
+                if (canWrite) {
+                    Spacer(Modifier.width(ClaySpacing.Sm))
+                    LeadStageMenuButton(currentStage = lead.stage, onUpdateStage = onUpdateStage)
                 }
             }
 
             Spacer(Modifier.height(ClaySpacing.Md))
 
-            // Footer Kartu: Tag Sumber Channel (Kiri) & Badge Follow-up / Aktivitas (Kanan)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val sourceLabel = if (lead.source.value.isNotBlank()) lead.source.value else "Inquiry Langsung"
-                ClayTag(
-                    text = sourceLabel,
-                    tint = WeMadeColors.Primary,
-                    fontSize = 9.sp
-                )
+            // Judul & deskripsi satu baris
+            Text(
+                text = lead.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = WeMadeColors.OnSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(ClaySpacing.Xxs))
+            Text(
+                text = leadDescription(lead),
+                fontSize = 12.sp,
+                color = WeMadeColors.OnSurfaceMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                val activityInteractionSource = remember { MutableInteractionSource() }
-                val hasActivities = lead.activityCount > 0
-                Row(
-                    modifier = Modifier
-                        .clayFlat(
-                            shape = ClayShapes.Pill,
-                            background = if (hasActivities) WeMadeColors.SurfaceMuted else WeMadeColors.WarningBg,
-                            outline = if (hasActivities) WeMadeColors.Outline else WeMadeColors.Warning,
-                            borderWidth = ClayBorder.Hairline
-                        )
-                        .clickable(
-                            interactionSource = activityInteractionSource,
-                            indication = null
-                        ) {
-                            onOpenActivities(lead)
-                        }
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconChat(
-                        modifier = Modifier.size(10.dp),
-                        color = if (hasActivities) WeMadeColors.OnSurfaceMuted else WeMadeColors.Warning
-                    )
-                    Text(
-                        text = if (hasActivities) "${lead.activityCount} Aktivitas" else "Perlu Follow-up",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (hasActivities) WeMadeColors.OnSurface else WeMadeColors.Warning
-                    )
-                }
-            }
+            Spacer(Modifier.height(ClaySpacing.Lg))
+
+            LeadCardFooter(lead = lead, ownerName = owner?.name, onOpenActivities = onOpenActivities)
         }
     }
 }
 
+private fun leadDescription(lead: CrmLead): String {
+    val parts = buildList {
+        val pcs = lead.estimatedPcs
+        if (pcs != null && pcs > 0) add("$pcs pcs")
+        if (lead.productCategory.value.isNotBlank()) add(lead.productCategory.value)
+        add(lead.contactPerson.ifBlank { "PIC klien belum diisi" })
+    }
+    return parts.joinToString(" · ")
+}
+
+@Composable
+private fun LeadCardFooter(
+    lead: CrmLead,
+    ownerName: String?,
+    onOpenActivities: (CrmLead) -> Unit
+) {
+    val uriHandler = LocalUriHandler.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+    ) {
+        OwnerAvatar(name = ownerName)
+        Spacer(Modifier.weight(1f))
+
+        // Pill nilai yang mengalah duluan saat kolom sempit (4 kolom di layar ~1280dp).
+        val estValue = lead.estimatedValue
+        Box(modifier = Modifier.weight(1f, fill = false)) {
+            ClayBadge(
+                text = if (estValue != null) formatRupiahCompact(estValue.amount) else "Belum estimasi",
+                tint = if (estValue != null) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted,
+                fontSize = 11.sp
+            )
+        }
+
+        lead.whatsappNumber?.let { whatsapp ->
+            ClayBadge(
+                text = "WA",
+                tint = WeMadeColors.Success,
+                fontSize = 11.sp,
+                leading = { IconPhone(Modifier.size(10.dp), color = WeMadeColors.Success) },
+                modifier = Modifier.clickable { runCatching { uriHandler.openUri(whatsapp.waLink) } }
+            )
+        }
+
+        val hasActivities = lead.activityCount > 0
+        val activityTint = if (hasActivities) WeMadeColors.Purple else WeMadeColors.Warning
+        ClayBadge(
+            text = if (hasActivities) "${lead.activityCount}" else "Follow-up",
+            tint = activityTint,
+            fontSize = 11.sp,
+            leading = { IconChat(Modifier.size(10.dp), color = activityTint) },
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onOpenActivities(lead) }
+        )
+    }
+}
+
+@Composable
+private fun OwnerAvatar(name: String?) {
+    Box(
+        modifier = Modifier
+            .size(26.dp)
+            .clayFlat(
+                shape = CircleShape,
+                background = if (name != null) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
+                outline = WeMadeColors.Outline,
+                borderWidth = ClayBorder.Medium
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (name != null) {
+            Text(
+                text = getInitials(name),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.Surface
+            )
+        } else {
+            IconUser(
+                modifier = Modifier.size(14.dp),
+                color = WeMadeColors.OnSurfaceMuted
+            )
+        }
+    }
+}
+
+@Composable
+private fun DraggedPlaceholder(title: String, heightPx: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(with(LocalDensity.current) { (heightPx - 32f).coerceAtLeast(64f).toDp() }),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
+            IconInbox(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
+            Text(
+                text = "Memindahkan $title…",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.OnSurfaceMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}

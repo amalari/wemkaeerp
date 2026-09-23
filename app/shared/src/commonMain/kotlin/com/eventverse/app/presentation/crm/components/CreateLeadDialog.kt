@@ -48,7 +48,7 @@ fun CreateLeadDialog(
     onDismiss: () -> Unit,
     onCreate: (brandName: String, contactPerson: String, phoneNumber: String, email: String, stage: LeadStage, productCategory: String, estimatedPcs: Int?) -> Unit
 ) {
-    var stage by remember { mutableStateOf(if (initialStage == LeadStage.QUALIFIED) LeadStage.QUALIFIED else LeadStage.NEW_LEAD) }
+    var stage by remember { mutableStateOf(if (initialStage == LeadStage.FOLLOW_UP) LeadStage.FOLLOW_UP else LeadStage.NEW_LEAD) }
     var brandName by remember { mutableStateOf("") }
     var contactPerson by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
@@ -73,7 +73,7 @@ fun CreateLeadDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (stage == LeadStage.QUALIFIED) "Tambah Qualified Lead" else "Tambah Lead Baru",
+                    text = "Tambah Lead Baru",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.OnSurface
@@ -90,9 +90,9 @@ fun CreateLeadDialog(
                         onClick = { stage = LeadStage.NEW_LEAD }
                     )
                     StagePill(
-                        label = "Qualified",
-                        selected = stage == LeadStage.QUALIFIED,
-                        onClick = { stage = LeadStage.QUALIFIED }
+                        label = "Follow Up",
+                        selected = stage == LeadStage.FOLLOW_UP,
+                        onClick = { stage = LeadStage.FOLLOW_UP }
                     )
                 }
             }

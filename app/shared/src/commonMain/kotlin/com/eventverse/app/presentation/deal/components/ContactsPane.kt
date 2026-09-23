@@ -196,7 +196,7 @@ private fun ContactGridCard(
     onChatWhatsApp: () -> Unit
 ) {
     val brand = contact.brandName.value.takeIf { it.isNotBlank() }
-    val tint = brandColor(brand)
+    val tint = brandColor(brand, contact.displayName)
 
     ClayCard(
         modifier = Modifier.fillMaxWidth(),
@@ -240,9 +240,16 @@ private fun ContactGridCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                brand?.let {
-                    Spacer(Modifier.height(ClaySpacing.Xs))
-                    BrandPill(text = it, tint = tint)
+                Spacer(Modifier.height(ClaySpacing.Xs))
+                if (brand != null) {
+                    BrandPill(text = brand, tint = tint)
+                } else {
+                    BrandPill(
+                        text = "Tanpa Perusahaan",
+                        tint = WeMadeColors.SurfaceMuted,
+                        textColor = WeMadeColors.OnSurfaceMuted,
+                        outline = WeMadeColors.Border
+                    )
                 }
             }
         }
@@ -265,26 +272,29 @@ private fun ContactGridCard(
             )
         }
 
-        if (dealSummary != null && dealSummary.first > 0) {
-            Spacer(Modifier.height(ClaySpacing.Md))
-            Row(
-                modifier = Modifier
-                    .clayFlat(
-                        shape = ClayShapes.Pill,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Border,
-                        borderWidth = ClayBorder.Hairline
-                    )
-                    .padding(horizontal = 12.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = "${dealSummary.first} Deals - ${formatIdr(dealSummary.second)}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 1
+        Spacer(Modifier.height(ClaySpacing.Md))
+        val hasDeals = dealSummary != null && dealSummary.first > 0
+        Row(
+            modifier = Modifier
+                .clayFlat(
+                    shape = ClayShapes.Pill,
+                    background = WeMadeColors.SurfaceMuted,
+                    outline = WeMadeColors.Border,
+                    borderWidth = ClayBorder.Hairline
                 )
-            }
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+        ) {
+            Text(
+                text = if (hasDeals) {
+                    "${dealSummary.first} Deals - ${formatIdr(dealSummary.second)}"
+                } else {
+                    "0 Deals - Belum ada transaksi"
+                },
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (hasDeals) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted,
+                maxLines = 1
+            )
         }
 
         Spacer(Modifier.height(ClaySpacing.Lg))
@@ -336,12 +346,12 @@ private val brandPalette = listOf(
 /**
  * Warna stabil per nama brand — avatar, pill brand, dan chip filter berbagi warna yang sama
  * (mockup: avatar biru untuk brand biru, oranye untuk brand oranye, dst).
- * Kontak tanpa brand memakai fallback Teal.
+ * Kontak tanpa brand memakai fallback berbasis nama PIC atau Teal.
  */
-private fun brandColor(brand: String?): Color =
-    brand?.takeIf { it.isNotBlank() }
-        ?.let { brandPalette[abs(it.hashCode()) % brandPalette.size] }
-        ?: WeMadeColors.Teal
+internal fun brandColor(brand: String?, fallbackKey: String = ""): Color {
+    val key = brand?.takeIf { it.isNotBlank() } ?: fallbackKey.takeIf { it.isNotBlank() }
+    return key?.let { brandPalette[abs(it.hashCode()) % brandPalette.size] } ?: WeMadeColors.Teal
+}
 
 /** Kolom info kontak: tile ikon pekat + label kecil + nilai tebal (mockup WhatsApp/Email). */
 @Composable
@@ -388,15 +398,20 @@ private fun ContactInfoColumn(
     }
 }
 
-/** Pill brand padat berwarna dengan teks putih — dipakai di kartu dan dialog ringkasan. */
+/** Pill brand padat berwarna — dipakai di kartu dan dialog ringkasan. */
 @Composable
-private fun BrandPill(text: String, tint: Color) {
+internal fun BrandPill(
+    text: String,
+    tint: Color,
+    textColor: Color = Color.White,
+    outline: Color = WeMadeColors.Outline
+) {
     Row(
         modifier = Modifier
             .clayFlat(
                 shape = ClayShapes.Pill,
                 background = tint,
-                outline = WeMadeColors.Outline,
+                outline = outline,
                 borderWidth = ClayBorder.Hairline
             )
             .padding(horizontal = 10.dp, vertical = 3.dp)
@@ -405,7 +420,7 @@ private fun BrandPill(text: String, tint: Color) {
             text = text,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = textColor,
             maxLines = 1
         )
     }
@@ -511,115 +526,3 @@ private fun ToolbarPill(
     }
 }
 
-/**
- * Ringkasan read-only seluruh deal milik satu kontak — sengaja TANPA formulir PO,
- * karena pengelolaan PO tetap tinggal di [DealDetailDialog] lewat tab Deal.
- */
-@Composable
-private fun ContactDealsDialog(
-    contact: Contact,
-    deals: List<Deal>,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        ClayCard(
-            modifier = Modifier.widthIn(min = 420.dp, max = 540.dp),
-            contentPadding = PaddingValues(ClaySpacing.Xl)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = "PIC",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurfaceMuted,
-                        letterSpacing = ClayLetterSpacing.Label
-                    )
-                    Text(
-                        text = contact.displayName,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = WeMadeColors.OnSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                ClayButton(
-                    text = "Tutup",
-                    onClick = onDismiss,
-                    style = ClayButtonStyle.Secondary,
-                    fontSize = 11.sp
-                )
-            }
-            contact.brandName.value.takeIf { it.isNotBlank() }?.let { brand ->
-                Spacer(Modifier.height(ClaySpacing.Xs))
-                BrandPill(text = brand, tint = brandColor(brand))
-            }
-
-            Spacer(Modifier.height(ClaySpacing.Lg))
-            if (deals.isEmpty()) {
-                Text(
-                    text = "Kontak ini belum memiliki deal.",
-                    fontSize = 12.sp,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            } else {
-                Text(
-                    text = "Deal (${deals.size})",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                Spacer(Modifier.height(ClaySpacing.Sm))
-                deals.forEach { deal ->
-                    DealSummaryRow(deal = deal)
-                    Spacer(Modifier.height(ClaySpacing.Sm))
-                }
-            }
-        }
-    }
-}
-
-/** Satu baris deal pada dialog ringkasan: judul + nilai + badge tahap. */
-@Composable
-private fun DealSummaryRow(deal: Deal) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clayFlat(
-                shape = ClayShapes.Tile,
-                background = WeMadeColors.SurfaceMuted,
-                outline = WeMadeColors.Border,
-                borderWidth = ClayBorder.Hairline
-            )
-            .padding(ClaySpacing.Md),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f, fill = false)) {
-            Text(
-                text = deal.title.value,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            deal.estimatedValue?.let { value ->
-                Spacer(Modifier.height(ClaySpacing.Xxs))
-                Text(
-                    text = formatIdr(value.amount),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.Primary
-                )
-            }
-        }
-        Spacer(Modifier.width(ClaySpacing.Sm))
-        ClayBadge(text = deal.stage.displayName, tint = deal.stage.tint(), dot = true)
-    }
-}

@@ -80,6 +80,8 @@ value class WhatsappNumber(val value: String) {
  */
 enum class LeadStage(val displayName: String) {
     NEW_LEAD("New Lead"),
+    /** Sudah dihubungi sales, sedang digali kebutuhannya — belum cukup jelas untuk dikualifikasi. */
+    FOLLOW_UP("Follow Up"),
     QUALIFIED("Qualified Lead"),
     UNQUALIFIED("Unqualified");
 
@@ -92,6 +94,7 @@ enum class LeadStage(val displayName: String) {
     companion object {
         fun fromCode(code: String?): LeadStage? = when (code) {
             "NEW_LEAD", "INQUIRY" -> NEW_LEAD
+            "FOLLOW_UP", "CONTACTED", "IN_PROGRESS" -> FOLLOW_UP
             "QUALIFIED", "TECHPACK_SPEC", "QUOTATION_SENT", "SAMPLE_APPROVAL", "DEAL_DP_CONFIRMED" -> QUALIFIED
             "UNQUALIFIED", "LOST" -> UNQUALIFIED
             else -> entries.firstOrNull { it.name == code }

@@ -222,11 +222,13 @@ fun Route.crmRoutes(
                     return@post
                 }
 
-                if (newStage == LeadStage.NEW_LEAD && existing.stage == LeadStage.QUALIFIED) {
+                if (existing.stage == LeadStage.QUALIFIED &&
+                    (newStage == LeadStage.NEW_LEAD || newStage == LeadStage.FOLLOW_UP)
+                ) {
                     // Demosi bersyarat di dalam satu transaksi: bila deal-nya masih bersih,
                     // deal ikut diarsipkan; bila sudah ada PO/invoice, ditolak dengan pesan.
                     DatabaseFactory.dbQuery(tenant.tenantId) {
-                        demoteQualifiedLeadUseCase(tenant.tenantId, leadId)
+                        demoteQualifiedLeadUseCase(tenant.tenantId, leadId, target = newStage)
                     }.onSuccess { demotion ->
                         call.respondJson(CrmLeadCodec.encodeLead(demotion.lead).encode())
                     }.onFailure { call.respondFailure(HttpStatusCode.Conflict, it) }

@@ -12,6 +12,7 @@ data class SamplingUiState(
      * Null = tidak ada dialog detail terbuka.
      */
     val spkDetailTarget: SamplingOrder? = null,
+    val spkDetailFocusFlow: Boolean = false,
     val selectedStatusFilter: SamplingStatus? = null,
     val selectedStageFilter: SamplingPipelineStage? = null,
     val searchQuery: String = "",
@@ -52,7 +53,7 @@ data class SamplingUiState(
 sealed interface SamplingUiEvent {
     data object Load : SamplingUiEvent
     data class SelectOrder(val orderId: SamplingOrderId) : SamplingUiEvent
-    data class OpenSpkDetailDialog(val order: SamplingOrder) : SamplingUiEvent
+    data class OpenSpkDetailDialog(val order: SamplingOrder, val focusFlow: Boolean = false) : SamplingUiEvent
     data object CloseSpkDetailDialog : SamplingUiEvent
     data class SetFilter(val status: SamplingStatus?) : SamplingUiEvent
     data class SetStageFilter(val stage: SamplingPipelineStage?) : SamplingUiEvent
@@ -76,6 +77,8 @@ sealed interface SamplingUiEvent {
         val notes: String
     ) : SamplingUiEvent
     data class SaveTechnicalSpec(val updatedOrder: SamplingOrder) : SamplingUiEvent
+    /** "Tentukan Alur Desain": SPK Masuk pindah ke kolom Penentuan Alur; tahap lain tidak disentuh. */
+    data class DetermineFlow(val orderId: SamplingOrderId) : SamplingUiEvent
     data class AdvanceStage(val orderId: SamplingOrderId, val targetStage: SamplingPipelineStage) : SamplingUiEvent
     data class OpenStageAdvanceDialog(val order: SamplingOrder, val targetStage: SamplingPipelineStage) : SamplingUiEvent
     data object CloseStageAdvanceDialog : SamplingUiEvent

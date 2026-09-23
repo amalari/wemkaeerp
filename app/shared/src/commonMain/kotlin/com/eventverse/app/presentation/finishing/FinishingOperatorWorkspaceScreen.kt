@@ -80,7 +80,7 @@ fun FinishingOperatorWorkspaceScreen(
                         ClayBadge(text = "Divisi Finishing & Linking", tint = WeMadeColors.Primary)
                     }
                     Text(
-                        text = "Antrean perakitan, linking, obras, dan setoran bertahap hasil timbangan",
+                        text = "Antrean perakitan sampai pengemasan — setor hasil timbangan, lalu serahkan ke tahap berikutnya",
                         fontSize = 12.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -170,11 +170,36 @@ fun FinishingOperatorWorkspaceScreen(
                                     )
                                 }
 
-                                ClayButton(
-                                    text = if (order.isFinishingComplete) "Tambah Setoran" else "+ Input Setoran Hasil",
-                                    style = if (order.isFinishingComplete) ClayButtonStyle.Secondary else ClayButtonStyle.Primary,
-                                    onClick = { targetOrderForSetoran = order }
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                                    // Tombol serah terima hanya muncul di tahap yang memang
+                                    // dikerjakan di meja ini. Perakitan tidak diberi tombol karena
+                                    // ia sudah berpindah sendiri saat setoran genap; memberi dua
+                                    // jalan untuk satu perpindahan membuat keduanya tidak
+                                    // dipercaya.
+                                    val handoffTarget = order.pipelineStage
+                                        .takeIf { it.isWetOrPressWork || it == SamplingPipelineStage.PENGEMASAN }
+                                        ?.nextStage
+                                    if (handoffTarget != null) {
+                                        ClayButton(
+                                            // Tanpa karakter panah Unicode: Fredoka yang
+                                            // dibundel tidak punya glyph U+2192 dan
+                                            // merendernya jadi kotak kosong.
+                                            text = "Serahkan ke ${handoffTarget.displayName}",
+                                            style = ClayButtonStyle.Accent,
+                                            enabled = !state.isSubmitting,
+                                            onClick = {
+                                                viewModel.onEvent(
+                                                    SamplingUiEvent.AdvanceStage(order.id, handoffTarget)
+                                                )
+                                            }
+                                        )
+                                    }
+                                    ClayButton(
+                                        text = if (order.isFinishingComplete) "Tambah Setoran" else "+ Input Setoran Hasil",
+                                        style = if (order.isFinishingComplete) ClayButtonStyle.Secondary else ClayButtonStyle.Primary,
+                                        onClick = { targetOrderForSetoran = order }
+                                    )
+                                }
                             }
 
                             // Progress Summary

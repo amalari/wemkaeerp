@@ -29,7 +29,6 @@ import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.orgchart.OrgNode
-import com.eventverse.app.presentation.crm.CrmViewMode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -37,6 +36,7 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.designsystem.IconBan
+import com.eventverse.app.presentation.designsystem.IconChat
 import com.eventverse.app.presentation.designsystem.IconInbox
 import com.eventverse.app.presentation.designsystem.IconStar
 import com.eventverse.app.presentation.designsystem.clayFlat
@@ -57,11 +57,9 @@ fun CrmMobileKanbanView(
     employees: List<OrgNode>,
     selectedLeadId: LeadId?,
     searchQuery: String,
-    viewMode: CrmViewMode,
     activeStage: LeadStage,
     canWrite: Boolean,
     canManage: Boolean,
-    onViewModeChange: (CrmViewMode) -> Unit,
     onSelectStage: (LeadStage) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectLead: (LeadId?) -> Unit,
@@ -91,15 +89,15 @@ fun CrmMobileKanbanView(
         )
 
         // Baris 2: Tombol Tambah Lead (jika diizinkan)
-        if (onAddLead != null && activeStage != LeadStage.UNQUALIFIED) {
+        if (onAddLead != null && activeStage == LeadStage.NEW_LEAD) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Lg),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayButton(
-                    text = if (activeStage == LeadStage.QUALIFIED) "+ Tambah Qualified" else "+ Tambah Lead",
-                    style = if (activeStage == LeadStage.QUALIFIED) ClayButtonStyle.Success else ClayButtonStyle.Primary,
+                    text = "+ Tambah Lead",
+                    style = ClayButtonStyle.Primary,
                     onClick = { onAddLead(activeStage) },
                     fontSize = 12.sp,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
@@ -128,6 +126,7 @@ fun CrmMobileKanbanView(
                     LeadStage.QUALIFIED -> ClayButtonStyle.Success
                     LeadStage.UNQUALIFIED -> ClayButtonStyle.Danger
                     LeadStage.NEW_LEAD -> ClayButtonStyle.Primary
+                    LeadStage.FOLLOW_UP -> ClayButtonStyle.Accent
                 }
 
                 ClayButton(
@@ -158,6 +157,7 @@ fun CrmMobileKanbanView(
                 ) {
                     when (activeStage) {
                         LeadStage.NEW_LEAD -> IconInbox(modifier = Modifier.size(44.dp), color = WeMadeColors.Primary)
+                        LeadStage.FOLLOW_UP -> IconChat(modifier = Modifier.size(44.dp), color = WeMadeColors.Accent)
                         LeadStage.QUALIFIED -> IconStar(modifier = Modifier.size(44.dp), color = WeMadeColors.Success)
                         LeadStage.UNQUALIFIED -> IconBan(modifier = Modifier.size(44.dp), color = WeMadeColors.Error)
                     }
@@ -172,6 +172,7 @@ fun CrmMobileKanbanView(
                     Text(
                         text = when (activeStage) {
                             LeadStage.NEW_LEAD -> "Mulai catat inquiry atau kontak baru di tahap awal ini."
+                            LeadStage.FOLLOW_UP -> "Lead yang sedang dihubungi & digali kebutuhannya muncul di sini."
                             LeadStage.QUALIFIED -> "Prospek dengan kuantiti & estimasi nilai akan muncul di sini."
                             LeadStage.UNQUALIFIED -> "Lead yang batal atau diarsipkan akan terkumpul di sini."
                         },
@@ -180,11 +181,11 @@ fun CrmMobileKanbanView(
                         textAlign = TextAlign.Center
                     )
 
-                    if (canWrite && onAddLead != null && activeStage != LeadStage.UNQUALIFIED) {
+                    if (canWrite && onAddLead != null && activeStage == LeadStage.NEW_LEAD) {
                         Spacer(Modifier.height(ClaySpacing.Xs))
                         ClayButton(
-                            text = if (activeStage == LeadStage.QUALIFIED) "+ Tambah Qualified" else "+ Tambah Inquiry",
-                            style = if (activeStage == LeadStage.QUALIFIED) ClayButtonStyle.Success else ClayButtonStyle.Primary,
+                            text = "+ Tambah Inquiry",
+                            style = ClayButtonStyle.Primary,
                             fontSize = 11.sp,
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp),
                             onClick = { onAddLead(activeStage) }

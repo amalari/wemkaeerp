@@ -27,8 +27,6 @@ import com.eventverse.app.presentation.crm.components.CreateLeadDialog
 import com.eventverse.app.presentation.crm.components.CrmKanbanBoard
 import com.eventverse.app.presentation.crm.components.CrmMobileKanbanView
 import com.eventverse.app.presentation.crm.components.LeadActivitiesDialog
-import com.eventverse.app.presentation.crm.components.LeadsMasterDetailLayout
-import com.eventverse.app.presentation.crm.components.LeadsMobileFeedLayout
 import com.eventverse.app.presentation.deal.components.ContactsPane
 import com.eventverse.app.presentation.deal.components.DealsPane
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -159,7 +157,7 @@ fun CrmWorkspaceScreen(
             DealsPane(tenantSlug = tenantSlug, modifier = Modifier.fillMaxSize())
         } else if (directoryTab == CrmDirectoryTab.CONTACTS) {
             ContactsPane(tenantSlug = tenantSlug, modifier = Modifier.fillMaxSize())
-        } else if (state.viewMode == CrmViewMode.KANBAN) {
+        } else {
             if (isDesktop) {
                 CrmKanbanBoard(
                     leads = state.visibleLeads,
@@ -167,10 +165,8 @@ fun CrmWorkspaceScreen(
                     employees = employees,
                     selectedLeadId = state.selectedLeadId,
                     searchQuery = state.searchQuery,
-                    viewMode = state.viewMode,
                     canWrite = state.canWrite,
                     canManage = state.canManage,
-                    onViewModeChange = { viewModel.onEvent(CrmUiEvent.SetViewMode(it)) },
                     onSearchQueryChange = { viewModel.onEvent(CrmUiEvent.UpdateSearchQuery(it)) },
                     onSelectLead = { viewModel.onEvent(CrmUiEvent.SelectLead(it)) },
                     onAddLead = if (state.canWrite) ({ stage -> viewModel.onEvent(CrmUiEvent.OpenCreateDialog(stage)) }) else null,
@@ -202,11 +198,9 @@ fun CrmWorkspaceScreen(
                     employees = employees,
                     selectedLeadId = state.selectedLeadId,
                     searchQuery = state.searchQuery,
-                    viewMode = state.viewMode,
                     activeStage = state.activeMobileStage,
                     canWrite = state.canWrite,
                     canManage = state.canManage,
-                    onViewModeChange = { viewModel.onEvent(CrmUiEvent.SetViewMode(it)) },
                     onSelectStage = { viewModel.onEvent(CrmUiEvent.SetMobileStage(it)) },
                     onSearchQueryChange = { viewModel.onEvent(CrmUiEvent.UpdateSearchQuery(it)) },
                     onSelectLead = { viewModel.onEvent(CrmUiEvent.SelectLead(it)) },
@@ -217,70 +211,6 @@ fun CrmWorkspaceScreen(
                     onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
                     onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     onOpenActivities = { viewModel.onEvent(CrmUiEvent.OpenActivities(it)) },
-                    activities = state.leadActivities,
-                    isLoadingActivities = state.isLoadingActivities,
-                    isSubmittingActivity = state.isSubmittingActivity,
-                    onSubmitActivity = { content ->
-                        state.selectedLeadId?.let { leadId ->
-                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        } else {
-            if (isDesktop) {
-                LeadsMasterDetailLayout(
-                    leads = state.visibleLeads,
-                    schema = state.schema,
-                    employees = employees,
-                    selectedLeadId = state.selectedLeadId,
-                    searchQuery = state.searchQuery,
-                    canWrite = state.canWrite,
-                    canManage = state.canManage,
-                    viewMode = state.viewMode,
-                    onViewModeChange = { viewModel.onEvent(CrmUiEvent.SetViewMode(it)) },
-                    onSearchQueryChange = { viewModel.onEvent(CrmUiEvent.UpdateSearchQuery(it)) },
-                    onSelectLead = { viewModel.onEvent(CrmUiEvent.SelectLead(it)) },
-                    onAddLead = if (state.canWrite) ({ viewModel.onEvent(CrmUiEvent.OpenCreateDialog()) }) else null,
-                    onCommitField = { fieldId, value -> viewModel.onEvent(CrmUiEvent.CommitField(fieldId, value)) },
-                    onUpdateStage = { stage ->
-                        state.selectedLeadId?.let { viewModel.onEvent(CrmUiEvent.UpdateStage(it, stage)) }
-                    },
-                    onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
-                    onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
-                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
-                    activities = state.leadActivities,
-                    isLoadingActivities = state.isLoadingActivities,
-                    isSubmittingActivity = state.isSubmittingActivity,
-                    onSubmitActivity = { content ->
-                        state.selectedLeadId?.let { leadId ->
-                            viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                LeadsMobileFeedLayout(
-                    leads = state.visibleLeads,
-                    schema = state.schema,
-                    employees = employees,
-                    selectedLeadId = state.selectedLeadId,
-                    searchQuery = state.searchQuery,
-                    canWrite = state.canWrite,
-                    canManage = state.canManage,
-                    viewMode = state.viewMode,
-                    onViewModeChange = { viewModel.onEvent(CrmUiEvent.SetViewMode(it)) },
-                    onSearchQueryChange = { viewModel.onEvent(CrmUiEvent.UpdateSearchQuery(it)) },
-                    onSelectLead = { viewModel.onEvent(CrmUiEvent.SelectLead(it)) },
-                    onAddLead = if (state.canWrite) ({ viewModel.onEvent(CrmUiEvent.OpenCreateDialog()) }) else null,
-                    onCommitField = { fieldId, value -> viewModel.onEvent(CrmUiEvent.CommitField(fieldId, value)) },
-                    onUpdateStage = { stage ->
-                        state.selectedLeadId?.let { viewModel.onEvent(CrmUiEvent.UpdateStage(it, stage)) }
-                    },
-                    onArchive = { viewModel.onEvent(CrmUiEvent.ArchiveLead(it)) },
-                    onAddField = { viewModel.onEvent(CrmUiEvent.OpenAddFieldDialog) },
-                    onDeleteField = { viewModel.onEvent(CrmUiEvent.DeleteCustomField(it)) },
                     activities = state.leadActivities,
                     isLoadingActivities = state.isLoadingActivities,
                     isSubmittingActivity = state.isSubmittingActivity,

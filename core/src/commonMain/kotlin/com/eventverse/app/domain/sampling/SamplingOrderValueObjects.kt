@@ -93,6 +93,16 @@ enum class SamplingPipelineStage(val displayName: String, val order: Int) {
     val isWetOrPressWork: Boolean
         get() = this == CUCI_SOFTENER || this == SETRIKA_UAP
 
+    /**
+     * Tahap sesudah ini menurut urutan, atau `null` bila ini yang terakhir.
+     *
+     * Dipakai tombol "selesai — serahkan ke tahap berikutnya" di meja operator. Dihitung dari
+     * urutan, bukan ditulis sebagai tabel `when`, supaya penyisipan tahap baru tidak menyisakan
+     * satu cabang yang lupa diperbarui dan diam-diam melompati tahap yang baru saja ditambahkan.
+     */
+    val nextStage: SamplingPipelineStage?
+        get() = entries.getOrNull(ordinal + 1)
+
     companion object {
         /**
          * Nama tahap yang sudah tidak ada lagi, dipetakan ke penggantinya.

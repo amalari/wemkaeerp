@@ -8,11 +8,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -33,18 +39,15 @@ import com.eventverse.app.presentation.sampling.ProcessFlowScope
 import com.eventverse.app.presentation.sampling.ProcessFlowUiEvent
 import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Dialog detail SPK — dibuka saat kartu di kolom Kanban diklik.
  *
- * Fokus tahap SPK Baru / Penentuan Alur adalah **referensi klien & alur proses**, bukan input
- * teknis CAM:
- * - [ClientSamplingReferenceCard] menampilkan referensi dari Deal (mockup depan/belakang,
- *   matriks ukuran POM + alokasi qty, jalur finishing, deadline).
- * - [ProcessFlowAdjusterPanel] membiarkan operator menyisipkan proses opsional (Bordir, Sablon,
- *   Laundry) ke alur desain ini.
- * - Tombol "Alur Siap -> Mulai CAM" membuka gerbang transisi tahap ([StageAdvanceDialog]) —
- *   di sanalah lembar Program CAM diisi, konsisten dengan alur kerja kolom Kanban lainnya.
+ * Pada tahap SPK Masuk (NEW_INTAKE), dialog awalnya hanya menampilkan referensi detail klien
+ * (mockup, ukuran POM, catatan). Alur proses baru muncul saat "Tentukan Alur Desain" diklik
+ * dan otomatis scroll ke section alur proses tersebut.
  */
 @Composable
 fun SamplingSpkDetailDialog(
@@ -52,12 +55,30 @@ fun SamplingSpkDetailDialog(
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
     onStartCam: () -> Unit,
+    onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
-    processFlowViewModel: ProcessFlowViewModel? = null
+    processFlowViewModel: ProcessFlowViewModel? = null,
+    initialShowFlowSection: Boolean = false
 ) {
     // Gerbang klien: tombol mulai CAM hanya tampil pada tahap SPK Masuk / Penentuan Alur.
     val isGateStage = order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ||
         order.pipelineStage == SamplingPipelineStage.FLOW_REVIEW
+
+    // Pada tahap SPK Masuk (NEW_INTAKE), section alur proses awalnya belum muncul (tinggal detail saja)
+    // kecuali jika diminta secara eksplisit atau sudah melewati tahap SPK Masuk.
+    var isFlowSectionVisible by remember(order.id, initialShowFlowSection) {
+        mutableStateOf(initialShowFlowSection || order.pipelineStage != SamplingPipelineStage.NEW_INTAKE)
+    }
+
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(isFlowSectionVisible) {
+        if (isFlowSectionVisible && (order.pipelineStage == SamplingPipelineStage.NEW_INTAKE || initialShowFlowSection)) {
+            delay(120)
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -65,8 +86,9 @@ fun SamplingSpkDetailDialog(
     ) {
         ClayCard(
             modifier = Modifier
-                .fillMaxWidth(0.7f)
-                .heightIn(max = 760.dp),
+                .fillMaxWidth(0.72f)
+                .widthIn(min = 680.dp, max = 960.dp)
+                .heightIn(max = 780.dp),
             contentPadding = PaddingValues(0.dp)
         ) {
             Column(
@@ -107,13 +129,13 @@ fun SamplingSpkDetailDialog(
                 Column(
                     modifier = Modifier
                         .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
                     ClientSamplingReferenceCard(order)
 
-                    // Alur Proses Khusus SPK / Desain Ini
-                    if (processFlowViewModel != null) {
+                    // Alur Proses Khusus SPK / Desain Ini (muncul saat tentukan alur desain)
+                    if (isFlowSectionVisible && processFlowViewModel != null) {
                         LaunchedEffect(order.id) {
                             processFlowViewModel.onEvent(
                                 ProcessFlowUiEvent.SelectScope(
@@ -152,13 +174,30 @@ fun SamplingSpkDetailDialog(
                         onClick = onDismiss
                     )
                     if (isGateStage) {
-                        ClayButton(
-                            text = "Alur Siap -> Mulai CAM",
-                            style = ClayButtonStyle.Primary,
-                            modifier = Modifier.weight(2f),
-                            enabled = !isSubmitting,
-                            onClick = onStartCam
-                        )
+                        if (!isFlowSectionVisible) {
+                            ClayButton(
+                                text = "Tentukan Alur Desain ->",
+                                style = ClayButtonStyle.Primary,
+                                modifier = Modifier.weight(2f),
+                                enabled = !isSubmitting,
+                                onClick = {
+                                    isFlowSectionVisible = true
+                                    onDetermineFlow()
+                                    coroutineScope.launch {
+                                        delay(120)
+                                        scrollState.animateScrollTo(scrollState.maxValue)
+                                    }
+                                }
+                            )
+                        } else {
+                            ClayButton(
+                                text = "Alur Siap -> Mulai CAM",
+                                style = ClayButtonStyle.Primary,
+                                modifier = Modifier.weight(2f),
+                                enabled = !isSubmitting,
+                                onClick = onStartCam
+                            )
+                        }
                     }
                 }
             }

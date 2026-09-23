@@ -1,7 +1,6 @@
 package com.eventverse.app.presentation.crm.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -30,9 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadActivity
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
@@ -42,47 +38,35 @@ import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.presentation.crm.LeadFieldProjection
 import com.eventverse.app.presentation.crm.tint
 import com.eventverse.app.presentation.designsystem.ClayBadge
-import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
-import com.eventverse.app.presentation.designsystem.ClayShapes
-import com.eventverse.app.domain.invoicing.InvoiceKind
-import com.eventverse.app.domain.invoicing.InvoiceSourceKind
 import com.eventverse.app.presentation.designsystem.ClaySpacing
-import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.designsystem.IconBan
+import com.eventverse.app.presentation.designsystem.IconChat
 import com.eventverse.app.presentation.designsystem.IconCheck
 import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.IconInbox
 import com.eventverse.app.presentation.designsystem.IconNote
-import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
-import com.eventverse.app.presentation.deal.components.DealDetailDialog
-import com.eventverse.app.presentation.designsystem.IconPackage
-import com.eventverse.app.presentation.designsystem.IconReceipt
-import com.eventverse.app.presentation.designsystem.IconRuler
-import com.eventverse.app.presentation.designsystem.IconUser
 import com.eventverse.app.presentation.designsystem.clayFlat
-import com.eventverse.app.presentation.invoicing.InvoicePrefillCoordinator
-import com.eventverse.app.presentation.invoicing.InvoicePrefillData
-import com.eventverse.app.presentation.navigation.AppNavScreen
-import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 
 enum class LeadInspectorTab(val title: String) {
     DETAIL("Detail"),
-    UPDATE("Update"),
-    INVOICE("Invoice & Alur")
+    UPDATE("Updates"),
+    INVOICE("Invoice")
 }
 
 /**
- * Panel detail & inspeksi prospek (Lead Inspector) dengan:
- * - Baris atas sejajar: Tahap (Stage selector) di kiri & Avatar PIC ala Jira di kanan
- * - Tab navigasi [ Detail ] dan [ Update ]
- * - Tab [ Detail ]: properti inti, custom field, dan opsi alur Sampling vs Order Langsung saat Qualified
- * - Tab [ Update ]: riwayat update sales dan kotak input update baru langsung di dalam panel
+ * Panel detail & inspeksi prospek (Lead Inspector) ala Monday.com:
+ * - Header Hero Profile: Squircle Avatar inisial, Nama Lead utama, Sub-judul
+ * - Baris Status & Penanggung Jawab (PIC yang dapat dicari)
+ * - Tiga Tab: [ Detail ], [ Updates ], dan [ Invoice ]
+ * - Tab Detail: Properti utama terlihat langsung, sisanya dalam accordion expander
+ * - Tab Updates: Riwayat catatan sales dan form posting update
+ * - Tab Invoice: Pilihan langsung Invoice Sampling vs Invoice DP (dengan popup persentase)
  */
 @Composable
 fun LeadInspectorPane(
@@ -104,9 +88,7 @@ fun LeadInspectorPane(
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(LeadInspectorTab.DETAIL) }
-    var fieldPendingDeletion by remember { mutableStateOf<LeadFieldDescriptor?>(null) }
     var newCommentText by remember { mutableStateOf("") }
-    var isDealDialogOpen by remember { mutableStateOf(false) }
 
     if (lead == null) {
         Column(
@@ -121,46 +103,79 @@ fun LeadInspectorPane(
     val cells = LeadFieldProjection.cellsOf(lead)
     val owner = lead.ownerEmployeeId?.let { id -> employees.firstOrNull { it.id == id } }
 
-    if (isDealDialogOpen) {
-        DealDetailDialog(
-            tenantSlug = StoredTenantSlugProvider.currentTenantSlug() ?: "wemade-demo",
-            sourceLeadId = lead.id.value,
-            onDismiss = { isDealDialogOpen = false }
-        )
-    }
-
     Column(
         modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)
     ) {
-        // Header Atas: Nama Brand / Kontak & Tombol Tutup
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f, fill = false)) {
-                Text(
-                    text = lead.brandName.display(fallback = lead.contactPerson.ifBlank { "Detail Lead" }),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                lead.whatsappNumber?.let { number ->
-                    Text(
-                        text = "Chat WA: ${number.value}",
-                        fontSize = 12.sp,
-                        color = WeMadeColors.Info
-                    )
-                }
-            }
-            if (onClose != null) {
+        // Tombol Tutup di Sudut Kanan Atas
+        if (onClose != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 ClayButton(text = "Tutup", onClick = onClose, style = ClayButtonStyle.Ghost)
             }
         }
 
-        Spacer(Modifier.height(ClaySpacing.Md))
+        // HERO PROFILE SECTION ALA MONDAY.COM
+        val initialLetter = (lead.brandName.value.firstOrNull() ?: lead.contactPerson.firstOrNull() ?: 'L').uppercaseChar().toString()
+        val mainTitle = lead.contactPerson.ifBlank { lead.brandName.value.ifBlank { "Detail Lead" } }
+        val subTitle = if (lead.brandName.value.isNotBlank() && lead.contactPerson.isNotBlank()) {
+            lead.brandName.value
+        } else if (lead.brandName.value.isNotBlank()) {
+            "Perusahaan / Brand"
+        } else {
+            "No Title / Company"
+        }
 
-        // BARIS SEJAJAR: Tahap di Kiri & PIC Avatar Jira di Kanan
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = ClaySpacing.Sm),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Squircle Avatar dengan Inisial
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clayFlat(
+                        shape = RoundedCornerShape(16.dp),
+                        background = WeMadeColors.Primary,
+                        outline = WeMadeColors.Outline,
+                        borderWidth = 1.dp
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initialLetter,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Surface
+                )
+            }
+
+            Spacer(Modifier.height(ClaySpacing.Sm))
+
+            // Nama Utama (Kontak / Brand)
+            Text(
+                text = mainTitle,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(2.dp))
+
+            // Sub-judul (Perusahaan / Jabatan)
+            Text(
+                text = subTitle,
+                fontSize = 12.sp,
+                color = WeMadeColors.OnSurfaceMuted,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(Modifier.height(ClaySpacing.Sm))
+
+        // BARIS SEJAJAR: Tahap di Kiri & PIC Selector ala Monday.com di Kanan
         ClayCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(ClaySpacing.Md)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -170,8 +185,8 @@ fun LeadInspectorPane(
                 // Kiri: Tahap / Stage Selector
                 StageSelector(current = lead.stage, canWrite = canWrite, onUpdateStage = onUpdateStage)
 
-                // Kanan: Avatar PIC ala Jira
-                JiraPicAvatar(
+                // Kanan: Selector PIC ala Monday.com (searchable)
+                PicAssigneeSelector(
                     owner = owner,
                     employees = employees,
                     canWrite = canWrite,
@@ -185,7 +200,7 @@ fun LeadInspectorPane(
 
         Spacer(Modifier.height(ClaySpacing.Md))
 
-        // TAB BAR: [ Detail ] & [ Update ] & [ Invoice & Alur ]
+        // TAB BAR: [ Detail ] & [ Updates ] & [ Invoice ]
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
@@ -218,73 +233,23 @@ fun LeadInspectorPane(
         // ISI KONTEN BERDASARKAN TAB AKTIF
         when (selectedTab) {
             LeadInspectorTab.DETAIL -> {
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-                ) {
-                    // Detail Inti (Core Fields tanpa Stage dan PIC karena sudah ada di header)
-                    ClayCard(modifier = Modifier.fillMaxWidth()) {
-                        Text(text = "Detail Inti", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurfaceMuted)
-                        schema.filter {
-                            it.isCore &&
-                            it.fieldId != LeadFieldDescriptor.coreFieldId("stage") &&
-                            it.fieldId != LeadFieldDescriptor.coreFieldId("owner_employee_id")
-                        }.forEach { descriptor ->
-                            LeadCustomField(
-                                descriptor = descriptor,
-                                cell = cells[descriptor.fieldId],
-                                editable = canWrite,
-                                employees = employees,
-                                onCommit = { value -> onCommitField(descriptor.fieldId, value) }
-                            )
-                        }
-                    }
-
-                    // Properti Kustom
-                    ClayCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "Properti Kustom", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurfaceMuted)
-                            if (canManage) {
-                                ClayButton(text = "+ Kolom", onClick = onAddField, style = ClayButtonStyle.Secondary)
-                            }
-                        }
-
-                        val customFields = schema.filter { !it.isCore }
-                        if (customFields.isEmpty()) {
-                            Text(
-                                text = "Belum ada properti kustom untuk modul ini.",
-                                fontSize = 12.sp,
-                                color = WeMadeColors.OnSurfaceMuted,
-                                modifier = Modifier.padding(top = ClaySpacing.Md)
-                            )
-                        } else {
-                            customFields.forEach { descriptor ->
-                                LeadCustomField(
-                                    descriptor = descriptor,
-                                    cell = cells[descriptor.fieldId],
-                                    editable = canWrite,
-                                    employees = employees,
-                                    onDelete = if (canManage && descriptor.isDeletable && onDeleteField != null) {
-                                        { fieldPendingDeletion = descriptor }
-                                    } else null,
-                                    onCommit = { value -> onCommitField(descriptor.fieldId, value) }
-                                )
-                            }
-                        }
-                    }
-
-                    if (canWrite) {
-                        ClayButton(text = "Arsipkan Lead", onClick = onArchive, style = ClayButtonStyle.Danger)
-                    }
-                }
+                LeadInspectorDetailTab(
+                    lead = lead,
+                    schema = schema,
+                    cells = cells,
+                    employees = employees,
+                    canWrite = canWrite,
+                    canManage = canManage,
+                    onCommitField = onCommitField,
+                    onAddField = onAddField,
+                    onDeleteField = onDeleteField,
+                    onArchive = onArchive,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             LeadInspectorTab.UPDATE -> {
-                // Tab Update: Timeline aktivitas dan input form
+                // Tab Updates: Timeline aktivitas dan form input komentar
                 Column(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     verticalArrangement = Arrangement.SpaceBetween
@@ -314,7 +279,7 @@ fun LeadInspectorPane(
                                     text = "Tulis update progres sales (misal: follow-up WA, negosiasi harga, kirim foto bahan).",
                                     fontSize = 11.sp,
                                     color = WeMadeColors.OnSurfaceMuted,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         } else {
@@ -362,202 +327,11 @@ fun LeadInspectorPane(
             }
 
             LeadInspectorTab.INVOICE -> {
-                val navigator = LocalAppNavigator.current
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-                ) {
-                    // Header Card Penjelasan Alur
-                    ClayCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = WeMadeColors.SurfaceMuted,
-                        contentPadding = PaddingValues(ClaySpacing.Md)
-                    ) {
-                        Text(
-                            text = "PILIH ALUR KUALIFIKASI & PENAGIHAN",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.Primary
-                        )
-                        Spacer(Modifier.height(ClaySpacing.Xs))
-                        Text(
-                            text = "Pilih alur komersial untuk menerbitkan faktur tagihan resmi ke prospek:",
-                            fontSize = 11.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                    }
-
-                    // Dua Kartu Alur Komersial Berdampingan
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                    ) {
-                        // KARTU 1: Alur Sampling
-                        ClayCard(
-                            modifier = Modifier.weight(1f),
-                            outlineColor = WeMadeColors.Success,
-                            borderWidth = ClayBorder.Medium,
-                            contentPadding = PaddingValues(ClaySpacing.Md)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Alur Sampling",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.OnSurface
-                                )
-                                ClayBadge(
-                                    text = "INVOICE SAMPLE",
-                                    tint = WeMadeColors.Success
-                                )
-                            }
-
-                            Spacer(Modifier.height(ClaySpacing.Sm))
-
-                            Text(
-                                text = "Pembuatan prototype sample 1-3 pcs untuk approval buyer sebelum rilis massal.",
-                                fontSize = 11.sp,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-
-                            Spacer(Modifier.height(ClaySpacing.Md))
-
-                            ClayTag(
-                                text = "Status Tagihan: Belum Dibuat",
-                                tint = WeMadeColors.OnSurfaceMuted
-                            )
-
-                            Spacer(Modifier.height(ClaySpacing.Lg))
-
-                            ClayButton(
-                                text = "Buka Deal (PO & Invoice)",
-                                style = ClayButtonStyle.Primary,
-                                fontSize = 11.sp,
-                                leading = { IconRuler(Modifier.size(13.dp), color = WeMadeColors.Surface) },
-                                onClick = { isDealDialogOpen = true },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        // KARTU 2: Alur Order Langsung
-                        ClayCard(
-                            modifier = Modifier.weight(1f),
-                            outlineColor = WeMadeColors.Primary,
-                            borderWidth = ClayBorder.Medium,
-                            contentPadding = PaddingValues(ClaySpacing.Md)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Alur Order Langsung",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.OnSurface
-                                )
-                                ClayBadge(
-                                    text = "INVOICE DP",
-                                    tint = WeMadeColors.Primary
-                                )
-                            }
-
-                            Spacer(Modifier.height(ClaySpacing.Sm))
-
-                            Text(
-                                text = "Langsung masuk antrean PO produksi massal dengan termin DP 30% - 50%.",
-                                fontSize = 11.sp,
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-
-                            Spacer(Modifier.height(ClaySpacing.Md))
-
-                            ClayTag(
-                                text = "Status Tagihan: Belum Dibuat",
-                                tint = WeMadeColors.OnSurfaceMuted
-                            )
-
-                            Spacer(Modifier.height(ClaySpacing.Lg))
-
-                            ClayButton(
-                                text = "Buka Deal (PO & Invoice)",
-                                style = ClayButtonStyle.Accent,
-                                fontSize = 11.sp,
-                                leading = { IconPackage(Modifier.size(13.dp), color = WeMadeColors.Surface) },
-                                onClick = { isDealDialogOpen = true },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    // Info Footnote Banner
-                    ClayCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = WeMadeColors.Info.copy(alpha = 0.08f),
-                        outlineColor = WeMadeColors.Info.copy(alpha = 0.3f),
-                        borderWidth = ClayBorder.Hairline,
-                        contentPadding = PaddingValues(ClaySpacing.Sm)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                        ) {
-                            IconReceipt(Modifier.size(14.dp), color = WeMadeColors.Info)
-                            Text(
-                                text = "Mengklik salah satu opsi akan membuka formulir Custom Invoice dengan data prospek terisi otomatis.",
-                                fontSize = 11.sp,
-                                color = WeMadeColors.OnSurface
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Dialog Konfirmasi Hapus Kolom Kustom
-    val pending = fieldPendingDeletion
-    if (pending != null) {
-        Dialog(onDismissRequest = { fieldPendingDeletion = null }) {
-            ClayCard(modifier = Modifier.width(380.dp)) {
-                Text(
-                    text = "Hapus Kolom Kustom?",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
+                LeadInspectorInvoiceTab(
+                    lead = lead,
+                    onClose = onClose,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "Kolom \"${pending.label}\" akan diarsipkan dari form lead. Data yang sudah tersimpan sebelumnya tetap tersimpan di riwayat sistem.",
-                    fontSize = 13.sp,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    modifier = Modifier.padding(vertical = ClaySpacing.Md)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                ) {
-                    ClayButton(
-                        text = "Batal",
-                        onClick = { fieldPendingDeletion = null },
-                        style = ClayButtonStyle.Secondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ClayButton(
-                        text = "Hapus Kolom",
-                        onClick = {
-                            val idToDelete = pending.fieldId
-                            fieldPendingDeletion = null
-                            onDeleteField?.invoke(idToDelete)
-                        },
-                        style = ClayButtonStyle.Danger,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
             }
         }
     }
@@ -592,17 +366,14 @@ private fun StageSelector(
         if (canWrite) {
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 LeadStage.entries.filter { it != current }.forEach { stage ->
-                    val color = when (stage) {
-                        LeadStage.QUALIFIED -> WeMadeColors.Success
-                        LeadStage.UNQUALIFIED -> WeMadeColors.Error
-                        LeadStage.NEW_LEAD -> WeMadeColors.Primary
-                    }
+                    val color = stage.tint()
                     DropdownMenuItem(
                         leadingIcon = {
                             when (stage) {
-                                LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = WeMadeColors.Success)
-                                LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = WeMadeColors.Error)
-                                LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = WeMadeColors.Primary)
+                                LeadStage.QUALIFIED -> IconCheck(Modifier.size(16.dp), color = color)
+                                LeadStage.UNQUALIFIED -> IconBan(Modifier.size(16.dp), color = color)
+                                LeadStage.NEW_LEAD -> IconInbox(Modifier.size(16.dp), color = color)
+                                LeadStage.FOLLOW_UP -> IconChat(Modifier.size(16.dp), color = color)
                             }
                         },
                         text = {
@@ -623,111 +394,3 @@ private fun StageSelector(
         }
     }
 }
-
-/**
- * Avatar PIC ala Jira:
- * - Jika sudah ada PIC: Lingkaran berwarna dengan inisial karyawan, nama di sebelahnya
- * - Jika belum ada: Lingkaran siluet user abu-abu bertuliskan "Tugaskan PIC" yang dapat diklik
- */
-@Composable
-private fun JiraPicAvatar(
-    owner: OrgNode?,
-    employees: List<OrgNode>,
-    canWrite: Boolean,
-    onAssign: (String?) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(horizontalAlignment = Alignment.End) {
-        Text(text = "Penanggung Jawab (PIC)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurfaceMuted)
-        Spacer(Modifier.height(2.dp))
-
-        Box {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = if (canWrite) Modifier.clickable { expanded = true } else Modifier
-            ) {
-                if (owner != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clayFlat(
-                                shape = CircleShape,
-                                background = WeMadeColors.Primary,
-                                outline = WeMadeColors.Outline,
-                                borderWidth = ClayBorder.Hairline
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = getAuthorInitials(owner.name),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.Surface
-                        )
-                    }
-                    Text(
-                        text = owner.name,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WeMadeColors.OnSurface
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clayFlat(
-                                shape = CircleShape,
-                                background = WeMadeColors.SurfaceMuted,
-                                outline = WeMadeColors.OnSurfaceMuted,
-                                borderWidth = ClayBorder.Hairline
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconUser(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
-                    }
-                    Text(
-                        text = "Tugaskan PIC",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.Primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            if (canWrite) {
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    DropdownMenuItem(
-                        leadingIcon = { IconBan(Modifier.size(14.dp), color = WeMadeColors.OnSurfaceMuted) },
-                        text = { Text("Tanpa PIC", fontSize = 12.sp) },
-                        onClick = {
-                            expanded = false
-                            onAssign(null)
-                        }
-                    )
-                    employees.forEach { emp ->
-                        DropdownMenuItem(
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clayFlat(shape = CircleShape, background = WeMadeColors.Primary, outline = WeMadeColors.Outline, borderWidth = ClayBorder.Hairline),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = getAuthorInitials(emp.name), fontSize = 8.sp, color = WeMadeColors.Surface)
-                                }
-                            },
-                            text = { Text(emp.name, fontSize = 12.sp, fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                expanded = false
-                                onAssign(emp.id.value)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-

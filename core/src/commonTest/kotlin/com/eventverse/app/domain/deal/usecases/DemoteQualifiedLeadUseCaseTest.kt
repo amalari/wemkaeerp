@@ -185,6 +185,29 @@ class DemoteQualifiedLeadUseCaseTest {
     }
 
     @Test
+    fun demote_toFollowUp_shouldArchiveDealAndLandInFollowUp() = runTest {
+        val leads = StubLeadRepository()
+        val deals = StubDealRepository()
+        leads.save(qualifiedLead())
+        deals.save(openDeal())
+
+        val result = useCase(leads, deals)(tenant, LeadId("lead-1"), now, LeadStage.FOLLOW_UP)
+
+        assertEquals(LeadStage.FOLLOW_UP, result.getOrThrow().lead.stage)
+        assertTrue(result.getOrThrow().archivedDeal?.isArchived == true)
+    }
+
+    @Test
+    fun demote_toUnqualified_shouldBeRejected() = runTest {
+        val leads = StubLeadRepository()
+        leads.save(qualifiedLead())
+
+        val result = useCase(leads, StubDealRepository())(tenant, LeadId("lead-1"), now, LeadStage.UNQUALIFIED)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
     fun demote_whenDealHasPurchaseOrder_shouldFail() = runTest {
         val leads = StubLeadRepository()
         val deals = StubDealRepository()

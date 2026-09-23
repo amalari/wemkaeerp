@@ -11,11 +11,6 @@ import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.shared.json.JsonValue
 
-enum class CrmViewMode {
-    KANBAN,
-    LIST
-}
-
 data class CrmUiState(
     val access: ModuleAccessConfig = ModuleAccessConfig(),
     val isLoading: Boolean = true,
@@ -32,7 +27,6 @@ data class CrmUiState(
     val selectedEmployeeId: OrgNodeId? = null,
     val selectedSource: String? = null,
 
-    val viewMode: CrmViewMode = CrmViewMode.KANBAN,
     val activeMobileStage: LeadStage = LeadStage.NEW_LEAD,
 
     val isCreateDialogOpen: Boolean = false,
@@ -111,7 +105,6 @@ sealed interface CrmUiEvent {
     data object Load : CrmUiEvent
     data object Retry : CrmUiEvent
 
-    data class SetViewMode(val mode: CrmViewMode) : CrmUiEvent
     data class SetMobileStage(val stage: LeadStage) : CrmUiEvent
 
     data class SelectLead(val leadId: LeadId?) : CrmUiEvent

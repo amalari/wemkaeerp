@@ -64,7 +64,8 @@ fun SamplingKanbanCard(
     onSelectOrder: () -> Unit,
     onAdvanceStage: (SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: () -> Unit,
-    onApproveOrder: () -> Unit
+    onApproveOrder: () -> Unit,
+    onDetermineFlow: (() -> Unit)? = null
 ) {
     val dragDropState = LocalSamplingDragDropState.current
     val canDrag = nextStage != null
@@ -120,7 +121,8 @@ fun SamplingKanbanCard(
                         order = order,
                         onAdvanceStage = onAdvanceStage,
                         onOpenRevisionDialog = onOpenRevisionDialog,
-                        onApproveOrder = onApproveOrder
+                        onApproveOrder = onApproveOrder,
+                        onDetermineFlow = onDetermineFlow
                     )
                 } else {
                     SamplingKanbanReadOnlyBadges(order)
@@ -237,7 +239,8 @@ private fun SamplingKanbanCardActions(
     order: SamplingOrder,
     onAdvanceStage: (SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: () -> Unit,
-    onApproveOrder: () -> Unit
+    onApproveOrder: () -> Unit,
+    onDetermineFlow: (() -> Unit)? = null
 ) {
     when (order.pipelineStage) {
         SamplingPipelineStage.NEW_INTAKE -> {
@@ -245,7 +248,7 @@ private fun SamplingKanbanCardActions(
                 text = "Tentukan Alur Desain ->",
                 style = ClayButtonStyle.Primary,
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { onAdvanceStage(SamplingPipelineStage.FLOW_REVIEW) }
+                onClick = onDetermineFlow ?: { onAdvanceStage(SamplingPipelineStage.FLOW_REVIEW) }
             )
         }
         SamplingPipelineStage.FLOW_REVIEW -> {

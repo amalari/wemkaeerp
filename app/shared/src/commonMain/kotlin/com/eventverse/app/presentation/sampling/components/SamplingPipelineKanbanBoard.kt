@@ -136,7 +136,7 @@ fun SamplingPipelineKanbanBoard(
     orders: List<SamplingOrder>,
     selectedOrderId: SamplingOrderId?,
     onSelectOrder: (SamplingOrderId) -> Unit,
-    onOpenSpkDetail: (SamplingOrder) -> Unit,
+    onOpenSpkDetail: (SamplingOrder, Boolean) -> Unit,
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
@@ -204,7 +204,7 @@ private fun RowScope.KanbanStageZoneColumn(
     dragState: SamplingDragDropState,
     isWide: Boolean,
     onSelectOrder: (SamplingOrderId) -> Unit,
-    onOpenSpkDetail: (SamplingOrder) -> Unit,
+    onOpenSpkDetail: (SamplingOrder, Boolean) -> Unit,
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit
@@ -311,11 +311,15 @@ private fun RowScope.KanbanStageZoneColumn(
                         onAdvanceStage = { target -> onAdvanceStageRequested(order, target) },
                         onOpenRevisionDialog = { onOpenRevisionDialog(order) },
                         onApproveOrder = { onApproveOrder(order.id, "ACC Golden Sample") },
-                        // Klik kartu: membuka dialog detail SPK untuk memeriksa data & alur proses.
-                        // Memajukan tahap dilakukan lewat tombol aksi kartu atau drag & drop.
+                        // Klik kartu: membuka dialog detail SPK untuk memeriksa data (detail saja).
                         onSelectOrder = {
                             onSelectOrder(order.id)
-                            onOpenSpkDetail(order)
+                            onOpenSpkDetail(order, false)
+                        },
+                        // Tombol tentukan alur: membuka dialog detail SPK langsung ke section alur proses
+                        onDetermineFlow = {
+                            onSelectOrder(order.id)
+                            onOpenSpkDetail(order, true)
                         }
                     )
                 }
