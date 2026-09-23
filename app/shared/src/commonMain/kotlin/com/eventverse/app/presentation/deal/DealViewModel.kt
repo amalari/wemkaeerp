@@ -252,9 +252,9 @@ class DealViewModel(
         val currentOrder = _uiState.value.samplingOrders.firstOrNull { it.id.value == samplingId } ?: return
         _uiState.update { it.copy(isSaving = true) }
         scope.launch {
-            val targetStage = if (currentOrder.pipelineStage == SamplingPipelineStage.NEW_INTAKE) {
-                SamplingPipelineStage.CAM_PROGRAMMING
-            } else currentOrder.pipelineStage
+            // Terbit = diserahkan ke kolom "SPK Masuk"; Divisi Sampling sendiri yang menentukan
+            // alur lalu memajukannya ke CAM. Tahap tidak dilompati dari sini.
+            val targetStage = currentOrder.pipelineStage
             samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
                 .onSuccess { updatedOrder ->
                     _uiState.update { current ->

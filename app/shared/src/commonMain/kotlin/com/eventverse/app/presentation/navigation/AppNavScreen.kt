@@ -123,6 +123,12 @@ enum class AppNavScreen(
         aliases = listOf("/materials", "/bahan", "/masterdata"),
         businessModule = BusinessModule.MASTER_DATA
     ),
+    VENDOR_CONTACTS(
+        route = "/vendors",
+        title = "Kontak Vendor & Makloon",
+        aliases = listOf("/vendor", "/kontak-vendor", "/makloon-vendor"),
+        businessModule = BusinessModule.VENDOR_CONTACTS
+    ),
     INVOICING(
         route = "/invoicing",
         title = "Invoice & Penagihan",

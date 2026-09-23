@@ -191,9 +191,9 @@ data class SamplingOrder(
         requireStageGate(target)
         return copy(
             pipelineStage = target,
-            status = if (status == SamplingStatus.DRAFT && target != SamplingPipelineStage.NEW_INTAKE) {
-                SamplingStatus.IN_PROGRESS
-            } else status,
+            // Transisi apa pun — termasuk NEW_INTAKE -> NEW_INTAKE saat Deals menerbitkan SPK —
+            // menandai order sudah diserahkan ke Divisi Sampling, jadi DRAFT berakhir di sini.
+            status = if (status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else status,
             stageHistory = stageHistory + StageTransitionAudit(
                 fromStage = pipelineStage,
                 toStage = target,

@@ -383,6 +383,7 @@ fun App() {
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
                         AppNavScreen.MASTER_DATA,
+                        AppNavScreen.VENDOR_CONTACTS,
                         AppNavScreen.INVENTORY,
                         AppNavScreen.TECH_PACK_BOM,
                         AppNavScreen.COSTING_HPP,

@@ -19,6 +19,11 @@ class UpdateDealStageUseCase(
         val existing = requireNotNull(dealRepository.findById(tenantId, dealId)) {
             "Deal tidak ditemukan: ${dealId.value}"
         }
+        // Idempoten: permintaan ke tahap yang SAMA dianggap sukses tanpa menulis ulang.
+        // Konteks nyata: penerbitan SPK sampling otomatis menggeser deal ke PO_RECEIVED, dan
+        // state deal di klien bisa kedaluwarsa (di server sudah PO_RECEIVED). Tanpa no-op ini
+        // request ulang yang sama gagal HTTP 400 "dari PO Diterima ke PO Diterima".
+        if (existing.stage == newStage) return@runCatching existing
         val transitioned = existing.transitionTo(newStage, Clock.System.now()).getOrThrow()
         dealRepository.save(transitioned).getOrThrow()
     }

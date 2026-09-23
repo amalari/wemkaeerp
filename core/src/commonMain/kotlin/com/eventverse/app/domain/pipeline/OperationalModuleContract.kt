@@ -206,7 +206,7 @@ enum class ModuleArchetype(
             BusinessModule.ORG_CHART,
             BusinessModule.DYNAMIC_RBAC,
             BusinessModule.FACTORY_FLOW,
-            BusinessModule.MASTER_DATA,
+            BusinessModule.MASTER_DATA, BusinessModule.VENDOR_CONTACTS,
             BusinessModule.INVOICING -> null
         }
 

@@ -17,5 +17,12 @@ object FoundationModuleCatalog {
         override val providedReferenceTypes = listOf("MaterialCatalogSnapshot", "ResolvedMaterialPrice")
     }
 
-    val all: List<FoundationModuleSpecification> = listOf(MasterDataModule)
+    object VendorContactsModule : FoundationModuleSpecification {
+        override val module = BusinessModule.VENDOR_CONTACTS
+        override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
+        override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
+        override val providedReferenceTypes = listOf("VendorContact", "VendorAssignment")
+    }
+
+    val all: List<FoundationModuleSpecification> = listOf(MasterDataModule, VendorContactsModule)
 }

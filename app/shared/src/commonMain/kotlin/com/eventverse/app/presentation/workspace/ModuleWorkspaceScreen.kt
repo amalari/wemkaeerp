@@ -27,6 +27,7 @@ import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.crm.CrmWorkspaceScreen
 import com.eventverse.app.presentation.masterdata.MasterDataWorkspaceScreen
+import com.eventverse.app.presentation.vendor.VendorContactsWorkspaceScreen
 import com.eventverse.app.presentation.sampling.SamplingWorkspaceScreen
 import com.eventverse.app.presentation.techpack.TechPackWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -98,6 +99,11 @@ fun ModuleWorkspaceScreen(
             persona = persona,
             modifier = modifier.fillMaxSize()
         )
+        return
+    }
+
+    if (module == BusinessModule.VENDOR_CONTACTS) {
+        VendorContactsWorkspaceScreen(tenantSlug = resolvedSlug, decision = decision, modifier = modifier.fillMaxSize())
         return
     }
 
@@ -516,6 +522,7 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
     // ekshaustif — dan sengaja kosong, bukan diisi baris contoh yang akan menyesatkan bila suatu
     // saat benar-benar terlihat.
     BusinessModule.COSTING_HPP,
+    BusinessModule.VENDOR_CONTACTS,
     BusinessModule.ORG_CHART,
     BusinessModule.DYNAMIC_RBAC,
     BusinessModule.FACTORY_FLOW -> emptyList()

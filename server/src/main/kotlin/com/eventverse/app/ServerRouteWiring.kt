@@ -177,5 +177,17 @@ fun Route.operationalModuleRoutes(
         roleRepository = roleRepo,
         moduleAssignmentRepository = assignmentRepo
     )
+
+    vendorRoutes(
+        vendorRepository = com.eventverse.app.infrastructure.PostgresVendorRepository(),
+        assignmentRepository = com.eventverse.app.infrastructure.PostgresVendorAssignmentRepository(),
+        flowGateway = com.eventverse.app.infrastructure.SamplingSubcontractFlowGateway(
+            orderRepository = samplingOrderRepo,
+            processCatalogRepository = tenantProcessCatalogRepository,
+            flowLegsUseCase = flowLegsUseCase
+        ),
+        roleRepository = roleRepo,
+        moduleAssignmentRepository = assignmentRepo
+    )
 }
 

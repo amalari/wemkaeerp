@@ -142,84 +142,84 @@ private fun DealDetailContent(
 ) {
     val deal = state.deal ?: return
 
-    Column(modifier = Modifier.fillMaxSize()) {
-
-        // ── Header: judul deal + badge stage + tombol tutup ─────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // ── Header: judul deal + badge stage + tombol tutup ─────────────────
             Row(
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = deal.title.value,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.width(ClaySpacing.Md))
-                ClayBadge(text = deal.stage.displayName, tint = deal.stage.tint())
-                state.contactName?.let { name ->
-                    Spacer(Modifier.width(ClaySpacing.Sm))
-                    ClayTag(text = name, tint = WeMadeColors.OnSurfaceMuted)
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = deal.title.value,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.width(ClaySpacing.Md))
+                    ClayBadge(text = deal.stage.displayName, tint = deal.stage.tint())
+                    state.contactName?.let { name ->
+                        Spacer(Modifier.width(ClaySpacing.Sm))
+                        ClayTag(text = name, tint = WeMadeColors.OnSurfaceMuted)
+                    }
+                }
+                ClayIconButton(onClick = onDismiss) {
+                    IconClose(Modifier.size(16.dp))
                 }
             }
-            ClayIconButton(onClick = onDismiss) {
-                IconClose(Modifier.size(16.dp))
+
+            Spacer(Modifier.height(ClaySpacing.Lg))
+
+            // ── Tab switcher: Siklus Sampling vs Produksi Massal (gerbang gembok) ─
+            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                DealTabButton(
+                    tab = DealDetailTab.SAMPLING,
+                    state = state,
+                    icon = { IconClipboard(Modifier.size(14.dp)) },
+                    onEvent = onEvent
+                )
+                DealTabButton(
+                    tab = DealDetailTab.MASS_PRODUCTION,
+                    state = state,
+                    icon = {
+                        if (state.productionUnlocked) {
+                            IconPackage(Modifier.size(14.dp))
+                        } else {
+                            IconLock(Modifier.size(14.dp))
+                        }
+                    },
+                    onEvent = onEvent
+                )
+            }
+
+            Spacer(Modifier.height(ClaySpacing.Lg))
+
+            // ── Konten tab (scrollable) ──────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                when (state.activeTab) {
+                    DealDetailTab.SAMPLING -> SamplingTabContent(state = state, onEvent = onEvent)
+                    DealDetailTab.MASS_PRODUCTION -> MassProductionTabContent(state = state, onEvent = onEvent)
+                }
             }
         }
-
-        Spacer(Modifier.height(ClaySpacing.Lg))
-
-        // ── Tab switcher: Siklus Sampling vs Produksi Massal (gerbang gembok) ─
-        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            DealTabButton(
-                tab = DealDetailTab.SAMPLING,
-                state = state,
-                icon = { IconClipboard(Modifier.size(14.dp)) },
-                onEvent = onEvent
-            )
-            DealTabButton(
-                tab = DealDetailTab.MASS_PRODUCTION,
-                state = state,
-                icon = {
-                    if (state.productionUnlocked) {
-                        IconPackage(Modifier.size(14.dp))
-                    } else {
-                        IconLock(Modifier.size(14.dp))
-                    }
-                },
-                onEvent = onEvent
-            )
-        }
-
-        Spacer(Modifier.height(ClaySpacing.Lg))
-
-        // ── Konten tab (scrollable) ──────────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
-            when (state.activeTab) {
-                DealDetailTab.SAMPLING -> SamplingTabContent(state = state, onEvent = onEvent)
-                DealDetailTab.MASS_PRODUCTION -> MassProductionTabContent(state = state, onEvent = onEvent)
-            }
-        }
-
-        state.statusMessage?.let { message ->
-            Spacer(Modifier.height(ClaySpacing.Sm))
-            Text(text = message, fontSize = 11.sp, color = WeMadeColors.Success)
-        }
-        state.error?.let { message ->
-            Spacer(Modifier.height(ClaySpacing.Sm))
-            Text(text = message, fontSize = 11.sp, color = WeMadeColors.Error)
-        }
+        // Toaster mengambang (auto-dismiss, klik untuk menutup) — bukan teks inline penggeser layout.
+        DealStatusToast(
+            statusMessage = state.statusMessage,
+            error = state.error,
+            onDismissStatus = { onEvent(DealUiEvent.DismissStatusMessage) },
+            onDismissError = { onEvent(DealUiEvent.DismissError) },
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = ClaySpacing.Md)
+        )
     }
 }
 
@@ -479,8 +479,8 @@ private fun SamplingDesignCard(
         isRenaming = false
     }
 
-    // Garis batas mode: Draft (Step 1 - masih isi formulir) vs Produksi/Arsip (Step 2-8 - Spek Terkunci)
-    val isDraft = order.status == SamplingStatus.DRAFT || order.pipelineStage == SamplingPipelineStage.NEW_INTAKE
+    // Draft vs terbit dibaca dari status, bukan tahap — SPK terbit tetap di NEW_INTAKE (SPK Masuk)
+    val isDraft = order.status == SamplingStatus.DRAFT
     val isFormReadOnly = !isDraft || isHistoricRevision
     val navigator = LocalAppNavigator.current
 

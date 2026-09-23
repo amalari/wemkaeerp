@@ -173,9 +173,13 @@ class ProcessCatalogApiClient(
     }
 
     private fun decodeBody(text: String, isSuccess: Boolean): JsonValue.Obj {
-        val obj = JsonParser.parse(text) as? JsonValue.Obj ?: error("Invalid JSON response: $text")
-        if (!isSuccess) error("HTTP error: ${obj.string("error") ?: text}")
-        return obj
+        if (!isSuccess) {
+            val errorMsg = runCatching {
+                JsonParser.parseObjectOrNull(text)?.string("error")
+            }.getOrNull() ?: text.takeIf { it.isNotBlank() } ?: "Terjadi kesalahan pada server"
+            error(errorMsg)
+        }
+        return JsonParser.parseObjectOrNull(text) ?: error("Format JSON tidak valid: $text")
     }
 
     private companion object {

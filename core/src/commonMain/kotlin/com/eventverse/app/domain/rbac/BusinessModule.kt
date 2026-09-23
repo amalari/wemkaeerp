@@ -87,6 +87,17 @@ enum class BusinessModule(
         scopeCapability = ScopeCapability.GLOBAL_ONLY,
         kind = ModuleKind.FOUNDATION
     ),
+    // Dipisah dari MASTER_DATA karena pemiliknya berbeda: katalog bahan milik gudang/costing,
+    // kontak vendor milik admin produksi. Digabung, keduanya terpaksa berbagi satu level akses.
+    VENDOR_CONTACTS(
+        code = "vendor_contacts",
+        displayName = "Kontak Vendor & Makloon",
+        category = ModuleCategory.FOUNDATION,
+        description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.",
+        iconKey = "truck",
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
+        kind = ModuleKind.FOUNDATION
+    ),
 
     // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
     CRM_SALES(
