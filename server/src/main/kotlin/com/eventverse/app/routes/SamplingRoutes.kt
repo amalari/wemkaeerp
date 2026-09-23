@@ -209,7 +209,7 @@ fun Route.samplingRoutes(
             val body = call.receiveText()
             val json = JsonParser.parse(body) as? JsonValue.Obj
             val stageName = json?.string("targetStage") ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing targetStage")
-            val targetStage = runCatching { SamplingPipelineStage.valueOf(stageName) }.getOrNull()
+            val targetStage = SamplingPipelineStage.parseOrNull(stageName)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid stage: $stageName")
 
             val order = repository.findById(SamplingOrderId(idParam))

@@ -26,7 +26,7 @@ class FlowLegDerivationTest {
         SamplingPipelineStage.CAM_PROGRAMMING,
         SamplingPipelineStage.MACHINE_KNITTING,
         SamplingPipelineStage.LINKING_ASSEMBLY,
-        SamplingPipelineStage.FINISHING_QC,
+        SamplingPipelineStage.CUCI_SOFTENER,
         SamplingPipelineStage.IN_DELIVERY
     )
 
@@ -51,7 +51,7 @@ class FlowLegDerivationTest {
         FlowNodeRef.Stage(SamplingPipelineStage.CAM_PROGRAMMING) to gedungA,
         FlowNodeRef.Stage(SamplingPipelineStage.MACHINE_KNITTING) to gedungA,
         FlowNodeRef.Stage(SamplingPipelineStage.LINKING_ASSEMBLY) to gedungB,
-        FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungB
+        FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungB
     )
 
     private fun process(
@@ -114,12 +114,12 @@ class FlowLegDerivationTest {
         val mappings = mapOf<FlowNodeRef, LocationId>(
             FlowNodeRef.Stage(SamplingPipelineStage.MACHINE_KNITTING) to gedungA,
             // LINKING_ASSEMBLY sengaja tidak dipetakan
-            FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungB
+            FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungB
         )
         val legs = derive(config = config(multiSite = true, mappings = mappings))
 
         assertEquals(1, legs.size)
-        assertEquals(FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC), legs.single().toNode)
+        assertEquals(FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER), legs.single().toNode)
     }
 
     @Test
@@ -233,7 +233,7 @@ class FlowLegDerivationTest {
         val legs = derive(
             config = config(
                 customerDispatch = true,
-                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungA)
+                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungA)
             ),
             customerName = "PT Buyer Sejahtera"
         )
@@ -249,7 +249,7 @@ class FlowLegDerivationTest {
         val legs = derive(
             config = config(
                 customerDispatch = false,
-                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungA)
+                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungA)
             ),
             customerName = "PT Buyer Sejahtera"
         )
@@ -261,7 +261,7 @@ class FlowLegDerivationTest {
         val legs = derive(
             config = config(
                 customerDispatch = true,
-                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungA)
+                mappings = mapOf(FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungA)
             ),
             customerName = null
         )
@@ -272,7 +272,7 @@ class FlowLegDerivationTest {
     fun `derive legs when subcontract sits at tail should produce inbound then customer dispatch`() {
         val laundry = process(
             "LAUNDRY",
-            SamplingPipelineStage.FINISHING_QC,
+            SamplingPipelineStage.CUCI_SOFTENER,
             WorkExecutionMode.SUBCONTRACTED,
             "Laundry Bersih"
         )
@@ -281,7 +281,7 @@ class FlowLegDerivationTest {
             config = config(
                 customerDispatch = true,
                 mappings = mapOf(
-                    FlowNodeRef.Stage(SamplingPipelineStage.FINISHING_QC) to gedungA,
+                    FlowNodeRef.Stage(SamplingPipelineStage.CUCI_SOFTENER) to gedungA,
                     FlowNodeRef.Stage(SamplingPipelineStage.IN_DELIVERY) to gedungA
                 )
             ),

@@ -234,7 +234,9 @@ data class SamplingOrder(
                 returnedAt = returnedAt,
                 status = VendorFollowUpStatus.RETURNED
             ),
-            pipelineStage = SamplingPipelineStage.FINISHING_QC,
+            // Sampel yang pulang dari vendor makloon mendarat di tahap penyelesaian akhir paling
+            // awal, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.
+            pipelineStage = SamplingPipelineStage.CUCI_SOFTENER,
             updatedAt = updatedAt
         )
 
@@ -257,8 +259,12 @@ data class SamplingOrder(
     fun addFinishingDeposit(deposit: FinishingDeposit, updatedAt: Instant): SamplingOrder {
         val updatedDeposits = finishingDeposits + deposit
         val newFinishedQty = updatedDeposits.sumOf { it.qtyPcs }
-        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) {
-            SamplingPipelineStage.FINISHING_QC
+        // Setoran finishing bisa dicatat dari tahap mana pun sepanjang lantai penyelesaian akhir
+        // (linking, cuci, setrika) — sejak tahapnya dipecah, tidak lagi benar mensyaratkan
+        // LINKING_ASSEMBLY saja. Begitu seluruh pcs tersetor, barangnya siap diperiksa.
+        val beforeQc = pipelineStage.order <= SamplingPipelineStage.SETRIKA_UAP.order
+        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage.isOnFinishingFloor && beforeQc) {
+            SamplingPipelineStage.QC_FINISHING
         } else {
             pipelineStage
         }
@@ -275,9 +281,12 @@ data class SamplingOrder(
         // yang bahkan belum dirakit — meloloskannya tidak berarti bajunya siap jalan.
         val newStage = if (report.kind == QcInspectionKind.FINISHING &&
             report.qcResult == QcInspectionResult.PASSED &&
-            pipelineStage == SamplingPipelineStage.FINISHING_QC
+            pipelineStage == SamplingPipelineStage.QC_FINISHING
         ) {
-            SamplingPipelineStage.IN_DELIVERY
+            // QC yang lolos memindahkan barang ke meja pengemasan, bukan langsung ke pengiriman:
+            // sejak pengemasan jadi tahapnya sendiri, melompatinya berarti menyatakan sampel sudah
+            // dilipat, di-hangtag, dan masuk polybag padahal belum ada yang mengerjakannya.
+            SamplingPipelineStage.PENGEMASAN
         } else {
             pipelineStage
         }

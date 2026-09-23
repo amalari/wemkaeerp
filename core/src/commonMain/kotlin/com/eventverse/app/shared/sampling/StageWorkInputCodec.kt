@@ -95,5 +95,5 @@ object StageWorkInputCodec {
     )
 
     private fun parseStage(name: String?): SamplingPipelineStage? =
-        name?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() }
+        SamplingPipelineStage.parseOrNull(name)
 }

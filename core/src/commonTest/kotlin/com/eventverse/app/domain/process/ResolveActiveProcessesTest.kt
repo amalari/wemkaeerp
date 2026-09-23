@@ -48,7 +48,7 @@ class ResolveActiveProcessesTest {
         code = "SABLON",
         displayName = "Sablon / Print",
         archetype = ModuleArchetype.CUSTOM_EXTENSION,
-        samplingAnchorAfter = SamplingPipelineStage.FINISHING_QC,
+        samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER,
         stationAnchorAfter = null,
         piecerateTariffIdr = 1200L
     )

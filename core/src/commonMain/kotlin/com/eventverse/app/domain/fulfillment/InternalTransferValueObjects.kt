@@ -23,11 +23,31 @@ enum class SackRoute(val displayName: String) {
 }
 
 /**
+ * Siapa yang memegang barang di antara dua divisi, dan karena itu bukti apa yang masuk akal
+ * dituntut di titik berangkat.
+ *
+ * [ADMIN_HUB] adalah pola konveksi menengah ke bawah: operator membawa bundel selesai ke meja
+ * admin, admin menyortir dan menuangkannya ke karung, menutup karung, lalu mengirimkannya ke
+ * divisi lain. Karung berpindah kustodi di meja itu, jadi timbangan, foto, dan tanda tangan
+ * ACC punya alasan — merekalah yang membedakan "hilang sebelum meja admin" dari "hilang
+ * sesudahnya" saat selisih diselidiki.
+ *
+ * [DIRECT] adalah pabrik yang operatornya mengantar sendiri dari meja A ke meja B. Tidak ada
+ * kustodi perantara yang perlu dibatasi, jadi menuntut timbang + foto + ACC tiap serah terima
+ * hanya menambah friksi tanpa menambah informasi: hitungan dan identitas operator sudah
+ * terekam saat bundel dihitung di modul telusur.
+ */
+enum class HandoverMode(val displayName: String) {
+    DIRECT("Operator Antar Langsung"),
+    ADMIN_HUB("Lewat Meja Admin")
+}
+
+/**
  * Daur hidup satu perjalanan karung.
  *
- * [MENUNGGU_ACC] adalah gerbang admin produksi; [DITOLAK] mengembalikan karung ke pemeriksaan
- * dan lewat [resubmit] naik lagi — bukan hapus-buat-ulang, karena riwayat penolakan adalah
- * bagian dari pengawasan.
+ * [MENUNGGU_ACC] adalah gerbang admin produksi — dan hanya ada pada [HandoverMode.ADMIN_HUB];
+ * [DITOLAK] mengembalikan karung ke pemeriksaan dan lewat [resubmit] naik lagi — bukan
+ * hapus-buat-ulang, karena riwayat penolakan adalah bagian dari pengawasan.
  */
 enum class SackTransferStatus(val displayName: String) {
     MENUNGGU_ACC("Menunggu ACC Admin"),
@@ -38,7 +58,19 @@ enum class SackTransferStatus(val displayName: String) {
     DIPERIKSA("Diperiksa Ulang");
 
     val isFinal: Boolean get() = this == DITERIMA || this == DITERIMA_SELISIH
-    val sudahDisetujui: Boolean get() = this != MENUNGGU_ACC && this != DITOLAK && this != DIPERIKSA
+
+    /**
+     * Barang sudah lepas dari titik berangkat — sedang di jalan atau sudah sampai.
+     *
+     * Sengaja dipisah dari [butuhAccAdmin]: dua hal ini dulu satu properti (`sudahDisetujui`),
+     * dan penggabungan itulah yang membuat setiap karung berjalan menuntut tanda tangan admin
+     * — syarat yang mustahil dipenuhi pada [HandoverMode.DIRECT] karena di sana tidak ada
+     * penyetuju sama sekali.
+     */
+    val sedangBerjalan: Boolean get() = this == DIANTAR || isFinal
+
+    /** Masih menunggu keputusan admin. Hanya bisa bernilai true pada [HandoverMode.ADMIN_HUB]. */
+    val butuhAccAdmin: Boolean get() = this == MENUNGGU_ACC
 }
 
 /**
@@ -87,10 +119,17 @@ sealed interface HandoverProof {
     /** Foto bukti — timbangan terima, atau resi. Wajib; tanpa foto, serah terima tidak sah. */
     val evidencePhotoKey: String
 
-    /** Diserahkan langsung ke orang di tujuan; TTD digambar sekali di perangkat internal. */
+    /**
+     * Diserahkan langsung ke orang di tujuan; TTD digambar sekali di perangkat internal.
+     *
+     * [signatureKey] null hanya sah pada [HandoverMode.DIRECT]: menggambar tanda tangan tiap
+     * kali operator mengantar bundel ke meja sebelah adalah friksi yang tidak dibayar dengan
+     * informasi apa pun — foto dan nama penerima sudah cukup menunjuk siapa yang memegang.
+     * Pada [HandoverMode.ADMIN_HUB] ia tetap wajib; di situlah kustodi benar-benar berpindah.
+     */
     data class ReceiverHandover(
         val receiverName: String,
-        val signatureKey: String,
+        val signatureKey: String? = null,
         override val evidencePhotoKey: String
     ) : HandoverProof
 

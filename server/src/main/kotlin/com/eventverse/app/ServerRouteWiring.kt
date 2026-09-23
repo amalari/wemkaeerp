@@ -138,9 +138,13 @@ fun Route.operationalModuleRoutes(
         scanHost = traceScanHost
     )
 
+    val fulfillmentRouteConfigRepository: com.eventverse.app.domain.fulfillment.FulfillmentRouteConfigRepository =
+        com.eventverse.app.infrastructure.PostgresFulfillmentRouteConfigRepository()
+
     fulfillmentTransferRoutes(
         transfers = transferRepo,
         containers = traceContainerRepo,
+        routeConfigRepository = fulfillmentRouteConfigRepository,
         imageStorage = benchmarkImageStorage,
         roleRepository = roleRepo
     )

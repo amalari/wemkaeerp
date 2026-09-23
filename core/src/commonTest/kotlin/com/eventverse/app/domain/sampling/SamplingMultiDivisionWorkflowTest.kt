@@ -65,8 +65,8 @@ class SamplingMultiDivisionWorkflowTest {
         assertEquals(75, afterDep2.totalFinishedDepositedQty)
         assertEquals(0, afterDep2.remainingFinishingQty)
         assertTrue(afterDep2.isFinishingComplete)
-        // Otomatis naik ke FINISHING_QC ketika target tercapai
-        assertEquals(SamplingPipelineStage.FINISHING_QC, afterDep2.pipelineStage)
+        // Setoran tuntas memindahkan barang ke meja pemeriksa, bukan sekadar menandai "finishing"
+        assertEquals(SamplingPipelineStage.QC_FINISHING, afterDep2.pipelineStage)
     }
 
     @Test
@@ -89,7 +89,7 @@ class SamplingMultiDivisionWorkflowTest {
         assertEquals(2.2, pom2.deviationCm, 0.001)
         assertFalse(pom2.isWithinTolerance)
 
-        val orderInQc = createBaseOrder(2).advancePipelineStage(SamplingPipelineStage.FINISHING_QC, now)
+        val orderInQc = createBaseOrder(2).advancePipelineStage(SamplingPipelineStage.QC_FINISHING, now)
         val qcReport = QcInspectionReport(
             id = "qc-rep-01",
             samplingOrderId = testOrderId.value,
@@ -103,8 +103,10 @@ class SamplingMultiDivisionWorkflowTest {
         val afterQc = orderInQc.completeQcInspection(qcReport, now)
         assertEquals(1, afterQc.qcInspections.size)
         assertEquals(QcInspectionResult.PASSED, afterQc.latestQcReport?.qcResult)
-        // Otomatis naik ke IN_DELIVERY saat QC PASSED
-        assertEquals(SamplingPipelineStage.IN_DELIVERY, afterQc.pipelineStage)
+        // QC yang lolos menyerahkan barang ke meja pengemasan — bukan langsung ke pengiriman.
+        // Melompatinya berarti menyatakan sampel sudah dilipat dan masuk polybag tanpa ada yang
+        // mengerjakannya; jejak kustodinya akan bolong tepat di langkah terakhir.
+        assertEquals(SamplingPipelineStage.PENGEMASAN, afterQc.pipelineStage)
     }
 
     @Test
@@ -131,7 +133,7 @@ class SamplingMultiDivisionWorkflowTest {
         val returnedOrder = sentToVendor.recordVendorReturn(today, now)
         assertEquals(VendorFollowUpStatus.RETURNED, returnedOrder.vendorInfo.status)
         assertEquals(today, returnedOrder.vendorInfo.returnedAt)
-        assertEquals(SamplingPipelineStage.FINISHING_QC, returnedOrder.pipelineStage)
+        assertEquals(SamplingPipelineStage.CUCI_SOFTENER, returnedOrder.pipelineStage)
     }
 
     @Test

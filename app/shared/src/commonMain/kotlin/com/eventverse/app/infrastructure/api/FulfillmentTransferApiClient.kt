@@ -1,8 +1,11 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.fulfillment.FulfillmentRouteConfigCodec
 import com.eventverse.app.shared.fulfillment.InternalTransferCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -17,14 +20,18 @@ interface FulfillmentTransferRemoteDataSource {
 
     suspend fun transfers(tenantSlug: String): Result<List<InternalTransfer>>
 
+    /** Pola serah terima tiap rute. Menentukan bentuk formulir sebelum operator mengisi apa pun. */
+    suspend fun routeSettings(tenantSlug: String): Result<FulfillmentRouteConfig>
+
     suspend fun submit(
         tenantSlug: String,
         sackPayload: String,
         leg: SackRoute,
-        dispatchWeightKg: String,
-        dispatchScalePhotoKey: String,
+        dispatchWeightKg: String?,
+        dispatchScalePhotoKey: String?,
         requestedBy: String,
-        notes: String
+        notes: String,
+        declaredPcs: Int?
     ): Result<InternalTransfer>
 
     suspend fun approve(
@@ -86,20 +93,32 @@ class FulfillmentTransferApiClient(
         parsed.items.filterIsInstance<JsonValue.Obj>().map(InternalTransferCodec::decode)
     }
 
+    override suspend fun routeSettings(tenantSlug: String): Result<FulfillmentRouteConfig> = runCatching {
+        val response = httpClient.get(resolveUrl("$BASE_PATH/route-settings")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        val parsed = JsonParser.parse(response.requireBody("memuat pola serah terima")) as? JsonValue.Obj
+            ?: return@runCatching FulfillmentRouteConfig(TenantId(tenantSlug))
+        FulfillmentRouteConfigCodec.decode(parsed, TenantId(tenantSlug))
+    }
+
     override suspend fun submit(
         tenantSlug: String,
         sackPayload: String,
         leg: SackRoute,
-        dispatchWeightKg: String,
-        dispatchScalePhotoKey: String,
+        dispatchWeightKg: String?,
+        dispatchScalePhotoKey: String?,
         requestedBy: String,
-        notes: String
+        notes: String,
+        declaredPcs: Int?
     ): Result<InternalTransfer> = postTransfer(
         tenantSlug, "$BASE_PATH/transfers", jsonObjectOf(
             "sackCode" to jsonOf(sackPayload),
             "leg" to jsonOf(leg.name),
-            "dispatchWeightKg" to jsonOf(dispatchWeightKg),
-            "dispatchScalePhotoKey" to jsonOf(dispatchScalePhotoKey),
+            "dispatchWeightKg" to (dispatchWeightKg?.let(::jsonOf) ?: JsonValue.Null),
+            "dispatchScalePhotoKey" to (dispatchScalePhotoKey?.let(::jsonOf) ?: JsonValue.Null),
+            "declaredPcs" to (declaredPcs?.let(::jsonOf) ?: JsonValue.Null),
             "requestedBy" to jsonOf(requestedBy),
             "notes" to jsonOf(notes)
         ), "mengajukan transfer"
@@ -160,7 +179,7 @@ class FulfillmentTransferApiClient(
             is HandoverProof.ReceiverHandover -> {
                 fields["handoverType"] = jsonOf("RECEIVER")
                 fields["receiverName"] = jsonOf(proof.receiverName)
-                fields["receiverSignatureKey"] = jsonOf(proof.signatureKey)
+                fields["receiverSignatureKey"] = proof.signatureKey?.let(::jsonOf) ?: JsonValue.Null
                 fields["handoverPhotoKey"] = jsonOf(proof.evidencePhotoKey)
             }
             is HandoverProof.CourierShipment -> {

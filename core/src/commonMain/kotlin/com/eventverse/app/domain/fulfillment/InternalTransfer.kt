@@ -42,11 +42,27 @@ data class InternalTransfer(
     val colorway: String = "",
     val declaredPcs: Int,
     val leg: SackRoute,
+    /**
+     * Pola serah terima yang berlaku saat perjalanan ini dibuat — **snapshot**, bukan dibaca
+     * ulang dari konfigurasi.
+     *
+     * Mengikuti pola [com.eventverse.app.domain.workqueue.WorkDeposit.tariffSnapshotIdr]:
+     * pabrik boleh mengubah mode sebuah rute kapan saja, dan perjalanan yang sudah telanjur
+     * berjalan harus tetap sah dengan aturan yang berlaku saat ia berangkat. Tanpa snapshot,
+     * mengubah rute dari DIRECT ke ADMIN_HUB akan membuat setiap record lama mendadak
+     * melanggar invarian karena tidak punya tanda tangan admin.
+     */
+    val handoverMode: HandoverMode,
     val status: SackTransferStatus = SackTransferStatus.MENUNGGU_ACC,
 
-    /** Bukti dispatch — diisi sejak pengajuan: timbang dulu, foto, baru ajukan. */
-    val dispatchWeightKg: WeightKg,
-    val dispatchScalePhotoKey: String,
+    /**
+     * Bukti dispatch pada [HandoverMode.ADMIN_HUB] — timbang dulu, foto, baru ajukan.
+     *
+     * Null pada [HandoverMode.DIRECT]: di sana tidak ada kustodi perantara yang perlu
+     * dibatasi, dan hitungan operator sudah terekam saat bundel dihitung di modul telusur.
+     */
+    val dispatchWeightKg: WeightKg? = null,
+    val dispatchScalePhotoKey: String? = null,
     val requestedBy: String,
     val requestedAt: Instant,
 
@@ -70,13 +86,30 @@ data class InternalTransfer(
     init {
         require(sizeLabel.isNotBlank()) { "Label size wajib diisi — karung tanpa size tidak bisa diperiksa di tujuan" }
         require(declaredPcs > 0) { "Jumlah pcs karung minimal 1" }
-        require(dispatchWeightKg.value > 0.0) { "Berat dispatch wajib lebih dari 0 — timbang dulu sebelum mengajukan" }
-        require(dispatchScalePhotoKey.isNotBlank()) { "Foto timbangan dispatch wajib ada" }
         require(requestedBy.isNotBlank()) { "Nama pengirim wajib dicatat" }
 
-        if (status.sudahDisetujui) {
-            requireNotNull(approvedBy) { "Status ${status.displayName} wajib mencatat siapa yang menyetujui" }
-            requireNotNull(approvalSignatureKey) { "ACC tanpa tanda tangan tidak sah" }
+        if (handoverMode == HandoverMode.ADMIN_HUB) {
+            requireNotNull(dispatchWeightKg) { "Berat dispatch wajib — timbang dulu sebelum mengajukan ke meja admin" }
+            require(dispatchWeightKg.value > 0.0) { "Berat dispatch wajib lebih dari 0 — timbang dulu sebelum mengajukan" }
+            require(!dispatchScalePhotoKey.isNullOrBlank()) { "Foto timbangan dispatch wajib ada" }
+
+            if (status.sedangBerjalan) {
+                requireNotNull(approvedBy) { "Status ${status.displayName} wajib mencatat siapa yang menyetujui" }
+                requireNotNull(approvalSignatureKey) { "ACC tanpa tanda tangan tidak sah" }
+            }
+        } else {
+            // Bukan sekadar "tidak wajib": terisi berarti record ini dibuat dengan aturan yang
+            // bertentangan dengan modenya, dan menyimpannya diam-diam membuat audit berbohong.
+            require(approvedBy == null && approvalSignatureKey == null) {
+                "Perjalanan ${HandoverMode.DIRECT.displayName} tidak mengenal ACC admin — " +
+                    "hapus data persetujuan atau pakai mode ${HandoverMode.ADMIN_HUB.displayName}"
+            }
+            // Tanpa gerbang berangkat tidak ada yang bisa menolak keberangkatan. Penolakan di
+            // tujuan bukan status ini — barang yang sudah sampai dicatat lewat selisih terima.
+            require(status != SackTransferStatus.DITOLAK && status != SackTransferStatus.DIPERIKSA) {
+                "Perjalanan ${HandoverMode.DIRECT.displayName} tidak melewati meja admin, " +
+                    "jadi tidak bisa berstatus ${status.displayName}"
+            }
         }
         if (status.isFinal) {
             requireNotNull(handover) { "Karung berstatus ${status.displayName} wajib punya bukti serah terima" }
@@ -97,6 +130,9 @@ data class InternalTransfer(
      * dibedakan dari penerimaan barang saat selisih kuantitas diselidiki.
      */
     fun approve(approverName: String, signatureKey: String, now: Instant): InternalTransfer {
+        require(handoverMode == HandoverMode.ADMIN_HUB) {
+            "Karung $humanCode diantar langsung oleh operator — tidak ada ACC yang perlu diberikan"
+        }
         require(status == SackTransferStatus.MENUNGGU_ACC) {
             "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa di-ACC"
         }
@@ -114,6 +150,9 @@ data class InternalTransfer(
 
     /** Menolak pengajuan — alasan wajib, karena inilah yang dibaca saat karung diperiksa ulang. */
     fun reject(reason: String, approverName: String, now: Instant): InternalTransfer {
+        require(handoverMode == HandoverMode.ADMIN_HUB) {
+            "Karung $humanCode diantar langsung oleh operator — tidak melewati meja admin untuk ditolak"
+        }
         require(status == SackTransferStatus.MENUNGGU_ACC) {
             "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa ditolak"
         }
@@ -174,7 +213,9 @@ data class InternalTransfer(
         when (proof) {
             is HandoverProof.ReceiverHandover -> {
                 require(proof.receiverName.isNotBlank()) { "Nama penerima wajib dicatat — dia yang bertanggung jawab atas isinya" }
-                require(proof.signatureKey.isNotBlank()) { "Penerima wajib menandatangani" }
+                if (handoverMode == HandoverMode.ADMIN_HUB) {
+                    require(!proof.signatureKey.isNullOrBlank()) { "Penerima wajib menandatangani" }
+                }
                 require(proof.evidencePhotoKey.isNotBlank()) { "Foto timbangan saat diterima wajib ada" }
             }
             is HandoverProof.CourierShipment -> {
@@ -190,8 +231,12 @@ data class InternalTransfer(
             is HandoverProof.CourierShipment -> proof.chargeableWeightKg
         }
         val pcsBeda = receivedPcs != null && receivedPcs != declaredPcs
-        val beratBeda = referenceWeight != null &&
-            (dispatchWeightKg.value - referenceWeight.value) > WEIGHT_TOLERANCE_KG
+        // Berat hanya bisa dibandingkan kalau ada berat berangkat untuk dibandingkan. Pada
+        // HandoverMode.DIRECT tidak ada, dan di sanalah perbandingan pcs memikul seluruh
+        // deteksi selisih — itulah sebabnya hitungan pcs di mode itu bukan pelengkap.
+        val dispatched = dispatchWeightKg
+        val beratBeda = dispatched != null && referenceWeight != null &&
+            (dispatched.value - referenceWeight.value) > WEIGHT_TOLERANCE_KG
 
         return copy(
             status = if (pcsBeda || beratBeda) SackTransferStatus.DITERIMA_SELISIH else SackTransferStatus.DITERIMA,

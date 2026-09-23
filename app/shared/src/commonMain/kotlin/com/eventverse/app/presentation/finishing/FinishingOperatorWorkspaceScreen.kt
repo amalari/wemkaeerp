@@ -36,12 +36,12 @@ fun FinishingOperatorWorkspaceScreen(
     val state by viewModel.uiState.collectAsState()
     var targetOrderForSetoran by remember { mutableStateOf<SamplingOrder?>(null) }
 
-    // Operator finishing melihat order yang berada pada tahap LINKING_ASSEMBLY atau FINISHING_QC dengan jalur internal
+    // Meja finishing memegang sampel sepanjang lantai penyelesaian akhir — dari linking sampai
+    // pengemasan. Rentangnya dibaca dari `order`, bukan didaftar satu per satu, supaya tahap yang
+    // disisipkan tenant di antaranya ikut masuk antrean alih-alih menghilang diam-diam.
     val finishingQueue = remember(state.orders) {
         state.orders.filter { order ->
-            (order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY ||
-             order.pipelineStage == SamplingPipelineStage.FINISHING_QC ||
-             order.finishingDeposits.isNotEmpty()) &&
+            (order.pipelineStage.isOnFinishingFloor || order.finishingDeposits.isNotEmpty()) &&
             order.finishingPath == FinishingPath.INTERNAL
         }
     }

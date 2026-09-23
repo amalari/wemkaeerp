@@ -50,7 +50,7 @@ object ProcessCatalogCodec {
                 ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
                 ?: ModuleArchetype.CUSTOM_EXTENSION,
             samplingAnchorAfter = obj.string("samplingAnchorAfter")
-                ?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() },
+                ?.let { SamplingPipelineStage.parseOrNull(it) },
             stationAnchorAfter = obj.string("stationAnchorAfter")
                 ?.takeIf { it.isNotBlank() }
                 ?.let { WorkStationCode(it) },

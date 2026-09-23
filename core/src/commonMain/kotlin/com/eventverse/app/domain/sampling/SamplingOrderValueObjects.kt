@@ -48,15 +48,76 @@ enum class MilestoneStep(val displayName: String, val defaultOrder: Int) {
     HPP("Kalkulasi HPP", 7);
 }
 
+/**
+ * Tahap perjalanan satu SPK sampel.
+ *
+ * ## Satu tahap = satu tangan
+ *
+ * Tahap di sini bukan label kemajuan, melainkan **simpul kustodi**: [com.eventverse.app.domain.transfer.FlowNodeRef.Stage]
+ * membungkusnya jadi simpul alur, dan `AdvanceSamplingStageUseCase` menolak kenaikan tahap
+ * selama leg serah terima menuju simpul itu belum `DITERIMA`. Konsekuensinya, batas antar tahap
+ * wajib jatuh persis di tempat barangnya berpindah tangan — bukan di tempat pekerjaannya berganti
+ * nama.
+ *
+ * Karena itu satu tahap lama `FINISHING_QC` dipecah empat: di lantai sampel, sampel yang sudah
+ * selesai linking berpindah tangan tiga kali (pencuci → penyetrika → pemeriksa → pengemas).
+ * Selama keempatnya berdesakan dalam satu tahap, sistem tidak bisa menjawab "sampelnya sekarang
+ * di siapa" — pertanyaan yang justru paling sering ditanyakan buyer lewat sales.
+ *
+ * Empat tahap ini **bawaan, bukan kunci mati** (CLAUDE.md §11): pabrik yang ruang sampelnya lebih
+ * ramping menyesuaikan lewat `TenantOptionalProcess.samplingAnchorAfter`.
+ */
 enum class SamplingPipelineStage(val displayName: String, val order: Int) {
     NEW_INTAKE("SPK Masuk (Sales Deal)", 1),
     FLOW_REVIEW("Penentuan Alur Desain", 2),
     CAM_PROGRAMMING("Program CAM", 3),
     MACHINE_KNITTING("Rajut Turun Mesin", 4),
     LINKING_ASSEMBLY("Linking & Tambahan", 5),
-    FINISHING_QC("Finishing & QC", 6),
-    IN_DELIVERY("Terkirim (Tunggu ACC)", 7),
-    ACC_APPROVED("ACC Produksi", 8);
+    CUCI_SOFTENER("Cuci & Softener", 6),
+    SETRIKA_UAP("Setrika Uap", 7),
+    QC_FINISHING("QC Finishing", 8),
+    PENGEMASAN("Pengemasan", 9),
+    IN_DELIVERY("Terkirim (Tunggu ACC)", 10),
+    ACC_APPROVED("ACC Produksi", 11);
+
+    /**
+     * Tahap yang barangnya ada di lantai penyelesaian akhir — dari linking sampai pengemasan.
+     *
+     * Dinyatakan sebagai rentang, bukan daftar, supaya tahap yang disisipkan tenant di antaranya
+     * ikut terhitung alih-alih menghilang dari antrean meja finishing.
+     */
+    val isOnFinishingFloor: Boolean
+        get() = order in LINKING_ASSEMBLY.order..PENGEMASAN.order
+
+    /** Dua tahap kerja basah/panas: barang sedang dikerjakan, belum layak diperiksa. */
+    val isWetOrPressWork: Boolean
+        get() = this == CUCI_SOFTENER || this == SETRIKA_UAP
+
+    companion object {
+        /**
+         * Nama tahap yang sudah tidak ada lagi, dipetakan ke penggantinya.
+         *
+         * `FINISHING_QC` dipetakan ke sub-tahap **paling awal**, bukan ke [QC_FINISHING] yang
+         * namanya lebih mirip. Alasannya: sistem tidak pernah tahu apakah sampel itu sudah dicuci
+         * dan disetrika, dan mengarang kemajuan yang belum terjadi jauh lebih berbahaya daripada
+         * terlihat mundur satu langkah — yang pertama membuat orang berhenti mencari barang yang
+         * sebenarnya masih di bak cuci.
+         */
+        private val LEGACY_ALIASES = mapOf("FINISHING_QC" to CUCI_SOFTENER)
+
+        /**
+         * Parser tunggal untuk seluruh lapisan (codec, repository, route).
+         *
+         * Dibuat terpusat justru karena pemanggilnya tersebar: `valueOf` telanjang di repository
+         * Postgres jatuh ke `NEW_INTAKE` saat menemui nama tak dikenal, sehingga satu baris lama
+         * yang lolos migrasi akan muncul sebagai SPK yang baru masuk — regresi paling senyap yang
+         * mungkin terjadi pada pemecahan ini.
+         */
+        fun parseOrNull(name: String?): SamplingPipelineStage? {
+            if (name.isNullOrBlank()) return null
+            return entries.firstOrNull { it.name == name } ?: LEGACY_ALIASES[name]
+        }
+    }
 }
 
 enum class FinishingPath(val displayName: String) {

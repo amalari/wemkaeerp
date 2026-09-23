@@ -113,7 +113,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
             displayName = row[TenantOptionalProcessesTable.displayName],
             archetype = ModuleArchetype.valueOf(row[TenantOptionalProcessesTable.archetype]),
             samplingAnchorAfter = row[TenantOptionalProcessesTable.samplingAnchorAfter]
-                ?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() },
+                ?.let { SamplingPipelineStage.parseOrNull(it) },
             stationAnchorAfter = row[TenantOptionalProcessesTable.stationAnchorAfter]
                 ?.takeIf { it.isNotBlank() }
                 ?.let(::WorkStationCode),

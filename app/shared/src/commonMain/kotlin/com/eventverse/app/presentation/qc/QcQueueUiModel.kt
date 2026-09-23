@@ -111,8 +111,7 @@ private fun SamplingOrder.isEligibleFor(kind: QcInspectionKind): Boolean {
             pipelineStage.order >= SamplingPipelineStage.MACHINE_KNITTING.order || hasInspectionOfKind
 
         QcInspectionKind.FINISHING ->
-            pipelineStage == SamplingPipelineStage.FINISHING_QC ||
-                pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
+            pipelineStage.order >= SamplingPipelineStage.QC_FINISHING.order ||
                 totalFinishedDepositedQty > 0 ||
                 hasInspectionOfKind
     }
@@ -164,5 +163,5 @@ private fun SamplingOrder.toQueueItem(now: Instant, kind: QcInspectionKind): QcQ
 private val QcInspectionKind.entryStage: SamplingPipelineStage
     get() = when (this) {
         QcInspectionKind.KNITTING -> SamplingPipelineStage.MACHINE_KNITTING
-        QcInspectionKind.FINISHING -> SamplingPipelineStage.FINISHING_QC
+        QcInspectionKind.FINISHING -> SamplingPipelineStage.QC_FINISHING
     }

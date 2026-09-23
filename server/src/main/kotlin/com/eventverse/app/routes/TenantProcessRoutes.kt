@@ -75,7 +75,7 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                     ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
                     ?: ModuleArchetype.CUSTOM_EXTENSION,
                 samplingAnchorAfter = body.string("samplingAnchorAfter")
-                    ?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() },
+                    ?.let { SamplingPipelineStage.parseOrNull(it) },
                 stationAnchorAfter = body.string("stationAnchorAfter")
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::WorkStationCode),
@@ -110,7 +110,7 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                 tenantId = tenant.tenantId,
                 processId = processId,
                 samplingAnchorAfter = body.string("samplingAnchorAfter")
-                    ?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() },
+                    ?.let { SamplingPipelineStage.parseOrNull(it) },
                 stationAnchorAfter = body.string("stationAnchorAfter")
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::WorkStationCode)

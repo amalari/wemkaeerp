@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
@@ -115,8 +116,9 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
         this[FulfillmentTransfersTable.colorway] = t.colorway
         this[FulfillmentTransfersTable.declaredPcs] = t.declaredPcs
         this[FulfillmentTransfersTable.leg] = t.leg.name
+        this[FulfillmentTransfersTable.handoverMode] = t.handoverMode.name
         this[FulfillmentTransfersTable.status] = t.status.name
-        this[FulfillmentTransfersTable.dispatchWeightKg] = t.dispatchWeightKg.value
+        this[FulfillmentTransfersTable.dispatchWeightKg] = t.dispatchWeightKg?.value
         this[FulfillmentTransfersTable.dispatchScalePhotoKey] = t.dispatchScalePhotoKey
         this[FulfillmentTransfersTable.requestedBy] = t.requestedBy
         this[FulfillmentTransfersTable.requestedAt] = t.requestedAt
@@ -150,7 +152,7 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
         val handover = when (row[FulfillmentTransfersTable.handoverType]) {
             "RECEIVER" -> HandoverProof.ReceiverHandover(
                 receiverName = row[FulfillmentTransfersTable.receiverName].orEmpty(),
-                signatureKey = row[FulfillmentTransfersTable.receiverSignatureKey].orEmpty(),
+                signatureKey = row[FulfillmentTransfersTable.receiverSignatureKey]?.takeIf { it.isNotBlank() },
                 evidencePhotoKey = row[FulfillmentTransfersTable.handoverPhotoKey].orEmpty()
             )
             "COURIER" -> {
@@ -183,8 +185,12 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
                 ?: SackRoute.QC_RAJUT_TO_FINISHING,
             status = SackTransferStatus.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.status] }
                 ?: SackTransferStatus.MENUNGGU_ACC,
-            dispatchWeightKg = WeightKg(row[FulfillmentTransfersTable.dispatchWeightKg].toDouble()),
-            dispatchScalePhotoKey = row[FulfillmentTransfersTable.dispatchScalePhotoKey],
+            // Baris pra-V61 tidak punya kolom ini; DEFAULT migrasi sudah mengisinya ADMIN_HUB,
+            // dan fallback di sini menjaga hal yang sama kalau nilainya tak dikenali.
+            handoverMode = HandoverMode.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.handoverMode] }
+                ?: HandoverMode.ADMIN_HUB,
+            dispatchWeightKg = row[FulfillmentTransfersTable.dispatchWeightKg]?.toDouble()?.let(::WeightKg),
+            dispatchScalePhotoKey = row[FulfillmentTransfersTable.dispatchScalePhotoKey]?.takeIf { it.isNotBlank() },
             requestedBy = row[FulfillmentTransfersTable.requestedBy],
             requestedAt = row[FulfillmentTransfersTable.requestedAt],
             approvedBy = row[FulfillmentTransfersTable.approvedBy],

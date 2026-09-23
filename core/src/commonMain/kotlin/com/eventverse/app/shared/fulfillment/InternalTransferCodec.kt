@@ -1,5 +1,6 @@
 package com.eventverse.app.shared.fulfillment
 
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackTransferId
@@ -38,8 +39,10 @@ object InternalTransferCodec {
         "legLabel" to jsonOf(transfer.leg.displayName),
         "status" to jsonOf(transfer.status.name),
         "statusLabel" to jsonOf(transfer.status.displayName),
-        "dispatchWeightKg" to jsonOf(transfer.dispatchWeightKg.value),
-        "dispatchScalePhotoKey" to jsonOf(transfer.dispatchScalePhotoKey),
+        "handoverMode" to jsonOf(transfer.handoverMode.name),
+        "handoverModeLabel" to jsonOf(transfer.handoverMode.displayName),
+        "dispatchWeightKg" to (transfer.dispatchWeightKg?.let { jsonOf(it.value) } ?: JsonValue.Null),
+        "dispatchScalePhotoKey" to (transfer.dispatchScalePhotoKey?.let(::jsonOf) ?: JsonValue.Null),
         "requestedBy" to jsonOf(transfer.requestedBy),
         "requestedAt" to jsonOf(transfer.requestedAt.toString()),
         "approvedBy" to (transfer.approvedBy?.let(::jsonOf) ?: JsonValue.Null),
@@ -66,8 +69,11 @@ object InternalTransferCodec {
             declaredPcs = obj.int("declaredPcs") ?: 0,
             leg = enumOrNull<SackRoute>(obj.string("leg")) ?: SackRoute.QC_RAJUT_TO_FINISHING,
             status = enumOrNull<SackTransferStatus>(obj.string("status")) ?: SackTransferStatus.MENUNGGU_ACC,
-            dispatchWeightKg = WeightKg(obj.double("dispatchWeightKg") ?: 0.0),
-            dispatchScalePhotoKey = obj.string("dispatchScalePhotoKey") ?: "",
+            // Payload lama tidak punya field ini. ADMIN_HUB adalah satu-satunya pola yang ada
+            // saat mereka ditulis, jadi itulah tafsir yang jujur — bukan sekadar default aman.
+            handoverMode = enumOrNull<HandoverMode>(obj.string("handoverMode")) ?: HandoverMode.ADMIN_HUB,
+            dispatchWeightKg = obj.double("dispatchWeightKg")?.let { WeightKg(it) },
+            dispatchScalePhotoKey = obj.string("dispatchScalePhotoKey")?.takeIf { it.isNotBlank() },
             requestedBy = obj.string("requestedBy") ?: "",
             requestedAt = requestedAt,
             approvedBy = obj.string("approvedBy"),
@@ -89,7 +95,7 @@ object InternalTransferCodec {
         is HandoverProof.ReceiverHandover -> jsonObjectOf(
             "type" to jsonOf("RECEIVER"),
             "receiverName" to jsonOf(proof.receiverName),
-            "signatureKey" to jsonOf(proof.signatureKey),
+            "signatureKey" to (proof.signatureKey?.let(::jsonOf) ?: JsonValue.Null),
             "evidencePhotoKey" to jsonOf(proof.evidencePhotoKey)
         )
         is HandoverProof.CourierShipment -> jsonObjectOf(
@@ -104,7 +110,7 @@ object InternalTransferCodec {
     private fun decodeProof(obj: JsonValue.Obj): HandoverProof? = when (obj.string("type")) {
         "RECEIVER" -> HandoverProof.ReceiverHandover(
             receiverName = obj.string("receiverName") ?: "",
-            signatureKey = obj.string("signatureKey") ?: "",
+            signatureKey = obj.string("signatureKey")?.takeIf { it.isNotBlank() },
             evidencePhotoKey = obj.string("evidencePhotoKey") ?: ""
         )
         "COURIER" -> obj.double("chargeableWeightKg")?.let { weight ->

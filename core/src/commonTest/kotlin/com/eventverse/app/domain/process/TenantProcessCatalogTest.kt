@@ -106,12 +106,12 @@ class TenantProcessCatalogTest {
 
         val repositioned = catalog.reposition(
             processId = "proc-bordir",
-            samplingAnchorAfter = SamplingPipelineStage.FINISHING_QC,
+            samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER,
             stationAnchorAfter = WorkStationCode("PACKAGING")
         )
 
         val process = repositioned.findProcess("proc-bordir")!!
-        assertEquals(SamplingPipelineStage.FINISHING_QC, process.samplingAnchorAfter)
+        assertEquals(SamplingPipelineStage.CUCI_SOFTENER, process.samplingAnchorAfter)
         assertEquals(WorkStationCode("PACKAGING"), process.stationAnchorAfter)
     }
 

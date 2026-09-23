@@ -19,10 +19,12 @@ object FulfillmentTransfersTable : Table("fulfillment_transfers") {
     val colorway = varchar("colorway", 120).default("")
     val declaredPcs = integer("declared_pcs")
     val leg = varchar("leg", 40)
+    val handoverMode = varchar("handover_mode", 16).default("ADMIN_HUB")
     val status = varchar("status", 20).default("MENUNGGU_ACC")
 
-    val dispatchWeightKg = double("dispatch_weight_kg")
-    val dispatchScalePhotoKey = text("dispatch_scale_photo_key")
+    // Nullable sejak V61: hanya wajib pada ADMIN_HUB, ditegakkan CHECK di DB dan invarian domain.
+    val dispatchWeightKg = double("dispatch_weight_kg").nullable()
+    val dispatchScalePhotoKey = text("dispatch_scale_photo_key").nullable()
     val requestedBy = varchar("requested_by", 150)
     val requestedAt = timestamp("requested_at")
 
@@ -48,6 +50,21 @@ object FulfillmentTransfersTable : Table("fulfillment_transfers") {
     val updatedAt = timestamp("updated_at")
 
     override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Mode serah terima per rute. Cermin migrasi V61.
+ *
+ * Barisnya hanya ada untuk rute yang benar-benar disetel — ketiadaan baris adalah pernyataan
+ * yang sah ("belum disentuh"), dan domain menafsirkannya sebagai `ADMIN_HUB`.
+ */
+object FulfillmentRouteSettingsTable : Table("fulfillment_route_settings") {
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val route = varchar("route", 40)
+    val handoverMode = varchar("handover_mode", 16)
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId, route)
 }
 
 object FulfillmentTransferEventsTable : Table("fulfillment_transfer_events") {

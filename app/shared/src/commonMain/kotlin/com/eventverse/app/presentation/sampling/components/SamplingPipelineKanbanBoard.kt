@@ -92,12 +92,18 @@ enum class SamplingStageZone(
         dropStage = SamplingPipelineStage.MACHINE_KNITTING,
         showActions = true
     ),
+    // Lima tahap, satu kolom. Memberi tiap tahap kolomnya sendiri membuat papan jadi sembilan
+    // kolom — di 1280dp hanya empat yang terlihat, dan tahap awal yang paling sering dilihat
+    // sales justru tergeser keluar layar. Tahap persisnya dibaca dari badge di kartu.
     FINISHING_QC(
-        title = "5. Finishing & QC",
-        subtitle = "Linking, cuci, steam & QC",
+        title = "5. Penyelesaian Akhir",
+        subtitle = "Linking, cuci, setrika, QC & kemas",
         stages = listOf(
             SamplingPipelineStage.LINKING_ASSEMBLY,
-            SamplingPipelineStage.FINISHING_QC
+            SamplingPipelineStage.CUCI_SOFTENER,
+            SamplingPipelineStage.SETRIKA_UAP,
+            SamplingPipelineStage.QC_FINISHING,
+            SamplingPipelineStage.PENGEMASAN
         ),
         dropStage = SamplingPipelineStage.LINKING_ASSEMBLY,
         showActions = false

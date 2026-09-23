@@ -18,7 +18,12 @@ fun samplingStageTint(stage: SamplingPipelineStage): Color = when (stage) {
     SamplingPipelineStage.CAM_PROGRAMMING -> WeMadeColors.Primary
     SamplingPipelineStage.MACHINE_KNITTING -> WeMadeColors.Warning
     SamplingPipelineStage.LINKING_ASSEMBLY -> WeMadeColors.Purple
-    SamplingPipelineStage.FINISHING_QC -> WeMadeColors.Teal
+    // Keempat tahap penyelesaian akhir berbagi satu warna: mereka satu kolom di papan, dan
+    // pembedanya adalah nama tahap di kartunya, bukan rona yang harus dihafal.
+    SamplingPipelineStage.CUCI_SOFTENER -> WeMadeColors.Teal
+    SamplingPipelineStage.SETRIKA_UAP -> WeMadeColors.Teal
+    SamplingPipelineStage.QC_FINISHING -> WeMadeColors.Teal
+    SamplingPipelineStage.PENGEMASAN -> WeMadeColors.Teal
     SamplingPipelineStage.IN_DELIVERY -> WeMadeColors.Info
     SamplingPipelineStage.ACC_APPROVED -> WeMadeColors.Success
 }

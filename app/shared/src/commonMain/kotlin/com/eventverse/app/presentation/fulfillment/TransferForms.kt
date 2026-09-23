@@ -14,7 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.fulfillment.HandoverProof
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.traceability.TraceCodec
+import com.eventverse.app.domain.traceability.TraceTier
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import androidx.compose.material3.HorizontalDivider
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -72,67 +75,125 @@ internal fun EvidencePhotoField(
     }
 }
 
-/** Form pengajuan antar karung — muncul setelah karung di-scan/dipilih. */
+/**
+ * Form pengajuan antar wadah — muncul setelah karung/bundel di-scan.
+ *
+ * Bentuknya ditentukan [HandoverMode] rute yang dipilih, dan karena itu **berubah saat chip
+ * rute diklik**: rute lewat meja admin meminta timbangan dan fotonya, rute antar langsung
+ * hanya meminta hitungan pcs. Perubahan bentuk itu sendiri yang menjelaskan modenya — lebih
+ * mudah dipercaya daripada satu baris keterangan yang gampang dilewati mata.
+ */
 @Composable
 internal fun SubmitSackForm(
     sackPayload: String,
     isSubmitting: Boolean,
-    onSubmit: (leg: SackRoute, weight: String, photoKey: String, requestedBy: String) -> Unit,
+    state: FulfillmentUiState,
+    onSubmit: (
+        leg: SackRoute,
+        weight: String?,
+        photoKey: String?,
+        requestedBy: String,
+        declaredPcs: Int?
+    ) -> Unit,
     onUploadEvidence: (fileName: String, mimeType: String, bytes: ByteArray, onDone: (Result<String>) -> Unit) -> Unit,
     onCancel: () -> Unit
 ) {
-    var leg by remember { mutableStateOf(SackRoute.QC_RAJUT_TO_FINISHING) }
+    // Kartu bundel (prefix B) tidak bisa dikirim lewat meja admin — ia harus dituang ke karung
+    // dulu. Rute yang menuntut itu tetap ditampilkan tapi diredupkan: chip yang hilang membuat
+    // orang mengira sistemnya rusak, sedangkan chip mati yang menjelaskan diri bisa dipahami.
+    val isBundleCard = TraceCodec.parse(sackPayload)?.tier == TraceTier.BUNDLE
+    val allowedRoutes = state.routesAccepting(isClosedSack = !isBundleCard)
+
+    var leg by remember(allowedRoutes) {
+        mutableStateOf(allowedRoutes.firstOrNull() ?: SackRoute.entries.first())
+    }
     var weight by remember { mutableStateOf("") }
     var photoKey by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
+    var pcs by remember { mutableStateOf("") }
 
-    val weightParsed = WeightKg.parse(weight)
-    val canSubmit = weightParsed != null && !photoKey.isNullOrBlank() && name.isNotBlank() && !isSubmitting
+    val mode = state.modeFor(leg)
+    val lewatMejaAdmin = mode == HandoverMode.ADMIN_HUB
+    val pcsParsed = pcs.trim().toIntOrNull()?.takeIf { it > 0 }
+    val buktiLengkap = if (lewatMejaAdmin) {
+        WeightKg.parse(weight) != null && !photoKey.isNullOrBlank()
+    } else {
+        pcsParsed != null
+    }
+    val canSubmit = buktiLengkap && name.isNotBlank() && leg in allowedRoutes && !isSubmitting
 
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-        Text("Ajukan Antar Karung", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+        Text(
+            text = if (lewatMejaAdmin) "Ajukan Antar Karung" else "Antar ke Divisi Tujuan",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.OnSurface
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             SackRoute.entries.forEach { candidate ->
+                val enabled = candidate in allowedRoutes
                 ClayButton(
                     text = candidate.displayName,
                     style = if (leg == candidate) ClayButtonStyle.Primary else ClayButtonStyle.Secondary,
+                    enabled = enabled,
                     onClick = { leg = candidate }
                 )
             }
         }
-        ClayTextField(
-            value = weight,
-            onValueChange = { weight = it },
-            label = "Berat timbangan (kg)",
-            placeholder = "contoh: 8,35"
-        )
-        EvidencePhotoField(
-            label = "Foto timbangan",
-            uploadedKey = photoKey,
-            isUploading = uploading,
-            onPick = { fileName, mime, bytes ->
-                uploading = true
-                onUploadEvidence(fileName, mime, bytes) { result ->
-                    uploading = false
-                    result.onSuccess { photoKey = it }
+        if (isBundleCard && allowedRoutes.size < SackRoute.entries.size) {
+            FormCaption("Rute yang diredupkan lewat meja admin — tuang dulu bundel ini ke karung.")
+        }
+
+        if (lewatMejaAdmin) {
+            ClayTextField(
+                value = weight,
+                onValueChange = { weight = it },
+                label = "Berat timbangan (kg)",
+                placeholder = "contoh: 8,35"
+            )
+            EvidencePhotoField(
+                label = "Foto timbangan",
+                uploadedKey = photoKey,
+                isUploading = uploading,
+                onPick = { fileName, mime, bytes ->
+                    uploading = true
+                    onUploadEvidence(fileName, mime, bytes) { result ->
+                        uploading = false
+                        result.onSuccess { photoKey = it }
+                    }
                 }
-            }
-        )
-        FormCaption("Wajib: timbang dulu, foto angkanya, baru ajukan.")
+            )
+            FormCaption("Wajib: timbang dulu, foto angkanya, baru ajukan.")
+        } else {
+            ClayTextField(
+                value = pcs,
+                onValueChange = { pcs = it },
+                label = "Jumlah pcs",
+                placeholder = "contoh: 120"
+            )
+            FormCaption("Diantar langsung tanpa ACC admin — hitungan pcs yang dicocokkan di tujuan.")
+        }
+
         ClayTextField(
             value = name,
             onValueChange = { name = it },
-            label = "Nama kurir / petugas",
+            label = "Nama petugas",
             placeholder = "nama Anda"
         )
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             ClayButton(text = "Batal", style = ClayButtonStyle.Ghost, onClick = onCancel)
             ClayButton(
-                text = "Ajukan Antar",
+                text = if (lewatMejaAdmin) "Ajukan Antar" else "Antar Sekarang",
                 style = ClayButtonStyle.Primary,
                 enabled = canSubmit,
-                onClick = { onSubmit(leg, weight, photoKey.orEmpty(), name) }
+                onClick = {
+                    if (lewatMejaAdmin) {
+                        onSubmit(leg, weight, photoKey.orEmpty(), name, null)
+                    } else {
+                        onSubmit(leg, null, null, name, pcsParsed)
+                    }
+                }
             )
         }
     }

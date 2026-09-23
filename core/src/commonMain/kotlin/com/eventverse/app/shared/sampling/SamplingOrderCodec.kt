@@ -92,7 +92,7 @@ object SamplingOrderCodec {
         val clientName = obj.string("clientName") ?: ""
         val styleName = obj.string("styleName") ?: ""
         val status = obj.string("status")?.let { runCatching { SamplingStatus.valueOf(it) }.getOrNull() } ?: SamplingStatus.DRAFT
-        val pipelineStage = obj.string("pipelineStage")?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() }
+        val pipelineStage = SamplingPipelineStage.parseOrNull(obj.string("pipelineStage"))
             ?: when (status) {
                 SamplingStatus.DRAFT -> SamplingPipelineStage.NEW_INTAKE
                 SamplingStatus.IN_PROGRESS -> SamplingPipelineStage.MACHINE_KNITTING
@@ -175,7 +175,7 @@ object SamplingOrderCodec {
                         values = valuesMap
                     )
                 }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
-                val snapStage = sObj.string("pipelineStage")?.let { runCatching { SamplingPipelineStage.valueOf(it) }.getOrNull() } ?: SamplingPipelineStage.NEW_INTAKE
+                val snapStage = SamplingPipelineStage.parseOrNull(sObj.string("pipelineStage")) ?: SamplingPipelineStage.NEW_INTAKE
                 val snapPath = sObj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
                 val snapVendor = decodeVendorInfo(sObj.obj("vendorInfo")) ?: MakloonVendorInfo()
                 val snapDeposits = sObj.objectArray("finishingDeposits").map(::decodeFinishingDeposit)

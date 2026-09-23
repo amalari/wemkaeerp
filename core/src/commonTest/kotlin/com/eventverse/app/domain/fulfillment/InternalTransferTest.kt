@@ -16,28 +16,33 @@ class InternalTransferTest {
 
     private fun aTransfer(
         status: SackTransferStatus = SackTransferStatus.MENUNGGU_ACC,
-        declaredPcs: Int = 120
-    ) = InternalTransfer(
-        id = SackTransferId("trf-1"),
-        tenantId = tenant,
-        sackCode = sack,
-        sizeLabel = "M",
-        colorway = "Hitam",
-        declaredPcs = declaredPcs,
-        leg = SackRoute.QC_RAJUT_TO_FINISHING,
-        status = status,
-        dispatchWeightKg = WeightKg(8.40),
-        dispatchScalePhotoKey = "uploads/timbang-dispatch.jpg",
-        requestedBy = "Rian",
-        requestedAt = now,
-        approvedBy = if (status.sudahDisetujui) "Admin" else null,
-        approvedAt = if (status.sudahDisetujui) now else null,
-        approvalSignatureKey = if (status.sudahDisetujui) "{\"v\":1}" else null,
-        rejectedBy = if (status == SackTransferStatus.DITOLAK) "Admin" else null,
-        rejectReason = if (status == SackTransferStatus.DITOLAK) "isi tidak sesuai" else null,
-        createdAt = now,
-        updatedAt = now
-    )
+        declaredPcs: Int = 120,
+        handoverMode: HandoverMode = HandoverMode.ADMIN_HUB
+    ): InternalTransfer {
+        val lewatMejaAdmin = handoverMode == HandoverMode.ADMIN_HUB
+        return InternalTransfer(
+            id = SackTransferId("trf-1"),
+            tenantId = tenant,
+            sackCode = sack,
+            sizeLabel = "M",
+            colorway = "Hitam",
+            declaredPcs = declaredPcs,
+            leg = SackRoute.QC_RAJUT_TO_FINISHING,
+            handoverMode = handoverMode,
+            status = status,
+            dispatchWeightKg = if (lewatMejaAdmin) WeightKg(8.40) else null,
+            dispatchScalePhotoKey = if (lewatMejaAdmin) "uploads/timbang-dispatch.jpg" else null,
+            requestedBy = "Rian",
+            requestedAt = now,
+            approvedBy = if (lewatMejaAdmin && status.sedangBerjalan) "Admin" else null,
+            approvedAt = if (lewatMejaAdmin && status.sedangBerjalan) now else null,
+            approvalSignatureKey = if (lewatMejaAdmin && status.sedangBerjalan) "{\"v\":1}" else null,
+            rejectedBy = if (status == SackTransferStatus.DITOLAK) "Admin" else null,
+            rejectReason = if (status == SackTransferStatus.DITOLAK) "isi tidak sesuai" else null,
+            createdAt = now,
+            updatedAt = now
+        )
+    }
 
     @Test
     fun `create transfer without dispatch photo should throw exception`() {
@@ -119,6 +124,114 @@ class InternalTransferTest {
                 now = now
             )
         }
+    }
+
+    // ── HandoverMode.DIRECT ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `create direct transfer without weight and photo should be valid`() {
+        val direct = aTransfer(status = SackTransferStatus.DIANTAR, handoverMode = HandoverMode.DIRECT)
+
+        assertEquals(null, direct.dispatchWeightKg)
+        assertEquals(null, direct.approvedBy, "Antar langsung tidak melewati siapa pun untuk di-ACC")
+        assertEquals(SackTransferStatus.DIANTAR, direct.status)
+    }
+
+    @Test
+    fun `create direct transfer carrying approval data should throw exception`() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            aTransfer(status = SackTransferStatus.DIANTAR, handoverMode = HandoverMode.DIRECT)
+                .copy(approvedBy = "Admin", approvalSignatureKey = "{\"v\":1}")
+        }
+        assertTrue(error.message!!.contains("tidak mengenal ACC admin"))
+    }
+
+    @Test
+    fun `create direct transfer with rejected status should throw exception`() {
+        assertFailsWith<IllegalArgumentException> {
+            aTransfer(status = SackTransferStatus.DITOLAK, handoverMode = HandoverMode.DIRECT)
+        }
+    }
+
+    @Test
+    fun `approve direct transfer should throw exception`() {
+        val direct = aTransfer(status = SackTransferStatus.DIANTAR, handoverMode = HandoverMode.DIRECT)
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            direct.approve("Admin", "{\"v\":1}", now)
+        }
+        assertTrue(error.message!!.contains("diantar langsung"))
+    }
+
+    @Test
+    fun `receive direct transfer without signature should be accepted`() {
+        val direct = aTransfer(status = SackTransferStatus.DIANTAR, handoverMode = HandoverMode.DIRECT)
+
+        val received = direct.receive(
+            proof = HandoverProof.ReceiverHandover(
+                receiverName = "Sugeng",
+                signatureKey = null,
+                evidencePhotoKey = "uploads/serah-terima.jpg"
+            ),
+            receivedWeightKg = null,
+            receivedPcs = 120,
+            now = now
+        )
+
+        assertEquals(SackTransferStatus.DITERIMA, received.status)
+    }
+
+    @Test
+    fun `receive direct transfer when pcs shortage should mark discrepancy`() {
+        // Tanpa berat berangkat, perbandingan pcs memikul seluruh deteksi selisih di mode ini.
+        val direct = aTransfer(status = SackTransferStatus.DIANTAR, handoverMode = HandoverMode.DIRECT)
+
+        val received = direct.receive(
+            proof = HandoverProof.ReceiverHandover("Sugeng", null, "uploads/serah-terima.jpg"),
+            receivedWeightKg = null,
+            receivedPcs = 118,
+            now = now
+        )
+
+        assertEquals(SackTransferStatus.DITERIMA_SELISIH, received.status)
+    }
+
+    @Test
+    fun `receive admin hub transfer without signature should still throw exception`() {
+        // Regresi: pelonggaran TTD hanya berlaku untuk DIRECT, bukan untuk semua.
+        val inTransit = aTransfer(status = SackTransferStatus.MENUNGGU_ACC).approve("Admin", "{\"v\":1}", now)
+
+        assertFailsWith<IllegalArgumentException> {
+            inTransit.receive(
+                proof = HandoverProof.ReceiverHandover("Sugeng", null, "uploads/foto.jpg"),
+                receivedWeightKg = null,
+                receivedPcs = null,
+                now = now
+            )
+        }
+    }
+
+    @Test
+    fun `route config without entries should default every route to admin hub`() {
+        // Regresi utama seluruh perubahan ini: tenant yang tidak menyetel apa pun harus
+        // berperilaku persis seperti sebelum mode DIRECT ada.
+        val config = FulfillmentRouteConfig(tenantId = tenant)
+
+        SackRoute.entries.forEach { route ->
+            assertEquals(HandoverMode.ADMIN_HUB, config.modeFor(route), "Rute $route berubah diam-diam")
+        }
+        assertTrue(config.hasAdminHubRoute)
+    }
+
+    @Test
+    fun `route config should only offer direct routes for an unclosed bundle`() {
+        val config = FulfillmentRouteConfig(
+            tenantId = tenant,
+            modes = mapOf(SackRoute.FINISHING_TO_QC_FINISHING to HandoverMode.DIRECT)
+        )
+
+        assertEquals(listOf(SackRoute.FINISHING_TO_QC_FINISHING), config.routesAccepting(isClosedSack = false))
+        assertEquals(SackRoute.entries.toList(), config.routesAccepting(isClosedSack = true))
     }
 
     @Test

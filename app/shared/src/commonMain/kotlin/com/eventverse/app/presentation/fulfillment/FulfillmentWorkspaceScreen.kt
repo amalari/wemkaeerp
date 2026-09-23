@@ -54,7 +54,19 @@ fun FulfillmentWorkspaceScreen(
     decision: AccessDecision,
     persona: TestingPersona?,
     modifier: Modifier = Modifier,
-    viewModel: FulfillmentViewModel = FulfillmentViewModel(tenantSlug = persona?.tenantSlug ?: "wemade-demo")
+    /**
+     * Di-`remember` per tenant, bukan dibuat ulang tiap rekomposisi.
+     *
+     * Nilai default sebuah parameter Composable dievaluasi ulang setiap kali pemanggilnya
+     * rekomposisi. Tanpa `remember`, setiap perubahan state melahirkan ViewModel baru yang
+     * `init`-nya memuat ulang dari nol — dan state sementara seperti `scannedSack` terhapus
+     * sebelum sempat digambar. Gejalanya: kode karung dipindai, kolomnya kosong kembali, dan
+     * formulir pengajuan tidak pernah muncul.
+     */
+    viewModel: FulfillmentViewModel = run {
+        val tenantSlug = persona?.tenantSlug ?: "wemade-demo"
+        remember(tenantSlug) { FulfillmentViewModel(tenantSlug = tenantSlug) }
+    }
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -101,9 +113,17 @@ fun FulfillmentWorkspaceScreen(
                 SubmitSackForm(
                     sackPayload = sackPayload,
                     isSubmitting = state.isSubmitting,
-                    onSubmit = { leg, weight, photoKey, requestedBy ->
+                    state = state,
+                    onSubmit = { leg, weight, photoKey, requestedBy, declaredPcs ->
                         viewModel.onEvent(
-                            FulfillmentUiEvent.SubmitTransfer(sackPayload, leg, weight, photoKey, requestedBy)
+                            FulfillmentUiEvent.SubmitTransfer(
+                                sackPayload = sackPayload,
+                                leg = leg,
+                                dispatchWeightKg = weight,
+                                dispatchScalePhotoKey = photoKey,
+                                requestedBy = requestedBy,
+                                declaredPcs = declaredPcs
+                            )
                         )
                     },
                     onUploadEvidence = { fileName, mime, bytes, onDone ->
@@ -167,7 +187,14 @@ private fun HeaderCard(
                     IconPackage()
                 }
                 Text(
-                    text = "Karung tertutup di-scan, ditimbang, di-ACC admin, lalu diterima di tujuan.",
+                    // Kalimatnya mengikuti pola yang benar-benar dipakai pabrik ini: menyebut
+                    // "di-ACC admin" di pabrik yang seluruh rutenya langsung adalah keterangan
+                    // yang salah, dan keterangan yang salah lebih buruk daripada tidak ada.
+                    text = if (state.hasAdminHubRoute) {
+                        "Karung tertutup di-scan, ditimbang, di-ACC admin, lalu diterima di tujuan."
+                    } else {
+                        "Karung atau bundel di-scan, diantar operator, lalu diterima di tujuan."
+                    },
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )
@@ -194,7 +221,11 @@ private fun HeaderCard(
                 .padding(top = ClaySpacing.Sm),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
-            ClayBadge(text = "Menunggu ACC: ${state.pendingApproval.size}", tint = WeMadeColors.Warning)
+            // Penghitung ACC disembunyikan di pabrik tanpa meja admin: angka yang selamanya nol
+            // membuat orang menduga ada yang rusak, bukan menyimpulkan bahwa memang tidak dipakai.
+            if (state.hasAdminHubRoute) {
+                ClayBadge(text = "Menunggu ACC: ${state.pendingApproval.size}", tint = WeMadeColors.Warning)
+            }
             ClayBadge(text = "Diantar: ${state.inTransit.size}", tint = WeMadeColors.Info)
             ClayBadge(text = "Selesai: ${state.done.size}", tint = WeMadeColors.Success)
         }
@@ -209,14 +240,14 @@ private fun ScanEntryCard(enabled: Boolean, onScanned: (String) -> Unit) {
     ClayCard {
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
             Text(
-                text = "SCAN / KETIK KODE KARUNG",
+                text = "SCAN / KETIK KODE KARUNG ATAU BUNDEL",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
             )
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                 ClayButton(
-                    text = "Pindai QR Karung",
+                    text = "Pindai QR",
                     style = ClayButtonStyle.Accent,
                     enabled = enabled,
                     onClick = {
@@ -229,7 +260,7 @@ private fun ScanEntryCard(enabled: Boolean, onScanned: (String) -> Unit) {
                     value = manualCode,
                     onValueChange = { manualCode = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = "W1SK-....",
+                    placeholder = "W1SK-…. atau W1SB-….",
                     enabled = enabled
                 )
                 ClayButton(

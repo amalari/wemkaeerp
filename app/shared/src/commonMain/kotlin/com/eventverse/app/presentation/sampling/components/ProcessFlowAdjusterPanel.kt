@@ -51,7 +51,10 @@ private val ADJUSTABLE_STAGES = listOf(
     SamplingPipelineStage.CAM_PROGRAMMING,
     SamplingPipelineStage.MACHINE_KNITTING,
     SamplingPipelineStage.LINKING_ASSEMBLY,
-    SamplingPipelineStage.FINISHING_QC,
+    SamplingPipelineStage.CUCI_SOFTENER,
+    SamplingPipelineStage.SETRIKA_UAP,
+    SamplingPipelineStage.QC_FINISHING,
+    SamplingPipelineStage.PENGEMASAN,
     SamplingPipelineStage.IN_DELIVERY
 )
 

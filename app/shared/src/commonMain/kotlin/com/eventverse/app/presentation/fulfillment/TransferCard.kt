@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.fulfillment.HandoverProof
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -55,7 +56,10 @@ fun TransferCard(
         TransferFootnote(transfer)
 
         when {
-            transfer.status == SackTransferStatus.MENUNGGU_ACC && canApprove ->
+            // Mode ikut menentukan, bukan status saja: perjalanan DIRECT tidak pernah punya
+            // meja admin untuk menyetujuinya, dan domain menolak approve() atasnya.
+            transfer.handoverMode == HandoverMode.ADMIN_HUB &&
+                transfer.status == SackTransferStatus.MENUNGGU_ACC && canApprove ->
                 ApproveSection(
                     isSubmitting = isSubmitting,
                     onDecide = { approved, name, signature, reason ->
@@ -99,7 +103,8 @@ fun TransferCard(
                     }
                 )
 
-            transfer.status == SackTransferStatus.MENUNGGU_ACC -> WaitingNote()
+            transfer.handoverMode == HandoverMode.ADMIN_HUB &&
+                transfer.status == SackTransferStatus.MENUNGGU_ACC -> WaitingNote()
         }
     }
 }
@@ -122,9 +127,14 @@ private fun TransferHeader(transfer: InternalTransfer) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = transfer.leg.displayName,
+                // Mode disebut di sini supaya kartu DIRECT tidak terbaca sebagai kartu yang
+                // "lupa di-ACC" — dua hal yang kalau tertukar menuntun admin mencari tombol
+                // persetujuan yang memang tidak pernah ada.
+                text = "${transfer.leg.displayName} · ${transfer.handoverMode.displayName}",
                 fontSize = 11.sp,
-                color = WeMadeColors.OnSurfaceMuted
+                color = WeMadeColors.OnSurfaceMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         ClayBadge(text = transfer.status.displayName, tint = transferStatusTint(transfer.status))
@@ -144,7 +154,9 @@ private fun TransferFacts(transfer: InternalTransfer) {
         if (transfer.colorway.isNotBlank()) {
             ClayTag(text = transfer.colorway, tint = WeMadeColors.Primary)
         }
-        ClayTag(text = transfer.dispatchWeightKg.formatted(), tint = WeMadeColors.Info)
+        // Tidak ada timbangan pada perjalanan antar langsung — tag-nya hilang, bukan menampilkan
+        // "0.00 kg" yang terbaca seperti karung kosong.
+        transfer.dispatchWeightKg?.let { ClayTag(text = it.formatted(), tint = WeMadeColors.Info) }
     }
 }
 

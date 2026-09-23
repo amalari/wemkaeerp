@@ -2007,16 +2007,16 @@ private fun SamplingMonitoringTimeline(
     val isKnitActive = order.pipelineStage == SamplingPipelineStage.MACHINE_KNITTING || order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY
 
     val inlineQc = order.qcInspections.firstOrNull()
-    val isQc1Done = order.pipelineStage >= SamplingPipelineStage.FINISHING_QC || order.isInDelivery || inlineQc?.qcResult == QcInspectionResult.PASSED
+    val isQc1Done = order.pipelineStage >= SamplingPipelineStage.CUCI_SOFTENER || order.isInDelivery || inlineQc?.qcResult == QcInspectionResult.PASSED
     val isQc1Active = order.pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY && order.finishingDeposits.isEmpty()
 
     val isFinishingDone = order.isFinishingComplete || order.isInDelivery
-    val isFinishingActive = order.pipelineStage == SamplingPipelineStage.FINISHING_QC && !isFinishingDone
+    val isFinishingActive = order.pipelineStage.isWetOrPressWork && !isFinishingDone
     val isMakloon = order.finishingPath == FinishingPath.MAKLOON_VENDOR
 
     val finalQc = order.latestQcReport
     val isQc2Done = order.isInDelivery || order.isAccApproved || (finalQc?.qcResult == QcInspectionResult.PASSED && isFinishingDone)
-    val isQc2Active = order.pipelineStage == SamplingPipelineStage.FINISHING_QC && isFinishingDone
+    val isQc2Active = order.pipelineStage == SamplingPipelineStage.QC_FINISHING
 
     val camMulai = formatInstantWithTime(order.createdAt)
     val camSelesai = if (isCamDone) {

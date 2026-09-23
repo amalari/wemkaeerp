@@ -10,9 +10,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
 
 data class FulfillmentUiState(
     val transfers: List<InternalTransfer> = emptyList(),
@@ -20,11 +23,38 @@ data class FulfillmentUiState(
     val isSubmitting: Boolean = false,
     val error: String? = null,
     /** Payload karung hasil scan/ketik yang sedang diproses di form pengajuan. */
-    val scannedSack: String? = null
+    val scannedSack: String? = null,
+    /**
+     * Pola serah terima tiap rute, atau `null` selama belum dimuat.
+     *
+     * Sengaja nullable alih-alih diisi objek kosong: [FulfillmentRouteConfig] menuntut
+     * [TenantId] yang sah (3–64 karakter), dan menyodorkan placeholder seperti `TenantId("-")`
+     * membuatnya melempar tepat di konstruktor state — seluruh layar mati sebelum sempat
+     * menggambar. Value class ada justru supaya nilai tidak sah tidak bisa dibuat; placeholder
+     * adalah nilai tidak sah yang sedang dipaksa masuk.
+     *
+     * Selama null, [effectiveRouteConfig] jatuh ke ADMIN_HUB, jadi formulir yang tampil sebelum
+     * muatan selesai adalah formulir lengkap. Meminta bukti lalu melonggarkannya lebih jujur
+     * daripada sebaliknya.
+     */
+    val routeConfig: FulfillmentRouteConfig? = null
 ) {
-    val pendingApproval get() = transfers.filter { it.status.name == "MENUNGGU_ACC" }
-    val inTransit get() = transfers.filter { it.status.name == "DIANTAR" }
+    // Perbandingan enum, bukan string: mode baru menambah cabang, dan `status.name == "..."`
+    // membuat salah ketik lolos diam-diam tanpa satu pun keluhan compiler.
+    val pendingApproval get() = transfers.filter { it.status == SackTransferStatus.MENUNGGU_ACC }
+    val inTransit get() = transfers.filter { it.status == SackTransferStatus.DIANTAR }
     val done get() = transfers.filter { it.status.isFinal }
+
+    fun modeFor(route: SackRoute): HandoverMode =
+        routeConfig?.modeFor(route) ?: HandoverMode.ADMIN_HUB
+
+    /** Rute yang masih lewat meja admin; true selama konfigurasi belum dimuat. */
+    val hasAdminHubRoute: Boolean get() = routeConfig?.hasAdminHubRoute ?: true
+
+    /** Rute yang sah untuk wadah yang dipindai. Sebelum dimuat, hanya karung tertutup. */
+    fun routesAccepting(isClosedSack: Boolean): List<SackRoute> =
+        routeConfig?.routesAccepting(isClosedSack)
+            ?: if (isClosedSack) SackRoute.entries.toList() else emptyList()
 }
 
 sealed interface FulfillmentUiEvent {
@@ -34,9 +64,11 @@ sealed interface FulfillmentUiEvent {
     data class SubmitTransfer(
         val sackPayload: String,
         val leg: SackRoute,
-        val dispatchWeightKg: String,
-        val dispatchScalePhotoKey: String,
+        /** Null pada [HandoverMode.DIRECT] — di sana hitungan pcs yang dipakai. */
+        val dispatchWeightKg: String?,
+        val dispatchScalePhotoKey: String?,
         val requestedBy: String,
+        val declaredPcs: Int? = null,
         val notes: String = ""
     ) : FulfillmentUiEvent
 
@@ -91,7 +123,8 @@ class FulfillmentViewModel(
                     dispatchWeightKg = event.dispatchWeightKg,
                     dispatchScalePhotoKey = event.dispatchScalePhotoKey,
                     requestedBy = event.requestedBy,
-                    notes = event.notes
+                    notes = event.notes,
+                    declaredPcs = event.declaredPcs
                 )
             }
 
@@ -129,6 +162,13 @@ class FulfillmentViewModel(
     private fun load() {
         _uiState.update { it.copy(isLoading = true, error = null) }
         scope.launch {
+            // Konfigurasi rute dimuat lebih dulu dan kegagalannya sengaja tidak dinaikkan jadi
+            // error layar: tanpa konfigurasi, seluruh rute jatuh ke ADMIN_HUB dan operator
+            // masih bisa bekerja dengan formulir lengkap. Pesan merah di sini hanya akan
+            // membuat dia mengira modulnya rusak padahal jalurnya masih utuh.
+            remoteDataSource.routeSettings(tenantSlug)
+                .onSuccess { config -> _uiState.update { it.copy(routeConfig = config) } }
+
             remoteDataSource.transfers(tenantSlug)
                 .onSuccess { rows ->
                     _uiState.update { it.copy(transfers = rows, isLoading = false) }

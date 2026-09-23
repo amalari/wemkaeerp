@@ -90,7 +90,13 @@ class SamplingDragDropState {
         SamplingPipelineStage.FLOW_REVIEW -> setOf(SamplingPipelineStage.CAM_PROGRAMMING)
         SamplingPipelineStage.CAM_PROGRAMMING -> setOf(SamplingPipelineStage.MACHINE_KNITTING)
         SamplingPipelineStage.MACHINE_KNITTING -> setOf(SamplingPipelineStage.LINKING_ASSEMBLY)
-        SamplingPipelineStage.FINISHING_QC -> setOf(SamplingPipelineStage.IN_DELIVERY)
+        // Lantai penyelesaian akhir berjalan berurutan satu langkah demi satu langkah: tiap
+        // batasnya adalah serah terima nyata, jadi tidak ada loncatan ke pengiriman dari tengah.
+        SamplingPipelineStage.LINKING_ASSEMBLY -> setOf(SamplingPipelineStage.CUCI_SOFTENER)
+        SamplingPipelineStage.CUCI_SOFTENER -> setOf(SamplingPipelineStage.SETRIKA_UAP)
+        SamplingPipelineStage.SETRIKA_UAP -> setOf(SamplingPipelineStage.QC_FINISHING)
+        SamplingPipelineStage.QC_FINISHING -> setOf(SamplingPipelineStage.PENGEMASAN)
+        SamplingPipelineStage.PENGEMASAN -> setOf(SamplingPipelineStage.IN_DELIVERY)
         else -> emptySet()
     }
 
