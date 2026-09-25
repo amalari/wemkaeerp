@@ -12,15 +12,11 @@ import kotlin.test.assertTrue
 class CamProgramTabMappingTest {
 
     @Test
-    fun parseCamSections_withEmptyList_shouldReturnDefaultTabs() {
+    fun parseCamSections_withEmptyList_shouldReturnEmptyTabs() {
         val (tabs, note) = parseCamSections(emptyList())
 
-        assertEquals(4, tabs.size)
-        assertEquals(listOf("Depan", "Belakang", "Lengan", "Kerah"), tabs.map { it.name })
+        assertTrue(tabs.isEmpty())
         assertEquals("", note)
-        assertTrue(tabs.all { it.program.isEmpty() })
-        assertTrue(tabs.all { it.feederInstructions.isEmpty() })
-        assertTrue(tabs.all { it.tenselities.isEmpty() })
     }
 
     @Test
@@ -84,19 +80,39 @@ class CamProgramTabMappingTest {
     }
 
     @Test
-    fun camGating_withoutTenselity_shouldNotPass() {
+    fun camGating_withoutFeeder_shouldNotPass() {
         val tabs = listOf(
             CamPartTab(
                 id = "tab-0-Depan",
                 name = "Depan",
                 program = "BIAN-D",
-                feederInstructions = listOf("1 RIB STRIPE 1 PLAY (HITAM)"),
-                tenselities = emptyList() // Kosong!
+                feederInstructions = emptyList(), // Kosong!
+                tenselities = listOf("1 BS POLY: 14")
             )
         )
         val sections = serializeCamSections(tabs, "Catatan formula")
 
         val requiredFilled = sections.filter { it.section in StageSectionNames.CAM_REQUIRED }.all { it.hasFilledRow }
-        assertFalse(requiredFilled, "Gerbang CAM tidak boleh lolos jika Tenselity belum diisi")
+        assertFalse(requiredFilled, "Gerbang CAM tidak boleh lolos jika Instruksi Panah belum diisi")
+    }
+
+    @Test
+    fun camPartTab_isComplete_validation() {
+        val tabEmpty = CamPartTab(id = "1", name = "Depan")
+        assertFalse(tabEmpty.isComplete, "Tab kosong harus belum lengkap")
+
+        val tabProgOnly = CamPartTab(id = "1", name = "Depan", program = "BIAN-D")
+        assertFalse(tabProgOnly.isComplete, "Tab hanya dengan kode program harus belum lengkap")
+
+        val tabFeederOnly = CamPartTab(id = "1", name = "Depan", feederInstructions = listOf("Feeder 1"))
+        assertFalse(tabFeederOnly.isComplete, "Tab hanya dengan instruksi panah harus belum lengkap")
+
+        val tabComplete = CamPartTab(
+            id = "1",
+            name = "Depan",
+            program = "BIAN-D",
+            feederInstructions = listOf("Feeder 1")
+        )
+        assertTrue(tabComplete.isComplete, "Tab dengan kode program dan instruksi panah harus lengkap")
     }
 }

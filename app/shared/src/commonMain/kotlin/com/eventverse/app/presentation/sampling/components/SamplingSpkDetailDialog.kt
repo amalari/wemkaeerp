@@ -84,6 +84,7 @@ fun SamplingSpkDetailDialog(
     var isFlowSectionVisible by remember(order.id, initialShowFlowSection) {
         mutableStateOf(initialShowFlowSection || order.pipelineStage != SamplingPipelineStage.NEW_INTAKE)
     }
+    var camValidationTrigger by remember(order.id) { mutableStateOf(0) }
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -172,7 +173,8 @@ fun SamplingSpkDetailDialog(
                     if (isCamStage) {
                         CamProgramTabbedSection(
                             sections = camSections,
-                            onSectionsChange = { camSections = it }
+                            onSectionsChange = { camSections = it },
+                            validationTrigger = camValidationTrigger
                         )
                     }
                 }
@@ -201,9 +203,15 @@ fun SamplingSpkDetailDialog(
                             text = "Simpan Program -> Masuk Mesin Rajut",
                             style = ClayButtonStyle.Accent,
                             modifier = Modifier.weight(2f),
-                            // Gerbang klien; domain memvalidasi ulang CAM_REQUIRED.
-                            enabled = camSections.filter { it.section in StageSectionNames.CAM_REQUIRED }.all { it.hasFilledRow } && !isSubmitting,
-                            onClick = { onSubmitCamProgram(camSections) }
+                            enabled = !isSubmitting,
+                            onClick = {
+                                val (currentTabs, _) = parseCamSections(camSections)
+                                if (currentTabs.isEmpty() || currentTabs.any { !it.isComplete }) {
+                                    camValidationTrigger++
+                                } else {
+                                    onSubmitCamProgram(camSections)
+                                }
+                            }
                         )
                     }
                     if (isGateStage) {

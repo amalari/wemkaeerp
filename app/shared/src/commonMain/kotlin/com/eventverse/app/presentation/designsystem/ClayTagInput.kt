@@ -43,7 +43,9 @@ fun ClayTagInput(
     tags: List<String>,
     onTagsChange: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
-    numbered: Boolean = false
+    numbered: Boolean = false,
+    isError: Boolean = false,
+    errorMessage: String? = null
 ) {
     var input by remember { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
@@ -101,10 +103,18 @@ fun ClayTagInput(
                 .claySurface(
                     shape = ClayShapes.Chip,
                     background = WeMadeColors.Surface,
-                    outline = if (isFocused) WeMadeColors.Primary else WeMadeColors.Outline,
-                    offset = if (isFocused) ClayOffset.Small else ClayOffset.Pressed,
-                    borderWidth = if (isFocused) ClayBorder.Thick else ClayBorder.Medium,
-                    shadowColor = if (isFocused) WeMadeColors.Primary else WeMadeColors.Outline,
+                    outline = when {
+                        isError -> WeMadeColors.Error
+                        isFocused -> WeMadeColors.Primary
+                        else -> WeMadeColors.Outline
+                    },
+                    offset = if (isFocused || isError) ClayOffset.Small else ClayOffset.Pressed,
+                    borderWidth = if (isFocused || isError) ClayBorder.Thick else ClayBorder.Medium,
+                    shadowColor = when {
+                        isError -> WeMadeColors.Error
+                        isFocused -> WeMadeColors.Primary
+                        else -> WeMadeColors.Outline
+                    },
                     innerShade = false
                 )
                 .padding(horizontal = ClaySpacing.Md, vertical = 6.dp),
@@ -289,6 +299,17 @@ fun ClayTagInput(
                     }
                 }
             }
+        }
+
+        if (isError && errorMessage != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorMessage,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.Error,
+                modifier = Modifier.padding(start = 2.dp)
+            )
         }
     }
 }

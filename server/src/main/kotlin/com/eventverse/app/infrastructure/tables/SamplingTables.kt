@@ -42,6 +42,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val sizeMatrix = jsonbText("size_matrix").default("[]")
     val stageInputs = jsonbText("stage_inputs").default("{}")
     val stageHistory = jsonbText("stage_history").default("[]")
+    /** Klaim "sedang dikerjakan" operator; string kosong = SPK masih di antrian mejanya. */
+    val activeWork = text("active_work").default("")
     val customFlowProcesses = jsonbText("custom_flow_processes").nullable()
     val isCustomFlow = bool("is_custom_flow").default(false)
     val accNotes = text("acc_notes").default("")

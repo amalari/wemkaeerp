@@ -78,6 +78,7 @@ object SamplingOrderCodec {
         // jsonb dikirim sebagai string — konsisten dengan kolom jsonbText di server
         "stageInputs" to jsonOf(StageWorkInputCodec.encodeInputs(order.stageInputs)),
         "stageHistory" to jsonOf(StageWorkInputCodec.encodeHistory(order.stageHistory)),
+        "activeWork" to jsonOf(StageWorkInputCodec.encodeClaim(order.activeWork)),
         "isCustomFlow" to jsonOf(order.isCustomFlow),
         "customFlowProcesses" to (order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it) } ?: JsonValue.Null),
         "createdAt" to jsonOf(order.createdAt.toString()),
@@ -151,8 +152,6 @@ object SamplingOrderCodec {
             obj.string("createdAt"),
             Instant.fromEpochMilliseconds(0)
         )
-        val stageInputs = StageWorkInputCodec.decodeInputs(obj.string("stageInputs"))
-        val stageHistory = StageWorkInputCodec.decodeHistory(obj.string("stageHistory"), createdAt)
         val updatedAt = com.eventverse.app.shared.common.DateTimeCodec.parseInstantOrFallback(
             obj.string("updatedAt"),
             createdAt
@@ -242,8 +241,9 @@ object SamplingOrderCodec {
             finishingDeposits = finishingDeposits,
             qcInspections = qcInspections,
             milestones = milestones,
-            stageInputs = stageInputs,
-            stageHistory = stageHistory,
+            stageInputs = StageWorkInputCodec.decodeInputs(obj.string("stageInputs")),
+            stageHistory = StageWorkInputCodec.decodeHistory(obj.string("stageHistory"), createdAt),
+            activeWork = StageWorkInputCodec.decodeClaim(obj.string("activeWork")),
             customFlowProcesses = customFlowProcesses,
             isCustomFlow = isCustomFlow,
             createdAt = createdAt,

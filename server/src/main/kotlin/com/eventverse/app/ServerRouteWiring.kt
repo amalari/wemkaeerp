@@ -87,6 +87,7 @@ fun Route.operationalModuleRoutes(
         poFileStorage = poFileStorage,
         flowLegsUseCase = flowLegsUseCase
     )
+    samplingStageWorkRoutes(samplingOrderRepo)
             productionRoutes(
                 workOrderRepository = bulkWorkOrderRepo,
                 dealRepository = crmDealRepo,

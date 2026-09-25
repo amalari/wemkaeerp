@@ -11,6 +11,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.statements.UpdateBuilder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 
@@ -62,6 +63,42 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                 .map { loadOrderDetails(it) }
         }
 
+    /** Kolom yang ditulis sama persis oleh insert maupun update — satu daftar, tidak bisa menyimpang. */
+    private fun SamplingOrdersTable.writeOrderColumns(row: UpdateBuilder<*>, order: SamplingOrder) {
+        row[clientName] = order.clientName
+        row[styleName] = order.styleName
+        row[status] = order.status.name
+        row[pipelineStage] = order.pipelineStage.name
+        row[finishingPath] = order.finishingPath.name
+        row[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
+        row[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
+        row[vendorSentAt] = order.vendorInfo.sentAt
+        row[vendorTargetAt] = order.vendorInfo.expectedReturnAt
+        row[vendorReturnedAt] = order.vendorInfo.returnedAt
+        row[vendorCostPerPcs] = order.vendorInfo.costPerPcsIdr
+        row[vendorStatus] = order.vendorInfo.status.name
+        row[vendorNotes] = order.vendorInfo.notes
+        row[sizeMode] = order.sizeMode.name
+        row[deadlineProgram] = order.deadlineProgram
+        row[deadlineFinishing] = order.deadlineFinishing
+        row[deadlineDelivery] = order.deadlineDelivery
+        row[leadId] = order.leadId
+        row[dealId] = order.dealId
+        row[sampleQuantity] = order.sampleQuantity
+        row[courierTracking] = order.courierTracking
+        row[samplingFeeIdr] = order.samplingFeeIdr
+        row[revisionCount] = order.revisionCount
+        row[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
+        row[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
+        row[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
+        row[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
+        row[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
+        row[isCustomFlow] = order.isCustomFlow
+        row[accNotes] = order.accNotes
+        row[notes] = order.notes
+        row[activeWork] = StageWorkInputCodec.encodeClaim(order.activeWork)
+    }
+
     override suspend fun save(order: SamplingOrder): SamplingOrder =
         DatabaseFactory.dbQuery(order.tenantId) {
             val existing = SamplingOrdersTable.selectAll()
@@ -73,73 +110,13 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                     it[id] = order.id.value
                     it[tenantId] = order.tenantId.value
                     it[spkNumber] = order.spkNumber.value
-                    it[clientName] = order.clientName
-                    it[styleName] = order.styleName
-                    it[status] = order.status.name
-                    it[pipelineStage] = order.pipelineStage.name
-                    it[finishingPath] = order.finishingPath.name
-                    it[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
-                    it[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
-                    it[vendorSentAt] = order.vendorInfo.sentAt
-                    it[vendorTargetAt] = order.vendorInfo.expectedReturnAt
-                    it[vendorReturnedAt] = order.vendorInfo.returnedAt
-                    it[vendorCostPerPcs] = order.vendorInfo.costPerPcsIdr
-                    it[vendorStatus] = order.vendorInfo.status.name
-                    it[vendorNotes] = order.vendorInfo.notes
-                    it[sizeMode] = order.sizeMode.name
-                    it[deadlineProgram] = order.deadlineProgram
-                    it[deadlineFinishing] = order.deadlineFinishing
-                    it[deadlineDelivery] = order.deadlineDelivery
-                    it[leadId] = order.leadId
-                    it[dealId] = order.dealId
-                    it[sampleQuantity] = order.sampleQuantity
-                    it[courierTracking] = order.courierTracking
-                    it[samplingFeeIdr] = order.samplingFeeIdr
-                    it[revisionCount] = order.revisionCount
-                    it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
-                    it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
-                    it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
-                    it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
-                    it[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
-                    it[isCustomFlow] = order.isCustomFlow
-                    it[accNotes] = order.accNotes
-                    it[notes] = order.notes
+                    SamplingOrdersTable.writeOrderColumns(it, order)
                     it[createdAt] = order.createdAt
                     it[updatedAt] = order.updatedAt
                 }
             } else {
                 SamplingOrdersTable.update({ SamplingOrdersTable.id eq order.id.value }) {
-                    it[clientName] = order.clientName
-                    it[styleName] = order.styleName
-                    it[status] = order.status.name
-                    it[pipelineStage] = order.pipelineStage.name
-                    it[finishingPath] = order.finishingPath.name
-                    it[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
-                    it[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
-                    it[vendorSentAt] = order.vendorInfo.sentAt
-                    it[vendorTargetAt] = order.vendorInfo.expectedReturnAt
-                    it[vendorReturnedAt] = order.vendorInfo.returnedAt
-                    it[vendorCostPerPcs] = order.vendorInfo.costPerPcsIdr
-                    it[vendorStatus] = order.vendorInfo.status.name
-                    it[vendorNotes] = order.vendorInfo.notes
-                    it[sizeMode] = order.sizeMode.name
-                    it[deadlineProgram] = order.deadlineProgram
-                    it[deadlineFinishing] = order.deadlineFinishing
-                    it[deadlineDelivery] = order.deadlineDelivery
-                    it[leadId] = order.leadId
-                    it[dealId] = order.dealId
-                    it[sampleQuantity] = order.sampleQuantity
-                    it[courierTracking] = order.courierTracking
-                    it[samplingFeeIdr] = order.samplingFeeIdr
-                    it[revisionCount] = order.revisionCount
-                    it[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
-                    it[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
-                    it[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
-                    it[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
-                    it[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
-                    it[isCustomFlow] = order.isCustomFlow
-                    it[accNotes] = order.accNotes
-                    it[notes] = order.notes
+                    SamplingOrdersTable.writeOrderColumns(it, order)
                     it[updatedAt] = order.updatedAt
                     it[archivedAt] = order.archivedAt
                 }
@@ -596,6 +573,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
                 raw = orderRow[SamplingOrdersTable.stageHistory],
                 fallbackAt = orderRow[SamplingOrdersTable.updatedAt]
             ),
+            activeWork = StageWorkInputCodec.decodeClaim(orderRow[SamplingOrdersTable.activeWork]),
             machineProgram = machineProgram,
             yieldAndTiming = yieldAndTiming,
             finishingDeposits = finishingDeposits,

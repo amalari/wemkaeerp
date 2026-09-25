@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pipeline.DefectLiability
 import kotlinx.datetime.Instant
 
 /**
@@ -40,14 +41,24 @@ data class StageWorkInput(
 /**
  * Jejak audit perpindahan tahap — "siapa yang memindahkan dan kapan".
  * Diisi server dari JWT (bukan dari body request) setiap kali POST /{id}/stage dijalankan.
+ *
+ * Kiriman balik rework dicatat di daftar yang sama, ditandai [liability] + [reason], bukan di
+ * daftar terpisah: "SPK ini lewat mana saja" adalah satu garis waktu, dan memecahnya dua membuat
+ * pembaca harus menjahit ulang urutannya sendiri.
  */
 data class StageTransitionAudit(
     val fromStage: SamplingPipelineStage,
     val toStage: SamplingPipelineStage,
     val actorEmail: String,
     val actorRole: String,
-    val at: Instant
-)
+    val at: Instant,
+    /** Alasan rework; `null` untuk perpindahan maju biasa. */
+    val reason: String? = null,
+    /** Pihak penanggung cacat. Terisi = entri ini adalah kiriman balik rework. */
+    val liability: DefectLiability? = null
+) {
+    val isRework: Boolean get() = liability != null
+}
 
 /**
  * Nama section baku yang dipakai dialog per transisi tahap. Nama ini adalah *kontrak gerbang*:
@@ -64,7 +75,7 @@ object StageSectionNames {
     const val TENSELITY = "TENSELITY"
 
     /** Section wajib sebelum boleh masuk Mesin Rajut (gerbang CAM). */
-    val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS, TENSELITY)
+    val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS)
 
     /** Section inputan aktif saat lembar Rajut Mesin. */
     val KNITTING_INPUTS: List<String> = listOf(PANEL_WEIGHTS, PANEL_MINUTES, SIZE_CHART, TENSELITY)

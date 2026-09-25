@@ -29,7 +29,9 @@ data class SamplingUiState(
      * Null = tidak ada dialog tahap terbuka.
      */
     val stageAdvanceTarget: SamplingOrder? = null,
-    val stageAdvanceTargetStage: SamplingPipelineStage? = null
+    val stageAdvanceTargetStage: SamplingPipelineStage? = null,
+    /** SPK yang sedang membuka dialog kirim rework di meja operator. */
+    val reworkTarget: SamplingOrder? = null
 ) {
     val selectedOrder: SamplingOrder?
         get() = (selectedOrderId?.let { id -> orders.firstOrNull { it.id == id } } ?: orders.firstOrNull())
@@ -100,6 +102,18 @@ sealed interface SamplingUiEvent {
     data object CloseVendorDialog : SamplingUiEvent
     data class OpenRevisionDialog(val order: SamplingOrder) : SamplingUiEvent
     data object CloseRevisionDialog : SamplingUiEvent
+
+    // Meja operator lantai produksi (Antrian / Sedang Dikerjakan / Selesai)
+    data class StartStageWork(val orderId: SamplingOrderId, val operatorName: String) : SamplingUiEvent
+    data class ReleaseStageWork(val orderId: SamplingOrderId) : SamplingUiEvent
+    data class OpenReworkDialog(val order: SamplingOrder) : SamplingUiEvent
+    data object CloseReworkDialog : SamplingUiEvent
+    data class ConfirmRework(
+        val orderId: SamplingOrderId,
+        val target: SamplingPipelineStage,
+        val reason: String,
+        val liability: com.eventverse.app.domain.pipeline.DefectLiability
+    ) : SamplingUiEvent
 
     data object DismissStatusMessage : SamplingUiEvent
 }

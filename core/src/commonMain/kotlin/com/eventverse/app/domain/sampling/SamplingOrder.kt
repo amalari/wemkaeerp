@@ -73,6 +73,8 @@ data class SamplingOrder(
     val stageInputs: List<StageWorkInput> = emptyList(),
     /** Jejak audit perpindahan tahap: siapa yang memindahkan dan kapan. Diisi server. */
     val stageHistory: List<StageTransitionAudit> = emptyList(),
+    /** Operator yang sedang memegang SPK di mejanya; hanya berlaku bila `stage == pipelineStage`. */
+    val activeWork: StageWorkClaim? = null,
     /** Alur proses opsional kustom khusus desain ini. `null` = mewarisi alur default pabrik. */
     val customFlowProcesses: List<TenantOptionalProcess>? = null,
     val isCustomFlow: Boolean = false,
@@ -189,36 +191,22 @@ data class SamplingOrder(
         actorRole: String = ""
     ): SamplingOrder {
         requireStageGate(target)
-        return copy(
-            pipelineStage = target,
-            // Transisi apa pun — termasuk NEW_INTAKE -> NEW_INTAKE saat Deals menerbitkan SPK —
-            // menandai order sudah diserahkan ke Divisi Sampling, jadi DRAFT berakhir di sini.
-            status = if (status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else status,
-            stageHistory = stageHistory + StageTransitionAudit(
-                fromStage = pipelineStage,
-                toStage = target,
-                actorEmail = actorEmail,
-                actorRole = actorRole,
-                at = updatedAt
-            ),
-            updatedAt = updatedAt
-        )
+        // Transisi apa pun — termasuk NEW_INTAKE -> NEW_INTAKE saat Deals menerbitkan SPK —
+        // menandai order sudah diserahkan ke Divisi Sampling, jadi DRAFT berakhir di sini.
+        return movedTo(target, StageTransitionAudit(pipelineStage, target, actorEmail, actorRole, updatedAt))
+            .copy(status = if (status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else status)
     }
 
     /**
-     * Gerbang antar tahap: transisi CAM -> Mesin Rajut hanya sah setelah section wajib
-     * lembar CAM (PROGRAM, INSTRUKSI PANAH, RUMUS POLA) memiliki minimal satu baris terisi.
+     * Satu-satunya jalan memindahkan tahap yang meninggalkan jejak: tahap berganti, entri audit
+     * ditambahkan, dan klaim "sedang dikerjakan" dilepas — pekerjaan di tahap lama sudah selesai.
      */
-    private fun requireStageGate(target: SamplingPipelineStage) {
-        if (pipelineStage != SamplingPipelineStage.CAM_PROGRAMMING || target != SamplingPipelineStage.MACHINE_KNITTING) return
-        val camInput = stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
-        val missing = StageSectionNames.CAM_REQUIRED.filter { name ->
-            camInput?.section(name)?.hasFilledRow != true
-        }
-        require(missing.isEmpty()) {
-            "Lembar Program CAM belum lengkap — isi dulu: ${missing.joinToString(", ")}"
-        }
-    }
+    internal fun movedTo(target: SamplingPipelineStage, audit: StageTransitionAudit): SamplingOrder = copy(
+        pipelineStage = target,
+        activeWork = null,
+        stageHistory = stageHistory + audit,
+        updatedAt = audit.at
+    )
 
     fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant): SamplingOrder =
         copy(
@@ -272,11 +260,9 @@ data class SamplingOrder(
         } else {
             pipelineStage
         }
-        return copy(
-            finishingDeposits = updatedDeposits,
-            pipelineStage = newStage,
-            updatedAt = updatedAt
-        )
+        val withDeposit = copy(finishingDeposits = updatedDeposits, updatedAt = updatedAt)
+        if (newStage == pipelineStage) return withDeposit
+        return withDeposit.movedTo(newStage, StageTransitionAudit(pipelineStage, newStage, deposit.operatorName, "OPERATOR", updatedAt))
     }
 
     fun completeQcInspection(report: QcInspectionReport, updatedAt: Instant): SamplingOrder {
@@ -294,11 +280,9 @@ data class SamplingOrder(
         } else {
             pipelineStage
         }
-        return copy(
-            qcInspections = updatedInspections,
-            pipelineStage = newStage,
-            updatedAt = updatedAt
-        )
+        val withReport = copy(qcInspections = updatedInspections, updatedAt = updatedAt)
+        if (newStage == pipelineStage) return withReport
+        return withReport.movedTo(newStage, StageTransitionAudit(pipelineStage, newStage, report.inspectorName, "QC", updatedAt))
     }
 
     /** Snapshot arsip desain untuk nomor revisi tertentu; `null` bila belum ada snapshot. */

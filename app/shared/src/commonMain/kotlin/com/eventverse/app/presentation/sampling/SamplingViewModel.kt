@@ -18,6 +18,7 @@ class SamplingViewModel(
 ) {
     private val _uiState = MutableStateFlow(SamplingUiState())
     val uiState: StateFlow<SamplingUiState> = _uiState.asStateFlow()
+    private val stageWork = SamplingStageWorkActions(tenantSlug, remoteDataSource, scope, _uiState)
 
     init {
         load()
@@ -64,6 +65,13 @@ class SamplingViewModel(
             is SamplingUiEvent.CloseVendorDialog -> _uiState.update { it.copy(isVendorDialogOpen = false, targetOrderForAction = null) }
             is SamplingUiEvent.OpenRevisionDialog -> _uiState.update { it.copy(isRevisionDialogOpen = true, targetOrderForAction = event.order) }
             is SamplingUiEvent.CloseRevisionDialog -> _uiState.update { it.copy(isRevisionDialogOpen = false, targetOrderForAction = null) }
+
+            is SamplingUiEvent.StartStageWork -> stageWork.start(event.orderId, event.operatorName)
+            is SamplingUiEvent.ReleaseStageWork -> stageWork.release(event.orderId)
+            is SamplingUiEvent.OpenReworkDialog -> _uiState.update { it.copy(reworkTarget = event.order) }
+            SamplingUiEvent.CloseReworkDialog -> _uiState.update { it.copy(reworkTarget = null) }
+            is SamplingUiEvent.ConfirmRework ->
+                stageWork.sendBackForRework(event.orderId, event.target, event.reason, event.liability)
 
             is SamplingUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null) }
         }

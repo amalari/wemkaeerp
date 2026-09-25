@@ -1,8 +1,10 @@
 package com.eventverse.app.shared.sampling
 
+import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.sampling.StageInputRow
 import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageTransitionAudit
+import com.eventverse.app.domain.sampling.StageWorkClaim
 import com.eventverse.app.domain.sampling.StageWorkInput
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.shared.common.DateTimeCodec
@@ -40,7 +42,9 @@ object StageWorkInputCodec {
                 "toStage" to jsonOf(entry.toStage.name),
                 "actorEmail" to jsonOf(entry.actorEmail),
                 "actorRole" to jsonOf(entry.actorRole),
-                "at" to jsonOf(entry.at.toString())
+                "at" to jsonOf(entry.at.toString()),
+                "reason" to jsonOf(entry.reason),
+                "liability" to jsonOf(entry.liability?.name)
             )
         }).encode()
 
@@ -55,11 +59,38 @@ object StageWorkInputCodec {
                             toStage = parseStage(obj.string("toStage")) ?: return@mapNotNull null,
                             actorEmail = obj.string("actorEmail") ?: "",
                             actorRole = obj.string("actorRole") ?: "",
-                            at = DateTimeCodec.parseInstantOrFallback(obj.string("at"), fallbackAt)
+                            at = DateTimeCodec.parseInstantOrFallback(obj.string("at"), fallbackAt),
+                            reason = obj.string("reason"),
+                            liability = obj.string("liability")?.let { name ->
+                                DefectLiability.entries.firstOrNull { it.name == name }
+                            }
                         )
                     }
             }.getOrNull()
         }.orEmpty()
+
+    /** Klaim "sedang dikerjakan" (`active_work`); `null` dikodekan sebagai string kosong. */
+    fun encodeClaim(claim: StageWorkClaim?): String =
+        claim?.let {
+            jsonObjectOf(
+                "stage" to jsonOf(it.stage.name),
+                "operatorName" to jsonOf(it.operatorName),
+                "actorEmail" to jsonOf(it.actorEmail),
+                "startedAt" to jsonOf(it.startedAt.toString())
+            ).encode()
+        }.orEmpty()
+
+    fun decodeClaim(raw: String?): StageWorkClaim? {
+        if (raw.isNullOrBlank()) return null
+        val obj = runCatching { JsonParser.parse(raw) as? JsonValue.Obj }.getOrNull() ?: return null
+        val startedAt = obj.string("startedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+        return StageWorkClaim(
+            stage = parseStage(obj.string("stage")) ?: return null,
+            operatorName = obj.string("operatorName") ?: "",
+            actorEmail = obj.string("actorEmail") ?: "",
+            startedAt = startedAt
+        )
+    }
 
     fun encodeInput(input: StageWorkInput): JsonValue.Obj = jsonObjectOf(
         "stage" to jsonOf(input.stage.name),

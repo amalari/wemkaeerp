@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.sampling.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -36,12 +38,14 @@ import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.currentWork
 import com.eventverse.app.presentation.deal.components.rememberMockupBitmap
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -196,19 +200,55 @@ private fun SamplingKanbanCardBody(order: SamplingOrder, isSelected: Boolean) {
     if (order.pipelineStage in RD_STAGES) SamplingRdProgressTrack(order)
 }
 
+/**
+ * Pratinjau mockup di kartu kanban: thumbnail persegi di kiri + pemilih tampak Depan/Belakang.
+ *
+ * Mockup diunggah lewat cropper 1:1, jadi tile persegi menampilkan gambarnya utuh — berbeda
+ * dari pratinjau full-width lama yang meng-crop bagian atas/bawah desain. Bila SPK punya foto
+ * tampak belakang ([SamplingOrder.mockupBackKey]), pemilih tampak muncul di samping thumbnail.
+ */
 @Composable
 private fun SamplingKanbanMockupPreview(order: SamplingOrder) {
-    val mockupKey = order.mockupFrontKey ?: return
-    val bitmap = rememberMockupBitmap(mockupKey) ?: return
-    Image(
-        bitmap = bitmap,
-        contentDescription = "Mockup Front",
+    val frontKey = order.mockupFrontKey ?: return
+    val backKey = order.mockupBackKey
+    var showBack by remember(order.id, backKey) { mutableStateOf(false) }
+    val showingBack = showBack && backKey != null
+    val bitmap = rememberMockupBitmap(if (showingBack) backKey else frontKey)
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SamplingMockupThumbnail(bitmap = bitmap, isBackView = showingBack)
+        if (backKey != null) {
+            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                ClayChoiceChip(text = "Depan", selected = !showingBack, onClick = { showBack = false })
+                ClayChoiceChip(text = "Belakang", selected = showingBack, onClick = { showBack = true })
+            }
+        }
+    }
+}
+
+@Composable
+private fun SamplingMockupThumbnail(bitmap: ImageBitmap?, isBackView: Boolean) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .clip(ClayShapes.Tile),
-        contentScale = ContentScale.Crop
-    )
+            .size(64.dp)
+            .clip(ClayShapes.Tile)
+            .background(WeMadeColors.SurfaceMuted),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = if (isBackView) "Mockup Tampak Belakang" else "Mockup Tampak Depan",
+                modifier = Modifier.size(64.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            IconInbox(modifier = Modifier.size(20.dp), color = WeMadeColors.OnSurfaceMuted)
+        }
+    }
 }
 
 @Composable
@@ -233,8 +273,11 @@ private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
             )
         }
     }
+    // Siapa yang sedang memegang SPK di meja Lantai Produksi — jawaban "sampelnya di siapa".
+    order.currentWork?.let { claim ->
+        ClayTag(text = "Dikerjakan: ${claim.operatorName}", tint = WeMadeColors.Accent)
+    }
 }
-
 
 @Composable
 private fun SamplingKanbanCardActions(

@@ -44,6 +44,17 @@ interface SamplingRemoteDataSource {
     suspend fun confirmVendorReturn(tenantSlug: String, orderId: String, returnedAt: kotlinx.datetime.LocalDate? = null): Result<SamplingOrder>
     suspend fun submitQcInspection(tenantSlug: String, orderId: String, report: QcInspectionReport): Result<SamplingOrder>
     suspend fun requestRevision(tenantSlug: String, orderId: String, notes: String): Result<SamplingOrder>
+    /** Meja operator: Antrian → Sedang Dikerjakan. */
+    suspend fun startStageWork(tenantSlug: String, orderId: String, operatorName: String): Result<SamplingOrder>
+    /** Meja operator: Sedang Dikerjakan → Antrian. */
+    suspend fun releaseStageWork(tenantSlug: String, orderId: String): Result<SamplingOrder>
+    suspend fun sendBackForRework(
+        tenantSlug: String,
+        orderId: String,
+        target: SamplingPipelineStage,
+        reason: String,
+        liability: com.eventverse.app.domain.pipeline.DefectLiability
+    ): Result<SamplingOrder>
 }
 
 class SamplingApiClient(
@@ -283,6 +294,44 @@ class SamplingApiClient(
         }
         val body = response.requireBody("mengajukan revisi sample")
         val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons revisi tidak valid")
+        SamplingOrderCodec.decode(parsed)
+    }
+
+    override suspend fun startStageWork(tenantSlug: String, orderId: String, operatorName: String) =
+        postOrder(tenantSlug, "$orderId/work/start", jsonObjectOf("operatorName" to jsonOf(operatorName)), "mengambil SPK")
+
+    override suspend fun releaseStageWork(tenantSlug: String, orderId: String) =
+        postOrder(tenantSlug, "$orderId/work/release", jsonObjectOf(), "mengembalikan SPK ke antrian")
+
+    override suspend fun sendBackForRework(
+        tenantSlug: String,
+        orderId: String,
+        target: SamplingPipelineStage,
+        reason: String,
+        liability: com.eventverse.app.domain.pipeline.DefectLiability
+    ) = postOrder(
+        tenantSlug,
+        "$orderId/rework",
+        jsonObjectOf(
+            "targetStage" to jsonOf(target.name),
+            "reason" to jsonOf(reason),
+            "liability" to jsonOf(liability.name)
+        ),
+        "mengirim rework"
+    )
+
+    private suspend fun postOrder(
+        tenantSlug: String,
+        subPath: String,
+        payload: JsonValue.Obj,
+        action: String
+    ): Result<SamplingOrder> = runCatching {
+        val response = httpClient.post(resolveUrl("$ORDERS_PATH/$subPath")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(payload.encode())
+        }
+        val parsed = JsonParser.parse(response.requireBody(action)) as? JsonValue.Obj ?: error("Respons tidak valid")
         SamplingOrderCodec.decode(parsed)
     }
 

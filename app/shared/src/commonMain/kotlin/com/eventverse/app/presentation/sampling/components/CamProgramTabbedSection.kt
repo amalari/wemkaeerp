@@ -4,11 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -25,11 +28,13 @@ data class CamPartTab(
     val program: String = "",
     val feederInstructions: List<String> = emptyList(),
     val tenselities: List<String> = emptyList()
-)
+) {
+    /** Tab dianggap full/lengkap jika kode program dan minimal 1 instruksi panah sudah terisi. */
+    val isComplete: Boolean get() = program.isNotBlank() && feederInstructions.isNotEmpty()
+}
 
-val DEFAULT_CAM_PARTS = listOf("Depan", "Belakang", "Lengan", "Kerah")
 val SUGGESTED_CAM_PARTS = listOf(
-    "Badan Depan", "Badan Belakang", "Lengan", "Kerah",
+    "Badan Depan", "Badan Belakang", "Depan", "Belakang", "Lengan", "Kerah",
     "Rib Bawah", "Manset", "Saku", "Tudung / Hoodie", "Placket"
 )
 
@@ -50,7 +55,6 @@ fun parseCamSections(sections: List<StageInputSection>): Pair<List<CamPartTab>, 
         val name = if (row.label.contains(" • ")) row.label.substringBefore(" • ").trim() else row.label.trim()
         if (name.isNotBlank()) tabNames.add(name)
     }
-    if (tabNames.isEmpty()) tabNames.addAll(DEFAULT_CAM_PARTS)
 
     val tabs = tabNames.mapIndexed { idx, name ->
         val progRow = progSec?.rows?.firstOrNull { it.label.equals(name, ignoreCase = true) }
@@ -113,13 +117,32 @@ fun serializeCamSections(tabs: List<CamPartTab>, rumusPolaNote: String): List<St
 @Composable
 fun CamProgramTabbedSection(
     sections: List<StageInputSection>,
-    onSectionsChange: (List<StageInputSection>) -> Unit
+    onSectionsChange: (List<StageInputSection>) -> Unit,
+    validationTrigger: Int = 0
 ) {
     val parsed = remember(sections) { parseCamSections(sections) }
     var tabs by remember(sections) { mutableStateOf(parsed.first) }
     var rumusPolaNote by remember(sections) { mutableStateOf(parsed.second) }
     var selectedTabId by remember { mutableStateOf(tabs.firstOrNull()?.id.orEmpty()) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showValidationErrors by remember { mutableStateOf(false) }
+
+    LaunchedEffect(validationTrigger) {
+        if (validationTrigger > 0) {
+            val hasIncomplete = tabs.isEmpty() || tabs.any { !it.isComplete }
+            showValidationErrors = hasIncomplete
+            if (hasIncomplete) {
+                val firstIncomplete = tabs.firstOrNull { !it.isComplete }
+                if (firstIncomplete != null) {
+                    selectedTabId = firstIncomplete.id
+                }
+            }
+        }
+    }
+
+    if (showValidationErrors && tabs.isNotEmpty() && tabs.all { it.isComplete }) {
+        showValidationErrors = false
+    }
 
     if (tabs.none { it.id == selectedTabId } && tabs.isNotEmpty()) {
         selectedTabId = tabs.first().id
@@ -150,6 +173,38 @@ fun CamProgramTabbedSection(
                     )
                 }
 
+                // Pesan Error Validasi bila ada tab yang belum lengkap
+                if (showValidationErrors) {
+                    val errorText = when {
+                        tabs.isEmpty() -> "Validasi Gagal: Minimal 1 bagian garmen harus ditambahkan dan diisi lengkap!"
+                        else -> {
+                            val incompleteNames = tabs.filter { !it.isComplete }.map { it.name }
+                            "Validasi Gagal: Bagian ${incompleteNames.joinToString { "\"$it\"" }} belum lengkap. Kode program dan instruksi panah wajib diisi!"
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Chip,
+                                background = WeMadeColors.Error.copy(alpha = 0.1f),
+                                outline = WeMadeColors.Error,
+                                borderWidth = ClayBorder.Medium
+                            )
+                            .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                    ) {
+                        IconWarning(modifier = Modifier.size(16.dp), color = WeMadeColors.Error)
+                        Text(
+                            text = errorText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WeMadeColors.Error
+                        )
+                    }
+                }
+
                 // Baris Tabs Bagian Dinamis
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -158,58 +213,106 @@ fun CamProgramTabbedSection(
                 ) {
                     tabs.forEach { tab ->
                         val isSelected = tab.id == selectedTabId
+                        val isComplete = tab.isComplete
+                        val isErrorTab = showValidationErrors && !isComplete
+
                         Row(
                             modifier = Modifier
                                 .clickable { selectedTabId = tab.id }
                                 .claySurface(
                                     shape = ClayShapes.Pill,
-                                    background = if (isSelected) WeMadeColors.Primary else WeMadeColors.SurfaceMuted,
-                                    outline = if (isSelected) WeMadeColors.Outline else WeMadeColors.OutlineSoft,
-                                    offset = if (isSelected) ClayOffset.Small else ClayOffset.Flat,
-                                    borderWidth = ClayBorder.Medium
+                                    background = when {
+                                        isSelected && isErrorTab -> WeMadeColors.Error
+                                        isSelected -> WeMadeColors.Primary
+                                        isErrorTab -> WeMadeColors.Error.copy(alpha = 0.12f)
+                                        else -> WeMadeColors.SurfaceMuted
+                                    },
+                                    outline = when {
+                                        isErrorTab -> WeMadeColors.Error
+                                        isSelected -> WeMadeColors.Outline
+                                        else -> WeMadeColors.OutlineSoft
+                                    },
+                                    offset = if (isSelected || isErrorTab) ClayOffset.Small else ClayOffset.Flat,
+                                    borderWidth = if (isErrorTab) ClayBorder.Thick else ClayBorder.Medium
                                 )
                                 .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
                         ) {
+                            // Tanda status Lengkap vs Belum
+                            if (isComplete) {
+                                IconCheck(
+                                    modifier = Modifier.size(12.dp),
+                                    color = if (isSelected) WeMadeColors.Surface else WeMadeColors.Success
+                                )
+                            } else {
+                                IconWarning(
+                                    modifier = Modifier.size(12.dp),
+                                    color = when {
+                                        isSelected -> WeMadeColors.Surface
+                                        isErrorTab -> WeMadeColors.Error
+                                        else -> WeMadeColors.Warning
+                                    }
+                                )
+                            }
+
                             Text(
                                 text = tab.name,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurface
-                            )
-                            if (tabs.size > 1) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable {
-                                            val newTabs = tabs.filter { it.id != tab.id }
-                                            if (selectedTabId == tab.id) {
-                                                selectedTabId = newTabs.firstOrNull()?.id.orEmpty()
-                                            }
-                                            updateAndEmit(newTabs, rumusPolaNote)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IconClose(
-                                        modifier = Modifier.size(10.dp),
-                                        color = if (isSelected) WeMadeColors.Surface else WeMadeColors.OnSurfaceMuted
-                                    )
+                                color = when {
+                                    isSelected -> WeMadeColors.Surface
+                                    isErrorTab -> WeMadeColors.Error
+                                    else -> WeMadeColors.OnSurface
                                 }
+                            )
+
+                            Text(
+                                text = if (isComplete) "Lengkap" else "Belum",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when {
+                                    isSelected -> WeMadeColors.Surface.copy(alpha = 0.85f)
+                                    isErrorTab -> WeMadeColors.Error
+                                    isComplete -> WeMadeColors.Success
+                                    else -> WeMadeColors.Warning
+                                }
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable {
+                                        val newTabs = tabs.filter { it.id != tab.id }
+                                        if (selectedTabId == tab.id) {
+                                            selectedTabId = newTabs.firstOrNull()?.id.orEmpty()
+                                        }
+                                        updateAndEmit(newTabs, rumusPolaNote)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                IconClose(
+                                    modifier = Modifier.size(10.dp),
+                                    color = when {
+                                        isSelected -> WeMadeColors.Surface
+                                        isErrorTab -> WeMadeColors.Error
+                                        else -> WeMadeColors.OnSurfaceMuted
+                                    }
+                                )
                             }
                         }
                     }
 
                     ClayButton(
                         text = "+ Bagian",
-                        style = ClayButtonStyle.Ghost,
+                        style = if (showValidationErrors && tabs.isEmpty()) ClayButtonStyle.Primary else ClayButtonStyle.Ghost,
                         fontSize = 11.sp,
                         contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
                         onClick = { showAddDialog = true }
                     )
                 }
 
-                // Konten Tab Aktif
+                // Konten Tab Aktif / Empty State
                 if (activeTab != null) {
                     Column(
                         modifier = Modifier
@@ -231,6 +334,7 @@ fun CamProgramTabbedSection(
                         )
 
                         // 1. Program CAM (1 input tunggal)
+                        val isProgError = showValidationErrors && activeTab.program.isBlank()
                         ClayTextField(
                             value = activeTab.program,
                             onValueChange = { newProg ->
@@ -241,15 +345,20 @@ fun CamProgramTabbedSection(
                             },
                             label = "KODE PROGRAM CAM (${activeTab.name.uppercase()})",
                             placeholder = "mis. BIAN-D atau HD-OVS-DPN.001",
+                            isError = isProgError,
+                            errorMessage = if (isProgError) "Kode program (${activeTab.name}) wajib diisi!" else null,
                             modifier = Modifier.fillMaxWidth()
                         )
 
                         // 2. Instruksi Panah (Taggable dengan urutan nomor)
+                        val isFeederError = showValidationErrors && activeTab.feederInstructions.isEmpty()
                         ClayTagInput(
                             label = "INSTRUKSI PANAH (${activeTab.name.uppercase()})",
                             placeholder = "Ketik lalu tekan Enter atau koma (,) untuk buat tag...",
                             tags = activeTab.feederInstructions,
                             numbered = true,
+                            isError = isFeederError,
+                            errorMessage = if (isFeederError) "Minimal 1 instruksi panah (feeder ${activeTab.name}) wajib diisi!" else null,
                             onTagsChange = { newFeeders ->
                                 val newTabs = tabs.map {
                                     if (it.id == activeTab.id) it.copy(feederInstructions = newFeeders) else it
@@ -270,6 +379,32 @@ fun CamProgramTabbedSection(
                                 }
                                 updateAndEmit(newTabs, rumusPolaNote)
                             }
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayFlat(
+                                shape = ClayShapes.Card,
+                                background = if (showValidationErrors) WeMadeColors.Error.copy(alpha = 0.06f) else WeMadeColors.SurfaceMuted,
+                                outline = if (showValidationErrors) WeMadeColors.Error else WeMadeColors.OutlineSoft,
+                                borderWidth = if (showValidationErrors) ClayBorder.Medium else ClayBorder.Hairline
+                            )
+                            .padding(ClaySpacing.Lg),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                    ) {
+                        Text(
+                            text = if (showValidationErrors) "Minimal 1 Bagian Garmen Wajib Ditambahkan!" else "Belum Ada Bagian Garmen",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (showValidationErrors) WeMadeColors.Error else WeMadeColors.OnSurface
+                        )
+                        Text(
+                            text = "Klik tombol \"+ Bagian\" di atas untuk menambahkan bagian garmen yang akan diprogram.",
+                            fontSize = 11.sp,
+                            color = if (showValidationErrors) WeMadeColors.Error else WeMadeColors.OnSurfaceMuted
                         )
                     }
                 }
@@ -312,73 +447,16 @@ fun CamProgramTabbedSection(
 
     // Dialog Tambah Bagian Baru
     if (showAddDialog) {
-        var partNameInput by remember { mutableStateOf("") }
-        Dialog(onDismissRequest = { showAddDialog = false }) {
-            ClayCard(modifier = Modifier.fillMaxWidth().padding(ClaySpacing.Md)) {
-                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                    Text(
-                        text = "Tambah Bagian Garmen",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.OnSurface
-                    )
-                    Text(
-                        text = "Pilih dari saran atau ketik nama bagian pakaian kustom:",
-                        fontSize = 11.sp,
-                        color = WeMadeColors.OnSurfaceMuted
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
-                    ) {
-                        SUGGESTED_CAM_PARTS.forEach { suggestion ->
-                            ClayChoiceChip(
-                                text = suggestion,
-                                selected = partNameInput.equals(suggestion, ignoreCase = true),
-                                onClick = { partNameInput = suggestion }
-                            )
-                        }
-                    }
-
-                    ClayTextField(
-                        value = partNameInput,
-                        onValueChange = { partNameInput = it },
-                        label = "Nama Bagian",
-                        placeholder = "mis. Rib Bawah, Saku, Placket...",
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        ClayButton(
-                            text = "Batal",
-                            style = ClayButtonStyle.Ghost,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
-                            onClick = { showAddDialog = false }
-                        )
-                        Spacer(modifier = Modifier.width(ClaySpacing.Sm))
-                        ClayButton(
-                            text = "Tambah",
-                            style = ClayButtonStyle.Primary,
-                            fontSize = 11.sp,
-                            contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
-                            enabled = partNameInput.isNotBlank() && tabs.none { it.name.equals(partNameInput.trim(), ignoreCase = true) },
-                            onClick = {
-                                val trimmed = partNameInput.trim()
-                                val newTab = CamPartTab("tab-${tabs.size}-$trimmed", trimmed)
-                                val newTabs = tabs + newTab
-                                selectedTabId = newTab.id
-                                showAddDialog = false
-                                updateAndEmit(newTabs, rumusPolaNote)
-                            }
-                        )
-                    }
-                }
+        AddCamPartDialog(
+            existingPartNames = tabs.map { it.name },
+            onDismiss = { showAddDialog = false },
+            onAddPart = { newPartName ->
+                val newTab = CamPartTab("tab-${tabs.size}-$newPartName", newPartName)
+                val newTabs = tabs + newTab
+                selectedTabId = newTab.id
+                showAddDialog = false
+                updateAndEmit(newTabs, rumusPolaNote)
             }
-        }
+        )
     }
 }
