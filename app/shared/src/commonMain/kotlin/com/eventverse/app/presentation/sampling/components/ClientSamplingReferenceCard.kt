@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -122,14 +125,14 @@ fun ClientSamplingReferenceCard(order: SamplingOrder) {
             }
         }
 
-        // Layout 2 Kolom Seimbang: Visual Desain (Kiri) dan Spesifikasi POM + Memo (Kanan)
+        // Layout 2 Kolom: Visual Desain 1:1 Kompak (Kiri) dan Spesifikasi POM + Memo (Kanan)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            // Kolom Kiri: Visual Desain (Mockup Polaroid Side-by-Side)
+            // Kolom Kiri: Visual Desain (Mockup Polaroid Side-by-Side 1:1)
             Column(
-                modifier = Modifier.weight(1.15f),
+                modifier = Modifier.wrapContentWidth(),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
             ) {
                 Row(
@@ -144,20 +147,17 @@ fun ClientSamplingReferenceCard(order: SamplingOrder) {
                         color = WeMadeColors.OnSurface
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     MockupPolaroidCard(
                         label = "Tampak Depan",
                         reference = frontRef,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(160.dp),
                         onClick = frontRef?.let { ref -> { zoomTarget = "Tampak Depan" to ref } }
                     )
                     MockupPolaroidCard(
                         label = "Tampak Belakang",
                         reference = backRef,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(160.dp),
                         onClick = backRef?.let { ref -> { zoomTarget = "Tampak Belakang" to ref } }
                     )
                 }
@@ -226,7 +226,7 @@ private fun MockupPolaroidCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(155.dp)
+                .aspectRatio(1f)
                 .clip(ClayShapes.Tile)
                 .background(WeMadeColors.SurfaceMuted),
             contentAlignment = Alignment.Center
@@ -236,16 +236,14 @@ private fun MockupPolaroidCard(
                     Image(
                         bitmap = bitmap,
                         contentDescription = label,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(155.dp),
+                        modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xs),
                         contentScale = ContentScale.Fit
                     )
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(24.dp)
+                            .padding(4.dp)
+                            .size(20.dp)
                             .clayFlat(
                                 shape = ClayShapes.Tile,
                                 background = WeMadeColors.Surface.copy(alpha = 0.92f),
@@ -254,7 +252,7 @@ private fun MockupPolaroidCard(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconSearch(modifier = Modifier.size(12.dp), color = WeMadeColors.OnSurface)
+                        IconSearch(modifier = Modifier.size(10.dp), color = WeMadeColors.OnSurface)
                     }
                 }
                 reference != null -> {
@@ -269,12 +267,8 @@ private fun MockupPolaroidCard(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
                     ) {
-                        IconImage(modifier = Modifier.size(24.dp), color = WeMadeColors.OnSurfaceMuted)
-                        Text(
-                            text = "Belum ada foto",
-                            fontSize = 9.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
+                        IconImage(modifier = Modifier.size(20.dp), color = WeMadeColors.OnSurfaceMuted)
+                        Text(text = "Belum ada foto", fontSize = 9.sp, color = WeMadeColors.OnSurfaceMuted)
                     }
                 }
             }
@@ -523,4 +517,3 @@ private fun MockupZoomPreviewDialog(
         }
     }
 }
-

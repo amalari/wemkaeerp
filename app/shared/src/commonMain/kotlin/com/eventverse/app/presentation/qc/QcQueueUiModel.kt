@@ -43,7 +43,10 @@ data class QcQueueItem(
     /** Lembar sebelumnya untuk pcs itu — ada berarti ini pemeriksaan ulang setelah perbaikan. */
     val previousReportForNextPiece: QcInspectionReport?,
     val isFullyInspected: Boolean,
-    val contributions: List<QcInspectorContribution>
+    val contributions: List<QcInspectorContribution>,
+    val designCode: String? = null,
+    val designNumber: Int = 1,
+    val totalDealDesigns: Int = 1
 ) {
     val spk: String get() = order.spkNumber.value
     val isFirstInspection: Boolean get() = inspectionRound == 0
@@ -95,7 +98,7 @@ fun buildQcQueue(
 ): List<QcQueueItem> =
     orders.asSequence()
         .filter { order -> order.isEligibleFor(kind) }
-        .map { order -> order.toQueueItem(now, kind) }
+        .map { order -> order.toQueueItem(now, kind, orders) }
         .sortedWith(
             compareBy<QcQueueItem> { it.bucket.ordinal }
                 .thenByDescending { it.waitingFor }
@@ -117,7 +120,11 @@ private fun SamplingOrder.isEligibleFor(kind: QcInspectionKind): Boolean {
     }
 }
 
-private fun SamplingOrder.toQueueItem(now: Instant, kind: QcInspectionKind): QcQueueItem {
+private fun SamplingOrder.toQueueItem(
+    now: Instant,
+    kind: QcInspectionKind,
+    allOrders: List<SamplingOrder>
+): QcQueueItem {
     val ofKind = qcInspections.filter { it.kind == kind }
     val latest = ofKind.lastOrNull()
     val targetQty = calculateTotalSampleQuantity(sizeMatrix, fallback = sampleQuantity)
@@ -141,6 +148,8 @@ private fun SamplingOrder.toQueueItem(now: Instant, kind: QcInspectionKind): QcQ
         ?: finishingDeposits.mapNotNull { it.createdAt }.maxOrNull()
         ?: updatedAt
 
+    val designInfo = com.eventverse.app.presentation.sampling.resolveDesignInfo(this, allOrders)
+
     return QcQueueItem(
         order = this,
         kind = kind,
@@ -155,7 +164,10 @@ private fun SamplingOrder.toQueueItem(now: Instant, kind: QcInspectionKind): QcQ
         previousReportForNextPiece = qcInspections.latestReportForPiece(kind, nextPieceNo)
             ?.takeIf { it.qcResult != QcInspectionResult.PASSED },
         isFullyInspected = qcInspections.isCompleteFor(kind, targetQty),
-        contributions = qcInspections.tallyBy(kind)
+        contributions = qcInspections.tallyBy(kind),
+        designCode = designInfo?.code,
+        designNumber = designInfo?.designNumber ?: 1,
+        totalDealDesigns = designInfo?.totalDesigns ?: 1
     )
 }
 

@@ -28,7 +28,8 @@ class ProcessFlowDragState {
     var draggedTemplateCode by mutableStateOf<String?>(null)
         private set
 
-    var hoveredGap by mutableStateOf<SamplingPipelineStage?>(null)
+    /** Celah yang sedang dihover drag — kuncinya [slotId] unik, bukan tahap. */
+    var hoveredGapId by mutableStateOf<String?>(null)
         private set
 
     /** Label chip yang sedang diseret — dirender ulang sebagai ghost yang mengikuti pointer. */
@@ -38,14 +39,16 @@ class ProcessFlowDragState {
     /** Posisi pointer (koordinat window) — state agar ghost ikut bergerak tiap frame drag. */
     var dragPointerWindowPos by mutableStateOf(Offset.Zero)
         private set
-    private val gapBounds = mutableStateMapOf<SamplingPipelineStage, Rect>()
 
-    fun registerGap(stage: SamplingPipelineStage, bounds: Rect) {
-        gapBounds[stage] = bounds
-    }
+    /**
+     * Zona drop dikunci per [slotId] unik, bukan per tahap: satu tahap kini bisa punya
+     * beberapa celah (sebelum/di antara/sesudah proses opsionalnya) yang semuanya
+     * berjangkar ke tahap yang sama. Nilainya pasangan (batas, jangkar tahap).
+     */
+    private val gapBounds = mutableStateMapOf<String, Pair<Rect, SamplingPipelineStage>>()
 
-    fun unregisterGap(stage: SamplingPipelineStage) {
-        gapBounds.remove(stage)
+    fun registerGap(slotId: String, anchor: SamplingPipelineStage, bounds: Rect) {
+        gapBounds[slotId] = bounds to anchor
     }
 
     fun onDragStart(processId: String?, templateCode: String?, label: String, pointerWindowPos: Offset) {
@@ -65,7 +68,7 @@ class ProcessFlowDragState {
 
     /** Commit drop: [onCommit](processId, templateCode, anchorStage) hanya bila drop di celah sah. */
     fun onDragEnd(onCommit: (processId: String?, templateCode: String?, anchor: SamplingPipelineStage?) -> Unit) {
-        val anchor = hoveredGap
+        val anchor = hoveredGapId?.let { gapBounds[it]?.second }
         val processId = draggedProcessId
         val templateCode = draggedTemplateCode
         if (anchor != null && (processId != null || templateCode != null)) {
@@ -77,8 +80,8 @@ class ProcessFlowDragState {
     fun onDragCancel() = reset()
 
     private fun updateHoveredGap() {
-        hoveredGap = gapBounds.entries
-            .firstOrNull { it.value.contains(dragPointerWindowPos) }
+        hoveredGapId = gapBounds.entries
+            .firstOrNull { it.value.first.contains(dragPointerWindowPos) }
             ?.key
     }
 
@@ -86,7 +89,7 @@ class ProcessFlowDragState {
         isDragging = false
         draggedProcessId = null
         draggedTemplateCode = null
-        hoveredGap = null
+        hoveredGapId = null
         draggedLabel = ""
         dragPointerWindowPos = Offset.Zero
     }

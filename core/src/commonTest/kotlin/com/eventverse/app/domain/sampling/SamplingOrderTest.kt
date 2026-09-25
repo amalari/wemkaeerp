@@ -181,6 +181,10 @@ class SamplingOrderTest {
             "1" to "RIB STRIPE 1 PLAY ( HITAM )"
         ),
         StageInputSection.of(
+            StageSectionNames.TENSELITY,
+            "1 BS POLY" to "14"
+        ),
+        StageInputSection.of(
             StageSectionNames.PATTERN_FORMULAS,
             "P BADAN" to "2.94 K"
         )

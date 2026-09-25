@@ -95,40 +95,74 @@ internal fun StagePill(step: Int, label: String) {
 @Composable
 internal fun PlacedProcessChip(
     process: TenantOptionalProcess,
+    stepNumber: Int,
     dragState: ProcessFlowDragState,
     onMove: (processId: String, anchor: SamplingPipelineStage) -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    isLocked: Boolean = false
 ) {
     val isSubcontracted = process.executionMode == WorkExecutionMode.SUBCONTRACTED
+    val tint = if (isSubcontracted) WeMadeColors.Accent else WeMadeColors.Primary
     val label = if (isSubcontracted && !process.vendorRef.isNullOrBlank()) {
         "${process.displayName} · ${process.vendorRef}"
     } else {
         process.displayName
     }
 
-    DraggableChipFrame(
-        processId = process.processId,
-        templateCode = null,
-        label = label,
-        dragState = dragState,
-        onDrop = { pid, _, anchor -> if (pid != null) onMove(process.processId, anchor) }
-    ) {
+    val badge: @Composable () -> Unit = {
         ClayBadge(
             text = label,
-            tint = if (isSubcontracted) WeMadeColors.Accent else WeMadeColors.Primary,
-            trailing = {
+            tint = tint,
+            leading = {
+                // Proses opsional ikut menempati urutan alur: bubble nomornya sama dengan
+                // tahap wajib, dan seluruh tahap sesudahnya bergeser satu nomor.
                 Box(
                     modifier = Modifier
                         .size(16.dp)
-                        .clip(ClayShapes.Chip)
-                        .background(WeMadeColors.OutlineSoft)
-                        .clickable(onClick = onRemove),
+                        .clip(ClayShapes.Pill)
+                        .background(tint),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "x", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+                    Text(
+                        text = stepNumber.toString(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.Surface
+                    )
+                }
+            },
+            // Alur terkunci (SPK sudah di Program CAM ke atas): tanpa tombol hapus.
+            trailing = if (isLocked) null else {
+                {
+                    // Latar tombol gelap (OutlineSoft), jadi teksnya wajib terang — sebelumnya
+                    // OnSurface (gelap di atas gelap) membuat tombolnya tak terlihat sama sekali.
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(ClayShapes.Chip)
+                            .background(WeMadeColors.OutlineSoft)
+                            .clickable(onClick = onRemove),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "x", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Surface)
+                    }
                 }
             }
         )
+    }
+
+    if (isLocked) {
+        badge()
+    } else {
+        DraggableChipFrame(
+            processId = process.processId,
+            templateCode = null,
+            label = label,
+            dragState = dragState,
+            onDrop = { pid, _, anchor -> if (pid != null) onMove(process.processId, anchor) }
+        ) {
+            badge()
+        }
     }
 }
 
@@ -219,7 +253,7 @@ internal fun ProcessFlowDragGhost(dragState: ProcessFlowDragState, panelWindowPo
     ) {
         ClayBadge(
             text = dragState.draggedLabel,
-            tint = if (dragState.hoveredGap != null) WeMadeColors.Success else WeMadeColors.Primary
+            tint = if (dragState.hoveredGapId != null) WeMadeColors.Success else WeMadeColors.Primary
         )
     }
 }

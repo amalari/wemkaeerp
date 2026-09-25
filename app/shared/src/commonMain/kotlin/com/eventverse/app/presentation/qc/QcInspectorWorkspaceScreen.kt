@@ -164,7 +164,11 @@ fun QcInspectorWorkspaceScreen(
                 isCompact -> {
                     if (isViewingDetail) {
                         QcCompactDetailBackBar(
-                            label = selectedItem?.spk.orEmpty(),
+                            label = if (selectedItem?.designCode != null) {
+                                "${selectedItem.spk} • ${selectedItem.designCode}"
+                            } else {
+                                selectedItem?.spk.orEmpty()
+                            },
                             onBack = { showDetailOnCompact = false }
                         )
                         inspectionPane(Modifier.fillMaxWidth().weight(1f))
@@ -217,4 +221,5 @@ private fun QcCompactDetailBackBar(label: String, onBack: () -> Unit) {
 private fun QcQueueItem.matches(needle: String): Boolean =
     spk.contains(needle, ignoreCase = true) ||
         order.clientName.contains(needle, ignoreCase = true) ||
-        order.styleName.contains(needle, ignoreCase = true)
+        order.styleName.contains(needle, ignoreCase = true) ||
+        (designCode != null && designCode.contains(needle, ignoreCase = true))

@@ -157,6 +157,17 @@ fun FinishingOperatorWorkspaceScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = WeMadeColors.Primary
                                         )
+                                        val designInfo = com.eventverse.app.presentation.sampling.resolveDesignInfo(order, state.orders)
+                                        if (designInfo != null) {
+                                            ClayBadge(
+                                                text = if (designInfo.totalDesigns > 1) {
+                                                    "${designInfo.code} (${designInfo.designNumber}/${designInfo.totalDesigns})"
+                                                } else {
+                                                    designInfo.code
+                                                },
+                                                tint = WeMadeColors.Accent
+                                            )
+                                        }
                                         ClayBadge(
                                             text = order.pipelineStage.displayName,
                                             tint = if (order.isFinishingComplete) WeMadeColors.Success else WeMadeColors.Primary

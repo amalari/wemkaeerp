@@ -29,6 +29,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.StageInputSection
+import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -55,6 +57,7 @@ fun SamplingSpkDetailDialog(
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
     onStartCam: () -> Unit,
+    onSubmitCamProgram: (List<StageInputSection>) -> Unit = {},
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
@@ -63,6 +66,18 @@ fun SamplingSpkDetailDialog(
     // Gerbang klien: tombol mulai CAM hanya tampil pada tahap SPK Masuk / Penentuan Alur.
     val isGateStage = order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ||
         order.pipelineStage == SamplingPipelineStage.FLOW_REVIEW
+
+    // Tahap Program CAM: alur sudah final (dikunci) dan section Program dibuka untuk tim sampling.
+    val isCamStage = order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+    val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order
+    var camSections by remember(order.id) {
+        val saved = order.stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
+        mutableStateOf(
+            CAM_SECTION_SPECS.map { spec ->
+                saved?.section(spec.sectionName) ?: StageInputSection(section = spec.sectionName, rows = emptyList())
+            }
+        )
+    }
 
     // Pada tahap SPK Masuk (NEW_INTAKE), section alur proses awalnya belum muncul (tinggal detail saja)
     // kecuali jika diminta secara eksplisit atau sudah melewati tahap SPK Masuk.
@@ -149,7 +164,15 @@ fun SamplingSpkDetailDialog(
                         }
                         ProcessFlowAdjusterPanel(
                             viewModel = processFlowViewModel,
-                            hideScopeSelector = true
+                            hideScopeSelector = true,
+                            isLocked = isFlowLocked
+                        )
+                    }
+
+                    if (isCamStage) {
+                        CamProgramTabbedSection(
+                            sections = camSections,
+                            onSectionsChange = { camSections = it }
                         )
                     }
                 }
@@ -173,6 +196,16 @@ fun SamplingSpkDetailDialog(
                         modifier = Modifier.weight(1f),
                         onClick = onDismiss
                     )
+                    if (isCamStage) {
+                        ClayButton(
+                            text = "Simpan Program -> Masuk Mesin Rajut",
+                            style = ClayButtonStyle.Accent,
+                            modifier = Modifier.weight(2f),
+                            // Gerbang klien; domain memvalidasi ulang CAM_REQUIRED.
+                            enabled = camSections.filter { it.section in StageSectionNames.CAM_REQUIRED }.all { it.hasFilledRow } && !isSubmitting,
+                            onClick = { onSubmitCamProgram(camSections) }
+                        )
+                    }
                     if (isGateStage) {
                         if (!isFlowSectionVisible) {
                             ClayButton(

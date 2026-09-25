@@ -13,6 +13,7 @@ data class StageSectionSpec(val sectionName: String, val hint: String)
 val CAM_SECTION_SPECS = listOf(
     StageSectionSpec(StageSectionNames.PROGRAM, "mis. DEPAN : BIAN-D"),
     StageSectionSpec(StageSectionNames.FEEDER_INSTRUCTIONS, "mis. 1 RIB STRIPE 1 PLAY ( HITAM )"),
+    StageSectionSpec(StageSectionNames.TENSELITY, "mis. 1 BS POLY"),
     StageSectionSpec(StageSectionNames.PATTERN_FORMULAS, "mis. P BADAN : 2.94 K")
 )
 

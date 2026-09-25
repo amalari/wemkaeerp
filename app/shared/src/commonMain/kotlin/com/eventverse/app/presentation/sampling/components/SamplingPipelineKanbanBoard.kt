@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +43,7 @@ import kotlin.math.roundToInt
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.requiresStageWorksheet
+import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -85,32 +86,19 @@ enum class SamplingStageZone(
         dropStage = SamplingPipelineStage.CAM_PROGRAMMING,
         showActions = true
     ),
-    MESIN_RAJUT(
-        title = "4. Mesin Rajut",
-        subtitle = "Perajutan panel kain",
-        stages = listOf(SamplingPipelineStage.MACHINE_KNITTING),
+    // Rajut hingga kemas digabung jadi satu kolom R&D. Rajut dikerjakan tim sampling lewat
+    // menu operator rajut (modul yang sama), sisanya lewat modul finishing — jadi kolom ini
+    // hanya memantau: posisi persis dibaca dari jejak progres di kartu + chip saring di kepala.
+    RND(
+        title = "4. R&D",
+        subtitle = "Rajut, linking, cuci, setrika, QC & kemas",
+        stages = RD_STAGES,
         dropStage = SamplingPipelineStage.MACHINE_KNITTING,
-        showActions = true
-    ),
-    // Lima tahap, satu kolom. Memberi tiap tahap kolomnya sendiri membuat papan jadi sembilan
-    // kolom — di 1280dp hanya empat yang terlihat, dan tahap awal yang paling sering dilihat
-    // sales justru tergeser keluar layar. Tahap persisnya dibaca dari badge di kartu.
-    FINISHING_QC(
-        title = "5. Penyelesaian Akhir",
-        subtitle = "Linking, cuci, setrika, QC & kemas",
-        stages = listOf(
-            SamplingPipelineStage.LINKING_ASSEMBLY,
-            SamplingPipelineStage.CUCI_SOFTENER,
-            SamplingPipelineStage.SETRIKA_UAP,
-            SamplingPipelineStage.QC_FINISHING,
-            SamplingPipelineStage.PENGEMASAN
-        ),
-        dropStage = SamplingPipelineStage.LINKING_ASSEMBLY,
         showActions = false
     ),
-    TUNGGU_ACC(
-        title = "6. Tunggu ACC Buyer",
-        subtitle = "Keputusan golden sample",
+    SELESAI(
+        title = "5. Selesai",
+        subtitle = "Terkirim, tunggu ACC buyer",
         stages = listOf(
             SamplingPipelineStage.IN_DELIVERY,
             SamplingPipelineStage.ACC_APPROVED
@@ -125,8 +113,8 @@ enum class SamplingStageZone(
  *
  * Aturan main:
  * - Kartu HANYA bisa di-drop ke container tahap BERIKUTNYA ([SamplingDragDropState]).
- * - Setiap transisi antar kolom menuntut lembar kerja (SPK Baru -> CAM, CAM -> Mesin Rajut,
- *   Mesin Rajut -> Finishing) dan membuka dialog via [onAdvanceStageRequested].
+ * - Transisi yang menuntut lembar kerja (CAM -> R&D lewat section Program di Detail SPK)
+ *   diputuskan layar lewat [onAdvanceStageRequested].
  * - Klik kartu di kolom "SPK Baru" membuka dialog detail SPK ([onOpenSpkDetail]) — meja
  *   persiapan Program CAM tim sampling.
  * - Kolom yang menerima hover kartu sah di-highlight; kolom ilegal hanya redup.
@@ -219,6 +207,9 @@ private fun RowScope.KanbanStageZoneColumn(
         zone.dropStage in dragState.allowedTargetsFor(it)
     } == true
 
+    var rdStageFilter by remember { mutableStateOf<SamplingPipelineStage?>(null) }
+    val visibleOrders = rdStageFilter?.let { stage -> orders.filter { it.pipelineStage == stage } } ?: orders
+
     // Daftarkan batas zona drop setiap layout berubah — hit-test drag memakai window coordinate.
     Column(
         modifier = columnModifier
@@ -278,6 +269,11 @@ private fun RowScope.KanbanStageZoneColumn(
             )
         }
 
+        if (zone == SamplingStageZone.RND && orders.isNotEmpty()) {
+            SamplingRdStageFilterRow(orders = orders, selected = rdStageFilter, onSelect = { rdStageFilter = it })
+            Spacer(Modifier.height(ClaySpacing.Sm))
+        }
+
         // Daftar kartu
         val verticalScrollState = rememberScrollState()
         Column(
@@ -286,7 +282,7 @@ private fun RowScope.KanbanStageZoneColumn(
                 .verticalScroll(verticalScrollState),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
-            if (orders.isEmpty()) {
+            if (visibleOrders.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -301,7 +297,7 @@ private fun RowScope.KanbanStageZoneColumn(
                     )
                 }
             } else {
-                orders.forEach { order ->
+                visibleOrders.forEach { order ->
                     val nextStage = dragState.allowedTargetsFor(order).firstOrNull()
                     SamplingKanbanCard(
                         order = order,

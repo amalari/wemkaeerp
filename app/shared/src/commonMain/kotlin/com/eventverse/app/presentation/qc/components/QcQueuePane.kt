@@ -139,15 +139,26 @@ private fun QcQueueCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = item.spk,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.Primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
                 modifier = Modifier.weight(1f, fill = false)
-            )
+            ) {
+                Text(
+                    text = item.spk,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (item.designCode != null) {
+                    ClayBadge(
+                        text = item.designCode,
+                        tint = WeMadeColors.Accent
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(ClaySpacing.Sm))
             QcQueueTimingBadge(item = item)
         }
@@ -171,10 +182,24 @@ private fun QcQueueCard(
         )
 
         Spacer(modifier = Modifier.height(ClaySpacing.Sm))
-        ClayBadge(
-            text = "${item.inspectedQty}/${item.targetQty} pcs diperiksa",
-            tint = if (item.isFullyInspected) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ClayBadge(
+                text = "${item.inspectedQty}/${item.targetQty} pcs diperiksa",
+                tint = if (item.isFullyInspected) WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
+            )
+            if (item.totalDealDesigns > 1) {
+                Text(
+                    text = "Desain ${item.designNumber}/${item.totalDealDesigns}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Accent
+                )
+            }
+        }
     }
 }
 

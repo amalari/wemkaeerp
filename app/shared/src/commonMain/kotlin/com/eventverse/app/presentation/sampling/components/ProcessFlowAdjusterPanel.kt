@@ -75,7 +75,9 @@ private val ADJUSTABLE_STAGES = listOf(
 fun ProcessFlowAdjusterPanel(
     viewModel: ProcessFlowViewModel,
     modifier: Modifier = Modifier,
-    hideScopeSelector: Boolean = false
+    hideScopeSelector: Boolean = false,
+    /** Alur sudah final (SPK di Program CAM ke atas): tampil read-only tanpa sisip/geser/hapus. */
+    isLocked: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val dragState = rememberProcessFlowDragState()
@@ -98,25 +100,47 @@ fun ProcessFlowAdjusterPanel(
             FlowPanelHeader(
                 state = state,
                 hideScopeSelector = hideScopeSelector,
+                isLocked = isLocked,
                 onSelectScope = { viewModel.onEvent(ProcessFlowUiEvent.SelectScope(it)) },
                 onReset = { viewModel.onEvent(ProcessFlowUiEvent.ResetToDefault) }
             )
 
             ProcessFlowCarousel(modifier = Modifier.fillMaxWidth()) {
+                // Penomoran berjalan mencakup proses opsional: proses yang disisipkan ikut
+                // mendapat nomor dan seluruh tahap sesudahnya bergeser, jadi baris selalu
+                // terbaca sebagai satu urutan utuh.
+                var step = 1
                 ADJUSTABLE_STAGES.forEachIndexed { index, stage ->
-                    StagePill(step = index + 1, label = stage.displayName)
+                    StagePill(step = step++, label = stage.displayName)
 
                     val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
-                    anchored.forEach { process ->
+                    anchored.forEachIndexed { procIndex, process ->
+                        // Celah juga ada di antara tahap dan proses pertamanya (dan antar
+                        // proses) — menyisipkan proses tidak boleh "memakan" tombol + yang
+                        // sudah ada di situ. Leg pengiriman tetap hanya di celah terakhir,
+                        // karena leg berangkat dari simpul terakhir tahap ini.
+                        ProcessFlowGap(
+                            slotId = "${stage.name}-$procIndex",
+                            isLast = false,
+                            anchor = stage,
+                            legs = emptyList(),
+                            dragState = dragState,
+                            availableTemplates = available,
+                            onInsertFromMenu = { template -> pendingInsert = template to stage },
+                            onLegClick = { inspectedLeg = it },
+                            isLocked = isLocked
+                        )
                         PlacedProcessChip(
                             process = process,
+                            stepNumber = step++,
                             dragState = dragState,
                             onMove = { pid, anchor ->
                                 viewModel.onEvent(ProcessFlowUiEvent.MoveProcess(pid, anchor))
                             },
                             onRemove = {
                                 viewModel.onEvent(ProcessFlowUiEvent.RemoveProcess(process.processId))
-                            }
+                            },
+                            isLocked = isLocked
                         )
                     }
 
@@ -126,22 +150,26 @@ fun ProcessFlowAdjusterPanel(
                     // Tahap terakhir tidak punya "sesudah"; celahnya tetap ada agar proses bisa
                     // disisipkan di ujung, tapi tanpa garis yang menggantung ke ruang kosong.
                     ProcessFlowGap(
+                        slotId = "${stage.name}-final",
                         isLast = index == ADJUSTABLE_STAGES.lastIndex,
                         anchor = stage,
                         legs = state.legsLeaving(lastNodeAt(stage, anchored)),
                         dragState = dragState,
                         availableTemplates = available,
                         onInsertFromMenu = { template -> pendingInsert = template to stage },
-                        onLegClick = { inspectedLeg = it }
+                        onLegClick = { inspectedLeg = it },
+                        isLocked = isLocked
                     )
                 }
             }
 
-            FlowPalette(
-                available = available,
-                dragState = dragState,
-                onInsert = { template, anchor -> pendingInsert = template to anchor }
-            )
+            if (!isLocked) {
+                FlowPalette(
+                    available = available,
+                    dragState = dragState,
+                    onInsert = { template, anchor -> pendingInsert = template to anchor }
+                )
+            }
         }
         ProcessFlowDragGhost(dragState = dragState, panelWindowPos = panelWindowPos)
         }
@@ -187,6 +215,7 @@ private fun availableTemplates(placed: List<TenantOptionalProcess>): List<WorkSt
 private fun FlowPanelHeader(
     state: com.eventverse.app.presentation.sampling.ProcessFlowUiState,
     hideScopeSelector: Boolean,
+    isLocked: Boolean,
     onSelectScope: (ProcessFlowScope) -> Unit,
     onReset: () -> Unit
 ) {
@@ -219,7 +248,7 @@ private fun FlowPanelHeader(
                     is ProcessFlowScope.Design -> {
                         if (state.isCustomFlow) {
                             ClayBadge(text = "Alur Kustom Desain", tint = WeMadeColors.Accent)
-                            ClayButton(
+                            if (!isLocked) ClayButton(
                                 text = "Reset ke Default",
                                 style = ClayButtonStyle.Secondary,
                                 onClick = onReset
@@ -227,14 +256,20 @@ private fun FlowPanelHeader(
                         } else {
                             ClayBadge(text = "Mengikuti Alur Default", tint = WeMadeColors.Success)
                         }
+                        if (isLocked) ClayBadge(text = "Alur Dikunci", tint = WeMadeColors.OnSurfaceMuted)
                         Unit
                     }
                 }
             }
             when (val currentScope = state.scope) {
                 is ProcessFlowScope.Design -> Text(
-                    text = "Menyesuaikan alur khusus untuk ${currentScope.spkNumber} " +
-                        "(${currentScope.styleName}). Mengubah flow di sini tidak mempengaruhi alur default.",
+                    text = if (isLocked) {
+                        "Alur ${currentScope.spkNumber} sudah dikunci sejak masuk Program CAM — " +
+                            "tidak bisa diubah lagi."
+                    } else {
+                        "Menyesuaikan alur khusus untuk ${currentScope.spkNumber} " +
+                            "(${currentScope.styleName}). Mengubah flow di sini tidak mempengaruhi alur default."
+                    },
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

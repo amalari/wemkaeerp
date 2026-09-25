@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.QcInspectionResult
+import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.presentation.deal.components.rememberMockupBitmap
@@ -192,6 +193,7 @@ private fun SamplingKanbanCardBody(order: SamplingOrder, isSelected: Boolean) {
 
     SamplingKanbanMockupPreview(order)
     SamplingKanbanMetaBadges(order)
+    if (order.pipelineStage in RD_STAGES) SamplingRdProgressTrack(order)
 }
 
 @Composable
@@ -267,14 +269,6 @@ private fun SamplingKanbanCardActions(
                 onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
             )
         }
-        SamplingPipelineStage.MACHINE_KNITTING -> {
-            ClayButton(
-                text = "Turun Mesin Selesai -> Serah ke Finishing",
-                style = ClayButtonStyle.Primary,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onAdvanceStage(SamplingPipelineStage.LINKING_ASSEMBLY) }
-            )
-        }
         SamplingPipelineStage.IN_DELIVERY -> {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -316,10 +310,13 @@ private fun SamplingKanbanReadOnlyBadges(order: SamplingOrder) {
             modifier = Modifier.fillMaxWidth()
         )
     }
-    ClayBadge(
-        text = order.pipelineStage.displayName,
-        tint = samplingStageTint(order.pipelineStage),
-        modifier = Modifier.fillMaxWidth()
-    )
+    // Kartu R&D sudah menyebut tahapnya di jejak progres; badge tahap di sini jadi dobel.
+    if (order.pipelineStage !in RD_STAGES) {
+        ClayBadge(
+            text = order.pipelineStage.displayName,
+            tint = samplingStageTint(order.pipelineStage),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 

@@ -64,7 +64,7 @@ object StageSectionNames {
     const val TENSELITY = "TENSELITY"
 
     /** Section wajib sebelum boleh masuk Mesin Rajut (gerbang CAM). */
-    val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS, PATTERN_FORMULAS)
+    val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS, TENSELITY)
 
     /** Section inputan aktif saat lembar Rajut Mesin. */
     val KNITTING_INPUTS: List<String> = listOf(PANEL_WEIGHTS, PANEL_MINUTES, SIZE_CHART, TENSELITY)
@@ -75,11 +75,10 @@ object StageSectionNames {
  * diisi dulu sebelum boleh maju. Satu sumber kebenaran untuk UI (klik kartu / tombol
  * membuka dialog) maupun gerbang domain.
  *
- * NEW_INTAKE -> CAM_PROGRAMMING ikut menuntut lembar: persiapan tim sampling adalah
- * mengisi program CAM (program, instruksi panah, rumus pola) — tanpa lembar itu SPK
- * tidak boleh meninggalkan kolom "SPK Baru".
+ * Masuk Program CAM sendiri TIDAK menuntut lembar: alurnya dikunci saat itu, lalu tim sampling
+ * mengisi lembar Program CAM (program, instruksi panah, rumus pola) di dalam tahap CAM — di
+ * dialog Detail SPK — sebagai gerbang menuju Mesin Rajut.
  */
 fun SamplingPipelineStage.requiresStageWorksheet(): Boolean =
-    this == SamplingPipelineStage.CAM_PROGRAMMING ||
-        this == SamplingPipelineStage.MACHINE_KNITTING ||
+    this == SamplingPipelineStage.MACHINE_KNITTING ||
         this == SamplingPipelineStage.LINKING_ASSEMBLY

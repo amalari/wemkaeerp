@@ -137,7 +137,7 @@ fun ModuleWorkspaceScreen(
     }
 
     if (module == BusinessModule.OPERATOR_EXEC) {
-        com.eventverse.app.presentation.finishing.FinishingOperatorWorkspaceScreen(
+        com.eventverse.app.presentation.operator.OperatorFloorWorkspaceScreen(
             tenantSlug = resolvedSlug,
             decision = decision,
             persona = persona,

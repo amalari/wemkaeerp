@@ -52,7 +52,7 @@ class SamplingViewModel(
                 it.copy(stageAdvanceTarget = null, stageAdvanceTargetStage = null)
             }
             is SamplingUiEvent.ConfirmStageAdvance -> confirmStageAdvance(
-                event.orderId, event.targetStage, event.sections
+                event.orderId, event.targetStage, event.sections, event.inputStage
             )
             is SamplingUiEvent.AddFinishingDeposit -> addFinishingDeposit(event.orderId, event.deposit)
             is SamplingUiEvent.AssignMakloonVendor -> assignMakloonVendor(event.orderId, event.info)
@@ -250,6 +250,9 @@ class SamplingViewModel(
                         val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
                         current.copy(
                             orders = newOrders,
+                            // Dialog Detail SPK yang terbuka ikut berganti tahap — "Mulai CAM"
+                            // langsung mengunci alur dan membuka section Program di tempat.
+                            spkDetailTarget = current.spkDetailTarget?.let { if (it.id == updated.id) updated else it },
                             statusMessage = "Tahapan SPK diperbarui ke ${targetStage.displayName}",
                             isErrorMessage = false
                         )
@@ -269,7 +272,8 @@ class SamplingViewModel(
     private fun confirmStageAdvance(
         orderId: SamplingOrderId,
         targetStage: SamplingPipelineStage,
-        sections: List<StageInputSection>
+        sections: List<StageInputSection>,
+        inputStage: SamplingPipelineStage
     ) {
         scope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
@@ -277,7 +281,7 @@ class SamplingViewModel(
                 tenantSlug = tenantSlug,
                 orderId = orderId.value,
                 targetStage = targetStage,
-                stageInputs = listOf(StageWorkInput(stage = targetStage, sections = sections))
+                stageInputs = listOf(StageWorkInput(stage = inputStage, sections = sections))
             ).onSuccess { updated ->
                 _uiState.update { current ->
                     val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
@@ -286,6 +290,8 @@ class SamplingViewModel(
                         isSubmitting = false,
                         stageAdvanceTarget = null,
                         stageAdvanceTargetStage = null,
+                        spkDetailTarget = null,
+                        spkDetailFocusFlow = false,
                         statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${targetStage.displayName}",
                         isErrorMessage = false
                     )

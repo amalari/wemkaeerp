@@ -213,14 +213,25 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: 
         // nomor SPK — satu-satunya penanda yang dipakai petugas untuk memastikan ia mengukur
         // baju yang benar.
         if (isCompact) {
-            Text(
-                text = item.spk,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                Text(
+                    text = item.spk,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (item.designCode != null) {
+                    ClayBadge(
+                        text = item.designCode,
+                        tint = WeMadeColors.Accent
+                    )
+                }
+            }
             pieceBadge()
         } else {
             Row(
@@ -228,15 +239,30 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: 
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = item.spk,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
                     modifier = Modifier.weight(1f, fill = false)
-                )
+                ) {
+                    Text(
+                        text = item.spk,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.designCode != null) {
+                        ClayBadge(
+                            text = if (item.totalDealDesigns > 1) {
+                                "${item.designCode} • Desain ${item.designNumber} dari ${item.totalDealDesigns}"
+                            } else {
+                                item.designCode
+                            },
+                            tint = WeMadeColors.Accent
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(ClaySpacing.Md))
                 pieceBadge()
             }
@@ -251,6 +277,9 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: 
 
         ClayFlowRow {
             ClayTag(text = item.kind.shortLabel, tint = WeMadeColors.Primary)
+            if (item.designCode != null) {
+                ClayTag(text = "Desain ${item.designCode}", tint = WeMadeColors.Accent)
+            }
             ClayTag(text = "Size $sizeLabel", tint = WeMadeColors.OnSurfaceMuted)
             ClayTag(text = "Menunggu ${item.waitingLabel}", tint = WeMadeColors.OnSurfaceMuted)
         }

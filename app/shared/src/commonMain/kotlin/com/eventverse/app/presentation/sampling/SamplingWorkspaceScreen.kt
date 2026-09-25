@@ -184,7 +184,13 @@ fun SamplingWorkspaceScreen(
                         // Satu sumber kebenaran: transisi yang menuntut lembar kerja
                         // membuka dialog dulu; sisanya langsung maju (backend tetap
                         // memvalidasi gerbang + mencatat audit aktor).
-                        if (stage.requiresStageWorksheet()) {
+                        if (stage == SamplingPipelineStage.MACHINE_KNITTING &&
+                            order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+                        ) {
+                            // Lembar Program CAM diisi di dialog Detail SPK (alur terkunci +
+                            // section Program), bukan di dialog tahap terpisah.
+                            viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(order))
+                        } else if (stage.requiresStageWorksheet()) {
                             viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
                         } else {
                             viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, stage))
@@ -209,12 +215,18 @@ fun SamplingWorkspaceScreen(
             initialShowFlowSection = state.spkDetailFocusFlow,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },
             onStartCam = {
-                // "Alur Siap -> Mulai CAM" membuka gerbang transisi tahap yang sama dengan
-                // kolom Kanban: lembar Program CAM diisi di StageAdvanceDialog (Kontrak 6 —
-                // telemetri & lembar kerja per tahap), bukan di dialog referensi ini.
-                viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog)
+                // Masuk Program CAM mengunci alur; dialog tetap terbuka dan langsung
+                // menampilkan section Program untuk diisi tim sampling.
+                viewModel.onEvent(SamplingUiEvent.AdvanceStage(target.id, SamplingPipelineStage.CAM_PROGRAMMING))
+            },
+            onSubmitCamProgram = { sections ->
                 viewModel.onEvent(
-                    SamplingUiEvent.OpenStageAdvanceDialog(target, SamplingPipelineStage.CAM_PROGRAMMING)
+                    SamplingUiEvent.ConfirmStageAdvance(
+                        orderId = target.id,
+                        targetStage = SamplingPipelineStage.MACHINE_KNITTING,
+                        sections = sections,
+                        inputStage = SamplingPipelineStage.CAM_PROGRAMMING
+                    )
                 )
             },
             onDetermineFlow = { viewModel.onEvent(SamplingUiEvent.DetermineFlow(target.id)) },

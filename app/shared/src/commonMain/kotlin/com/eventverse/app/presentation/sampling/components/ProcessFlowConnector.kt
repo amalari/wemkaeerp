@@ -57,25 +57,29 @@ private val CONNECTOR_MIN_WIDTH = 116.dp
  */
 @Composable
 internal fun ProcessFlowGap(
+    slotId: String,
     isLast: Boolean,
     anchor: SamplingPipelineStage,
     legs: List<FlowLegView>,
     dragState: ProcessFlowDragState,
     availableTemplates: List<WorkStationSpec>,
     onInsertFromMenu: (WorkStationSpec) -> Unit,
-    onLegClick: (FlowLegView) -> Unit
+    onLegClick: (FlowLegView) -> Unit,
+    isLocked: Boolean = false
 ) {
     // Seluruh celah (garis + slot/konektor) adalah zona drop, supaya chip palet bisa dijatuhkan
     // juga di celah yang sudah menjadi konektor pengiriman — bukan cuma di tombol `+` kecil.
+    // [slotId] unik per celah karena satu tahap bisa punya lebih dari satu celah.
     Row(
         modifier = Modifier.onGloballyPositioned { coordinates ->
-            dragState.registerGap(anchor, Rect(coordinates.positionInWindow(), coordinates.size.toSize()))
+            dragState.registerGap(slotId, anchor, Rect(coordinates.positionInWindow(), coordinates.size.toSize()))
         },
         verticalAlignment = Alignment.CenterVertically
     ) {
         FlowLine()
         if (legs.isEmpty()) {
-            PlainGapSlot(anchor, dragState, availableTemplates, onInsertFromMenu)
+            // Alur terkunci: celah kosong cukup garis — tidak ada tombol + untuk menyisipkan.
+            if (!isLocked) PlainGapSlot(slotId, dragState, availableTemplates, onInsertFromMenu)
         } else {
             LegStack(legs, onLegClick)
         }
@@ -107,13 +111,13 @@ private fun LegStack(legs: List<FlowLegView>, onLegClick: (FlowLegView) -> Unit)
 /** Celah kosong — perilaku lama, tidak berubah. */
 @Composable
 private fun PlainGapSlot(
-    anchor: SamplingPipelineStage,
+    slotId: String,
     dragState: ProcessFlowDragState,
     availableTemplates: List<WorkStationSpec>,
     onInsertFromMenu: (WorkStationSpec) -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val isHovered = dragState.hoveredGap == anchor
+    val isHovered = dragState.hoveredGapId == slotId
 
     Box(
         modifier = Modifier

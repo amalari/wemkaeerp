@@ -85,7 +85,9 @@ sealed interface SamplingUiEvent {
     data class ConfirmStageAdvance(
         val orderId: SamplingOrderId,
         val targetStage: SamplingPipelineStage,
-        val sections: List<StageInputSection>
+        val sections: List<StageInputSection>,
+        /** Tahap pemilik lembar; lembar Program CAM disimpan di CAM walau tujuannya Mesin Rajut. */
+        val inputStage: SamplingPipelineStage = targetStage
     ) : SamplingUiEvent
     data class AddFinishingDeposit(val orderId: SamplingOrderId, val deposit: FinishingDeposit) : SamplingUiEvent
     data class AssignMakloonVendor(val orderId: SamplingOrderId, val info: MakloonVendorInfo) : SamplingUiEvent
