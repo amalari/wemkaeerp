@@ -138,6 +138,9 @@ fun AssignDepartmentModal(
             else initialAssignment?.scope ?: DataScope.ALL_TENANT_DATA
         )
     }
+    var selectedDesks by remember(initialAssignment, module) {
+        mutableStateOf(if (module == BusinessModule.OPERATOR_EXEC) initialAssignment?.allowedDesks else null)
+    }
 
     var showConfirmationView by remember(initialAssignment, isOpen) { mutableStateOf(false) }
 
@@ -182,7 +185,8 @@ fun AssignDepartmentModal(
                             departmentName = deptName,
                             accessLevel = selectedAccessLevel,
                             specificRoleIds = if (isSpecificRolesMode) selectedRoleIds else emptySet(),
-                            scope = selectedScope
+                            scope = selectedScope,
+                            allowedDesks = selectedDesks?.takeIf { it.isNotEmpty() }
                         )
                         showConfirmationView = false
                         onConfirm(assignment)
@@ -378,8 +382,7 @@ fun AssignDepartmentModal(
                         // Quick Action Toolbar: Count, Scrollable Badge, and Select All / Reset
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                                .fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -408,9 +411,7 @@ fun AssignDepartmentModal(
                                     color = WeMadeColors.PrimaryDark,
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
-                                        .clickable {
-                                            selectedRoleIds = currentDeptRoles.map { it.id.value }.toSet()
-                                        }
+                                        .clickable { selectedRoleIds = currentDeptRoles.map { it.id.value }.toSet() }
                                         .padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                                 Text(
@@ -419,20 +420,13 @@ fun AssignDepartmentModal(
                                     fontWeight = FontWeight.SemiBold,
                                     color = WeMadeColors.Error,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable {
-                                            selectedRoleIds = emptySet()
-                                        }
+                                        .clip(RoundedCornerShape(4.dp)).clickable { selectedRoleIds = emptySet() }
                                         .padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
                         }
 
-                        HorizontalDivider(
-                            color = WeMadeColors.Border.copy(alpha = 0.6f),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                        HorizontalDivider(color = WeMadeColors.Border.copy(alpha = 0.6f), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                         // Scrollable list of roles with bounded height
                         Column(
@@ -500,12 +494,7 @@ fun AssignDepartmentModal(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clayFlat(
-                                        shape = RoundedCornerShape(4.dp),
-                                        background = WeMadeColors.PrimaryContainer,
-                                        outline = WeMadeColors.Primary,
-                                        borderWidth = 1.dp
-                                    )
+                                    .clayFlat(shape = RoundedCornerShape(4.dp), background = WeMadeColors.PrimaryContainer, outline = WeMadeColors.Primary, borderWidth = 1.dp)
                                     .padding(vertical = 3.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
@@ -658,6 +647,14 @@ fun AssignDepartmentModal(
                     }
                 }
 
+                if (module == BusinessModule.OPERATOR_EXEC && selectedAccessLevel != AccessLevel.NONE) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OperatorDeskAccessPicker(
+                        selected = selectedDesks,
+                        onSelectionChange = { selectedDesks = it }
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = WeMadeColors.Border.copy(alpha = 0.6f), thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -688,6 +685,7 @@ fun AssignDepartmentModal(
                                 accessLevel = selectedAccessLevel,
                                 specificRoleIds = if (isSpecificRolesMode) selectedRoleIds else emptySet(),
                                 scope = selectedScope,
+                                allowedDesks = selectedDesks?.takeIf { it.isNotEmpty() },
                                 id = initialAssignment?.id ?: ""
                             )
 
@@ -696,7 +694,8 @@ fun AssignDepartmentModal(
                                     selectedAccessLevel != initialAssignment.accessLevel ||
                                     selectedScope != initialAssignment.scope ||
                                     isSpecificRolesMode != (initialAssignment.specificRoleIds.isNotEmpty()) ||
-                                    (isSpecificRolesMode && selectedRoleIds != initialAssignment.specificRoleIds)
+                                    (isSpecificRolesMode && selectedRoleIds != initialAssignment.specificRoleIds) ||
+                                    selectedDesks != initialAssignment.allowedDesks
 
                                 if (hasChanges) {
                                     showConfirmationView = true

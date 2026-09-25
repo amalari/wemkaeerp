@@ -8,6 +8,7 @@ import kotlinx.datetime.Instant
 
 data class ReleaseSamplingStageWorkCommand(
     val orderId: SamplingOrderId,
+    val actorEmail: String,
     val now: Instant
 )
 
@@ -18,6 +19,6 @@ class ReleaseSamplingStageWorkUseCase(
     suspend operator fun invoke(command: ReleaseSamplingStageWorkCommand): Result<SamplingOrder> = runCatching {
         val order = repository.findById(command.orderId)
             ?: error("SPK Sample tidak ditemukan: ${command.orderId.value}")
-        repository.save(order.releaseStageWork(command.now))
+        repository.save(order.releaseStageWork(command.now, command.actorEmail))
     }
 }

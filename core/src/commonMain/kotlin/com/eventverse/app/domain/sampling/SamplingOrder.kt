@@ -204,29 +204,25 @@ data class SamplingOrder(
     internal fun movedTo(target: SamplingPipelineStage, audit: StageTransitionAudit): SamplingOrder = copy(
         pipelineStage = target,
         activeWork = null,
-        stageHistory = stageHistory + audit,
+        stageHistory = stageHistory + audit.copy(
+            workStartedAt = audit.workStartedAt ?: currentWork?.startedAt,
+            operatorName = audit.operatorName ?: currentWork?.operatorName
+        ),
         updatedAt = audit.at
     )
 
-    fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant): SamplingOrder =
-        copy(
-            finishingPath = FinishingPath.MAKLOON_VENDOR,
-            vendorInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR),
-            pipelineStage = SamplingPipelineStage.LINKING_ASSEMBLY,
-            updatedAt = updatedAt
-        )
+    fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant, actorEmail: String = ""): SamplingOrder =
+        copy(finishingPath = FinishingPath.MAKLOON_VENDOR, vendorInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR))
+            .movedTo(SamplingPipelineStage.LINKING_ASSEMBLY, vendorAudit(SamplingPipelineStage.LINKING_ASSEMBLY, actorEmail, updatedAt))
 
-    fun recordVendorReturn(returnedAt: LocalDate, updatedAt: Instant): SamplingOrder =
-        copy(
-            vendorInfo = vendorInfo.copy(
-                returnedAt = returnedAt,
-                status = VendorFollowUpStatus.RETURNED
-            ),
-            // Sampel yang pulang dari vendor makloon mendarat di tahap penyelesaian akhir paling
-            // awal, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.
-            pipelineStage = SamplingPipelineStage.CUCI_SOFTENER,
-            updatedAt = updatedAt
-        )
+    // Sampel yang pulang dari vendor makloon mendarat di tahap penyelesaian akhir paling
+    // awal, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.
+    fun recordVendorReturn(returnedAt: LocalDate, updatedAt: Instant, actorEmail: String = ""): SamplingOrder =
+        copy(vendorInfo = vendorInfo.copy(returnedAt = returnedAt, status = VendorFollowUpStatus.RETURNED))
+            .movedTo(SamplingPipelineStage.CUCI_SOFTENER, vendorAudit(SamplingPipelineStage.CUCI_SOFTENER, actorEmail, updatedAt))
+
+    private fun vendorAudit(target: SamplingPipelineStage, actorEmail: String, at: Instant) =
+        StageTransitionAudit(pipelineStage, target, actorEmail, "MAKLOON", at, operatorName = vendorInfo.vendorName.ifBlank { null })
 
     fun updateTenselity(entries: List<TenselityEntry>, updatedAt: Instant): SamplingOrder =
         copy(

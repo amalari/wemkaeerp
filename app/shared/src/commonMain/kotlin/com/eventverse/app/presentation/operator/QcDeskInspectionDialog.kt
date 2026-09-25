@@ -60,6 +60,8 @@ fun QcDeskInspectionDialog(
                     )
                     ClayButton(text = "Tutup", style = ClayButtonStyle.Secondary, onClick = onDismiss)
                 }
+                // Detail SPK dari tim sampling — pemeriksa mengenal style, target, dan revisinya.
+                SpkDetailPanel(order = order, stage = order.pipelineStage)
                 QcInspectionPane(
                     item = item,
                     inspectorName = inspectorName,

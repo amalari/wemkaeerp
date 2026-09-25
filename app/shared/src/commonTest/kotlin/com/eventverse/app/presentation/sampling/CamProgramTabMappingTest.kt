@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.sampling
 
+import com.eventverse.app.domain.sampling.StageInputRow
 import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.presentation.sampling.components.CamPartTab
 import com.eventverse.app.presentation.sampling.components.parseCamSections
@@ -48,7 +49,7 @@ class CamProgramTabMappingTest {
         val sections = serializeCamSections(tabs, formulaNote)
 
         // Verifikasi section names
-        assertEquals(4, sections.size)
+        assertEquals(7, sections.size)
         assertTrue(sections.any { it.section == StageSectionNames.PROGRAM })
         assertTrue(sections.any { it.section == StageSectionNames.FEEDER_INSTRUCTIONS })
         assertTrue(sections.any { it.section == StageSectionNames.TENSELITY })
@@ -77,6 +78,25 @@ class CamProgramTabMappingTest {
         assertEquals(1, restoredTabs[1].tenselities.size)
 
         assertEquals(formulaNote, restoredNote)
+    }
+
+    @Test
+    fun serializeAndParse_withGramasiWaktuAndFinishedMeasurements_shouldRoundTrip() {
+        val tabs = listOf(
+            CamPartTab(
+                id = "tab-0-Depan", name = "Depan", program = "BIAN-D",
+                feederInstructions = listOf("F1"), gramasi = "117 GR", waktu = "37 MENIT"
+            ),
+            CamPartTab(id = "tab-1-Lengan", name = "Lengan", program = "BIAN-L", feederInstructions = listOf("F1"))
+        )
+        val measurements = listOf(StageInputRow("P BADAN", "55 CM"), StageInputRow("", ""))
+
+        val sheet = parseCamSections(serializeCamSections(tabs, "", measurements))
+
+        assertEquals("117 GR", sheet.tabs[0].gramasi)
+        assertEquals("37 MENIT", sheet.tabs[0].waktu)
+        assertEquals("", sheet.tabs[1].gramasi)
+        assertEquals(measurements, sheet.finishedMeasurements, "Baris kosong yang baru ditambah tidak boleh hilang")
     }
 
     @Test

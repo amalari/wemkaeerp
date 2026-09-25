@@ -26,7 +26,7 @@ interface ProductionRemoteDataSource {
         dealId: String,
         stockOwnership: StockOwnershipSemantics = StockOwnershipSemantics.OWNED_RAW_MATERIAL,
         notes: String = ""
-    ): Result<BulkWorkOrder>
+    ): Result<List<BulkWorkOrder>>
 
     suspend fun allocateLine(
         tenantSlug: String,
@@ -87,7 +87,7 @@ class ProductionApiClient(
         dealId: String,
         stockOwnership: StockOwnershipSemantics,
         notes: String
-    ): Result<BulkWorkOrder> = runCatching {
+    ): Result<List<BulkWorkOrder>> = runCatching {
         val payload = jsonObjectOf(
             "dealId" to jsonOf(dealId),
             "stockOwnership" to jsonOf(stockOwnership.name),
@@ -99,7 +99,7 @@ class ProductionApiClient(
             contentType(ContentType.Application.Json)
             setBody(payload)
         }
-        decodeOrder(response.requireBody("menerbitkan SPK massal"))
+        decodeOrders(response.requireBody("menerbitkan SPK massal"))
     }
 
     override suspend fun allocateLine(
@@ -166,6 +166,17 @@ class ProductionApiClient(
         val parsed = JsonParser.parse(body) as? JsonValue.Obj ?: error("Respons SPK massal tidak valid")
         return BulkWorkOrderCodec.decode(parsed)
     }
+
+    /**
+     * Respons launch berupa array SPK (1 per ukuran); objek tunggal tetap diterima agar
+     * aman saat server lama/baru bercampur di periode deployment.
+     */
+    private fun decodeOrders(body: String): List<BulkWorkOrder> =
+        when (val parsed = JsonParser.parse(body)) {
+            is JsonValue.Arr -> parsed.items.filterIsInstance<JsonValue.Obj>().map { BulkWorkOrderCodec.decode(it) }
+            is JsonValue.Obj -> listOf(BulkWorkOrderCodec.decode(parsed))
+            else -> error("Respons SPK massal tidak valid")
+        }
 
     private suspend fun HttpResponse.requireBody(action: String): String {
         val body = bodyAsText()

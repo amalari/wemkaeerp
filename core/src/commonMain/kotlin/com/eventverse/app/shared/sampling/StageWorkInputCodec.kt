@@ -44,7 +44,10 @@ object StageWorkInputCodec {
                 "actorRole" to jsonOf(entry.actorRole),
                 "at" to jsonOf(entry.at.toString()),
                 "reason" to jsonOf(entry.reason),
-                "liability" to jsonOf(entry.liability?.name)
+                "liability" to jsonOf(entry.liability?.name),
+                "workStartedAt" to jsonOf(entry.workStartedAt?.toString()),
+                "operatorName" to jsonOf(entry.operatorName),
+                "isRelease" to jsonOf(entry.isRelease)
             )
         }).encode()
 
@@ -63,7 +66,10 @@ object StageWorkInputCodec {
                             reason = obj.string("reason"),
                             liability = obj.string("liability")?.let { name ->
                                 DefectLiability.entries.firstOrNull { it.name == name }
-                            }
+                            },
+                            workStartedAt = obj.string("workStartedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() },
+                            operatorName = obj.string("operatorName"),
+                            isRelease = obj.boolean("isRelease") ?: false
                         )
                     }
             }.getOrNull()

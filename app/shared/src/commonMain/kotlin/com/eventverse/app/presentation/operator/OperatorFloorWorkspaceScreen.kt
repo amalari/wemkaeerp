@@ -16,12 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.eventverse.app.domain.rbac.AccessDecision
+import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.OperatorDeskColumn
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.deskColumn
 import com.eventverse.app.domain.sampling.isOperatorDesk
+import com.eventverse.app.domain.sampling.resolveAccessibleOperatorDesks
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayStatusBanner
@@ -51,7 +53,33 @@ fun OperatorFloorWorkspaceScreen(
     val viewModel = remember(tenantSlug) { SamplingViewModel(tenantSlug) }
     val state by viewModel.uiState.collectAsState()
     val desks = remember { SamplingPipelineStage.entries.filter { it.isOperatorDesk } }
-    var desk by remember { mutableStateOf(desks.first()) }
+    // Meja yang boleh diakses persona. Batasannya disetel admin lewat penugasan modul di RBAC
+    // (sumbu divisi); null berarti tanpa batasan — bypass owner/superadmin selalu membuka semua.
+    val accessibleDesks = remember(decision) {
+        resolveAccessibleOperatorDesks(
+            bypass = decision.source == AccessSource.OWNER_BYPASS ||
+                decision.source == AccessSource.SUPERADMIN_BYPASS,
+            departmentAccess = decision.fromDepartment
+        )
+    }
+    val visibleDesks = remember(accessibleDesks, desks) {
+        accessibleDesks?.let { allowed -> desks.filter { it in allowed } } ?: desks
+    }
+
+    if (visibleDesks.isEmpty()) {
+        // Penugasan yang mengunci semua meja bukan layar kosong misterius — sebutkan pintunya.
+        Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Md)) {
+            ClayStatusBanner(
+                message = "Divisi Anda belum diberi akses ke meja mana pun. " +
+                    "Minta admin menambahkan meja pada penugasan modul Lantai Produksi di RBAC.",
+                isError = true,
+                onDismiss = { }
+            )
+        }
+        return
+    }
+
+    var desk by remember(visibleDesks) { mutableStateOf(visibleDesks.first()) }
     // Dibaca dari sesi sebagai isian awal, tapi tetap bisa diganti: satu tablet lantai produksi
     // lazim dipakai bergantian beberapa operator dalam satu shift.
     var operatorName by remember(persona?.userId) { mutableStateOf(persona?.name.orEmpty()) }
@@ -64,17 +92,21 @@ fun OperatorFloorWorkspaceScreen(
     val board = remember(state.orders, desk, today) { buildOperatorDeskBoard(state.orders, desk, today, timeZone) }
 
     Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Md), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-        ) {
-            desks.forEach { stage ->
-                val waiting = state.orders.count { it.deskColumn(stage) == OperatorDeskColumn.QUEUE }
-                ClayChoiceChip(
-                    text = if (waiting > 0) "${stage.deskLabel} ($waiting)" else stage.deskLabel,
-                    selected = desk == stage,
-                    onClick = { desk = stage }
-                )
+        // Tab hanya berarti kalau ada pilihan: satu meja tunggal dirender langsung tanpa chip,
+        // jadi tablet lantai tidak membuang satu baris hanya untuk nomor satu.
+        if (visibleDesks.size > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                visibleDesks.forEach { stage ->
+                    val waiting = state.orders.count { it.deskColumn(stage) == OperatorDeskColumn.QUEUE }
+                    ClayChoiceChip(
+                        text = if (waiting > 0) "${stage.deskLabel} ($waiting)" else stage.deskLabel,
+                        selected = desk == stage,
+                        onClick = { desk = stage }
+                    )
+                }
             }
         }
 
@@ -118,6 +150,7 @@ fun OperatorFloorWorkspaceScreen(
             order = target,
             targetStage = targetStage,
             isSubmitting = state.isSubmitting,
+            deskStage = desk,
             onConfirm = { sections ->
                 viewModel.onEvent(SamplingUiEvent.ConfirmStageAdvance(target.id, targetStage, sections))
             },

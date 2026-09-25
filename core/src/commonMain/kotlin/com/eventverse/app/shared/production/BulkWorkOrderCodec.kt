@@ -21,6 +21,7 @@ object BulkWorkOrderCodec {
         "goldenSampleOrderId" to jsonOf(order.goldenSampleOrderId?.value),
         "stockOwnership" to jsonOf(order.stockOwnership.name),
         "sizeBreakdown" to jsonArrayOf(order.sizeBreakdown.map(::encodeSizeLine)),
+        "sizeLabel" to jsonOf(order.sizeLabel),
         "lineAllocations" to jsonArrayOf(order.lineAllocations.map(::encodeAllocation)),
         "stageProgress" to jsonArrayOf(order.stageProgress.map(::encodeProgress)),
         "targetOutputPerDay" to jsonOf(order.targetOutputPerDay),
@@ -55,6 +56,7 @@ object BulkWorkOrderCodec {
                 ?.let { runCatching { StockOwnershipSemantics.valueOf(it) }.getOrNull() }
                 ?: StockOwnershipSemantics.OWNED_RAW_MATERIAL,
             sizeBreakdown = obj.objectArray("sizeBreakdown").mapNotNull(::decodeSizeLine),
+            sizeLabel = obj.string("sizeLabel"),
             lineAllocations = obj.objectArray("lineAllocations").mapNotNull(::decodeAllocation),
             stageProgress = obj.objectArray("stageProgress")
                 .mapNotNull(::decodeProgress)

@@ -32,6 +32,14 @@ data class BulkWorkOrder(
     val goldenSampleOrderId: SamplingOrderId? = null,
     val sizeBreakdown: List<BulkSizeLine> = emptyList(),
     /**
+     * Ukuran yang dikerjakan SPK ini, atau `null` untuk SPK legacy multi-size.
+     *
+     * Aturan "1 SPK = 1 ukuran": PO buyer boleh multi-size, tetapi saat pecah ke SPK tiap
+     * ukuran mendapat SPK sendiri karena program CAM, gramasi, dan progres lantai semuanya
+     * per ukuran. `null` hanya dimiliki SPK yang lahir sebelum aturan ini.
+     */
+    val sizeLabel: String? = null,
+    /**
      * Semantik kepemilikan bahan (Kontrak 3). Pada tenant makloon (CMT) nilainya
      * [StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL]: kain milik buyer, nilai Rp 0 di neraca
      * pabrik, dan sisa kain wajib direkonsiliasi.
@@ -48,6 +56,19 @@ data class BulkWorkOrder(
     val releasedAt: Instant? = null,
     val archivedAt: Instant? = null
 ) {
+    init {
+        if (sizeLabel != null) {
+            require(sizeLabel.isNotBlank()) { "Label ukuran SPK tidak boleh kosong" }
+            require(
+                sizeBreakdown.size == 1 &&
+                    sizeBreakdown.single().sizeLabel.equals(sizeLabel, ignoreCase = true)
+            ) {
+                "SPK per ukuran \"$sizeLabel\" wajib memiliki tepat satu baris size breakdown " +
+                    "dengan label yang sama."
+            }
+        }
+    }
+
     // ── Angka turunan ───────────────────────────────────────────────────────────────────────
 
     val totalOrderedPcs: Int get() = sizeBreakdown.sumOf { it.orderedPcs }

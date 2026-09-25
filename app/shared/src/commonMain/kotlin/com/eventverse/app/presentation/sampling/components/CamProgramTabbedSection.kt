@@ -21,94 +21,6 @@ import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
-/** Data representasi satu tab bagian garmen pada tahap Program CAM. */
-data class CamPartTab(
-    val id: String,
-    val name: String,
-    val program: String = "",
-    val feederInstructions: List<String> = emptyList(),
-    val tenselities: List<String> = emptyList()
-) {
-    /** Tab dianggap full/lengkap jika kode program dan minimal 1 instruksi panah sudah terisi. */
-    val isComplete: Boolean get() = program.isNotBlank() && feederInstructions.isNotEmpty()
-}
-
-val SUGGESTED_CAM_PARTS = listOf(
-    "Badan Depan", "Badan Belakang", "Depan", "Belakang", "Lengan", "Kerah",
-    "Rib Bawah", "Manset", "Saku", "Tudung / Hoodie", "Placket"
-)
-
-/** Parsing List<StageInputSection> menjadi list tab bagian dan catatan rumus pola. */
-fun parseCamSections(sections: List<StageInputSection>): Pair<List<CamPartTab>, String> {
-    val progSec = sections.firstOrNull { it.section == StageSectionNames.PROGRAM }
-    val feederSec = sections.firstOrNull { it.section == StageSectionNames.FEEDER_INSTRUCTIONS }
-    val tenselitySec = sections.firstOrNull { it.section == StageSectionNames.TENSELITY }
-    val formulaSec = sections.firstOrNull { it.section == StageSectionNames.PATTERN_FORMULAS }
-
-    val tabNames = linkedSetOf<String>()
-    progSec?.rows?.forEach { if (it.label.isNotBlank()) tabNames.add(it.label.trim()) }
-    feederSec?.rows?.forEach { row ->
-        val name = if (row.label.contains(" • ")) row.label.substringBefore(" • ").trim() else row.label.trim()
-        if (name.isNotBlank()) tabNames.add(name)
-    }
-    tenselitySec?.rows?.forEach { row ->
-        val name = if (row.label.contains(" • ")) row.label.substringBefore(" • ").trim() else row.label.trim()
-        if (name.isNotBlank()) tabNames.add(name)
-    }
-
-    val tabs = tabNames.mapIndexed { idx, name ->
-        val progRow = progSec?.rows?.firstOrNull { it.label.equals(name, ignoreCase = true) }
-        val feederRows = feederSec?.rows?.filter {
-            it.label.startsWith("$name •", ignoreCase = true) || it.label.equals(name, ignoreCase = true)
-        }.orEmpty()
-        val feederTags = feederRows.flatMap { row ->
-            row.value.split("\n").map { it.trim() }.filter { it.isNotBlank() }
-        }
-
-        val tenselityRows = tenselitySec?.rows?.filter {
-            it.label.startsWith("$name •", ignoreCase = true) || it.label.equals(name, ignoreCase = true)
-        }.orEmpty()
-        val tenselityTags = tenselityRows.flatMap { row ->
-            row.value.split("\n").map { it.trim() }.filter { it.isNotBlank() }
-        }
-
-        CamPartTab("tab-$idx-$name", name, progRow?.value.orEmpty(), feederTags, tenselityTags)
-    }
-
-    val formulaNote = formulaSec?.rows?.joinToString("\n") { row ->
-        if (row.label.isNotBlank() && row.label != "Catatan Pola") "${row.label}: ${row.value}" else row.value
-    }.orEmpty()
-
-    return Pair(tabs, formulaNote)
-}
-
-/** Serialisasi list tab bagian dan catatan rumus pola kembali menjadi List<StageInputSection>. */
-fun serializeCamSections(tabs: List<CamPartTab>, rumusPolaNote: String): List<StageInputSection> {
-    val progRows = tabs.map { tab ->
-        StageInputRow(label = tab.name, value = tab.program)
-    }
-    val feederRows = tabs.flatMap { tab ->
-        tab.feederInstructions.filter { it.isNotBlank() }.map { tag ->
-            StageInputRow(label = tab.name, value = tag)
-        }
-    }
-    val tenselityRows = tabs.flatMap { tab ->
-        tab.tenselities.filter { it.isNotBlank() }.map { tag ->
-            StageInputRow(label = tab.name, value = tag)
-        }
-    }
-    val formulaRows = if (rumusPolaNote.isNotBlank()) {
-        listOf(StageInputRow(label = "Catatan Pola", value = rumusPolaNote))
-    } else emptyList()
-
-    return listOf(
-        StageInputSection(StageSectionNames.PROGRAM, progRows),
-        StageInputSection(StageSectionNames.FEEDER_INSTRUCTIONS, feederRows),
-        StageInputSection(StageSectionNames.TENSELITY, tenselityRows),
-        StageInputSection(StageSectionNames.PATTERN_FORMULAS, formulaRows)
-    )
-}
-
 /**
  * Section Program CAM dengan UI Tabbing dinamis per bagian garmen,
  * memuat program CAM serta instruksi panah & tenselity dalam format taggable,
@@ -121,8 +33,10 @@ fun CamProgramTabbedSection(
     validationTrigger: Int = 0
 ) {
     val parsed = remember(sections) { parseCamSections(sections) }
-    var tabs by remember(sections) { mutableStateOf(parsed.first) }
-    var rumusPolaNote by remember(sections) { mutableStateOf(parsed.second) }
+    var tabs by remember(sections) { mutableStateOf(parsed.tabs) }
+    var rumusPolaNote by remember(sections) { mutableStateOf(parsed.formulaNote) }
+    // Hasil R&D tidak diedit di sini, tapi tetap dibawa agar tidak terhapus saat lembar CAM disimpan ulang (rework).
+    val finishedMeasurements = parsed.finishedMeasurements
     var selectedTabId by remember { mutableStateOf(tabs.firstOrNull()?.id.orEmpty()) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showValidationErrors by remember { mutableStateOf(false) }
@@ -149,10 +63,13 @@ fun CamProgramTabbedSection(
     }
     val activeTab = tabs.firstOrNull { it.id == selectedTabId } ?: tabs.firstOrNull()
 
-    fun updateAndEmit(newTabs: List<CamPartTab>, newNote: String) {
+    fun updateAndEmit(
+        newTabs: List<CamPartTab>,
+        newNote: String
+    ) {
         tabs = newTabs
         rumusPolaNote = newNote
-        onSectionsChange(serializeCamSections(newTabs, newNote))
+        onSectionsChange(serializeCamSections(newTabs, newNote, finishedMeasurements))
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
@@ -167,7 +84,7 @@ fun CamProgramTabbedSection(
                         color = WeMadeColors.OnSurface
                     )
                     Text(
-                        text = "Atur program CAM, instruksi panah, dan tenselity per bagian garmen.",
+                        text = "Atur program CAM, instruksi panah, dan tenselity per bagian garmen. Gramasi, waktu & ukuran jadi diisi nanti di tahap R&D.",
                         fontSize = 10.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -443,6 +360,7 @@ fun CamProgramTabbedSection(
                 )
             }
         }
+
     }
 
     // Dialog Tambah Bagian Baru

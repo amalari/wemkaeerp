@@ -8,7 +8,9 @@ import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.SpkNumber
 import com.eventverse.app.domain.sampling.sendBackForRework
+import com.eventverse.app.domain.sampling.releaseStageWork
 import com.eventverse.app.domain.sampling.startStageWork
+import com.eventverse.app.domain.sampling.releaseStageWork
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -74,5 +76,31 @@ class OperatorDeskBoardTest {
         val makloon = order("m", SamplingPipelineStage.LINKING_ASSEMBLY).copy(finishingPath = FinishingPath.MAKLOON_VENDOR)
         val board = buildOperatorDeskBoard(listOf(makloon), SamplingPipelineStage.LINKING_ASSEMBLY, today, tz)
         assertTrue(board.queue.isEmpty())
+    }
+
+    @Test
+    fun `handoff should split wait and work minutes`() {
+        val arrived = Instant.parse("2026-09-25T08:00:00Z")
+        val started = Instant.parse("2026-09-25T08:20:00Z")
+        val done = Instant.parse("2026-09-25T09:55:00Z")
+        val o = order("w", SamplingPipelineStage.SETRIKA_UAP, day1)
+            .advancePipelineStage(SamplingPipelineStage.CUCI_SOFTENER, arrived)
+            .startStageWork("Sari", "", started)
+            .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, done)
+        val handoff = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.CUCI_SOFTENER, today, tz).doneToday.single()
+        assertEquals(20, handoff.waitMinutes)
+        assertEquals(95, handoff.workMinutes)
+        assertEquals("mulai 25/09 08:20 • selesai 25/09 09:55 • kerja 1j 35m • tunggu 20m", handoff.timingLine(tz))
+    }
+
+    @Test
+    fun `activity should include release and rework but done column should not`() {
+        val o = order("x", SamplingPipelineStage.QC_FINISHING)
+            .startStageWork("Ani", "", day2)
+            .releaseStageWork(day2)
+            .sendBackForRework(SamplingPipelineStage.LINKING_ASSEMBLY, "lepas", DefectLiability.FACTORY_WORKMANSHIP, "", "", day2)
+        val board = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.QC_FINISHING, today, tz)
+        assertEquals(2, board.activity.size)
+        assertTrue(board.doneToday.isEmpty())
     }
 }

@@ -62,6 +62,7 @@ class PostgresModuleAssignmentRepository : ModuleAssignmentRepository {
                     it[accessLevel] = assignment.accessLevel.name
                     it[dataScope] = assignment.scope.name
                     it[specificRoleIds] = toJsonArray(assignment.specificRoleIds)
+                    it[allowedDesks] = toJsonArray(assignment.allowedDesks.orEmpty())
                 }
             } else {
                 DepartmentModuleAssignmentsTable.insert {
@@ -72,6 +73,7 @@ class PostgresModuleAssignmentRepository : ModuleAssignmentRepository {
                     it[accessLevel] = assignment.accessLevel.name
                     it[dataScope] = assignment.scope.name
                     it[specificRoleIds] = toJsonArray(assignment.specificRoleIds)
+                    it[allowedDesks] = toJsonArray(assignment.allowedDesks.orEmpty())
                 }
             }
             assignment.copy(id = rowId)
@@ -126,6 +128,8 @@ class PostgresModuleAssignmentRepository : ModuleAssignmentRepository {
             DataScope.valueOf(row[DepartmentModuleAssignmentsTable.dataScope])
         }.getOrDefault(DataScope.ALL_TENANT_DATA),
         specificRoleIds = parseJsonArray(row[DepartmentModuleAssignmentsTable.specificRoleIds]),
+        allowedDesks = parseJsonArray(row[DepartmentModuleAssignmentsTable.allowedDesks])
+            .takeIf { it.isNotEmpty() },
         id = row[DepartmentModuleAssignmentsTable.id]
     )
 

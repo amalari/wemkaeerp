@@ -367,12 +367,15 @@ class DealViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope.launch {
             productionDataSource.launchFromDeal(tenantSlug, deal.id.value)
-                .onSuccess { workOrder ->
+                .onSuccess { workOrders ->
+                    val totalPcs = workOrders.sumOf { it.totalOrderedPcs }
+                    val sizes = workOrders.mapNotNull { it.sizeLabel }
+                    val sizeRingkas = if (sizes.isEmpty()) "" else " (${sizes.joinToString("/")})"
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            statusMessage = "SPK massal ${workOrder.spkNumber.value} diterbitkan " +
-                                "(${workOrder.totalOrderedPcs} pcs)."
+                            statusMessage = "${workOrders.size} SPK massal diterbitkan$sizeRingkas " +
+                                "— total $totalPcs pcs."
                         )
                     }
                     changeStage(DealStage.IN_PRODUCTION)

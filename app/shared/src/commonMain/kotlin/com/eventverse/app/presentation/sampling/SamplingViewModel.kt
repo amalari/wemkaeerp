@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 
 class SamplingViewModel(
     private val tenantSlug: String,
@@ -44,6 +45,9 @@ class SamplingViewModel(
             is SamplingUiEvent.ApproveOrder -> approveOrder(event.orderId, event.isApproved, event.notes)
             is SamplingUiEvent.SaveTechnicalSpec -> saveTechnicalSpec(event.updatedOrder)
             is SamplingUiEvent.SaveFullOrder -> saveFullOrder(event.order)
+            is SamplingUiEvent.SaveStageInput -> _uiState.value.orders.firstOrNull { it.id == event.orderId }?.let {
+                saveFullOrder(it.fillStageInput(event.stage, event.sections, Clock.System.now()))
+            }
             is SamplingUiEvent.DetermineFlow -> determineFlow(event.orderId)
             is SamplingUiEvent.AdvanceStage -> advanceStage(event.orderId, event.targetStage)
             is SamplingUiEvent.OpenStageAdvanceDialog -> _uiState.update {

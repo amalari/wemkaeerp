@@ -94,7 +94,10 @@ fun Route.productionRoutes(
             )
 
             launchUseCase(command)
-                .onSuccess { call.respondProductionJson(BulkWorkOrderCodec.encode(it).encode()) }
+                .onSuccess { orders ->
+                    // 1 PO multi-size terbit sebagai N SPK (1 per ukuran) — respons array.
+                    call.respondProductionJson(jsonArrayOf(orders.map(BulkWorkOrderCodec::encode)).encode())
+                }
                 .onFailure { call.respondProductionFailure(HttpStatusCode.BadRequest, it) }
         }
 

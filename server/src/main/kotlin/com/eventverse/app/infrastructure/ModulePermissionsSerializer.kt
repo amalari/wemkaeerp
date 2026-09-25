@@ -12,7 +12,10 @@ object ModulePermissionsSerializer {
 
     fun toJson(permissions: Map<BusinessModule, ModuleAccessConfig>): String {
         val entries = permissions.map { (module, config) ->
-            "\"${module.name}\":{\"level\":\"${config.level.name}\",\"scope\":\"${config.scope.name}\"}"
+            val desks = config.allowedDesks?.takeIf { it.isNotEmpty() }
+                ?.let { desks -> ",\"desks\":[${desks.sorted().joinToString(",") { "\"$it\"" }}]}" }
+                ?: ""
+            "\"${module.name}\":{\"level\":\"${config.level.name}\",\"scope\":\"${config.scope.name}\"$desks}"
         }
         return "{${entries.joinToString(",")}}"
     }
@@ -21,20 +24,30 @@ object ModulePermissionsSerializer {
         if (rawJson.isNullOrBlank() || rawJson == "{}") return emptyMap()
 
         val result = mutableMapOf<BusinessModule, ModuleAccessConfig>()
-        val regex = "\"([A-Za-z0-9_]+)\"\\s*:\\s*\\{\\s*\"level\"\\s*:\\s*\"([A-Za-z0-9_]+)\"\\s*,\\s*\"scope\"\\s*:\\s*\"([A-Za-z0-9_]+)\"\\s*\\}".toRegex()
+        // Isi objek modul dicocokkan sebagai satu gumpalan tanpa brace bersarang, lalu field
+        // di dalamnya dibaca satu per satu — begini entri lama tanpa "desks" dan entri baru
+        // dengan "desks" bisa hidup berdampingan.
+        val moduleRegex = "\"([A-Za-z0-9_]+)\"\\s*:\\s*\\{([^{}]*)\\}".toRegex()
+        val levelRegex = "\"level\"\\s*:\\s*\"([A-Za-z0-9_]+)\"".toRegex()
+        val scopeRegex = "\"scope\"\\s*:\\s*\"([A-Za-z0-9_]+)\"".toRegex()
+        val desksRegex = "\"desks\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex()
+        val itemRegex = "\"([^\"]+)\"".toRegex()
 
-        regex.findAll(rawJson).forEach { match ->
+        moduleRegex.findAll(rawJson).forEach { match ->
             val moduleKey = match.groupValues[1]
-            val levelKey = match.groupValues[2]
-            val scopeKey = match.groupValues[3]
+            val body = match.groupValues[2]
 
-            val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull()
-            val level = runCatching { AccessLevel.valueOf(levelKey) }.getOrDefault(AccessLevel.NONE)
-            val scope = runCatching { DataScope.valueOf(scopeKey) }.getOrDefault(DataScope.ALL_TENANT_DATA)
+            val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull() ?: return@forEach
+            val level = levelRegex.find(body)?.groupValues?.get(1)
+                ?.let { runCatching { AccessLevel.valueOf(it) }.getOrNull() }
+                ?: AccessLevel.NONE
+            val scope = scopeRegex.find(body)?.groupValues?.get(1)
+                ?.let { runCatching { DataScope.valueOf(it) }.getOrNull() }
+                ?: DataScope.ALL_TENANT_DATA
+            val desks = desksRegex.find(body)?.groupValues?.get(1)
+                ?.let { raw -> itemRegex.findAll(raw).map { item -> item.groupValues[1] }.toSet() }
 
-            if (module != null) {
-                result[module] = ModuleAccessConfig(level, scope)
-            }
+            result[module] = ModuleAccessConfig(level, scope, allowedDesks = desks)
         }
 
         return result

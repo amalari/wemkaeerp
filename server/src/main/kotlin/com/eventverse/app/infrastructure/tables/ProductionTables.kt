@@ -24,6 +24,7 @@ object BulkWorkOrdersTable : Table("bulk_work_orders") {
     val stockOwnership = varchar("stock_ownership", 40).default("OWNED_RAW_MATERIAL")
 
     val sizeBreakdown = jsonbText("size_breakdown").default("[]")
+    val sizeLabel = varchar("size_label", 60).nullable()
     val lineAllocations = jsonbText("line_allocations").default("[]")
     val stageProgress = jsonbText("stage_progress").default("[]")
 

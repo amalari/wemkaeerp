@@ -58,6 +58,8 @@ fun SamplingSpkDetailDialog(
     onDismiss: () -> Unit,
     onStartCam: () -> Unit,
     onSubmitCamProgram: (List<StageInputSection>) -> Unit = {},
+    /** Simpan hasil R&D (gramasi, waktu, ukuran jadi) ke lembar Program CAM tanpa pindah tahap. */
+    onSaveRdResult: (List<StageInputSection>) -> Unit = {},
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
@@ -69,13 +71,15 @@ fun SamplingSpkDetailDialog(
 
     // Tahap Program CAM: alur sudah final (dikunci) dan section Program dibuka untuk tim sampling.
     val isCamStage = order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+    // Lantai R&D (rajut s/d kemas): hasil sampel baru diketahui di sini.
+    val isRdStage = order.pipelineStage.order in
+        SamplingPipelineStage.MACHINE_KNITTING.order..SamplingPipelineStage.PENGEMASAN.order
     val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order
     var camSections by remember(order.id) {
         val saved = order.stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
+        // Pakai seluruh section tersimpan (bukan hanya CAM_SECTION_SPECS) agar hasil R&D ikut terbawa.
         mutableStateOf(
-            CAM_SECTION_SPECS.map { spec ->
-                saved?.section(spec.sectionName) ?: StageInputSection(section = spec.sectionName, rows = emptyList())
-            }
+            saved?.sections ?: CAM_SECTION_SPECS.map { StageInputSection(section = it.sectionName, rows = emptyList()) }
         )
     }
 
@@ -177,6 +181,13 @@ fun SamplingSpkDetailDialog(
                             validationTrigger = camValidationTrigger
                         )
                     }
+
+                    if (isRdStage) {
+                        RdResultSection(
+                            sections = camSections,
+                            onSectionsChange = { camSections = it }
+                        )
+                    }
                 }
 
                 // Footer
@@ -212,6 +223,15 @@ fun SamplingSpkDetailDialog(
                                     onSubmitCamProgram(camSections)
                                 }
                             }
+                        )
+                    }
+                    if (isRdStage) {
+                        ClayButton(
+                            text = "Simpan Hasil R&D",
+                            style = ClayButtonStyle.Primary,
+                            modifier = Modifier.weight(2f),
+                            enabled = !isSubmitting,
+                            onClick = { onSaveRdResult(camSections) }
                         )
                     }
                     if (isGateStage) {

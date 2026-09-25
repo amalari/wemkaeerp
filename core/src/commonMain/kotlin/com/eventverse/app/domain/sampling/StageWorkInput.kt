@@ -55,7 +55,16 @@ data class StageTransitionAudit(
     /** Alasan rework; `null` untuk perpindahan maju biasa. */
     val reason: String? = null,
     /** Pihak penanggung cacat. Terisi = entri ini adalah kiriman balik rework. */
-    val liability: DefectLiability? = null
+    val liability: DefectLiability? = null,
+    /**
+     * Kapan operator menekan "Mulai" di tahap asal, dan siapa. Disalin dari klaim saat SPK
+     * pindah, karena klaimnya sendiri dilepas di saat yang sama — tanpa salinan ini jam mulai
+     * hilang dan lama pengerjaan per bagian tidak bisa dihitung. `null` = tidak pernah diklaim.
+     */
+    val workStartedAt: Instant? = null,
+    val operatorName: String? = null,
+    /** Operator mengembalikan SPK ke antrian mejanya; tahap tidak berubah. */
+    val isRelease: Boolean = false
 ) {
     val isRework: Boolean get() = liability != null
 }
@@ -73,6 +82,7 @@ object StageSectionNames {
     const val PANEL_MINUTES = "WAKTU"
     const val SIZE_CHART = "DETAIL SIZE CHART"
     const val TENSELITY = "TENSELITY"
+    const val FINISHED_MEASUREMENTS = "HASIL UKURAN JADI"
 
     /** Section wajib sebelum boleh masuk Mesin Rajut (gerbang CAM). */
     val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS)

@@ -5,6 +5,7 @@ import com.eventverse.app.domain.sampling.OperatorDeskColumn
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageTransitionAudit
+import com.eventverse.app.domain.sampling.arrivalBefore
 import com.eventverse.app.domain.sampling.deskColumn
 import com.eventverse.app.domain.sampling.handoffsFrom
 import com.eventverse.app.domain.sampling.pendingRework
@@ -13,8 +14,24 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-/** Satu kali SPK keluar dari meja ini — baris kolom Selesai dan dialog Riwayat. */
-data class DeskHandoff(val order: SamplingOrder, val audit: StageTransitionAudit)
+/**
+ * Satu kali SPK keluar dari meja ini — baris kolom Selesai dan dialog Riwayat.
+ *
+ * Tiga titik waktu memisahkan dua angka yang sering tertukar: **tunggu** (tiba → mulai) adalah
+ * antrean, **kerja** (mulai → selesai) adalah kecepatan operator. Menjumlahkannya jadi satu
+ * membuat meja yang kebanjiran kiriman terlihat lambat padahal operatornya cepat.
+ */
+data class DeskHandoff(
+    val order: SamplingOrder,
+    val audit: StageTransitionAudit,
+    val arrivedAt: Instant? = null
+) {
+    val waitMinutes: Long? get() = minutesBetween(arrivedAt, audit.workStartedAt)
+    val workMinutes: Long? get() = minutesBetween(audit.workStartedAt, audit.at)
+}
+
+private fun minutesBetween(from: Instant?, to: Instant?): Long? =
+    if (from == null || to == null || to < from) null else (to - from).inWholeMinutes
 
 /** Isi tiga kolom satu meja operator; dirakit murni supaya bisa diuji tanpa merender apa pun. */
 data class OperatorDeskBoard(
@@ -22,7 +39,10 @@ data class OperatorDeskBoard(
     val queue: List<SamplingOrder>,
     val inProgress: List<SamplingOrder>,
     val doneToday: List<DeskHandoff>,
-    val history: List<DeskHandoff>
+    /** Serah terima maju saja — dasar kolom Selesai dan hitungan "Riwayat (n)". */
+    val history: List<DeskHandoff>,
+    /** Semua kejadian di meja ini: serah terima, rework keluar, dan kartu yang dikembalikan. */
+    val activity: List<DeskHandoff>
 )
 
 /**
@@ -49,17 +69,23 @@ fun buildOperatorDeskBoard(
         .filter { it.deskColumn(stage) == OperatorDeskColumn.IN_PROGRESS }
         .sortedBy { it.activeWork?.startedAt }
     val history = orders
-        .flatMap { order -> order.handoffsFrom(stage).map { DeskHandoff(order, it) } }
+        .flatMap { order -> order.handoffsFrom(stage).map { DeskHandoff(order, it, order.arrivalBefore(it)) } }
+        .sortedByDescending { it.audit.at }
+    val activity = orders
+        .flatMap { order ->
+            order.stageHistory.filter { it.fromStage == stage }.map { DeskHandoff(order, it, order.arrivalBefore(it)) }
+        }
         .sortedByDescending { it.audit.at }
     return OperatorDeskBoard(
         stage = stage,
         queue = queue,
         inProgress = inProgress,
         doneToday = history.filter { it.audit.at.toLocalDateTime(timeZone).date == today },
-        history = history
+        history = history,
+        activity = activity
     )
 }
 
 /** Kapan SPK tiba di tahap ini (entri audit terakhir yang menuju ke sana), untuk urutan FIFO. */
 private fun SamplingOrder.arrivedAt(stage: SamplingPipelineStage): Instant =
-    stageHistory.lastOrNull { it.toStage == stage }?.at ?: updatedAt
+    stageHistory.lastOrNull { !it.isRelease && it.toStage == stage }?.at ?: updatedAt

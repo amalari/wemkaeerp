@@ -59,6 +59,9 @@ fun Route.moduleAssignmentRoutes(assignmentRepository: ModuleAssignmentRepositor
                     ?.let { runCatching { DataScope.valueOf(it) }.getOrNull() }
                     ?: DataScope.ALL_TENANT_DATA,
                 specificRoleIds = stringArrayField(body, "specificRoleIds"),
+                allowedDesks = optionalStringArrayField(body, "allowedDesks")
+                    // Array kosong berarti "tanpa batasan meja", sama dengan field tidak dikirim.
+                    ?.takeIf { it.isNotEmpty() },
                 id = stringField(body, "id") ?: ""
             )
 
@@ -117,12 +120,14 @@ private fun assignmentJson(module: BusinessModule, assignment: DepartmentModuleA
 
 private fun bodyJson(assignment: DepartmentModuleAssignment): String {
     val roleIds = assignment.specificRoleIds.sorted().joinToString(",") { "\"${escape(it)}\"" }
+    val desks = assignment.allowedDesks.orEmpty().sorted().joinToString(",") { "\"${escape(it)}\"" }
     return "{\"id\":\"${escape(assignment.id)}\"," +
         "\"departmentId\":\"${escape(assignment.departmentId)}\"," +
         "\"departmentName\":\"${escape(assignment.departmentName)}\"," +
         "\"accessLevel\":\"${assignment.accessLevel.name}\"," +
         "\"scope\":\"${assignment.scope.name}\"," +
-        "\"specificRoleIds\":[$roleIds]}"
+        "\"specificRoleIds\":[$roleIds]," +
+        "\"allowedDesks\":[$desks]}"
 }
 
 private fun escape(raw: String): String =
@@ -134,5 +139,11 @@ private fun stringField(json: String, field: String): String? =
 private fun stringArrayField(json: String, field: String): Set<String> {
     val raw = "\"$field\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex().find(json)?.groupValues?.get(1)
         ?: return emptySet()
+    return "\"([^\"]+)\"".toRegex().findAll(raw).map { it.groupValues[1] }.toSet()
+}
+
+/** Sama dengan [stringArrayField], tapi `null` saat field tidak dikirim sama sekali. */
+private fun optionalStringArrayField(json: String, field: String): Set<String>? {
+    val raw = "\"$field\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex().find(json)?.groupValues?.get(1) ?: return null
     return "\"([^\"]+)\"".toRegex().findAll(raw).map { it.groupValues[1] }.toSet()
 }

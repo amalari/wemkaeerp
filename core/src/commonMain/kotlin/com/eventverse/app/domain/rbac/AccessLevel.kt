@@ -88,7 +88,14 @@ enum class ScopeCapability(
  */
 data class ModuleAccessConfig(
     val level: AccessLevel = AccessLevel.NONE,
-    val scope: DataScope = DataScope.ALL_TENANT_DATA
+    val scope: DataScope = DataScope.ALL_TENANT_DATA,
+    /**
+     * Meja (tahap lantai produksi) yang boleh diakses, sebagai nama [SamplingPipelineStage].
+     * `null` berarti tanpa batasan — seluruh meja. Hanya bermakna untuk `OPERATOR_EXEC`;
+     * modul lain mengabaikannya. Dibawa di sini — bukan di entity penugasan saja — supaya
+     * [AccessDecision] memuatnya dan layar bisa memfilter tanpa query kedua.
+     */
+    val allowedDesks: Set<String>? = null
 ) {
     val isAccessible: Boolean get() = level != AccessLevel.NONE
     val canWrite: Boolean get() = level.isAtLeast(AccessLevel.OPERATE)

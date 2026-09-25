@@ -2,9 +2,6 @@ package com.eventverse.app.presentation.operator
 
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.isOperatorDesk
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /**
  * Cara SPK keluar dari kolom "Sedang Dikerjakan" di tiap meja. Tiap bagian memakai alat yang
@@ -55,10 +52,3 @@ val SamplingPipelineStage.deskLabel: String
         SamplingPipelineStage.PENGEMASAN -> "Kemas"
         else -> displayName
     }
-
-/** "25/09 14:05" — cukup untuk lantai produksi; tahun tidak pernah jadi pertanyaan di sini. */
-fun formatDeskTime(instant: Instant, timeZone: TimeZone): String {
-    val t = instant.toLocalDateTime(timeZone)
-    fun two(n: Int) = n.toString().padStart(2, '0')
-    return "${two(t.dayOfMonth)}/${two(t.monthNumber)} ${two(t.hour)}:${two(t.minute)}"
-}

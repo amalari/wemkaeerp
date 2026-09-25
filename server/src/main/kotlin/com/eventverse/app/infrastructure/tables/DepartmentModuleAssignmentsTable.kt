@@ -19,5 +19,11 @@ object DepartmentModuleAssignmentsTable : Table("department_module_assignments")
     /** Daftar id jabatan sebagai array JSON. `JSONB` di schema — lihat [jsonbText]. */
     val specificRoleIds = jsonbText("specific_role_ids").default("[]")
 
+    /**
+     * Meja lantai produksi yang boleh diakses (khusus `OPERATOR_EXEC`), array JSON berisi nama
+     * tahap. `[]` berarti seluruh meja — nilai default, kompatibel dengan baris lama.
+     */
+    val allowedDesks = jsonbText("allowed_desks").default("[]")
+
     override val primaryKey = PrimaryKey(id)
 }

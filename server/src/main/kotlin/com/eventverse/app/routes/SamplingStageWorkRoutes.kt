@@ -64,7 +64,8 @@ fun Route.samplingStageWorkRoutes(repository: SamplingOrderRepository) {
         // POST …/{id}/work/release
         post("/work/release") {
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
-            call.respondOrder(releaseWork(ReleaseSamplingStageWorkCommand(SamplingOrderId(id), Clock.System.now())))
+            val actorEmail = call.callerPrincipalOrNull?.email ?: "unknown"
+            call.respondOrder(releaseWork(ReleaseSamplingStageWorkCommand(SamplingOrderId(id), actorEmail, Clock.System.now())))
         }
 
         // POST …/{id}/rework  body: { targetStage, reason, liability }

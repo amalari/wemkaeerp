@@ -97,6 +97,12 @@ sealed interface SamplingUiEvent {
     data class SubmitQcInspection(val orderId: SamplingOrderId, val report: QcInspectionReport) : SamplingUiEvent
     data class RequestRevision(val orderId: SamplingOrderId, val notes: String) : SamplingUiEvent
     data class SaveFullOrder(val order: SamplingOrder) : SamplingUiEvent
+    /** Isi ulang lembar kerja satu tahap tanpa memindahkan tahap (mis. hasil R&D). */
+    data class SaveStageInput(
+        val orderId: SamplingOrderId,
+        val stage: SamplingPipelineStage,
+        val sections: List<StageInputSection>
+    ) : SamplingUiEvent
 
     data class OpenVendorDialog(val order: SamplingOrder) : SamplingUiEvent
     data object CloseVendorDialog : SamplingUiEvent

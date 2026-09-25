@@ -40,6 +40,7 @@ import com.eventverse.app.presentation.designsystem.IconClose
 import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconTrash
 import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.operator.SpkDetailPanel
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -55,7 +56,9 @@ fun StageAdvanceDialog(
     targetStage: SamplingPipelineStage,
     isSubmitting: Boolean,
     onConfirm: (List<StageInputSection>) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    /** Meja asal saat dialog dibuka dari Lantai Produksi; menentukan blok spec di Detail SPK. */
+    deskStage: SamplingPipelineStage? = null
 ) {
     val sectionSpecs = remember(targetStage) { stageSectionsFor(targetStage) }
     var sections by remember(targetStage, order.id) {
@@ -84,6 +87,9 @@ fun StageAdvanceDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
+                    // Detail SPK dari tim sampling — konteks penuh sebelum operator mengisi lembar.
+                    SpkDetailPanel(order = order, stage = deskStage ?: order.pipelineStage)
+
                     PreviousStageSummary(order = order, targetStage = targetStage)
 
                     sections.forEachIndexed { sectionIndex, section ->
@@ -206,7 +212,9 @@ fun DynamicSectionTable(
     sectionName: String,
     hint: String,
     rows: List<StageInputRow>,
-    onRowsChange: (List<StageInputRow>) -> Unit
+    onRowsChange: (List<StageInputRow>) -> Unit,
+    labelPlaceholder: String = "Label (mis. DEPAN)",
+    valuePlaceholder: String = "Nilai (mis. 117 GR)"
 ) {
     Column(
         modifier = Modifier
@@ -270,7 +278,7 @@ fun DynamicSectionTable(
                             this[rowIndex] = row.copy(label = newLabel)
                         })
                     },
-                    placeholder = "Label (mis. DEPAN)",
+                    placeholder = labelPlaceholder,
                     modifier = Modifier.weight(1f)
                 )
                 ClayTextField(
@@ -280,7 +288,7 @@ fun DynamicSectionTable(
                             this[rowIndex] = row.copy(value = newValue)
                         })
                     },
-                    placeholder = "Nilai (mis. 117 GR)",
+                    placeholder = valuePlaceholder,
                     modifier = Modifier.weight(1f)
                 )
                 androidx.compose.material3.IconButton(

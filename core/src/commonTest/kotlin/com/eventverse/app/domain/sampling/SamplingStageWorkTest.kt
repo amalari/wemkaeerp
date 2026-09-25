@@ -135,4 +135,93 @@ class SamplingStageWorkTest {
         val stripped = com.eventverse.app.shared.json.JsonValue.Obj(legacy.entries - "activeWork")
         assertNull(SamplingOrderCodec.decode(stripped).activeWork)
     }
+
+    @Test
+    fun `advance after start should keep start time and operator in audit`() {
+        val advanced = order(SamplingPipelineStage.CUCI_SOFTENER)
+            .startStageWork("Sari", "sari@x.id", now)
+            .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, later, "sari@x.id")
+        val audit = advanced.stageHistory.last()
+        assertEquals(now, audit.workStartedAt)
+        assertEquals("Sari", audit.operatorName)
+    }
+
+    @Test
+    fun `release should be recorded without changing stage or hiding pending rework`() {
+        val reworked = order(SamplingPipelineStage.QC_FINISHING).sendBackForRework(
+            SamplingPipelineStage.LINKING_ASSEMBLY, "lepas", DefectLiability.FACTORY_WORKMANSHIP, "", "", now
+        )
+        val released = reworked.startStageWork("Rina", "", now).releaseStageWork(later, "rina@x.id")
+        val audit = released.stageHistory.last()
+        assertTrue(audit.isRelease)
+        assertEquals(now, audit.workStartedAt)
+        assertEquals(SamplingPipelineStage.LINKING_ASSEMBLY, released.pipelineStage)
+        assertEquals("lepas", released.pendingRework?.reason)
+        assertTrue(released.handoffsFrom(SamplingPipelineStage.LINKING_ASSEMBLY).isEmpty())
+    }
+
+    @Test
+    fun `makloon send and return should be recorded in stage history`() {
+        val sent = order(SamplingPipelineStage.MACHINE_KNITTING)
+            .assignMakloonVendor(MakloonVendorInfo(vendorName = "CV Rajut Jaya"), now, "admin@x.id")
+        val back = sent.recordVendorReturn(kotlinx.datetime.LocalDate(2026, 9, 25), later, "admin@x.id")
+        assertEquals(
+            listOf(SamplingPipelineStage.LINKING_ASSEMBLY, SamplingPipelineStage.CUCI_SOFTENER),
+            back.stageHistory.map { it.toStage }
+        )
+        assertEquals("CV Rajut Jaya", back.stageHistory.first().operatorName)
+    }
+
+    @Test
+    fun `codec round trip should keep start time and release flag`() {
+        val released = order(SamplingPipelineStage.SETRIKA_UAP).startStageWork("Sari", "", now).releaseStageWork(later, "s")
+        val decoded = SamplingOrderCodec.decode(SamplingOrderCodec.encode(released)).stageHistory.single()
+        assertTrue(decoded.isRelease)
+        assertEquals(now, decoded.workStartedAt)
+        assertEquals("Sari", decoded.operatorName)
+    }
+
+    @Test
+    fun `handoff should keep start time and operator after claim is cleared`() {
+        val advanced = order(SamplingPipelineStage.CUCI_SOFTENER)
+            .startStageWork("Sari", "", now)
+            .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, later, "sari@x.id")
+        val handoff = advanced.handoffsFrom(SamplingPipelineStage.CUCI_SOFTENER).single()
+        assertEquals(now, handoff.workStartedAt)
+        assertEquals("Sari", handoff.operatorName)
+    }
+
+    @Test
+    fun `release should be logged without hiding pending rework`() {
+        val released = order(SamplingPipelineStage.QC_FINISHING)
+            .sendBackForRework(SamplingPipelineStage.LINKING_ASSEMBLY, "lepas", DefectLiability.FACTORY_WORKMANSHIP, "", "", now)
+            .startStageWork("Rina", "", now)
+            .releaseStageWork(later, "rina@x.id")
+        val entry = released.stageHistory.last()
+        assertTrue(entry.isRelease)
+        assertEquals(now, entry.workStartedAt)
+        assertEquals("lepas", released.pendingRework?.reason)
+        assertTrue(released.handoffsFrom(SamplingPipelineStage.LINKING_ASSEMBLY).isEmpty())
+    }
+
+    @Test
+    fun `makloon send and return should be logged in stage history`() {
+        val sent = order(SamplingPipelineStage.MACHINE_KNITTING)
+            .assignMakloonVendor(MakloonVendorInfo(vendorName = "CV Rajut"), now, "admin@x.id")
+        val back = sent.recordVendorReturn(kotlinx.datetime.LocalDate(2026, 9, 25), later, "admin@x.id")
+        assertEquals(
+            listOf(SamplingPipelineStage.LINKING_ASSEMBLY, SamplingPipelineStage.CUCI_SOFTENER),
+            back.stageHistory.map { it.toStage }
+        )
+        assertEquals("CV Rajut", back.stageHistory.last().operatorName)
+    }
+
+    @Test
+    fun `codec round trip should keep work start and release flag`() {
+        val original = order(SamplingPipelineStage.SETRIKA_UAP).startStageWork("Budi", "", now).releaseStageWork(later)
+        val entry = SamplingOrderCodec.decode(SamplingOrderCodec.encode(original)).stageHistory.single()
+        assertTrue(entry.isRelease)
+        assertEquals(now, entry.workStartedAt)
+        assertEquals("Budi", entry.operatorName)
+    }
 }

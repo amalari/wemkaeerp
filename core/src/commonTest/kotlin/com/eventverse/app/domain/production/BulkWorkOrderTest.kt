@@ -202,4 +202,43 @@ class BulkWorkOrderTest {
         }
         assertTrue(error.message!!.contains("draft"))
     }
+
+    // ── Aturan 1 SPK = 1 ukuran ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `per size order with single matching breakdown line is valid`() {
+        val order = BulkWorkOrder(
+            id = BulkWorkOrderId("bwo-2"),
+            tenantId = TenantId("tnt-1"),
+            spkNumber = BulkSpkNumber("SPK-MSL-0002"),
+            clientName = "PT Sinar Jaya",
+            styleName = "Kemeja PDH",
+            goldenSampleOrderId = SamplingOrderId("smp-089"),
+            sizeBreakdown = listOf(BulkSizeLine("M", 400)),
+            sizeLabel = "M",
+            createdAt = NOW,
+            updatedAt = NOW
+        )
+
+        assertEquals("M", order.sizeLabel)
+        assertEquals(400, order.totalOrderedPcs)
+    }
+
+    @Test
+    fun `per size order with multi line breakdown should fail`() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            BulkWorkOrder(
+                id = BulkWorkOrderId("bwo-3"),
+                tenantId = TenantId("tnt-1"),
+                spkNumber = BulkSpkNumber("SPK-MSL-0003"),
+                clientName = "PT Sinar Jaya",
+                styleName = "Kemeja PDH",
+                sizeBreakdown = listOf(BulkSizeLine("M", 400), BulkSizeLine("L", 100)),
+                sizeLabel = "M",
+                createdAt = NOW,
+                updatedAt = NOW
+            )
+        }
+        assertTrue(error.message!!.contains("tepat satu"))
+    }
 }

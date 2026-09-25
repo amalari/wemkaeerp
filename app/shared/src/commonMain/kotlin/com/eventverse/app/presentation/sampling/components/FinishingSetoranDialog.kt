@@ -16,6 +16,7 @@ import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.sampling.FinishingDeposit
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.operator.SpkDetailPanel
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -66,6 +67,9 @@ fun FinishingSetoranDialog(
                         IconClose(modifier = Modifier.size(16.dp))
                     }
                 }
+
+                // Detail SPK dari tim sampling — operator tahu target & instruksi sebelum setor.
+                SpkDetailPanel(order = order, stage = order.pipelineStage)
 
                 // Progress Info Box
                 Box(

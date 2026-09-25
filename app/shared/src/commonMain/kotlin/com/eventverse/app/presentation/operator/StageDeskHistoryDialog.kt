@@ -57,10 +57,10 @@ fun StageDeskHistoryDialog(
     onDismiss: () -> Unit
 ) {
     var range by remember { mutableStateOf(HistoryRange.WEEK) }
-    val rows = remember(board.history, range, today) {
-        val days = range.days ?: return@remember board.history
+    val rows = remember(board.activity, range, today) {
+        val days = range.days ?: return@remember board.activity
         val from = today.minus(DatePeriod(days = days))
-        board.history.filter { it.audit.at.toLocalDateTime(timeZone).date >= from }
+        board.activity.filter { it.audit.at.toLocalDateTime(timeZone).date >= from }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -77,7 +77,7 @@ fun StageDeskHistoryDialog(
                     }
                 }
                 if (rows.isEmpty()) {
-                    Text(text = "Belum ada SPK yang diserahkan di rentang ini.", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
+                    Text(text = "Belum ada kejadian di meja ini pada rentang ini.", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
                 } else {
                     LazyColumn(
                         modifier = Modifier.heightIn(max = 440.dp),
@@ -101,8 +101,8 @@ private fun HistoryRow(handoff: DeskHandoff, timeZone: TimeZone) {
             .fillMaxWidth()
             .clayFlat(
                 shape = ClayShapes.Chip,
-                background = WeMadeColors.SurfaceMuted,
-                outline = WeMadeColors.Outline,
+                background = if (handoff.audit.isRework) WeMadeColors.ErrorBg else WeMadeColors.SurfaceMuted,
+                outline = if (handoff.audit.isRework) WeMadeColors.Error else WeMadeColors.Outline,
                 borderWidth = ClayBorder.Medium
             )
             .padding(ClaySpacing.Md),
@@ -119,15 +119,16 @@ private fun HistoryRow(handoff: DeskHandoff, timeZone: TimeZone) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${handoff.order.styleName} • ke ${handoff.audit.toStage.deskLabel} • ${handoff.audit.actorEmail}",
+                text = "${handoff.eventLabel} • ${handoff.workerLabel}",
                 fontSize = 11.sp,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Text(text = handoff.timingLine(timeZone), fontSize = 11.sp, color = WeMadeColors.OnSurface)
         }
         Text(
-            text = formatDeskTime(handoff.audit.at, timeZone),
+            text = handoff.workMinutes?.let(::formatDeskDuration) ?: "–",
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurface

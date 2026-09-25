@@ -229,6 +229,9 @@ fun SamplingWorkspaceScreen(
                     )
                 )
             },
+            onSaveRdResult = { sections ->
+                viewModel.onEvent(SamplingUiEvent.SaveStageInput(target.id, SamplingPipelineStage.CAM_PROGRAMMING, sections))
+            },
             onDetermineFlow = { viewModel.onEvent(SamplingUiEvent.DetermineFlow(target.id)) },
             onCreateTechPack = onCreateTechPack,
             processFlowViewModel = processFlowViewModel

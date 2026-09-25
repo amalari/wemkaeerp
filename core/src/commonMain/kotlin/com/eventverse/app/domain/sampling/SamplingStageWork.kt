@@ -56,7 +56,7 @@ val SamplingOrder.reworkCount: Int
  * tahap ini lewat jalur maju biasa. Dipakai untuk menaruh kartu rework di puncak antrian.
  */
 val SamplingOrder.pendingRework: StageTransitionAudit?
-    get() = stageHistory.lastOrNull()?.takeIf { it.isRework && it.toStage == pipelineStage }
+    get() = stageHistory.lastOrNull { !it.isRelease }?.takeIf { it.isRework && it.toStage == pipelineStage }
 
 /**
  * Semua kali SPK ini diserahkan maju dari [stage], terbaru dulu. Kiriman balik rework tidak
@@ -79,11 +79,31 @@ fun SamplingOrder.startStageWork(operatorName: String, actorEmail: String, now: 
     )
 }
 
-/** Mengembalikan SPK ke antrian mejanya (salah ambil, operator ganti shift). */
-fun SamplingOrder.releaseStageWork(now: Instant): SamplingOrder {
-    require(currentWork != null) { "SPK ini tidak sedang dikerjakan" }
-    return copy(activeWork = null, updatedAt = now)
+/**
+ * Mengembalikan SPK ke antrian mejanya (salah ambil, operator ganti shift). Ikut tercatat di
+ * riwayat — kartu yang berkali-kali diambil lalu dikembalikan adalah sinyal ada yang macet.
+ */
+fun SamplingOrder.releaseStageWork(now: Instant, actorEmail: String = ""): SamplingOrder {
+    val claim = requireNotNull(currentWork) { "SPK ini tidak sedang dikerjakan" }
+    val audit = StageTransitionAudit(
+        fromStage = pipelineStage,
+        toStage = pipelineStage,
+        actorEmail = actorEmail,
+        actorRole = "OPERATOR",
+        at = now,
+        workStartedAt = claim.startedAt,
+        operatorName = claim.operatorName,
+        isRelease = true
+    )
+    return copy(activeWork = null, stageHistory = stageHistory + audit, updatedAt = now)
 }
+
+/** Kapan SPK tiba di tahap asal entri [handoff] — entri maju/rework terakhir yang menuju ke sana. */
+fun SamplingOrder.arrivalBefore(handoff: StageTransitionAudit): Instant? =
+    stageHistory
+        .takeWhile { it !== handoff }
+        .lastOrNull { !it.isRelease && it.toStage == handoff.fromStage }
+        ?.at
 
 /**
  * Mengirim SPK mundur ke meja penyebab cacat. Kartunya mendarat di antrian meja tujuan dan

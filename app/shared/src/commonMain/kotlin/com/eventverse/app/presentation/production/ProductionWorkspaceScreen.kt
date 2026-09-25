@@ -305,6 +305,10 @@ private fun WorkOrderCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            order.sizeLabel?.let { size ->
+                Spacer(Modifier.width(ClaySpacing.Sm))
+                ClayTag(text = size, tint = WeMadeColors.Primary)
+            }
             Spacer(Modifier.width(ClaySpacing.Sm))
             ProductionHealthBadge(order.healthStatus)
         }

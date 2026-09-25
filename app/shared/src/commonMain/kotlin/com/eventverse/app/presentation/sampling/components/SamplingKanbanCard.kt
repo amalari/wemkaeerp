@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.sampling.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,9 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,16 +28,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.QcInspectionResult
 import com.eventverse.app.domain.sampling.RD_STAGES
@@ -45,7 +56,7 @@ import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
-import com.eventverse.app.presentation.designsystem.ClayChoiceChip
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -183,29 +194,46 @@ private fun SamplingKanbanCardBody(order: SamplingOrder, isSelected: Boolean) {
         }
     }
 
-    Text(
-        text = order.clientName,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = WeMadeColors.OnSurface
-    )
-    Text(
-        text = order.styleName,
-        fontSize = 11.sp,
-        color = WeMadeColors.OnSurfaceMuted
-    )
+    // Body content: Info teks di kiri, pratinjau mockup thumbnail di kanan
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = if (order.mockupFrontKey != null) ClaySpacing.Sm else 0.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = order.clientName,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = order.styleName,
+                fontSize = 11.sp,
+                color = WeMadeColors.OnSurfaceMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
+            SamplingKanbanMetaBadges(order)
+        }
 
-    SamplingKanbanMockupPreview(order)
-    SamplingKanbanMetaBadges(order)
+        SamplingKanbanMockupPreview(order)
+    }
+
     if (order.pipelineStage in RD_STAGES) SamplingRdProgressTrack(order)
 }
 
 /**
- * Pratinjau mockup di kartu kanban: thumbnail persegi di kiri + pemilih tampak Depan/Belakang.
- *
- * Mockup diunggah lewat cropper 1:1, jadi tile persegi menampilkan gambarnya utuh — berbeda
- * dari pratinjau full-width lama yang meng-crop bagian atas/bawah desain. Bila SPK punya foto
- * tampak belakang ([SamplingOrder.mockupBackKey]), pemilih tampak muncul di samping thumbnail.
+ * Pratinjau mockup di kartu kanban: thumbnail diperbesar di sisi kanan kartu dengan
+ * navigasi arrow carousel di dalam gambar untuk beralih tampak Depan/Belakang.
  */
 @Composable
 private fun SamplingKanbanMockupPreview(order: SamplingOrder) {
@@ -215,49 +243,137 @@ private fun SamplingKanbanMockupPreview(order: SamplingOrder) {
     val showingBack = showBack && backKey != null
     val bitmap = rememberMockupBitmap(if (showingBack) backKey else frontKey)
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        SamplingMockupThumbnail(bitmap = bitmap, isBackView = showingBack)
-        if (backKey != null) {
-            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                ClayChoiceChip(text = "Depan", selected = !showingBack, onClick = { showBack = false })
-                ClayChoiceChip(text = "Belakang", selected = showingBack, onClick = { showBack = true })
-            }
-        }
-    }
+    SamplingMockupThumbnail(
+        bitmap = bitmap,
+        isBackView = showingBack,
+        canToggle = backKey != null,
+        onToggle = { showBack = !showBack }
+    )
 }
 
 @Composable
-private fun SamplingMockupThumbnail(bitmap: ImageBitmap?, isBackView: Boolean) {
+private fun SamplingMockupThumbnail(
+    bitmap: ImageBitmap?,
+    isBackView: Boolean,
+    canToggle: Boolean,
+    onToggle: () -> Unit
+) {
+    val imageSize = 90.dp
     Box(
         modifier = Modifier
-            .size(64.dp)
+            .size(imageSize)
             .clip(ClayShapes.Tile)
-            .background(WeMadeColors.SurfaceMuted),
+            .background(WeMadeColors.SurfaceMuted)
+            .clickable(enabled = canToggle, onClick = onToggle),
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
             Image(
                 bitmap = bitmap,
                 contentDescription = if (isBackView) "Mockup Tampak Belakang" else "Mockup Tampak Depan",
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
         } else {
-            IconInbox(modifier = Modifier.size(20.dp), color = WeMadeColors.OnSurfaceMuted)
+            IconInbox(modifier = Modifier.size(24.dp), color = WeMadeColors.OnSurfaceMuted)
+        }
+
+        if (canToggle) {
+            // Tombol Arrow Kiri (Previous) di dalam gambar
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 3.dp)
+                    .size(22.dp)
+                    .clip(ClayShapes.Pill)
+                    .background(WeMadeColors.SurfaceDark.copy(alpha = 0.65f))
+                    .clickable(onClick = onToggle),
+                contentAlignment = Alignment.Center
+            ) {
+                CarouselChevron(
+                    isNext = false,
+                    modifier = Modifier.size(12.dp),
+                    color = WeMadeColors.Surface
+                )
+            }
+
+            // Tombol Arrow Kanan (Next) di dalam gambar
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 3.dp)
+                    .size(22.dp)
+                    .clip(ClayShapes.Pill)
+                    .background(WeMadeColors.SurfaceDark.copy(alpha = 0.65f))
+                    .clickable(onClick = onToggle),
+                contentAlignment = Alignment.Center
+            ) {
+                CarouselChevron(
+                    isNext = true,
+                    modifier = Modifier.size(12.dp),
+                    color = WeMadeColors.Surface
+                )
+            }
+
+            // Indikator titik carousel di bawah gambar
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(WeMadeColors.SurfaceDark.copy(alpha = 0.55f))
+                    .padding(vertical = 2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (!isBackView) 10.dp else 4.dp, height = 4.dp)
+                            .background(
+                                color = if (!isBackView) WeMadeColors.Primary else WeMadeColors.Surface.copy(alpha = 0.6f),
+                                shape = ClayShapes.Pill
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (isBackView) 10.dp else 4.dp, height = 4.dp)
+                            .background(
+                                color = if (isBackView) WeMadeColors.Primary else WeMadeColors.Surface.copy(alpha = 0.6f),
+                                shape = ClayShapes.Pill
+                            )
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
+private fun CarouselChevron(isNext: Boolean, modifier: Modifier = Modifier, color: Color = WeMadeColors.Surface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        val path = Path().apply {
+            if (isNext) {
+                moveTo(w * 0.35f, h * 0.22f)
+                lineTo(w * 0.65f, h * 0.50f)
+                lineTo(w * 0.35f, h * 0.78f)
+            } else {
+                moveTo(w * 0.65f, h * 0.22f)
+                lineTo(w * 0.35f, h * 0.50f)
+                lineTo(w * 0.65f, h * 0.78f)
+            }
+        }
+        drawPath(path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
 private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    ClayFlowRow(spacing = ClaySpacing.Xs) {
         ClayTag(
             text = "${order.sampleQuantity} Pcs",
             tint = WeMadeColors.Info
@@ -272,10 +388,9 @@ private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
                 tint = WeMadeColors.Accent
             )
         }
-    }
-    // Siapa yang sedang memegang SPK di meja Lantai Produksi — jawaban "sampelnya di siapa".
-    order.currentWork?.let { claim ->
-        ClayTag(text = "Dikerjakan: ${claim.operatorName}", tint = WeMadeColors.Accent)
+        order.currentWork?.let { claim ->
+            ClayTag(text = "Dikerjakan: ${claim.operatorName}", tint = WeMadeColors.Accent)
+        }
     }
 }
 

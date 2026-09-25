@@ -310,7 +310,7 @@ fun Route.samplingRoutes(
                 notes = json.string("notes") ?: ""
             )
 
-            val updated = repository.save(order.assignMakloonVendor(info, Clock.System.now()))
+            val updated = repository.save(order.assignMakloonVendor(info, Clock.System.now(), call.callerPrincipalOrNull?.email ?: "unknown"))
             call.respondJson(SamplingOrderCodec.encode(updated).encode())
         }
 
@@ -325,7 +325,7 @@ fun Route.samplingRoutes(
             val order = repository.findById(SamplingOrderId(idParam))
                 ?: return@post call.respond(HttpStatusCode.NotFound, "Sampling order not found")
 
-            val updated = repository.save(order.recordVendorReturn(returnedAt, Clock.System.now()))
+            val updated = repository.save(order.recordVendorReturn(returnedAt, Clock.System.now(), call.callerPrincipalOrNull?.email ?: "unknown"))
             call.respondJson(SamplingOrderCodec.encode(updated).encode())
         }
 

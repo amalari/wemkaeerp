@@ -107,6 +107,7 @@ class PostgresBulkWorkOrderRepository : BulkWorkOrderRepository {
         this[BulkWorkOrdersTable.status] = order.status.name
         this[BulkWorkOrdersTable.stockOwnership] = order.stockOwnership.name
         this[BulkWorkOrdersTable.sizeBreakdown] = BulkWorkOrderCodec.encodeSizeBreakdown(order.sizeBreakdown)
+        this[BulkWorkOrdersTable.sizeLabel] = order.sizeLabel
         this[BulkWorkOrdersTable.lineAllocations] = BulkWorkOrderCodec.encodeAllocations(order.lineAllocations)
         this[BulkWorkOrdersTable.stageProgress] = BulkWorkOrderCodec.encodeStageProgress(order.stageProgress)
         this[BulkWorkOrdersTable.targetOutputPerDay] = order.targetOutputPerDay
@@ -132,6 +133,7 @@ class PostgresBulkWorkOrderRepository : BulkWorkOrderRepository {
         stockOwnership = runCatching { StockOwnershipSemantics.valueOf(row[BulkWorkOrdersTable.stockOwnership]) }
             .getOrDefault(StockOwnershipSemantics.OWNED_RAW_MATERIAL),
         sizeBreakdown = BulkWorkOrderCodec.decodeSizeBreakdown(row[BulkWorkOrdersTable.sizeBreakdown]),
+        sizeLabel = row[BulkWorkOrdersTable.sizeLabel],
         lineAllocations = BulkWorkOrderCodec.decodeAllocations(row[BulkWorkOrdersTable.lineAllocations]),
         stageProgress = BulkWorkOrderCodec.decodeStageProgress(row[BulkWorkOrdersTable.stageProgress]),
         targetOutputPerDay = row[BulkWorkOrdersTable.targetOutputPerDay],

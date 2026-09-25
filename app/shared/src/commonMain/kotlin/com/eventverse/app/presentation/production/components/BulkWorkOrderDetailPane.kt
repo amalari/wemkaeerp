@@ -85,6 +85,15 @@ private fun HeaderCard(order: BulkWorkOrder) {
             }
             Spacer(Modifier.width(ClaySpacing.Sm))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                val sizeTag = order.sizeLabel
+                when {
+                    // Aturan 1 SPK = 1 ukuran; SPK lama multi-size ditandai legacy (read-only).
+                    sizeTag != null -> ClayTag(text = sizeTag, tint = WeMadeColors.Primary)
+                    order.sizeBreakdown.size > 1 -> ClayTag(
+                        text = "Legacy multi-size",
+                        tint = WeMadeColors.OnSurfaceMuted
+                    )
+                }
                 ProductionStatusBadge(order.status)
                 ProductionHealthBadge(order.healthStatus)
             }

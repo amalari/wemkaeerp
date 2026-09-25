@@ -13,6 +13,11 @@ data class DepartmentModuleAssignment(
     val accessLevel: AccessLevel = AccessLevel.OPERATE,
     val specificRoleIds: Set<String> = emptySet(),
     val scope: DataScope = DataScope.ALL_TENANT_DATA,
+    /**
+     * Meja lantai produksi yang boleh diakses divisi ini (nama [com.eventverse.app.domain.sampling.SamplingPipelineStage]).
+     * `null` atau kosong berarti seluruh meja — kompatibel dengan data lama.
+     */
+    val allowedDesks: Set<String>? = null,
     val id: String = ""
 ) {
     val appliesToAllRoles: Boolean get() = specificRoleIds.isEmpty()
@@ -23,12 +28,14 @@ data class DepartmentModuleAssignment(
     fun updateAccess(
         level: AccessLevel,
         newScope: DataScope = scope,
-        roleIds: Set<String> = specificRoleIds
+        roleIds: Set<String> = specificRoleIds,
+        desks: Set<String>? = allowedDesks
     ): DepartmentModuleAssignment {
         return copy(
             accessLevel = level,
             scope = newScope,
-            specificRoleIds = roleIds
+            specificRoleIds = roleIds,
+            allowedDesks = desks
         )
     }
 }
