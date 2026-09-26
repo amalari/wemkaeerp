@@ -1,8 +1,13 @@
 {
+    "java.jdt.ls.java.home": "/Volumes/amalari/tools/sdkman/candidates/java/current",
+    "java.import.gradle.java.home": "/Volumes/amalari/tools/sdkman/candidates/java/current",
+    "java.import.gradle.user.home": "/Volumes/amalari/.gradle",
+    "gradle.userHome": "/Volumes/amalari/.gradle",
+    "gradle.java.home": "/Volumes/amalari/tools/sdkman/candidates/java/current",
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.import.gradle.wrapper.enabled": true,
-    "java.import.gradle.version": "9.1.0",
+    "java.import.gradle.version": "9.8.0",
     "gradle.wrapperScript": "./gradlew",
     "gradle.useGradleDaemon": true
 }
