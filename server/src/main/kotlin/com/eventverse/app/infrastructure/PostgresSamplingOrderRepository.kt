@@ -79,6 +79,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         row[vendorStatus] = order.vendorInfo.status.name
         row[vendorNotes] = order.vendorInfo.notes
         row[sizeMode] = order.sizeMode.name
+        row[sizeLabel] = order.sizeLabel
+        row[parentSamplingOrderId] = order.parentSamplingOrderId?.value
         row[deadlineProgram] = order.deadlineProgram
         row[deadlineFinishing] = order.deadlineFinishing
         row[deadlineDelivery] = order.deadlineDelivery
@@ -88,8 +90,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         row[courierTracking] = order.courierTracking
         row[samplingFeeIdr] = order.samplingFeeIdr
         row[revisionCount] = order.revisionCount
-        row[revisionHistory] = encodeRevisionHistory(order.revisionHistory)
-        row[sizeMatrix] = sizeMatrixJson(order.sizeMatrix).encode()
+        row[revisionHistory] = SamplingOrderPersistenceMapper.encodeRevisionHistory(order.revisionHistory)
+        row[sizeMatrix] = SamplingOrderPersistenceMapper.sizeMatrixJson(order.sizeMatrix).encode()
         row[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
         row[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
         row[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
@@ -285,12 +287,16 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
 
     override suspend fun nextSpkNumber(tenantId: TenantId): SpkNumber =
         DatabaseFactory.dbQuery(tenantId) {
-            val count = SamplingOrdersTable.selectAll()
+            val highest = SamplingOrdersTable.selectAll()
                 .where { SamplingOrdersTable.tenantId eq tenantId.value }
-                .count()
+                .mapNotNull { row ->
+                    row[SamplingOrdersTable.spkNumber]
+                        .removePrefix("SPK-SMP-")
+                        .toIntOrNull()
+                }
+                .maxOrNull() ?: 0
 
-            val index = count + 1
-            val padded = index.toString().padStart(4, '0')
+            val padded = (highest + 1).toString().padStart(4, '0')
             SpkNumber("SPK-SMP-$padded")
         }
 
@@ -549,6 +555,8 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             finishingPath = runCatching { FinishingPath.valueOf(orderRow[SamplingOrdersTable.finishingPath]) }.getOrNull() ?: FinishingPath.INTERNAL,
             vendorInfo = vendorInfo,
             sizeMode = runCatching { SizeMode.valueOf(orderRow[SamplingOrdersTable.sizeMode]) }.getOrNull() ?: SizeMode.ALL_SIZE,
+            sizeLabel = orderRow[SamplingOrdersTable.sizeLabel],
+            parentSamplingOrderId = orderRow[SamplingOrdersTable.parentSamplingOrderId]?.let { SamplingOrderId(it) },
             deadlineProgram = orderRow[SamplingOrdersTable.deadlineProgram],
             deadlineFinishing = orderRow[SamplingOrdersTable.deadlineFinishing],
             deadlineDelivery = orderRow[SamplingOrdersTable.deadlineDelivery],
@@ -558,7 +566,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             courierTracking = orderRow[SamplingOrdersTable.courierTracking],
             samplingFeeIdr = orderRow[SamplingOrdersTable.samplingFeeIdr],
             revisionCount = orderRow[SamplingOrdersTable.revisionCount],
-            revisionHistory = parseRevisionHistory(
+            revisionHistory = SamplingOrderPersistenceMapper.parseRevisionHistory(
                 raw = orderRow[SamplingOrdersTable.revisionHistory],
                 fallbackAt = orderRow[SamplingOrdersTable.updatedAt]
             ),
@@ -567,7 +575,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             knitSpec = knitSpec,
             finishedSizeCharts = finishedSizes,
             rawKnitSizeCharts = rawKnitSizes,
-            sizeMatrix = parseSizeMatrix(orderRow[SamplingOrdersTable.sizeMatrix]),
+            sizeMatrix = SamplingOrderPersistenceMapper.parseSizeMatrix(orderRow[SamplingOrdersTable.sizeMatrix]),
             stageInputs = StageWorkInputCodec.decodeInputs(orderRow[SamplingOrdersTable.stageInputs]),
             stageHistory = StageWorkInputCodec.decodeHistory(
                 raw = orderRow[SamplingOrdersTable.stageHistory],
@@ -595,94 +603,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         )
     }
 
-    /** Jsonb `size_matrix` -> daftar baris ukuran; fallback ke default jika kosong. */
-    private fun parseSizeMatrix(raw: String?): List<SizeChartRow> =
-        runCatching {
-            if (raw.isNullOrBlank()) return@runCatching defaultSamplingSizeMatrix()
-            JsonParser.parseArray(raw)
-                .filterIsInstance<JsonValue.Obj>()
-                .map(::parseSizeChartRow)
-                .ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
-        }.getOrDefault(defaultSamplingSizeMatrix()).let(::ensureSamplingQtyRow)
 
-    /** Satu baris jsonb size_matrix -> SizeChartRow (dipakai parseSizeMatrix & snapshot revisi). */
-    private fun parseSizeChartRow(rowObj: JsonValue.Obj): SizeChartRow {
-        val valuesMap = mutableMapOf<String, String>()
-        rowObj.obj("values")?.entries?.forEach { (k, v) ->
-            when (v) {
-                is JsonValue.Str -> valuesMap[k] = v.value
-                is JsonValue.Num -> valuesMap[k] = v.raw
-                else -> Unit
-            }
-        }
-        return SizeChartRow(
-            id = rowObj.string("id") ?: "",
-            pomName = rowObj.string("pomName") ?: "",
-            values = valuesMap
-        )
-    }
-
-    /** Satu bentuk encoding size_matrix untuk insert, update, dan snapshot revisi. */
-    private fun sizeMatrixJson(rows: List<SizeChartRow>) =
-        jsonArrayOf(rows.map { row ->
-            jsonObjectOf(
-                "id" to jsonOf(row.id),
-                "pomName" to jsonOf(row.pomName),
-                "values" to jsonStringMapOf(row.values)
-            )
-        })
-
-    private fun encodeRevisionHistory(history: List<RevisionFeedback>): String =
-        jsonArrayOf(history.map { entry ->
-            val pairs = mutableListOf(
-                "revision" to jsonOf(entry.revision),
-                "notes" to jsonOf(entry.notes),
-                "at" to jsonOf(entry.at.toString())
-            )
-            entry.snapshot?.let { snap ->
-                pairs.add("snapshot" to jsonObjectOf(
-                    "mockupFrontKey" to jsonOf(snap.mockupFrontKey),
-                    "mockupBackKey" to jsonOf(snap.mockupBackKey),
-                    "sampleQuantity" to jsonOf(snap.sampleQuantity),
-                    "samplingFeeIdr" to jsonOf(snap.samplingFeeIdr),
-                    "notes" to jsonOf(snap.notes),
-                    "sizeMatrix" to sizeMatrixJson(snap.sizeMatrix)
-                ))
-            }
-            JsonValue.Obj(pairs.toMap())
-        }).encode()
-
-    /** Jsonb `revision_history` -> daftar feedback + snapshot; data rusak/lama = daftar kosong, bukan error. */
-    private fun parseRevisionHistory(raw: String, fallbackAt: Instant): List<RevisionFeedback> =
-        runCatching {
-            JsonParser.parseArray(raw)
-                .filterIsInstance<JsonValue.Obj>()
-                .mapNotNull { entry ->
-                    val at = runCatching { Instant.parse(entry.string("at") ?: "") }
-                        .getOrDefault(fallbackAt)
-                    val revision = entry.int("revision") ?: return@mapNotNull null
-                    val snapObj = entry.obj("snapshot")
-                    val snap = snapObj?.let { sObj ->
-                        val snapMatrix = sObj.objectArray("sizeMatrix")
-                            .map(::parseSizeChartRow)
-                            .ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
-                        SamplingSnapshot(
-                            mockupFrontKey = sObj.string("mockupFrontKey"),
-                            mockupBackKey = sObj.string("mockupBackKey"),
-                            sizeMatrix = snapMatrix,
-                            sampleQuantity = sObj.int("sampleQuantity") ?: 1,
-                            samplingFeeIdr = sObj.long("samplingFeeIdr") ?: 0L,
-                            notes = sObj.string("notes") ?: ""
-                        )
-                    }
-                    RevisionFeedback(
-                        revision = revision,
-                        notes = entry.string("notes") ?: "",
-                        at = at,
-                        snapshot = snap
-                    )
-                }
-        }.getOrDefault(emptyList())
 
     private fun toSizeMeasurement(row: ResultRow): SizeMeasurement = SizeMeasurement(
         sizeLabel = row[SamplingSizeChartsTable.sizeLabel],

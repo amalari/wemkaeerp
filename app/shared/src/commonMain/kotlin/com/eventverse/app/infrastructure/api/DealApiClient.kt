@@ -209,6 +209,25 @@ class DealApiClient(
         SamplingOrderCodec.decode(JsonParser.parseObject(body))
     }
 
+    override suspend fun publishSamplingSpk(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String
+    ): Result<List<SamplingOrder>> = runCatching {
+        val response = httpClient.post(
+            resolveUrl("$DEALS_PATH/$dealId/sampling-orders/$samplingOrderId/publish-spk")
+        ) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+        }
+        val body = response.requireBody("menerbitkan SPK sampling")
+        when (val json = JsonParser.parse(body)) {
+            is JsonValue.Arr -> json.items.mapNotNull { if (it is JsonValue.Obj) SamplingOrderCodec.decode(it) else null }
+            is JsonValue.Obj -> listOf(SamplingOrderCodec.decode(json))
+            else -> emptyList()
+        }
+    }
+
     override suspend fun approveSamplingOrder(
         tenantSlug: String,
         dealId: String,

@@ -28,17 +28,27 @@ data class DealUiState(
 ) {
     val hasDeal: Boolean get() = deal != null
 
+    /** Root lembar desain (1 desain = 1 root, bisa memiliki N SPK turunan per ukuran). */
+    val designRoots: List<SamplingOrder>
+        get() = samplingOrders.filter { it.parentSamplingOrderId == null }
+
     /** Desain aktif = belum ACC dan tidak dibatalkan — inilah yang mengunci Tab Produksi. */
     val activeDesigns: List<SamplingOrder>
-        get() = samplingOrders.filter { it.isActiveDesign }
+        get() = designRoots.filter { root ->
+            val spks = samplingOrders.filter { it.id == root.id || it.parentSamplingOrderId == root.id }
+            spks.any { it.isActiveDesign }
+        }
 
     /** Desain yang sudah di-ACC buyer — acuan Golden Sample Tab Produksi. */
     val approvedDesigns: List<SamplingOrder>
-        get() = samplingOrders.filter { it.isAccApproved }
+        get() = designRoots.filter { root ->
+            val spks = samplingOrders.filter { it.id == root.id || it.parentSamplingOrderId == root.id }
+            spks.isNotEmpty() && spks.all { it.isAccApproved }
+        }
 
     /** Gerbang Tab Produksi Massal: terbuka hanya jika tidak ada desain aktif tersisa. */
     val productionUnlocked: Boolean
-        get() = samplingOrders.isNotEmpty() && activeDesigns.isEmpty()
+        get() = designRoots.isNotEmpty() && activeDesigns.isEmpty()
 }
 
 sealed interface DealUiEvent {

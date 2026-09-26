@@ -38,6 +38,8 @@ data class SamplingOrder(
     val finishingPath: FinishingPath = FinishingPath.INTERNAL,
     val vendorInfo: MakloonVendorInfo = MakloonVendorInfo(),
     val sizeMode: SizeMode = SizeMode.ALL_SIZE,
+    val sizeLabel: String? = null,
+    val parentSamplingOrderId: SamplingOrderId? = null,
     val deadlineProgram: LocalDate? = null,
     val deadlineFinishing: LocalDate? = null,
     val deadlineDelivery: LocalDate? = null,

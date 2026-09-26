@@ -137,4 +137,19 @@ class SamplingSizeMatrixAndSnapshotTest {
         assertEquals(250000L, decodedSnapshot.samplingFeeIdr)
         assertTrue(decodedSnapshot.sizeMatrix.any { it.isQtyRow })
     }
+
+    @Test
+    fun activeSizesWithAllocatedQty_shouldReturnOnlyCompleteSizesWithPositiveQty() {
+        val matrix = listOf(
+            SizeChartRow(id = SAMPLING_QTY_ROW_ID, pomName = SAMPLING_QTY_ROW_NAME, values = mapOf("ALL SIZE" to "2", "S" to "2", "M" to "0", "L" to "3")),
+            SizeChartRow(id = "pom_lebar_dada", pomName = "Lebar Dada", values = mapOf("ALL SIZE" to "60", "S" to "50", "M" to "52")),
+            SizeChartRow(id = "pom_panjang_baju", pomName = "Panjang Baju", values = mapOf("ALL SIZE" to "72", "S" to "68", "M" to "70"))
+        )
+        // ALL SIZE: complete (60, 72) and qty=2 -> YES
+        // S: complete (50, 68) and qty=2 -> YES
+        // M: complete (52, 70), but qty=0 -> NO
+        // L: qty=3, but NO POM values -> NO
+        val active = activeSizesWithAllocatedQty(matrix)
+        assertEquals(listOf(Pair("ALL SIZE", 2), Pair("S", 2)), active)
+    }
 }

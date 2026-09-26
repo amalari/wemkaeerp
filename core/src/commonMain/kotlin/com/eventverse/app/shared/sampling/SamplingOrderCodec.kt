@@ -20,6 +20,8 @@ object SamplingOrderCodec {
         "finishingPath" to jsonOf(order.finishingPath.name),
         "vendorInfo" to encodeVendorInfo(order.vendorInfo),
         "sizeMode" to jsonOf(order.sizeMode.name),
+        "sizeLabel" to jsonOf(order.sizeLabel),
+        "parentSamplingOrderId" to jsonOf(order.parentSamplingOrderId?.value),
         "deadlineProgram" to jsonOf(order.deadlineProgram?.toString()),
         "deadlineFinishing" to jsonOf(order.deadlineFinishing?.toString()),
         "deadlineDelivery" to jsonOf(order.deadlineDelivery?.toString()),
@@ -104,6 +106,8 @@ object SamplingOrderCodec {
         val finishingPath = obj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
         val vendorInfo = decodeVendorInfo(obj.obj("vendorInfo")) ?: MakloonVendorInfo()
         val sizeMode = obj.string("sizeMode")?.let { runCatching { SizeMode.valueOf(it) }.getOrNull() } ?: SizeMode.ALL_SIZE
+        val sizeLabel = obj.string("sizeLabel")
+        val parentSamplingOrderId = obj.string("parentSamplingOrderId")?.takeIf { it.isNotBlank() }?.let { SamplingOrderId(it) }
 
         val deadlineProgram = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineProgram"))
         val deadlineFinishing = com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(obj.string("deadlineFinishing"))
@@ -220,6 +224,8 @@ object SamplingOrderCodec {
             finishingPath = finishingPath,
             vendorInfo = vendorInfo,
             sizeMode = sizeMode,
+            sizeLabel = sizeLabel,
+            parentSamplingOrderId = parentSamplingOrderId,
             deadlineProgram = deadlineProgram,
             deadlineFinishing = deadlineFinishing,
             deadlineDelivery = deadlineDelivery,

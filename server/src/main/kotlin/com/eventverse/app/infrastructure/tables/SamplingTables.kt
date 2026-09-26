@@ -27,6 +27,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val vendorStatus = varchar("vendor_status", 50).default("NONE")
     val vendorNotes = text("vendor_notes").default("")
     val sizeMode = varchar("size_mode", 20).default("ALL_SIZE")
+    val sizeLabel = varchar("size_label", 60).nullable()
+    val parentSamplingOrderId = varchar("parent_sampling_order_id", 64).references(SamplingOrdersTable.id).nullable()
 
     val deadlineProgram = date("deadline_program").nullable()
     val deadlineFinishing = date("deadline_finishing").nullable()

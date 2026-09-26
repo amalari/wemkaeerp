@@ -234,7 +234,7 @@ private fun DealTabButton(
     val locked = tab == DealDetailTab.MASS_PRODUCTION && !state.productionUnlocked
     val prefix = if (tab == DealDetailTab.SAMPLING) "Tab 1" else "Tab 2"
     val label = if (tab == DealDetailTab.SAMPLING) {
-        "$prefix: ${tab.label} (${state.samplingOrders.size} Desain)"
+        "$prefix: ${tab.label} (${state.designRoots.size} Desain)"
     } else {
         "$prefix: ${tab.label}"
     }
@@ -307,15 +307,16 @@ private fun SamplingTabContent(
     // setelah admin menekan chevron.
     var expandedOverride by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
+    val roots = state.designRoots
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = when {
-                state.samplingOrders.isEmpty() ->
+                roots.isEmpty() ->
                     "Belum ada desain sampling. Tambahkan desain pertama di bawah."
                 state.productionUnlocked ->
                     "Semua desain sudah di-ACC — Tab Produksi Massal terbuka."
                 else ->
-                    "${state.approvedDesigns.size} dari ${state.samplingOrders.size} Desain sudah di-ACC"
+                    "${state.approvedDesigns.size} dari ${roots.size} Desain sudah di-ACC"
             },
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
@@ -329,8 +330,8 @@ private fun SamplingTabContent(
         // Layout Masonry 2 Kolom: Kolom kiri dan kanan mengalir secara independen sehingga
         // kartu di bawah kartu yang di-collapse tidak tertinggal jauh ("ompong") mengikuti
         // tinggi kartu tetangganya yang sedang terbuka.
-        val leftColumnOrders = state.samplingOrders.filterIndexed { index, _ -> index % 2 == 0 }
-        val rightColumnOrders = state.samplingOrders.filterIndexed { index, _ -> index % 2 == 1 }
+        val leftColumnOrders = roots.filterIndexed { index, _ -> index % 2 == 0 }
+        val rightColumnOrders = roots.filterIndexed { index, _ -> index % 2 == 1 }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -341,14 +342,16 @@ private fun SamplingTabContent(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
             ) {
-                leftColumnOrders.forEach { order ->
-                    val isExpanded = expandedOverride[order.id.value] ?: order.isActiveDesign
+                leftColumnOrders.forEach { root ->
+                    val isExpanded = expandedOverride[root.id.value] ?: root.isActiveDesign
+                    val spks = state.samplingOrders.filter { it.id == root.id || it.parentSamplingOrderId == root.id }
                     SamplingDesignCard(
-                        order = order,
-                        designCode = designCodeOf(state.samplingOrders, order),
+                        order = root,
+                        spkOrders = spks,
+                        designCode = designCodeOf(roots, root),
                         expanded = isExpanded,
                         onToggleExpanded = {
-                            expandedOverride = expandedOverride + (order.id.value to !isExpanded)
+                            expandedOverride = expandedOverride + (root.id.value to !isExpanded)
                         },
                         onEvent = onEvent,
                         modifier = Modifier.fillMaxWidth()
@@ -359,14 +362,16 @@ private fun SamplingTabContent(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
             ) {
-                rightColumnOrders.forEach { order ->
-                    val isExpanded = expandedOverride[order.id.value] ?: order.isActiveDesign
+                rightColumnOrders.forEach { root ->
+                    val isExpanded = expandedOverride[root.id.value] ?: root.isActiveDesign
+                    val spks = state.samplingOrders.filter { it.id == root.id || it.parentSamplingOrderId == root.id }
                     SamplingDesignCard(
-                        order = order,
-                        designCode = designCodeOf(state.samplingOrders, order),
+                        order = root,
+                        spkOrders = spks,
+                        designCode = designCodeOf(roots, root),
                         expanded = isExpanded,
                         onToggleExpanded = {
-                            expandedOverride = expandedOverride + (order.id.value to !isExpanded)
+                            expandedOverride = expandedOverride + (root.id.value to !isExpanded)
                         },
                         onEvent = onEvent,
                         modifier = Modifier.fillMaxWidth()
@@ -383,12 +388,12 @@ private fun SamplingTabContent(
             horizontalArrangement = Arrangement.Center
         ) {
             ClayButton(
-                text = if (state.samplingOrders.isEmpty()) "Tambah Desain Sampling" else "Tambah Desain Baru",
+                text = if (roots.isEmpty()) "Tambah Desain Sampling" else "Tambah Desain Baru",
                 onClick = {
                     onEvent(
                         DealUiEvent.SaveSamplingOrder(
                             samplingOrderId = null,
-                            styleName = nextDesignCode(state.samplingOrders),
+                            styleName = nextDesignCode(roots),
                             sampleQuantity = 2,
                             courierTracking = null,
                             samplingFeeIdr = 0L,
@@ -406,6 +411,7 @@ private fun SamplingTabContent(
 @Composable
 private fun SamplingDesignCard(
     order: SamplingOrder,
+    spkOrders: List<SamplingOrder> = listOf(order),
     designCode: String,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
@@ -480,7 +486,8 @@ private fun SamplingDesignCard(
     }
 
     // Draft vs terbit dibaca dari status, bukan tahap — SPK terbit tetap di NEW_INTAKE (SPK Masuk)
-    val isDraft = order.status == SamplingStatus.DRAFT
+    val isDraft = spkOrders.all { it.status == SamplingStatus.DRAFT }
+    val isInDelivery = spkOrders.any { it.isInDelivery }
     val isFormReadOnly = !isDraft || isHistoricRevision
     val navigator = LocalAppNavigator.current
 
@@ -1063,7 +1070,7 @@ private fun SamplingDesignCard(
                                 style = ClayButtonStyle.Accent,
                                 fontSize = 12.sp
                             )
-                        } else if (order.isInDelivery) {
+                        } else if (isInDelivery) {
                             ClayButton(
                                 text = "Tandai ACC Desain ${designCode.removePrefix("DSG-").toIntOrNull() ?: ""}",
                                 onClick = {
@@ -1112,20 +1119,38 @@ private fun SamplingDesignCard(
                                     fontSize = 12.sp
                                 )
                             } else {
-                                ClayTag(
-                                    text = "SPK #${order.spkNumber.value} • ${order.pipelineStage.displayName}",
-                                    tint = WeMadeColors.Primary
-                                )
-                                ClayButton(
-                                    text = "Lihat SPK",
-                                    onClick = { navigator(AppNavScreen.SAMPLING_ORDER) },
-                                    style = ClayButtonStyle.Secondary,
-                                    fontSize = 11.sp
-                                )
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                                ) {
+                                    spkOrders.forEach { spk ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                                        ) {
+                                            val label = buildString {
+                                                append("SPK #${spk.spkNumber.value}")
+                                                spk.sizeLabel?.let { append(" • $it (${spk.sampleQuantity} pcs)") }
+                                                append(" • ${spk.pipelineStage.displayName}")
+                                            }
+                                            ClayTag(
+                                                text = label,
+                                                tint = if (spk.isAccApproved) WeMadeColors.Success else WeMadeColors.Primary
+                                            )
+                                            ClayButton(
+                                                text = "Lihat SPK",
+                                                onClick = { navigator(AppNavScreen.SAMPLING_ORDER) },
+                                                style = ClayButtonStyle.Secondary,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
                                 ClayButton(
                                     text = "Kirim ke Buyer",
                                     onClick = {
-                                        onEvent(DealUiEvent.AdvanceSamplingStage(order.id.value, SamplingPipelineStage.IN_DELIVERY))
+                                        spkOrders.forEach { spk ->
+                                            onEvent(DealUiEvent.AdvanceSamplingStage(spk.id.value, SamplingPipelineStage.IN_DELIVERY))
+                                        }
                                     },
                                     style = ClayButtonStyle.Accent,
                                     fontSize = 11.sp

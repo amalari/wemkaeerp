@@ -252,18 +252,23 @@ class DealViewModel(
         val currentOrder = _uiState.value.samplingOrders.firstOrNull { it.id.value == samplingId } ?: return
         _uiState.update { it.copy(isSaving = true) }
         scope.launch {
-            // Terbit = diserahkan ke kolom "SPK Masuk"; Divisi Sampling sendiri yang menentukan
-            // alur lalu memajukannya ke CAM. Tahap tidak dilompati dari sini.
-            val targetStage = currentOrder.pipelineStage
-            samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
-                .onSuccess { updatedOrder ->
-                    _uiState.update { current ->
-                        current.copy(
-                            isSaving = false,
-                            statusMessage = "SPK #${updatedOrder.spkNumber.value} (${updatedOrder.styleName}) berhasil diterbitkan ke Divisi Sampling.",
-                            samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
-                        )
-                    }
+            remoteDataSource.publishSamplingSpk(tenantSlug, deal.id.value, samplingId)
+                .onSuccess { publishedOrders ->
+                    remoteDataSource.getDealSamplingOrders(tenantSlug, deal.id.value)
+                        .onSuccess { reloaded ->
+                            _uiState.update { current ->
+                                current.copy(
+                                    isSaving = false,
+                                    statusMessage = if (publishedOrders.size > 1) {
+                                        "${publishedOrders.size} SPK Sampling (${publishedOrders.joinToString { "${it.sizeLabel}: #${it.spkNumber.value}" }}) berhasil diterbitkan ke Divisi Sampling."
+                                    } else {
+                                        val single = publishedOrders.firstOrNull() ?: currentOrder
+                                        "SPK #${single.spkNumber.value} (${single.styleName}) berhasil diterbitkan ke Divisi Sampling."
+                                    },
+                                    samplingOrders = reloaded
+                                )
+                            }
+                        }
                     if (_uiState.value.deal?.stage == DealStage.OPEN) {
                         changeStage(DealStage.PO_RECEIVED)
                     }

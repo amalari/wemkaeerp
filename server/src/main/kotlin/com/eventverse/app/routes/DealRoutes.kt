@@ -24,6 +24,8 @@ import com.eventverse.app.domain.sampling.usecases.AttachSamplingMockupUseCase
 import com.eventverse.app.domain.sampling.usecases.ApproveSamplingFromDealCommand
 import com.eventverse.app.domain.sampling.usecases.ApproveSamplingFromDealUseCase
 import com.eventverse.app.domain.sampling.usecases.CreateSamplingOrderFromDealUseCase
+import com.eventverse.app.domain.sampling.usecases.PublishSamplingSpkCommand
+import com.eventverse.app.domain.sampling.usecases.PublishSamplingSpkFromDealUseCase
 import com.eventverse.app.domain.sampling.usecases.SamplingFromDealCommand
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
@@ -65,6 +67,7 @@ fun Route.dealRoutes(
     val attachPurchaseOrderUseCase = AttachPurchaseOrderUseCase(dealRepository, poFileStorage)
     val createSamplingFromDealUseCase = samplingOrderRepository?.let { CreateSamplingOrderFromDealUseCase(it) }
     val approveSamplingFromDealUseCase = samplingOrderRepository?.let { ApproveSamplingFromDealUseCase(it) }
+    val publishSamplingSpkUseCase = samplingOrderRepository?.let { PublishSamplingSpkFromDealUseCase(it, dealRepository) }
     val attachSamplingMockupUseCase = samplingOrderRepository?.let { AttachSamplingMockupUseCase(it) }
 
     route("/api/tenant/deals") {
@@ -453,6 +456,44 @@ fun Route.dealRoutes(
                     call.respondJson(SamplingOrderCodec.encode(resolved).encode())
                 }
                 .onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        post("/{id}/sampling-orders/{samplingId}/publish-spk") {
+            val tenant = call.requireTenant() ?: return@post
+            val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
+            val useCase = publishSamplingSpkUseCase
+            if (useCase == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "Modul sampling tidak tersedia")
+                return@post
+            }
+
+            val dealId = DealId(call.parameters["id"] ?: "")
+            val existing = dealRepository.findById(tenant.tenantId, dealId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound, "Deal not found")
+                return@post
+            }
+            val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
+            if (!call.requireReachableOwner(reach, existing.ownerEmployeeId)) return@post
+
+            val samplingOrderId = SamplingOrderId(call.parameters["samplingId"] ?: "")
+            val caller = call.callerPrincipalOrNull
+
+            useCase(
+                PublishSamplingSpkCommand(
+                    tenantId = tenant.tenantId,
+                    dealId = dealId.value,
+                    samplingOrderId = samplingOrderId,
+                    actorEmail = caller?.email ?: "",
+                    actorRole = caller?.role?.name ?: ""
+                )
+            ).onSuccess { publishedList ->
+                val resolved = publishedList.map { withResolvedMockups(it, poFileStorage) }
+                call.respondJson(
+                    com.eventverse.app.shared.json.jsonArrayOf(resolved.map { SamplingOrderCodec.encode(it) }).encode()
+                )
+            }.onFailure { call.respondFailure(HttpStatusCode.BadRequest, it) }
         }
 
         post("/{id}/sampling-orders/{samplingId}/acc") {

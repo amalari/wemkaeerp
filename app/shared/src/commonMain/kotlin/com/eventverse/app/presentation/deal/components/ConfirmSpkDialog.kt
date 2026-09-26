@@ -172,7 +172,11 @@ internal fun ConfirmSpkDialog(
                 ) {
                     IconClipboard(Modifier.size(20.dp), color = WeMadeColors.Primary)
                     Text(
-                        text = "Setelah diterbitkan, SPK akan langsung masuk ke antrean kerja Divisi Sampling pada tahap Pemrograman Mesin (CAM). Tim sampling akan merajut/membuat sampel fisik sesuai spesifikasi ini.",
+                        text = if (sizeAllocations.size > 1) {
+                            "Setelah diterbitkan, sistem akan menerbitkan ${sizeAllocations.size} SPK Sampling terpisah (1 SPK per ukuran: ${sizeAllocations.joinToString { "${it.first} (${it.second} pcs)" }}). Setiap SPK akan masuk ke antrean kerja Divisi Sampling untuk dikerjakan secara independen."
+                        } else {
+                            "Setelah diterbitkan, SPK akan langsung masuk ke antrean kerja Divisi Sampling pada tahap Pemrograman Mesin (CAM). Tim sampling akan merajut/membuat sampel fisik sesuai spesifikasi ini."
+                        },
                         fontSize = 12.5.sp,
                         color = WeMadeColors.OnSurface,
                         lineHeight = 18.sp
@@ -465,7 +469,7 @@ internal fun ConfirmSpkDialog(
                 )
                 Spacer(Modifier.width(ClaySpacing.Sm))
                 ClayButton(
-                    text = "Ya, Terbitkan SPK",
+                    text = if (sizeAllocations.size > 1) "Ya, Terbitkan ${sizeAllocations.size} SPK Sampling" else "Ya, Terbitkan SPK",
                     onClick = onConfirm,
                     enabled = missingReqs.isEmpty(),
                     style = ClayButtonStyle.Primary,

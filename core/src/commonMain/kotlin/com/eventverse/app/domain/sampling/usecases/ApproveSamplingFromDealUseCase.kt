@@ -45,13 +45,18 @@ class ApproveSamplingFromDealUseCase(
                 }
             }
 
-            ApproveSamplingOrderUseCase(samplingRepository)(
-                ApproveSamplingOrderCommand(
-                    orderId = existing.id,
-                    isApproved = command.isApproved,
-                    notes = command.notes
-                )
-            ).getOrThrow()
+            val allRelated = samplingRepository.findByDealId(command.tenantId, command.dealId)
+                .filter { it.id == existing.id || it.parentSamplingOrderId == existing.id || (existing.parentSamplingOrderId != null && (it.id == existing.parentSamplingOrderId || it.parentSamplingOrderId == existing.parentSamplingOrderId)) }
+
+            for (target in allRelated) {
+                ApproveSamplingOrderUseCase(samplingRepository)(
+                    ApproveSamplingOrderCommand(
+                        orderId = target.id,
+                        isApproved = command.isApproved,
+                        notes = command.notes
+                    )
+                ).getOrThrow()
+            }
 
             samplingRepository.findByDealId(command.tenantId, command.dealId)
         }

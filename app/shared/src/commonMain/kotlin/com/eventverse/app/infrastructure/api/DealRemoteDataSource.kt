@@ -64,6 +64,13 @@ interface DealRemoteDataSource {
         request: UpdateSamplingOrderFromDealRequest
     ): Result<SamplingOrder>
 
+    /** Menerbitkan SPK sampling dari lembar desain (split per ukuran bila multi-size aktif). */
+    suspend fun publishSamplingSpk(
+        tenantSlug: String,
+        dealId: String,
+        samplingOrderId: String
+    ): Result<List<SamplingOrder>>
+
     /** ACC / revisi satu desain; mengembalikan seluruh daftar sampling deal (gerbang Tab 2). */
     suspend fun approveSamplingOrder(
         tenantSlug: String,

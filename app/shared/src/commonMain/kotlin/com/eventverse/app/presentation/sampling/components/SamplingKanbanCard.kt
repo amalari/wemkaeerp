@@ -374,8 +374,9 @@ private fun CarouselChevron(isNext: Boolean, modifier: Modifier = Modifier, colo
 @Composable
 private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
     ClayFlowRow(spacing = ClaySpacing.Xs) {
+        val sizePrefix = if (!order.sizeLabel.isNullOrBlank()) "${order.sizeLabel} • " else ""
         ClayTag(
-            text = "${order.sampleQuantity} Pcs",
+            text = "$sizePrefix${order.sampleQuantity} Pcs",
             tint = WeMadeColors.Info
         )
         ClayTag(

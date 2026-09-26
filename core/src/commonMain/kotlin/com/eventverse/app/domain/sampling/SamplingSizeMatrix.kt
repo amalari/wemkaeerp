@@ -88,6 +88,19 @@ fun firstCompleteSizeColumn(matrix: List<SizeChartRow>): String? {
 }
 
 /**
+ * Mengembalikan daftar pasangan (ukuran, kuantitas) untuk setiap kolom ukuran yang aktif
+ * (seluruh baris parameter POM terisi lengkap) dan memiliki alokasi jumlah sampel >= 1 pcs.
+ * Digunakan untuk pemecahan SPK sampling per ukuran (1 SPK = 1 ukuran).
+ */
+fun activeSizesWithAllocatedQty(matrix: List<SizeChartRow>): List<Pair<String, Int>> {
+    val qtyRow = matrix.firstOrNull { it.isQtyRow } ?: return emptyList()
+    return STANDARD_SAMPLING_SIZE_COLUMNS.mapNotNull { col ->
+        val qty = qtyRow.values[col]?.trim()?.toIntOrNull() ?: 0
+        if (qty >= 1 && isSizeColumnActive(matrix, col)) Pair(col, qty) else null
+    }
+}
+
+/**
  * Membersihkan cell kuantitas untuk kolom yang seluruh parameter ukurannya kosong,
  * mencegah pemesanan sampel ukuran fiktif tanpa spesifikasi POM.
  */
