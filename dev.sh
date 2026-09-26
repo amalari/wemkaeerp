@@ -3,6 +3,10 @@
 # ==============================================================================
 # WeMade ERP — Fullstack Development Runner
 # Menjalankan Ktor Backend Server & Wasm Compose Web App dengan Auto-Watch/Reload
+#
+# Juga menyediakan runner test:
+#   ./dev.sh test                → seluruh suite test (core + shared + server)
+#   ./dev.sh test-changed [ref]  → hanya test yang berhubungan dengan file yang berubah
 # ==============================================================================
 
 # Warna ANSI untuk terminal
@@ -40,7 +44,7 @@ print_banner() {
     echo -e "  🌐 ${BOLD}Frontend (Wasm Compose)${RESET} : ${GREEN}http://localhost:3000${RESET}"
     echo -e "  🔌 ${BOLD}Backend API (Ktor)${RESET}     : ${GREEN}http://localhost:8080${RESET}"
     echo -e "  🔄 ${BOLD}Webpack Proxy API${RESET}      : ${PURPLE}/api -> http://localhost:8080${RESET}"
-    echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:5432 (wemade_erp)${RESET}"
+    echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:${DB_PORT:-5432} (${DB_NAME:-wemade_erp})${RESET}"
     echo -e "${CYAN}------------------------------------------------------------------------${RESET}"
 }
 
@@ -61,8 +65,9 @@ check_port() {
 
 # Cek apakah docker postgres perlu dijalankan
 check_postgres() {
-    if ! nc -z localhost 5432 >/dev/null 2>&1; then
-        echo -e "${YELLOW}ℹ️  PostgreSQL di port 5432 belum aktif.${RESET}"
+    local pg_port="${DB_PORT:-5432}"
+    if ! nc -z localhost "$pg_port" >/dev/null 2>&1; then
+        echo -e "${YELLOW}ℹ️  PostgreSQL di port $pg_port belum aktif.${RESET}"
         if command -v docker &> /dev/null && docker compose ps >/dev/null 2>&1; then
             read -p "   Nyalakan container database via docker compose? (y/N): " -n 1 -r
             echo
@@ -75,7 +80,7 @@ check_postgres() {
             echo -e "${YELLOW}   Pastikan service PostgreSQL lokal aktif untuk fitur database.${RESET}"
         fi
     else
-        echo -e "${GREEN}✅ PostgreSQL aktif di port 5432.${RESET}"
+        echo -e "${GREEN}✅ PostgreSQL aktif di port $pg_port.${RESET}"
     fi
 }
 
@@ -121,9 +126,28 @@ case "$MODE" in
     docker)
         echo -e "${GREEN}🐘 Menjalankan PostgreSQL container...${RESET}"
         docker compose up -d postgres
-        echo -e "${GREEN}✅ Database siap di port 5432.${RESET}"
+        echo -e "${GREEN}✅ Database siap di port ${DB_PORT:-5432}.${RESET}"
         trap - SIGINT SIGTERM EXIT
         exit 0
+        ;;
+
+    # Seluruh suite (core + shared + server).
+    #
+    # Dijalankan lewat dev.sh, bukan langsung `./gradlew`, karena script ini sudah
+    # memuat .env di atas: Gradle sendiri tidak membaca .env, dan tanpa DB_PORT=5435
+    # test server akan menembak PostgreSQL di 5432 (project lain) lalu gagal dengan
+    # HikariPool$PoolInitializationException yang tampak seperti bug kode.
+    test)
+        trap - SIGINT SIGTERM EXIT
+        exec ./tools/test-changed.sh --full
+        ;;
+
+    # Hanya test yang berhubungan dengan file yang berubah.
+    # Contoh: ./dev.sh test-changed origin/main
+    test-changed)
+        shift
+        trap - SIGINT SIGTERM EXIT
+        exec ./tools/test-changed.sh "$@"
         ;;
 
     help|--help|-h)
@@ -132,6 +156,8 @@ case "$MODE" in
         echo "  ./dev.sh wasm    : Hanya menjalankan Wasm Dev Server dengan auto-watching/hot-reload"
         echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server"
         echo "  ./dev.sh docker  : Menyalakan container database PostgreSQL"
+        echo "  ./dev.sh test    : Menjalankan seluruh suite test (core + shared + server)"
+        echo "  ./dev.sh test-changed [ref] : HANYA test yang berhubungan dengan file yang berubah"
         echo "  ./dev.sh help    : Menampilkan bantuan ini"
         trap - SIGINT SIGTERM EXIT
         exit 0

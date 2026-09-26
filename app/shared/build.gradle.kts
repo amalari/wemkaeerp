@@ -59,6 +59,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":core"))
             implementation(libs.kotlinx.coroutinesCore)
+            api(libs.kotlinx.datetime)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

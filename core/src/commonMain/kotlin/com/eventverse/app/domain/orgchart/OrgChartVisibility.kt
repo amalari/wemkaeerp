@@ -32,24 +32,12 @@ object OrgChartVisibility {
     ): List<OrgNode> = when (scope) {
         DataScope.ALL_TENANT_DATA -> nodes
 
+        // Logika "bawahan" (union divisi + rantai komando) kini hidup di [SubordinateResolver],
+        // dipakai bersama modul manapun yang bersifat HIERARCHICAL (CRM Leads termasuk) —
+        // menyalin-tempelnya di sini akan membuka peluang dua definisi "bawahan" yang menyimpang.
         DataScope.SUBORDINATE_DATA -> {
-            // Dua sumbu disatukan, bukan dipilih salah satu: "bawahan" di pabrik berarti satu divisi
-            // (kepala gudang atas stafnya) *dan* rantai komando (kepala produksi atas lead yang
-            // berada di divisi lain). Memakai hanya divisi akan memotong bawahan lintas divisi;
-            // memakai hanya rantai komando akan menyembunyikan rekan sedivisi yang tidak melapor
-            // langsung, sehingga bagannya tampak bolong.
-            val byDepartment = viewerDepartmentId
-                ?.let { deptId -> nodes.filter { it.department?.id?.value == deptId } }
-                .orEmpty()
-
-            val byCommandChain = viewerEmployeeId
-                ?.let { subordinateClosure(nodes, it) }
-                .orEmpty()
-
-            val self = viewerEmployeeId?.let { id -> nodes.filter { it.id == id } }.orEmpty()
-
-            // distinctBy id: seseorang lazim tercakup lewat kedua sumbu sekaligus.
-            (self + byDepartment + byCommandChain).distinctBy { it.id.value }
+            val reachIds = SubordinateResolver.reachableEmployeeIds(nodes, viewerEmployeeId, viewerDepartmentId)
+            nodes.filter { it.id in reachIds }
         }
 
         // Bagan yang hanya berisi satu orang memang tidak berguna sebagai bagan, dan itulah maksud
@@ -57,34 +45,5 @@ object OrgChartVisibility {
         // orang lain. Yang ingin melihat timnya diberi SUBORDINATE_DATA.
         DataScope.OWN_DATA_ONLY ->
             viewerEmployeeId?.let { id -> nodes.filter { it.id == id } }.orEmpty()
-    }
-
-    /**
-     * Seluruh bawahan [rootId] sampai ke bawah, mengikuti [OrgNode.reportsToId].
-     *
-     * Ditelusuri iteratif dengan himpunan "sudah dikunjungi", bukan rekursif. Data hierarki diketik
-     * manusia dan bisa memuat siklus (A melapor ke B, B melapor ke A) akibat salah input; penelusuran
-     * rekursif polos akan menggantung selamanya alih-alih menampilkan bagan yang sedikit keliru.
-     */
-    private fun subordinateClosure(nodes: List<OrgNode>, rootId: OrgNodeId): List<OrgNode> {
-        val childrenByParent: Map<String, List<OrgNode>> = nodes
-            .mapNotNull { node -> node.reportsToId?.let { it.value to node } }
-            .groupBy({ it.first }, { it.second })
-
-        val collected = mutableListOf<OrgNode>()
-        val visited = mutableSetOf(rootId.value)
-        val queue = ArrayDeque<String>().apply { add(rootId.value) }
-
-        while (queue.isNotEmpty()) {
-            val parentId = queue.removeFirst()
-            childrenByParent[parentId].orEmpty().forEach { child ->
-                if (visited.add(child.id.value)) {
-                    collected += child
-                    queue.add(child.id.value)
-                }
-            }
-        }
-
-        return collected
     }
 }

@@ -9,3 +9,14 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.ktor) apply false
 }
+
+allprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-datetime")) {
+                useVersion("0.6.2")
+                because("Align all modules and Compose Material3 to 0.6.2 to avoid IR linkage mismatch")
+            }
+        }
+    }
+}

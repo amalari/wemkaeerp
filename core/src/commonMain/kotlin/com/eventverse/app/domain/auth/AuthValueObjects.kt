@@ -59,15 +59,36 @@ enum class Permission {
     VIEW_PLM,
     MANAGE_PLM,
     CALCULATE_COSTING,
+    /**
+     * Mengunci lembar HPP menjadi "Komitmen Komersial". Dipisah dari CALCULATE_COSTING
+     * karena menyetujui HPP adalah keputusan bisnis, bukan eksekusi teknis.
+     */
+    APPROVE_COSTING,
+    /**
+     * Melihat bucket MARGIN dan harga jual akhir. Dipisah karena margin laba pabrik
+     * bersifat "rahasia" per deskripsi BusinessModule.COSTING_HPP — staf yang bisa
+     * menghitung HPP tidak otomatis boleh melihat berapa persen laba pabriknya.
+     */
+    VIEW_COSTING_MARGIN,
 
     // Production & MRP
     APPROVE_SPK,
     MANAGE_PRODUCTION_SCHEDULE,
     INPUT_SHOPFLOOR_OUTPUT,
 
+    // Master Data & Bahan Baku
+    VIEW_MASTER_DATA,
+    MANAGE_MASTER_DATA,
+
     // QC & Fulfillment
     PERFORM_QC,
-    MANAGE_FULFILLMENT;
+    MANAGE_FULFILLMENT,
+
+    // Invoicing & Finance
+    VIEW_INVOICE,
+    MANAGE_INVOICE,
+    MANAGE_INVOICE_TEMPLATE,
+    RECORD_PAYMENT;
 }
 
 enum class Role(val defaultPermissions: Set<Permission>) {
@@ -82,16 +103,24 @@ enum class Role(val defaultPermissions: Set<Permission>) {
             Permission.VIEW_LEADS,
             Permission.MANAGE_LEADS,
             Permission.MANAGE_SAMPLING_ORDERS,
+            Permission.VIEW_MASTER_DATA,
+            Permission.MANAGE_MASTER_DATA,
             Permission.VIEW_INVENTORY,
             Permission.MANAGE_INVENTORY,
             Permission.VIEW_PLM,
             Permission.MANAGE_PLM,
             Permission.CALCULATE_COSTING,
+            Permission.APPROVE_COSTING,
+            Permission.VIEW_COSTING_MARGIN,
             Permission.APPROVE_SPK,
             Permission.MANAGE_PRODUCTION_SCHEDULE,
             Permission.INPUT_SHOPFLOOR_OUTPUT,
             Permission.PERFORM_QC,
-            Permission.MANAGE_FULFILLMENT
+            Permission.MANAGE_FULFILLMENT,
+            Permission.VIEW_INVOICE,
+            Permission.MANAGE_INVOICE,
+            Permission.MANAGE_INVOICE_TEMPLATE,
+            Permission.RECORD_PAYMENT
         )
     ),
     SALES(
@@ -101,7 +130,12 @@ enum class Role(val defaultPermissions: Set<Permission>) {
             Permission.MANAGE_SAMPLING_ORDERS,
             Permission.VIEW_INVENTORY,
             Permission.VIEW_PLM,
-            Permission.CALCULATE_COSTING
+            Permission.CALCULATE_COSTING,
+            // Sales bisa lihat margin untuk keperluan penawaran ke klien,
+            // tapi tidak bisa approve — itu hak owner/supervisor.
+            Permission.VIEW_COSTING_MARGIN,
+            Permission.VIEW_INVOICE,
+            Permission.MANAGE_INVOICE
         )
     ),
     PPIC_SUPERVISOR(

@@ -37,7 +37,8 @@ fun ClayBadge(
     dot: Boolean = false,
     fontSize: TextUnit = 11.sp,
     containerColor: Color = tint.copy(alpha = 0.14f),
-    leading: (@Composable () -> Unit)? = null
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -67,6 +68,7 @@ fun ClayBadge(
             maxLines = 1,
             softWrap = false
         )
+        trailing?.invoke()
     }
 }
 

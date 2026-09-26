@@ -12,6 +12,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.http.content.staticFiles
 
 import com.eventverse.app.domain.auth.*
 import com.eventverse.app.infrastructure.PostgresUserRepository
@@ -50,6 +51,16 @@ import com.eventverse.app.infrastructure.PostgresModuleCustomizationRequestRepos
 import com.eventverse.app.infrastructure.PostgresModulePricingQuoteRepository
 import com.eventverse.app.infrastructure.PostgresSizingWeightsRepository
 import com.eventverse.app.routes.moduleDevRoutes
+import com.eventverse.app.domain.costing.CostingSheetRepository
+import com.eventverse.app.domain.costing.CostingRateCardRepository
+import com.eventverse.app.infrastructure.PostgresCostingSheetRepository
+import com.eventverse.app.infrastructure.PostgresCostingRateCardRepository
+import com.eventverse.app.infrastructure.PostgresCostingBenchmarkRepository
+import com.eventverse.app.infrastructure.storage.LocalBenchmarkImageStorage
+import com.eventverse.app.services.GeminiCostingParserService
+import com.eventverse.app.services.HeuristicCostingParser
+import com.eventverse.app.services.NoopDesignVisionAnalyzer
+import com.eventverse.app.routes.costingRoutes
 import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.prospect.FlowTranslationRepository
 import com.eventverse.app.domain.prospect.FlowTranslator
@@ -65,6 +76,45 @@ import com.eventverse.app.infrastructure.PostgresFlowTranslationRepository
 import com.eventverse.app.infrastructure.PostgresProspectLeadRepository
 import com.eventverse.app.infrastructure.PostgresProspectPriceEstimateRepository
 import com.eventverse.app.routes.prospectRoutes
+
+import com.eventverse.app.domain.crm.CrmLeadRepository
+import com.eventverse.app.domain.crm.LeadActivityRepository
+import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
+import com.eventverse.app.infrastructure.PostgresCrmLeadRepository
+import com.eventverse.app.infrastructure.PostgresLeadActivityRepository
+import com.eventverse.app.infrastructure.PostgresCustomFieldDefinitionRepository
+import com.eventverse.app.infrastructure.PostgresBulkWorkOrderRepository
+import com.eventverse.app.infrastructure.PostgresTraceContainerRepository
+import com.eventverse.app.infrastructure.PostgresInternalTransferRepository
+import com.eventverse.app.infrastructure.traceability.BulkTraceWorkOrderProvider
+import com.eventverse.app.infrastructure.traceability.CompositeTraceWorkOrderProvider
+import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
+import com.eventverse.app.infrastructure.traceability.SamplingTraceWorkOrderProvider
+import com.eventverse.app.infrastructure.PostgresSamplingOrderRepository
+import com.eventverse.app.domain.masterdata.MaterialItemRepository
+import com.eventverse.app.domain.masterdata.MaterialPriceRepository
+import com.eventverse.app.infrastructure.PostgresMaterialItemRepository
+import com.eventverse.app.infrastructure.PostgresMaterialPriceRepository
+import com.eventverse.app.routes.crmRoutes
+import com.eventverse.app.routes.masterDataRoutes
+import com.eventverse.app.routes.productionRoutes
+import com.eventverse.app.routes.samplingRoutes
+import com.eventverse.app.domain.techpack.TechPackRepository
+import com.eventverse.app.infrastructure.PostgresTechPackRepository
+import com.eventverse.app.routes.techPackRoutes
+import com.eventverse.app.domain.invoicing.InvoiceIssuerProfileRepository
+import com.eventverse.app.domain.invoicing.InvoicePaymentRepository
+import com.eventverse.app.domain.invoicing.InvoiceRepository
+import com.eventverse.app.domain.invoicing.InvoiceTemplateRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceIssuerProfileRepository
+import com.eventverse.app.infrastructure.PostgresInvoicePaymentRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceRepository
+import com.eventverse.app.infrastructure.PostgresInvoiceTemplateRepository
+import com.eventverse.app.routes.invoicingRoutes
+import com.eventverse.app.routes.dealRoutes
+import com.eventverse.app.infrastructure.PostgresContactRepository
+import com.eventverse.app.infrastructure.PostgresDealRepository
+import com.eventverse.app.infrastructure.storage.S3PoFileStorage
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -90,7 +140,24 @@ fun Application.module(
     prospectLeadRepository: ProspectLeadRepository? = null,
     flowTranslationRepository: FlowTranslationRepository? = null,
     prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
-    flowTranslator: FlowTranslator? = null
+    flowTranslator: FlowTranslator? = null,
+    crmLeadRepository: CrmLeadRepository? = null,
+    contactRepository: com.eventverse.app.domain.crm.ContactRepository? = null,
+    dealRepository: com.eventverse.app.domain.deal.DealRepository? = null,
+    poFileStorage: com.eventverse.app.domain.deal.storage.PoFileStorage? = null,
+    customFieldDefinitionRepository: CustomFieldDefinitionRepository? = null,
+    leadActivityRepository: LeadActivityRepository? = null,
+    samplingOrderRepository: com.eventverse.app.domain.sampling.SamplingOrderRepository? = null,
+    materialItemRepository: MaterialItemRepository? = null,
+    materialPriceRepository: MaterialPriceRepository? = null,
+    techPackRepository: TechPackRepository? = null,
+    invoiceRepository: InvoiceRepository? = null,
+    invoiceTemplateRepository: InvoiceTemplateRepository? = null,
+    invoicePaymentRepository: InvoicePaymentRepository? = null,
+    invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null,
+    costingSheetRepository: CostingSheetRepository? = null,
+    costingRateCardRepository: CostingRateCardRepository? = null,
+    costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -110,6 +177,43 @@ fun Application.module(
     val customizationRequestRepo =
         moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
+    val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
+    val crmContactRepo = contactRepository ?: PostgresContactRepository()
+    val crmDealRepo = dealRepository ?: PostgresDealRepository()
+    val poFileStorage = poFileStorage ?: S3PoFileStorage()
+    val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
+    val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
+    val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
+    val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository()
+    val traceContainerRepo = PostgresTraceContainerRepository()
+    val internalTransferRepo = PostgresInternalTransferRepository()
+    val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
+        sampling = SamplingTraceWorkOrderProvider(samplingOrderRepo, traceContainerRepo),
+        bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
+    )
+    val knitWorksheetBuilder = KnitWorksheetBuilder(samplingOrderRepo)
+    // Host ini ikut tercetak di dalam setiap QR. Kartu yang sudah keluar printer tidak bisa
+    // diperbarui, jadi mengubah nilai ini kelak akan mematikan seluruh kartu yang beredar di lantai.
+    val traceScanHost = System.getenv("TRACE_SCAN_HOST")?.takeIf { it.isNotBlank() } ?: "wemade.local"
+    val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
+    val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
+    val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
+    val invoiceRepo = invoiceRepository ?: PostgresInvoiceRepository()
+    val invoiceTemplateRepo = invoiceTemplateRepository ?: PostgresInvoiceTemplateRepository()
+    val invoicePaymentRepo = invoicePaymentRepository ?: PostgresInvoicePaymentRepository()
+    val invoiceIssuerProfileRepo = invoiceIssuerProfileRepository ?: PostgresInvoiceIssuerProfileRepository()
+    val costingSheetRepo = costingSheetRepository ?: PostgresCostingSheetRepository()
+    val costingRateCardRepo = costingRateCardRepository ?: PostgresCostingRateCardRepository()
+    val costingBenchmarkRepo = costingBenchmarkRepository ?: PostgresCostingBenchmarkRepository()
+
+    // Tanpa GEMINI_API_KEY seluruh fitur tetap hidup: impor memakai parser heuristik berbasis
+    // label, dan estimator berjalan tanpa petunjuk visual. Yang hilang hanya kenyamanannya,
+    // bukan fungsinya — server tidak boleh gagal start karena satu kunci API belum diisi.
+    val geminiApiKey = System.getenv("GEMINI_API_KEY")?.takeIf { it.isNotBlank() }
+    val geminiService = geminiApiKey?.let { GeminiCostingParserService(apiKey = it) }
+    val historicalCostingParser = geminiService ?: HeuristicCostingParser()
+    val designVisionAnalyzer = geminiService ?: NoopDesignVisionAnalyzer
+    val benchmarkImageStorage = LocalBenchmarkImageStorage()
 
     // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
     // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
@@ -154,6 +258,16 @@ fun Application.module(
         get("/health") {
             call.respondText("OK", status = HttpStatusCode.OK)
         }
+
+        // Gambar mockup yang diekstrak dari berkas Excel arsip disimpan di folder lokal
+        // (lihat LocalBenchmarkImageStorage) dan di-serve dari sini supaya UI Knowledge Base
+        // bisa menampilkan thumbnail-nya tanpa menunggu object storage dikonfigurasi.
+        staticFiles(
+            remotePath = "/uploads",
+            dir = java.io.File(
+                System.getenv("WEMADE_UPLOAD_DIR")?.takeIf { it.isNotBlank() } ?: "data/uploads"
+            )
+        )
 
         route("/api/public/onboarding") {
             get("/check-subdomain") {
@@ -434,6 +548,54 @@ fun Application.module(
                 defaultBlendedHourlyRate = blendedHourlyRate
             ),
             defaultMarginPercent = defaultMargin
+        )
+        crmRoutes(
+            leadRepository = crmLeadRepo,
+            contactRepository = crmContactRepo,
+            dealRepository = crmDealRepo,
+            customFieldRepository = customFieldRepo,
+            employeeRepository = empRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo,
+            invoiceRepository = invoiceRepo,
+            leadActivityRepository = leadActivityRepo
+        )
+        dealRoutes(
+            dealRepository = crmDealRepo,
+            contactRepository = crmContactRepo,
+            employeeRepository = empRepo,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo,
+            poFileStorage = poFileStorage,
+            samplingOrderRepository = samplingOrderRepo
+        )
+        operationalModuleRoutes(
+            samplingOrderRepo = samplingOrderRepo,
+            crmDealRepo = crmDealRepo,
+            bulkWorkOrderRepo = bulkWorkOrderRepo,
+            materialRepo = materialRepo,
+            materialPriceRepo = materialPriceRepo,
+            customFieldRepo = customFieldRepo,
+            techPackRepo = techPackRepo,
+            roleRepo = roleRepo,
+            assignmentRepo = assignmentRepo,
+            invoiceRepo = invoiceRepo,
+            invoiceTemplateRepo = invoiceTemplateRepo,
+            invoicePaymentRepo = invoicePaymentRepo,
+            invoiceIssuerProfileRepo = invoiceIssuerProfileRepo,
+            costingSheetRepo = costingSheetRepo,
+            costingRateCardRepo = costingRateCardRepo,
+            costingBenchmarkRepo = costingBenchmarkRepo,
+            pipeRepo = pipeRepo,
+            historicalCostingParser = historicalCostingParser,
+            designVisionAnalyzer = designVisionAnalyzer,
+            benchmarkImageStorage = benchmarkImageStorage,
+            traceContainerRepo = traceContainerRepo,
+            transferRepo = internalTransferRepo,
+            traceWorkOrderProvider = traceWorkOrderProvider,
+            knitWorksheetBuilder = knitWorksheetBuilder,
+            traceScanHost = traceScanHost,
+            poFileStorage = poFileStorage
         )
     }
 }

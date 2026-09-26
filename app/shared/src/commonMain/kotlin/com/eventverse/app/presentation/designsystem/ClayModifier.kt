@@ -14,7 +14,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -123,3 +125,39 @@ fun Modifier.clayFlat(
     .clip(shape)
     .background(background)
     .border(borderWidth, outline, shape)
+
+/**
+ * Permukaan rata dengan outline **putus-putus**, untuk elemen yang bukan benda tetap.
+ *
+ * Bedanya dengan [clayFlat] bukan hiasan: garis putus dipakai justru supaya elemen ini terbaca
+ * sebagai kelas visual yang berbeda dari chip stasiun kerja. Chip berisi penuh berarti "di sini
+ * pekerjaan terjadi"; permukaan putus-putus berarti "di sini barang sedang berpindah" atau
+ * "tempat ini masih kosong". Menyamakan keduanya membuat orang membaca konektor pengiriman
+ * sebagai stasiun, dan itu persis salah paham yang dihindari.
+ *
+ * `drawBehind` dipakai alih-alih `border`, karena `Modifier.border` tidak menerima
+ * [PathEffect]. Konsekuensinya outline digambar **sebelum** konten, bukan di atasnya seperti
+ * pada [claySurface] — cukup, karena permukaan ini rata dan tidak berbayang.
+ */
+fun Modifier.clayDashedOutline(
+    shape: Shape,
+    background: Color,
+    outline: Color,
+    borderWidth: Dp = ClayBorder.Medium,
+    dashLength: Dp = 6.dp,
+    gapLength: Dp = 4.dp
+): Modifier = this
+    .clip(shape)
+    .background(background)
+    .drawBehind {
+        drawOutline(
+            outline = shape.createOutline(size, layoutDirection, this),
+            color = outline,
+            style = Stroke(
+                width = borderWidth.toPx(),
+                pathEffect = PathEffect.dashPathEffect(
+                    floatArrayOf(dashLength.toPx(), gapLength.toPx())
+                )
+            )
+        )
+    }

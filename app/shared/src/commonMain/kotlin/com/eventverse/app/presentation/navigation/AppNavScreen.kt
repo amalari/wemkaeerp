@@ -1,6 +1,12 @@
 package com.eventverse.app.presentation.navigation
 
+import androidx.compose.runtime.compositionLocalOf
 import com.eventverse.app.domain.rbac.BusinessModule
+
+/**
+ * CompositionLocal untuk aksi navigasi aplikasi antar modul.
+ */
+val LocalAppNavigator = compositionLocalOf<(AppNavScreen) -> Unit> { {} }
 
 /**
  * Typed application navigation routes with canonical paths, titles, and URI aliases.
@@ -19,7 +25,8 @@ enum class AppNavScreen(
      * `AccessDecisionEngine` dan penguncian jabatan Owner pada `CustomRole.updateModuleAccess` —
      * sehingga layarnya tidak perlu lagi dikecualikan dari matriks.
      */
-    val businessModule: BusinessModule? = null
+    val businessModule: BusinessModule? = null,
+    val isNavMenuItem: Boolean = true
 ) {
     ORG_CHART(
         route = "/org-chart",
@@ -82,6 +89,15 @@ enum class AppNavScreen(
         aliases = listOf("/operator", "/shopfloor"),
         businessModule = BusinessModule.OPERATOR_EXEC
     ),
+    TRACEABILITY(
+        route = "/telusur",
+        title = "Telusur Bundel & Karung",
+        aliases = listOf("/trace", "/telusur-qr"),
+        // Bergerbang pada modul lantai produksi yang sudah ada, bukan BusinessModule baru:
+        // menambah nilai enum merembet ke matriks RBAC, penugasan divisi, entitlement, dan seed
+        // tiap tenant — biaya besar untuk satu layar.
+        businessModule = BusinessModule.OPERATOR_EXEC
+    ),
     QUALITY_CONTROL(
         route = "/quality-control",
         title = "Quality Control",
@@ -93,6 +109,38 @@ enum class AppNavScreen(
         title = "Packing & Pengiriman",
         aliases = listOf("/packing", "/pengiriman"),
         businessModule = BusinessModule.FULFILLMENT
+    ),
+    SURAT_JALAN(
+        route = "/surat-jalan",
+        title = "Surat Jalan & Transfer",
+        aliases = listOf("/transfer", "/makloon-transfer", "/sj"),
+        businessModule = BusinessModule.FULFILLMENT,
+        isNavMenuItem = false
+    ),
+    MASTER_DATA(
+        route = "/master-data",
+        title = "Master Data Bahan & Harga",
+        aliases = listOf("/materials", "/bahan", "/masterdata"),
+        businessModule = BusinessModule.MASTER_DATA
+    ),
+    VENDOR_CONTACTS(
+        route = "/vendors",
+        title = "Kontak Vendor & Makloon",
+        aliases = listOf("/vendor", "/kontak-vendor", "/makloon-vendor"),
+        businessModule = BusinessModule.VENDOR_CONTACTS
+    ),
+    INVOICING(
+        route = "/invoicing",
+        title = "Invoice & Penagihan",
+        aliases = listOf("/invoice", "/tagihan", "/faktur"),
+        businessModule = BusinessModule.INVOICING
+    ),
+    INVOICING_TEMPLATES(
+        route = "/invoicing/templates",
+        title = "Template & Desain Faktur",
+        aliases = listOf("/invoicing/design", "/invoicing/template", "/invoicing/layouts"),
+        businessModule = BusinessModule.INVOICING,
+        isNavMenuItem = false
     ),
 
     LOGIN(
@@ -127,10 +175,51 @@ enum class AppNavScreen(
 
             if (normalized == "/") return null
 
-            return entries.firstOrNull { screen ->
+            val exactMatch = entries.firstOrNull { screen ->
                 screen.route.equals(normalized, ignoreCase = true) ||
                     screen.aliases.any { alias -> alias.equals(normalized, ignoreCase = true) }
             }
+            if (exactMatch != null) return exactMatch
+
+            // Match sub-routes by prefix (e.g. /invoicing/templates/tpl-123 -> INVOICING_TEMPLATES)
+            // Urutkan berdasarkan panjang rute menurun agar sub-rute lebih spesifik menang lebih dulu.
+            return entries
+                .sortedByDescending { it.route.length }
+                .firstOrNull { screen ->
+                    screen.route != "/" && (
+                        normalized.startsWith("${screen.route}/", ignoreCase = true) ||
+                            screen.aliases.any { alias -> normalized.startsWith("$alias/", ignoreCase = true) }
+                    )
+                }
+        }
+
+        /**
+         * Mengambil ID template dari URL path (baik dari subpath /invoicing/templates/{id}
+         * ataupun query param ?templateId={id} atau ?id={id}).
+         */
+        fun extractTemplateId(rawPath: String): String? {
+            val trimmed = rawPath.trim().removePrefix("#").removePrefix("/")
+            val queryPart = trimmed.substringAfter("?", "")
+            if (queryPart.isNotEmpty()) {
+                val params = queryPart.split("&").associate {
+                    val parts = it.split("=", limit = 2)
+                    parts[0].lowercase() to (parts.getOrNull(1) ?: "")
+                }
+                params["templateid"]?.takeIf { it.isNotBlank() }?.let { return it }
+                params["id"]?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+
+            val pathOnly = trimmed.substringBefore("?").removeSuffix("/")
+            val prefixes = listOf("invoicing/templates/", "invoicing/design/", "invoicing/template/", "invoicing/layouts/")
+            for (prefix in prefixes) {
+                if (pathOnly.startsWith(prefix, ignoreCase = true)) {
+                    val candidate = pathOnly.substring(prefix.length).trim()
+                    if (candidate.isNotBlank() && !candidate.contains("/")) {
+                        return candidate
+                    }
+                }
+            }
+            return null
         }
     }
 }

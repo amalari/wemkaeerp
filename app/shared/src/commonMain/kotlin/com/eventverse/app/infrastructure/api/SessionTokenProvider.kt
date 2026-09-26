@@ -25,6 +25,18 @@ object StoredSessionTokenProvider : SessionTokenProvider {
             ?.takeIf { it.isNotBlank() }
 }
 
+/**
+ * Reads the current tenant slug from the persisted auth session, so screens that open
+ * outside the CRM parameter chain (e.g. the Deal dialog) can still address the right tenant.
+ */
+object StoredTenantSlugProvider {
+    fun currentTenantSlug(): String? =
+        AuthApiClient
+            .deserializeSession(PlatformLocalStorage.getItem(AuthApiClient.SESSION_STORAGE_KEY))
+            ?.tenantSlug
+            ?.takeIf { it.isNotBlank() }
+}
+
 /** Fixed token, for tests and for callers that already hold a session. */
 class FixedSessionTokenProvider(private val token: String?) : SessionTokenProvider {
     override fun currentToken(): String? = token?.takeIf { it.isNotBlank() }

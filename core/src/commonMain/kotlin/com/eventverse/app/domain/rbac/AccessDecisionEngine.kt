@@ -136,7 +136,14 @@ object AccessDecisionEngine {
         }
         val departmentMatch = resolveDepartmentAccess(persona, assignments)
         val departmentAccess = departmentMatch
-            ?.let { ModuleAccessConfig(it.accessLevel, it.scope) }
+            ?.let {
+                ModuleAccessConfig(
+                    it.accessLevel,
+                    it.scope,
+                    // Batasan meja hanya hidup di sumbu divisi; jabatan tidak punya konsep meja.
+                    allowedDesks = it.allowedDesks
+                )
+            }
             ?.sanitizeFor(module)
             ?: ModuleAccessConfig(AccessLevel.NONE)
 

@@ -515,9 +515,11 @@ private fun ModuleToggleRow(
 
 private fun categoryTint(category: ModuleCategory) = when (category) {
     ModuleCategory.GOVERNANCE -> WeMadeColors.Purple
+    ModuleCategory.FOUNDATION -> WeMadeColors.Teal
     ModuleCategory.SALES -> WeMadeColors.Primary
     ModuleCategory.LOGISTICS -> WeMadeColors.Warning
     ModuleCategory.TECHNICAL -> WeMadeColors.Info
     ModuleCategory.PRODUCTION -> WeMadeColors.Accent
     ModuleCategory.QUALITY -> WeMadeColors.Success
+    ModuleCategory.FINANCE -> WeMadeColors.Success
 }

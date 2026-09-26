@@ -293,11 +293,14 @@ class RbacApiClient(
                 .find(json)?.groupValues?.get(1)
                 ?.let { raw -> "\"([^\"]+)\"".toRegex().findAll(raw).map { it.groupValues[1] }.toSet() }
                 ?: emptySet(),
+            allowedDesks = parseDeskCodes(json),
             id = OrgChartApiClient.extractString(json, "id") ?: ""
         )
 
         fun serializeAssignment(module: BusinessModule, assignment: DepartmentModuleAssignment): String {
             val roleIds = assignment.specificRoleIds.sorted()
+                .joinToString(",") { "\"${OrgChartApiClient.escapeJson(it)}\"" }
+            val desks = assignment.allowedDesks.orEmpty().sorted()
                 .joinToString(",") { "\"${OrgChartApiClient.escapeJson(it)}\"" }
             return "{\"module\":\"${module.name}\"," +
                 "\"id\":\"${OrgChartApiClient.escapeJson(assignment.id)}\"," +
@@ -305,33 +308,54 @@ class RbacApiClient(
                 "\"departmentName\":\"${OrgChartApiClient.escapeJson(assignment.departmentName)}\"," +
                 "\"accessLevel\":\"${assignment.accessLevel.name}\"," +
                 "\"scope\":\"${assignment.scope.name}\"," +
-                "\"specificRoleIds\":[$roleIds]}"
+                "\"specificRoleIds\":[$roleIds]," +
+                "\"allowedDesks\":[$desks]}"
         }
+
+        /** Meja dari penugasan; `null` berarti seluruh meja (field kosong/absen). */
+        private fun parseDeskCodes(json: String): Set<String>? =
+            "\"allowedDesks\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex()
+                .find(json)?.groupValues?.get(1)
+                ?.let { raw -> "\"([^\"]+)\"".toRegex().findAll(raw).map { it.groupValues[1] }.toSet() }
+                ?.takeIf { it.isNotEmpty() }
 
         fun parsePermissions(rawJson: String?): Map<BusinessModule, ModuleAccessConfig> {
             if (rawJson.isNullOrBlank() || rawJson == "{}") return emptyMap()
             val result = mutableMapOf<BusinessModule, ModuleAccessConfig>()
-            val regex = "\"([A-Za-z0-9_]+)\"\\s*:\\s*\\{\\s*\"level\"\\s*:\\s*\"([A-Za-z0-9_]+)\"\\s*,\\s*\"scope\"\\s*:\\s*\"([A-Za-z0-9_]+)\"\\s*\\}".toRegex()
+            // Gumpalan isi tiap modul dibaca utuh lalu field-nya diurai satu per satu, supaya
+            // entri dengan "desks" dan tanpa "desks" bisa diparse dengan aturan yang sama.
+            val moduleRegex = "\"([A-Za-z0-9_]+)\"\\s*:\\s*\\{([^{}]*)\\}".toRegex()
+            val levelRegex = "\"level\"\\s*:\\s*\"([A-Za-z0-9_]+)\"".toRegex()
+            val scopeRegex = "\"scope\"\\s*:\\s*\"([A-Za-z0-9_]+)\"".toRegex()
+            val desksRegex = "\"desks\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex()
+            val itemRegex = "\"([^\"]+)\"".toRegex()
 
-            regex.findAll(rawJson).forEach { match ->
+            moduleRegex.findAll(rawJson).forEach { match ->
                 val moduleKey = match.groupValues[1]
-                val levelKey = match.groupValues[2]
-                val scopeKey = match.groupValues[3]
+                val body = match.groupValues[2]
 
-                val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull()
-                val level = runCatching { AccessLevel.valueOf(levelKey) }.getOrDefault(AccessLevel.NONE)
-                val scope = runCatching { DataScope.valueOf(scopeKey) }.getOrDefault(DataScope.ALL_TENANT_DATA)
+                val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull() ?: return@forEach
+                val level = levelRegex.find(body)?.groupValues?.get(1)
+                    ?.let { runCatching { AccessLevel.valueOf(it) }.getOrNull() }
+                    ?: AccessLevel.NONE
+                val scope = scopeRegex.find(body)?.groupValues?.get(1)
+                    ?.let { runCatching { DataScope.valueOf(it) }.getOrNull() }
+                    ?: DataScope.ALL_TENANT_DATA
+                val desks = desksRegex.find(body)?.groupValues?.get(1)
+                    ?.let { raw -> itemRegex.findAll(raw).map { item -> item.groupValues[1] }.toSet() }
+                    ?.takeIf { it.isNotEmpty() }
 
-                if (module != null) {
-                    result[module] = ModuleAccessConfig(level, scope)
-                }
+                result[module] = ModuleAccessConfig(level, scope, allowedDesks = desks)
             }
             return result
         }
 
         fun serializePermissions(permissions: Map<BusinessModule, ModuleAccessConfig>): String {
             val entries = permissions.map { (module, config) ->
-                "\"${module.name}\":{\"level\":\"${config.level.name}\",\"scope\":\"${config.scope.name}\"}"
+                val desks = config.allowedDesks?.takeIf { it.isNotEmpty() }
+                    ?.let { desks -> ",\"desks\":[${desks.sorted().joinToString(",") { "\"$it\"" }}]}" }
+                    ?: ""
+                "\"${module.name}\":{\"level\":\"${config.level.name}\",\"scope\":\"${config.scope.name}\"$desks}"
             }
             return "{${entries.joinToString(",")}}"
         }

@@ -25,6 +25,11 @@ import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.presentation.crm.CrmWorkspaceScreen
+import com.eventverse.app.presentation.masterdata.MasterDataWorkspaceScreen
+import com.eventverse.app.presentation.vendor.VendorContactsWorkspaceScreen
+import com.eventverse.app.presentation.sampling.SamplingWorkspaceScreen
+import com.eventverse.app.presentation.techpack.TechPackWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -33,12 +38,14 @@ import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
- * Layar kerja generik untuk sembilan modul bisnis konveksi.
+ * Layar kerja untuk sembilan modul bisnis konveksi.
  *
- * Tujuannya bukan menjadi modul yang sesungguhnya, melainkan membuat **perbedaan antar tingkat
- * wewenang terlihat dalam satu layar**: banner yang berbeda, tombol yang hidup atau mati, dan
- * cakupan data yang dinyatakan terang-terangan. Satu layar dipakai bersama sembilan modul supaya
- * perbedaan yang terlihat pasti berasal dari wewenang, bukan dari layar yang kebetulan berbeda.
+ * `CRM_SALES` adalah modul pertama yang lepas dari placeholder generik — lihat
+ * [CrmWorkspaceScreen]. Delapan modul sisanya masih memakai [ModuleWorkspacePlaceholder]:
+ * banner yang berbeda, tombol yang hidup atau mati, dan cakupan data yang dinyatakan
+ * terang-terangan, supaya perbedaan yang terlihat pasti berasal dari wewenang, bukan dari
+ * layar yang kebetulan berbeda. Saat modul kesembilan pindah ke layar sungguhannya,
+ * `ModuleWorkspacePlaceholder` dan `sampleRowsFor` di bawah bisa dihapus seluruhnya.
  */
 @Composable
 fun ModuleWorkspaceScreen(
@@ -63,6 +70,113 @@ fun ModuleWorkspaceScreen(
         }
         return
     }
+
+    val resolvedSlug = persona?.tenantSlug?.takeIf { it.isNotBlank() } ?: "wemade-demo"
+
+    if (module == BusinessModule.CRM_SALES) {
+        CrmWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            access = access,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.SAMPLING_ORDER) {
+        SamplingWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.MASTER_DATA) {
+        MasterDataWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.VENDOR_CONTACTS) {
+        VendorContactsWorkspaceScreen(tenantSlug = resolvedSlug, decision = decision, modifier = modifier.fillMaxSize())
+        return
+    }
+
+    if (module == BusinessModule.TECH_PACK_BOM) {
+        TechPackWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.INVOICING) {
+        com.eventverse.app.presentation.invoicing.InvoiceWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            access = access,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.COSTING_HPP) {
+        com.eventverse.app.presentation.costing.CostingWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.OPERATOR_EXEC) {
+        com.eventverse.app.presentation.operator.OperatorFloorWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.QUALITY_CONTROL) {
+        com.eventverse.app.presentation.qc.QcInspectorWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    if (module == BusinessModule.PRODUCTION_MRP) {
+        com.eventverse.app.presentation.production.ProductionWorkspaceScreen(
+            tenantSlug = resolvedSlug,
+            decision = decision,
+            persona = persona,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
+}
+
+@Composable
+private fun ModuleWorkspacePlaceholder(
+    module: BusinessModule,
+    decision: AccessDecision,
+    persona: TestingPersona?,
+    modifier: Modifier = Modifier
+) {
+    val access = decision.config
 
     Column(
         modifier = modifier
@@ -371,6 +485,10 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
         "Sample #SP-1043 — Polo Cotton" to "Jahit",
         "Sample #SP-1044 — Kemeja PDH" to "Review"
     )
+    BusinessModule.MASTER_DATA -> listOf(
+        "Benang Cotton Combed 30s — YRN-0001" to "Aktif",
+        "Kain Fleece Katun 280 gsm — FAB-0002" to "Aktif"
+    )
     BusinessModule.INVENTORY -> listOf(
         "Cotton Combed 30s — 420 kg" to "Tersedia",
         "Kain titipan buyer — 180 kg" to "Konsinyasi"
@@ -378,10 +496,6 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
     BusinessModule.TECH_PACK_BOM -> listOf(
         "Tech Pack PDH-2024 rev.3" to "Final",
         "BOM Polo Combed" to "Draft"
-    )
-    BusinessModule.COSTING_HPP -> listOf(
-        "HPP Kemeja PDH — Rp 78.400/pcs" to "Terkunci",
-        "HPP Polo — Rp 54.100/pcs" to "Simulasi"
     )
     BusinessModule.PRODUCTION_MRP -> listOf(
         "SPK-8891 — Line 2, 3 hari" to "Berjalan",
@@ -399,10 +513,16 @@ private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = 
         "Surat Jalan SJ-2201 — 40 karton" to "Dikirim",
         "Packing list PO-5512" to "Disiapkan"
     )
-    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik) dan
+    BusinessModule.INVOICING -> listOf(
+        "INV/2026/03/0001 — PT Sinar Jaya (DP 50%)" to "Issued",
+        "INV/2026/03/0002 — CV Amanah (Sampling)" to "Paid"
+    )
+    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik, Costing) dan
     // tidak pernah dirutekan ke layar kerja generik ini. Cabang ini ada semata agar `when` tetap
     // ekshaustif — dan sengaja kosong, bukan diisi baris contoh yang akan menyesatkan bila suatu
     // saat benar-benar terlihat.
+    BusinessModule.COSTING_HPP,
+    BusinessModule.VENDOR_CONTACTS,
     BusinessModule.ORG_CHART,
     BusinessModule.DYNAMIC_RBAC,
     BusinessModule.FACTORY_FLOW -> emptyList()

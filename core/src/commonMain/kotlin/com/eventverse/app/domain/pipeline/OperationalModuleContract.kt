@@ -78,30 +78,6 @@ enum class ModuleExecutionPolicy {
     CONDITIONAL_REWORK;
 }
 
-/**
- * Attribution of responsibility when quality defects occur.
- */
-enum class DefectLiability(
-    val code: String,
-    val displayName: String,
-    val description: String
-) {
-    FACTORY_WORKMANSHIP(
-        code = "factory_workmanship",
-        displayName = "Tanggung Jawab Pabrik (Jahitan / Pemotongan)",
-        description = "Cacat pengerjaan operator pabrik; pabrik menanggung biaya pengerjaan ulang (rework)."
-    ),
-    CLIENT_SUPPLIED_DEFECT(
-        code = "client_supplied_defect",
-        displayName = "Cacat Bahan Bawaan Buyer (Makloon CMT)",
-        description = "Cacat tenun/serat kain yang dibawa klien; bukan kelalaian pabrik, dikomunikasikan ke buyer."
-    ),
-    SUPPLIER_VENDOR_DEFECT(
-        code = "supplier_vendor_defect",
-        displayName = "Cacat Pabrik Kain Rekanan (FOB)",
-        description = "Kain susut/belang dari supplier pabrik; klaim retur / debit note ke penjual kain."
-    );
-}
 
 /**
  * Functional Archetype / Capability Slot in the factory workflow.
@@ -125,6 +101,12 @@ enum class ModuleArchetype(
         displayName = "Bahan Baku & Persediaan Gudang",
         defaultExpectedInputType = "MaterialRequisition",
         defaultProducedOutputType = "VerifiedMaterialStock"
+    ),
+    PRODUCT_ENGINEERING(
+        code = "product_engineering",
+        displayName = "Rekayasa Produk: Tech Pack, BOM & Yield",
+        defaultExpectedInputType = "ApprovedSampleSpecification",
+        defaultProducedOutputType = "TechPackAndYieldData"
     ),
     COSTING_HPP(
         code = "costing_hpp",
@@ -177,6 +159,7 @@ enum class ModuleArchetype(
         get() = when (this) {
             ORDER_INGESTION -> BusinessModule.CRM_SALES
             RAW_MATERIAL -> BusinessModule.INVENTORY
+            PRODUCT_ENGINEERING -> BusinessModule.TECH_PACK_BOM
             COSTING_HPP -> BusinessModule.COSTING_HPP
             CUTTING -> BusinessModule.PRODUCTION_MRP
             SEWING -> BusinessModule.OPERATOR_EXEC
@@ -190,7 +173,7 @@ enum class ModuleArchetype(
     val defaultStage: PipelineStage
         get() = when (this) {
             ORDER_INGESTION -> PipelineStage.COMMERCIAL
-            COSTING_HPP -> PipelineStage.ENGINEERING
+            PRODUCT_ENGINEERING, COSTING_HPP -> PipelineStage.ENGINEERING
             RAW_MATERIAL -> PipelineStage.SUPPLY_CHAIN
             CUTTING, SEWING, FINISHING, CUSTOM_EXTENSION -> PipelineStage.MANUFACTURING
             QUALITY_CONTROL, FULFILLMENT -> PipelineStage.ASSURANCE_DELIVERY
@@ -214,7 +197,7 @@ enum class ModuleArchetype(
             BusinessModule.CRM_SALES -> ORDER_INGESTION
             BusinessModule.SAMPLING_ORDER -> ORDER_INGESTION
             BusinessModule.INVENTORY -> RAW_MATERIAL
-            BusinessModule.TECH_PACK_BOM -> COSTING_HPP
+            BusinessModule.TECH_PACK_BOM -> PRODUCT_ENGINEERING
             BusinessModule.COSTING_HPP -> COSTING_HPP
             BusinessModule.PRODUCTION_MRP -> CUTTING
             BusinessModule.OPERATOR_EXEC -> SEWING
@@ -222,7 +205,9 @@ enum class ModuleArchetype(
             BusinessModule.FULFILLMENT -> FULFILLMENT
             BusinessModule.ORG_CHART,
             BusinessModule.DYNAMIC_RBAC,
-            BusinessModule.FACTORY_FLOW -> null
+            BusinessModule.FACTORY_FLOW,
+            BusinessModule.MASTER_DATA, BusinessModule.VENDOR_CONTACTS,
+            BusinessModule.INVOICING -> null
         }
 
         /** Resolves the archetype for a persisted module code, standard or custom. */

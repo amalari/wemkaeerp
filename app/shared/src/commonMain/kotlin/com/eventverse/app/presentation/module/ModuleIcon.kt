@@ -8,9 +8,11 @@ import com.eventverse.app.presentation.designsystem.IconCalculator
 import com.eventverse.app.presentation.designsystem.IconCalendarGrid
 import com.eventverse.app.presentation.designsystem.IconCheckCircle
 import com.eventverse.app.presentation.designsystem.IconClipboard
+import com.eventverse.app.presentation.designsystem.IconDatabase
 import com.eventverse.app.presentation.designsystem.IconHandshake
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconPackage
+import com.eventverse.app.presentation.designsystem.IconReceipt
 import com.eventverse.app.presentation.designsystem.IconRuler
 import com.eventverse.app.presentation.designsystem.IconShield
 import com.eventverse.app.presentation.designsystem.IconTruck
@@ -41,12 +43,14 @@ fun ModuleIcon(iconKey: String, modifier: Modifier = Modifier, color: Color) {
         "activity" -> IconActivity(modifier = modifier, color = color)
         "check_circle" -> IconCheckCircle(modifier = modifier, color = color)
         "truck" -> IconTruck(modifier = modifier, color = color)
+        "receipt" -> IconReceipt(modifier = modifier, color = color)
         // Modul tata kelola. Ikonnya dulu dipilih lewat `AdminScreenIcon` di App.kt berdasarkan
         // AppNavScreen; setelah ketiganya menjadi modul, sumber ikonnya menyatu di sini bersama
         // yang lain.
         "users" -> IconUsers(modifier = modifier, color = color)
         "shield" -> IconShield(modifier = modifier, color = color)
         "flow_graph" -> IconFlowGraph(modifier = modifier, color = color)
+        "database" -> IconDatabase(modifier = modifier, color = color)
         else -> IconLayers(modifier = modifier, color = color)
     }
 }

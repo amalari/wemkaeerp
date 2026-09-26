@@ -28,3 +28,6 @@ node_modules/
 **/.venv/
 
 graphify-out/
+
+# Artefak Playwright MCP (screenshot, snapshot, log console)
+.playwright-mcp/

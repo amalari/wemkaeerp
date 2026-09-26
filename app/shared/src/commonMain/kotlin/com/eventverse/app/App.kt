@@ -20,6 +20,7 @@ import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
+import com.eventverse.app.presentation.fulfillment.FulfillmentWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -38,7 +39,10 @@ import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.module.ModuleIcon
+import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.navigation.AppTopBar
+import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
@@ -208,132 +212,39 @@ fun App() {
         )
     }
 
-    WeMadeTheme {
-        Box(modifier = Modifier.fillMaxSize()) {
+    CompositionLocalProvider(
+        LocalAppNavigator provides navigateTo
+    ) {
+        WeMadeTheme {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isCompact = maxWidth < ClayBreakpoints.MasterDetail
+
             Column(modifier = Modifier.fillMaxSize()) {
-                // Top Bar: Menu Trigger, Brand, Tenant Switcher & User Profile
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = WeMadeColors.Surface,
-                    shadowElevation = 1.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Hamburger Menu Trigger & Brand
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ClayIconButton(
-                                onClick = { drawerOpen = true },
-                                shape = ClayShapes.Tile,
-                                size = 34.dp,
-                                containerColor = WeMadeColors.SurfaceMuted
-                            ) {
-                                IconMenu(
-                                    modifier = Modifier.size(15.dp),
-                                    color = WeMadeColors.OnSurface
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
-                            Text(
-                                text = "WeMade ERP",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = WeMadeColors.Primary
-                            )
-                            Text(
-                                text = "•",
-                                color = WeMadeColors.OnSurfaceMuted
-                            )
-                            Text(
-                                text = currentScreen.title,
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                        if (isAuthenticated && session != null) {
-                            PersonaSwitcherDropdown(
-                                activePersona = activePersona,
-                                employees = policyEmployees,
-                                departments = policyDepartments,
-                                roles = policyRoles,
-                                tenantId = session.user.tenantId ?: TenantId("ten-demo-001"),
-                                tenantSlug = session.tenantSlug ?: "wemade-demo",
-                                isAuditViewEnabled = auditView,
-                                onAuditViewChange = { policyRepository.setAuditView(it) },
-                                onApplyPersona = { authViewModel.switchPersona(it) },
-                                onResetSuperadmin = {
-                                    authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
-                                }
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 10.dp)
-                                    .height(24.dp)
-                                    .width(1.dp)
-                                    .background(WeMadeColors.Border)
-                            )
-
-                            // GCP-Style Company Switcher Dropdown, for platform superadmins
-                            // only: the server authorises acting on another tenant purely by
-                            // role, so offering it to a tenant-bound account would just
-                            // produce 403s on every request after the switch.
-                            if (session.user.role == Role.PLATFORM_SUPERADMIN) {
-                                com.eventverse.app.presentation.navigation.CompanySwitcherDropdown(
-                                    currentSlug = session.tenantSlug ?: "wemade-demo",
-                                    onSelectCompany = { company ->
-                                        authViewModel.switchTenant(company)
-                                    }
-                                )
-
-                                // Menyambung/memutus modul untuk pabrik yang sedang dilihat.
-                                // Ditaruh bersebelahan dengan pemilih perusahaan karena keduanya
-                                // menjawab pertanyaan yang sama: "pabrik mana, dan punya apa".
-                                ClayIconButton(
-                                    onClick = { showTenantEntitlementDialog = true },
-                                    shape = ClayShapes.Tile
-                                ) {
-                                    IconLayers(
-                                        modifier = Modifier.size(16.dp),
-                                        color = WeMadeColors.OnSurface
-                                    )
-                                }
-
-                                // Divider
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 10.dp)
-                                        .height(24.dp)
-                                        .width(1.dp)
-                                        .background(WeMadeColors.Border)
-                                )
-                            }
-
-                            // User Profile Dropdown (info akun & aksi logout)
-                            ProfileDropdown(
-                                session = session,
-                                onLogout = {
-                                    authViewModel.onEvent(LoginUiEvent.Logout)
-                                    navigateTo(AppNavScreen.LOGIN)
-                                }
-                            )
-                        }
-                        }
+                AppTopBar(
+                    currentScreen = currentScreen,
+                    onOpenDrawer = { drawerOpen = true },
+                    isAuthenticated = isAuthenticated,
+                    session = session,
+                    activePersona = activePersona,
+                    policyEmployees = policyEmployees,
+                    policyDepartments = policyDepartments,
+                    policyRoles = policyRoles,
+                    auditView = auditView,
+                    isCompact = isCompact,
+                    onAuditViewChange = { policyRepository.setAuditView(it) },
+                    onApplyPersona = { authViewModel.switchPersona(it) },
+                    onResetSuperadmin = {
+                        authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
+                    },
+                    onSelectCompany = { company ->
+                        authViewModel.switchTenant(company)
+                    },
+                    onOpenTenantEntitlements = { showTenantEntitlementDialog = true },
+                    onLogout = {
+                        authViewModel.onEvent(LoginUiEvent.Logout)
+                        navigateTo(AppNavScreen.LOGIN)
                     }
-                }
+                )
 
                 // Screen Content Area with Auth Guard
                 Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
@@ -417,15 +328,70 @@ fun App() {
                         // sesi dulu (AuthGuardCard), baru wewenang (AccessDeniedCard di dalam
                         // ModuleWorkspaceScreen) — belum login dan tidak berwenang adalah dua
                         // keadaan berbeda dan pantas memberi pesan yang berbeda.
+                        AppNavScreen.TRACEABILITY -> {
+                            if (isAuthenticated) {
+                                com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(
+                                    tenantSlug = session?.tenantSlug ?: "wemade-demo"
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
+                        // FULFILLMENT punya layar kerjanya sendiri (kurir antar karung),
+                        // tapi gerbangnya tetap ganda seperti modul lain: sesi dulu, baru wewenang.
+                        AppNavScreen.FULFILLMENT -> {
+                            val module = screen.businessModule
+                            if (isAuthenticated && module != null) {
+                                FulfillmentWorkspaceScreen(
+                                    decision = accessDecisions[module] ?: AccessDecision(
+                                        config = ModuleAccessConfig(),
+                                        source = AccessSource.NONE,
+                                        fromRole = ModuleAccessConfig(),
+                                        fromDepartment = ModuleAccessConfig()
+                                    ),
+                                    persona = activePersona
+                                )
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
+                        AppNavScreen.SURAT_JALAN -> {
+                            if (isAuthenticated) {
+                                com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen()
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = screen.title,
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
+                                )
+                            }
+                        }
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
+                        AppNavScreen.MASTER_DATA,
+                        AppNavScreen.VENDOR_CONTACTS,
                         AppNavScreen.INVENTORY,
                         AppNavScreen.TECH_PACK_BOM,
                         AppNavScreen.COSTING_HPP,
                         AppNavScreen.PRODUCTION_MRP,
                         AppNavScreen.OPERATOR_EXEC,
                         AppNavScreen.QUALITY_CONTROL,
-                        AppNavScreen.FULFILLMENT -> {
+                        AppNavScreen.INVOICING,
+                        AppNavScreen.INVOICING_TEMPLATES -> {
                             val module = screen.businessModule
                             if (isAuthenticated && module != null) {
                                 ModuleWorkspaceScreen(
@@ -504,6 +470,7 @@ fun App() {
             }
         }
     }
+}
 }
 
 /**

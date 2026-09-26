@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -35,9 +37,22 @@ fun ClayTextField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     singleLine: Boolean = true,
+    /**
+     * Tinggi minimum untuk isian multi-baris, diabaikan bila [singleLine] true.
+     *
+     * Tanpa ini, isian teks panjang (isi elemen teks pada template faktur) hanya setinggi satu baris
+     * dan pengguna harus menggulir di dalam kotak satu baris untuk membaca ulang apa yang sudah
+     * ditulisnya.
+     */
+    minLines: Int = 1,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
+    isError: Boolean = false,
+    errorMessage: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    /** Opsional: peminta fokus programatik untuk field di dalam popup (mis. dropdown searchable). */
+    focusRequester: FocusRequester? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
@@ -57,11 +72,19 @@ fun ClayTextField(
                 .fillMaxWidth()
                 .claySurface(
                     shape = ClayShapes.Chip,
-                    background = if (enabled) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
-                    outline = if (isFocused) focusColor else WeMadeColors.Outline,
-                    offset = if (isFocused) ClayOffset.Small else ClayOffset.Pressed,
-                    borderWidth = if (isFocused) ClayBorder.Thick else ClayBorder.Medium,
-                    shadowColor = if (isFocused) focusColor else WeMadeColors.Outline,
+                    background = if (enabled && !readOnly) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                    outline = when {
+                        isError -> WeMadeColors.Error
+                        isFocused && !readOnly -> focusColor
+                        else -> WeMadeColors.Outline
+                    },
+                    offset = if ((isFocused || isError) && !readOnly) ClayOffset.Small else ClayOffset.Pressed,
+                    borderWidth = if ((isFocused || isError) && !readOnly) ClayBorder.Thick else ClayBorder.Medium,
+                    shadowColor = when {
+                        isError -> WeMadeColors.Error
+                        isFocused && !readOnly -> focusColor
+                        else -> WeMadeColors.Outline
+                    },
                     innerShade = false
                 )
                 .padding(horizontal = ClaySpacing.Lg, vertical = 10.dp),
@@ -69,7 +92,9 @@ fun ClayTextField(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                // Isian multi-baris dibaca dari atas ke bawah; memusatkannya secara vertikal membuat
+                // baris pertama melompat-lompat setiap kali pengguna menambah baris baru.
+                verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 if (leadingIcon != null) {
@@ -90,15 +115,19 @@ fun ClayTextField(
                         onValueChange = onValueChange,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                             .onFocusChanged { isFocused = it.isFocused },
                         singleLine = singleLine,
+                        // BasicTextField melempar pengecualian bila minLines > 1 pada mode satu baris.
+                        minLines = if (singleLine) 1 else minLines.coerceAtLeast(1),
                         enabled = enabled,
+                        readOnly = readOnly,
                         textStyle = LocalTextStyle.current.copy(
-                            color = WeMadeColors.OnSurface,
+                            color = if (enabled && !readOnly) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(focusColor),
+                        cursorBrush = if (readOnly) SolidColor(Color.Transparent) else SolidColor(focusColor),
                         keyboardOptions = keyboardOptions,
                         keyboardActions = keyboardActions
                     )
@@ -108,6 +137,17 @@ fun ClayTextField(
                     trailingIcon()
                 }
             }
+        }
+
+        if (isError && errorMessage != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorMessage,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.Error,
+                modifier = Modifier.padding(start = 2.dp)
+            )
         }
     }
 }

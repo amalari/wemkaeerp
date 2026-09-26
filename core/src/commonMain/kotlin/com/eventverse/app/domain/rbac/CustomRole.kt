@@ -137,6 +137,8 @@ data class CustomRole(
                         BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
@@ -145,7 +147,8 @@ data class CustomRole(
                         BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
                         BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA)
+                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
                     )
                 ),
                 CustomRole(
@@ -160,6 +163,8 @@ data class CustomRole(
                         BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
@@ -168,7 +173,8 @@ data class CustomRole(
                         BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
+                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA)
                     )
                 ),
                 CustomRole(
@@ -183,6 +189,8 @@ data class CustomRole(
                         BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
@@ -191,7 +199,8 @@ data class CustomRole(
                         BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
+                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY)
                     )
                 ),
                 CustomRole(
@@ -206,6 +215,8 @@ data class CustomRole(
                         BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
@@ -214,7 +225,8 @@ data class CustomRole(
                         BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
+                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
                     )
                 ),
                 CustomRole(
@@ -230,6 +242,8 @@ data class CustomRole(
                         BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
                         BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.NONE),
@@ -238,7 +252,8 @@ data class CustomRole(
                         BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
                         BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
                         BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.NONE)
+                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.NONE),
+                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
                     )
                 )
             )

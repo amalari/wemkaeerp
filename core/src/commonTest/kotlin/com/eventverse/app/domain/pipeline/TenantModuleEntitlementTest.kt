@@ -206,7 +206,7 @@ class GovernanceEntitlementTest {
             GarmentBusinessPreset.CMT_MAKLOON
         )
 
-        val activeOperational = pipeline.activeNodes.count { it.standardModule?.isGovernance != true }
+        val activeOperational = pipeline.activeNodes.count { it.standardModule?.isOperational == true }
         assertEquals(
             activeOperational,
             pipeline.activeNodes.size,

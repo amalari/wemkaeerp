@@ -305,15 +305,89 @@ Ringkasan kontrak wajibnya:
 9. **Clay memakan ruang** (~18dp/kartu) dan Nunito ber-x-height besar; tinjau lebar kontainer
    dan tier ukuran font setiap kali mengkonversi layar padat.
 10. **Mode gelap lewat theme, bukan ternary.** Jangan menambah `if (isPresentationMode)` baru.
+11. **Nol literal emoji / Unicode glyph sebagai ikon di string UI.** Skiko/Wasm di browser tidak memiliki fallback font emoji OS dan akan merender kotak kosong/tofu (`▯`). Seluruh ikon wajib memakai vektor berbasis Canvas dari `ClayIcons.kt` (`IconChat`, `IconNote`, `IconPhone`, `IconMail`, `IconUser`, `IconChevronDown`, dll.) via slot `leading`/`trailing`.
 
-Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap UI selesai —
-termasuk **menjalankan aplikasinya dan melihat dengan mata**, karena bug layout tidak tertangkap
-test mana pun.
+---
+
+### 13. Full-Stack End-to-End Planning & Backend Integration (Wajib)
+
+Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubahan arsitektur:
+- **Dilarang keras hanya merencanakan sisi UI / Client saja.**
+- **Setiap planning WAJIB mencakup arsitektur Full-Stack yang terintegrasi secara end-to-end**, yang terdiri dari 5 pilar:
+  1. **Database & Persistence Layer**:
+     - Skema migrasi Flyway baru (`V...__.sql`) di `server/src/main/resources/db/migration/`.
+     - Definisi tabel Exposed di `server/src/main/kotlin/.../infrastructure/persistence/` (termasuk tipe data spesifik seperti `jsonb`, indeks GIN, foreign key, dan `tenant_id` multi-tenancy).
+  2. **Pure Domain Layer (`core/`)**:
+     - Entities, Value Objects, Domain Events, dan Repository Interface yang bebas dari dependensi framework.
+     - Use Cases (`[Verb][Noun]UseCase`) dengan input Command/Query dan return `Result<T>`.
+  3. **Backend API & Routing (`server/`)**:
+     - Route path Ktor, HTTP methods (`GET`, `POST`, `PATCH`, `DELETE`).
+     - Kontrak DTO Request/Response (`@Serializable`).
+     - Proteksi RBAC / Wewenang (`tenant_id` context, checking `ModuleAccessConfig` & `AccessDecision`).
+  4. **Client-Server Integration (`app/shared/`)**:
+     - Implementasi HTTP Client repository menggunakan Ktor Client (`Ktor...Repository`).
+     - Mapping DTO jaringan ke Domain Entity.
+     - Penanganan status jaringan (Loading, Success, Error, Timeout, Offline fallback/Cache).
+     - Aliran data ke ViewModel via StateFlow (`UiState`, `UiEvent`).
+  5. **Shared Presentation Layer (`app/shared/presentation/`)**:
+     - Komponen Compose Multiplatform responsif (Web/Desktop & Mobile) mematuhi Claymorphism Design System.
+
+---
+
+### 14. Batas Ukuran File (File Size & Decomposition)
+
+Panjang file adalah *proxy* termurah untuk tiga penyakit nyata: pelanggaran Single Responsibility,
+pola yang disalin alih-alih diangkat jadi komponen bersama, dan file yang tidak lagi bisa direview
+sekali duduk. Karena itu ada ambangnya, **per lapisan** — satu angka global tidak masuk akal karena
+Compose secara struktural lebih panjang dari domain murni.
+
+| Lingkup | Soft (peringatan) | Hard (tolak merge) |
+|---|---|---|
+| `core/**` (domain murni) | **250** | **400** |
+| `app/shared/**/presentation/**` | **400** | **600** |
+| `server/src/main/**` | **300** | **500** |
+| `**/commonTest/**`, `**/jvmTest/**` | **500** | **800** |
+| ragu / tidak terdaftar | **400** | **600** |
+
+Kontrak wajibnya:
+
+1. **Hard limit berlaku ke file setelah diubah, bukan ke diff-nya.** Menambah 10 baris ke file 700
+   baris tetap pelanggaran.
+2. **Aturan Ratchet** — file yang sudah di atas hard limit sebelum aturan ini ada tidak wajib
+   dinormalkan dalam satu PR, tapi **setiap perubahan padanya wajib membuatnya tidak lebih panjang**.
+   Catat `wc -l` sebelum dan sesudah.
+3. **Memecah file mengikuti batas tanggung jawab, bukan batas baris.** Dilarang
+   `…Part2.kt` / `…Extra.kt` / `…Helpers.kt` tanpa tema.
+4. **Pengecualian hanya untuk data terurut, bukan logika** — katalog ikon, seed preset, codec
+   eksplisit, kode ter-generate. Wajib dideklarasikan di baris pertama file:
+   ```kotlin
+   // FILE-SIZE-EXEMPT: katalog aset — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
+   ```
+   Screen/Dialog/ViewModel/Route **tidak pernah** memenuhi syarat pengecualian — panjangnya selalu
+   gejala desain, bukan gejala data.
+5. **Sebelum memecah UI, cek dulu apakah bagian yang berulang seharusnya naik ke
+   `presentation/designsystem/`** (Aturan Tiga Kali). Sering kali separuh panjang file itu adalah
+   styling yang disalin, bukan fitur.
+
+Baca **[`.claude/rules/file-size-rules.md`](.claude/rules/file-size-rules.md)** secara penuh untuk
+pola pemecahan per jenis file, daftar pengecualian, skrip audit, dan tabel utang teknis (21 file
+yang saat ini melanggar). Jalankan checklist Definition of Done di file tersebut sebelum menganggap
+pemecahan selesai — termasuk kompilasi 5 target dan **melihat UI-nya dengan mata**, karena memecah
+Compose mudah menggeser `Modifier` chain tanpa memecahkan kompilasi.
+
+Audit cepat file yang disentuh:
+
+```bash
+git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
+  | xargs wc -l 2>/dev/null | sort -rn | head -20
+```
 
 ---
 
 ## Anti-Patterns yang Dilarang
 
+- **Frontend-Only Planning** — Merencanakan atau membuat modul sebatas mockup UI tanpa merancang skema database, migrasi Flyway, API endpoint Ktor, dan integrasi data backend
+- **Unicode Emojis / Glyphs sebagai Ikon** — Menanam emoji (`💬`, `📝`, `📱`, `👤`, `✉️`, `▾`) ke dalam `Text(...)` atau label komponen yang menyebabkan rendering tofu (`▯`) di Compose Wasm. Selalu pakai `ClayIcons.kt`!
 - **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
 - **Anemic Domain Model** — Entity hanya data tanpa behavior, logika tersebar di service
 - **God UseCase / God Orchestrator** — Satu use case / satu file `main.ts` menangani seluruh operasi tanpa delegasi modul
@@ -324,3 +398,5 @@ test mana pun.
 - **Literal warna/radius/border di dalam Composable fitur** — Gunakan token (lihat §12)
 - **Menyalin blok styling** alih-alih mengangkatnya jadi komponen bersama
 - **`Modifier.shadow()` di `presentation/`** — Bayangannya selalu blur, berlawanan dengan bahasa visual
+- **God File** — satu file melewati hard limit lapisannya (lihat §14) tanpa alasan pengecualian yang sah
+- **Memecah file per baris, bukan per tanggung jawab** — `FooScreenPart2.kt`, `FooExtra.kt`, `FooHelpers.kt` tanpa tema

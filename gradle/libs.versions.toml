@@ -22,6 +22,11 @@ postgresql = "42.7.5"
 hikaricp = "6.2.1"
 exposed = "0.58.0"
 flyway = "11.1.0"
+pdfbox = "3.0.3"
+# Hanya dipakai server untuk menghasilkan matriks QR; artefak `core` ZXing murni Java, tanpa AWT.
+zxing = "3.5.3"
+poi = "5.4.1"
+awssdk = "2.25.60"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -61,6 +66,10 @@ exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "e
 exposed-kotlinDatetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
+awssdk-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awssdk" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

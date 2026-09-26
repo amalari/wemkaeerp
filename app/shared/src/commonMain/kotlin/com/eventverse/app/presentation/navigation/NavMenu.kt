@@ -52,24 +52,27 @@ fun buildNavMenu(
 ): List<NavMenuSection> {
     val sections = mutableListOf<NavMenuSection>()
 
-    val screensByModule = AppNavScreen.entries.mapNotNull { screen ->
-        screen.businessModule?.let { it to screen }
-    }.toMap()
+    // Satu modul boleh menggerbangi beberapa layar (OPERATOR_EXEC → Lantai Produksi & Telusur);
+    // `toMap()` dulu diam-diam membuang semua kecuali layar terakhir.
+    val screensByModule = AppNavScreen.entries
+        .filter { it.isNavMenuItem && it.businessModule != null }
+        .groupBy { requireNotNull(it.businessModule) }
 
     ModuleCategory.entries.forEach { category ->
         val entries = BusinessModule.entries
             .filter { it.category == category }
-            .mapNotNull { module ->
-                val screen = screensByModule[module] ?: return@mapNotNull null
+            .flatMap { module ->
                 val access = permissions[module] ?: ModuleAccessConfig()
-                if (!access.isAccessible && !auditView) return@mapNotNull null
+                if (!access.isAccessible && !auditView) return@flatMap emptyList()
 
-                NavMenuEntry(
-                    screen = screen,
-                    accessLevel = access.level,
-                    badge = access.level.badgeLabel(),
-                    locked = !access.isAccessible
-                )
+                screensByModule[module].orEmpty().map { screen ->
+                    NavMenuEntry(
+                        screen = screen,
+                        accessLevel = access.level,
+                        badge = access.level.badgeLabel(),
+                        locked = !access.isAccessible
+                    )
+                }
             }
 
         if (entries.isNotEmpty()) {

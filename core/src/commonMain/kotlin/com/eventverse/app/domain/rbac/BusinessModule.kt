@@ -13,17 +13,19 @@ package com.eventverse.app.domain.rbac
  * `SubscriptionTier.maxActivePipelineModules`. Paket PRO tetap berarti sembilan modul produksi,
  * bukan sembilan dikurangi layar pengaturan.
  */
-enum class ModuleKind { OPERATIONAL, GOVERNANCE }
+enum class ModuleKind { OPERATIONAL, GOVERNANCE, FOUNDATION }
 
 enum class ModuleCategory(val displayName: String) {
     // Wajib entri pertama: NavMenu menyusun urutan seksi drawer dari ModuleCategory.entries, dan
     // seksi tata kelola selalu berada di puncak seperti sebelum ketiga layar ini menjadi modul.
     GOVERNANCE("Sistem & Struktur"),
+    FOUNDATION("Data Induk & Referensi"),
     SALES("Penjualan & Relasi Pelanggan"),
     LOGISTICS("Gudang, Bahan Baku & Logistik"),
     TECHNICAL("Desain, Pola & Biaya HPP"),
     PRODUCTION("Lantai Produksi & Operator"),
-    QUALITY("Kualitas & Pengawasan");
+    QUALITY("Kualitas & Pengawasan"),
+    FINANCE("Keuangan & Penagihan");
 }
 
 enum class BusinessModule(
@@ -72,6 +74,29 @@ enum class BusinessModule(
         iconKey = "flow_graph",
         scopeCapability = ScopeCapability.GLOBAL_ONLY,
         kind = ModuleKind.GOVERNANCE
+    ),
+
+    // ── Modul fondasi ────────────────────────────────────────────────────────────────────────
+    // Modul permanen non-bypassable yang menyediakan data acuan global (katalog bahan, tarif harga acuan).
+    MASTER_DATA(
+        code = "master_data",
+        displayName = "Master Data Bahan & Harga",
+        category = ModuleCategory.FOUNDATION,
+        description = "Katalog benang, kain, aksesoris, satuan kemasan, dan tarif acuan HPP point-in-time.",
+        iconKey = "database",
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
+        kind = ModuleKind.FOUNDATION
+    ),
+    // Dipisah dari MASTER_DATA karena pemiliknya berbeda: katalog bahan milik gudang/costing,
+    // kontak vendor milik admin produksi. Digabung, keduanya terpaksa berbagi satu level akses.
+    VENDOR_CONTACTS(
+        code = "vendor_contacts",
+        displayName = "Kontak Vendor & Makloon",
+        category = ModuleCategory.FOUNDATION,
+        description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.",
+        iconKey = "truck",
+        scopeCapability = ScopeCapability.GLOBAL_ONLY,
+        kind = ModuleKind.FOUNDATION
     ),
 
     // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
@@ -146,6 +171,15 @@ enum class BusinessModule(
         description = "Finishing setrika uap, verifikasi kuantitas per karton, dan cetak Surat Jalan ekspedisi.",
         iconKey = "truck",
         scopeCapability = ScopeCapability.GLOBAL_ONLY
+    ),
+    INVOICING(
+        code = "invoicing",
+        displayName = "Invoice & Penagihan",
+        category = ModuleCategory.FINANCE,
+        description = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas.",
+        iconKey = "receipt",
+        scopeCapability = ScopeCapability.HIERARCHICAL,
+        kind = ModuleKind.FOUNDATION
     );
 
     val isGlobalOnly: Boolean get() = scopeCapability == ScopeCapability.GLOBAL_ONLY
@@ -153,6 +187,7 @@ enum class BusinessModule(
 
     val isGovernance: Boolean get() = kind == ModuleKind.GOVERNANCE
     val isOperational: Boolean get() = kind == ModuleKind.OPERATIONAL
+    val isFoundation: Boolean get() = kind == ModuleKind.FOUNDATION
 
     fun isScopeSupported(scope: DataScope): Boolean = supportedScopes.contains(scope)
 
@@ -167,6 +202,9 @@ enum class BusinessModule(
 
         /** Modul pengatur sistem: bagan organisasi, matriks wewenang, dan kanvas alur. */
         val governance: List<BusinessModule> get() = entries.filter { it.isGovernance }
+
+        /** Modul fondasi non-bypassable: data induk bahan dan harga acuan. */
+        val foundation: List<BusinessModule> get() = entries.filter { it.isFoundation }
 
         fun fromCode(code: String?): BusinessModule? =
             entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
