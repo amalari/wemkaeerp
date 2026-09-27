@@ -73,7 +73,12 @@ private fun loadableMockupRef(key: String?): String? =
 fun ClientSamplingReferenceCard(order: SamplingOrder) {
     val frontRef = loadableMockupRef(order.mockupFrontKey)
     val backRef = loadableMockupRef(order.mockupBackKey)
-    val totalQty = calculateTotalSampleQuantity(order.sizeMatrix, order.sampleQuantity)
+    val isSplitSize = !order.sizeLabel.isNullOrBlank()
+    val totalQty = if (isSplitSize) {
+        order.sampleQuantity
+    } else {
+        calculateTotalSampleQuantity(order.sizeMatrix, order.sampleQuantity)
+    }
     val deadline = order.deadlineDelivery ?: order.deadlineProgram
 
     var zoomTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -101,8 +106,19 @@ fun ClientSamplingReferenceCard(order: SamplingOrder) {
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val sizeTagLabel = when {
+                    isSplitSize -> {
+                        val label = order.sizeLabel.orEmpty().trim()
+                        if (label.equals("ALL SIZE", ignoreCase = true)) {
+                            "All Size (Satu Ukuran)"
+                        } else {
+                            "Size $label"
+                        }
+                    }
+                    else -> order.sizeMode.displayName
+                }
                 ClayTag(
-                    text = order.sizeMode.displayName,
+                    text = sizeTagLabel,
                     tint = WeMadeColors.Primary,
                     leading = { IconRuler(modifier = Modifier.size(11.dp), color = WeMadeColors.Primary) }
                 )
@@ -183,6 +199,7 @@ fun ClientSamplingReferenceCard(order: SamplingOrder) {
                 SizeChartTable(
                     matrix = order.sizeMatrix,
                     sizeMode = order.sizeMode,
+                    sizeLabel = order.sizeLabel,
                     totalQty = totalQty,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -283,8 +300,14 @@ private fun MockupPolaroidCard(
     }
 }
 
-/** Kolom ukuran yang relevan. Jika ALL_SIZE, hanya kolom ALL SIZE yang ditampilkan. */
-private fun usedSizeColumns(matrix: List<SizeChartRow>, sizeMode: SizeMode): List<String> {
+/** Kolom ukuran yang relevan. Jika per-ukuran spesifik (sizeLabel tidak kosong), hanya kolom ukuran tersebut yang ditampilkan. */
+private fun usedSizeColumns(matrix: List<SizeChartRow>, sizeMode: SizeMode, sizeLabel: String?): List<String> {
+    if (!sizeLabel.isNullOrBlank()) {
+        val target = sizeLabel.trim()
+        val match = STANDARD_SAMPLING_SIZE_COLUMNS.firstOrNull { it.equals(target, ignoreCase = true) }
+            ?: target
+        return listOf(match)
+    }
     if (sizeMode == SizeMode.ALL_SIZE) {
         return listOf("ALL SIZE")
     }
@@ -301,10 +324,11 @@ private fun usedSizeColumns(matrix: List<SizeChartRow>, sizeMode: SizeMode): Lis
 private fun SizeChartTable(
     matrix: List<SizeChartRow>,
     sizeMode: SizeMode,
+    sizeLabel: String? = null,
     totalQty: Int,
     modifier: Modifier = Modifier
 ) {
-    val columns = usedSizeColumns(matrix, sizeMode)
+    val columns = usedSizeColumns(matrix, sizeMode, sizeLabel)
     Column(
         modifier = modifier.clayFlat(
             shape = ClayShapes.Card,
@@ -329,8 +353,13 @@ private fun SizeChartTable(
                 color = WeMadeColors.OnSurface
             )
             columns.forEach { col ->
+                val colHeader = if (columns.size == 1 && !col.equals("ALL SIZE", ignoreCase = true)) {
+                    "SIZE $col"
+                } else {
+                    col
+                }
                 Text(
-                    text = col,
+                    text = colHeader,
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,

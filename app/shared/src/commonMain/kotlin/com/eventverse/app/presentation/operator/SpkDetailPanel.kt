@@ -55,8 +55,15 @@ fun SpkDetailPanel(
 
         SpkDetailRow("Klien", order.clientName)
         SpkDetailRow("Style", order.styleName)
-        SpkDetailRow("Jumlah", "${order.sampleQuantity} Pcs • ${order.sizeMode.displayName}")
-        SpkDetailRow("Ukuran", activeSizeLabels(order))
+        val sizeLabel = order.sizeLabel
+        val sizeDesc = if (!sizeLabel.isNullOrBlank()) {
+            val label = sizeLabel.trim()
+            if (label.equals("ALL SIZE", ignoreCase = true)) "All Size" else "Size $label"
+        } else {
+            order.sizeMode.displayName
+        }
+        SpkDetailRow("Jumlah", "${order.sampleQuantity} Pcs • $sizeDesc")
+        SpkDetailRow("Ukuran", if (!sizeLabel.isNullOrBlank()) sizeLabel else activeSizeLabels(order))
         SpkDetailRow("Deadline Program", formatSpkDate(order.deadlineProgram))
         SpkDetailRow("Deadline Finishing", formatSpkDate(order.deadlineFinishing))
         SpkDetailRow("Deadline Kirim", formatSpkDate(order.deadlineDelivery))

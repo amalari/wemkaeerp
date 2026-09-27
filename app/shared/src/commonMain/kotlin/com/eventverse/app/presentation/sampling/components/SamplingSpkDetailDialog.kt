@@ -128,8 +128,13 @@ fun SamplingSpkDetailDialog(
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurface
                         )
+                        val subtitle = if (!order.sizeLabel.isNullOrBlank()) {
+                            "${order.clientName} · ${order.styleName} (Size ${order.sizeLabel})"
+                        } else {
+                            "${order.clientName} · ${order.styleName}"
+                        }
                         Text(
-                            text = "${order.clientName} · ${order.styleName}",
+                            text = subtitle,
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted,
                             maxLines = 1,

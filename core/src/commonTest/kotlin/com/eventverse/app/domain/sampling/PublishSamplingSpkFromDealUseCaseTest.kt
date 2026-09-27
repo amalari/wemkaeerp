@@ -140,6 +140,7 @@ class PublishSamplingSpkFromDealUseCaseTest {
         assertEquals(SpkNumber("SPK-SMP-0050"), spk1.spkNumber)
         assertEquals("ALL SIZE", spk1.sizeLabel)
         assertEquals(2, spk1.sampleQuantity)
+        assertEquals(SizeMode.ALL_SIZE, spk1.sizeMode)
         assertEquals(SamplingStatus.IN_PROGRESS, spk1.status)
         assertNull(spk1.parentSamplingOrderId)
 
@@ -149,6 +150,7 @@ class PublishSamplingSpkFromDealUseCaseTest {
         assertEquals(SpkNumber("SPK-SMP-0051"), spk2.spkNumber)
         assertEquals("S", spk2.sizeLabel)
         assertEquals(2, spk2.sampleQuantity)
+        assertEquals(SizeMode.MULTI_SIZE, spk2.sizeMode)
         assertEquals(SamplingStatus.IN_PROGRESS, spk2.status)
         assertEquals(root.id, spk2.parentSamplingOrderId)
 

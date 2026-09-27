@@ -55,6 +55,7 @@ class PublishSamplingSpkFromDealUseCase(
         val updatedRoot = rootOrder.copy(
             sizeLabel = firstSize.first,
             sampleQuantity = firstSize.second,
+            sizeMode = if (firstSize.first.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
             status = if (rootOrder.status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else rootOrder.status,
             pipelineStage = targetStage,
             updatedAt = now
@@ -68,6 +69,7 @@ class PublishSamplingSpkFromDealUseCase(
             if (existing != null) {
                 val updatedChild = existing.copy(
                     sampleQuantity = qty,
+                    sizeMode = if (sizeName.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
                     status = if (existing.status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else existing.status,
                     pipelineStage = targetStage,
                     updatedAt = now
@@ -82,6 +84,7 @@ class PublishSamplingSpkFromDealUseCase(
                     parentSamplingOrderId = rootOrder.id,
                     sizeLabel = sizeName,
                     sampleQuantity = qty,
+                    sizeMode = if (sizeName.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
                     status = SamplingStatus.IN_PROGRESS,
                     pipelineStage = targetStage,
                     createdAt = now,
