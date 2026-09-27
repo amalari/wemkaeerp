@@ -7,8 +7,22 @@
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.import.gradle.wrapper.enabled": true,
-    "java.import.gradle.version": "9.8.0",
     "gradle.wrapperScript": "./gradlew",
     "gradle.useGradleDaemon": true,
-    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx8G -Xms100m -Xlog:disable"
+    "java.jdt.ls.vmargs": "-XX:+UseG1GC -XX:+UseStringDeduplication -Dsun.zip.disableMemoryMapping=true -Xmx3G -Xms256m -Xlog:disable",
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        "**/.gradle/**": true,
+        "**/build/**": true,
+        "**/.kotlin/**": true
+    },
+    "java.project.resourceFilters": [
+        "node_modules",
+        ".git",
+        "**/build",
+        "**/.gradle",
+        "**/.kotlin"
+    ]
 }
