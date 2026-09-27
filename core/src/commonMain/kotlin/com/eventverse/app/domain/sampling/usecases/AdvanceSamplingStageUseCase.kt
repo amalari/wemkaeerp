@@ -26,6 +26,11 @@ data class AdvanceSamplingStageCommand(
      * jalan pintasnya ada di dalam, dan meninggalkan jejak.
      */
     val overrideReason: String? = null,
+    /**
+     * Diisi hanya oleh use case kustodi penyimpanan (`StoreSampleUseCase`,
+     * `ReleaseSampleFromStorageUseCase`) — bukti bahwa penanggung jawabnya sudah tercatat.
+     */
+    val custodyRecorded: Boolean = false,
     val now: Instant
 )
 
@@ -52,6 +57,7 @@ class AdvanceSamplingStageUseCase(
 ) {
     suspend operator fun invoke(command: AdvanceSamplingStageCommand): Result<SamplingOrder> =
         runCatching {
+            requireCustodyPath(command)
             requireLegReceived(command)
             command.order.advancePipelineStage(
                 target = command.target,
@@ -60,6 +66,26 @@ class AdvanceSamplingStageUseCase(
                 actorRole = auditRole(command)
             )
         }
+
+    /**
+     * Masuk dan keluar penyimpanan wajib lewat jalur kustodi, bukan pindah tahap biasa.
+     *
+     * Dua perpindahan itu adalah titik barang paling sering "keselip": selesai packing lalu
+     * ditaruh entah di mana, atau dibawa keluar tanpa ada yang mengaku. Jalur kustodi memaksa
+     * penerima simpan dan PIC kirim tercatat; pindah tahap biasa tidak tahu soal keduanya.
+     */
+    private fun requireCustodyPath(command: AdvanceSamplingStageCommand) {
+        if (command.custodyRecorded) return
+        when (command.target) {
+            SamplingPipelineStage.STORAGE_HOLDING -> throw IllegalArgumentException(
+                "Masukkan ke penyimpanan lewat \"Simpan\" — lokasi dan penerima simpan wajib dicatat."
+            )
+            SamplingPipelineStage.IN_DELIVERY -> throw IllegalArgumentException(
+                "Pengiriman ke buyer hanya dari penyimpanan, lewat \"Rilis Kirim\" dengan PIC tercatat."
+            )
+            else -> Unit
+        }
+    }
 
     /**
      * Menolak perpindahan bila barang belum sampai di tahap tujuan.

@@ -6,6 +6,8 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
+import com.eventverse.app.infrastructure.api.SamplingStorageApiClient
+import com.eventverse.app.infrastructure.api.SamplingStorageRemoteDataSource
 import com.eventverse.app.infrastructure.api.CreateSamplingOrderFromDealRequest
 import com.eventverse.app.infrastructure.api.DealApiClient
 import com.eventverse.app.infrastructure.api.DealRemoteDataSource
@@ -37,6 +39,7 @@ class DealViewModel(
     private val remoteDataSource: DealRemoteDataSource = DealApiClient(),
     private val productionDataSource: ProductionRemoteDataSource = ProductionApiClient(),
     private val samplingDataSource: SamplingRemoteDataSource = SamplingApiClient(),
+    private val storageDataSource: SamplingStorageRemoteDataSource = SamplingStorageApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(DealUiState())
@@ -58,6 +61,7 @@ class DealViewModel(
             is DealUiEvent.UploadSamplingMockup -> uploadSamplingMockup(event)
             is DealUiEvent.CreateSamplingSpk -> createSamplingSpk(event.samplingId)
             is DealUiEvent.AdvanceSamplingStage -> advanceSamplingStage(event.samplingId, event.targetStage)
+            is DealUiEvent.ReleaseSamplingFromStorage -> releaseSamplingFromStorage(event.samplingIds)
         }
     }
 
@@ -299,6 +303,32 @@ class DealViewModel(
                 .onFailure { err ->
                     _uiState.update { it.copy(isSaving = false, error = "Gagal mengubah stage: ${err.message}") }
                 }
+        }
+    }
+
+    /**
+     * Kirim dari halaman deal hanya untuk deal yang sudah lengkap di penyimpanan. Kirim parsial
+     * butuh alasan per SPK, jadi jalurnya lewat kartu Penyimpanan di workspace Sampling.
+     */
+    private fun releaseSamplingFromStorage(samplingIds: List<String>) {
+        val targets = _uiState.value.samplingOrders.filter { it.id.value in samplingIds }
+        val notStored = targets.filter { it.pipelineStage.order < SamplingPipelineStage.STORAGE_HOLDING.order }
+        if (notStored.isNotEmpty()) {
+            _uiState.update {
+                it.copy(error = "Belum bisa kirim: ${notStored.joinToString { o -> o.spkNumber.value }} belum masuk penyimpanan.")
+            }
+            return
+        }
+        _uiState.update { it.copy(isSaving = true) }
+        scope.launch {
+            targets.filter { it.pipelineStage == SamplingPipelineStage.STORAGE_HOLDING }.forEach { spk ->
+                storageDataSource.release(tenantSlug, spk.id.value, partialReason = null)
+                    .onSuccess { result ->
+                        _uiState.update { it.copy(samplingOrders = it.samplingOrders.replaceOrAppendById(result.order)) }
+                    }
+                    .onFailure { err -> _uiState.update { it.copy(error = "Gagal kirim ${spk.spkNumber.value}: ${err.message}") } }
+            }
+            _uiState.update { it.copy(isSaving = false, statusMessage = "SPK deal dilepas dari penyimpanan ke pengiriman buyer.") }
         }
     }
 

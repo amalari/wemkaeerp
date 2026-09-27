@@ -77,8 +77,9 @@ enum class SamplingPipelineStage(val displayName: String, val order: Int) {
     SETRIKA_UAP("Setrika Uap", 7),
     QC_FINISHING("QC Finishing", 8),
     PENGEMASAN("Pengemasan", 9),
-    IN_DELIVERY("Terkirim (Tunggu ACC)", 10),
-    ACC_APPROVED("ACC Produksi", 11);
+    STORAGE_HOLDING("Penyimpanan (Siap Kirim)", 10),
+    IN_DELIVERY("Terkirim (Tunggu ACC)", 11),
+    ACC_APPROVED("ACC Produksi", 12);
 
     /**
      * Tahap yang barangnya ada di lantai penyelesaian akhir — dari linking sampai pengemasan.

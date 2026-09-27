@@ -3,6 +3,8 @@ package com.eventverse.app.presentation.sampling
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
+import com.eventverse.app.infrastructure.api.SamplingStorageApiClient
+import com.eventverse.app.infrastructure.api.SamplingStorageRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,11 +17,13 @@ import kotlinx.datetime.Clock
 class SamplingViewModel(
     private val tenantSlug: String,
     private val remoteDataSource: SamplingRemoteDataSource = SamplingApiClient(),
+    storageDataSource: SamplingStorageRemoteDataSource = SamplingStorageApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(SamplingUiState())
     val uiState: StateFlow<SamplingUiState> = _uiState.asStateFlow()
     private val stageWork = SamplingStageWorkActions(tenantSlug, remoteDataSource, scope, _uiState)
+    private val storage = SamplingStorageActions(tenantSlug, storageDataSource, scope, _uiState)
     private val draftAutosaver = SamplingDraftAutosaver(tenantSlug, remoteDataSource, scope, _uiState)
 
     init {
@@ -81,6 +85,12 @@ class SamplingViewModel(
             SamplingUiEvent.CloseReworkDialog -> _uiState.update { it.copy(reworkTarget = null) }
             is SamplingUiEvent.ConfirmRework ->
                 stageWork.sendBackForRework(event.orderId, event.target, event.reason, event.liability)
+
+            is SamplingUiEvent.OpenStoreDialog -> storage.open(event.order, StorageDialogMode.STORE)
+            is SamplingUiEvent.OpenReleaseDialog -> storage.open(event.order, StorageDialogMode.RELEASE)
+            is SamplingUiEvent.ConfirmStore -> storage.store(event.orderId, event.locationLabel, event.qtyPcs)
+            is SamplingUiEvent.ConfirmRelease -> storage.release(event.orderId, event.partialReason)
+            SamplingUiEvent.CloseStorageDialog -> storage.close()
 
             is SamplingUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null) }
         }

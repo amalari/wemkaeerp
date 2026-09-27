@@ -43,6 +43,7 @@ import kotlin.math.roundToInt
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.storage.dealStorageReadiness
 import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -96,8 +97,17 @@ enum class SamplingStageZone(
         dropStage = SamplingPipelineStage.MACHINE_KNITTING,
         showActions = false
     ),
+    // Barang selesai kemas tidak langsung dikirim: ditaruh dulu (rak packing / gudang) dan
+    // menunggu SPK sedeal lengkap. Drop ke sini membuka dialog simpan (lokasi + penerima).
+    PENYIMPANAN(
+        title = "5. Penyimpanan",
+        subtitle = "Disimpan, tunggu deal lengkap",
+        stages = listOf(SamplingPipelineStage.STORAGE_HOLDING),
+        dropStage = SamplingPipelineStage.STORAGE_HOLDING,
+        showActions = true
+    ),
     SELESAI(
-        title = "5. Selesai",
+        title = "6. Selesai",
         subtitle = "Terkirim, tunggu ACC buyer",
         stages = listOf(
             SamplingPipelineStage.IN_DELIVERY,
@@ -128,7 +138,9 @@ fun SamplingPipelineKanbanBoard(
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Seluruh SPK tanpa saring — kelengkapan deal di kolom Penyimpanan tidak boleh ikut tersaring. */
+    allOrders: List<SamplingOrder> = orders
 ) {
     val dragState = rememberSamplingDragDropState()
     var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
@@ -165,7 +177,8 @@ fun SamplingPipelineKanbanBoard(
                             onOpenSpkDetail = onOpenSpkDetail,
                             onAdvanceStageRequested = onAdvanceStageRequested,
                             onOpenRevisionDialog = onOpenRevisionDialog,
-                            onApproveOrder = onApproveOrder
+                            onApproveOrder = onApproveOrder,
+                            allOrders = allOrders
                         )
                     }
                 }
@@ -195,7 +208,8 @@ private fun RowScope.KanbanStageZoneColumn(
     onOpenSpkDetail: (SamplingOrder, Boolean) -> Unit,
     onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
-    onApproveOrder: (SamplingOrderId, String) -> Unit
+    onApproveOrder: (SamplingOrderId, String) -> Unit,
+    allOrders: List<SamplingOrder>
 ) {
     val columnModifier = if (isWide) {
         Modifier.weight(1f).fillMaxHeight()
@@ -316,7 +330,9 @@ private fun RowScope.KanbanStageZoneColumn(
                         onDetermineFlow = {
                             onSelectOrder(order.id)
                             onOpenSpkDetail(order, true)
-                        }
+                        },
+                        storageReadiness = order.dealId?.takeIf { zone == SamplingStageZone.PENYIMPANAN }
+                            ?.let { dealId -> dealStorageReadiness(allOrders.filter { it.dealId == dealId }) }
                     )
                 }
             }

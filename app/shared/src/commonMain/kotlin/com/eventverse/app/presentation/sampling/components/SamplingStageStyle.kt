@@ -24,6 +24,8 @@ fun samplingStageTint(stage: SamplingPipelineStage): Color = when (stage) {
     SamplingPipelineStage.SETRIKA_UAP -> WeMadeColors.Teal
     SamplingPipelineStage.QC_FINISHING -> WeMadeColors.Teal
     SamplingPipelineStage.PENGEMASAN -> WeMadeColors.Teal
+    // Penyimpanan netral: barangnya diam menunggu, bukan sedang dikerjakan atau dikirim.
+    SamplingPipelineStage.STORAGE_HOLDING -> WeMadeColors.OutlineSoft
     SamplingPipelineStage.IN_DELIVERY -> WeMadeColors.Info
     SamplingPipelineStage.ACC_APPROVED -> WeMadeColors.Success
 }

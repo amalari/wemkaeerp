@@ -50,6 +50,7 @@ import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.currentWork
+import com.eventverse.app.domain.sampling.storage.DealStorageReadiness
 import com.eventverse.app.presentation.deal.components.rememberMockupBitmap
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -81,7 +82,8 @@ fun SamplingKanbanCard(
     onAdvanceStage: (SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: () -> Unit,
     onApproveOrder: () -> Unit,
-    onDetermineFlow: (() -> Unit)? = null
+    onDetermineFlow: (() -> Unit)? = null,
+    storageReadiness: DealStorageReadiness? = null
 ) {
     val dragDropState = LocalSamplingDragDropState.current
     val canDrag = nextStage != null
@@ -138,7 +140,8 @@ fun SamplingKanbanCard(
                         onAdvanceStage = onAdvanceStage,
                         onOpenRevisionDialog = onOpenRevisionDialog,
                         onApproveOrder = onApproveOrder,
-                        onDetermineFlow = onDetermineFlow
+                        onDetermineFlow = onDetermineFlow,
+                        storageReadiness = storageReadiness
                     )
                 } else {
                     SamplingKanbanReadOnlyBadges(order)
@@ -401,7 +404,8 @@ private fun SamplingKanbanCardActions(
     onAdvanceStage: (SamplingPipelineStage) -> Unit,
     onOpenRevisionDialog: () -> Unit,
     onApproveOrder: () -> Unit,
-    onDetermineFlow: (() -> Unit)? = null
+    onDetermineFlow: (() -> Unit)? = null,
+    storageReadiness: DealStorageReadiness? = null
 ) {
     when (order.pipelineStage) {
         SamplingPipelineStage.NEW_INTAKE -> {
@@ -427,6 +431,9 @@ private fun SamplingKanbanCardActions(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
             )
+        }
+        SamplingPipelineStage.STORAGE_HOLDING -> SamplingStorageCardSection(order, storageReadiness) {
+            onAdvanceStage(SamplingPipelineStage.IN_DELIVERY)
         }
         SamplingPipelineStage.IN_DELIVERY -> {
             Row(

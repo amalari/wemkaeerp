@@ -27,6 +27,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayStatusBanner
 import com.eventverse.app.presentation.sampling.SamplingUiEvent
 import com.eventverse.app.presentation.sampling.SamplingViewModel
+import com.eventverse.app.presentation.sampling.SampleStorageDialogHost
 import com.eventverse.app.presentation.sampling.components.FinishingSetoranDialog
 import com.eventverse.app.presentation.sampling.components.StageAdvanceDialog
 import kotlinx.datetime.Clock
@@ -131,6 +132,7 @@ fun OperatorFloorWorkspaceScreen(
                     DeskFinishAction.Deposit -> setoranTarget = order
                     DeskFinishAction.QcInspection -> qcTarget = order
                     is DeskFinishAction.Handoff -> viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, action.target))
+                    DeskFinishAction.Store -> viewModel.onEvent(SamplingUiEvent.OpenStoreDialog(order))
                     null -> Unit
                 }
             },
@@ -196,4 +198,6 @@ fun OperatorFloorWorkspaceScreen(
     if (showHistory) {
         StageDeskHistoryDialog(board = board, today = today, timeZone = timeZone, onDismiss = { showHistory = false })
     }
+
+    SampleStorageDialogHost(state = state, onEvent = viewModel::onEvent)
 }

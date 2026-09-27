@@ -51,7 +51,9 @@ class SamplingStageLegacyAliasTest {
         assertEquals(SamplingPipelineStage.SETRIKA_UAP, SamplingPipelineStage.CUCI_SOFTENER.nextStage)
         assertEquals(SamplingPipelineStage.QC_FINISHING, SamplingPipelineStage.SETRIKA_UAP.nextStage)
         assertEquals(SamplingPipelineStage.PENGEMASAN, SamplingPipelineStage.QC_FINISHING.nextStage)
-        assertEquals(SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.PENGEMASAN.nextStage)
+        // Selesai kemas tidak pernah langsung dikirim: barang disimpan dulu, baru dilepas PIC.
+        assertEquals(SamplingPipelineStage.STORAGE_HOLDING, SamplingPipelineStage.PENGEMASAN.nextStage)
+        assertEquals(SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.STORAGE_HOLDING.nextStage)
         assertNull(SamplingPipelineStage.ACC_APPROVED.nextStage)
     }
 

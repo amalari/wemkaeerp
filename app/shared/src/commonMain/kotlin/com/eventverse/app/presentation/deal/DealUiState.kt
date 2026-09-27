@@ -110,4 +110,7 @@ sealed interface DealUiEvent {
         val samplingId: String,
         val targetStage: com.eventverse.app.domain.sampling.SamplingPipelineStage
     ) : DealUiEvent
+
+    /** Kirim ke buyer: lepas seluruh SPK deal dari penyimpanan (hanya bila semuanya sudah disimpan). */
+    data class ReleaseSamplingFromStorage(val samplingIds: List<String>) : DealUiEvent
 }

@@ -201,7 +201,11 @@ fun SamplingWorkspaceScreen(
                         // Satu sumber kebenaran: transisi yang menuntut lembar kerja
                         // membuka dialog dulu; sisanya langsung maju (backend tetap
                         // memvalidasi gerbang + mencatat audit aktor).
-                        if (stage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                        if (stage == SamplingPipelineStage.STORAGE_HOLDING) {
+                            viewModel.onEvent(SamplingUiEvent.OpenStoreDialog(order))
+                        } else if (stage == SamplingPipelineStage.IN_DELIVERY) {
+                            viewModel.onEvent(SamplingUiEvent.OpenReleaseDialog(order))
+                        } else if (stage == SamplingPipelineStage.CAM_PROGRAMMING) {
                             // Masuk Program CAM menuntut lembar Program CAM (program, feeder,
                             // tenselity, dan catatan rumus pola) diisi di dialog Detail SPK.
                             viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(order, focusCam = true))
@@ -216,7 +220,8 @@ fun SamplingWorkspaceScreen(
                     },
                     onApproveOrder = { id, notes ->
                         viewModel.onEvent(SamplingUiEvent.ApproveOrder(id, true, notes))
-                    }
+                    },
+                    allOrders = state.orders
                 )
             }
         }
@@ -285,5 +290,6 @@ fun SamplingWorkspaceScreen(
             }
         )
     }
-}
 
+    SampleStorageDialogHost(state = state, onEvent = viewModel::onEvent)
+}

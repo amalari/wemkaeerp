@@ -8,7 +8,9 @@ package com.eventverse.app.domain.sampling
 fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
     val isDraft = status == SamplingStatus.DRAFT || pipelineStage == SamplingPipelineStage.NEW_INTAKE
     val totalDeposited = finishingDeposits.sumOf { it.qtyPcs }
-    val isDeliveredOrApproved = pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
+    // Barang yang sudah masuk penyimpanan selesai diproduksi — yang tersisa hanya pengiriman.
+    val isStored = pipelineStage == SamplingPipelineStage.STORAGE_HOLDING
+    val isDeliveredOrApproved = isStored || pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
         pipelineStage == SamplingPipelineStage.ACC_APPROVED ||
         isAccApproved ||
         !courierTracking.isNullOrBlank()
@@ -46,6 +48,7 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
             SamplingPipelineStage.SETRIKA_UAP -> "Setrika"
             SamplingPipelineStage.QC_FINISHING -> "QC 2"
             SamplingPipelineStage.PENGEMASAN -> "Kemas"
+            SamplingPipelineStage.STORAGE_HOLDING -> "Disimpan"
             SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.ACC_APPROVED -> "Selesai"
         }
         else -> null
@@ -83,13 +86,19 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
         GarmentStepState(
             step = GarmentTrackingStep.READY_TO_SHIP,
             isCompleted = !isDraft && !courierTracking.isNullOrBlank(),
-            isActive = !isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank(),
+            isActive = !isDraft && (isStored || pipelineStage == SamplingPipelineStage.IN_DELIVERY) && courierTracking.isNullOrBlank(),
             subtitle = when {
                 !courierTracking.isNullOrBlank() -> "Resi: $courierTracking"
+                isStored -> "Disimpan, Menunggu Lengkap"
                 pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim ke Buyer"
                 else -> "Menunggu Sampling Tuntas"
             },
-            badgeText = if (!isDraft && pipelineStage == SamplingPipelineStage.IN_DELIVERY && courierTracking.isNullOrBlank()) "Siap Kirim" else null
+            badgeText = when {
+                isDraft || !courierTracking.isNullOrBlank() -> null
+                isStored -> "Disimpan"
+                pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim"
+                else -> null
+            }
         ),
 
         // 5. ACC Buyer

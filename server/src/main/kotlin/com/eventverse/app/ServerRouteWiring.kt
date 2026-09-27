@@ -86,7 +86,8 @@ fun Route.operationalModuleRoutes(
         dealRepository = crmDealRepo,
         processCatalogRepository = tenantProcessCatalogRepository,
         poFileStorage = poFileStorage,
-        flowLegsUseCase = flowLegsUseCase
+        flowLegsUseCase = flowLegsUseCase,
+        storageRepository = com.eventverse.app.infrastructure.PostgresSampleStorageRecordRepository()
     )
     samplingStageWorkRoutes(samplingOrderRepo)
             productionRoutes(
@@ -158,13 +159,18 @@ fun Route.operationalModuleRoutes(
         com.eventverse.app.infrastructure.PostgresWorkDepositRepository()
     val reworkTicketRepository: com.eventverse.app.domain.workqueue.ReworkTicketRepository =
         com.eventverse.app.infrastructure.PostgresReworkTicketRepository()
-
-
+    val washingBatchRepository: com.eventverse.app.domain.workqueue.WashingBatchRepository =
+        com.eventverse.app.infrastructure.PostgresWashingBatchRepository()
 
     workQueueRoutes(
         cardRepository = workCardRepository,
         depositRepository = workDepositRepository,
         ticketRepository = reworkTicketRepository
+    )
+
+    washingBatchRoutes(
+        cardRepository = workCardRepository,
+        washingBatchRepository = washingBatchRepository
     )
 
     suratJalanRoutes(

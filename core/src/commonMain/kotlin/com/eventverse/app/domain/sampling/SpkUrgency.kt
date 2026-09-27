@@ -41,6 +41,7 @@ object DefaultStageWorkProfile : StageWorkProfile {
         SamplingPipelineStage.SETRIKA_UAP -> 0.15
         SamplingPipelineStage.QC_FINISHING -> 0.08
         SamplingPipelineStage.PENGEMASAN -> 0.04
+        SamplingPipelineStage.STORAGE_HOLDING -> 0.03
         SamplingPipelineStage.IN_DELIVERY -> 0.02
         SamplingPipelineStage.ACC_APPROVED -> 0.00
     }

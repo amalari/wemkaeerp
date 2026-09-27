@@ -26,7 +26,12 @@ sealed interface DeskFinishAction {
         override val label = "Isi Lembar QC"
     }
 
-    /** Cuci, Setrika, Kemas: cukup serahkan ke tahap berikutnya. */
+    /** Kemas: barang ditaruh di penyimpanan — lokasi dan penerima simpan wajib dicatat. */
+    data object Store : DeskFinishAction {
+        override val label = "Selesai Kemas, Simpan Barang"
+    }
+
+    /** Cuci, Setrika: cukup serahkan ke tahap berikutnya. */
     data class Handoff(val target: SamplingPipelineStage) : DeskFinishAction {
         // Tanpa panah Unicode: Fredoka yang dibundel tidak punya glyph U+2192.
         override val label = "Selesai, Serahkan ke ${target.displayName}"
@@ -37,6 +42,7 @@ fun SamplingPipelineStage.finishAction(): DeskFinishAction? = when {
     this == SamplingPipelineStage.MACHINE_KNITTING -> DeskFinishAction.Worksheet(SamplingPipelineStage.LINKING_ASSEMBLY)
     this == SamplingPipelineStage.LINKING_ASSEMBLY -> DeskFinishAction.Deposit
     this == SamplingPipelineStage.QC_FINISHING -> DeskFinishAction.QcInspection
+    this == SamplingPipelineStage.PENGEMASAN -> DeskFinishAction.Store
     isOperatorDesk -> nextStage?.let(DeskFinishAction::Handoff)
     else -> null
 }

@@ -39,7 +39,7 @@ fun SamplingOrder.rdProgress(processes: List<TenantOptionalProcess> = customFlow
         else -> RdStepState.PENDING
     }
     return RD_STAGES.flatMapIndexed { index, stage ->
-        val next = RD_STAGES.getOrNull(index + 1) ?: SamplingPipelineStage.IN_DELIVERY
+        val next = RD_STAGES.getOrNull(index + 1) ?: SamplingPipelineStage.STORAGE_HOLDING
         val inserted = processes.filter { it.samplingAnchorAfter == stage }.map { process ->
             RdStep(
                 label = process.displayName,

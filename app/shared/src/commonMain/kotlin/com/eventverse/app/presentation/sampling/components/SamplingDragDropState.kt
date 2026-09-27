@@ -96,7 +96,9 @@ class SamplingDragDropState {
         SamplingPipelineStage.CUCI_SOFTENER -> setOf(SamplingPipelineStage.SETRIKA_UAP)
         SamplingPipelineStage.SETRIKA_UAP -> setOf(SamplingPipelineStage.QC_FINISHING)
         SamplingPipelineStage.QC_FINISHING -> setOf(SamplingPipelineStage.PENGEMASAN)
-        SamplingPipelineStage.PENGEMASAN -> setOf(SamplingPipelineStage.IN_DELIVERY)
+        // Selesai kemas selalu disimpan dulu; pengiriman hanya keluar dari penyimpanan.
+        SamplingPipelineStage.PENGEMASAN -> setOf(SamplingPipelineStage.STORAGE_HOLDING)
+        SamplingPipelineStage.STORAGE_HOLDING -> setOf(SamplingPipelineStage.IN_DELIVERY)
         else -> emptySet()
     }
 

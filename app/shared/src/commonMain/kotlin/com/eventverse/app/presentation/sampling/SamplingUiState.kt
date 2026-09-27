@@ -39,7 +39,9 @@ data class SamplingUiState(
      * SPK yang kartu A6-nya harus dibuka — diisi hanya setelah pindah tahap sukses, supaya kartu
      * tidak pernah keluar untuk SPK yang gagal maju tahap. Dikonsumsi layar lalu di-reset.
      */
-    val spkCardToPrint: SamplingOrderId? = null
+    val spkCardToPrint: SamplingOrderId? = null,
+    /** Kustodi penyimpanan: dialog simpan (dari Pengemasan) dan dialog rilis kirim. */
+    val storage: SamplingStorageUiState = SamplingStorageUiState()
 ) {
     val selectedOrder: SamplingOrder?
         get() = (selectedOrderId?.let { id -> orders.firstOrNull { it.id == id } } ?: orders.firstOrNull())
@@ -136,6 +138,13 @@ sealed interface SamplingUiEvent {
         val reason: String,
         val liability: com.eventverse.app.domain.pipeline.DefectLiability
     ) : SamplingUiEvent
+
+    // Kustodi penyimpanan (Pengemasan -> Penyimpanan -> Terkirim)
+    data class OpenStoreDialog(val order: SamplingOrder) : SamplingUiEvent
+    data class ConfirmStore(val orderId: SamplingOrderId, val locationLabel: String, val qtyPcs: Int) : SamplingUiEvent
+    data class OpenReleaseDialog(val order: SamplingOrder) : SamplingUiEvent
+    data class ConfirmRelease(val orderId: SamplingOrderId, val partialReason: String?) : SamplingUiEvent
+    data object CloseStorageDialog : SamplingUiEvent
 
     data object DismissStatusMessage : SamplingUiEvent
 }

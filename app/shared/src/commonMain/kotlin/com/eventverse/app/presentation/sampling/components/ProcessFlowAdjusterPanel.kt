@@ -56,6 +56,7 @@ private val ADJUSTABLE_STAGES = listOf(
     SamplingPipelineStage.SETRIKA_UAP,
     SamplingPipelineStage.QC_FINISHING,
     SamplingPipelineStage.PENGEMASAN,
+    SamplingPipelineStage.STORAGE_HOLDING,
     SamplingPipelineStage.IN_DELIVERY
 )
 

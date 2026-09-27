@@ -79,3 +79,65 @@ object ReworkTicketsTable : Table("rework_tickets") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+/**
+ * Pemetaan Exposed untuk sesi drum cuci masal (Washing Batches). Cermin V70.
+ */
+object WashingBatchesTable : Table("washing_batches") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val batchCode = varchar("batch_code", 50)
+    val machineDrumNo = varchar("machine_drum_no", 50).default("")
+    val washRecipe = varchar("wash_recipe", 100).default("")
+    val operatorName = varchar("operator_name", 150).default("")
+    val totalBundles = integer("total_bundles").default(0)
+    val totalInputPcs = integer("total_input_pcs").default(0)
+    val totalOutputPcs = integer("total_output_pcs").default(0)
+    val missingPcs = integer("missing_pcs").default(0)
+    val status = varchar("status", 30).default("IN_WASHER")
+    val notes = text("notes").default("")
+    val createdAt = timestamp("created_at")
+    val completedAt = timestamp("completed_at").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Pemetaan Exposed untuk rincian bundle dalam batch cuci dengan foto bukti fisik. Cermin V70.
+ */
+object WashingBatchItemsTable : Table("washing_batch_items") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val batchId = varchar("batch_id", 64).references(WashingBatchesTable.id)
+    val workCardId = varchar("work_card_id", 64).references(WorkCardsTable.id)
+    val subjectId = varchar("subject_id", 64)
+    val orderNumber = varchar("order_number", 100)
+    val articleName = varchar("article_name", 150).default("")
+    val bundleNo = integer("bundle_no")
+    val sizeLabel = varchar("size_label", 60)
+    val inputPcs = integer("input_pcs")
+    val bundlePhotoKey = text("bundle_photo_key")
+    val createdAt = timestamp("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Pemetaan Exposed untuk hasil meja sortir pasca-dryer per PO & Ukuran. Cermin V70.
+ */
+object WashingBatchSortOutputsTable : Table("washing_batch_sort_outputs") {
+    val id = varchar("id", 64)
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val batchId = varchar("batch_id", 64).references(WashingBatchesTable.id)
+    val subjectId = varchar("subject_id", 64)
+    val orderNumber = varchar("order_number", 100)
+    val sizeLabel = varchar("size_label", 60)
+    val outputPcs = integer("output_pcs")
+    val scrapPcs = integer("scrap_pcs").default(0)
+    val defectPcs = integer("defect_pcs").default(0)
+    val notes = text("notes").default("")
+    val createdAt = timestamp("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+

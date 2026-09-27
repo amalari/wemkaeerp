@@ -352,4 +352,40 @@ class FlowLegDerivationTest {
         assertNull(FlowNodeRef.parse("BUKAN_JENIS:APA_PUN"))
         assertNull(FlowNodeRef.parse("tanpa-pemisah"))
     }
+
+    @Test
+    fun `storage mapped to another building should yield internal transfer from packing`() {
+        val stages = listOf(SamplingPipelineStage.PENGEMASAN, SamplingPipelineStage.STORAGE_HOLDING)
+        val legs = FlowLegDerivation.deriveLegs(
+            nodes = FlowLegDerivation.resolveNodes(stages, emptyList()),
+            processes = emptyList(),
+            config = config(
+                multiSite = true,
+                mappings = mapOf(
+                    FlowNodeRef.Stage(SamplingPipelineStage.PENGEMASAN) to gedungA,
+                    FlowNodeRef.Stage(SamplingPipelineStage.STORAGE_HOLDING) to gedungB
+                )
+            )
+        )
+        assertEquals(1, legs.size)
+        assertEquals(TransferType.INTERNAL_SITE_TRANSFER, legs.single().transferType)
+        assertEquals(FlowNodeRef.Stage(SamplingPipelineStage.STORAGE_HOLDING), legs.single().toNode)
+    }
+
+    @Test
+    fun `storage on packing rack in same building should yield no leg`() {
+        val stages = listOf(SamplingPipelineStage.PENGEMASAN, SamplingPipelineStage.STORAGE_HOLDING)
+        val legs = FlowLegDerivation.deriveLegs(
+            nodes = FlowLegDerivation.resolveNodes(stages, emptyList()),
+            processes = emptyList(),
+            config = config(
+                multiSite = true,
+                mappings = mapOf(
+                    FlowNodeRef.Stage(SamplingPipelineStage.PENGEMASAN) to gedungA,
+                    FlowNodeRef.Stage(SamplingPipelineStage.STORAGE_HOLDING) to gedungA
+                )
+            )
+        )
+        assertTrue(legs.isEmpty())
+    }
 }

@@ -34,7 +34,8 @@ fun Route.samplingRoutes(
      * Gerbang perpindahan barang antar lokasi. `null` mematikan gerbang — mempertahankan
      * perilaku lama bagi pemasangan route dan pengujian yang tidak menyuntikkannya.
      */
-    flowLegsUseCase: GetFlowTransferLegsUseCase? = null
+    flowLegsUseCase: GetFlowTransferLegsUseCase? = null,
+    storageRepository: com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -395,6 +396,9 @@ fun Route.samplingRoutes(
             processCatalogRepository = processCatalogRepository,
             flowLegsUseCase = flowLegsUseCase
         )
+        storageRepository?.let {
+            samplingStorageRoutes(repository, it, processCatalogRepository, flowLegsUseCase)
+        }
     }
 }
 

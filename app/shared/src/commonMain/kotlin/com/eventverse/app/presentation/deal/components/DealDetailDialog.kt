@@ -54,7 +54,6 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.GarmentStepState
 import com.eventverse.app.domain.sampling.GarmentTrackingStep
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.deal.DealDetailTab
 import com.eventverse.app.presentation.deal.DealUiEvent
@@ -1170,11 +1169,7 @@ private fun SamplingDesignCard(
                                 }
                                 ClayButton(
                                     text = "Kirim ke Buyer",
-                                    onClick = {
-                                        spkOrders.forEach { spk ->
-                                            onEvent(DealUiEvent.AdvanceSamplingStage(spk.id.value, SamplingPipelineStage.IN_DELIVERY))
-                                        }
-                                    },
+                                    onClick = { onEvent(DealUiEvent.ReleaseSamplingFromStorage(spkOrders.map { it.id.value })) },
                                     style = ClayButtonStyle.Accent,
                                     fontSize = 11.sp
                                 )
