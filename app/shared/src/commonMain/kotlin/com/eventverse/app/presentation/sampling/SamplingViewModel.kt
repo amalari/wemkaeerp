@@ -20,6 +20,7 @@ class SamplingViewModel(
     private val _uiState = MutableStateFlow(SamplingUiState())
     val uiState: StateFlow<SamplingUiState> = _uiState.asStateFlow()
     private val stageWork = SamplingStageWorkActions(tenantSlug, remoteDataSource, scope, _uiState)
+    private val draftAutosaver = SamplingDraftAutosaver(tenantSlug, remoteDataSource, scope, _uiState)
 
     init {
         load()
@@ -49,9 +50,8 @@ class SamplingViewModel(
             is SamplingUiEvent.ApproveOrder -> approveOrder(event.orderId, event.isApproved, event.notes)
             is SamplingUiEvent.SaveTechnicalSpec -> saveTechnicalSpec(event.updatedOrder)
             is SamplingUiEvent.SaveFullOrder -> saveFullOrder(event.order)
-            is SamplingUiEvent.SaveStageInput -> _uiState.value.orders.firstOrNull { it.id == event.orderId }?.let {
-                saveFullOrder(it.fillStageInput(event.stage, event.sections, Clock.System.now()))
-            }
+            is SamplingUiEvent.SaveStageInput ->
+                draftAutosaver.onDraftChanged(event.orderId, event.stage, event.sections)
             is SamplingUiEvent.DetermineFlow -> determineFlow(event.orderId)
             is SamplingUiEvent.AdvanceStage -> advanceStage(event.orderId, event.targetStage)
             is SamplingUiEvent.OpenStageAdvanceDialog -> _uiState.update {
@@ -61,8 +61,9 @@ class SamplingViewModel(
                 it.copy(stageAdvanceTarget = null, stageAdvanceTargetStage = null)
             }
             is SamplingUiEvent.ConfirmStageAdvance -> confirmStageAdvance(
-                event.orderId, event.targetStage, event.sections, event.inputStage
+                event.orderId, event.targetStage, event.sections, event.inputStage, event.openSpkCardOnSuccess
             )
+            SamplingUiEvent.SpkCardPrintHandled -> _uiState.update { it.copy(spkCardToPrint = null) }
             is SamplingUiEvent.AddFinishingDeposit -> addFinishingDeposit(event.orderId, event.deposit)
             is SamplingUiEvent.AssignMakloonVendor -> assignMakloonVendor(event.orderId, event.info)
             is SamplingUiEvent.ConfirmVendorReturn -> confirmVendorReturn(event.orderId, event.returnedAt)
@@ -289,8 +290,10 @@ class SamplingViewModel(
         orderId: SamplingOrderId,
         targetStage: SamplingPipelineStage,
         sections: List<StageInputSection>,
-        inputStage: SamplingPipelineStage
+        inputStage: SamplingPipelineStage,
+        openSpkCardOnSuccess: Boolean
     ) {
+        draftAutosaver.cancelPending()
         scope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
             remoteDataSource.advanceStage(
@@ -309,6 +312,7 @@ class SamplingViewModel(
                         spkDetailTarget = null,
                         spkDetailFocusFlow = false,
                         spkDetailFocusCam = false,
+                        spkCardToPrint = if (openSpkCardOnSuccess) updated.id else current.spkCardToPrint,
                         statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${targetStage.displayName}",
                         isErrorMessage = false
                     )

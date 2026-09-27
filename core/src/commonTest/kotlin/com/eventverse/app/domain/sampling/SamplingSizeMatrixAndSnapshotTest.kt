@@ -200,5 +200,24 @@ class SamplingSizeMatrixAndSnapshotTest {
         assertTrue(isSizeColumnActive(matrix, "28"))
         assertEquals(listOf(Pair("28", 1)), activeSizesWithAllocatedQty(matrix))
     }
+
+    @Test
+    fun addColumnToMatrix_shouldSupportBlankPlaceholderColumnAndRenaming() {
+        val initial = defaultSamplingSizeMatrix()
+        // Add blank column
+        val withBlank = addColumnToMatrix(initial, "")
+        assertEquals(listOf("ALL SIZE", ""), extractSizeColumns(withBlank))
+
+        // Adding another blank column while one is blank should be prevented
+        val withDuplicateBlank = addColumnToMatrix(withBlank, "")
+        assertEquals(listOf("ALL SIZE", ""), extractSizeColumns(withDuplicateBlank))
+
+        // Rename the blank column to "S"
+        val renamed = renameColumnInMatrix(withBlank, "", "S")
+        assertEquals(listOf("ALL SIZE", "S"), extractSizeColumns(renamed))
+
+        // Blank column should not be active before naming
+        assertFalse(isSizeColumnActive(withBlank, ""))
+    }
 }
 

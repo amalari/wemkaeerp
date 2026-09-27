@@ -907,8 +907,7 @@ private fun SamplingDesignCard(
                         },
                         onAddColumn = {
                             if (!isFormReadOnly) {
-                                val nextColName = "Size ${currentColumns.size + 1}"
-                                sizeMatrixInput = addColumnToMatrix(sizeMatrixInput, nextColName)
+                                sizeMatrixInput = addColumnToMatrix(sizeMatrixInput, "")
                             }
                         },
                         onRenameColumn = { oldCol, newCol ->

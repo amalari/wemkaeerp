@@ -3,6 +3,7 @@ package com.eventverse.app.plugins
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.auth.JwtTokenService
+import com.eventverse.app.infrastructure.auth.PrintTicketService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -16,6 +17,9 @@ class TenantResolutionConfig {
 
     /** Verifies session tokens. Required: without it no route could be authenticated. */
     var jwtTokenService: JwtTokenService? = null
+
+    /** Accepts `?ticket=` on PDF routes opened in a browser tab, which cannot send a header. */
+    var printTicketService: PrintTicketService? = PrintTicketService()
 
     var publicRoutePrefixes: List<String> = listOf("/api/public", "/health", "/favicon.ico")
 
@@ -48,6 +52,7 @@ val TenantResolutionPlugin = createApplicationPlugin(
         ?: error("JwtTokenService must be configured in TenantResolutionPlugin")
     val publicPrefixes = pluginConfig.publicRoutePrefixes
     val platformPrefixes = pluginConfig.platformRoutePrefixes
+    val printTickets = pluginConfig.printTicketService
 
     onCall { call ->
         val path = call.request.path()
@@ -59,6 +64,20 @@ val TenantResolutionPlugin = createApplicationPlugin(
 
         // --- 1. Authenticate -------------------------------------------------
         val bearerToken = call.request.bearerToken()
+        val printTicket = call.request.queryParameters[PrintTicketService.QUERY_PARAM]
+        if (bearerToken.isNullOrBlank() && printTickets != null && !printTicket.isNullOrBlank()) {
+            // The ticket already names its tenant: it was minted after this plugin resolved
+            // the caller's tenant on an authenticated request, superadmin act-as included.
+            val tenant = printTickets.verify(printTicket, path)?.let { repository.findById(it) }
+            when {
+                tenant == null ->
+                    call.respond(HttpStatusCode.Unauthorized, "Tiket cetak tidak sah atau sudah kedaluwarsa.")
+                !tenant.isAccessible ->
+                    call.respond(HttpStatusCode.Forbidden, "Tenant workspace '${tenant.slug.value}' is suspended.")
+                else -> call.attributes.put(TenantContextAttributeKey, TenantContext.fromTenant(tenant))
+            }
+            return@onCall
+        }
         if (bearerToken.isNullOrBlank()) {
             call.respond(
                 HttpStatusCode.Unauthorized,

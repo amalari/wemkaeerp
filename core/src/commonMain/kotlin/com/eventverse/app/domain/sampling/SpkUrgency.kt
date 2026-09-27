@@ -72,6 +72,15 @@ enum class SpkUrgencyLevel(val displayName: String) {
     /** Kapasitas sampai deadline tidak cukup; tanpa intervensi SPK ini telat. */
     URGENT("URGENT"),
 
+    /**
+     * Punya deadline, tapi menit standar atau qty-nya belum diisi — beban kerjanya tidak diketahui.
+     *
+     * Dipisah dari [AMAN] dengan sengaja: menit 0 berarti "belum diukur", bukan "tidak ada kerja".
+     * Menganggapnya nol membuat SPK yang datanya paling bolong justru tercetak paling tenang (hijau),
+     * dan kartu hijau di meja adalah izin bagi operator untuk tidak mendahulukannya.
+     */
+    BELUM_DIESTIMASI("BELUM DIESTIMASI"),
+
     /** SPK tidak punya deadline sama sekali — tidak layak diperingkat. */
     TANPA_DEADLINE("TANPA DEADLINE");
 }
@@ -87,7 +96,7 @@ data class SpkUrgencyInput(
 
 data class SpkSlackAssessment(
     val spkId: String,
-    /** Hari kerja jeda sebelum kerja menabrak deadline; negatif = sudah pasti telat. `null` = tanpa deadline. */
+    /** Hari kerja jeda sebelum kerja menabrak deadline; negatif = sudah pasti telat. `null` = tanpa deadline atau belum diestimasi. */
     val slackDays: Int?,
     val level: SpkUrgencyLevel,
     /** Urutan prioritas di antara seluruh SPK aktif — 1 = paling genting. */
@@ -107,35 +116,69 @@ fun assessUrgency(
     profile: StageWorkProfile = DefaultStageWorkProfile
 ): List<SpkSlackAssessment> {
     val scored = inputs.map { input ->
-        val slack = input.deadline?.let { deadline ->
+        val factor = profile.remainingFactor(input.stage)
+        // Tahap tanpa sisa kerja (faktor 0) sah dinilai walau menitnya kosong: nol di sana memang nol.
+        val estimable = factor <= 0.0 || (input.totalStdMinutes > 0 && input.qtyPcs > 0)
+        val slack = input.deadline?.takeIf { estimable }?.let { deadline ->
             val daysLeft = deadline.toEpochDays() - today.toEpochDays()
-            val remainingMinutes = input.totalStdMinutes * profile.remainingFactor(input.stage)
-            val neededDays = if (remainingMinutes <= 0.0 || input.qtyPcs <= 0) 0
+            val remainingMinutes = input.totalStdMinutes * factor
+            val neededDays = if (remainingMinutes <= 0.0) 0
             else ceil(remainingMinutes * input.qtyPcs / capacity.minutesPerDay).toInt()
             daysLeft - neededDays
         }
-        input to slack
+        val level = when {
+            input.deadline == null -> SpkUrgencyLevel.TANPA_DEADLINE
+            slack == null -> SpkUrgencyLevel.BELUM_DIESTIMASI
+            slack < 0 -> SpkUrgencyLevel.URGENT
+            slack == 0 -> SpkUrgencyLevel.SEGERA
+            else -> SpkUrgencyLevel.AMAN
+        }
+        Triple(input, slack, level)
     }
 
+    // Yang terhitung diurutkan menurut slack; yang belum diestimasi menyusul menurut deadline —
+    // tetap terlihat, tapi tidak menyerobot SPK yang bebannya jelas; tanpa deadline paling akhir.
     val sorted = scored.sortedWith(
         compareBy(
-            { (_, slack) -> slack == null },
-            { (_, slack) -> slack ?: Int.MAX_VALUE },
-            { (input, _) -> input.deadline?.toEpochDays() ?: Long.MAX_VALUE },
-            { (input, _) -> input.spkId }
+            { (_, _, level) -> level.ordinal >= SpkUrgencyLevel.BELUM_DIESTIMASI.ordinal },
+            { (input, _, _) -> input.deadline == null },
+            { (_, slack, _) -> slack ?: Int.MAX_VALUE },
+            { (input, _, _) -> input.deadline?.toEpochDays() ?: Long.MAX_VALUE },
+            { (input, _, _) -> input.spkId }
         )
     )
 
-    return sorted.mapIndexed { index, (input, slack) ->
+    return sorted.mapIndexed { index, (input, slack, level) ->
         SpkSlackAssessment(
             spkId = input.spkId,
             slackDays = slack,
-            level = when {
-                slack == null -> SpkUrgencyLevel.TANPA_DEADLINE
-                slack < 0 -> SpkUrgencyLevel.URGENT
-                slack == 0 -> SpkUrgencyLevel.SEGERA
-                else -> SpkUrgencyLevel.AMAN
-            },
+            level = level,
+            rank = index + 1,
+            activeCount = sorted.size
+        )
+    }
+}
+
+/**
+ * Kebijakan urgensi SPK **sampel**: selalu [SpkUrgencyLevel.URGENT].
+ *
+ * Keputusan bisnis, bukan hasil hitung: sampel adalah gerbang menuju deal berikutnya, jadi lantai
+ * harus selalu mendahulukannya. Rumus slack [assessUrgency] juga memang tidak bisa dipakai di sini —
+ * menit standar baru diketahui *setelah* sampel dirajut. Rumus itu milik SPK massal, yang mewarisi
+ * menit dari sampel yang ACC.
+ *
+ * Karena warnanya seragam, pembeda antar sampel adalah [SpkSlackAssessment.rank]: deadline terdekat
+ * lebih dulu, tanpa deadline paling akhir.
+ */
+fun assessSamplingUrgency(inputs: List<SpkUrgencyInput>, today: LocalDate): List<SpkSlackAssessment> {
+    val sorted = inputs.sortedWith(
+        compareBy({ it.deadline == null }, { it.deadline?.toEpochDays() ?: Long.MAX_VALUE }, { it.spkId })
+    )
+    return sorted.mapIndexed { index, input ->
+        SpkSlackAssessment(
+            spkId = input.spkId,
+            slackDays = input.deadline?.let { (it.toEpochDays() - today.toEpochDays()).toInt() },
+            level = SpkUrgencyLevel.URGENT,
             rank = index + 1,
             activeCount = sorted.size
         )

@@ -422,7 +422,7 @@ private fun SamplingKanbanCardActions(
         }
         SamplingPipelineStage.CAM_PROGRAMMING -> {
             ClayButton(
-                text = "Masuk Mesin Rajut ->",
+                text = "Mulai Pembuatan ->",
                 style = ClayButtonStyle.Accent,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }

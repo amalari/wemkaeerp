@@ -6,11 +6,13 @@ import com.eventverse.app.domain.traceability.TraceTier
 import com.eventverse.app.domain.traceability.TraceWorkOrderProvider
 import com.eventverse.app.domain.traceability.print.TraceLabelSheetLayout
 import com.eventverse.app.domain.traceability.usecases.PlanTraceAllocationUseCase
+import com.eventverse.app.infrastructure.auth.PrintTicketService
 import com.eventverse.app.infrastructure.pdf.KnitWorksheetPdfRenderer
 import com.eventverse.app.infrastructure.pdf.SpkCardPdfRenderer
 import com.eventverse.app.infrastructure.pdf.TraceLabelSheetPdfRenderer
 import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
 import com.eventverse.app.infrastructure.traceability.SpkCardBuilder
+import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.traceability.TraceAllocationCodec
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -28,7 +30,8 @@ fun Route.traceabilityPrintRoutes(
     workOrders: TraceWorkOrderProvider,
     worksheets: KnitWorksheetBuilder,
     spkCards: SpkCardBuilder,
-    scanHost: String
+    scanHost: String,
+    printTickets: PrintTicketService = PrintTicketService()
 ) {
     val planAllocation = PlanTraceAllocationUseCase(containers, workOrders)
     val labelRenderer = TraceLabelSheetPdfRenderer(scanHost)
@@ -36,6 +39,19 @@ fun Route.traceabilityPrintRoutes(
     val spkCardRenderer = SpkCardPdfRenderer(scanHost)
 
     route("/api/tenant/traceability/work-orders/{kind}/{id}") {
+
+        // Tab browser tidak bisa membawa header Bearer; klien menukar sesinya dengan tiket pendek
+        // yang hanya membuka PDF work order ini, lalu menempelkannya sebagai `?ticket=`.
+        post("/print-ticket") {
+            val tenant = call.traceTenant() ?: return@post
+            val ref = call.traceRef() ?: return@post
+            val subject = call.callerPrincipalOrNull?.userId
+                ?: return@post call.respond(HttpStatusCode.Unauthorized, "Sesi diperlukan")
+            val scope = "/api/tenant/traceability/work-orders/${ref.kind.name}/${ref.id}"
+            val ticket = printTickets.issue(subject, tenant, scope)
+            call.response.header(HttpHeaders.CacheControl, "private, no-store")
+            call.respondTraceJson("{\"ticket\":\"$ticket\"}")
+        }
 
         get("/allocation") {
             val tenant = call.traceTenant() ?: return@get

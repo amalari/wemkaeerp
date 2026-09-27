@@ -319,6 +319,8 @@ Ringkasan kontrak wajibnya:
 Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap UI selesai —
 termasuk **menjalankan aplikasinya dan melihat dengan mata**, karena bug layout tidak tertangkap
 test mana pun.
+Kalau aplikasi meminta login saat pengecekan visual, **login dulu sebagai superadmin** lewat tombol
+"Demo Mode: Masuk Cepat (Superadmin Apps)" di `/login`, lalu lanjutkan pengecekannya — jangan dilewati.
 
 ---
 

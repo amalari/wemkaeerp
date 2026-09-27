@@ -57,12 +57,17 @@ interface TraceabilityRemoteDataSource {
     suspend fun containers(tenantSlug: String, ref: TraceWorkOrderRef): Result<List<TraceContainer>>
     suspend fun reconciliation(tenantSlug: String, ref: TraceWorkOrderRef): Result<TraceReconciliation>
 
-    /** URL berkas PDF; dibuka langsung oleh browser, tidak diunduh ke memori aplikasi. */
-    fun labelsPdfUrl(ref: TraceWorkOrderRef, tier: TraceTier, sizeLabel: String?): String
-    fun worksheetPdfUrl(ref: TraceWorkOrderRef): String
+    /**
+     * URL berkas PDF; dibuka langsung oleh browser, tidak diunduh ke memori aplikasi.
+     *
+     * Tab browser tidak membawa header `Authorization`, jadi URL-nya disertai tiket cetak berumur
+     * ±60 detik yang ditukar dari sesi saat ini — buka URL-nya segera setelah didapat.
+     */
+    suspend fun labelsPdfUrl(tenantSlug: String, ref: TraceWorkOrderRef, tier: TraceTier, sizeLabel: String?): Result<String>
+    suspend fun worksheetPdfUrl(tenantSlug: String, ref: TraceWorkOrderRef): Result<String>
 
     /** Kartu SPK A6 — satu halaman per ukuran, urgensi dihitung saat dibuka. */
-    fun spkCardPdfUrl(ref: TraceWorkOrderRef): String
+    suspend fun spkCardPdfUrl(tenantSlug: String, ref: TraceWorkOrderRef): Result<String>
 }
 
 class TraceabilityApiClient(
@@ -177,16 +182,37 @@ class TraceabilityApiClient(
         decodeReconciliation(ref, JsonParser.parseObject(response.requireBody("memuat rekonsiliasi")))
     }
 
-    override fun labelsPdfUrl(ref: TraceWorkOrderRef, tier: TraceTier, sizeLabel: String?): String {
+    override suspend fun labelsPdfUrl(
+        tenantSlug: String,
+        ref: TraceWorkOrderRef,
+        tier: TraceTier,
+        sizeLabel: String?
+    ): Result<String> {
         val size = sizeLabel?.takeIf { it.isNotBlank() }?.let { "&size=$it" }.orEmpty()
-        return resolveUrl("${workOrderPath(ref)}/labels.pdf?tier=${tier.name}$size")
+        return ticketedPdfUrl(tenantSlug, ref, "labels.pdf?tier=${tier.name}$size")
     }
 
-    override fun worksheetPdfUrl(ref: TraceWorkOrderRef): String =
-        resolveUrl("${workOrderPath(ref)}/worksheet.pdf")
+    override suspend fun worksheetPdfUrl(tenantSlug: String, ref: TraceWorkOrderRef): Result<String> =
+        ticketedPdfUrl(tenantSlug, ref, "worksheet.pdf")
 
-    override fun spkCardPdfUrl(ref: TraceWorkOrderRef): String =
-        resolveUrl("${workOrderPath(ref)}/spk-card.pdf")
+    override suspend fun spkCardPdfUrl(tenantSlug: String, ref: TraceWorkOrderRef): Result<String> =
+        ticketedPdfUrl(tenantSlug, ref, "spk-card.pdf")
+
+    private suspend fun ticketedPdfUrl(
+        tenantSlug: String,
+        ref: TraceWorkOrderRef,
+        document: String
+    ): Result<String> = runCatching {
+        val response = httpClient.post(resolveUrl("${workOrderPath(ref)}/print-ticket")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        val ticket = JsonParser.parseObject(response.requireBody("menyiapkan cetakan")).string("ticket")
+            ?.takeIf { it.isNotBlank() }
+            ?: error("Server tidak mengirim tiket cetak")
+        val separator = if ('?' in document) '&' else '?'
+        resolveUrl("${workOrderPath(ref)}/$document${separator}ticket=$ticket")
+    }
 
     private fun decodeScan(obj: JsonValue.Obj): TraceScanView {
         val code = TraceCode(obj.string("code") ?: "")

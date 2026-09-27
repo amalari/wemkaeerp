@@ -13,12 +13,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
@@ -47,7 +55,8 @@ fun ClayTagInput(
     isError: Boolean = false,
     errorMessage: String? = null
 ) {
-    var input by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    var input by remember(label) { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
@@ -57,12 +66,18 @@ fun ClayTagInput(
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
-    fun addTag(text: String) {
-        val trimmed = text.trim().removeSuffix(",")
-        if (trimmed.isNotBlank()) {
-            onTagsChange(tags + trimmed)
+    fun addTags(newItems: List<String>) {
+        val filtered = newItems
+            .map { it.trim().removeSuffix(",").removeSuffix("\t") }
+            .filter { it.isNotBlank() }
+        if (filtered.isNotEmpty()) {
+            currentOnTagsChange(currentTags + filtered)
             input = ""
         }
+    }
+
+    fun addTag(text: String) {
+        addTags(listOf(text))
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
@@ -269,20 +284,34 @@ fun ClayTagInput(
                         BasicTextField(
                             value = input,
                             onValueChange = { newVal ->
-                                if (newVal.contains(",")) {
-                                    val parts = newVal.split(",")
-                                    parts.forEach { part ->
-                                        val trimmed = part.trim()
-                                        if (trimmed.isNotBlank()) onTagsChange(tags + trimmed)
-                                    }
-                                    input = ""
+                                if (newVal.contains(",") || newVal.contains("\t")) {
+                                    val parts = newVal.split(',', '\t')
+                                    addTags(parts)
                                 } else {
                                     input = newVal
                                 }
                             },
                             modifier = Modifier
                                 .focusRequester(focusRequester)
-                                .onFocusChanged { isFocused = it.isFocused }
+                                .onFocusChanged { focusState ->
+                                    if (!focusState.isFocused && input.isNotBlank()) {
+                                        addTag(input)
+                                    }
+                                    isFocused = focusState.isFocused
+                                }
+                                .onPreviewKeyEvent { event ->
+                                    if (event.key == Key.Tab && event.type == KeyEventType.KeyDown) {
+                                        if (input.isNotBlank()) {
+                                            addTag(input)
+                                        }
+                                        focusManager.moveFocus(
+                                            if (event.isShiftPressed) FocusDirection.Previous else FocusDirection.Next
+                                        )
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
                                 .widthIn(min = 60.dp),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(

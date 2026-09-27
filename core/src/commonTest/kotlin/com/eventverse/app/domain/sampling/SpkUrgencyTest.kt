@@ -95,14 +95,49 @@ class SpkUrgencyTest {
     }
 
     @Test
-    fun `menit standar nol membuat slack sama dengan sisa hari kalender`() {
+    fun `menit standar nol dengan deadline should be belum diestimasi bukan aman`() {
         val result = assessUrgency(
-            listOf(SpkUrgencyInput("kosong", SamplingPipelineStage.NEW_INTAKE, LocalDate(2026, 9, 30), 0, 3)),
+            listOf(SpkUrgencyInput("kosong", SamplingPipelineStage.CAM_PROGRAMMING, LocalDate(2026, 10, 3), 0, 2)),
             today
         )
 
-        assertEquals(3, result[0].slackDays, "3 hari sisa − 0 hari kerja = selisih kalender murni")
+        assertEquals(SpkUrgencyLevel.BELUM_DIESTIMASI, result[0].level)
+        assertNull(result[0].slackDays, "Beban kerja tidak diketahui — slack tidak boleh dikarang")
+    }
+
+    @Test
+    fun `qty nol dengan deadline should be belum diestimasi`() {
+        val result = assessUrgency(
+            listOf(SpkUrgencyInput("qty-kosong", SamplingPipelineStage.MACHINE_KNITTING, LocalDate(2026, 10, 3), 400, 0)),
+            today
+        )
+
+        assertEquals(SpkUrgencyLevel.BELUM_DIESTIMASI, result[0].level)
+    }
+
+    @Test
+    fun `tahap tanpa sisa kerja dengan menit nol should tetap dinilai`() {
+        val result = assessUrgency(
+            listOf(SpkUrgencyInput("acc", SamplingPipelineStage.ACC_APPROVED, LocalDate(2026, 9, 30), 0, 2)),
+            today
+        )
+
         assertEquals(SpkUrgencyLevel.AMAN, result[0].level)
+        assertEquals(3, result[0].slackDays)
+    }
+
+    @Test
+    fun `belum diestimasi diperingkat setelah yang terhitung dan sebelum tanpa deadline`() {
+        val result = assessUrgency(
+            listOf(
+                SpkUrgencyInput("tanpa-dl", SamplingPipelineStage.MACHINE_KNITTING, null, 400, 2),
+                SpkUrgencyInput("kosong", SamplingPipelineStage.NEW_INTAKE, LocalDate(2026, 9, 28), 0, 2),
+                SpkUrgencyInput("aman", SamplingPipelineStage.SETRIKA_UAP, LocalDate(2026, 10, 15), 400, 2)
+            ),
+            today
+        )
+
+        assertEquals(listOf("aman", "kosong", "tanpa-dl"), result.map { it.spkId })
     }
 
     @Test
@@ -115,5 +150,22 @@ class SpkUrgencyTest {
         )
         assertEquals(1.0, factors.first(), "SPK baru belum mengerjakan apa pun")
         assertEquals(0.0, factors.last(), "SPK yang ACC tidak menyisakan pekerjaan")
+    }
+
+    @Test
+    fun `sampling urgency should always be urgent and ranked by nearest deadline`() {
+        val result = assessSamplingUrgency(
+            listOf(
+                SpkUrgencyInput("jauh", SamplingPipelineStage.NEW_INTAKE, LocalDate(2026, 10, 20), 0, 2),
+                SpkUrgencyInput("tanpa-dl", SamplingPipelineStage.NEW_INTAKE, null, 0, 2),
+                SpkUrgencyInput("dekat", SamplingPipelineStage.CAM_PROGRAMMING, LocalDate(2026, 10, 3), 0, 2)
+            ),
+            today
+        )
+
+        assertEquals(listOf("dekat", "jauh", "tanpa-dl"), result.map { it.spkId })
+        assertTrue(result.all { it.level == SpkUrgencyLevel.URGENT }, "Sampel selalu merah")
+        assertEquals(6, result[0].slackDays, "Sisa hari kalender ke deadline")
+        assertNull(result[2].slackDays)
     }
 }

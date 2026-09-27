@@ -38,6 +38,7 @@ fun CamProgramTabbedSection(
     // Hasil R&D tidak diedit di sini, tapi tetap dibawa agar tidak terhapus saat lembar CAM disimpan ulang (rework).
     val finishedMeasurements = parsed.finishedMeasurements
     var selectedTabId by remember { mutableStateOf(tabs.firstOrNull()?.id.orEmpty()) }
+    var selectedTabName by remember { mutableStateOf(tabs.firstOrNull()?.name.orEmpty()) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showValidationErrors by remember { mutableStateOf(false) }
 
@@ -49,6 +50,7 @@ fun CamProgramTabbedSection(
                 val firstIncomplete = tabs.firstOrNull { !it.isComplete }
                 if (firstIncomplete != null) {
                     selectedTabId = firstIncomplete.id
+                    selectedTabName = firstIncomplete.name
                 }
             }
         }
@@ -58,10 +60,16 @@ fun CamProgramTabbedSection(
         showValidationErrors = false
     }
 
-    if (tabs.none { it.id == selectedTabId } && tabs.isNotEmpty()) {
-        selectedTabId = tabs.first().id
+    val activeTab = tabs.firstOrNull { it.id == selectedTabId }
+        ?: tabs.firstOrNull { it.name.equals(selectedTabName, ignoreCase = true) }
+        ?: tabs.firstOrNull()
+
+    LaunchedEffect(activeTab) {
+        if (activeTab != null) {
+            selectedTabId = activeTab.id
+            selectedTabName = activeTab.name
+        }
     }
-    val activeTab = tabs.firstOrNull { it.id == selectedTabId } ?: tabs.firstOrNull()
 
     fun updateAndEmit(
         newTabs: List<CamPartTab>,
@@ -129,13 +137,16 @@ fun CamProgramTabbedSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     tabs.forEach { tab ->
-                        val isSelected = tab.id == selectedTabId
+                        val isSelected = tab.id == activeTab?.id
                         val isComplete = tab.isComplete
                         val isErrorTab = showValidationErrors && !isComplete
 
                         Row(
                             modifier = Modifier
-                                .clickable { selectedTabId = tab.id }
+                                .clickable {
+                                    selectedTabId = tab.id
+                                    selectedTabName = tab.name
+                                }
                                 .claySurface(
                                     shape = ClayShapes.Pill,
                                     background = when {
@@ -201,8 +212,10 @@ fun CamProgramTabbedSection(
                                     .size(16.dp)
                                     .clickable {
                                         val newTabs = tabs.filter { it.id != tab.id }
-                                        if (selectedTabId == tab.id) {
-                                            selectedTabId = newTabs.firstOrNull()?.id.orEmpty()
+                                        if (activeTab?.id == tab.id) {
+                                            val remaining = newTabs.firstOrNull()
+                                            selectedTabId = remaining?.id.orEmpty()
+                                            selectedTabName = remaining?.name.orEmpty()
                                         }
                                         updateAndEmit(newTabs, rumusPolaNote)
                                     },
@@ -271,7 +284,7 @@ fun CamProgramTabbedSection(
                         val isFeederError = showValidationErrors && activeTab.feederInstructions.isEmpty()
                         ClayTagInput(
                             label = "INSTRUKSI PANAH (${activeTab.name.uppercase()})",
-                            placeholder = "Ketik lalu tekan Enter atau koma (,) untuk buat tag...",
+                            placeholder = "Ketik lalu tekan Enter, koma (,), atau Tab untuk buat tag...",
                             tags = activeTab.feederInstructions,
                             numbered = true,
                             isError = isFeederError,
@@ -287,7 +300,7 @@ fun CamProgramTabbedSection(
                         // 3. Tenselity (Taggable)
                         ClayTagInput(
                             label = "TENSELITY / SETTING TENSION (${activeTab.name.uppercase()})",
-                            placeholder = "Ketik lalu tekan Enter atau koma (,) untuk buat tag...",
+                            placeholder = "Ketik lalu tekan Enter, koma (,), atau Tab untuk buat tag...",
                             tags = activeTab.tenselities,
                             numbered = false,
                             onTagsChange = { newTenselities ->
@@ -372,6 +385,7 @@ fun CamProgramTabbedSection(
                 val newTab = CamPartTab("tab-${tabs.size}-$newPartName", newPartName)
                 val newTabs = tabs + newTab
                 selectedTabId = newTab.id
+                selectedTabName = newTab.name
                 showAddDialog = false
                 updateAndEmit(newTabs, rumusPolaNote)
             }

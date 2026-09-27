@@ -21,9 +21,9 @@ import kotlinx.datetime.LocalDate
 /**
  * Kartu SPK A6 — satu halaman per ukuran, menggantung di tiap section produksi.
  *
- * Strip bawah kartu adalah satu-satunya elemen berwarna: bahasa warnanya mengikuti sinyal produksi
- * (hijau/amber/merah) yang sudah dipakai kanvas Factory Flow, dan teks level selalu ikut tercetak
- * supaya kartu dari printer hitam-putih tetap menyampaikan urgensinya.
+ * Strip bawah kartu adalah satu-satunya elemen berwarna: penanda warna polos tanpa teks, mengikuti
+ * sinyal produksi (hijau/amber/merah) kanvas Factory Flow. Tahap & deadline sudah tercetak di baris
+ * identitas, jadi strip tidak perlu mengulanginya.
  */
 class SpkCardPdfRenderer(private val scanHost: String) {
 
@@ -75,7 +75,8 @@ class SpkCardPdfRenderer(private val scanHost: String) {
             topPt = pageHeightPt - toPoints(regions.qr.y.value),
             sizePt = toPoints(regions.qr.width.value)
         )
-        text(cs, TraceCodec.grouped(card.code), bold, LABEL_SIZE, regions.humanCode, pageHeightPt)
+        // Rata kanan ke tepi QR: kode 8pt lebih lebar dari QR 30 mm; rata kiri membuatnya melewati margin kanan.
+        textRight(cs, TraceCodec.grouped(card.code), bold, LABEL_SIZE, regions.humanCode, pageHeightPt)
 
         identityLines(content, card.qtyPcs).forEachIndexed { index, line ->
             text(cs, line, regular, BODY_SIZE, regions.identityLines[index], pageHeightPt)
@@ -104,7 +105,7 @@ class SpkCardPdfRenderer(private val scanHost: String) {
             regular, LABEL_SIZE, regions.colorwayLine, pageHeightPt
         )
 
-        drawUrgencyStrip(cs, bold, content, regions.urgencyStrip, pageHeightPt)
+        drawUrgencyStrip(cs, content, regions.urgencyStrip, pageHeightPt)
     }
 
     private companion object {
@@ -158,7 +159,6 @@ class SpkCardPdfRenderer(private val scanHost: String) {
 
     private fun drawUrgencyStrip(
         cs: PDPageContentStream,
-        bold: PDFont,
         content: SpkCardContent,
         strip: TemplateRect,
         pageHeightPt: Float
@@ -167,37 +167,14 @@ class SpkCardPdfRenderer(private val scanHost: String) {
         cs.setNonStrokingColor(r, g, b)
         cs.addRect(toPoints(strip.x.value), pageHeightPt - toPoints(strip.y.value + strip.height.value), toPoints(strip.width.value), toPoints(strip.height.value))
         cs.fill()
-
-        val label = stripText(content)
-        val widthPt = bold.getStringWidth(label) / 1000f * SPK_SIZE
-        val centerX = toPoints(strip.x.value) + (toPoints(strip.width.value) - widthPt) / 2f
-        cs.setNonStrokingColor(1f, 1f, 1f)
-        cs.beginText()
-        cs.setFont(bold, SPK_SIZE)
-        cs.newLineAtOffset(centerX, pageHeightPt - toPoints(strip.y.value) - SPK_SIZE - 4f)
-        cs.showText(label)
-        cs.endText()
     }
 
-    private fun stripText(content: SpkCardContent): String {
-        val priority = "PRIORITAS ${content.rank}/${content.activeCount}"
-        val deadline = content.deadline?.let { "DL ${formatDate(it)}" } ?: return "$priority · TANPA DEADLINE"
-        val slack = content.slackDays?.let { "SISA $it HK" } ?: ""
-        return listOfNotNull(
-            content.urgencyLevel.displayName,
-            priority,
-            "${content.stageLabel} ${content.stageNumber}/${content.stageCount}",
-            deadline,
-            slack.takeIf { it.isNotBlank() }
-        ).joinToString(" · ")
-    }
-
-    /** Hijau/amber/merah = bahasa sinyal produksi yang sama dengan kanvas Factory Flow; abu = tanpa deadline. */
+    /** Hijau/amber/merah = bahasa sinyal produksi yang sama dengan kanvas Factory Flow; abu = tidak bisa dinilai (belum diestimasi / tanpa deadline). */
     private fun stripColor(level: SpkUrgencyLevel): FloatArray = when (level) {
         SpkUrgencyLevel.URGENT -> floatArrayOf(0.863f, 0.149f, 0.149f)
         SpkUrgencyLevel.SEGERA -> floatArrayOf(0.851f, 0.467f, 0.024f)
         SpkUrgencyLevel.AMAN -> floatArrayOf(0.086f, 0.639f, 0.290f)
-        SpkUrgencyLevel.TANPA_DEADLINE -> floatArrayOf(0.392f, 0.455f, 0.545f)
+        SpkUrgencyLevel.BELUM_DIESTIMASI, SpkUrgencyLevel.TANPA_DEADLINE -> floatArrayOf(0.392f, 0.455f, 0.545f)
     }
 
     private fun formatDate(value: LocalDate): String =

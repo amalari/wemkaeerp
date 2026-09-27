@@ -331,6 +331,11 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
       ```
 - [ ] **Dijalankan dan dilihat dengan mata**, bukan hanya dikompilasi — bug layout seperti teks
       pecah per huruf tidak akan tertangkap test mana pun
+- [ ] **Belum login saat mengecek visual? Login dulu, jangan dilewati.** Kalau halaman yang dicek
+      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3000/login`, klik
+      **"Demo Mode: Masuk Cepat (Superadmin Apps)"** (`superadmin_apps` / `PLATFORM_SUPERADMIN`),
+      lalu kembali ke halaman tujuan dan lakukan pengecekannya. "Belum login" **bukan** alasan sah
+      untuk melaporkan UI tanpa melihatnya.
 - [ ] **Layar lain yang tidak dikonversi ikut diperiksa** jika `WeMadeTheme.kt` disentuh —
       `shapes` dan `colorScheme` berdampak ke seluruh aplikasi, jadi "pilot satu layar" tidak
       pernah benar-benar terisolasi

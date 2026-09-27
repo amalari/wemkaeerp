@@ -117,7 +117,7 @@ import com.eventverse.app.infrastructure.PostgresDealRepository
 import com.eventverse.app.infrastructure.storage.S3PoFileStorage
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
+    embeddedServer(Netty, port = 8080, host = "0.0.0.0", watchPaths = listOf("classes"), module = Application::module)
         .start(wait = true)
 }
 

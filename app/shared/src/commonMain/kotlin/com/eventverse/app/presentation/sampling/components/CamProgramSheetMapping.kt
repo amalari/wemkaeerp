@@ -56,6 +56,8 @@ fun parseCamSections(sections: List<StageInputSection>): CamProgramSheet {
     progSec?.rows?.forEach { if (it.label.isNotBlank()) tabNames.add(it.label.trim()) }
     feederSec?.rows?.forEach { partName(it.label).takeIf { n -> n.isNotBlank() }?.let(tabNames::add) }
     tenselitySec?.rows?.forEach { partName(it.label).takeIf { n -> n.isNotBlank() }?.let(tabNames::add) }
+    weightSec?.rows?.forEach { partName(it.label).takeIf { n -> n.isNotBlank() }?.let(tabNames::add) }
+    minuteSec?.rows?.forEach { partName(it.label).takeIf { n -> n.isNotBlank() }?.let(tabNames::add) }
 
     val tabs = tabNames.mapIndexed { idx, name ->
         CamPartTab(

@@ -45,12 +45,20 @@ class SamplingTraceWorkOrderProvider(
 
         val matrix = ensureSamplingQtyRow(order.sizeMatrix)
         val qtyRow = matrix.firstOrNull { it.isQtyRow }
-        val sizes = extractSizeColumns(matrix)
+        val allSizes = extractSizeColumns(matrix)
             .filter { isSizeColumnActive(matrix, it) }
             .mapNotNull { column ->
                 val qty = qtyRow?.values?.get(column)?.trim()?.toIntOrNull() ?: 0
                 if (qty <= 0) null else TraceSizeLine(column, qty)
             }
+        // SPK hasil split per ukuran tetap membawa matriks lengkap induknya (POM semua ukuran),
+        // tapi yang dikerjakan hanya ukurannya sendiri. Tanpa saring ini kartu, label, dan lembar
+        // kerja SPK "S" ikut mencetak halaman ukuran saudaranya.
+        val ownSize = order.sizeLabel?.trim()?.takeIf { it.isNotBlank() }
+        val sizes = ownSize
+            ?.let { label -> allSizes.filter { it.sizeLabel.equals(label, ignoreCase = true) } }
+            ?.takeIf { it.isNotEmpty() }
+            ?: allSizes
 
         return TraceWorkOrderSnapshot(
             ref = ref,

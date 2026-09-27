@@ -155,4 +155,5 @@ private class BufferedImageLuminanceSource(image: java.awt.image.BufferedImage) 
         val pixel = pixels[i]
         (((pixel shr 16 and 0xFF) + (pixel shr 8 and 0xFF) + (pixel and 0xFF)) / 3).toByte()
     }
+
 }

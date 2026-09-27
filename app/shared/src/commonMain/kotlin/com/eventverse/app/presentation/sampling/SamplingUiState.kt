@@ -32,7 +32,14 @@ data class SamplingUiState(
     val stageAdvanceTarget: SamplingOrder? = null,
     val stageAdvanceTargetStage: SamplingPipelineStage? = null,
     /** SPK yang sedang membuka dialog kirim rework di meja operator. */
-    val reworkTarget: SamplingOrder? = null
+    val reworkTarget: SamplingOrder? = null,
+    /** Status autosave draft lembar kerja di dialog Detail SPK. */
+    val draftSave: DraftSaveState = DraftSaveState(),
+    /**
+     * SPK yang kartu A6-nya harus dibuka — diisi hanya setelah pindah tahap sukses, supaya kartu
+     * tidak pernah keluar untuk SPK yang gagal maju tahap. Dikonsumsi layar lalu di-reset.
+     */
+    val spkCardToPrint: SamplingOrderId? = null
 ) {
     val selectedOrder: SamplingOrder?
         get() = (selectedOrderId?.let { id -> orders.firstOrNull { it.id == id } } ?: orders.firstOrNull())
@@ -94,15 +101,19 @@ sealed interface SamplingUiEvent {
         val targetStage: SamplingPipelineStage,
         val sections: List<StageInputSection>,
         /** Tahap pemilik lembar; lembar Program CAM disimpan di CAM walau tujuannya Mesin Rajut. */
-        val inputStage: SamplingPipelineStage = targetStage
+        val inputStage: SamplingPipelineStage = targetStage,
+        /** Buka Kartu SPK A6 setelah server mengonfirmasi pindah tahap (CAM → lantai produksi). */
+        val openSpkCardOnSuccess: Boolean = false
     ) : SamplingUiEvent
+    /** Kartu SPK A6 yang diminta sudah dibuka oleh layar. */
+    data object SpkCardPrintHandled : SamplingUiEvent
     data class AddFinishingDeposit(val orderId: SamplingOrderId, val deposit: FinishingDeposit) : SamplingUiEvent
     data class AssignMakloonVendor(val orderId: SamplingOrderId, val info: MakloonVendorInfo) : SamplingUiEvent
     data class ConfirmVendorReturn(val orderId: SamplingOrderId, val returnedAt: LocalDate? = null) : SamplingUiEvent
     data class SubmitQcInspection(val orderId: SamplingOrderId, val report: QcInspectionReport) : SamplingUiEvent
     data class RequestRevision(val orderId: SamplingOrderId, val notes: String) : SamplingUiEvent
     data class SaveFullOrder(val order: SamplingOrder) : SamplingUiEvent
-    /** Isi ulang lembar kerja satu tahap tanpa memindahkan tahap (mis. hasil R&D). */
+    /** Draft lembar kerja satu tahap berubah — di-autosave (debounce) tanpa memindahkan tahap. */
     data class SaveStageInput(
         val orderId: SamplingOrderId,
         val stage: SamplingPipelineStage,

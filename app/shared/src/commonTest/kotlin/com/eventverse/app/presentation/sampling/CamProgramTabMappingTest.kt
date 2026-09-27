@@ -135,4 +135,67 @@ class CamProgramTabMappingTest {
         )
         assertTrue(tabComplete.isComplete, "Tab dengan kode program dan instruksi panah harus lengkap")
     }
+
+    @Test
+    fun serializeAndParse_partAddedFromRd_shouldSyncToCamSheet() {
+        val initialTabs = listOf(
+            CamPartTab(id = "tab-0-Depan", name = "Depan", program = "BIAN-D", feederInstructions = listOf("F1")),
+            CamPartTab(id = "tab-1-Belakang", name = "Belakang", program = "BIAN-B", feederInstructions = listOf("F1"))
+        )
+        // Tambah bagian baru dari R&D (hanya nama bagian, gramasi dan waktu)
+        val addedFromRd = initialTabs + CamPartTab(
+            id = "tab-2-Kerah",
+            name = "Kerah",
+            gramasi = "25 GR",
+            waktu = "8 MENIT"
+        )
+
+        val sections = serializeCamSections(addedFromRd, "Catatan")
+        val restored = parseCamSections(sections)
+
+        assertEquals(3, restored.tabs.size)
+        val kerahTab = restored.tabs.firstOrNull { it.name == "Kerah" }
+        assertTrue(kerahTab != null, "Bagian yang ditambah dari R&D harus muncul di lembar CAM")
+        assertEquals("25 GR", kerahTab.gramasi)
+        assertEquals("8 MENIT", kerahTab.waktu)
+        assertEquals("", kerahTab.program)
+    }
+
+    @Test
+    fun serializeAndParse_partDeletedFromRdOrCam_shouldBeRemovedFromAllSections() {
+        val initialTabs = listOf(
+            CamPartTab(id = "tab-0-Depan", name = "Depan", program = "BIAN-D", feederInstructions = listOf("F1"), gramasi = "117 GR", waktu = "37 MENIT"),
+            CamPartTab(id = "tab-1-Lengan", name = "Lengan", program = "BIAN-L", feederInstructions = listOf("F2"), gramasi = "45 GR", waktu = "15 MENIT")
+        )
+
+        // Hapus tab Lengan (baik di CAM maupun R&D)
+        val remainingTabs = initialTabs.filter { it.name != "Lengan" }
+        val sections = serializeCamSections(remainingTabs, "")
+        val restored = parseCamSections(sections)
+
+        assertEquals(1, restored.tabs.size)
+        assertEquals("Depan", restored.tabs[0].name)
+        assertTrue(restored.tabs.none { it.name == "Lengan" })
+        assertFalse(sections.any { it.rows.any { r -> r.label.contains("Lengan") } })
+    }
+
+    @Test
+    fun parseCamSections_withOnlyPanelWeightsOrMinutes_shouldRestoreTab() {
+        val sections = listOf(
+            com.eventverse.app.domain.sampling.StageInputSection(
+                section = StageSectionNames.PANEL_WEIGHTS,
+                rows = listOf(StageInputRow("Manset", "12 GR"))
+            ),
+            com.eventverse.app.domain.sampling.StageInputSection(
+                section = StageSectionNames.PANEL_MINUTES,
+                rows = listOf(StageInputRow("Manset", "5 MENIT"))
+            )
+        )
+
+        val sheet = parseCamSections(sections)
+        assertEquals(1, sheet.tabs.size)
+        assertEquals("Manset", sheet.tabs[0].name)
+        assertEquals("12 GR", sheet.tabs[0].gramasi)
+        assertEquals("5 MENIT", sheet.tabs[0].waktu)
+    }
 }

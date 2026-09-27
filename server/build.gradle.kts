@@ -9,6 +9,18 @@ application {
     mainClass = "com.eventverse.app.ApplicationKt"
 }
 
+/**
+ * Auto-reload lokal: `./gradlew :server:run` menyalakan mode development Ktor, yang memuat ulang
+ * class dari `build/classes` setiap kali terminal lain menjalankan `./gradlew -t :server:classes`.
+ *
+ * Sengaja dipasang di task `run` saja, bukan `applicationDefaultJvmArgs`: nilai di sana ikut tertanam
+ * ke skrip distribusi, dan mode development di produksi berarti class loader ekstra, pemantauan
+ * berkas, dan pesan error yang lebih rinci. Matikan dengan `-PktorDev=false`.
+ */
+tasks.named<JavaExec>("run") {
+    systemProperty("io.ktor.development", providers.gradleProperty("ktorDev").getOrElse("true"))
+}
+
 dependencies {
     implementation(project(":core"))
     // Ensure IDE Language Server (without KMP support) can resolve domain symbols from compiled jar

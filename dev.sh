@@ -87,6 +87,20 @@ check_postgres() {
 # Handler cleanup saat Ctrl+C ditekan
 SERVER_PID=""
 WASM_PID=""
+WATCH_PID=""
+
+# Auto-reload Ktor: `:server:run` sudah berjalan dalam mode development (lihat server/build.gradle.kts)
+# dan memantau build/classes. Proses ini yang mengisi ulang folder itu setiap file server berubah.
+# Ditunda sampai server selesai binding supaya dua build Gradle tidak berebut kompilasi awal.
+# Perubahan di core/ tetap butuh restart manual: core masuk sebagai jar, bukan folder class.
+start_server_watcher() {
+    (
+        until lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; do sleep 2; done
+        echo -e "${GREEN}${BOLD}[RELOAD]${RESET} Memantau perubahan server/ — class dikompilasi ulang otomatis."
+        ./gradlew -t :server:classes -q 2>&1 | sed -e "s/^/[RELOAD] /"
+    ) &
+    WATCH_PID=$!
+}
 
 cleanup() {
     echo -e "\n${YELLOW}🛑 Menghentikan seluruh proses development...${RESET}"
@@ -95,6 +109,9 @@ cleanup() {
     fi
     if [ -n "$WASM_PID" ]; then
         kill "$WASM_PID" 2>/dev/null || true
+    fi
+    if [ -n "$WATCH_PID" ]; then
+        kill "$WATCH_PID" 2>/dev/null || true
     fi
     # Hentikan background jobs terkait gradle jika ada
     kill $(jobs -p) 2>/dev/null || true
@@ -119,7 +136,8 @@ case "$MODE" in
         print_banner
         check_postgres
         check_port 8080 "Ktor Backend Server"
-        echo -e "${GREEN}${BOLD}[SERVER]${RESET} Memulai Ktor Backend Server pada port 8080..."
+        echo -e "${GREEN}${BOLD}[SERVER]${RESET} Memulai Ktor Backend Server pada port 8080 (auto-reload aktif)..."
+        start_server_watcher
         ./gradlew :server:run
         ;;
 
@@ -154,7 +172,7 @@ case "$MODE" in
         echo -e "${BOLD}Panduan Penggunaan dev.sh:${RESET}"
         echo "  ./dev.sh         : Menjalankan Server Backend (8080) dan Wasm Watcher (3000) sekaligus"
         echo "  ./dev.sh wasm    : Hanya menjalankan Wasm Dev Server dengan auto-watching/hot-reload"
-        echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server"
+        echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server (auto-reload server/)"
         echo "  ./dev.sh docker  : Menyalakan container database PostgreSQL"
         echo "  ./dev.sh test    : Menjalankan seluruh suite test (core + shared + server)"
         echo "  ./dev.sh test-changed [ref] : HANYA test yang berhubungan dengan file yang berubah"
@@ -172,6 +190,7 @@ case "$MODE" in
         echo -e "\n${GREEN}${BOLD}▶ [1/2] Menjalankan Ktor Backend Server (Port 8080)...${RESET}"
         ./gradlew :server:run 2>&1 | sed -e "s/^/[SERVER] /" &
         SERVER_PID=$!
+        start_server_watcher
 
         # Beri jeda singkat agar Ktor sempat binding port sebelum webpack proxy aktif
         sleep 2

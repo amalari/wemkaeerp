@@ -28,6 +28,9 @@ import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.requiresStageWorksheet
+import com.eventverse.app.domain.traceability.TraceWorkOrderKind
+import com.eventverse.app.domain.traceability.TraceWorkOrderRef
+import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -58,6 +61,13 @@ fun SamplingWorkspaceScreen(
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Launcher di level layar, bukan di dialog: dialog sudah tertutup saat pindah tahap sukses.
+    val spkCardPrinter = rememberPdfPrintLauncher()
+    LaunchedEffect(state.spkCardToPrint) {
+        val orderId = state.spkCardToPrint ?: return@LaunchedEffect
+        spkCardPrinter.open { spkCardPdfUrl(it, TraceWorkOrderRef(TraceWorkOrderKind.SAMPLING, orderId.value)) }
+        viewModel.onEvent(SamplingUiEvent.SpkCardPrintHandled)
+    }
     val processFlowViewModel = remember(tenantSlug) { ProcessFlowViewModel() }
 
     LaunchedEffect(state.orders) {
@@ -138,6 +148,13 @@ fun SamplingWorkspaceScreen(
                     tint = if (state.isErrorMessage) WeMadeColors.Error else WeMadeColors.Success,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        // Gagal menyiapkan Kartu SPK A6 otomatis — dialognya sudah tertutup, jadi dilaporkan di sini.
+        spkCardPrinter.error?.let { message ->
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs)) {
+                ClayBadge(text = message, tint = WeMadeColors.Error, modifier = Modifier.fillMaxWidth())
             }
         }
 
@@ -224,11 +241,14 @@ fun SamplingWorkspaceScreen(
                         orderId = target.id,
                         targetStage = targetStage,
                         sections = sections,
-                        inputStage = SamplingPipelineStage.CAM_PROGRAMMING
+                        inputStage = SamplingPipelineStage.CAM_PROGRAMMING,
+                        // Hanya CAM → Rajut yang mencetak kartu; gerbang → CAM belum punya kartu fisik.
+                        openSpkCardOnSuccess = target.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
                     )
                 )
             },
-            onSaveRdResult = { sections ->
+            draftSaveStatus = state.draftSave.statusFor(target.id),
+            onDraftChange = { sections ->
                 viewModel.onEvent(SamplingUiEvent.SaveStageInput(target.id, SamplingPipelineStage.CAM_PROGRAMMING, sections))
             },
             onDetermineFlow = { viewModel.onEvent(SamplingUiEvent.DetermineFlow(target.id)) },

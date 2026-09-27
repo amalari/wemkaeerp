@@ -31,8 +31,7 @@ fun extractSizeColumns(matrix: List<SizeChartRow>): List<String> {
     val columns = LinkedHashSet<String>()
     for (row in matrix) {
         for (key in row.values.keys) {
-            val trimmed = key.trim()
-            if (trimmed.isNotBlank()) columns.add(trimmed)
+            columns.add(key)
         }
     }
     return if (columns.isNotEmpty()) columns.toList() else listOf(DEFAULT_PLACEHOLDER_SIZE_COLUMN)
@@ -40,11 +39,21 @@ fun extractSizeColumns(matrix: List<SizeChartRow>): List<String> {
 
 /**
  * Menambahkan kolom ukuran baru ke seluruh baris matriks (POM dan baris Qty).
+ * Jika [newColumn] bernilai kosong / blank, kolom kosong baru akan disisipkan agar user
+ * langsung melihat kolom dengan placeholder "Size" dan leluasa mengetikkan nama ukuran sendiri.
  */
-fun addColumnToMatrix(matrix: List<SizeChartRow>, newColumn: String): List<SizeChartRow> {
-    val trimmed = newColumn.trim()
-    if (trimmed.isBlank()) return matrix
+fun addColumnToMatrix(matrix: List<SizeChartRow>, newColumn: String = ""): List<SizeChartRow> {
     val existing = extractSizeColumns(matrix)
+    if (newColumn.isBlank()) {
+        if (existing.any { it.isBlank() }) return matrix
+        val blankKey = ""
+        return matrix.map { row ->
+            val newMap = LinkedHashMap(row.values)
+            newMap[blankKey] = ""
+            row.copy(values = newMap)
+        }
+    }
+    val trimmed = newColumn.trim()
     if (existing.any { it.equals(trimmed, ignoreCase = true) }) return matrix
     return matrix.map { row ->
         val newMap = LinkedHashMap(row.values)
@@ -57,14 +66,20 @@ fun addColumnToMatrix(matrix: List<SizeChartRow>, newColumn: String): List<SizeC
  * Mengubah nama/label kolom ukuran di seluruh baris matriks, dengan mempertahankan urutan posisi.
  */
 fun renameColumnInMatrix(matrix: List<SizeChartRow>, oldColumn: String, newColumn: String): List<SizeChartRow> {
-    val trimmedOld = oldColumn.trim()
-    val trimmedNew = newColumn.trim()
-    if (trimmedNew.isBlank() || trimmedNew == trimmedOld) return matrix
+    if (newColumn == oldColumn) return matrix
+    val existing = extractSizeColumns(matrix)
+    if (newColumn.isNotBlank() && existing.any { it != oldColumn && it.equals(newColumn.trim(), ignoreCase = true) }) {
+        return matrix
+    }
+    if (newColumn.isBlank() && existing.any { it != oldColumn && it.isBlank() }) {
+        return matrix
+    }
+    val targetKey = if (newColumn.isBlank()) "" else newColumn.trim()
     return matrix.map { row ->
         val newMap = LinkedHashMap<String, String>()
         for ((k, v) in row.values) {
-            if (k == trimmedOld) {
-                newMap[trimmedNew] = v
+            if (k == oldColumn) {
+                newMap[targetKey] = v
             } else {
                 newMap[k] = v
             }
@@ -92,6 +107,7 @@ fun deleteColumnFromMatrix(matrix: List<SizeChartRow>, column: String): List<Siz
  * SEMUA baris parameter fisik (POM) yang bernama tidak kosong telah terisi nilainya.
  */
 fun isSizeColumnActive(matrix: List<SizeChartRow>, col: String): Boolean {
+    if (col.isBlank()) return false
     val pomRows = matrix.filter { !it.isQtyRow && it.pomName.isNotBlank() }
     if (pomRows.isEmpty()) return false
     return pomRows.all { it.values[col]?.isNotBlank() == true }

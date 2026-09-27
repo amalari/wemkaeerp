@@ -9,7 +9,7 @@ import com.eventverse.app.domain.sampling.SpkUrgencyInput
 import com.eventverse.app.domain.sampling.SpkUrgencyLevel
 import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.domain.sampling.StageWorkProfile
-import com.eventverse.app.domain.sampling.assessUrgency
+import com.eventverse.app.domain.sampling.assessSamplingUrgency
 import com.eventverse.app.domain.sampling.calculateTotalSampleQuantity
 import com.eventverse.app.domain.sampling.isQtyRow
 import com.eventverse.app.domain.tenant.TenantId
@@ -33,8 +33,8 @@ import kotlinx.datetime.toLocalDateTime
  * meja/dinding tiap section produksi.
  *
  * Angka urgensi dihitung **saat kartu dicetak**, bukan disimpan: proyeksi seluruh SPK aktif tenant
- * dimuat, dinilai [assessUrgency], dan posisi SPK ini di antrean itulah yang tercetak di strip
- * bawah kartu. Satu query + aritmetika murni — tidak ada tabel baru, tidak ada state yang basi.
+ * dimuat, dinilai [assessSamplingUrgency] (sampel selalu URGENT, diperingkat menurut deadline), dan
+ * posisi SPK ini di antrean itulah yang tercetak di strip bawah kartu. Satu query + aritmetika murni — tidak ada tabel baru, tidak ada state yang basi.
  */
 class SpkCardBuilder(
     private val orders: SamplingOrderRepository,
@@ -53,12 +53,11 @@ class SpkCardBuilder(
         val order = orders.findById(SamplingOrderId(snapshot.ref.id)) ?: return null
 
         val todayDate = today()
-        val assessments = assessUrgency(
+        val assessments = assessSamplingUrgency(
             inputs = orders.findAll(tenantId)
                 .filter { it.isActiveDesign && !it.isArchived }
                 .map { it.toUrgencyInput() },
-            today = todayDate,
-            profile = profile
+            today = todayDate
         )
         val mine = assessments.firstOrNull { it.spkId == order.id.value }
 
@@ -87,7 +86,7 @@ class SpkCardBuilder(
                 stageNumber = order.pipelineStage.order,
                 stageCount = SamplingPipelineStage.entries.size,
                 deadline = order.deadlineDelivery ?: order.deadlineFinishing ?: order.deadlineProgram,
-                urgencyLevel = mine?.level ?: SpkUrgencyLevel.TANPA_DEADLINE,
+                urgencyLevel = mine?.level ?: SpkUrgencyLevel.URGENT,
                 slackDays = mine?.slackDays,
                 rank = mine?.rank ?: 0,
                 activeCount = assessments.size,

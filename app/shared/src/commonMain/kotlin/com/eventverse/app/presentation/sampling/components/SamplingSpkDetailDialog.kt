@@ -33,14 +33,15 @@ import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.domain.traceability.TraceWorkOrderKind
 import com.eventverse.app.domain.traceability.TraceWorkOrderRef
-import com.eventverse.app.infrastructure.api.TraceabilityApiClient
-import com.eventverse.app.presentation.deal.openInBrowser
+import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.IconCheck
 import com.eventverse.app.presentation.designsystem.IconClose
+import com.eventverse.app.presentation.sampling.DraftSaveStatus
 import com.eventverse.app.presentation.sampling.ProcessFlowScope
 import com.eventverse.app.presentation.sampling.ProcessFlowUiEvent
 import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
@@ -62,8 +63,12 @@ fun SamplingSpkDetailDialog(
     onDismiss: () -> Unit,
     onStartCam: () -> Unit = {},
     onSubmitCamProgram: (List<StageInputSection>) -> Unit = {},
-    /** Simpan hasil R&D (gramasi, waktu, ukuran jadi) ke lembar Program CAM tanpa pindah tahap. */
-    onSaveRdResult: (List<StageInputSection>) -> Unit = {},
+    /**
+     * Draft lembar Program CAM berubah (termasuk hasil R&D: gramasi, waktu, ukuran jadi) —
+     * di-autosave oleh ViewModel tanpa pindah tahap.
+     */
+    onDraftChange: (List<StageInputSection>) -> Unit = {},
+    draftSaveStatus: DraftSaveStatus = DraftSaveStatus.Idle,
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
@@ -79,8 +84,14 @@ fun SamplingSpkDetailDialog(
     // Lantai R&D (rajut s/d kemas): hasil sampel baru diketahui di sini.
     val isRdStage = order.pipelineStage.order in
         SamplingPipelineStage.MACHINE_KNITTING.order..SamplingPipelineStage.PENGEMASAN.order
-    var isCamSectionVisible by remember(order.id, initialShowCamSection, isCamStage) {
-        mutableStateOf(initialShowCamSection || isCamStage)
+    // Kartu SPK A6 baru boleh dibuka manual ketika SPK sudah masuk lantai R&D / produksi (rajut ke atas).
+    // Saat masih di tahap SPK Masuk, Penentuan Alur, atau Program CAM, kartu fisik belum dicetak.
+    val canPrintSpkCard = order.pipelineStage.order >= SamplingPipelineStage.MACHINE_KNITTING.order
+    // Lembar Program CAM tetap terbuka di lantai R&D (rajut s/d kemas): operator mengerjakan
+    // sampel berdasarkan program, instruksi panah, dan tenselity buatan tim CAM, sementara
+    // hasil R&D (gramasi, waktu, ukuran jadi) disimpan di lembar yang sama — satu lembar teknis per SPK.
+    var isCamSectionVisible by remember(order.id, initialShowCamSection, isCamStage, isRdStage) {
+        mutableStateOf(initialShowCamSection || isCamStage || isRdStage)
     }
     val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order || isCamSectionVisible
     var camSections by remember(order.id) {
@@ -100,6 +111,16 @@ fun SamplingSpkDetailDialog(
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val printer = rememberPdfPrintLauncher()
+
+    // Kartu SPK A6 — dibuka manual dari tombol header. Pembukaan otomatis saat "Mulai Pembuatan"
+    // ada di SamplingWorkspaceScreen, setelah server mengonfirmasi pindah tahap. Urgensi & antrean
+    // dihitung server saat PDF dibuka, jadi kartu yang keluar selalu segar.
+    val openSpkCard = {
+        printer.open {
+            spkCardPdfUrl(it, TraceWorkOrderRef(TraceWorkOrderKind.SAMPLING, order.id.value))
+        }
+    }
 
     LaunchedEffect(isFlowSectionVisible) {
         if (isFlowSectionVisible && (order.pipelineStage == SamplingPipelineStage.NEW_INTAKE || initialShowFlowSection) && !isCamSectionVisible) {
@@ -108,8 +129,10 @@ fun SamplingSpkDetailDialog(
         }
     }
 
+    // Scroll ke lembar CAM hanya saat section dibuka lewat aksi "Mulai CAM" di gerbang awal;
+    // di tahap CAM/R&D lembar sudah tampil sejak awal — jangan ganggu posisi scroll pembuka.
     LaunchedEffect(isCamSectionVisible) {
-        if (isCamSectionVisible && !isCamStage) {
+        if (isCamSectionVisible && !isCamStage && !isRdStage) {
             delay(120)
             scrollState.animateScrollTo(scrollState.maxValue)
         }
@@ -156,18 +179,17 @@ fun SamplingSpkDetailDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    ClayButton(
-                        text = "Kartu SPK A6",
-                        style = ClayButtonStyle.Secondary,
-                        fontSize = 11.sp,
-                        onClick = {
-                            openInBrowser(
-                                TraceabilityApiClient().spkCardPdfUrl(
-                                    TraceWorkOrderRef(TraceWorkOrderKind.SAMPLING, order.id.value)
-                                )
-                            )
-                        }
-                    )
+                    if (isCamStage || isRdStage) {
+                        DraftSaveIndicator(draftSaveStatus)
+                    }
+                    if (canPrintSpkCard) {
+                        ClayButton(
+                            text = "Kartu SPK A6",
+                            style = ClayButtonStyle.Secondary,
+                            fontSize = 11.sp,
+                            onClick = openSpkCard
+                        )
+                    }
                     ClayBadge(
                         text = order.pipelineStage.displayName,
                         tint = samplingStageTint(order.pipelineStage)
@@ -176,6 +198,8 @@ fun SamplingSpkDetailDialog(
                         IconClose(modifier = Modifier.size(18.dp))
                     }
                 }
+
+                printer.error?.let { Text(text = it, fontSize = 11.sp, color = WeMadeColors.Error) }
 
                 // Konten yang dapat di-scroll: referensi klien di atas, alur proses di bawah
                 Column(
@@ -209,7 +233,12 @@ fun SamplingSpkDetailDialog(
                     if (isCamSectionVisible) {
                         CamProgramTabbedSection(
                             sections = camSections,
-                            onSectionsChange = { camSections = it },
+                            onSectionsChange = {
+                                camSections = it
+                                // Gerbang (SPK Masuk/Penentuan Alur) belum punya lembar CAM resmi;
+                                // isinya baru tersimpan lewat "Simpan & Masuk Program CAM".
+                                if (isCamStage || isRdStage) onDraftChange(it)
+                            },
                             validationTrigger = camValidationTrigger
                         )
                     }
@@ -217,7 +246,10 @@ fun SamplingSpkDetailDialog(
                     if (isRdStage) {
                         RdResultSection(
                             sections = camSections,
-                            onSectionsChange = { camSections = it }
+                            onSectionsChange = {
+                                camSections = it
+                                if (isCamStage || isRdStage) onDraftChange(it)
+                            }
                         )
                     }
                 }
@@ -243,14 +275,7 @@ fun SamplingSpkDetailDialog(
                     )
                     if (isCamStage) {
                         ClayButton(
-                            text = "Simpan Program",
-                            style = ClayButtonStyle.Secondary,
-                            modifier = Modifier.weight(1f),
-                            enabled = !isSubmitting,
-                            onClick = { onSaveRdResult(camSections) }
-                        )
-                        ClayButton(
-                            text = "Masuk Mesin Rajut ->",
+                            text = "Mulai Pembuatan ->",
                             style = ClayButtonStyle.Accent,
                             modifier = Modifier.weight(2f),
                             enabled = !isSubmitting,
@@ -259,18 +284,11 @@ fun SamplingSpkDetailDialog(
                                 if (currentTabs.isEmpty() || currentTabs.any { !it.isComplete }) {
                                     camValidationTrigger++
                                 } else {
+                                    // Kartu A6 dibuka oleh layar setelah server mengonfirmasi SPK
+                                    // masuk lantai produksi (lihat SamplingUiState.spkCardToPrint).
                                     onSubmitCamProgram(camSections)
                                 }
                             }
-                        )
-                    }
-                    if (isRdStage) {
-                        ClayButton(
-                            text = "Simpan Hasil R&D",
-                            style = ClayButtonStyle.Primary,
-                            modifier = Modifier.weight(2f),
-                            enabled = !isSubmitting,
-                            onClick = { onSaveRdResult(camSections) }
                         )
                     }
                     if (isGateStage) {
@@ -323,5 +341,21 @@ fun SamplingSpkDetailDialog(
                 }
             }
         }
+    }
+}
+
+/** Pengganti tombol "Simpan Program": memberi tahu tim bahwa ketikan sudah tersimpan otomatis. */
+@Composable
+private fun DraftSaveIndicator(status: DraftSaveStatus) {
+    val (text, color) = when (status) {
+        DraftSaveStatus.Idle -> return
+        DraftSaveStatus.Saving -> "Menyimpan…" to WeMadeColors.OnSurfaceMuted
+        DraftSaveStatus.Saved -> "Tersimpan" to WeMadeColors.Success
+        is DraftSaveStatus.Failed -> "Gagal menyimpan — ubah lagi untuk mencoba ulang" to WeMadeColors.Error
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+        // Glyph ✓ tidak ada di Nunito (tampil tofu di web) — pakai ikon vektor.
+        if (status == DraftSaveStatus.Saved) IconCheck(modifier = Modifier.size(12.dp), color = color)
+        Text(text = text, fontSize = 11.sp, color = color, maxLines = 1)
     }
 }

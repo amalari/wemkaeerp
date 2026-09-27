@@ -8,18 +8,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.SizeChartRow
-import com.eventverse.app.domain.sampling.extractSizeColumns
 import com.eventverse.app.domain.sampling.isQtyRow
-import com.eventverse.app.domain.sampling.isSizeColumnActive
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -100,6 +100,17 @@ fun SamplingSizeChartTable(
         Spacer(Modifier.height(ClaySpacing.Sm))
 
         val scrollState = rememberScrollState()
+        val pomColWidth = calculatePomColumnWidth(pomRows)
+        val sizeColWidths = remember(columns, pomRows, readOnly) {
+            columns.associateWith { col ->
+                calculateSizeColumnWidth(
+                    col = col,
+                    pomRows = pomRows,
+                    includeDeleteButtonSpace = !readOnly && columns.size > 1
+                )
+            }
+        }
+
         Box(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
             Column {
                 // Baris header kolom ukuran
@@ -114,15 +125,18 @@ fun SamplingSizeChartTable(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.OnSurfaceMuted,
-                        modifier = Modifier.width(140.dp)
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.width(pomColWidth)
                     )
 
                     // Kolom-kolom ukuran (dapat diubah nama & dihapus jika > 1)
                     for (col in columns) {
+                        val colWidth = sizeColWidths[col] ?: 64.dp
                         Box(
                             modifier = Modifier
                                 .padding(horizontal = 2.dp)
-                                .width(64.dp)
+                                .width(colWidth)
                                 .clayFlat(
                                     shape = ClayShapes.Pill,
                                     background = WeMadeColors.Surface,
@@ -150,13 +164,16 @@ fun SamplingSizeChartTable(
                                         textAlign = TextAlign.Center
                                     ),
                                     singleLine = true,
+                                    maxLines = 1,
                                     decorationBox = { innerTextField ->
                                         if (col.isBlank()) {
                                             Text(
                                                 text = "Size",
                                                 fontSize = 11.sp,
                                                 color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f),
-                                                textAlign = TextAlign.Center
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 1,
+                                                softWrap = false
                                             )
                                         }
                                         innerTextField()
@@ -241,14 +258,16 @@ fun SamplingSizeChartTable(
                             // Input nama POM dengan placeholder samar
                             Box(
                                 modifier = Modifier
-                                    .width(140.dp)
+                                    .width(pomColWidth)
+                                    .height(28.dp)
                                     .clayFlat(
                                         shape = ClayShapes.Pill,
                                         background = WeMadeColors.SurfaceMuted,
                                         outline = WeMadeColors.Border,
                                         borderWidth = ClayBorder.Hairline
                                     )
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.CenterStart
                             ) {
                                 BasicTextField(
                                     value = row.pomName,
@@ -262,15 +281,12 @@ fun SamplingSizeChartTable(
                                         color = WeMadeColors.OnSurface
                                     ),
                                     singleLine = true,
-                                    decorationBox = { innerTextField ->
+                                    maxLines = 1,
+                                    decorationBox = { inner ->
                                         if (row.pomName.isEmpty()) {
-                                            Text(
-                                                text = "cth: Lingkar Pinggang, Dada",
-                                                fontSize = 10.sp,
-                                                color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f)
-                                            )
+                                            Text(POM_PLACEHOLDER_TEXT, fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.5f), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                                         }
-                                        innerTextField()
+                                        inner()
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -279,18 +295,20 @@ fun SamplingSizeChartTable(
                             // Input nilai per ukuran (cm)
                             for (col in columns) {
                                 val currentVal = row.values[col] ?: ""
+                                val colWidth = sizeColWidths[col] ?: 64.dp
 
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 2.dp)
-                                        .width(64.dp)
+                                        .width(colWidth)
+                                        .height(28.dp)
                                         .clayFlat(
                                             shape = ClayShapes.Pill,
                                             background = WeMadeColors.SurfaceMuted,
                                             outline = WeMadeColors.Border,
                                             borderWidth = ClayBorder.Hairline
                                         )
-                                        .padding(horizontal = 4.dp, vertical = 5.dp),
+                                        .padding(horizontal = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     BasicTextField(
@@ -308,6 +326,13 @@ fun SamplingSizeChartTable(
                                             textAlign = TextAlign.Center
                                         ),
                                         singleLine = true,
+                                        maxLines = 1,
+                                        decorationBox = { inner ->
+                                            if (currentVal.isEmpty()) {
+                                                Text("-", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted.copy(alpha = 0.4f), textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
+                                            }
+                                            inner()
+                                        },
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
@@ -337,221 +362,35 @@ fun SamplingSizeChartTable(
     }
 }
 
+internal const val POM_PLACEHOLDER_TEXT = "cth: Dada, Pinggang"
+
 /**
- * Tabel Alokasi Kuantitas Sampel per Ukuran (Tabel Mandiri).
- * Ditampilkan tepat di bawah Size Chart, dengan kolom Total Pcs di sisi kanan.
- * Kolom aktif mengikuti ukuran yang ada di Size Chart.
+ * Menghitung lebar kolom Bagian / POM secara adaptif (max 1 baris, default 110dp, pas mengikuti teks).
  */
-@Composable
-fun SamplingQuantityTable(
-    qtyRow: SizeChartRow,
-    fullMatrix: List<SizeChartRow>,
-    columns: List<String>,
-    totalQty: Int,
-    onUpdateQty: (col: String, value: String) -> Unit,
-    readOnly: Boolean = false,
-    isError: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .clayFlat(
-                shape = ClayShapes.Chip,
-                background = WeMadeColors.Surface,
-                outline = if (isError) WeMadeColors.Error else WeMadeColors.Border,
-                borderWidth = if (isError) ClayBorder.Thick else ClayBorder.Medium
-            )
-            .padding(ClaySpacing.Sm)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
-            ) {
-                Text(
-                    text = "Alokasi Jumlah Sampel",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                Text(
-                    text = "• Qty aktif jika POM terisi",
-                    fontSize = 10.sp,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            }
+internal fun calculatePomColumnWidth(pomRows: List<SizeChartRow>): Dp {
+    val maxRowChars = pomRows
+        .filter { !it.isQtyRow && it.pomName.isNotBlank() }
+        .maxOfOrNull { it.pomName.length } ?: 0
+    val neededWidth = (maxRowChars * 5.8).dp + 22.dp
+    return maxOf(110.dp, neededWidth).coerceAtMost(320.dp)
+}
 
-            // Total Badge Netral
-            Box(
-                modifier = Modifier
-                    .clayFlat(
-                        shape = ClayShapes.Pill,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Border,
-                        borderWidth = ClayBorder.Hairline
-                    )
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = "Total: $totalQty pcs",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WeMadeColors.OnSurface
-                )
-            }
-        }
+/**
+ * Menghitung lebar kolom ukuran secara adaptif (max 1 baris, mengikuti teks terpanjang).
+ * Memastikan teks ukuran panjang seperti "ALL SIZE" atau nama custom muncul utuh tanpa terpotong.
+ */
+internal fun calculateSizeColumnWidth(
+    col: String,
+    pomRows: List<SizeChartRow> = emptyList(),
+    qtyRow: SizeChartRow? = null,
+    includeDeleteButtonSpace: Boolean = true
+): Dp {
+    val headerChars = if (col.isBlank()) 4 else col.length
+    val maxRowChars = pomRows.maxOfOrNull { (it.values[col] ?: "").length } ?: 0
+    val qtyChars = (qtyRow?.values?.get(col) ?: "").length
+    val contentChars = maxOf(headerChars, maxRowChars, qtyChars)
 
-        Spacer(Modifier.height(ClaySpacing.Sm))
-
-        val activeColumns = columns.filter { isSizeColumnActive(fullMatrix, it) }
-
-        if (activeColumns.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = ClaySpacing.Md),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Belum ada ukuran aktif. Isi nama bagian dan ukuran di Size Chart untuk mengalokasikan sampel.",
-                    fontSize = 11.sp,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
-            val scrollState = rememberScrollState()
-            Box(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
-                Column {
-                    // Header Kolom Ukuran Aktif
-                    Row(
-                        modifier = Modifier
-                            .background(WeMadeColors.SurfaceMuted, ClayShapes.Pill)
-                            .padding(horizontal = ClaySpacing.Sm, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Ukuran",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            modifier = Modifier.width(140.dp)
-                        )
-                        for (col in activeColumns) {
-                            Text(
-                                text = col,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.OnSurfaceMuted,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.width(64.dp)
-                            )
-                        }
-                        Text(
-                            text = "Total",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.width(64.dp)
-                        )
-                    }
-
-                    Spacer(Modifier.height(ClaySpacing.Xs))
-
-                    // Baris Input Qty per Ukuran Aktif
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = ClaySpacing.Sm, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .clayFlat(
-                                    shape = ClayShapes.Pill,
-                                    background = WeMadeColors.SurfaceMuted,
-                                    outline = WeMadeColors.Border,
-                                    borderWidth = ClayBorder.Hairline
-                                )
-                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Text(
-                                text = "Jumlah (pcs)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = WeMadeColors.OnSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        // Cell per ukuran aktif
-                        for (col in activeColumns) {
-                            val currentVal = qtyRow.values[col] ?: ""
-
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 2.dp)
-                                    .width(64.dp)
-                                    .clayFlat(
-                                        shape = ClayShapes.Pill,
-                                        background = WeMadeColors.SurfaceMuted,
-                                        outline = WeMadeColors.Border,
-                                        borderWidth = ClayBorder.Hairline
-                                    )
-                                    .padding(horizontal = 4.dp, vertical = 5.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                BasicTextField(
-                                    value = currentVal,
-                                    readOnly = readOnly,
-                                    onValueChange = { newVal ->
-                                        val filtered = newVal.filter { it.isDigit() }
-                                        onUpdateQty(col, filtered)
-                                    },
-                                    textStyle = TextStyle(
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = WeMadeColors.OnSurface,
-                                        textAlign = TextAlign.Center
-                                    ),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-
-                        // Total Cell
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 2.dp)
-                                .width(64.dp)
-                                .clayFlat(
-                                    shape = ClayShapes.Pill,
-                                    background = WeMadeColors.SurfaceMuted,
-                                    outline = WeMadeColors.Border,
-                                    borderWidth = ClayBorder.Hairline
-                                )
-                                .padding(horizontal = 4.dp, vertical = 5.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "$totalQty",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = WeMadeColors.OnSurface,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
+    val buttonSpace = if (includeDeleteButtonSpace) 18.dp else 0.dp
+    val neededWidth = (contentChars * 6.2).dp + buttonSpace + 16.dp
+    return maxOf(64.dp, neededWidth)
 }
