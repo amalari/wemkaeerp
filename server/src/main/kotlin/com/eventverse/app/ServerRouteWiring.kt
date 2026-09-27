@@ -23,6 +23,7 @@ import com.eventverse.app.domain.traceability.TraceContainerRepository
 import com.eventverse.app.domain.traceability.TraceWorkOrderProvider
 import com.eventverse.app.infrastructure.storage.BenchmarkImageStorage
 import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
+import com.eventverse.app.infrastructure.traceability.SpkCardBuilder
 import com.eventverse.app.routes.*
 import com.eventverse.app.services.DesignVisionAnalyzer
 import com.eventverse.app.services.HistoricalCostingParser
@@ -136,6 +137,7 @@ fun Route.operationalModuleRoutes(
         containers = traceContainerRepo,
         workOrders = traceWorkOrderProvider,
         worksheets = knitWorksheetBuilder,
+        spkCards = SpkCardBuilder(samplingOrderRepo),
         scanHost = traceScanHost
     )
 

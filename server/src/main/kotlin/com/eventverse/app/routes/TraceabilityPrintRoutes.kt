@@ -7,8 +7,10 @@ import com.eventverse.app.domain.traceability.TraceWorkOrderProvider
 import com.eventverse.app.domain.traceability.print.TraceLabelSheetLayout
 import com.eventverse.app.domain.traceability.usecases.PlanTraceAllocationUseCase
 import com.eventverse.app.infrastructure.pdf.KnitWorksheetPdfRenderer
+import com.eventverse.app.infrastructure.pdf.SpkCardPdfRenderer
 import com.eventverse.app.infrastructure.pdf.TraceLabelSheetPdfRenderer
 import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
+import com.eventverse.app.infrastructure.traceability.SpkCardBuilder
 import com.eventverse.app.shared.traceability.TraceAllocationCodec
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -25,11 +27,13 @@ fun Route.traceabilityPrintRoutes(
     containers: TraceContainerRepository,
     workOrders: TraceWorkOrderProvider,
     worksheets: KnitWorksheetBuilder,
+    spkCards: SpkCardBuilder,
     scanHost: String
 ) {
     val planAllocation = PlanTraceAllocationUseCase(containers, workOrders)
     val labelRenderer = TraceLabelSheetPdfRenderer(scanHost)
     val worksheetRenderer = KnitWorksheetPdfRenderer(scanHost)
+    val spkCardRenderer = SpkCardPdfRenderer(scanHost)
 
     route("/api/tenant/traceability/work-orders/{kind}/{id}") {
 
@@ -75,6 +79,25 @@ fun Route.traceabilityPrintRoutes(
                     call.respondPdf(
                         worksheetRenderer.render(worksheet),
                         "lembar-kerja-${worksheet.spkNumber}.pdf"
+                    )
+                }
+                .onFailure { call.respondTraceFailure(HttpStatusCode.BadRequest, it) }
+        }
+
+        get("/spk-card.pdf") {
+            val tenant = call.traceTenant() ?: return@get
+            val ref = call.traceRef() ?: return@get
+
+            planAllocation(tenant, ref, call.setsPerBundle(), call.pcsPerSack())
+                .onSuccess { plan ->
+                    val card = spkCards.build(tenant, plan.snapshot, plan)
+                        ?: return@onSuccess call.respond(
+                            HttpStatusCode.NotFound,
+                            "Kartu SPK tersedia untuk SPK sampling."
+                        )
+                    call.respondPdf(
+                        spkCardRenderer.render(card),
+                        "kartu-spk-${card.content.spkNumber}.pdf"
                     )
                 }
                 .onFailure { call.respondTraceFailure(HttpStatusCode.BadRequest, it) }

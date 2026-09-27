@@ -152,4 +152,53 @@ class SamplingSizeMatrixAndSnapshotTest {
         val active = activeSizesWithAllocatedQty(matrix)
         assertEquals(listOf(Pair("ALL SIZE", 2), Pair("S", 2)), active)
     }
+
+    @Test
+    fun dynamicColumns_shouldSupportNumericSizesAndSpreadsheetOperations() {
+        val initial = defaultSamplingSizeMatrix()
+        assertEquals(listOf("ALL SIZE"), extractSizeColumns(initial))
+
+        // Rename ALL SIZE to 28
+        val renamed = renameColumnInMatrix(initial, "ALL SIZE", "28")
+        assertEquals(listOf("28"), extractSizeColumns(renamed))
+
+        // Add size 30 and 32
+        val with30 = addColumnToMatrix(renamed, "30")
+        val with32 = addColumnToMatrix(with30, "32")
+        assertEquals(listOf("28", "30", "32"), extractSizeColumns(with32))
+
+        // Delete size 30
+        val without30 = deleteColumnFromMatrix(with32, "30")
+        assertEquals(listOf("28", "32"), extractSizeColumns(without30))
+
+        // Fill POM: "Lingkar Pinggang"
+        val filled = without30.map { row ->
+            if (row.isQtyRow) {
+                row.copy(values = mapOf("28" to "1", "32" to "2"))
+            } else {
+                row.copy(pomName = "Lingkar Pinggang", values = mapOf("28" to "38", "32" to "42"))
+            }
+        }
+
+        assertTrue(isSizeColumnActive(filled, "28"))
+        assertTrue(isSizeColumnActive(filled, "32"))
+        assertEquals(3, calculateTotalSampleQuantity(filled))
+
+        val active = activeSizesWithAllocatedQty(filled)
+        assertEquals(listOf(Pair("28", 1), Pair("32", 2)), active)
+    }
+
+    @Test
+    fun isSizeColumnActive_shouldIgnoreBlankPlaceholderPomRows() {
+        // If a row is just a blank placeholder (user hasn't named it), it should not block active columns
+        val matrix = listOf(
+            SizeChartRow(id = SAMPLING_QTY_ROW_ID, pomName = SAMPLING_QTY_ROW_NAME, values = mapOf("28" to "1")),
+            SizeChartRow(id = "pom_1", pomName = "Lingkar Pinggang", values = mapOf("28" to "38")),
+            SizeChartRow(id = "pom_2", pomName = "", values = mapOf("28" to "")) // blank placeholder!
+        )
+
+        assertTrue(isSizeColumnActive(matrix, "28"))
+        assertEquals(listOf(Pair("28", 1)), activeSizesWithAllocatedQty(matrix))
+    }
 }
+

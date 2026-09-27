@@ -60,6 +60,9 @@ interface TraceabilityRemoteDataSource {
     /** URL berkas PDF; dibuka langsung oleh browser, tidak diunduh ke memori aplikasi. */
     fun labelsPdfUrl(ref: TraceWorkOrderRef, tier: TraceTier, sizeLabel: String?): String
     fun worksheetPdfUrl(ref: TraceWorkOrderRef): String
+
+    /** Kartu SPK A6 — satu halaman per ukuran, urgensi dihitung saat dibuka. */
+    fun spkCardPdfUrl(ref: TraceWorkOrderRef): String
 }
 
 class TraceabilityApiClient(
@@ -181,6 +184,9 @@ class TraceabilityApiClient(
 
     override fun worksheetPdfUrl(ref: TraceWorkOrderRef): String =
         resolveUrl("${workOrderPath(ref)}/worksheet.pdf")
+
+    override fun spkCardPdfUrl(ref: TraceWorkOrderRef): String =
+        resolveUrl("${workOrderPath(ref)}/spk-card.pdf")
 
     private fun decodeScan(obj: JsonValue.Obj): TraceScanView {
         val code = TraceCode(obj.string("code") ?: "")

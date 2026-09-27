@@ -31,6 +31,10 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageSectionNames
+import com.eventverse.app.domain.traceability.TraceWorkOrderKind
+import com.eventverse.app.domain.traceability.TraceWorkOrderRef
+import com.eventverse.app.infrastructure.api.TraceabilityApiClient
+import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -56,14 +60,15 @@ fun SamplingSpkDetailDialog(
     order: SamplingOrder,
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
-    onStartCam: () -> Unit,
+    onStartCam: () -> Unit = {},
     onSubmitCamProgram: (List<StageInputSection>) -> Unit = {},
     /** Simpan hasil R&D (gramasi, waktu, ukuran jadi) ke lembar Program CAM tanpa pindah tahap. */
     onSaveRdResult: (List<StageInputSection>) -> Unit = {},
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
-    initialShowFlowSection: Boolean = false
+    initialShowFlowSection: Boolean = false,
+    initialShowCamSection: Boolean = false
 ) {
     // Gerbang klien: tombol mulai CAM hanya tampil pada tahap SPK Masuk / Penentuan Alur.
     val isGateStage = order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ||
@@ -74,7 +79,10 @@ fun SamplingSpkDetailDialog(
     // Lantai R&D (rajut s/d kemas): hasil sampel baru diketahui di sini.
     val isRdStage = order.pipelineStage.order in
         SamplingPipelineStage.MACHINE_KNITTING.order..SamplingPipelineStage.PENGEMASAN.order
-    val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order
+    var isCamSectionVisible by remember(order.id, initialShowCamSection, isCamStage) {
+        mutableStateOf(initialShowCamSection || isCamStage)
+    }
+    val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order || isCamSectionVisible
     var camSections by remember(order.id) {
         val saved = order.stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
         // Pakai seluruh section tersimpan (bukan hanya CAM_SECTION_SPECS) agar hasil R&D ikut terbawa.
@@ -85,8 +93,8 @@ fun SamplingSpkDetailDialog(
 
     // Pada tahap SPK Masuk (NEW_INTAKE), section alur proses awalnya belum muncul (tinggal detail saja)
     // kecuali jika diminta secara eksplisit atau sudah melewati tahap SPK Masuk.
-    var isFlowSectionVisible by remember(order.id, initialShowFlowSection) {
-        mutableStateOf(initialShowFlowSection || order.pipelineStage != SamplingPipelineStage.NEW_INTAKE)
+    var isFlowSectionVisible by remember(order.id, initialShowFlowSection, initialShowCamSection) {
+        mutableStateOf(initialShowFlowSection || initialShowCamSection || order.pipelineStage != SamplingPipelineStage.NEW_INTAKE)
     }
     var camValidationTrigger by remember(order.id) { mutableStateOf(0) }
 
@@ -94,7 +102,14 @@ fun SamplingSpkDetailDialog(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(isFlowSectionVisible) {
-        if (isFlowSectionVisible && (order.pipelineStage == SamplingPipelineStage.NEW_INTAKE || initialShowFlowSection)) {
+        if (isFlowSectionVisible && (order.pipelineStage == SamplingPipelineStage.NEW_INTAKE || initialShowFlowSection) && !isCamSectionVisible) {
+            delay(120)
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
+    LaunchedEffect(isCamSectionVisible) {
+        if (isCamSectionVisible && !isCamStage) {
             delay(120)
             scrollState.animateScrollTo(scrollState.maxValue)
         }
@@ -141,6 +156,18 @@ fun SamplingSpkDetailDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    ClayButton(
+                        text = "Kartu SPK A6",
+                        style = ClayButtonStyle.Secondary,
+                        fontSize = 11.sp,
+                        onClick = {
+                            openInBrowser(
+                                TraceabilityApiClient().spkCardPdfUrl(
+                                    TraceWorkOrderRef(TraceWorkOrderKind.SAMPLING, order.id.value)
+                                )
+                            )
+                        }
+                    )
                     ClayBadge(
                         text = order.pipelineStage.displayName,
                         tint = samplingStageTint(order.pipelineStage)
@@ -179,7 +206,7 @@ fun SamplingSpkDetailDialog(
                         )
                     }
 
-                    if (isCamStage) {
+                    if (isCamSectionVisible) {
                         CamProgramTabbedSection(
                             sections = camSections,
                             onSectionsChange = { camSections = it },
@@ -216,7 +243,14 @@ fun SamplingSpkDetailDialog(
                     )
                     if (isCamStage) {
                         ClayButton(
-                            text = "Simpan Program -> Masuk Mesin Rajut",
+                            text = "Simpan Program",
+                            style = ClayButtonStyle.Secondary,
+                            modifier = Modifier.weight(1f),
+                            enabled = !isSubmitting,
+                            onClick = { onSaveRdResult(camSections) }
+                        )
+                        ClayButton(
+                            text = "Masuk Mesin Rajut ->",
                             style = ClayButtonStyle.Accent,
                             modifier = Modifier.weight(2f),
                             enabled = !isSubmitting,
@@ -255,13 +289,34 @@ fun SamplingSpkDetailDialog(
                                     }
                                 }
                             )
-                        } else {
+                        } else if (!isCamSectionVisible) {
                             ClayButton(
                                 text = "Alur Siap -> Mulai CAM",
                                 style = ClayButtonStyle.Primary,
                                 modifier = Modifier.weight(2f),
                                 enabled = !isSubmitting,
-                                onClick = onStartCam
+                                onClick = {
+                                    isCamSectionVisible = true
+                                    coroutineScope.launch {
+                                        delay(120)
+                                        scrollState.animateScrollTo(scrollState.maxValue)
+                                    }
+                                }
+                            )
+                        } else {
+                            ClayButton(
+                                text = "Simpan & Masuk Program CAM",
+                                style = ClayButtonStyle.Primary,
+                                modifier = Modifier.weight(2f),
+                                enabled = !isSubmitting,
+                                onClick = {
+                                    val (currentTabs, _) = parseCamSections(camSections)
+                                    if (currentTabs.isEmpty() || currentTabs.any { !it.isComplete }) {
+                                        camValidationTrigger++
+                                    } else {
+                                        onSubmitCamProgram(camSections)
+                                    }
+                                }
                             )
                         }
                     }

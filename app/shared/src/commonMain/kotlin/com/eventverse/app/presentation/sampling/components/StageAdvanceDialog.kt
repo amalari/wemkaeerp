@@ -62,8 +62,12 @@ fun StageAdvanceDialog(
 ) {
     val sectionSpecs = remember(targetStage) { stageSectionsFor(targetStage) }
     var sections by remember(targetStage, order.id) {
-        mutableStateOf(sectionSpecs.map { StageInputSection(section = it.sectionName, rows = emptyList()) })
+        val saved = order.stageInputFor(targetStage)
+        mutableStateOf(
+            saved?.sections ?: sectionSpecs.map { StageInputSection(section = it.sectionName, rows = emptyList()) }
+        )
     }
+    var camValidationTrigger by remember(order.id) { mutableStateOf(0) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -92,17 +96,25 @@ fun StageAdvanceDialog(
 
                     PreviousStageSummary(order = order, targetStage = targetStage)
 
-                    sections.forEachIndexed { sectionIndex, section ->
-                        DynamicSectionTable(
-                            sectionName = section.section,
-                            hint = sectionSpecs[sectionIndex].hint,
-                            rows = section.rows,
-                            onRowsChange = { newRows ->
-                                sections = sections.toMutableList().apply {
-                                    this[sectionIndex] = section.copy(rows = newRows)
-                                }
-                            }
+                    if (targetStage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                        CamProgramTabbedSection(
+                            sections = sections,
+                            onSectionsChange = { sections = it },
+                            validationTrigger = camValidationTrigger
                         )
+                    } else {
+                        sections.forEachIndexed { sectionIndex, section ->
+                            DynamicSectionTable(
+                                sectionName = section.section,
+                                hint = sectionSpecs[sectionIndex].hint,
+                                rows = section.rows,
+                                onRowsChange = { newRows ->
+                                    sections = sections.toMutableList().apply {
+                                        this[sectionIndex] = section.copy(rows = newRows)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -118,13 +130,31 @@ fun StageAdvanceDialog(
                     )
                     // Gerbang klien: semua section wajib punya minimal satu baris terisi
                     // sebelum tombol lanjut aktif (server memvalidasi ulang).
-                    val canSubmit = sections.all { it.hasFilledRow }
+                    val canSubmit = if (targetStage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                        val (tabs, _) = parseCamSections(sections)
+                        tabs.isNotEmpty() && tabs.all { it.isComplete }
+                    } else {
+                        sections.all { it.hasFilledRow }
+                    }
                     ClayButton(
-                        text = "Simpan & Lanjut ke ${targetStage.displayName}",
+                        text = if (targetStage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                            "Simpan & Masuk Program CAM"
+                        } else {
+                            "Simpan & Lanjut ke ${targetStage.displayName}"
+                        },
                         style = ClayButtonStyle.Primary,
                         modifier = Modifier.weight(2f),
-                        enabled = canSubmit && !isSubmitting,
-                        onClick = { onConfirm(sections) }
+                        enabled = !isSubmitting,
+                        onClick = {
+                            if (targetStage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                                val (tabs, _) = parseCamSections(sections)
+                                if (tabs.isEmpty() || tabs.any { !it.isComplete }) {
+                                    camValidationTrigger++
+                                    return@ClayButton
+                                }
+                            }
+                            onConfirm(sections)
+                        }
                     )
                 }
             }

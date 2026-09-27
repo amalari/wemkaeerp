@@ -35,6 +35,7 @@ class InvoicePdfRenderer {
                 PaperSize.A4 -> PDRectangle.A4
                 PaperSize.LETTER -> PDRectangle.LETTER
                 PaperSize.A5 -> PDRectangle(PDRectangle.A4.height / 2f, PDRectangle.A4.width)
+                PaperSize.A6 -> PDRectangle(1050 * MM10_TO_PT, 1480 * MM10_TO_PT)
             }
 
             val page = PDPage(pageSize)

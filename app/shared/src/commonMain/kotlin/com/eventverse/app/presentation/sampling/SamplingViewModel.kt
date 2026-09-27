@@ -30,10 +30,14 @@ class SamplingViewModel(
             is SamplingUiEvent.Load -> load()
             is SamplingUiEvent.SelectOrder -> _uiState.update { it.copy(selectedOrderId = event.orderId) }
             is SamplingUiEvent.OpenSpkDetailDialog -> _uiState.update {
-                it.copy(spkDetailTarget = event.order, spkDetailFocusFlow = event.focusFlow)
+                it.copy(
+                    spkDetailTarget = event.order,
+                    spkDetailFocusFlow = event.focusFlow,
+                    spkDetailFocusCam = event.focusCam
+                )
             }
             SamplingUiEvent.CloseSpkDetailDialog -> _uiState.update {
-                it.copy(spkDetailTarget = null, spkDetailFocusFlow = false)
+                it.copy(spkDetailTarget = null, spkDetailFocusFlow = false, spkDetailFocusCam = false)
             }
             is SamplingUiEvent.SetFilter -> _uiState.update { it.copy(selectedStatusFilter = event.status) }
             is SamplingUiEvent.SetStageFilter -> _uiState.update { it.copy(selectedStageFilter = event.stage) }
@@ -304,6 +308,7 @@ class SamplingViewModel(
                         stageAdvanceTargetStage = null,
                         spkDetailTarget = null,
                         spkDetailFocusFlow = false,
+                        spkDetailFocusCam = false,
                         statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${targetStage.displayName}",
                         isErrorMessage = false
                     )

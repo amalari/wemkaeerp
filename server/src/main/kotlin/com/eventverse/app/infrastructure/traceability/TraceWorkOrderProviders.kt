@@ -45,7 +45,7 @@ class SamplingTraceWorkOrderProvider(
 
         val matrix = ensureSamplingQtyRow(order.sizeMatrix)
         val qtyRow = matrix.firstOrNull { it.isQtyRow }
-        val sizes = STANDARD_SAMPLING_SIZE_COLUMNS
+        val sizes = extractSizeColumns(matrix)
             .filter { isSizeColumnActive(matrix, it) }
             .mapNotNull { column ->
                 val qty = qtyRow?.values?.get(column)?.trim()?.toIntOrNull() ?: 0

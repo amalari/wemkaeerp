@@ -96,10 +96,16 @@ object StageSectionNames {
  * diisi dulu sebelum boleh maju. Satu sumber kebenaran untuk UI (klik kartu / tombol
  * membuka dialog) maupun gerbang domain.
  *
- * Masuk Program CAM sendiri TIDAK menuntut lembar: alurnya dikunci saat itu, lalu tim sampling
- * mengisi lembar Program CAM (program, instruksi panah, rumus pola) di dalam tahap CAM — di
- * dialog Detail SPK — sebagai gerbang menuju Mesin Rajut.
+ * Masuk Program CAM menuntut lembar Program CAM (program, instruksi panah, tenselity, rumus pola)
+ * diisi oleh tim sampling sebelum kartu masuk ke tahap CAM.
  */
 fun SamplingPipelineStage.requiresStageWorksheet(): Boolean =
-    this == SamplingPipelineStage.MACHINE_KNITTING ||
+    this == SamplingPipelineStage.CAM_PROGRAMMING ||
         this == SamplingPipelineStage.LINKING_ASSEMBLY
+
+fun SamplingOrder.hasCompleteCamWorksheet(): Boolean {
+    val camInput = stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING) ?: return false
+    return StageSectionNames.CAM_REQUIRED.all { name ->
+        camInput.section(name)?.hasFilledRow == true
+    }
+}

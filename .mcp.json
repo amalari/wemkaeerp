@@ -1,8 +1,14 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "command": "/Volumes/amalari/.nvm/versions/node/v24.21.0/bin/npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {
+        "PATH": "/Volumes/amalari/.nvm/versions/node/v24.21.0/bin:/usr/bin:/bin"
+      }
     }
   }
 }

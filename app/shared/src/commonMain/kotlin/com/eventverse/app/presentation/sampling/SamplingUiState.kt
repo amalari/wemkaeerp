@@ -13,6 +13,7 @@ data class SamplingUiState(
      */
     val spkDetailTarget: SamplingOrder? = null,
     val spkDetailFocusFlow: Boolean = false,
+    val spkDetailFocusCam: Boolean = false,
     val selectedStatusFilter: SamplingStatus? = null,
     val selectedStageFilter: SamplingPipelineStage? = null,
     val searchQuery: String = "",
@@ -55,7 +56,11 @@ data class SamplingUiState(
 sealed interface SamplingUiEvent {
     data object Load : SamplingUiEvent
     data class SelectOrder(val orderId: SamplingOrderId) : SamplingUiEvent
-    data class OpenSpkDetailDialog(val order: SamplingOrder, val focusFlow: Boolean = false) : SamplingUiEvent
+    data class OpenSpkDetailDialog(
+        val order: SamplingOrder,
+        val focusFlow: Boolean = false,
+        val focusCam: Boolean = false
+    ) : SamplingUiEvent
     data object CloseSpkDetailDialog : SamplingUiEvent
     data class SetFilter(val status: SamplingStatus?) : SamplingUiEvent
     data class SetStageFilter(val stage: SamplingPipelineStage?) : SamplingUiEvent

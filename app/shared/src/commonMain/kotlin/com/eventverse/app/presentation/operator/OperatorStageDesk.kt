@@ -16,7 +16,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +68,10 @@ fun OperatorStageDesk(
 ) {
     val finishLabel = board.stage.finishAction()?.label
     val canRework = board.stage.reworkTargets.isNotEmpty()
+    var detailOrder by remember { mutableStateOf<SamplingOrder?>(null) }
+    detailOrder?.let { order ->
+        SpkDetailDialog(order = order, stage = board.stage, onDismiss = { detailOrder = null })
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isNarrow = maxWidth < ClayBreakpoints.MasterDetail
@@ -190,6 +197,7 @@ fun OperatorStageDesk(
                         onRelease = onRelease,
                         onFinish = onFinish,
                         onRework = onRework,
+                        onOpenDetail = { detailOrder = it },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -210,6 +218,7 @@ fun OperatorStageDesk(
                             onRelease = onRelease,
                             onFinish = onFinish,
                             onRework = onRework,
+                            onOpenDetail = { detailOrder = it },
                             modifier = Modifier.weight(1f).fillMaxHeight()
                         )
                     }
@@ -231,6 +240,7 @@ private fun OperatorDeskColumnContent(
     onRelease: (SamplingOrder) -> Unit,
     onFinish: (SamplingOrder) -> Unit,
     onRework: (SamplingOrder) -> Unit,
+    onOpenDetail: (SamplingOrder) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (column) {
@@ -244,7 +254,7 @@ private fun OperatorDeskColumnContent(
                 modifier = modifier
             ) {
                 items(board.queue, key = { it.id.value }) { order ->
-                    OperatorDeskCard(order = order, statusLine = null) {
+                    OperatorDeskCard(order = order, statusLine = null, onClick = { onOpenDetail(order) }) {
                         ClayButton(text = "Mulai", enabled = !isSubmitting, onClick = { onStart(order) })
                     }
                 }
@@ -263,6 +273,7 @@ private fun OperatorDeskColumnContent(
                     val claim = order.currentWork
                     OperatorDeskCard(
                         order = order,
+                        onClick = { onOpenDetail(order) },
                         statusLine = claim?.let { "${it.operatorName} • mulai ${formatDeskTime(it.startedAt, timeZone)}" },
                         details = { OperatorDeskDetails(order, board.stage) }
                     ) {
@@ -304,6 +315,7 @@ private fun OperatorDeskColumnContent(
                 items(board.doneToday, key = { "${it.order.id.value}-${it.audit.at}" }) { handoff ->
                     OperatorDeskCard(
                         order = handoff.order,
+                        onClick = { onOpenDetail(handoff.order) },
                         statusLine = "Ke ${handoff.audit.toStage.deskLabel} • ${handoff.workerLabel}\n" +
                             handoff.timingLine(timeZone)
                     )

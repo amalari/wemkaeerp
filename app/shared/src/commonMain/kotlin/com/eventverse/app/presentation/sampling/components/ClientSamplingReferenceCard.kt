@@ -38,7 +38,7 @@ import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SizeChartRow
 import com.eventverse.app.domain.sampling.SizeMode
-import com.eventverse.app.domain.sampling.STANDARD_SAMPLING_SIZE_COLUMNS
+import com.eventverse.app.domain.sampling.extractSizeColumns
 import com.eventverse.app.domain.sampling.calculateTotalSampleQuantity
 import com.eventverse.app.domain.sampling.isQtyRow
 import com.eventverse.app.presentation.deal.components.rememberMockupBitmap
@@ -304,17 +304,18 @@ private fun MockupPolaroidCard(
 private fun usedSizeColumns(matrix: List<SizeChartRow>, sizeMode: SizeMode, sizeLabel: String?): List<String> {
     if (!sizeLabel.isNullOrBlank()) {
         val target = sizeLabel.trim()
-        val match = STANDARD_SAMPLING_SIZE_COLUMNS.firstOrNull { it.equals(target, ignoreCase = true) }
+        val match = extractSizeColumns(matrix).firstOrNull { it.equals(target, ignoreCase = true) }
             ?: target
         return listOf(match)
     }
+    val allCols = extractSizeColumns(matrix)
     if (sizeMode == SizeMode.ALL_SIZE) {
-        return listOf("ALL SIZE")
+        return listOf(allCols.firstOrNull() ?: "ALL SIZE")
     }
-    val used = STANDARD_SAMPLING_SIZE_COLUMNS.filter { col ->
+    val used = allCols.filter { col ->
         matrix.any { it.values[col]?.isNotBlank() == true }
     }
-    return used.ifEmpty { listOf("ALL SIZE") }
+    return used.ifEmpty { allCols }
 }
 
 /**

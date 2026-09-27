@@ -36,6 +36,7 @@ fun OperatorDeskCard(
     order: SamplingOrder,
     statusLine: String?,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     details: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null
 ) {
@@ -44,7 +45,8 @@ fun OperatorDeskCard(
         modifier = modifier.fillMaxWidth(),
         shape = ClayShapes.Tile,
         outlineColor = if (rework != null) WeMadeColors.Error else WeMadeColors.Outline,
-        contentPadding = PaddingValues(ClaySpacing.Lg)
+        contentPadding = PaddingValues(ClaySpacing.Lg),
+        onClick = onClick
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             ClayFlowRow(spacing = ClaySpacing.Sm) {

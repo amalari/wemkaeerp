@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.STANDARD_SAMPLING_SIZE_COLUMNS
+import com.eventverse.app.domain.sampling.extractSizeColumns
 import com.eventverse.app.domain.sampling.isSizeColumnActive
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -105,7 +105,7 @@ fun SpkDetailPanel(
 
 /** Kolom ukuran yang benar-benar aktif pada matriks; All Size tetap disebut eksplisit. */
 private fun activeSizeLabels(order: SamplingOrder): String {
-    val active = STANDARD_SAMPLING_SIZE_COLUMNS.filter { isSizeColumnActive(order.sizeMatrix, it) }
+    val active = extractSizeColumns(order.sizeMatrix).filter { isSizeColumnActive(order.sizeMatrix, it) }
     return if (active.isEmpty()) "Mengikuti size chart bawaan" else active.joinToString(", ")
 }
 

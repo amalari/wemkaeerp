@@ -213,9 +213,14 @@ data class SamplingOrder(
         updatedAt = audit.at
     )
 
-    fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant, actorEmail: String = ""): SamplingOrder =
-        copy(finishingPath = FinishingPath.MAKLOON_VENDOR, vendorInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR))
-            .movedTo(SamplingPipelineStage.LINKING_ASSEMBLY, vendorAudit(SamplingPipelineStage.LINKING_ASSEMBLY, actorEmail, updatedAt))
+    fun assignMakloonVendor(info: MakloonVendorInfo, updatedAt: Instant, actorEmail: String = ""): SamplingOrder {
+        val updatedInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR)
+        return copy(finishingPath = FinishingPath.MAKLOON_VENDOR, vendorInfo = updatedInfo)
+            .movedTo(
+                SamplingPipelineStage.LINKING_ASSEMBLY,
+                StageTransitionAudit(pipelineStage, SamplingPipelineStage.LINKING_ASSEMBLY, actorEmail, "MAKLOON", updatedAt, operatorName = updatedInfo.vendorName.ifBlank { null })
+            )
+    }
 
     // Sampel yang pulang dari vendor makloon mendarat di tahap penyelesaian akhir paling
     // awal, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.

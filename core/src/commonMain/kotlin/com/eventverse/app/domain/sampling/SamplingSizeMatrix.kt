@@ -1,8 +1,9 @@
 package com.eventverse.app.domain.sampling
 
-/** Kolom size standar pada matriks ukuran sampling konveksi/garmen. */
+/** Kolom size standar lama untuk backward compatibility bila data lama belum memiliki keys spesifik. */
 val STANDARD_SAMPLING_SIZE_COLUMNS = listOf("ALL SIZE", "S", "M", "L", "XL", "XXL", "XXXL")
 
+const val DEFAULT_PLACEHOLDER_SIZE_COLUMN = "ALL SIZE"
 const val SAMPLING_QTY_ROW_ID = "sampling_qty_row"
 const val SAMPLING_QTY_ROW_NAME = "Jumlah Sampel (pcs)"
 
@@ -10,8 +11,8 @@ const val SAMPLING_QTY_ROW_NAME = "Jumlah Sampel (pcs)"
  * Satu baris pengukuran pada tabel size chart sampling (Point of Measurement - POM).
  *
  * Contoh:
- * - [pomName] = "Lebar Dada"
- * - [values] = mapOf("ALL SIZE" to "52", "S" to "48", "M" to "50", "L" to "52", ...)
+ * - [pomName] = "Lebar Dada" atau "Lingkar Pinggang"
+ * - [values] = mapOf("ALL SIZE" to "52", "28" to "48", "30" to "50", ...)
  */
 data class SizeChartRow(
     val id: String,
@@ -23,11 +24,75 @@ val SizeChartRow.isQtyRow: Boolean
     get() = id == SAMPLING_QTY_ROW_ID || pomName.equals(SAMPLING_QTY_ROW_NAME, ignoreCase = true)
 
 /**
+ * Mengekstrak seluruh kolom ukuran yang ada di dalam matriks.
+ * Urutan kolom dipertahankan sesuai urutan penambahan pertama kali.
+ */
+fun extractSizeColumns(matrix: List<SizeChartRow>): List<String> {
+    val columns = LinkedHashSet<String>()
+    for (row in matrix) {
+        for (key in row.values.keys) {
+            val trimmed = key.trim()
+            if (trimmed.isNotBlank()) columns.add(trimmed)
+        }
+    }
+    return if (columns.isNotEmpty()) columns.toList() else listOf(DEFAULT_PLACEHOLDER_SIZE_COLUMN)
+}
+
+/**
+ * Menambahkan kolom ukuran baru ke seluruh baris matriks (POM dan baris Qty).
+ */
+fun addColumnToMatrix(matrix: List<SizeChartRow>, newColumn: String): List<SizeChartRow> {
+    val trimmed = newColumn.trim()
+    if (trimmed.isBlank()) return matrix
+    val existing = extractSizeColumns(matrix)
+    if (existing.any { it.equals(trimmed, ignoreCase = true) }) return matrix
+    return matrix.map { row ->
+        val newMap = LinkedHashMap(row.values)
+        newMap[trimmed] = ""
+        row.copy(values = newMap)
+    }
+}
+
+/**
+ * Mengubah nama/label kolom ukuran di seluruh baris matriks, dengan mempertahankan urutan posisi.
+ */
+fun renameColumnInMatrix(matrix: List<SizeChartRow>, oldColumn: String, newColumn: String): List<SizeChartRow> {
+    val trimmedOld = oldColumn.trim()
+    val trimmedNew = newColumn.trim()
+    if (trimmedNew.isBlank() || trimmedNew == trimmedOld) return matrix
+    return matrix.map { row ->
+        val newMap = LinkedHashMap<String, String>()
+        for ((k, v) in row.values) {
+            if (k == trimmedOld) {
+                newMap[trimmedNew] = v
+            } else {
+                newMap[k] = v
+            }
+        }
+        row.copy(values = newMap)
+    }
+}
+
+/**
+ * Menghapus kolom ukuran dari seluruh baris matriks.
+ * Minimal harus tersisa 1 kolom dalam matriks.
+ */
+fun deleteColumnFromMatrix(matrix: List<SizeChartRow>, column: String): List<SizeChartRow> {
+    val columns = extractSizeColumns(matrix)
+    if (columns.size <= 1) return matrix
+    return matrix.map { row ->
+        val newMap = LinkedHashMap(row.values)
+        newMap.remove(column)
+        row.copy(values = newMap)
+    }
+}
+
+/**
  * Kolom ukuran [col] aktif dan dapat diisi kuantitas sampelnya jika dan hanya jika
- * SEMUA baris parameter fisik (POM) yang ada di tabel telah terisi nilainya secara lengkap (tidak kosong).
+ * SEMUA baris parameter fisik (POM) yang bernama tidak kosong telah terisi nilainya.
  */
 fun isSizeColumnActive(matrix: List<SizeChartRow>, col: String): Boolean {
-    val pomRows = matrix.filter { !it.isQtyRow }
+    val pomRows = matrix.filter { !it.isQtyRow && it.pomName.isNotBlank() }
     if (pomRows.isEmpty()) return false
     return pomRows.all { it.values[col]?.isNotBlank() == true }
 }
@@ -50,23 +115,28 @@ fun calculateTotalSampleQuantity(matrix: List<SizeChartRow>, fallback: Int = 0):
 fun ensureSamplingQtyRow(matrix: List<SizeChartRow>): List<SizeChartRow> {
     val existingQty = matrix.firstOrNull { it.isQtyRow }
     val withoutQty = matrix.filter { !it.isQtyRow }
-    val qtyRow = existingQty?.copy(id = SAMPLING_QTY_ROW_ID, pomName = SAMPLING_QTY_ROW_NAME)
+    val columns = extractSizeColumns(matrix)
+    val qtyValues = LinkedHashMap<String, String>()
+    for (col in columns) {
+        qtyValues[col] = existingQty?.values?.get(col) ?: ""
+    }
+    val qtyRow = existingQty?.copy(id = SAMPLING_QTY_ROW_ID, pomName = SAMPLING_QTY_ROW_NAME, values = qtyValues)
         ?: SizeChartRow(
             id = SAMPLING_QTY_ROW_ID,
             pomName = SAMPLING_QTY_ROW_NAME,
-            values = STANDARD_SAMPLING_SIZE_COLUMNS.associateWith { "" }
+            values = qtyValues
         )
     return listOf(qtyRow) + withoutQty
 }
 
 /**
  * Mengecek apakah minimal ada 1 kolom ukuran yang SELURUH baris POM-nya (selain baris Qty) terisi lengkap (tidak kosong).
- * Misal tabel memiliki POM Lebar Dada dan Panjang Baju, maka untuk ukuran "ALL SIZE", kedua baris tersebut harus terisi.
  */
 fun hasAtLeastOneCompleteMeasurementColumn(matrix: List<SizeChartRow>): Boolean {
-    val pomRows = matrix.filter { !it.isQtyRow }
+    val pomRows = matrix.filter { !it.isQtyRow && it.pomName.isNotBlank() }
     if (pomRows.isEmpty()) return false
-    return STANDARD_SAMPLING_SIZE_COLUMNS.any { col ->
+    val columns = extractSizeColumns(matrix)
+    return columns.any { col ->
         isSizeColumnActive(matrix, col)
     }
 }
@@ -74,14 +144,11 @@ fun hasAtLeastOneCompleteMeasurementColumn(matrix: List<SizeChartRow>): Boolean 
 /**
  * Mengembalikan kolom ukuran pertama yang "LENGKAP": seluruh baris pengukuran (POM) kolom itu
  * terisi non-kosong DAN alokasi jumlah sampelnya >= 1 pcs.
- *
- * Aturan bisnisnya: satu ukuran dianggap siap dipesan hanya jika datanya utuh — misal tabel punya
- * 2 baris POM (Lebar Dada + Panjang Baju), maka KEDUA baris itu wajib terisi untuk ukuran tersebut;
- * salah satu kosong berarti ukuran itu belum lengkap. `null` berarti belum ada satu pun ukuran lengkap.
  */
 fun firstCompleteSizeColumn(matrix: List<SizeChartRow>): String? {
     val qtyRow = matrix.firstOrNull { it.isQtyRow }
-    return STANDARD_SAMPLING_SIZE_COLUMNS.firstOrNull { col ->
+    val columns = extractSizeColumns(matrix)
+    return columns.firstOrNull { col ->
         val qty = qtyRow?.values?.get(col)?.trim()?.toIntOrNull() ?: 0
         isSizeColumnActive(matrix, col) && qty >= 1
     }
@@ -94,7 +161,8 @@ fun firstCompleteSizeColumn(matrix: List<SizeChartRow>): String? {
  */
 fun activeSizesWithAllocatedQty(matrix: List<SizeChartRow>): List<Pair<String, Int>> {
     val qtyRow = matrix.firstOrNull { it.isQtyRow } ?: return emptyList()
-    return STANDARD_SAMPLING_SIZE_COLUMNS.mapNotNull { col ->
+    val columns = extractSizeColumns(matrix)
+    return columns.mapNotNull { col ->
         val qty = qtyRow.values[col]?.trim()?.toIntOrNull() ?: 0
         if (qty >= 1 && isSizeColumnActive(matrix, col)) Pair(col, qty) else null
     }
@@ -108,10 +176,11 @@ fun sanitizeSamplingMatrix(matrix: List<SizeChartRow>): List<SizeChartRow> {
     val withQty = ensureSamplingQtyRow(matrix)
     val qtyRow = withQty.first { it.isQtyRow }
     val otherRows = withQty.filter { !it.isQtyRow }
+    val columns = extractSizeColumns(matrix)
 
     val sanitizedQtyValues = qtyRow.values.toMutableMap()
-    for (col in STANDARD_SAMPLING_SIZE_COLUMNS) {
-        val hasPom = otherRows.any { it.values[col]?.isNotBlank() == true }
+    for (col in columns) {
+        val hasPom = otherRows.any { it.pomName.isNotBlank() && it.values[col]?.isNotBlank() == true }
         if (!hasPom) {
             sanitizedQtyValues[col] = ""
         }
@@ -120,20 +189,20 @@ fun sanitizeSamplingMatrix(matrix: List<SizeChartRow>): List<SizeChartRow> {
     return listOf(qtyRow.copy(values = sanitizedQtyValues)) + otherRows
 }
 
+/**
+ * Matriks sampling bawaan awal: hanya membuka 1 baris POM placeholder dan 1 kolom placeholder
+ * tanpa teks kaku, sehingga sales/sampling leluasa mengisi ukuran apa pun (huruf maupun nomor).
+ */
 fun defaultSamplingSizeMatrix(): List<SizeChartRow> = listOf(
     SizeChartRow(
         id = SAMPLING_QTY_ROW_ID,
         pomName = SAMPLING_QTY_ROW_NAME,
-        values = STANDARD_SAMPLING_SIZE_COLUMNS.associateWith { "" }
+        values = mapOf(DEFAULT_PLACEHOLDER_SIZE_COLUMN to "")
     ),
     SizeChartRow(
-        id = "pom_lebar_dada",
-        pomName = "Lebar Dada",
-        values = STANDARD_SAMPLING_SIZE_COLUMNS.associateWith { "" }
-    ),
-    SizeChartRow(
-        id = "pom_panjang_baju",
-        pomName = "Panjang Baju",
-        values = STANDARD_SAMPLING_SIZE_COLUMNS.associateWith { "" }
+        id = "pom_1",
+        pomName = "",
+        values = mapOf(DEFAULT_PLACEHOLDER_SIZE_COLUMN to "")
     )
 )
+

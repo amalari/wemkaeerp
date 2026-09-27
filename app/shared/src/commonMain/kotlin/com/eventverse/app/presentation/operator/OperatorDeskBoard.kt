@@ -59,9 +59,7 @@ fun buildOperatorDeskBoard(
     today: LocalDate,
     timeZone: TimeZone
 ): OperatorDeskBoard {
-    val onDesk = orders.filter { order ->
-        !(stage == SamplingPipelineStage.LINKING_ASSEMBLY && order.finishingPath == FinishingPath.MAKLOON_VENDOR)
-    }
+    val onDesk = orders.filter { it.isPhysicallyAt(stage) }
     val queue = onDesk
         .filter { it.deskColumn(stage) == OperatorDeskColumn.QUEUE }
         .sortedWith(compareBy<SamplingOrder> { it.pendingRework == null }.thenBy { it.arrivedAt(stage) })
@@ -85,6 +83,14 @@ fun buildOperatorDeskBoard(
         activity = activity
     )
 }
+
+/** Barangnya benar-benar ada di meja [stage]; SPK makloon vendor tidak pernah singgah di Linking. */
+fun SamplingOrder.isPhysicallyAt(stage: SamplingPipelineStage): Boolean =
+    !(stage == SamplingPipelineStage.LINKING_ASSEMBLY && finishingPath == FinishingPath.MAKLOON_VENDOR)
+
+/** Jumlah kartu di kolom Antrian meja [stage] — sama persis dengan yang dirender papan. */
+fun List<SamplingOrder>.queueCountAt(stage: SamplingPipelineStage): Int =
+    count { it.isPhysicallyAt(stage) && it.deskColumn(stage) == OperatorDeskColumn.QUEUE }
 
 /** Kapan SPK tiba di tahap ini (entri audit terakhir yang menuju ke sana), untuk urutan FIFO. */
 private fun SamplingOrder.arrivedAt(stage: SamplingPipelineStage): Instant =

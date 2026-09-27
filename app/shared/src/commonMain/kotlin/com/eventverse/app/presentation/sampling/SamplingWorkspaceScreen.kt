@@ -184,12 +184,10 @@ fun SamplingWorkspaceScreen(
                         // Satu sumber kebenaran: transisi yang menuntut lembar kerja
                         // membuka dialog dulu; sisanya langsung maju (backend tetap
                         // memvalidasi gerbang + mencatat audit aktor).
-                        if (stage == SamplingPipelineStage.MACHINE_KNITTING &&
-                            order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
-                        ) {
-                            // Lembar Program CAM diisi di dialog Detail SPK (alur terkunci +
-                            // section Program), bukan di dialog tahap terpisah.
-                            viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(order))
+                        if (stage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                            // Masuk Program CAM menuntut lembar Program CAM (program, feeder,
+                            // tenselity, dan catatan rumus pola) diisi di dialog Detail SPK.
+                            viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(order, focusCam = true))
                         } else if (stage.requiresStageWorksheet()) {
                             viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
                         } else {
@@ -213,17 +211,18 @@ fun SamplingWorkspaceScreen(
             order = target,
             isSubmitting = state.isSubmitting,
             initialShowFlowSection = state.spkDetailFocusFlow,
+            initialShowCamSection = state.spkDetailFocusCam,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },
-            onStartCam = {
-                // Masuk Program CAM mengunci alur; dialog tetap terbuka dan langsung
-                // menampilkan section Program untuk diisi tim sampling.
-                viewModel.onEvent(SamplingUiEvent.AdvanceStage(target.id, SamplingPipelineStage.CAM_PROGRAMMING))
-            },
             onSubmitCamProgram = { sections ->
+                val targetStage = if (target.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                    SamplingPipelineStage.MACHINE_KNITTING
+                } else {
+                    SamplingPipelineStage.CAM_PROGRAMMING
+                }
                 viewModel.onEvent(
                     SamplingUiEvent.ConfirmStageAdvance(
                         orderId = target.id,
-                        targetStage = SamplingPipelineStage.MACHINE_KNITTING,
+                        targetStage = targetStage,
                         sections = sections,
                         inputStage = SamplingPipelineStage.CAM_PROGRAMMING
                     )

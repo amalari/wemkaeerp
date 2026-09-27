@@ -18,10 +18,8 @@ import androidx.compose.ui.Modifier
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.TestingPersona
-import com.eventverse.app.domain.sampling.OperatorDeskColumn
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.deskColumn
 import com.eventverse.app.domain.sampling.isOperatorDesk
 import com.eventverse.app.domain.sampling.resolveAccessibleOperatorDesks
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
@@ -100,7 +98,7 @@ fun OperatorFloorWorkspaceScreen(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 visibleDesks.forEach { stage ->
-                    val waiting = state.orders.count { it.deskColumn(stage) == OperatorDeskColumn.QUEUE }
+                    val waiting = state.orders.queueCountAt(stage)
                     ClayChoiceChip(
                         text = if (waiting > 0) "${stage.deskLabel} ($waiting)" else stage.deskLabel,
                         selected = desk == stage,

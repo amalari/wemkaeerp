@@ -12,7 +12,7 @@ import com.eventverse.app.domain.production.BulkWorkOrderRepository
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingStatus
-import com.eventverse.app.domain.sampling.STANDARD_SAMPLING_SIZE_COLUMNS
+import com.eventverse.app.domain.sampling.extractSizeColumns
 import com.eventverse.app.domain.sampling.isSizeColumnActive
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.math.roundToInt
@@ -125,13 +125,14 @@ class LaunchBulkWorkOrderFromDealUseCase(
      * mencakupnya, menerbitkan SPK berarti produksi tanpa acuan — ditolak, bukan diperingatkan.
      */
     private fun requireGoldenSampleCoversSize(goldenSample: SamplingOrder, sizeLabel: String) {
-        val standardColumn = STANDARD_SAMPLING_SIZE_COLUMNS
+        val columns = extractSizeColumns(goldenSample.sizeMatrix)
+        val matchedColumn = columns
             .firstOrNull { it.equals(sizeLabel, ignoreCase = true) } ?: return
-        val activeColumns = STANDARD_SAMPLING_SIZE_COLUMNS
+        val activeColumns = columns
             .filter { isSizeColumnActive(goldenSample.sizeMatrix, it) }
         if (activeColumns.isEmpty()) return // matriks belum terisi (preset/legacy) — jangan blokir
-        require(activeColumns.any { it.equals(standardColumn, ignoreCase = true) }) {
-            "Sampel ACC \"${goldenSample.styleName}\" tidak mencakup ukuran $standardColumn. " +
+        require(activeColumns.any { it.equals(matchedColumn, ignoreCase = true) }) {
+            "Sampel ACC \"${goldenSample.styleName}\" tidak mencakup ukuran $matchedColumn. " +
                 "Lengkapi size chart sampelnya dulu sebelum SPK ukuran ini diterbitkan."
         }
     }

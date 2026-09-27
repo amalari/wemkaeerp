@@ -105,7 +105,8 @@ data class TemplateRect(
 enum class PaperSize(val displayName: String, val widthMm10: Int, val heightMm10: Int) {
     A4("A4 (210 × 297 mm)", 2100, 2970),
     LETTER("Letter (216 × 279 mm)", 2159, 2794),
-    A5("A5 (148 × 210 mm)", 1480, 2100);
+    A5("A5 (148 × 210 mm)", 1480, 2100),
+    A6("A6 (105 × 148 mm)", 1050, 1480);
 
     val width: Mm10 get() = Mm10(widthMm10)
     val height: Mm10 get() = Mm10(heightMm10)

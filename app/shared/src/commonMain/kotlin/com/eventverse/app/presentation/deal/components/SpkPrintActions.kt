@@ -109,6 +109,12 @@ fun SpkPrintActions(
                 style = ClayButtonStyle.Secondary,
                 fontSize = 12.sp
             )
+            ClayButton(
+                text = "Kartu SPK A6",
+                onClick = { openInBrowser(client.spkCardPdfUrl(ref)) },
+                style = ClayButtonStyle.Secondary,
+                fontSize = 12.sp
+            )
         }
     }
 }
