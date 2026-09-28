@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.pipeline.DefectLiability
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlinx.datetime.Instant
 
 /**
@@ -12,11 +13,16 @@ import kotlinx.datetime.Instant
  * lewat".
  */
 data class StageWorkClaim(
-    val stage: SamplingPipelineStage,
+    val stageCode: StageCode,
     val operatorName: String,
     val actorEmail: String,
     val startedAt: Instant
-)
+) {
+    constructor(stage: SamplingPipelineStage, operatorName: String, actorEmail: String, startedAt: Instant) :
+        this(stage.toStageCode(), operatorName, actorEmail, startedAt)
+
+    val stage: SamplingPipelineStage get() = stageCode.requireSamplingStage()
+}
 
 /** Tiga kolom meja operator. Satu meja = satu [SamplingPipelineStage]. */
 enum class OperatorDeskColumn(val displayName: String) {

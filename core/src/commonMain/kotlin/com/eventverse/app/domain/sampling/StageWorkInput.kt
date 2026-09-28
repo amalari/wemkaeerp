@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.pipeline.DefectLiability
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlinx.datetime.Instant
 
 /**
@@ -32,9 +33,13 @@ data class StageInputSection(
 
 /** Kumpulan section input milik satu tahap pipeline. */
 data class StageWorkInput(
-    val stage: SamplingPipelineStage,
+    val stageCode: StageCode,
     val sections: List<StageInputSection>
 ) {
+    constructor(stage: SamplingPipelineStage, sections: List<StageInputSection>) : this(stage.toStageCode(), sections)
+
+    val stage: SamplingPipelineStage get() = stageCode.requireSamplingStage()
+
     fun section(name: String): StageInputSection? = sections.firstOrNull { it.section == name }
 }
 
@@ -47,8 +52,8 @@ data class StageWorkInput(
  * pembaca harus menjahit ulang urutannya sendiri.
  */
 data class StageTransitionAudit(
-    val fromStage: SamplingPipelineStage,
-    val toStage: SamplingPipelineStage,
+    val fromCode: StageCode,
+    val toCode: StageCode,
     val actorEmail: String,
     val actorRole: String,
     val at: Instant,
@@ -66,6 +71,25 @@ data class StageTransitionAudit(
     /** Operator mengembalikan SPK ke antrian mejanya; tahap tidak berubah. */
     val isRelease: Boolean = false
 ) {
+    constructor(
+        fromStage: SamplingPipelineStage,
+        toStage: SamplingPipelineStage,
+        actorEmail: String,
+        actorRole: String,
+        at: Instant,
+        reason: String? = null,
+        liability: DefectLiability? = null,
+        workStartedAt: Instant? = null,
+        operatorName: String? = null,
+        isRelease: Boolean = false
+    ) : this(
+        fromStage.toStageCode(), toStage.toStageCode(), actorEmail, actorRole, at,
+        reason, liability, workStartedAt, operatorName, isRelease
+    )
+
+    val fromStage: SamplingPipelineStage get() = fromCode.requireSamplingStage()
+    val toStage: SamplingPipelineStage get() = toCode.requireSamplingStage()
+
     val isRework: Boolean get() = liability != null
 }
 

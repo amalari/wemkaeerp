@@ -24,3 +24,11 @@ fun StageCode.toSamplingStageOrNull(): SamplingPipelineStage? = SamplingPipeline
  * tanpa boleh mengubah apa yang diterima. Dilonggarkan di Tahap 3.
  */
 fun parseLegacyStageCodeOrNull(raw: String?): StageCode? = SamplingPipelineStage.parseOrNull(raw)?.toStageCode()
+
+/**
+ * Jembatan baca untuk record yang menyimpan [StageCode] tetapi masih dibaca sebagai enum.
+ * Gagal keras untuk kode non-rajut — fallback diam-diam akan menaruh kartu di tahap yang salah.
+ * Template kedua tidak boleh aktif sebelum pembaca pindah (constraint TRD-FLOW-001).
+ */
+fun StageCode.requireSamplingStage(): SamplingPipelineStage =
+    checkNotNull(toSamplingStageOrNull()) { "Tahap ${value} belum didukung jalur enum" }

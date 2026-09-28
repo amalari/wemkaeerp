@@ -14,12 +14,14 @@ data class SamplingSnapshot(
     val sampleQuantity: Int = 1,
     val samplingFeeIdr: Long = 0L,
     val notes: String = "",
-    val pipelineStage: SamplingPipelineStage = SamplingPipelineStage.NEW_INTAKE,
+    val stageCode: StageCode = SamplingPipelineStage.NEW_INTAKE.toStageCode(),
     val finishingPath: FinishingPath = FinishingPath.INTERNAL,
     val vendorInfo: MakloonVendorInfo = MakloonVendorInfo(),
     val finishingDeposits: List<FinishingDeposit> = emptyList(),
     val qcInspections: List<QcInspectionReport> = emptyList()
-)
+) {
+    val pipelineStage: SamplingPipelineStage get() = stageCode.requireSamplingStage()
+}
 
 data class RevisionFeedback(
     /** Nomor revisi — nomor revisi yang sedang diarsipkan atau diajukan. */
@@ -89,9 +91,8 @@ data class SamplingOrder(
     val updatedAt: Instant,
     val archivedAt: Instant? = null
 ) {
-    /** Jembatan baca untuk pembaca lama. Tahap non-rajut belum boleh aktif sebelum mereka pindah. */
-    val pipelineStage: SamplingPipelineStage
-        get() = checkNotNull(stageCode.toSamplingStageOrNull()) { "Tahap ${stageCode.value} belum didukung jalur enum" }
+    /** Jembatan baca untuk pembaca lama — lihat [requireSamplingStage]. */
+    val pipelineStage: SamplingPipelineStage get() = stageCode.requireSamplingStage()
 
     val isAccApproved: Boolean get() = status == SamplingStatus.ACC_APPROVED
     val isArchived: Boolean get() = archivedAt != null
@@ -159,7 +160,7 @@ data class SamplingOrder(
             sampleQuantity = sampleQuantity,
             samplingFeeIdr = samplingFeeIdr,
             notes = this.notes,
-            pipelineStage = pipelineStage,
+            stageCode = stageCode,
             finishingPath = finishingPath,
             vendorInfo = vendorInfo,
             finishingDeposits = finishingDeposits,

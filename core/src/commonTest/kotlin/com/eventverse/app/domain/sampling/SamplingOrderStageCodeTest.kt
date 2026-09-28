@@ -47,6 +47,36 @@ class SamplingOrderStageCodeTest {
     }
 
     @Test
+    fun historyRecords_enumConstructor_shouldStoreCodeAndEqualCodeConstructor() {
+        val audit = StageTransitionAudit(SamplingPipelineStage.MACHINE_KNITTING, SamplingPipelineStage.LINKING_ASSEMBLY, "a@x", "OPERATOR", now)
+        assertEquals(StageCode("MACHINE_KNITTING"), audit.fromCode)
+        assertEquals(StageTransitionAudit(StageCode("MACHINE_KNITTING"), StageCode("LINKING_ASSEMBLY"), "a@x", "OPERATOR", now), audit)
+        assertEquals(SamplingPipelineStage.LINKING_ASSEMBLY, audit.toStage)
+
+        val claim = StageWorkClaim(SamplingPipelineStage.CAM_PROGRAMMING, "Budi", "b@x", now)
+        assertEquals(StageCode("CAM_PROGRAMMING"), claim.stageCode)
+
+        val input = StageWorkInput(SamplingPipelineStage.QC_FINISHING, emptyList())
+        assertEquals(StageWorkInput(StageCode("QC_FINISHING"), emptyList()), input)
+    }
+
+    @Test
+    fun historyRecords_withNonKnitCode_shouldFailLoudlyOnEnumRead() {
+        val audit = StageTransitionAudit(StageCode("DIGITIZING"), StageCode("HOOPING"), "a@x", "OPERATOR", now)
+        assertFailsWith<IllegalStateException> { audit.fromStage }
+        assertFailsWith<IllegalStateException> { StageWorkClaim(StageCode("HOOPING"), "Budi", "b@x", now).stage }
+    }
+
+    @Test
+    fun revisionSnapshot_shouldCaptureStageCode() {
+        val atQc = order(SamplingPipelineStage.QC_FINISHING.toStageCode())
+        val revised = atQc.requestRevision("Lengan terlalu panjang", now)
+
+        assertEquals(StageCode("QC_FINISHING"), revised.revisionHistory.last().snapshot?.stageCode)
+        assertEquals(StageCode("CAM_PROGRAMMING"), revised.stageCode)
+    }
+
+    @Test
     fun codec_roundTrip_shouldPreserveStageCode() {
         val atLinking = order(SamplingPipelineStage.LINKING_ASSEMBLY.toStageCode())
 

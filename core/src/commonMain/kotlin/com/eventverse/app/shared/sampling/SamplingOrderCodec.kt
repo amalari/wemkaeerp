@@ -194,7 +194,7 @@ object SamplingOrderCodec {
                     sampleQuantity = sObj.int("sampleQuantity") ?: 1,
                     samplingFeeIdr = sObj.long("samplingFeeIdr") ?: 0L,
                     notes = sObj.string("notes") ?: "",
-                    pipelineStage = snapStage,
+                    stageCode = snapStage.toStageCode(),
                     finishingPath = snapPath,
                     vendorInfo = snapVendor,
                     finishingDeposits = snapDeposits,
