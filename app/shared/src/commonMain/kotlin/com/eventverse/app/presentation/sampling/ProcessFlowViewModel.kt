@@ -1,6 +1,9 @@
 package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.process.FlowPhase
+import com.eventverse.app.domain.process.PhaseTaggableStage
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.tenant.TenantId
@@ -10,6 +13,7 @@ import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCatalog
 import com.eventverse.app.domain.workqueue.WorkStationCode
 import com.eventverse.app.domain.workqueue.WorkStationSpec
+import com.eventverse.app.infrastructure.api.OrderFlowDto
 import com.eventverse.app.infrastructure.api.ProcessCatalogApiClient
 import com.eventverse.app.infrastructure.api.ProcessCatalogRemoteDataSource
 import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
@@ -52,6 +56,10 @@ data class ProcessFlowUiState(
      * sebelum fitur ini ada ketika daftarnya kosong.
      */
     val legs: List<FlowLegView> = emptyList(),
+    /** Tag `[Sampling ×] [Produksi ×]` pada Cuci & Setrika — efektif untuk lingkup ini. */
+    val phaseTags: StagePhaseTags = StagePhaseTags.DEFAULT,
+    /** Desain punya tag sendiri (bukan warisan template) — ikut memunculkan tombol reset. */
+    val hasCustomPhaseTags: Boolean = false,
     val availableOrders: List<SamplingOrderScopeItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
@@ -94,6 +102,9 @@ sealed interface ProcessFlowUiEvent {
 
     /** Keluarkan proses dari flow (tombol x pada chip). */
     data class RemoveProcess(val processId: String) : ProcessFlowUiEvent
+
+    /** Tombol × pada tag fase, atau tag hantu "+ Sampling" untuk mengembalikannya. */
+    data class TogglePhaseTag(val stage: PhaseTaggableStage, val phase: FlowPhase) : ProcessFlowUiEvent
 
     /** Reset alur desain yang sedang aktif kembali ke alur default pabrik. */
     data object ResetToDefault : ProcessFlowUiEvent
@@ -140,6 +151,7 @@ class ProcessFlowViewModel(
             is ProcessFlowUiEvent.InsertProcess -> handleInsert(event)
             is ProcessFlowUiEvent.MoveProcess -> handleMove(event)
             is ProcessFlowUiEvent.RemoveProcess -> handleRemove(event)
+            is ProcessFlowUiEvent.TogglePhaseTag -> handleTogglePhaseTag(event)
             is ProcessFlowUiEvent.ResetToDefault -> handleReset()
         }
     }
@@ -150,9 +162,12 @@ class ProcessFlowViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             when (currentScope) {
                 is ProcessFlowScope.DefaultTenant -> {
+                    val tags = remote.fetchTenantPhaseTags().getOrDefault(StagePhaseTags.DEFAULT)
                     remote.fetchCatalog()
                         .onSuccess { processes ->
-                            _uiState.update { it.copy(processes = processes, isCustomFlow = false, isLoading = false) }
+                            _uiState.update {
+                                it.copy(processes = processes, isCustomFlow = false, phaseTags = tags, hasCustomPhaseTags = false, isLoading = false)
+                            }
                         }
                         .onFailure { setError(it) }
                 }
@@ -160,11 +175,7 @@ class ProcessFlowViewModel(
                     remote.fetchOrderFlow(currentScope.orderId)
                         .onSuccess { dto ->
                             _uiState.update {
-                                it.copy(
-                                    processes = dto.processes,
-                                    isCustomFlow = dto.isCustomFlow,
-                                    isLoading = false
-                                )
+                                it.withFlow(dto)
                             }
                             refreshLegs(currentScope.orderId)
                         }
@@ -213,7 +224,7 @@ class ProcessFlowViewModel(
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
                         .onSuccess { dto ->
                             _uiState.update {
-                                it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
+                                it.withFlow(dto)
                             }
                             refreshLegs(currentScope.orderId)
                         }
@@ -240,7 +251,7 @@ class ProcessFlowViewModel(
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
                         .onSuccess { dto ->
                             _uiState.update {
-                                it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
+                                it.withFlow(dto)
                             }
                             refreshLegs(currentScope.orderId)
                         }
@@ -265,12 +276,32 @@ class ProcessFlowViewModel(
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
                         .onSuccess { dto ->
                             _uiState.update {
-                                it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
+                                it.withFlow(dto)
                             }
                             refreshLegs(currentScope.orderId)
                         }
                         .onFailure { setError(it) }
                 }
+            }
+        }
+    }
+
+    private fun handleTogglePhaseTag(event: ProcessFlowUiEvent.TogglePhaseTag) {
+        val currentScope = _uiState.value.scope
+        val proposed = _uiState.value.phaseTags.toggled(event.stage, event.phase)
+        scope.launch {
+            setBusy()
+            when (currentScope) {
+                is ProcessFlowScope.DefaultTenant -> remote.saveTenantPhaseTags(proposed)
+                    .onSuccess { saved -> _uiState.update { it.copy(phaseTags = saved, isLoading = false) } }
+                    .onFailure { setError(it) }
+                is ProcessFlowScope.Design -> remote.saveOrderPhaseTags(currentScope.orderId, proposed)
+                    .onSuccess { dto ->
+                        _uiState.update { it.withFlow(dto) }
+                        // Tahap yang dilompati tidak lagi punya leg masuk — konektornya ikut berubah.
+                        refreshLegs(currentScope.orderId)
+                    }
+                    .onFailure { setError(it) }
             }
         }
     }
@@ -282,7 +313,7 @@ class ProcessFlowViewModel(
             remote.resetOrderFlow(currentScope.orderId)
                 .onSuccess { dto ->
                     _uiState.update {
-                        it.copy(processes = dto.processes, isCustomFlow = dto.isCustomFlow, isLoading = false)
+                        it.withFlow(dto)
                     }
                     refreshLegs(currentScope.orderId)
                 }
@@ -309,6 +340,14 @@ class ProcessFlowViewModel(
             .onSuccess { board -> _uiState.update { it.copy(legs = board.legs) } }
             .onFailure { _uiState.update { state -> state.copy(legs = emptyList()) } }
     }
+
+    private fun ProcessFlowUiState.withFlow(dto: OrderFlowDto) = copy(
+        processes = dto.processes,
+        isCustomFlow = dto.isCustomFlow,
+        phaseTags = dto.stagePhaseTags,
+        hasCustomPhaseTags = dto.hasCustomPhaseTags,
+        isLoading = false
+    )
 
     private fun setBusy() = _uiState.update { it.copy(isLoading = true, error = null) }
 

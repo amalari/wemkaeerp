@@ -46,7 +46,7 @@ fun ReworkDialog(
     onDismiss: () -> Unit,
     onConfirm: (target: SamplingPipelineStage, reason: String, liability: DefectLiability) -> Unit
 ) {
-    val targets = order.pipelineStage.reworkTargets
+    val targets = order.reworkTargets
     var target by remember(order.id) { mutableStateOf(targets.lastOrNull()) }
     var reason by remember(order.id) { mutableStateOf("") }
     var liability by remember(order.id) { mutableStateOf(DefectLiability.FACTORY_WORKMANSHIP) }

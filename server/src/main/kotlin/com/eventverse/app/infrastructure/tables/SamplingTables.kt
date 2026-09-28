@@ -48,6 +48,8 @@ object SamplingOrdersTable : Table("sampling_orders") {
     val activeWork = text("active_work").default("")
     val customFlowProcesses = jsonbText("custom_flow_processes").nullable()
     val isCustomFlow = bool("is_custom_flow").default(false)
+    /** Tag fase Cuci/Setrika desain (V71). NULL = mewarisi template pabrik. */
+    val stagePhaseTags = jsonbText("stage_phase_tags").nullable()
     val accNotes = text("acc_notes").default("")
     val notes = text("notes").default("")
 

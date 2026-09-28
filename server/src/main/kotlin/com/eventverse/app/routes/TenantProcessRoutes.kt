@@ -106,14 +106,18 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                 HttpStatusCode.BadRequest, "Invalid JSON body"
             )
 
+            // Field yang tidak dikirim = tidak diubah. Menggeser chip di alur sampling tidak
+            // boleh diam-diam menghapus posisinya di lini produksi (dan sebaliknya).
+            val current = repository.findByTenantId(tenant.tenantId)?.processes?.firstOrNull { it.processId == processId }
             val command = RepositionProcessCommand(
                 tenantId = tenant.tenantId,
                 processId = processId,
-                samplingAnchorAfter = body.string("samplingAnchorAfter")
-                    ?.let { SamplingPipelineStage.parseOrNull(it) },
-                stationAnchorAfter = body.string("stationAnchorAfter")
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let(::WorkStationCode)
+                samplingAnchorAfter = if ("samplingAnchorAfter" in body.entries) {
+                    body.string("samplingAnchorAfter")?.let { SamplingPipelineStage.parseOrNull(it) }
+                } else current?.samplingAnchorAfter,
+                stationAnchorAfter = if ("stationAnchorAfter" in body.entries) {
+                    body.string("stationAnchorAfter")?.takeIf { it.isNotBlank() }?.let(::WorkStationCode)
+                } else current?.stationAnchorAfter
             )
 
             repositionUseCase(command)

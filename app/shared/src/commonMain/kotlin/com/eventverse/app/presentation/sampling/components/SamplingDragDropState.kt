@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.samplingRoute
 
 /**
  * State coordinator drag & drop kartu Pipeline Kanban Sampling — pola yang sama dengan
@@ -84,22 +85,22 @@ class SamplingDragDropState {
         reset()
     }
 
-    /** Tahap tujuan yang sah untuk kartu ini — CUMA tahap berikutnya, tidak ada loncatan. */
-    fun allowedTargetsFor(order: SamplingOrder): Set<SamplingPipelineStage> = when (order.pipelineStage) {
-        SamplingPipelineStage.NEW_INTAKE -> setOf(SamplingPipelineStage.FLOW_REVIEW, SamplingPipelineStage.CAM_PROGRAMMING)
-        SamplingPipelineStage.FLOW_REVIEW -> setOf(SamplingPipelineStage.CAM_PROGRAMMING)
-        SamplingPipelineStage.CAM_PROGRAMMING -> setOf(SamplingPipelineStage.MACHINE_KNITTING)
-        SamplingPipelineStage.MACHINE_KNITTING -> setOf(SamplingPipelineStage.LINKING_ASSEMBLY)
-        // Lantai penyelesaian akhir berjalan berurutan satu langkah demi satu langkah: tiap
-        // batasnya adalah serah terima nyata, jadi tidak ada loncatan ke pengiriman dari tengah.
-        SamplingPipelineStage.LINKING_ASSEMBLY -> setOf(SamplingPipelineStage.CUCI_SOFTENER)
-        SamplingPipelineStage.CUCI_SOFTENER -> setOf(SamplingPipelineStage.SETRIKA_UAP)
-        SamplingPipelineStage.SETRIKA_UAP -> setOf(SamplingPipelineStage.QC_FINISHING)
-        SamplingPipelineStage.QC_FINISHING -> setOf(SamplingPipelineStage.PENGEMASAN)
-        // Selesai kemas selalu disimpan dulu; pengiriman hanya keluar dari penyimpanan.
-        SamplingPipelineStage.PENGEMASAN -> setOf(SamplingPipelineStage.STORAGE_HOLDING)
-        SamplingPipelineStage.STORAGE_HOLDING -> setOf(SamplingPipelineStage.IN_DELIVERY)
-        else -> emptySet()
+    /**
+     * Tahap tujuan yang sah untuk kartu ini — tahap berikutnya pada **rute desainnya**.
+     *
+     * Diturunkan dari [samplingRoute], bukan tabel `when`: kartu yang Cucinya di-× dari Linking
+     * langsung ke Setrika, dan kolom Cuci tidak menyala sebagai tujuan. Satu-satunya pengecualian
+     * adalah SPK Masuk yang boleh langsung ke Program CAM bila alurnya tidak perlu ditinjau.
+     */
+    fun allowedTargetsFor(order: SamplingOrder): Set<SamplingPipelineStage> {
+        val route = order.samplingRoute
+        return when (val stage = order.pipelineStage) {
+            SamplingPipelineStage.NEW_INTAKE -> setOf(SamplingPipelineStage.FLOW_REVIEW, SamplingPipelineStage.CAM_PROGRAMMING)
+            // Selesai kemas selalu disimpan dulu, dan pengiriman hanya keluar dari penyimpanan —
+            // keduanya lewat jalur kustodi, tapi kolomnya tetap tujuan seret yang sah.
+            SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.ACC_APPROVED -> emptySet()
+            else -> setOfNotNull(route.nextAfter(stage))
+        }
     }
 
     private fun reset() {

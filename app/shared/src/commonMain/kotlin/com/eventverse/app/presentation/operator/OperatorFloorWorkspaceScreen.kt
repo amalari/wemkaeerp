@@ -20,6 +20,7 @@ import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.samplingRoute
 import com.eventverse.app.domain.sampling.isOperatorDesk
 import com.eventverse.app.domain.sampling.resolveAccessibleOperatorDesks
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
@@ -126,7 +127,7 @@ fun OperatorFloorWorkspaceScreen(
             onStart = { viewModel.onEvent(SamplingUiEvent.StartStageWork(it.id, operatorName.trim())) },
             onRelease = { viewModel.onEvent(SamplingUiEvent.ReleaseStageWork(it.id)) },
             onFinish = { order ->
-                when (val action = desk.finishAction()) {
+                when (val action = desk.finishAction(order.samplingRoute)) {
                     is DeskFinishAction.Worksheet ->
                         viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, action.target))
                     DeskFinishAction.Deposit -> setoranTarget = order

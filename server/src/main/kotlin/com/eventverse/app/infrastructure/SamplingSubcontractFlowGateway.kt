@@ -1,12 +1,16 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.process.TenantStagePhaseTagsRepository
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
+import com.eventverse.app.domain.sampling.customizeProcessFlow
+import com.eventverse.app.domain.sampling.effectivePhaseTags
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowNodeRef
@@ -28,7 +32,8 @@ import kotlinx.datetime.Clock
 class SamplingSubcontractFlowGateway(
     private val orderRepository: SamplingOrderRepository,
     private val processCatalogRepository: TenantProcessCatalogRepository,
-    private val flowLegsUseCase: GetFlowTransferLegsUseCase
+    private val flowLegsUseCase: GetFlowTransferLegsUseCase,
+    private val phaseTagsRepository: TenantStagePhaseTagsRepository? = null
 ) : SubcontractFlowGateway {
 
     override suspend fun openNeeds(tenantId: TenantId): List<SubcontractNeed> {
@@ -56,6 +61,9 @@ class SamplingSubcontractFlowGateway(
                 subjectId = order.id.value,
                 stages = SamplingPipelineStage.entries,
                 processes = effective(order, templateOf(tenantId)),
+                skippedStages = order.effectivePhaseTags(
+                    phaseTagsRepository?.findByTenantId(tenantId) ?: StagePhaseTags.DEFAULT
+                ).skippedSamplingStages,
                 customerName = order.clientName
             )
         ).getOrNull() ?: return false

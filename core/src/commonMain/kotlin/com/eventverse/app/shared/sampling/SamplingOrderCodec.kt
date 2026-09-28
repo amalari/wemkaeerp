@@ -1,9 +1,11 @@
+// FILE-SIZE-EXEMPT: codec eksplisit — satu baris per field, lurus tanpa logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.shared.sampling
 
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
@@ -83,6 +85,7 @@ object SamplingOrderCodec {
         "activeWork" to jsonOf(StageWorkInputCodec.encodeClaim(order.activeWork)),
         "isCustomFlow" to jsonOf(order.isCustomFlow),
         "customFlowProcesses" to (order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it) } ?: JsonValue.Null),
+        "stagePhaseTags" to StagePhaseTagsCodec.encode(order.stagePhaseTags),
         "createdAt" to jsonOf(order.createdAt.toString()),
         "updatedAt" to jsonOf(order.updatedAt.toString()),
         "archivedAt" to jsonOf(order.archivedAt?.toString())
@@ -252,6 +255,7 @@ object SamplingOrderCodec {
             activeWork = StageWorkInputCodec.decodeClaim(obj.string("activeWork")),
             customFlowProcesses = customFlowProcesses,
             isCustomFlow = isCustomFlow,
+            stagePhaseTags = StagePhaseTagsCodec.decode(obj.entries["stagePhaseTags"]),
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = archivedAt

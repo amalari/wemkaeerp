@@ -36,6 +36,10 @@ val SamplingPipelineStage.isOperatorDesk: Boolean
 val SamplingPipelineStage.reworkTargets: List<SamplingPipelineStage>
     get() = SamplingPipelineStage.entries.filter { it.isOperatorDesk && it.order < order }
 
+/** Meja rework yang sah untuk SPK ini — meja yang dilompati rutenya tidak pernah memegang barangnya. */
+val SamplingOrder.reworkTargets: List<SamplingPipelineStage>
+    get() = pipelineStage.reworkTargets.filter { it in samplingRoute }
+
 /** Klaim yang masih berlaku untuk tahap SPK saat ini, atau `null`. */
 val SamplingOrder.currentWork: StageWorkClaim?
     get() = activeWork?.takeIf { it.stage == pipelineStage }
@@ -117,7 +121,7 @@ fun SamplingOrder.sendBackForRework(
     actorRole: String,
     now: Instant
 ): SamplingOrder {
-    require(target in pipelineStage.reworkTargets) {
+    require(target in reworkTargets) {
         "Rework hanya bisa dikirim ke meja sebelum ${pipelineStage.displayName}"
     }
     require(reason.isNotBlank()) { "Alasan rework wajib diisi" }

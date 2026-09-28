@@ -1,8 +1,11 @@
 package com.eventverse.app.domain.sampling.usecases
 
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.freezePhaseTags
+import com.eventverse.app.domain.sampling.samplingRoute
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.transfer.SuratJalanRepository
@@ -31,6 +34,11 @@ data class AdvanceSamplingStageCommand(
      * `ReleaseSampleFromStorageUseCase`) — bukti bahwa penanggung jawabnya sudah tercatat.
      */
     val custodyRecorded: Boolean = false,
+    /**
+     * Template tag fase pabrik, dibekukan ke order saat SPK masuk Program CAM. `null` = pemanggil
+     * tidak memuat template (jalur kustodi di ujung alur, yang tagnya pasti sudah beku).
+     */
+    val tenantPhaseTags: StagePhaseTags? = null,
     val now: Instant
 )
 
@@ -58,14 +66,21 @@ class AdvanceSamplingStageUseCase(
     suspend operator fun invoke(command: AdvanceSamplingStageCommand): Result<SamplingOrder> =
         runCatching {
             requireCustodyPath(command)
-            requireLegReceived(command)
-            command.order.advancePipelineStage(
+            val order = frozenIfEnteringFloor(command)
+            requireLegReceived(command.copy(order = order))
+            order.advancePipelineStage(
                 target = command.target,
                 updatedAt = command.now,
                 actorEmail = command.actorEmail,
                 actorRole = auditRole(command)
             )
         }
+
+    private fun frozenIfEnteringFloor(command: AdvanceSamplingStageCommand): SamplingOrder {
+        val template = command.tenantPhaseTags ?: return command.order
+        if (command.target.order < SamplingPipelineStage.CAM_PROGRAMMING.order) return command.order
+        return command.order.freezePhaseTags(template)
+    }
 
     /**
      * Masuk dan keluar penyimpanan wajib lewat jalur kustodi, bukan pindah tahap biasa.
@@ -103,6 +118,7 @@ class AdvanceSamplingStageUseCase(
                 subjectId = command.order.id.value,
                 stages = command.stages,
                 processes = command.processes,
+                skippedStages = command.order.samplingRoute.skipped,
                 customerName = command.order.clientName
             )
         ).getOrNull() ?: return

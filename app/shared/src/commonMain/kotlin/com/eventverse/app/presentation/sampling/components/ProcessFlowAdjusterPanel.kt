@@ -40,6 +40,8 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconChevronDown
+import com.eventverse.app.domain.process.FlowPhase
+import com.eventverse.app.domain.process.PhaseTaggableStage
 import com.eventverse.app.presentation.sampling.ProcessFlowScope
 import com.eventverse.app.presentation.sampling.ProcessFlowUiEvent
 import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
@@ -112,7 +114,12 @@ fun ProcessFlowAdjusterPanel(
                 // terbaca sebagai satu urutan utuh.
                 var step = 1
                 ADJUSTABLE_STAGES.forEachIndexed { index, stage ->
-                    StagePill(step = step++, label = stage.displayName)
+                    val tagged = PhaseTaggableStage.forSamplingStage(stage)
+                    if (tagged == null) StagePill(step = step++, label = stage.displayName) else PhaseTaggedStagePill(
+                        step = if (state.phaseTags.phasesOf(tagged).isNotEmpty()) step++ else step,
+                        label = stage.displayName, stage = tagged, tags = state.phaseTags, isLocked = isLocked,
+                        onToggle = { st, phase -> viewModel.onEvent(ProcessFlowUiEvent.TogglePhaseTag(st, phase)) }
+                    )
 
                     val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
                     anchored.forEachIndexed { procIndex, process ->
@@ -247,7 +254,7 @@ private fun FlowPanelHeader(
                     is ProcessFlowScope.DefaultTenant ->
                         ClayBadge(text = "Template Default Pabrik", tint = WeMadeColors.Primary)
                     is ProcessFlowScope.Design -> {
-                        if (state.isCustomFlow) {
+                        if (state.isCustomFlow || state.hasCustomPhaseTags) {
                             ClayBadge(text = "Alur Kustom Desain", tint = WeMadeColors.Accent)
                             if (!isLocked) ClayButton(
                                 text = "Reset ke Default",

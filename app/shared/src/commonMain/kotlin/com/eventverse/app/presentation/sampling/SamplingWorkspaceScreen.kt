@@ -17,7 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +34,8 @@ import com.eventverse.app.domain.traceability.TraceWorkOrderKind
 import com.eventverse.app.domain.traceability.TraceWorkOrderRef
 import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -39,6 +43,7 @@ import com.eventverse.app.presentation.sampling.components.RevisionNotesDialog
 import com.eventverse.app.presentation.sampling.components.SamplingPipelineKanbanBoard
 import com.eventverse.app.presentation.sampling.components.SamplingSpkDetailDialog
 import com.eventverse.app.presentation.sampling.components.StageAdvanceDialog
+import com.eventverse.app.presentation.sampling.components.TenantFlowTemplateDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -69,6 +74,8 @@ fun SamplingWorkspaceScreen(
         viewModel.onEvent(SamplingUiEvent.SpkCardPrintHandled)
     }
     val processFlowViewModel = remember(tenantSlug) { ProcessFlowViewModel() }
+    var showFlowTemplate by remember { mutableStateOf(false) }
+    if (showFlowTemplate) TenantFlowTemplateDialog(onDismiss = { showFlowTemplate = false })
 
     LaunchedEffect(state.orders) {
         val scopeItems = state.orders.map {
@@ -133,6 +140,11 @@ fun SamplingWorkspaceScreen(
                         )
                     }
                 }
+                ClayButton(
+                    text = "Template Alur Pabrik",
+                    style = ClayButtonStyle.Secondary,
+                    onClick = { showFlowTemplate = true }
+                )
             }
         }
 

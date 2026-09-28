@@ -15,6 +15,7 @@ import com.eventverse.app.domain.pipeline.usecases.RenameTenantModuleUseCase
 import com.eventverse.app.domain.pipeline.usecases.ResetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.SaveTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseCase
+import com.eventverse.app.domain.pipeline.usecases.SyncTenantPipelineWithCatalogUseCase
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.PipelineDto
@@ -32,6 +33,7 @@ fun Route.pipelineRoutes(
 ) {
     val getEntitlementUseCase = GetTenantEntitlementUseCase(entitlementRepository)
     val getPipelineUseCase = GetTenantPipelineUseCase(pipelineRepository)
+    val syncPipelineUseCase = SyncTenantPipelineWithCatalogUseCase(pipelineRepository, getPipelineUseCase)
     val savePipelineUseCase = SaveTenantPipelineUseCase(pipelineRepository)
     val resetPipelineUseCase = ResetTenantPipelineUseCase(pipelineRepository)
     val getModuleCatalogUseCase = GetTenantModuleCatalogUseCase(pipelineRepository)
@@ -70,11 +72,12 @@ fun Route.pipelineRoutes(
 
     route("/api/tenant/pipeline") {
 
-        // 1. GET active pipeline for tenant
+        // 1. GET active pipeline for tenant, topped up with catalogue modules added since it
+        //    was provisioned (inserted bypassed, so the running flow is unchanged).
         get {
             val tenant = call.requireTenant() ?: return@get
 
-            getPipelineUseCase(tenant.tenantId, tenant.starterPreset)
+            syncPipelineUseCase(tenant.tenantId, getEntitlementUseCase.forTenant(tenant), tenant.starterPreset)
                 .onSuccess { call.respondPipeline(it) }
                 .onFailure { call.respondFailure(HttpStatusCode.InternalServerError, it, "Gagal memuat alur tenant") }
         }

@@ -36,13 +36,18 @@ object FlowLegDerivation {
      * Proses disisipkan tepat setelah tahap jangkarnya, dengan urutan relatif sesuai urutan
      * daftar — [TenantOptionalProcess] belum punya nomor urut di dalam satu jangkar, jadi
      * urutan daftar adalah satu-satunya yang kita punya.
+     *
+     * Tahap di [skipped] (tag Sampling di-×) tidak menjadi simpul — barangnya tidak pernah ke sana,
+     * jadi leg menuju gedungnya pun tidak ada. Proses yang berjangkar padanya **tetap** disisipkan:
+     * jangkar adalah posisi, bukan syarat bahwa tahapnya dikerjakan.
      */
     fun resolveNodes(
         stages: List<SamplingPipelineStage>,
-        processes: List<TenantOptionalProcess>
+        processes: List<TenantOptionalProcess>,
+        skipped: Set<SamplingPipelineStage> = emptySet()
     ): List<FlowNodeRef> = buildList {
         stages.forEach { stage ->
-            add(FlowNodeRef.Stage(stage))
+            if (stage !in skipped) add(FlowNodeRef.Stage(stage))
             processes.filter { it.samplingAnchorAfter == stage }
                 .forEach { add(FlowNodeRef.Process(it.code)) }
         }

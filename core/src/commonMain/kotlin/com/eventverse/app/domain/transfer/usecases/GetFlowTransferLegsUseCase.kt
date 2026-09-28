@@ -14,6 +14,8 @@ data class GetFlowTransferLegsQuery(
     val subjectId: String,
     val stages: List<SamplingPipelineStage>,
     val processes: List<TenantOptionalProcess>,
+    /** Tahap yang dilompati rute sampling desain ini — lihat `SamplingRoute`. */
+    val skippedStages: Set<SamplingPipelineStage> = emptySet(),
     /** Nama pembeli untuk leg ekor; `null` bila penyerahan ke buyer tidak relevan. */
     val customerName: String? = null
 )
@@ -35,7 +37,7 @@ class GetFlowTransferLegsUseCase(
             ?: return@runCatching FlowLegBoard()
 
         val legs = FlowLegDerivation.deriveLegs(
-            nodes = FlowLegDerivation.resolveNodes(query.stages, query.processes),
+            nodes = FlowLegDerivation.resolveNodes(query.stages, query.processes, query.skippedStages),
             processes = query.processes,
             config = config,
             customerName = query.customerName

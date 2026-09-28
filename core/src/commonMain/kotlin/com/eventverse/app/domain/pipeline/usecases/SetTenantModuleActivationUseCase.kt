@@ -37,7 +37,9 @@ class SetTenantModuleActivationUseCase(
         val existingNode = pipeline.nodes.firstOrNull { it.moduleId == moduleId }
 
         val updated = when {
-            existingNode != null -> pipeline.setNodeBypassed(existingNode.nodeId, !isActive)
+            existingNode != null && isActive ->
+                wireIfIsolated(pipeline.setNodeBypassed(existingNode.nodeId, false), existingNode.nodeId)
+            existingNode != null -> pipeline.setNodeBypassed(existingNode.nodeId, true)
             !isActive -> pipeline // Not installed and asked to stay off: nothing to do.
             else -> installModule(pipeline, moduleId)
         }
@@ -67,17 +69,33 @@ class SetTenantModuleActivationUseCase(
             isBypassed = false
         )
 
-        val withNode = pipeline.addNode(newNode)
-        val upstream = withNode.orderedNodes
-            .lastOrNull { it.nodeId != nodeId && !it.isBypassed }
-            ?: return withNode
+        return wireIfIsolated(pipeline.addNode(newNode), nodeId)
+    }
 
-        return withNode.connect(
+    /**
+     * Connects a node from the last active node before it when it has no forward wiring yet —
+     * the case for a freshly installed module and for one that catalogue sync inserted bypassed.
+     * A node the tenant already wired is left exactly as they wired it.
+     */
+    private fun wireIfIsolated(pipeline: CustomTenantPipeline, nodeId: String): CustomTenantPipeline {
+        val isWired = pipeline.edges.any {
+            !it.isFeedbackReworkLoop && (it.fromNodeId == nodeId || it.toNodeId == nodeId)
+        }
+        if (isWired) return pipeline
+
+        val ordered = pipeline.orderedNodes
+        val node = ordered.first { it.nodeId == nodeId }
+        val upstream = ordered
+            .takeWhile { it.nodeId != nodeId }
+            .lastOrNull { !it.isBypassed }
+            ?: return pipeline
+
+        return pipeline.connect(
             CustomPipelineEdge(
                 edgeId = "edge-${upstream.nodeId}-to-$nodeId",
                 fromNodeId = upstream.nodeId,
                 toNodeId = nodeId,
-                expectedDataType = specification.archetype.defaultExpectedInputType
+                expectedDataType = node.archetype.defaultExpectedInputType
             )
         )
     }

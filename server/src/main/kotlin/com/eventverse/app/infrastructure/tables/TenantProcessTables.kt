@@ -26,3 +26,15 @@ object TenantOptionalProcessesTable : Table("tenant_optional_processes") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+/**
+ * Template tag fase per tenant (V71): fase mana yang menjalankan Cuci & Setrika untuk desain
+ * baru. Satu baris per tenant; tidak ada baris = kedua fase (default).
+ */
+object TenantStagePhaseTagsTable : Table("tenant_stage_phase_tags") {
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val tags = jsonbText("tags")
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId)
+}

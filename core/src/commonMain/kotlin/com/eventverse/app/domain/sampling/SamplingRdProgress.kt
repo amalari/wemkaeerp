@@ -14,7 +14,8 @@ val RD_STAGES: List<SamplingPipelineStage> = listOf(
     SamplingPipelineStage.PENGEMASAN
 )
 
-enum class RdStepState { DONE, ACTIVE, PENDING }
+/** SKIPPED = tahap dilompati rute sampling desain ini (tag Sampling di-×) — "Hanya Produksi". */
+enum class RdStepState { DONE, ACTIVE, PENDING, SKIPPED }
 
 /** Satu titik di jejak progres R&D: tahap wajib atau proses sisipan (bordir, sablon, …). */
 data class RdStep(
@@ -33,7 +34,9 @@ data class RdStep(
  */
 fun SamplingOrder.rdProgress(processes: List<TenantOptionalProcess> = customFlowProcesses.orEmpty()): List<RdStep> {
     val current = pipelineStage.order
+    val route = samplingRoute
     fun stateOf(stage: SamplingPipelineStage) = when {
+        stage !in route -> RdStepState.SKIPPED
         stage.order < current -> RdStepState.DONE
         stage.order == current -> RdStepState.ACTIVE
         else -> RdStepState.PENDING

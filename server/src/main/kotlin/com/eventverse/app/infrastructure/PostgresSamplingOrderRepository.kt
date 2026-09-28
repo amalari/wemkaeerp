@@ -6,6 +6,7 @@ import com.eventverse.app.shared.sampling.SamplingProgramCodec
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -96,6 +97,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         row[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
         row[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
         row[isCustomFlow] = order.isCustomFlow
+        row[stagePhaseTags] = order.stagePhaseTags?.let { StagePhaseTagsCodec.encode(it).encode() }
         row[accNotes] = order.accNotes
         row[notes] = order.notes
         row[activeWork] = StageWorkInputCodec.encodeClaim(order.activeWork)
@@ -587,16 +589,11 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             finishingDeposits = finishingDeposits,
             qcInspections = qcInspections,
             milestones = milestones,
-            customFlowProcesses = if (orderRow[SamplingOrdersTable.isCustomFlow]) {
-                orderRow[SamplingOrdersTable.customFlowProcesses]?.let { raw ->
-                    runCatching {
-                        (JsonParser.parse(raw) as? JsonValue.Arr)?.let { arr ->
-                            ProcessCatalogCodec.decodeProcesses(arr.items, TenantId(orderRow[SamplingOrdersTable.tenantId]))
-                        }
-                    }.getOrNull()
-                }
-            } else null,
+            customFlowProcesses = SamplingOrderPersistenceMapper.parseCustomFlow(
+                orderRow[SamplingOrdersTable.customFlowProcesses], orderRow[SamplingOrdersTable.isCustomFlow], TenantId(orderRow[SamplingOrdersTable.tenantId])
+            ),
             isCustomFlow = orderRow[SamplingOrdersTable.isCustomFlow],
+            stagePhaseTags = SamplingOrderPersistenceMapper.parsePhaseTags(orderRow[SamplingOrdersTable.stagePhaseTags]),
             createdAt = orderRow[SamplingOrdersTable.createdAt],
             updatedAt = orderRow[SamplingOrdersTable.updatedAt],
             archivedAt = orderRow[SamplingOrdersTable.archivedAt]

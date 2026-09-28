@@ -35,7 +35,8 @@ fun Route.samplingRoutes(
      * perilaku lama bagi pemasangan route dan pengujian yang tidak menyuntikkannya.
      */
     flowLegsUseCase: GetFlowTransferLegsUseCase? = null,
-    storageRepository: com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository? = null
+    storageRepository: com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository? = null,
+    phaseTagsRepository: com.eventverse.app.domain.process.TenantStagePhaseTagsRepository? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -240,6 +241,7 @@ fun Route.samplingRoutes(
                         actorEmail = caller?.email ?: "unknown",
                         actorRole = caller?.role?.name ?: "UNKNOWN",
                         overrideReason = json.string("overrideReason")?.takeIf { it.isNotBlank() },
+                        tenantPhaseTags = phaseTagsRepository?.findByTenantId(withInputs.tenantId),
                         now = now
                     )
                 ).getOrThrow()
@@ -394,7 +396,8 @@ fun Route.samplingRoutes(
         samplingFlowRoutes(
             repository = repository,
             processCatalogRepository = processCatalogRepository,
-            flowLegsUseCase = flowLegsUseCase
+            flowLegsUseCase = flowLegsUseCase,
+            phaseTagsRepository = phaseTagsRepository
         )
         storageRepository?.let {
             samplingStorageRoutes(repository, it, processCatalogRepository, flowLegsUseCase)

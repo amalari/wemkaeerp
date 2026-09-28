@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -35,8 +36,10 @@ import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationSpec
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.IconClose
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -51,13 +54,15 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /** Tahap wajib: kerangka alur yang tidak bisa dihapus, hanya disisipi. */
 @Composable
-internal fun StagePill(step: Int, label: String) {
+internal fun StagePill(step: Int?, label: String, muted: Boolean = false) {
+    // Tahap yang dilompati rute sampling tetap tampil (redup, tanpa nomor) supaya orang paham
+    // kenapa kartunya melompat — menghilangkannya membuat alur terlihat "rusak".
     Row(
         modifier = Modifier
             .clayFlat(
                 shape = ClayShapes.Chip,
-                background = WeMadeColors.SurfaceMuted,
-                outline = WeMadeColors.Outline
+                background = if (muted) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                outline = if (muted) WeMadeColors.Border else WeMadeColors.Outline
             )
             .padding(start = ClaySpacing.Sm, end = ClaySpacing.Md, top = ClaySpacing.Sm, bottom = ClaySpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -65,21 +70,23 @@ internal fun StagePill(step: Int, label: String) {
     ) {
         // Nomor urut membuat kerangka wajib terbaca sebagai urutan, bukan deretan tombol.
         Box(
-            modifier = Modifier.size(18.dp).clip(ClayShapes.Pill).background(WeMadeColors.Primary),
+            modifier = Modifier.size(18.dp).clip(ClayShapes.Pill)
+                .background(if (muted) WeMadeColors.Border else WeMadeColors.Primary),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = step.toString(),
+                text = step?.toString() ?: "-",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = WeMadeColors.Surface
+                color = if (muted) WeMadeColors.OnSurfaceMuted else WeMadeColors.Surface
             )
         }
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface,
+            color = if (muted) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface,
+            textDecoration = if (muted) TextDecoration.LineThrough else null,
             maxLines = 1
         )
     }
@@ -109,50 +116,70 @@ internal fun PlacedProcessChip(
         process.displayName
     }
 
-    val badge: @Composable () -> Unit = {
-        ClayBadge(
-            text = label,
-            tint = tint,
-            leading = {
-                // Proses opsional ikut menempati urutan alur: bubble nomornya sama dengan
-                // tahap wajib, dan seluruh tahap sesudahnya bergeser satu nomor.
+    val chipContent: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier
+                .clayFlat(
+                    shape = ClayShapes.Chip,
+                    background = WeMadeColors.SurfaceMuted,
+                    outline = if (isSubcontracted) WeMadeColors.Accent else WeMadeColors.Outline,
+                    borderWidth = ClayBorder.Medium
+                )
+                .padding(
+                    start = ClaySpacing.Sm,
+                    end = ClaySpacing.Sm,
+                    top = ClaySpacing.Sm,
+                    bottom = ClaySpacing.Sm
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
+            // Bubble nomor urut: ukuran 18dp konsisten dengan StagePill
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(ClayShapes.Pill)
+                    .background(tint),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stepNumber.toString(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.Surface
+                )
+            }
+
+            // Nama proses opsional / vendor
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.OnSurface,
+                maxLines = 1
+            )
+
+            // Tombol hapus yang rapi dan menyatu dengan kartu
+            if (!isLocked) {
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(ClayShapes.Pill)
-                        .background(tint),
+                        .background(WeMadeColors.Surface)
+                        .clickable(onClick = onRemove),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = stepNumber.toString(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WeMadeColors.Surface
+                    IconClose(
+                        modifier = Modifier.size(8.dp),
+                        color = WeMadeColors.OnSurfaceMuted
                     )
                 }
-            },
-            // Alur terkunci (SPK sudah di Program CAM ke atas): tanpa tombol hapus.
-            trailing = if (isLocked) null else {
-                {
-                    // Latar tombol gelap (OutlineSoft), jadi teksnya wajib terang — sebelumnya
-                    // OnSurface (gelap di atas gelap) membuat tombolnya tak terlihat sama sekali.
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(ClayShapes.Chip)
-                            .background(WeMadeColors.OutlineSoft)
-                            .clickable(onClick = onRemove),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "x", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.Surface)
-                    }
-                }
             }
-        )
+        }
     }
 
     if (isLocked) {
-        badge()
+        chipContent()
     } else {
         DraggableChipFrame(
             processId = process.processId,
@@ -161,7 +188,7 @@ internal fun PlacedProcessChip(
             dragState = dragState,
             onDrop = { pid, _, anchor -> if (pid != null) onMove(process.processId, anchor) }
         ) {
-            badge()
+            chipContent()
         }
     }
 }

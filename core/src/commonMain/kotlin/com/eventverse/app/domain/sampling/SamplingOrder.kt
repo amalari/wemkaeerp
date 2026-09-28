@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
@@ -80,6 +81,8 @@ data class SamplingOrder(
     /** Alur proses opsional kustom khusus desain ini. `null` = mewarisi alur default pabrik. */
     val customFlowProcesses: List<TenantOptionalProcess>? = null,
     val isCustomFlow: Boolean = false,
+    /** Tag fase Cuci/Setrika desain ini. `null` = mewarisi template pabrik (belum dibekukan). */
+    val stagePhaseTags: StagePhaseTags? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
     val archivedAt: Instant? = null
@@ -192,6 +195,7 @@ data class SamplingOrder(
         actorEmail: String = "",
         actorRole: String = ""
     ): SamplingOrder {
+        require(target in samplingRoute) { "Tahap ${target.displayName} tidak ada di alur sampling desain ini" }
         requireStageGate(target)
         // Transisi apa pun — termasuk NEW_INTAKE -> NEW_INTAKE saat Deals menerbitkan SPK —
         // menandai order sudah diserahkan ke Divisi Sampling, jadi DRAFT berakhir di sini.
@@ -223,10 +227,16 @@ data class SamplingOrder(
     }
 
     // Sampel yang pulang dari vendor makloon mendarat di tahap penyelesaian akhir paling
-    // awal, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.
-    fun recordVendorReturn(returnedAt: LocalDate, updatedAt: Instant, actorEmail: String = ""): SamplingOrder =
-        copy(vendorInfo = vendorInfo.copy(returnedAt = returnedAt, status = VendorFollowUpStatus.RETURNED))
-            .movedTo(SamplingPipelineStage.CUCI_SOFTENER, vendorAudit(SamplingPipelineStage.CUCI_SOFTENER, actorEmail, updatedAt))
+    // awal pada rutenya, bukan di QC: yang kembali adalah barang yang baru selesai dirakit.
+    fun recordVendorReturn(returnedAt: LocalDate, updatedAt: Instant, actorEmail: String = ""): SamplingOrder {
+        val landing = afterAssembly
+        return copy(vendorInfo = vendorInfo.copy(returnedAt = returnedAt, status = VendorFollowUpStatus.RETURNED))
+            .movedTo(landing, vendorAudit(landing, actorEmail, updatedAt))
+    }
+
+    /** Tangan pertama sesudah perakitan — Cuci, atau Setrika/QC bila Cuci dilompati rute ini. */
+    private val afterAssembly: SamplingPipelineStage
+        get() = samplingRoute.nextAfter(SamplingPipelineStage.LINKING_ASSEMBLY) ?: SamplingPipelineStage.QC_FINISHING
 
     private fun vendorAudit(target: SamplingPipelineStage, actorEmail: String, at: Instant) =
         StageTransitionAudit(pipelineStage, target, actorEmail, "MAKLOON", at, operatorName = vendorInfo.vendorName.ifBlank { null })
@@ -252,14 +262,15 @@ data class SamplingOrder(
         val newFinishedQty = updatedDeposits.sumOf { it.qtyPcs }
         // Setoran ini adalah setoran hasil PERAKITAN (linking, obras, pasang aksesori). Ketika
         // seluruh pcs tersetor, yang selesai adalah perakitannya — barangnya lalu berpindah ke
-        // tangan pertama lantai penyelesaian akhir, yaitu pencuci.
+        // tangan pertama lantai penyelesaian akhir pada rute desain ini (pencuci, atau penyetrika
+        // bila tag Sampling pada Cuci di-×).
         //
         // Sengaja TIDAK melompat ke QC. Melompat berarti menyatakan sampel sudah dicuci dan
         // disetrika padahal tidak ada satu pun catatan yang mengatakan begitu — kesalahan yang
         // sama persis dengan memetakan baris lama ke QC saat migrasi. Dua tahap di antaranya
         // dimajukan oleh orang yang benar-benar mengerjakannya, lewat tombol di meja finishing.
         val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) {
-            SamplingPipelineStage.CUCI_SOFTENER
+            afterAssembly
         } else {
             pipelineStage
         }
@@ -297,25 +308,6 @@ data class SamplingOrder(
     fun revisionFeedback(revision: Int): RevisionFeedback? =
         revisionHistory.firstOrNull { it.revision == revision }
             ?: revisionHistory.firstOrNull { it.revision == revision - 1 }
-
-    /**
-     * Menyesuaikan alur proses khusus untuk desain ini.
-     * Mengesampingkan alur default tenant.
-     */
-    fun customizeProcessFlow(processes: List<TenantOptionalProcess>, updatedAt: Instant): SamplingOrder = copy(
-        customFlowProcesses = processes,
-        isCustomFlow = true,
-        updatedAt = updatedAt
-    )
-
-    /**
-     * Mengembalikan alur proses desain ini ke alur default tenant (pabrik).
-     */
-    fun resetProcessFlowToDefault(updatedAt: Instant): SamplingOrder = copy(
-        customFlowProcesses = null,
-        isCustomFlow = false,
-        updatedAt = updatedAt
-    )
 
     fun cancel(notes: String, updatedAt: Instant): SamplingOrder = copy(
         status = SamplingStatus.CANCELLED,

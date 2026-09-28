@@ -1,11 +1,18 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.process.TenantStagePhaseTagsRepository
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
+import com.eventverse.app.domain.sampling.effectivePhaseTags
+import com.eventverse.app.domain.sampling.isFlowLocked
+import com.eventverse.app.domain.sampling.customizeProcessFlow
+import com.eventverse.app.domain.sampling.resetProcessFlowToDefault
+import com.eventverse.app.domain.sampling.withPhaseTags
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.transfer.FlowLegBoard
@@ -19,6 +26,7 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.transfer.FlowLegCodec
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -48,8 +56,11 @@ fun Route.samplingFlowRoutes(
     repository: SamplingOrderRepository,
     processCatalogRepository: TenantProcessCatalogRepository? = null,
     /** Penurunan leg perpindahan barang. `null` mematikan konektor dan penjagaan edit alur. */
-    flowLegsUseCase: GetFlowTransferLegsUseCase? = null
+    flowLegsUseCase: GetFlowTransferLegsUseCase? = null,
+    /** Template tag fase pabrik. `null` = semua desain menjalani Cuci & Setrika di kedua fase. */
+    phaseTagsRepository: TenantStagePhaseTagsRepository? = null
 ) {
+    suspend fun templateTags(tenantId: TenantId) = phaseTagsRepository?.findByTenantId(tenantId) ?: StagePhaseTags.DEFAULT
 
     // GET /api/tenant/sampling/orders/{id}/flow-legs — perpindahan barang yang tersirat di alur
     get("/{id}/flow-legs") {
@@ -67,6 +78,7 @@ fun Route.samplingFlowRoutes(
                 subjectId = order.id.value,
                 stages = SamplingPipelineStage.entries,
                 processes = order.effectiveFlowProcesses(processCatalogRepository, tenant.tenantId),
+                skippedStages = order.effectivePhaseTags(templateTags(tenant.tenantId)).skippedSamplingStages,
                 customerName = order.clientName
             )
         ).getOrElse { FlowLegBoard() }
@@ -87,12 +99,38 @@ fun Route.samplingFlowRoutes(
             processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
         }
 
-        val response = jsonObjectOf(
-            "orderId" to jsonOf(order.id.value),
-            "isCustomFlow" to jsonOf(isCustom),
-            "processes" to ProcessCatalogCodec.encodeProcesses(processes)
+        call.respondFlowJson(flowResponse(order, isCustom, processes, templateTags(tenant.tenantId)).encode())
+    }
+
+    // PUT /api/tenant/sampling/orders/{id}/flow/phase-tags — tag [Sampling ×] [Produksi ×] desain ini
+    put("/{id}/flow/phase-tags") {
+        val tenant = call.requireFlowTenant() ?: return@put
+        val idParam = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing ID")
+        val order = repository.findById(SamplingOrderId(idParam))?.takeIf { it.tenantId == tenant.tenantId }
+            ?: return@put call.respond(HttpStatusCode.NotFound, "Sampling order not found")
+        val body = runCatching { JsonParser.parse(call.receiveText()) as? JsonValue.Obj }.getOrNull()
+        val tags = StagePhaseTagsCodec.decode(body?.entries?.get("stagePhaseTags"))
+            ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing stagePhaseTags")
+        if (order.isFlowLocked) {
+            return@put call.respond(HttpStatusCode.UnprocessableEntity, "Alur sudah final sejak Program CAM — tag fase tidak bisa diubah lagi")
+        }
+
+        // Tahap yang dilompati tidak lagi punya leg masuk; Surat Jalan yang sudah terbit untuk
+        // leg itu akan yatim, jadi ditolak dengan alasan yang sama seperti menggeser chip.
+        val processes = order.effectiveFlowProcesses(processCatalogRepository, tenant.tenantId)
+        val blocking = flowLegsUseCase?.issuedLegsLostBy(
+            tenant.tenantId.value, order, processes, processCatalogRepository,
+            currentTags = order.effectivePhaseTags(templateTags(tenant.tenantId)), proposedTags = tags
         )
-        call.respondFlowJson(response.encode())
+        if (!blocking.isNullOrEmpty()) {
+            return@put call.respond(
+                HttpStatusCode.UnprocessableEntity,
+                "Tag tidak bisa diubah: Surat Jalan sudah terbit untuk " + blocking.joinToString(", ") { it.leg.summary } + "."
+            )
+        }
+
+        val updated = repository.save(order.withPhaseTags(tags, Clock.System.now()))
+        call.respondFlowJson(flowResponse(updated, updated.isCustomFlow && updated.customFlowProcesses != null, processes, templateTags(tenant.tenantId)).encode())
     }
 
     // PUT /api/tenant/sampling/orders/{id}/flow — Simpan alur kustom untuk SPK/desain
@@ -115,7 +153,8 @@ fun Route.samplingFlowRoutes(
         // Menggeser chip setelah Surat Jalan terbit akan mengubah kunci leg, meninggalkan
         // dokumen yatim — dan, lebih buruk, membuka gerbang yang seharusnya masih tertutup.
         // Menggeser alur tidak boleh menjadi cara melewati gerbangnya.
-        val blocking = flowLegsUseCase?.issuedLegsLostBy(tenant.tenantId.value, order, processes, processCatalogRepository)
+        val tags = order.effectivePhaseTags(templateTags(tenant.tenantId))
+        val blocking = flowLegsUseCase?.issuedLegsLostBy(tenant.tenantId.value, order, processes, processCatalogRepository, tags, tags)
         if (!blocking.isNullOrEmpty()) {
             return@put call.respond(
                 HttpStatusCode.UnprocessableEntity,
@@ -126,13 +165,7 @@ fun Route.samplingFlowRoutes(
         }
 
         val updated = repository.save(order.customizeProcessFlow(processes, Clock.System.now()))
-
-        val response = jsonObjectOf(
-            "orderId" to jsonOf(updated.id.value),
-            "isCustomFlow" to jsonOf(true),
-            "processes" to ProcessCatalogCodec.encodeProcesses(updated.customFlowProcesses ?: emptyList())
-        )
-        call.respondFlowJson(response.encode())
+        call.respondFlowJson(flowResponse(updated, true, updated.customFlowProcesses.orEmpty(), templateTags(tenant.tenantId)).encode())
     }
 
     // DELETE /api/tenant/sampling/orders/{id}/flow — Reset alur SPK/desain ke default pabrik
@@ -144,15 +177,26 @@ fun Route.samplingFlowRoutes(
 
         val updated = repository.save(order.resetProcessFlowToDefault(Clock.System.now()))
         val defaultProcesses = processCatalogRepository?.findByTenantId(tenant.tenantId)?.processes ?: emptyList()
-
-        val response = jsonObjectOf(
-            "orderId" to jsonOf(updated.id.value),
-            "isCustomFlow" to jsonOf(false),
-            "processes" to ProcessCatalogCodec.encodeProcesses(defaultProcesses)
-        )
-        call.respondFlowJson(response.encode())
+        call.respondFlowJson(flowResponse(updated, false, defaultProcesses, templateTags(tenant.tenantId)).encode())
     }
 }
+
+/**
+ * Bentuk respons alur. `stagePhaseTags` selalu yang efektif (milik desain, atau template bila
+ * belum punya); `hasCustomPhaseTags` membedakan keduanya untuk tombol reset.
+ */
+private fun flowResponse(
+    order: SamplingOrder,
+    isCustom: Boolean,
+    processes: List<TenantOptionalProcess>,
+    template: StagePhaseTags
+) = jsonObjectOf(
+    "orderId" to jsonOf(order.id.value),
+    "isCustomFlow" to jsonOf(isCustom),
+    "processes" to ProcessCatalogCodec.encodeProcesses(processes),
+    "stagePhaseTags" to StagePhaseTagsCodec.encode(order.effectivePhaseTags(template)),
+    "hasCustomPhaseTags" to jsonOf(order.stagePhaseTags != null)
+)
 
 private suspend fun ApplicationCall.requireFlowTenant(): TenantContext? {
     val tenant = tenantContextOrNull
@@ -184,7 +228,9 @@ private suspend fun GetFlowTransferLegsUseCase.issuedLegsLostBy(
     tenantId: String,
     order: SamplingOrder,
     proposed: List<TenantOptionalProcess>,
-    catalog: TenantProcessCatalogRepository?
+    catalog: TenantProcessCatalogRepository?,
+    currentTags: StagePhaseTags,
+    proposedTags: StagePhaseTags
 ): List<FlowLegView> {
     val current = this(
         GetFlowTransferLegsQuery(
@@ -192,6 +238,7 @@ private suspend fun GetFlowTransferLegsUseCase.issuedLegsLostBy(
             subjectId = order.id.value,
             stages = SamplingPipelineStage.entries,
             processes = order.effectiveFlowProcesses(catalog, TenantId(tenantId)),
+            skippedStages = currentTags.skippedSamplingStages,
             customerName = order.clientName
         )
     ).getOrNull() ?: return emptyList()
@@ -202,6 +249,7 @@ private suspend fun GetFlowTransferLegsUseCase.issuedLegsLostBy(
             subjectId = order.id.value,
             stages = SamplingPipelineStage.entries,
             processes = proposed,
+            skippedStages = proposedTags.skippedSamplingStages,
             customerName = order.clientName
         )
     ).getOrNull() ?: return emptyList()

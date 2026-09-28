@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.tenant.TenantId
@@ -11,6 +12,7 @@ import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.domain.transfer.FlowLegBoard
 import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.transfer.FlowLegCodec
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
@@ -28,7 +30,10 @@ import io.ktor.http.isSuccess
 data class OrderFlowDto(
     val orderId: String,
     val isCustomFlow: Boolean,
-    val processes: List<TenantOptionalProcess>
+    val processes: List<TenantOptionalProcess>,
+    /** Tag fase efektif desain — miliknya sendiri, atau template pabrik bila belum punya. */
+    val stagePhaseTags: StagePhaseTags = StagePhaseTags.DEFAULT,
+    val hasCustomPhaseTags: Boolean = false
 )
 
 /** Sumber data remote katalog proses opsional tenant (endpoint /api/tenant/process-catalog). */
@@ -58,6 +63,14 @@ interface ProcessCatalogRemoteDataSource {
      * supaya konektor yang tampil dan gerbang yang menolak selalu berasal dari sumber yang sama.
      */
     suspend fun fetchFlowLegs(orderId: String): Result<FlowLegBoard>
+
+    /** Template tag fase pabrik (`/api/tenant/process-catalog/phase-tags`). */
+    suspend fun fetchTenantPhaseTags(): Result<StagePhaseTags> = Result.success(StagePhaseTags.DEFAULT)
+    suspend fun saveTenantPhaseTags(tags: StagePhaseTags): Result<StagePhaseTags> = Result.success(tags)
+
+    /** Tag fase khusus satu desain; ditolak server bila SPK sudah di Program CAM ke atas. */
+    suspend fun saveOrderPhaseTags(orderId: String, tags: StagePhaseTags): Result<OrderFlowDto> =
+        Result.failure(UnsupportedOperationException("Tag fase per desain belum didukung"))
 }
 
 class ProcessCatalogApiClient(
@@ -130,10 +143,7 @@ class ProcessCatalogApiClient(
         val response = httpClient.get("$baseUrl/api/tenant/sampling/orders/$orderId/flow") {
             tenantRequest(tenantSlug, tokenProvider)
         }
-        val obj = decodeBody(response.bodyAsText(), response.status.isSuccess())
-        val isCustom = obj.boolean("isCustomFlow") ?: false
-        val processes = obj.objectArray("processes").mapNotNull { ProcessCatalogCodec.decodeProcess(it, FALLBACK_TENANT) }
-        OrderFlowDto(orderId, isCustom, processes)
+        orderFlowOf(orderId, decodeBody(response.bodyAsText(), response.status.isSuccess()), defaultCustom = false)
     }
 
     override suspend fun fetchFlowLegs(orderId: String): Result<FlowLegBoard> = runCatching {
@@ -156,21 +166,51 @@ class ProcessCatalogApiClient(
             contentType(ContentType.Application.Json)
             setBody(body.encode())
         }
-        val obj = decodeBody(response.bodyAsText(), response.status.isSuccess())
-        val isCustom = obj.boolean("isCustomFlow") ?: true
-        val returned = obj.objectArray("processes").mapNotNull { ProcessCatalogCodec.decodeProcess(it, FALLBACK_TENANT) }
-        OrderFlowDto(orderId, isCustom, returned)
+        orderFlowOf(orderId, decodeBody(response.bodyAsText(), response.status.isSuccess()), defaultCustom = true)
     }
 
     override suspend fun resetOrderFlow(orderId: String): Result<OrderFlowDto> = runCatching {
         val response = httpClient.delete("$baseUrl/api/tenant/sampling/orders/$orderId/flow") {
             tenantRequest(tenantSlug, tokenProvider)
         }
-        val obj = decodeBody(response.bodyAsText(), response.status.isSuccess())
-        val isCustom = obj.boolean("isCustomFlow") ?: false
-        val processes = obj.objectArray("processes").mapNotNull { ProcessCatalogCodec.decodeProcess(it, FALLBACK_TENANT) }
-        OrderFlowDto(orderId, isCustom, processes)
+        orderFlowOf(orderId, decodeBody(response.bodyAsText(), response.status.isSuccess()), defaultCustom = false)
     }
+
+    override suspend fun fetchTenantPhaseTags(): Result<StagePhaseTags> = runCatching {
+        val response = httpClient.get("$baseUrl/api/tenant/process-catalog/phase-tags") {
+            tenantRequest(tenantSlug, tokenProvider)
+        }
+        phaseTagsOf(decodeBody(response.bodyAsText(), response.status.isSuccess()))
+    }
+
+    override suspend fun saveTenantPhaseTags(tags: StagePhaseTags): Result<StagePhaseTags> = runCatching {
+        val response = httpClient.put("$baseUrl/api/tenant/process-catalog/phase-tags") {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(jsonObjectOf("stagePhaseTags" to StagePhaseTagsCodec.encode(tags)).encode())
+        }
+        phaseTagsOf(decodeBody(response.bodyAsText(), response.status.isSuccess()))
+    }
+
+    override suspend fun saveOrderPhaseTags(orderId: String, tags: StagePhaseTags): Result<OrderFlowDto> = runCatching {
+        val response = httpClient.put("$baseUrl/api/tenant/sampling/orders/$orderId/flow/phase-tags") {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(jsonObjectOf("stagePhaseTags" to StagePhaseTagsCodec.encode(tags)).encode())
+        }
+        orderFlowOf(orderId, decodeBody(response.bodyAsText(), response.status.isSuccess()), defaultCustom = false)
+    }
+
+    private fun phaseTagsOf(obj: JsonValue.Obj): StagePhaseTags =
+        StagePhaseTagsCodec.decode(obj.entries["stagePhaseTags"]) ?: StagePhaseTags.DEFAULT
+
+    private fun orderFlowOf(orderId: String, obj: JsonValue.Obj, defaultCustom: Boolean) = OrderFlowDto(
+        orderId = orderId,
+        isCustomFlow = obj.boolean("isCustomFlow") ?: defaultCustom,
+        processes = obj.objectArray("processes").mapNotNull { ProcessCatalogCodec.decodeProcess(it, FALLBACK_TENANT) },
+        stagePhaseTags = phaseTagsOf(obj),
+        hasCustomPhaseTags = obj.boolean("hasCustomPhaseTags") ?: false
+    )
 
     private fun decodeBody(text: String, isSuccess: Boolean): JsonValue.Obj {
         if (!isSuccess) {

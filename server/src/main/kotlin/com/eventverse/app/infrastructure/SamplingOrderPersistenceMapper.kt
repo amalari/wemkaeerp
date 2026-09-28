@@ -1,6 +1,11 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.process.StagePhaseTags
+import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.process.ProcessCatalogCodec
+import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.json.*
 import kotlinx.datetime.Instant
 
@@ -8,6 +13,18 @@ import kotlinx.datetime.Instant
  * Mapper helper untuk serialisasi/deserialisasi kolom jsonb pada tabel `sampling_orders`.
  */
 internal object SamplingOrderPersistenceMapper {
+
+    /** Alur proses kustom desain; `null` bila desain mewarisi template pabrik. */
+    fun parseCustomFlow(raw: String?, isCustomFlow: Boolean, tenantId: TenantId): List<TenantOptionalProcess>? {
+        if (!isCustomFlow || raw == null) return null
+        return runCatching {
+            (JsonParser.parse(raw) as? JsonValue.Arr)?.let { ProcessCatalogCodec.decodeProcesses(it.items, tenantId) }
+        }.getOrNull()
+    }
+
+    /** Tag fase beku desain; `null` = belum dibekukan, warisi template pabrik. */
+    fun parsePhaseTags(raw: String?): StagePhaseTags? =
+        raw?.let { runCatching { StagePhaseTagsCodec.decode(JsonParser.parse(it)) }.getOrNull() }
 
     fun parseSizeMatrix(raw: String?): List<SizeChartRow> =
         runCatching {

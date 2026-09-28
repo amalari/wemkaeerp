@@ -42,7 +42,9 @@ import kotlinx.datetime.Clock
  */
 @Composable
 fun SamplingRdProgressTrack(order: SamplingOrder) {
-    val steps = order.rdProgress()
+    // Tahap yang dilompati rute desain ("Hanya Produksi") tidak dihitung: "4/5", bukan "4/6"
+    // dengan satu segmen abu-abu yang tidak akan pernah menyala.
+    val steps = order.rdProgress().filterNot { it.state == RdStepState.SKIPPED }
     val activeIndex = steps.indexOfFirst { it.state == RdStepState.ACTIVE }
     val days = order.daysInCurrentStage(Clock.System.now())
     val isStalled = days != null && days >= RD_STALL_WARNING_DAYS

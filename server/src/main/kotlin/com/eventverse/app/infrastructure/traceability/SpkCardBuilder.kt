@@ -5,6 +5,7 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.samplingRoute
 import com.eventverse.app.domain.sampling.SpkUrgencyInput
 import com.eventverse.app.domain.sampling.SpkUrgencyLevel
 import com.eventverse.app.domain.sampling.StageSectionNames
@@ -83,8 +84,10 @@ class SpkCardBuilder(
                 clientName = order.clientName,
                 revision = order.revisionCount,
                 stageLabel = order.pipelineStage.displayName,
-                stageNumber = order.pipelineStage.order,
-                stageCount = SamplingPipelineStage.entries.size,
+                // Nomor & jumlah tahap mengikuti rute desain: kartu yang melompati Cuci
+                // mencetak "8/11", bukan "9/12" dengan satu tahap yang tak pernah dilewati.
+                stageNumber = order.samplingRoute.stages.indexOf(order.pipelineStage) + 1,
+                stageCount = order.samplingRoute.stages.size,
                 deadline = order.deadlineDelivery ?: order.deadlineFinishing ?: order.deadlineProgram,
                 urgencyLevel = mine?.level ?: SpkUrgencyLevel.URGENT,
                 slackDays = mine?.slackDays,

@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.operator
 
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.isOperatorDesk
 
 /**
@@ -38,12 +39,16 @@ sealed interface DeskFinishAction {
     }
 }
 
-fun SamplingPipelineStage.finishAction(): DeskFinishAction? = when {
+/**
+ * Aksi "selesai" meja ini. [route] = rute desain kartu yang diselesaikan: meja Cuci
+ * menyerahkan ke QC, bukan Setrika, bila desain itu men-× tag Sampling pada Setrika.
+ */
+fun SamplingPipelineStage.finishAction(route: SamplingRoute = SamplingRoute.FULL): DeskFinishAction? = when {
     this == SamplingPipelineStage.MACHINE_KNITTING -> DeskFinishAction.Worksheet(SamplingPipelineStage.LINKING_ASSEMBLY)
     this == SamplingPipelineStage.LINKING_ASSEMBLY -> DeskFinishAction.Deposit
     this == SamplingPipelineStage.QC_FINISHING -> DeskFinishAction.QcInspection
     this == SamplingPipelineStage.PENGEMASAN -> DeskFinishAction.Store
-    isOperatorDesk -> nextStage?.let(DeskFinishAction::Handoff)
+    isOperatorDesk -> route.nextAfter(this)?.let(DeskFinishAction::Handoff)
     else -> null
 }
 
