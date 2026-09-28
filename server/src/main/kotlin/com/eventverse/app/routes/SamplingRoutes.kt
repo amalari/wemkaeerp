@@ -7,6 +7,7 @@ import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.stageflow.usecases.GetTenantStageFlowUseCase
 import com.eventverse.app.domain.tenant.TenantContext
@@ -232,7 +233,7 @@ fun Route.samplingRoutes(
                 // Gerbang perpindahan barang butuh alur efektif SPK ini: alur kustomnya bila ada,
                 // kalau tidak template pabrik. Sumber yang sama dipakai panel alur, supaya yang
                 // ditolak gerbang persis yang ditandai merah di layar.
-                val tenantStageFlow = stageFlowRepository?.let { GetTenantStageFlowUseCase(it)(withInputs.tenantId).getOrThrow() }
+                val tenantStageFlow = stageFlowRepository?.let { GetTenantStageFlowUseCase(it)(withInputs.tenantId, call.tenantContextOrNull?.industryTemplate ?: IndustryTemplateCode.KNIT_SWEATER).getOrThrow() }
                 val effectiveProcesses = withInputs.customFlowProcesses
                     ?: processCatalogRepository?.findByTenantId(withInputs.tenantId)?.processes
                     ?: emptyList()

@@ -1,8 +1,10 @@
 package com.eventverse.app.domain.transfer
 
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.sampling.toSamplingStageOrNull
 import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.IndustryStageTemplates
 import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.workqueue.WorkStationCode
 
@@ -83,11 +85,12 @@ sealed interface FlowNodeRef {
             val value = key.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (kind.isBlank() || value.isBlank()) return null
             return when (kind) {
-                // Masih hanya nama enum persis (bukan alias, bukan kode bebas): baris pemetaan dengan
-                // nama tahap yang sudah dihapus tetap dibuang, sama seperti sebelumnya. Dilonggarkan
-                // di Tahap 3, saat tahap non-rajut benar-benar ada.
-                KIND_STAGE -> SamplingPipelineStage.entries.firstOrNull { it.name == value }
-                    ?.let { Stage(it.toStageCode()) }
+                // Alias lama diterjemahkan (FINISHING_QC → CUCI_SOFTENER), lalu kode yang dikenal template
+                // industri mana pun (TRD-FLOW-001 Tahap 3) — pemetaan "Bordir Mesin" harus terbaca ulang.
+                // Nama yang tidak dikenal siapa pun (tahap yang sudah dihapus) tetap dibuang, seperti dulu.
+                // Tahap kustom tenant (Tahap 3b) butuh parse yang tahu kerangka tenant.
+                KIND_STAGE -> (parseLegacyStageCodeOrNull(value) ?: StageCode.parseOrNull(value)?.takeIf { it in IndustryStageTemplates.knownCodes })
+                    ?.let(::Stage)
                 KIND_PROCESS -> Process(value)
                 KIND_STATION -> Station(WorkStationCode(value))
                 else -> null

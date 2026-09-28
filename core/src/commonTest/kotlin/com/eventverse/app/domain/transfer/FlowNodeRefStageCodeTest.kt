@@ -27,11 +27,14 @@ class FlowNodeRefStageCodeTest {
     }
 
     @Test
-    fun parse_shouldStillAcceptOnlyExactEnumNames() {
+    fun parse_shouldTranslateAliasAndAcceptFrameCodes() {
         assertEquals(FlowNodeRef.Stage(StageCode("CUCI_SOFTENER")), FlowNodeRef.parse("STAGE:CUCI_SOFTENER"))
-        // Perilaku lama dipertahankan: alias dan kode di luar enum dibuang, bukan diterima.
-        assertNull(FlowNodeRef.parse("STAGE:FINISHING_QC"))
-        assertNull(FlowNodeRef.parse("STAGE:MACHINE_EMBROIDERY"))
+        // Tahap 3: alias lama diterjemahkan, kode template industri lain diterima (dulu dibuang).
+        assertEquals(FlowNodeRef.Stage(StageCode("CUCI_SOFTENER")), FlowNodeRef.parse("STAGE:FINISHING_QC"))
+        assertEquals(FlowNodeRef.Stage(StageCode("MACHINE_EMBROIDERY")), FlowNodeRef.parse("STAGE:MACHINE_EMBROIDERY"))
+        assertNull(FlowNodeRef.parse("STAGE:bukan kode"))
+        // Kode valid tapi tidak dikenal template mana pun (tahap terhapus) tetap dibuang.
+        assertNull(FlowNodeRef.parse("STAGE:TAHAP_YANG_SUDAH_DIHAPUS"))
     }
 
     @Test

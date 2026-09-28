@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.tenant
 
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 
 /**
  * Core domain entity representing a tenant (Factory / Convection business account).
@@ -13,7 +14,9 @@ data class Tenant(
     val status: TenantStatus = TenantStatus.TRIAL,
     val tier: SubscriptionTier = SubscriptionTier.PRO,
     val activeMachineCount: Int = 0,
-    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+    /** Kerangka tahap industri tempat pabrik ini di-provision (TRD-FLOW-001). Sumbu terpisah dari model bisnis. */
+    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER
 ) {
     val isAccessible: Boolean
         get() = status.isAccessible
@@ -41,4 +44,6 @@ data class Tenant(
     fun canAddMachine(): Boolean = activeMachineCount < tier.maxActiveMachines
 
     fun updateBusinessPreset(newPreset: GarmentBusinessPreset): Tenant = copy(businessPreset = newPreset)
+
+    fun updateIndustryTemplate(template: IndustryTemplateCode): Tenant = copy(industryTemplate = template)
 }

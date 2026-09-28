@@ -13,6 +13,7 @@
 | 0.4 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R2 selesai: aturan domain & server berbasis peran/trait pada kerangka SPK; `remainingWorkFactor` di `StageDefinition` (nilai rajut dipertahankan persis). Sisa: pembaca presentasi (R3). |
 | 0.5 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R3a: papan sampling dari kerangka tenant (`GET /api/tenant/stage-flow`), kolom dari peran tahap, warna = `colorHex`. Keputusan: label timeline disamakan ke nama tahap. V72/V73 teraplikasi di dev. |
 | 0.6 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R3b: meja operator, dialog, deal, QC, panel alur dari kerangka; label ringkas rajut = istilah lantai (Linking, QC). **Tahap 2 selesai**: nol pembacaan jembatan enum yang bisa melempar. Sisa sengaja: `FlowNodeRef.parse` ketat, lembar CAM/turun mesin khas rajut, picker RBAC memakai meja rajut default. |
+| 0.7 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Tahap 3a: template CUT_AND_SEW/EMBROIDERY/SCREEN_PRINT (**draf**, belum divalidasi lantai; kode dipakai ulang untuk pekerjaan sama), `tenants.industry_template` (V74), `FlowNodeRef.parse` menerima kode template mana pun. Sablon = `CUSTOM_EXTENSION` (tanpa peran SEWING). |
 
 ### Summary & Business Context
 
@@ -367,7 +368,7 @@ string yang sama; `FlowNodeRef.key` tetap `STAGE:<code>`.
 |---|---|---|---|
 | **1** ✅ | `stageflow` domain + template `KNIT_SWEATER` + tabel V72 + API GET; adapter `SamplingPipelineStage.toStageCode()` | **Tidak ada** | Ya, drop tabel |
 | **2** ✅ (data, domain, server, papan R3a, meja operator & dialog R3b) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
-| **3** | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
+| **3** 🟡 (3a ✅: 3 template draf, `tenants.industry_template` V74, `FlowNodeRef.parse` longgar; 3b ⏳ use case edit & API; 3c ⏳ editor) | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
 | **4** | Kanvas dua level + telemetri per tahap | Visual Factory Flow | Ya |
 
 ---

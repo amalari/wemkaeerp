@@ -15,6 +15,7 @@ object TenantsTable : Table("tenants") {
      * preset a tenant is provisioned with, so it has to be persisted rather than defaulted.
      */
     val businessPreset = varchar("business_preset", 50).default("fob_full_package")
+    val industryTemplate = varchar("industry_template", 32).default("KNIT_SWEATER")
 
     override val primaryKey = PrimaryKey(id)
 }

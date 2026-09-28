@@ -58,7 +58,10 @@ enum class StageOrigin { TEMPLATE, OPTIONAL }
 
 /** Kerangka industri yang bisa dipakai tenant sebagai titik awal. */
 enum class IndustryTemplateCode(val displayName: String) {
-    KNIT_SWEATER("Rajut / Sweater");
+    KNIT_SWEATER("Rajut / Sweater"),
+    CUT_AND_SEW("Konveksi Potong-Jahit"),
+    EMBROIDERY("Bordir"),
+    SCREEN_PRINT("Sablon");
 
     companion object {
         fun parseOrNull(raw: String?): IndustryTemplateCode? = entries.firstOrNull { it.name == raw }

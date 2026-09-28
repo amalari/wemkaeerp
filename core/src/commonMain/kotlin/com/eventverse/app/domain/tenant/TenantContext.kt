@@ -2,6 +2,7 @@ package com.eventverse.app.domain.tenant
 
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 
 /**
  * Value context representing the active tenant within the current execution scope.
@@ -15,7 +16,9 @@ data class TenantContext(
      * The tenant's garment business model. Carried here so request handlers provision a new
      * pipeline from the factory's own model instead of falling back to a global default.
      */
-    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+    /** Template industri — kerangka yang di-provision untuk tenant tanpa kerangka (TRD-FLOW-001). */
+    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER
 ) {
     /** Which operational modules this tenant's subscription plan grants. */
     val moduleEntitlement: TenantModuleEntitlement get() = TenantModuleEntitlement.forTier(tier)
@@ -26,7 +29,8 @@ data class TenantContext(
             slug = tenant.slug,
             tier = tenant.tier,
             isAccessible = tenant.isAccessible,
-            businessPreset = tenant.businessPreset
+            businessPreset = tenant.businessPreset,
+            industryTemplate = tenant.industryTemplate
         )
     }
 }

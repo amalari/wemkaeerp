@@ -46,9 +46,19 @@ object IndustryStageTemplates {
     private const val SKY = 0xFF0284C7
     private const val GREEN = 0xFF16A34A
 
-    private val KNIT_SWEATER: List<StageDefinition> = listOf(
+    /** Jangkar masuk & keluar — identik di setiap template (TRD-FLOW-001 FR-1). */
+    private val ENTRY_ANCHORS: List<StageDefinition> = listOf(
         stage("NEW_INTAKE", "SPK Masuk (Sales Deal)", "Draft", MUTED, ENTRY_ANCHOR, ModuleArchetype.ORDER_INGESTION, 1.00),
-        stage("FLOW_REVIEW", "Penentuan Alur Desain", "Alur", ORANGE, ENTRY_ANCHOR, ModuleArchetype.PRODUCT_ENGINEERING, 1.00),
+        stage("FLOW_REVIEW", "Penentuan Alur Desain", "Alur", ORANGE, ENTRY_ANCHOR, ModuleArchetype.PRODUCT_ENGINEERING, 1.00)
+    )
+
+    private val EXIT_ANCHORS: List<StageDefinition> = listOf(
+        stage("STORAGE_HOLDING", "Penyimpanan (Siap Kirim)", "Disimpan", SLATE, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.03),
+        stage("IN_DELIVERY", "Terkirim (Tunggu ACC)", "Selesai", SKY, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.02),
+        stage("ACC_APPROVED", "ACC Produksi", "Selesai", GREEN, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.00)
+    )
+
+    private val KNIT_SWEATER: List<StageDefinition> = ENTRY_ANCHORS + listOf(
         stage("CAM_PROGRAMMING", "Program CAM", "CAM", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.85),
         stage("MACHINE_KNITTING", "Rajut Turun Mesin", "Rajut", AMBER, WORK, ModuleArchetype.CUTTING, 0.55, OPERATOR_DESK),
         stage(
@@ -67,15 +77,57 @@ object IndustryStageTemplates {
             "QC_FINISHING", "QC Finishing", "QC", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08,
             FINISHING_FLOOR, OPERATOR_DESK
         ),
-        stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK),
-        stage("STORAGE_HOLDING", "Penyimpanan (Siap Kirim)", "Disimpan", SLATE, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.03),
-        stage("IN_DELIVERY", "Terkirim (Tunggu ACC)", "Selesai", SKY, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.02),
-        stage("ACC_APPROVED", "ACC Produksi", "Selesai", GREEN, EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, 0.00)
-    )
+        stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK)
+    ) + EXIT_ANCHORS
+
+    // ── Template industri lain — DRAF (TRD-FLOW-001 §4 poin 3 belum divalidasi lantai) ──────
+    // Kode yang sama dipakai untuk pekerjaan yang sama (QC_FINISHING, PENGEMASAN, SETRIKA_UAP)
+    // supaya antrian QC, tag fase, dan cetak SPK mengenalinya tanpa kasus khusus. Tenant boleh
+    // menyunting salinannya; template ini hanya titik awal.
+
+    private val CUT_AND_SEW: List<StageDefinition> = ENTRY_ANCHORS + listOf(
+        stage("PATTERN_MAKING", "Pembuatan Pola & Marker", "Pola", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.85),
+        stage("CUTTING", "Potong Kain", "Potong", AMBER, WORK, ModuleArchetype.CUTTING, 0.65, OPERATOR_DESK),
+        stage("SEWING", "Jahit", "Jahit", VIOLET, WORK, ModuleArchetype.SEWING, 0.40, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("OVERLOCK", "Obras", "Obras", VIOLET, WORK, ModuleArchetype.SEWING, 0.30, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("BUTTON_ATTACH", "Lubang & Pasang Kancing", "Kancing", TEAL, WORK, ModuleArchetype.FINISHING, 0.22, FINISHING_FLOOR, OPERATOR_DESK),
+        stage(
+            "SETRIKA_UAP", "Setrika Uap", "Setrika", TEAL, WORK, ModuleArchetype.FINISHING, 0.15,
+            FINISHING_FLOOR, WET_OR_PRESS, PHASE_TAGGABLE, OPERATOR_DESK
+        ),
+        stage("QC_FINISHING", "QC Finishing", "QC", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK)
+    ) + EXIT_ANCHORS
+
+    private val EMBROIDERY: List<StageDefinition> = ENTRY_ANCHORS + listOf(
+        stage("DIGITIZING", "Digitizing Desain", "Digitizing", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.85),
+        stage("HOOPING", "Hooping & Pasang Bahan", "Hooping", AMBER, WORK, ModuleArchetype.CUTTING, 0.60, OPERATOR_DESK),
+        stage("MACHINE_EMBROIDERY", "Bordir Mesin", "Bordir", VIOLET, WORK, ModuleArchetype.SEWING, 0.35, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("THREAD_TRIMMING", "Buang Benang & Rapikan", "Trimming", TEAL, WORK, ModuleArchetype.FINISHING, 0.18, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("QC_FINISHING", "QC Finishing", "QC", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK)
+    ) + EXIT_ANCHORS
+
+    // Sablon tidak punya peran SEWING: tidak ada setoran perakitan maupun jalur makloon rakit.
+    // Mesin sablonnya CUSTOM_EXTENSION, persis seperti tabel archetype module-integration-rules.
+    private val SCREEN_PRINT: List<StageDefinition> = ENTRY_ANCHORS + listOf(
+        stage("COLOR_SEPARATION", "Separasi Warna & Film", "Separasi", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.85),
+        stage("SCREEN_EXPOSURE", "Afdruk Screen", "Afdruk", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.70),
+        stage("SCREEN_PRINTING", "Sablon", "Sablon", AMBER, WORK, ModuleArchetype.CUSTOM_EXTENSION, 0.40, OPERATOR_DESK),
+        stage("CURING", "Curing / Pengeringan", "Curing", TEAL, WORK, ModuleArchetype.FINISHING, 0.20, FINISHING_FLOOR, WET_OR_PRESS, OPERATOR_DESK),
+        stage("QC_FINISHING", "QC Finishing", "QC", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08, FINISHING_FLOOR, OPERATOR_DESK),
+        stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK)
+    ) + EXIT_ANCHORS
 
     fun stagesOf(template: IndustryTemplateCode): List<StageDefinition> = when (template) {
         IndustryTemplateCode.KNIT_SWEATER -> KNIT_SWEATER
+        IndustryTemplateCode.CUT_AND_SEW -> CUT_AND_SEW
+        IndustryTemplateCode.EMBROIDERY -> EMBROIDERY
+        IndustryTemplateCode.SCREEN_PRINT -> SCREEN_PRINT
     }
+
+    /** Semua kode tahap yang dikenal template mana pun — dasar validasi kode tersimpan tanpa kerangka tenant. */
+    val knownCodes: Set<StageCode> by lazy { IndustryTemplateCode.entries.flatMap { stagesOf(it) }.mapTo(mutableSetOf()) { it.code } }
 
     fun instantiate(tenantId: TenantId, template: IndustryTemplateCode): TenantStageFlow =
         TenantStageFlow(tenantId, template, stagesOf(template))
