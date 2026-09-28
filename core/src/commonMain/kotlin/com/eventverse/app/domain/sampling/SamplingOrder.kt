@@ -2,6 +2,7 @@ package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -35,7 +36,8 @@ data class SamplingOrder(
     val clientName: String,
     val styleName: String,
     val status: SamplingStatus = SamplingStatus.DRAFT,
-    val pipelineStage: SamplingPipelineStage = SamplingPipelineStage.NEW_INTAKE,
+    /** Tahap saat ini pada kerangka tenant — sumber kebenaran (TRD-FLOW-001); lihat [pipelineStage]. */
+    val stageCode: StageCode = SamplingPipelineStage.NEW_INTAKE.toStageCode(),
     val finishingPath: FinishingPath = FinishingPath.INTERNAL,
     val vendorInfo: MakloonVendorInfo = MakloonVendorInfo(),
     val sizeMode: SizeMode = SizeMode.ALL_SIZE,
@@ -87,6 +89,10 @@ data class SamplingOrder(
     val updatedAt: Instant,
     val archivedAt: Instant? = null
 ) {
+    /** Jembatan baca untuk pembaca lama. Tahap non-rajut belum boleh aktif sebelum mereka pindah. */
+    val pipelineStage: SamplingPipelineStage
+        get() = checkNotNull(stageCode.toSamplingStageOrNull()) { "Tahap ${stageCode.value} belum didukung jalur enum" }
+
     val isAccApproved: Boolean get() = status == SamplingStatus.ACC_APPROVED
     val isArchived: Boolean get() = archivedAt != null
     val isInDelivery: Boolean get() = pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
@@ -161,7 +167,7 @@ data class SamplingOrder(
         )
         return copy(
             status = SamplingStatus.REVISION,
-            pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING,
+            stageCode = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(),
             accNotes = notes,
             revisionCount = nextRevision,
             // Simpan snapshot keadaan saat ini yang diasosiasikan dengan revisionCount sebelum naik
@@ -208,7 +214,7 @@ data class SamplingOrder(
      * ditambahkan, dan klaim "sedang dikerjakan" dilepas — pekerjaan di tahap lama sudah selesai.
      */
     internal fun movedTo(target: SamplingPipelineStage, audit: StageTransitionAudit): SamplingOrder = copy(
-        pipelineStage = target,
+        stageCode = target.toStageCode(),
         activeWork = null,
         stageHistory = stageHistory + audit.copy(
             workStartedAt = audit.workStartedAt ?: currentWork?.startedAt,

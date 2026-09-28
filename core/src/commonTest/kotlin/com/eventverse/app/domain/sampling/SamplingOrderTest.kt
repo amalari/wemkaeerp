@@ -117,7 +117,7 @@ class SamplingOrderTest {
     fun resolveGarmentTimeline_inKnittingState_shouldCompleteInputAndRelease() {
         val order = createSampleOrder().copy(
             status = SamplingStatus.IN_PROGRESS,
-            pipelineStage = SamplingPipelineStage.MACHINE_KNITTING
+            stageCode = SamplingPipelineStage.MACHINE_KNITTING.toStageCode()
         )
         val timeline = order.resolveGarmentTimeline()
 
@@ -137,7 +137,7 @@ class SamplingOrderTest {
     fun resolveGarmentTimeline_inDeliveryState_shouldHaveReadyToShipActive() {
         val order = createSampleOrder().copy(
             status = SamplingStatus.IN_PROGRESS,
-            pipelineStage = SamplingPipelineStage.IN_DELIVERY,
+            stageCode = SamplingPipelineStage.IN_DELIVERY.toStageCode(),
             courierTracking = null
         )
         val timeline = order.resolveGarmentTimeline()
@@ -167,7 +167,7 @@ class SamplingOrderTest {
 
     private fun orderAtCam(): SamplingOrder = createSampleOrder().copy(
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING
+        stageCode = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode()
     )
 
     private fun filledCamSections(): List<StageInputSection> = listOf(

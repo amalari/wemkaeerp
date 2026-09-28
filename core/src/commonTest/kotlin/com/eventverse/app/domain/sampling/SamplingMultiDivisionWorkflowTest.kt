@@ -25,7 +25,7 @@ class SamplingMultiDivisionWorkflowTest {
         clientName = "PT Mode Kreatif",
         styleName = "Cardigan Rajut Oversize",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = SamplingPipelineStage.MACHINE_KNITTING,
+        stageCode = SamplingPipelineStage.MACHINE_KNITTING.toStageCode(),
         sampleQuantity = qty,
         createdAt = now,
         updatedAt = now

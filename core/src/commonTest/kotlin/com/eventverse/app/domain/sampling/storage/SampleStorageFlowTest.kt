@@ -6,6 +6,7 @@ import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.SpkNumber
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.sampling.usecases.AdvanceSamplingStageCommand
 import com.eventverse.app.domain.sampling.usecases.AdvanceSamplingStageUseCase
 import com.eventverse.app.domain.sampling.usecases.ReleaseSampleFromStorageCommand
@@ -41,7 +42,7 @@ class SampleStorageFlowTest {
         clientName = "BIANCA",
         styleName = "CARDIGAN",
         status = status,
-        pipelineStage = stage,
+        stageCode = stage.toStageCode(),
         dealId = dealId,
         createdAt = now,
         updatedAt = now

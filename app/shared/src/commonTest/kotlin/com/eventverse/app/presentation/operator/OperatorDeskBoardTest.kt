@@ -11,6 +11,7 @@ import com.eventverse.app.domain.sampling.sendBackForRework
 import com.eventverse.app.domain.sampling.releaseStageWork
 import com.eventverse.app.domain.sampling.startStageWork
 import com.eventverse.app.domain.sampling.releaseStageWork
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -33,7 +34,7 @@ class OperatorDeskBoardTest {
         clientName = "C",
         styleName = "S",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = stage,
+        stageCode = stage.toStageCode(),
         createdAt = at,
         updatedAt = at
     )

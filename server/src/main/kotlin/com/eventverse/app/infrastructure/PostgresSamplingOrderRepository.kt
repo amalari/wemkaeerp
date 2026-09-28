@@ -553,7 +553,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             clientName = orderRow[SamplingOrdersTable.clientName],
             styleName = orderRow[SamplingOrdersTable.styleName],
             status = runCatching { SamplingStatus.valueOf(orderRow[SamplingOrdersTable.status]) }.getOrNull() ?: SamplingStatus.DRAFT,
-            pipelineStage = SamplingPipelineStage.parseOrNull(orderRow[SamplingOrdersTable.pipelineStage]) ?: SamplingPipelineStage.NEW_INTAKE,
+            stageCode = (SamplingPipelineStage.parseOrNull(orderRow[SamplingOrdersTable.pipelineStage]) ?: SamplingPipelineStage.NEW_INTAKE).toStageCode(),
             finishingPath = runCatching { FinishingPath.valueOf(orderRow[SamplingOrdersTable.finishingPath]) }.getOrNull() ?: FinishingPath.INTERNAL,
             vendorInfo = vendorInfo,
             sizeMode = runCatching { SizeMode.valueOf(orderRow[SamplingOrdersTable.sizeMode]) }.getOrNull() ?: SizeMode.ALL_SIZE,

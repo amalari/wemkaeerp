@@ -40,7 +40,7 @@ class SamplingPhaseRouteTest {
         clientName = "BIANCA",
         styleName = "RIB CARDIGAN",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = stage,
+        stageCode = stage.toStageCode(),
         sampleQuantity = qty,
         stagePhaseTags = tags,
         createdAt = now,

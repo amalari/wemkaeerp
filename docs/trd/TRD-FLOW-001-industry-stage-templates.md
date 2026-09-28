@@ -339,6 +339,10 @@ string yang sama; `FlowNodeRef.key` tetap `STAGE:<code>`.
 - **Constraint**: file yang sudah di atas hard limit (mis.
   `PostgresSamplingOrderRepository.kt` 698, `OperationalModuleContract.kt` 514) tunduk Aturan
   Ratchet — tidak boleh bertambah panjang.
+- **Constraint (ditemukan di Tahap 2, `sampling` 1/3)**: jembatan enum pada `SamplingRoute`
+  (`nextAfter(SamplingPipelineStage)`) mengembalikan `null` bila tahap berikutnya tidak punya
+  padanan enum. Karena itu template kedua (Tahap 3) **tidak boleh** diaktifkan sebelum
+  `SamplingOrder.pipelineStage` dan seluruh pemanggil `SamplingRoute` memakai `StageCode`.
 - **Dependency**: `ModuleArchetype`, `WorkExecutionMode`, `FlowNodeRef`,
   `AdvanceSamplingStageUseCase`, `PhaseTaggableStage`, `SamplingOrderCodec`.
 
@@ -347,7 +351,7 @@ string yang sama; `FlowNodeRef.key` tetap `STAGE:<code>`.
 | Tahap | Isi | Perubahan perilaku | Bisa di-rollback |
 |---|---|---|---|
 | **1** ✅ | `stageflow` domain + template `KNIT_SWEATER` + tabel V72 + API GET; adapter `SamplingPipelineStage.toStageCode()` | **Tidak ada** | Ya, drop tabel |
-| **2** 🟡 (`transfer` ✅, `process` anchor ✅) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
+| **2** 🟡 (`transfer` ✅, `process` anchor ✅, `sampling` 2/3 `SamplingOrder.stageCode` ✅) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
 | **3** | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
 | **4** | Kanvas dua level + telemetri per tahap | Visual Factory Flow | Ya |
 

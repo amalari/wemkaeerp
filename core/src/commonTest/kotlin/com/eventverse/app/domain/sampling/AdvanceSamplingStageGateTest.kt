@@ -42,7 +42,7 @@ class AdvanceSamplingStageGateTest {
         clientName = "BIANCA",
         styleName = "FLORAL CARDIGAN",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = SamplingPipelineStage.MACHINE_KNITTING,
+        stageCode = SamplingPipelineStage.MACHINE_KNITTING.toStageCode(),
         createdAt = now,
         updatedAt = now
     )
@@ -196,7 +196,7 @@ class AdvanceSamplingStageGateTest {
 
     @Test
     fun `advance when cam worksheet incomplete should keep reporting the cam gate`() = runTest {
-        val atCam = order().copy(pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING)
+        val atCam = order().copy(stageCode = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode())
         val result = useCase(config = null)(
             command(useCaseOrder = atCam).copy(target = SamplingPipelineStage.MACHINE_KNITTING)
         )

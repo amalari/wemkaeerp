@@ -2,6 +2,7 @@
 package com.eventverse.app.shared.sampling
 
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.process.ProcessCatalogCodec
@@ -223,7 +224,7 @@ object SamplingOrderCodec {
             clientName = clientName,
             styleName = styleName,
             status = status,
-            pipelineStage = pipelineStage,
+            stageCode = pipelineStage.toStageCode(),
             finishingPath = finishingPath,
             vendorInfo = vendorInfo,
             sizeMode = sizeMode,

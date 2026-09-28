@@ -20,7 +20,7 @@ class SamplingRdProgressTest {
         clientName = "BIANCA",
         styleName = "FLORAL CARDIGAN",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = stage,
+        stageCode = stage.toStageCode(),
         createdAt = now,
         updatedAt = now
     )

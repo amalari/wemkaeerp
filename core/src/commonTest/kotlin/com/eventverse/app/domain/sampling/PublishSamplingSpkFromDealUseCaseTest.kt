@@ -92,7 +92,7 @@ class PublishSamplingSpkFromDealUseCaseTest {
         clientName = "Morfeen Studio",
         styleName = "Hoodie Rajut Vintage",
         status = SamplingStatus.DRAFT,
-        pipelineStage = SamplingPipelineStage.NEW_INTAKE,
+        stageCode = SamplingPipelineStage.NEW_INTAKE.toStageCode(),
         dealId = dealId,
         sampleQuantity = 4,
         sizeMatrix = matrix,

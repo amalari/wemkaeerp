@@ -23,7 +23,7 @@ class SamplingStageWorkTest {
         clientName = "BIANCA",
         styleName = "RIB CARDIGAN",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = stage,
+        stageCode = stage.toStageCode(),
         sampleQuantity = qty,
         createdAt = now,
         updatedAt = now

@@ -1,7 +1,7 @@
 package com.eventverse.app.domain.transfer.usecases
 
 import com.eventverse.app.domain.process.TenantOptionalProcess
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.transfer.FlowLegBoard
 import com.eventverse.app.domain.transfer.FlowLegDerivation
 import com.eventverse.app.domain.transfer.FlowLegStatusResolver
@@ -12,10 +12,11 @@ data class GetFlowTransferLegsQuery(
     val tenantId: String,
     /** SPK yang alurnya sedang dilihat — dipakai mencari dokumen yang sudah terbit untuknya. */
     val subjectId: String,
-    val stages: List<SamplingPipelineStage>,
+    /** Kerangka tahap berurutan — lihat `SamplingRoute.DEFAULT_FRAME`. */
+    val stages: List<StageCode>,
     val processes: List<TenantOptionalProcess>,
     /** Tahap yang dilompati rute sampling desain ini — lihat `SamplingRoute`. */
-    val skippedStages: Set<SamplingPipelineStage> = emptySet(),
+    val skippedStages: Set<StageCode> = emptySet(),
     /** Nama pembeli untuk leg ekor; `null` bila penyerahan ke buyer tidak relevan. */
     val customerName: String? = null
 )

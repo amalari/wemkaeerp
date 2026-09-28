@@ -272,7 +272,7 @@ class SamplingViewModel(
             state.copy(
                 spkDetailTarget = state.spkDetailTarget
                     ?.takeIf { it.id == orderId }
-                    ?.copy(pipelineStage = SamplingPipelineStage.FLOW_REVIEW)
+                    ?.copy(stageCode = SamplingPipelineStage.FLOW_REVIEW.toStageCode())
                     ?: state.spkDetailTarget
             )
         }

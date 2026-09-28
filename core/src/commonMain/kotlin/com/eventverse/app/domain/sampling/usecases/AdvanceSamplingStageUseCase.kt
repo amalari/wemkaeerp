@@ -6,6 +6,7 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.freezePhaseTags
 import com.eventverse.app.domain.sampling.samplingRoute
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.transfer.SuratJalanRepository
@@ -116,7 +117,7 @@ class AdvanceSamplingStageUseCase(
             GetFlowTransferLegsQuery(
                 tenantId = command.order.tenantId.value,
                 subjectId = command.order.id.value,
-                stages = command.stages,
+                stages = command.stages.map { it.toStageCode() },
                 processes = command.processes,
                 skippedStages = command.order.samplingRoute.skipped,
                 customerName = command.order.clientName

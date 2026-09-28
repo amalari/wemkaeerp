@@ -1,6 +1,8 @@
 package com.eventverse.app.domain.process
 
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.workqueue.WorkStationCatalog
 import com.eventverse.app.domain.workqueue.WorkStationCode
 
@@ -60,10 +62,10 @@ data class StagePhaseTags(val phases: Map<PhaseTaggableStage, Set<FlowPhase>> = 
         if (appliesTo(stage, phase)) without(stage, phase) else with(stage, phase)
 
     /** Tahap sampling yang dilompati kartu sampling desain ini. */
-    val skippedSamplingStages: Set<SamplingPipelineStage>
+    val skippedSamplingStages: Set<StageCode>
         get() = PhaseTaggableStage.entries
             .filterNot { appliesTo(it, FlowPhase.SAMPLING) }
-            .mapTo(mutableSetOf()) { it.samplingStage }
+            .mapTo(mutableSetOf()) { it.samplingStage.toStageCode() }
 
     /**
      * Stasiun produksi yang aktif untuk desain ini, dari [line] lini produksinya.

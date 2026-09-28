@@ -6,8 +6,8 @@ import com.eventverse.app.domain.process.TenantStagePhaseTagsRepository
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.effectivePhaseTags
 import com.eventverse.app.domain.sampling.isFlowLocked
 import com.eventverse.app.domain.sampling.customizeProcessFlow
@@ -76,7 +76,7 @@ fun Route.samplingFlowRoutes(
             GetFlowTransferLegsQuery(
                 tenantId = tenant.tenantId.value,
                 subjectId = order.id.value,
-                stages = SamplingPipelineStage.entries,
+                stages = SamplingRoute.DEFAULT_FRAME,
                 processes = order.effectiveFlowProcesses(processCatalogRepository, tenant.tenantId),
                 skippedStages = order.effectivePhaseTags(templateTags(tenant.tenantId)).skippedSamplingStages,
                 customerName = order.clientName
@@ -236,7 +236,7 @@ private suspend fun GetFlowTransferLegsUseCase.issuedLegsLostBy(
         GetFlowTransferLegsQuery(
             tenantId = tenantId,
             subjectId = order.id.value,
-            stages = SamplingPipelineStage.entries,
+            stages = SamplingRoute.DEFAULT_FRAME,
             processes = order.effectiveFlowProcesses(catalog, TenantId(tenantId)),
             skippedStages = currentTags.skippedSamplingStages,
             customerName = order.clientName
@@ -247,7 +247,7 @@ private suspend fun GetFlowTransferLegsUseCase.issuedLegsLostBy(
         GetFlowTransferLegsQuery(
             tenantId = tenantId,
             subjectId = order.id.value,
-            stages = SamplingPipelineStage.entries,
+            stages = SamplingRoute.DEFAULT_FRAME,
             processes = proposed,
             skippedStages = proposedTags.skippedSamplingStages,
             customerName = order.clientName

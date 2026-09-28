@@ -4,6 +4,7 @@ import com.eventverse.app.domain.deal.DealId
 import com.eventverse.app.domain.deal.DealRepository
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Clock
 
@@ -57,7 +58,7 @@ class PublishSamplingSpkFromDealUseCase(
             sampleQuantity = firstSize.second,
             sizeMode = if (firstSize.first.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
             status = if (rootOrder.status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else rootOrder.status,
-            pipelineStage = targetStage,
+            stageCode = targetStage.toStageCode(),
             updatedAt = now
         )
         samplingRepository.save(updatedRoot)
@@ -71,7 +72,7 @@ class PublishSamplingSpkFromDealUseCase(
                     sampleQuantity = qty,
                     sizeMode = if (sizeName.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
                     status = if (existing.status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else existing.status,
-                    pipelineStage = targetStage,
+                    stageCode = targetStage.toStageCode(),
                     updatedAt = now
                 )
                 samplingRepository.save(updatedChild)
@@ -86,7 +87,7 @@ class PublishSamplingSpkFromDealUseCase(
                     sampleQuantity = qty,
                     sizeMode = if (sizeName.equals("ALL SIZE", ignoreCase = true)) SizeMode.ALL_SIZE else SizeMode.MULTI_SIZE,
                     status = SamplingStatus.IN_PROGRESS,
-                    pipelineStage = targetStage,
+                    stageCode = targetStage.toStageCode(),
                     createdAt = now,
                     updatedAt = now
                 )

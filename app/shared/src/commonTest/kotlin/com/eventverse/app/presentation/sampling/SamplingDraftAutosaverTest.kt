@@ -26,7 +26,7 @@ class SamplingDraftAutosaverTest {
         clientName = "Morfeen Studio",
         styleName = "Oversized Knit Hoodie",
         status = SamplingStatus.IN_PROGRESS,
-        pipelineStage = SamplingPipelineStage.CAM_PROGRAMMING,
+        stageCode = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(),
         createdAt = now,
         updatedAt = now
     )

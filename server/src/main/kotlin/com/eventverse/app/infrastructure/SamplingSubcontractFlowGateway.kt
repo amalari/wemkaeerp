@@ -7,7 +7,7 @@ import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.customizeProcessFlow
 import com.eventverse.app.domain.sampling.effectivePhaseTags
@@ -59,7 +59,7 @@ class SamplingSubcontractFlowGateway(
             GetFlowTransferLegsQuery(
                 tenantId = tenantId.value,
                 subjectId = order.id.value,
-                stages = SamplingPipelineStage.entries,
+                stages = SamplingRoute.DEFAULT_FRAME,
                 processes = effective(order, templateOf(tenantId)),
                 skippedStages = order.effectivePhaseTags(
                     phaseTagsRepository?.findByTenantId(tenantId) ?: StagePhaseTags.DEFAULT
