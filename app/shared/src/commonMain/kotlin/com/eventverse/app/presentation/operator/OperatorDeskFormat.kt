@@ -52,6 +52,6 @@ fun DeskHandoff.timingLine(timeZone: TimeZone): String {
 val DeskHandoff.eventLabel: String
     get() = when {
         audit.isRelease -> "Dikembalikan ke antrian"
-        audit.isRework -> "Rework ke ${audit.toStage.deskLabel}: ${audit.reason.orEmpty()}"
-        else -> "Diserahkan ke ${audit.toStage.deskLabel}"
+        audit.isRework -> "Rework ke ${order.deskLabelOf(audit.toCode)}: ${audit.reason.orEmpty()}"
+        else -> "Diserahkan ke ${order.deskLabelOf(audit.toCode)}"
     }

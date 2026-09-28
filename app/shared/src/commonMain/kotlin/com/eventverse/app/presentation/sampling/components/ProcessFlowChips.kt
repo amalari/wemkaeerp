@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.process.TenantOptionalProcess
@@ -104,7 +105,7 @@ internal fun PlacedProcessChip(
     process: TenantOptionalProcess,
     stepNumber: Int,
     dragState: ProcessFlowDragState,
-    onMove: (processId: String, anchor: SamplingPipelineStage) -> Unit,
+    onMove: (processId: String, anchor: StageCode) -> Unit,
     onRemove: () -> Unit,
     isLocked: Boolean = false
 ) {
@@ -198,7 +199,7 @@ internal fun PlacedProcessChip(
 internal fun PaletteChip(
     template: WorkStationSpec,
     dragState: ProcessFlowDragState,
-    onInsert: (anchor: SamplingPipelineStage) -> Unit
+    onInsert: (anchor: StageCode) -> Unit
 ) {
     DraggableChipFrame(
         processId = null,
@@ -224,7 +225,7 @@ private fun DraggableChipFrame(
     templateCode: String?,
     label: String,
     dragState: ProcessFlowDragState,
-    onDrop: (processId: String?, templateCode: String?, anchor: SamplingPipelineStage) -> Unit,
+    onDrop: (processId: String?, templateCode: String?, anchor: StageCode) -> Unit,
     content: @Composable RowScope.() -> Unit
 ) {
     var chipWindowPos by remember { mutableStateOf(Offset.Zero) }

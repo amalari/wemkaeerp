@@ -28,7 +28,9 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputRow
 import com.eventverse.app.domain.sampling.StageInputSection
+import com.eventverse.app.domain.sampling.stageFrame
 import com.eventverse.app.domain.sampling.stageInputFor
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -42,6 +44,7 @@ import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconTrash
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.operator.SpkDetailPanel
+import com.eventverse.app.presentation.sampling.nameOf
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -59,7 +62,7 @@ fun StageAdvanceDialog(
     onConfirm: (List<StageInputSection>) -> Unit,
     onDismiss: () -> Unit,
     /** Meja asal saat dialog dibuka dari Lantai Produksi; menentukan blok spec di Detail SPK. */
-    deskStage: SamplingPipelineStage? = null
+    deskStage: StageCode? = null
 ) {
     val sectionSpecs = remember(targetStage) { stageSectionsFor(targetStage) }
     var sections by remember(targetStage, order.id) {
@@ -93,7 +96,7 @@ fun StageAdvanceDialog(
                     verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
                     // Detail SPK dari tim sampling — konteks penuh sebelum operator mengisi lembar.
-                    SpkDetailPanel(order = order, stage = deskStage ?: order.pipelineStage)
+                    SpkDetailPanel(order = order, stage = deskStage ?: order.stageCode)
 
                     PreviousStageSummary(order = order, targetStage = targetStage)
 
@@ -214,7 +217,7 @@ private fun PreviousStageSummary(order: SamplingOrder, targetStage: SamplingPipe
         )
         summaryStages.forEach { work ->
             Text(
-                text = work.stage.displayName,
+                text = order.stageFrame.nameOf(work.stageCode),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.Primary

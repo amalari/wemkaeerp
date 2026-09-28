@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.positionOf
+import com.eventverse.app.domain.sampling.stageFrame
+import com.eventverse.app.domain.stageflow.StageKind
+import com.eventverse.app.domain.stageflow.StageTrait
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
@@ -37,7 +41,7 @@ import kotlin.math.roundToInt
  * Monitoring lantai produksi sampel di Tab 1 Deal — satu kartu per [SamplingPipelineStage]
  * dari Program CAM sampai Pengemasan.
  *
- * Diturunkan dari enum, bukan ditulis sebagai daftar kartu tetap: dulu kartunya hardcode lima
+ * Diturunkan dari kerangka tahap SPK (tahap kerja; TRD-FLOW-001), bukan ditulis sebagai daftar kartu tetap: dulu kartunya hardcode lima
  * fase (dengan satu "Finishing" gabungan), sehingga ketika `FINISHING_QC` dipecah menjadi
  * Cuci → Setrika → QC Finishing → Pengemasan, monitoring ini tertinggal menampilkan fase yang
  * sudah tidak ada. Waktu mulai/selesai diambil dari [SamplingOrder.stageHistory].
@@ -47,13 +51,12 @@ internal fun SamplingMonitoringTimeline(
     order: SamplingOrder,
     modifier: Modifier = Modifier
 ) {
-    val floorStages = SamplingPipelineStage.entries.filter {
-        it.order in SamplingPipelineStage.CAM_PROGRAMMING.order..SamplingPipelineStage.PENGEMASAN.order
-    }
+    val floorStages = order.stageFrame.filter { it.kind == StageKind.WORK }
     val isMakloon = order.finishingPath == FinishingPath.MAKLOON_VENDOR
-    val activeIndex = floorStages.indexOf(order.pipelineStage)
+    val current = order.positionOf(order.stageCode)
+    val activeIndex = floorStages.indexOfFirst { it.code == order.stageCode }
         .takeIf { it >= 0 }
-        ?: if (order.pipelineStage > SamplingPipelineStage.PENGEMASAN) floorStages.lastIndex else 0
+        ?: if (floorStages.isNotEmpty() && current > order.positionOf(floorStages.last().code)) floorStages.lastIndex else 0
 
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -88,18 +91,19 @@ internal fun SamplingMonitoringTimeline(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 floorStages.forEachIndexed { index, stage ->
-                    val isDone = order.pipelineStage > stage
-                    val isActive = order.pipelineStage == stage
-                    val enteredAt = order.stageHistory.firstOrNull { it.toStage == stage }?.at
-                        ?: if (stage == SamplingPipelineStage.CAM_PROGRAMMING && (isDone || isActive)) order.createdAt else null
-                    val leftAt = order.stageHistory.lastOrNull { it.fromStage == stage && it.toStage > stage }?.at
+                    val position = order.positionOf(stage.code)
+                    val isDone = current > position
+                    val isActive = order.stageCode == stage.code
+                    val enteredAt = order.stageHistory.firstOrNull { it.toCode == stage.code }?.at
+                        ?: if (index == 0 && (isDone || isActive)) order.createdAt else null
+                    val leftAt = order.stageHistory.lastOrNull { it.fromCode == stage.code && order.positionOf(it.toCode) > position }?.at
 
                     TimelineStepCard(
                         stepNumber = "${index + 1}",
                         title = stage.displayName,
                         status = when {
                             isDone -> "Selesai"
-                            isActive && isMakloon && stage.isWetOrPressWork -> "Di Vendor Makloon"
+                            isActive && isMakloon && stage.has(StageTrait.WET_OR_PRESS) -> "Di Vendor Makloon"
                             isActive -> "Dikerjakan"
                             else -> null
                         },

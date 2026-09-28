@@ -7,6 +7,7 @@ import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.SpkNumber
+import com.eventverse.app.domain.sampling.knitDefinition
 import com.eventverse.app.domain.sampling.sendBackForRework
 import com.eventverse.app.domain.sampling.releaseStageWork
 import com.eventverse.app.domain.sampling.startStageWork
@@ -46,7 +47,7 @@ class OperatorDeskBoardTest {
             order("b", SamplingPipelineStage.CUCI_SOFTENER).startStageWork("Sari", "", day2),
             order("c", SamplingPipelineStage.SETRIKA_UAP)
         )
-        val board = buildOperatorDeskBoard(orders, SamplingPipelineStage.CUCI_SOFTENER, today, tz)
+        val board = buildOperatorDeskBoard(orders, SamplingPipelineStage.CUCI_SOFTENER.knitDefinition(), today, tz)
         assertEquals(listOf("a"), board.queue.map { it.id.value })
         assertEquals(listOf("b"), board.inProgress.map { it.id.value })
     }
@@ -57,7 +58,7 @@ class OperatorDeskBoardTest {
         val rework = order("r", SamplingPipelineStage.QC_FINISHING).sendBackForRework(
             SamplingPipelineStage.LINKING_ASSEMBLY, "lepas", DefectLiability.FACTORY_WORKMANSHIP, "", "", day2
         )
-        val board = buildOperatorDeskBoard(listOf(normal, rework), SamplingPipelineStage.LINKING_ASSEMBLY, today, tz)
+        val board = buildOperatorDeskBoard(listOf(normal, rework), SamplingPipelineStage.LINKING_ASSEMBLY.knitDefinition(), today, tz)
         assertEquals(listOf("r", "n"), board.queue.map { it.id.value })
     }
 
@@ -67,7 +68,7 @@ class OperatorDeskBoardTest {
             .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, day1)
         val todayDone = order("t", SamplingPipelineStage.CUCI_SOFTENER)
             .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, day2)
-        val board = buildOperatorDeskBoard(listOf(yesterday, todayDone), SamplingPipelineStage.CUCI_SOFTENER, today, tz)
+        val board = buildOperatorDeskBoard(listOf(yesterday, todayDone), SamplingPipelineStage.CUCI_SOFTENER.knitDefinition(), today, tz)
         assertEquals(listOf("t"), board.doneToday.map { it.order.id.value })
         assertEquals(2, board.history.size)
     }
@@ -75,7 +76,7 @@ class OperatorDeskBoardTest {
     @Test
     fun `makloon order should not appear on linking desk`() {
         val makloon = order("m", SamplingPipelineStage.LINKING_ASSEMBLY).copy(finishingPath = FinishingPath.MAKLOON_VENDOR)
-        val board = buildOperatorDeskBoard(listOf(makloon), SamplingPipelineStage.LINKING_ASSEMBLY, today, tz)
+        val board = buildOperatorDeskBoard(listOf(makloon), SamplingPipelineStage.LINKING_ASSEMBLY.knitDefinition(), today, tz)
         assertTrue(board.queue.isEmpty())
     }
 
@@ -88,7 +89,7 @@ class OperatorDeskBoardTest {
             .advancePipelineStage(SamplingPipelineStage.CUCI_SOFTENER, arrived)
             .startStageWork("Sari", "", started)
             .advancePipelineStage(SamplingPipelineStage.SETRIKA_UAP, done)
-        val handoff = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.CUCI_SOFTENER, today, tz).doneToday.single()
+        val handoff = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.CUCI_SOFTENER.knitDefinition(), today, tz).doneToday.single()
         assertEquals(20, handoff.waitMinutes)
         assertEquals(95, handoff.workMinutes)
         assertEquals("mulai 25/09 08:20 • selesai 25/09 09:55 • kerja 1j 35m • tunggu 20m", handoff.timingLine(tz))
@@ -100,7 +101,7 @@ class OperatorDeskBoardTest {
             .startStageWork("Ani", "", day2)
             .releaseStageWork(day2)
             .sendBackForRework(SamplingPipelineStage.LINKING_ASSEMBLY, "lepas", DefectLiability.FACTORY_WORKMANSHIP, "", "", day2)
-        val board = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.QC_FINISHING, today, tz)
+        val board = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.QC_FINISHING.knitDefinition(), today, tz)
         assertEquals(2, board.activity.size)
         assertTrue(board.doneToday.isEmpty())
     }

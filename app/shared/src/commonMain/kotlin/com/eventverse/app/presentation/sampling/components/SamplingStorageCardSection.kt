@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.storage.DealStorageReadiness
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -29,7 +29,7 @@ internal fun SamplingStorageCardSection(
     onRelease: () -> Unit
 ) {
     val custodian = order.stageHistory
-        .lastOrNull { it.toStage == SamplingPipelineStage.STORAGE_HOLDING }
+        .lastOrNull { it.toCode == ExitStages.STORAGE }
         ?.actorEmail
         ?.substringBefore('@')
     Column(

@@ -78,7 +78,7 @@ fun SamplingWorkspaceScreen(
     }
     val processFlowViewModel = remember(tenantSlug) { ProcessFlowViewModel() }
     var showFlowTemplate by remember { mutableStateOf(false) }
-    if (showFlowTemplate) TenantFlowTemplateDialog(onDismiss = { showFlowTemplate = false })
+    if (showFlowTemplate) TenantFlowTemplateDialog(onDismiss = { showFlowTemplate = false }, stageFlow = state.stageFlow)
 
     LaunchedEffect(state.orders) {
         val scopeItems = state.orders.map {
@@ -272,7 +272,8 @@ fun SamplingWorkspaceScreen(
             },
             onDetermineFlow = { viewModel.onEvent(SamplingUiEvent.DetermineFlow(target.id)) },
             onCreateTechPack = onCreateTechPack,
-            processFlowViewModel = processFlowViewModel
+            processFlowViewModel = processFlowViewModel,
+            stageFlow = state.stageFlow
         )
     }
 

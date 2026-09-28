@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 
 /**
  * Koordinator drag-and-drop panel Adjust Flow — pola sama dengan
@@ -45,9 +46,9 @@ class ProcessFlowDragState {
      * beberapa celah (sebelum/di antara/sesudah proses opsionalnya) yang semuanya
      * berjangkar ke tahap yang sama. Nilainya pasangan (batas, jangkar tahap).
      */
-    private val gapBounds = mutableStateMapOf<String, Pair<Rect, SamplingPipelineStage>>()
+    private val gapBounds = mutableStateMapOf<String, Pair<Rect, StageCode>>()
 
-    fun registerGap(slotId: String, anchor: SamplingPipelineStage, bounds: Rect) {
+    fun registerGap(slotId: String, anchor: StageCode, bounds: Rect) {
         gapBounds[slotId] = bounds to anchor
     }
 
@@ -67,7 +68,7 @@ class ProcessFlowDragState {
     }
 
     /** Commit drop: [onCommit](processId, templateCode, anchorStage) hanya bila drop di celah sah. */
-    fun onDragEnd(onCommit: (processId: String?, templateCode: String?, anchor: SamplingPipelineStage?) -> Unit) {
+    fun onDragEnd(onCommit: (processId: String?, templateCode: String?, anchor: StageCode?) -> Unit) {
         val anchor = hoveredGapId?.let { gapBounds[it]?.second }
         val processId = draggedProcessId
         val templateCode = draggedTemplateCode

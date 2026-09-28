@@ -28,8 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.sampling.toSamplingStageOrNull
 import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.workqueue.WorkStationCatalog
@@ -49,19 +54,14 @@ import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
 import com.eventverse.app.presentation.sampling.SamplingOrderScopeItem
 import com.eventverse.app.presentation.theme.WeMadeColors
 
-/** Tahap wajib yang tampil di Adjust Flow — kerangka tidak bisa diubah, hanya disisipi. */
-private val ADJUSTABLE_STAGES = listOf(
-    SamplingPipelineStage.NEW_INTAKE,
-    SamplingPipelineStage.CAM_PROGRAMMING,
-    SamplingPipelineStage.MACHINE_KNITTING,
-    SamplingPipelineStage.LINKING_ASSEMBLY,
-    SamplingPipelineStage.CUCI_SOFTENER,
-    SamplingPipelineStage.SETRIKA_UAP,
-    SamplingPipelineStage.QC_FINISHING,
-    SamplingPipelineStage.PENGEMASAN,
-    SamplingPipelineStage.STORAGE_HOLDING,
-    SamplingPipelineStage.IN_DELIVERY
-)
+/**
+ * Tahap wajib yang tampil di Adjust Flow — kerangka tidak bisa diubah di sini, hanya disisipi.
+ * Penentuan Alur (layar ini sendiri) dan ACC (bukan tempat kerja) tidak menjadi jangkar.
+ */
+private fun adjustableStages(frame: List<StageDefinition>): List<StageDefinition> =
+    frame.filter { it.code != FLOW_REVIEW && it.code != ExitStages.APPROVED }
+
+private val FLOW_REVIEW = SamplingPipelineStage.FLOW_REVIEW.toStageCode()
 
 /**
  * Panel "Adjust Flow" divisi sampling.
@@ -81,14 +81,17 @@ fun ProcessFlowAdjusterPanel(
     modifier: Modifier = Modifier,
     hideScopeSelector: Boolean = false,
     /** Alur sudah final (SPK di Program CAM ke atas): tampil read-only tanpa sisip/geser/hapus. */
-    isLocked: Boolean = false
+    isLocked: Boolean = false,
+    /** Kerangka yang disisipi: kerangka efektif SPK, atau kerangka pabrik di dialog template. */
+    frame: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES
 ) {
+    val adjustable = adjustableStages(frame)
     val state by viewModel.uiState.collectAsState()
     val dragState = rememberProcessFlowDragState()
     val available = availableTemplates(state.processes)
 
     // Templat yang sedang ditanyakan "dikerjakan di mana", beserta celah tujuannya.
-    var pendingInsert by remember { mutableStateOf<Pair<WorkStationSpec, SamplingPipelineStage>?>(null) }
+    var pendingInsert by remember { mutableStateOf<Pair<WorkStationSpec, StageCode>?>(null) }
     var inspectedLeg by remember { mutableStateOf<FlowLegView?>(null) }
     var panelWindowPos by remember { mutableStateOf(Offset.Zero) }
 
@@ -114,22 +117,23 @@ fun ProcessFlowAdjusterPanel(
                 // mendapat nomor dan seluruh tahap sesudahnya bergeser, jadi baris selalu
                 // terbaca sebagai satu urutan utuh.
                 var step = 1
-                ADJUSTABLE_STAGES.forEachIndexed { index, stage ->
-                    val tagged = PhaseTaggableStage.forSamplingStage(stage)
-                    if (tagged == null) StagePill(step = step++, label = stage.displayName) else PhaseTaggedStagePill(
+                adjustable.forEachIndexed { index, definition ->
+                    val stage = definition.code
+                    val tagged = stage.toSamplingStageOrNull()?.let(PhaseTaggableStage::forSamplingStage)
+                    if (tagged == null) StagePill(step = step++, label = definition.displayName) else PhaseTaggedStagePill(
                         step = if (state.phaseTags.phasesOf(tagged).isNotEmpty()) step++ else step,
-                        label = stage.displayName, stage = tagged, tags = state.phaseTags, isLocked = isLocked,
+                        label = definition.displayName, stage = tagged, tags = state.phaseTags, isLocked = isLocked,
                         onToggle = { st, phase -> viewModel.onEvent(ProcessFlowUiEvent.TogglePhaseTag(st, phase)) }
                     )
 
-                    val anchored = state.processes.filter { it.samplingAnchorAfter == stage.toStageCode() }
+                    val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
                     anchored.forEachIndexed { procIndex, process ->
                         // Celah juga ada di antara tahap dan proses pertamanya (dan antar
                         // proses) — menyisipkan proses tidak boleh "memakan" tombol + yang
                         // sudah ada di situ. Leg pengiriman tetap hanya di celah terakhir,
                         // karena leg berangkat dari simpul terakhir tahap ini.
                         ProcessFlowGap(
-                            slotId = "${stage.name}-$procIndex",
+                            slotId = "${stage.value}-$procIndex",
                             isLast = false,
                             anchor = stage,
                             legs = emptyList(),
@@ -159,8 +163,8 @@ fun ProcessFlowAdjusterPanel(
                     // Tahap terakhir tidak punya "sesudah"; celahnya tetap ada agar proses bisa
                     // disisipkan di ujung, tapi tanpa garis yang menggantung ke ruang kosong.
                     ProcessFlowGap(
-                        slotId = "${stage.name}-final",
-                        isLast = index == ADJUSTABLE_STAGES.lastIndex,
+                        slotId = "${stage.value}-final",
+                        isLast = index == adjustable.lastIndex,
                         anchor = stage,
                         legs = state.legsLeaving(lastNodeAt(stage, anchored)),
                         dragState = dragState,
@@ -210,7 +214,7 @@ fun ProcessFlowAdjusterPanel(
 
 /** Simpul terakhir sebelum celah: proses paling buncit di tahap ini, atau tahapnya sendiri. */
 private fun lastNodeAt(
-    stage: SamplingPipelineStage,
+    stage: StageCode,
     anchored: List<TenantOptionalProcess>
 ): FlowNodeRef =
     anchored.lastOrNull()?.let { FlowNodeRef.Process(it.code) } ?: FlowNodeRef.Stage(stage)
@@ -295,7 +299,7 @@ private fun FlowPanelHeader(
 private fun FlowPalette(
     available: List<WorkStationSpec>,
     dragState: ProcessFlowDragState,
-    onInsert: (WorkStationSpec, SamplingPipelineStage) -> Unit
+    onInsert: (WorkStationSpec, StageCode) -> Unit
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),

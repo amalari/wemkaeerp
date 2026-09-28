@@ -31,8 +31,11 @@ fun SamplingOrder.stageDefinition(code: StageCode): StageDefinition =
     }
 
 /** Tahap kerja pertama yang mengisi [archetype], mis. meja jahit = `SEWING`. */
-fun SamplingOrder.firstStageWith(archetype: ModuleArchetype): StageDefinition? =
-    stageFrame.firstOrNull { it.kind == StageKind.WORK && it.archetype == archetype }
+fun SamplingOrder.firstStageWith(archetype: ModuleArchetype): StageDefinition? = stageFrame.firstWorkWith(archetype)
+
+/** Versi kerangka-saja dari [firstStageWith] — untuk layar yang memegang kerangka pabrik, bukan SPK. */
+fun List<StageDefinition>.firstWorkWith(archetype: ModuleArchetype): StageDefinition? =
+    firstOrNull { it.kind == StageKind.WORK && it.archetype == archetype }
 
 fun SamplingOrder.stagesWith(trait: StageTrait): List<StageDefinition> = stageFrame.filter { it.has(trait) }
 

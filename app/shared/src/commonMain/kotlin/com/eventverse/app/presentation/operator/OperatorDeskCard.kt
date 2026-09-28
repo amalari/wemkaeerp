@@ -71,7 +71,7 @@ fun OperatorDeskCard(
             )
             if (rework != null) {
                 Text(
-                    text = "Dari ${rework.fromStage.deskLabel}: ${rework.reason.orEmpty()}",
+                    text = "Dari ${order.deskLabelOf(rework.fromCode)}: ${rework.reason.orEmpty()}",
                     fontSize = 12.sp,
                     color = WeMadeColors.Error,
                     modifier = Modifier

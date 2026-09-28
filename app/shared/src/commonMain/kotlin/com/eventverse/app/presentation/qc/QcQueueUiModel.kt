@@ -12,6 +12,7 @@ import com.eventverse.app.domain.sampling.latestReportForPiece
 import com.eventverse.app.domain.sampling.nextPieceNoFor
 import com.eventverse.app.domain.sampling.passedPieceCountFor
 import com.eventverse.app.domain.sampling.tallyBy
+import com.eventverse.app.domain.sampling.toStageCode
 import kotlin.time.Duration
 import kotlinx.datetime.Instant
 
@@ -144,7 +145,7 @@ private fun SamplingOrder.toQueueItem(
     // hitungannya dimulai ulang dari inspeksi terakhir supaya tidak terlihat menunggu berhari-hari
     // padahal baru saja dikembalikan ke lantai produksi.
     val waitingSince = latest?.inspectedAt
-        ?: stageHistory.lastOrNull { it.toStage == kind.entryStage }?.at
+        ?: stageHistory.lastOrNull { it.toCode == kind.entryStage.toStageCode() }?.at
         ?: finishingDeposits.mapNotNull { it.createdAt }.maxOrNull()
         ?: updatedAt
 

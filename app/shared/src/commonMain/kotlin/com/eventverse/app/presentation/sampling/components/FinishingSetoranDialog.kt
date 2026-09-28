@@ -69,7 +69,7 @@ fun FinishingSetoranDialog(
                 }
 
                 // Detail SPK dari tim sampling — operator tahu target & instruksi sebelum setor.
-                SpkDetailPanel(order = order, stage = order.pipelineStage)
+                SpkDetailPanel(order = order, stage = order.stageCode)
 
                 // Progress Info Box
                 Box(

@@ -31,10 +31,17 @@ import androidx.compose.ui.window.DialogProperties
 import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageSectionNames
 import com.eventverse.app.domain.sampling.currentStage
+import com.eventverse.app.domain.sampling.positionOf
 import com.eventverse.app.domain.sampling.stageInputFor
+import com.eventverse.app.domain.sampling.stagesWith
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.domain.stageflow.StageKind
+import com.eventverse.app.domain.stageflow.StageTrait
 import com.eventverse.app.domain.traceability.TraceWorkOrderKind
 import com.eventverse.app.domain.traceability.TraceWorkOrderRef
 import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
@@ -49,6 +56,7 @@ import com.eventverse.app.presentation.sampling.DraftSaveStatus
 import com.eventverse.app.presentation.sampling.ProcessFlowScope
 import com.eventverse.app.presentation.sampling.ProcessFlowUiEvent
 import com.eventverse.app.presentation.sampling.ProcessFlowViewModel
+import com.eventverse.app.presentation.sampling.effectiveFrame
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,29 +84,32 @@ fun SamplingSpkDetailDialog(
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
+    /** Kerangka pabrik — dipakai bila SPK belum membeku (TRD-FLOW-001). */
+    stageFlow: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES,
     availableMaterials: List<MaterialItem> = emptyList(),
     initialShowFlowSection: Boolean = false,
     initialShowCamSection: Boolean = false
 ) {
     // Gerbang klien: tombol mulai CAM hanya tampil pada tahap SPK Masuk / Penentuan Alur.
-    val isGateStage = order.pipelineStage == SamplingPipelineStage.NEW_INTAKE ||
-        order.pipelineStage == SamplingPipelineStage.FLOW_REVIEW
+    val isGateStage = order.stageCode == SamplingPipelineStage.NEW_INTAKE.toStageCode() ||
+        order.stageCode == SamplingPipelineStage.FLOW_REVIEW.toStageCode()
 
     // Tahap Program CAM: alur sudah final (dikunci) dan section Program dibuka untuk tim sampling.
-    val isCamStage = order.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+    val isCamStage = order.stageCode == SamplingPipelineStage.CAM_PROGRAMMING.toStageCode()
     // Lantai R&D (rajut s/d kemas): hasil sampel baru diketahui di sini.
-    val isRdStage = order.pipelineStage.order in
-        SamplingPipelineStage.MACHINE_KNITTING.order..SamplingPipelineStage.PENGEMASAN.order
+    val isRdStage = order.currentStage.has(StageTrait.OPERATOR_DESK)
     // Kartu SPK A6 baru boleh dibuka manual ketika SPK sudah masuk lantai R&D / produksi (rajut ke atas).
     // Saat masih di tahap SPK Masuk, Penentuan Alur, atau Program CAM, kartu fisik belum dicetak.
-    val canPrintSpkCard = order.pipelineStage.order >= SamplingPipelineStage.MACHINE_KNITTING.order
+    val firstDesk = order.stagesWith(StageTrait.OPERATOR_DESK).firstOrNull()?.code
+    val canPrintSpkCard = firstDesk != null && order.positionOf(order.stageCode) >= order.positionOf(firstDesk)
     // Lembar Program CAM tetap terbuka di lantai R&D (rajut s/d kemas): operator mengerjakan
     // sampel berdasarkan program, instruksi panah, dan tenselity buatan tim CAM, sementara
     // hasil R&D (gramasi, waktu, ukuran jadi) disimpan di lembar yang sama — satu lembar teknis per SPK.
     var isCamSectionVisible by remember(order.id, initialShowCamSection, isCamStage, isRdStage) {
         mutableStateOf(initialShowCamSection || isCamStage || isRdStage)
     }
-    val isFlowLocked = order.pipelineStage.order >= SamplingPipelineStage.CAM_PROGRAMMING.order || isCamSectionVisible
+    // Terkunci begitu SPK meninggalkan tahap masuk (rajut: masuk Program CAM).
+    val isFlowLocked = order.currentStage.kind != StageKind.ENTRY_ANCHOR || isCamSectionVisible
     var camSections by remember(order.id) {
         val saved = order.stageInputFor(SamplingPipelineStage.CAM_PROGRAMMING)
         // Pakai seluruh section tersimpan (bukan hanya CAM_SECTION_SPECS) agar hasil R&D ikut terbawa.
@@ -110,7 +121,7 @@ fun SamplingSpkDetailDialog(
     // Pada tahap SPK Masuk (NEW_INTAKE), section alur proses awalnya belum muncul (tinggal detail saja)
     // kecuali jika diminta secara eksplisit atau sudah melewati tahap SPK Masuk.
     var isFlowSectionVisible by remember(order.id, initialShowFlowSection, initialShowCamSection) {
-        mutableStateOf(initialShowFlowSection || initialShowCamSection || order.pipelineStage != SamplingPipelineStage.NEW_INTAKE)
+        mutableStateOf(initialShowFlowSection || initialShowCamSection || order.stageCode != SamplingPipelineStage.NEW_INTAKE.toStageCode())
     }
     var camValidationTrigger by remember(order.id) { mutableStateOf(0) }
 
@@ -128,7 +139,7 @@ fun SamplingSpkDetailDialog(
     }
 
     LaunchedEffect(isFlowSectionVisible) {
-        if (isFlowSectionVisible && (order.pipelineStage == SamplingPipelineStage.NEW_INTAKE || initialShowFlowSection) && !isCamSectionVisible) {
+        if (isFlowSectionVisible && (order.stageCode == SamplingPipelineStage.NEW_INTAKE.toStageCode() || initialShowFlowSection) && !isCamSectionVisible) {
             delay(120)
             scrollState.animateScrollTo(scrollState.maxValue)
         }
@@ -196,7 +207,7 @@ fun SamplingSpkDetailDialog(
                         )
                     }
                     ClayBadge(
-                        text = order.pipelineStage.displayName,
+                        text = order.currentStage.displayName,
                         tint = Color(order.currentStage.colorHex)
                     )
                     androidx.compose.material3.IconButton(onClick = onDismiss) {
@@ -231,7 +242,8 @@ fun SamplingSpkDetailDialog(
                         ProcessFlowAdjusterPanel(
                             viewModel = processFlowViewModel,
                             hideScopeSelector = true,
-                            isLocked = isFlowLocked
+                            isLocked = isFlowLocked,
+                            frame = order.effectiveFrame(stageFlow)
                         )
                     }
 

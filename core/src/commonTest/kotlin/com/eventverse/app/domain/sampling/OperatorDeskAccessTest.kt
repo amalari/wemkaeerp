@@ -33,7 +33,7 @@ class OperatorDeskAccessTest {
     @Test
     fun `resolve desks when department restricts should return only allowed desks`() {
         val desks = resolveAccessibleOperatorDesks(bypass = false, departmentAccess = deptQcOnly)
-        assertEquals(setOf(SamplingPipelineStage.QC_FINISHING), desks)
+        assertEquals(setOf(SamplingPipelineStage.QC_FINISHING.toStageCode()), desks)
     }
 
     @Test
@@ -41,7 +41,7 @@ class OperatorDeskAccessTest {
         val dept = ModuleAccessConfig(AccessLevel.OPERATE, allowedDesks = setOf("NEW_INTAKE", "QC_FINISHING"))
         val desks = resolveAccessibleOperatorDesks(bypass = false, departmentAccess = dept)!!
 
-        assertEquals(setOf(SamplingPipelineStage.QC_FINISHING), desks)
+        assertEquals(setOf(SamplingPipelineStage.QC_FINISHING.toStageCode()), desks)
     }
 
     @Test

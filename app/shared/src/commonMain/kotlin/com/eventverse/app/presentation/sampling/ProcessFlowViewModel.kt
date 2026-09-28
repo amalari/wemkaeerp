@@ -5,8 +5,7 @@ import com.eventverse.app.domain.process.FlowPhase
 import com.eventverse.app.domain.process.PhaseTaggableStage
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.transfer.FlowNodeRef
@@ -90,7 +89,7 @@ sealed interface ProcessFlowUiEvent {
     data class InsertProcess(
         val code: String,
         val displayName: String,
-        val anchorAfter: SamplingPipelineStage,
+        val anchorAfter: StageCode,
         val executionMode: WorkExecutionMode = WorkExecutionMode.IN_HOUSE,
         val vendorRef: String? = null
     ) : ProcessFlowUiEvent
@@ -98,7 +97,7 @@ sealed interface ProcessFlowUiEvent {
     /** Pindahkan posisi proses (drag-and-drop antar celah). */
     data class MoveProcess(
         val processId: String,
-        val newAnchorAfter: SamplingPipelineStage
+        val newAnchorAfter: StageCode
     ) : ProcessFlowUiEvent
 
     /** Keluarkan proses dari flow (tombol x pada chip). */
@@ -215,7 +214,7 @@ class ProcessFlowViewModel(
                         // Laundry misalnya ber-archetype FINISHING, dan menyeragamkannya
                         // membuat proses itu tidak lagi sepadan dengan slot finishing.
                         archetype = template?.archetype ?: ModuleArchetype.CUSTOM_EXTENSION,
-                        samplingAnchorAfter = event.anchorAfter.toStageCode(),
+                        samplingAnchorAfter = event.anchorAfter,
                         executionMode = event.executionMode,
                         vendorRef = event.vendorRef,
                         piecerateTariffIdr = template?.piecerateTariffIdr ?: 0L,
@@ -247,7 +246,7 @@ class ProcessFlowViewModel(
                 }
                 is ProcessFlowScope.Design -> {
                     val updatedList = _uiState.value.processes.map { proc ->
-                        if (proc.processId == event.processId) proc.copy(samplingAnchorAfter = event.newAnchorAfter.toStageCode()) else proc
+                        if (proc.processId == event.processId) proc.copy(samplingAnchorAfter = event.newAnchorAfter) else proc
                     }
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
                         .onSuccess { dto ->

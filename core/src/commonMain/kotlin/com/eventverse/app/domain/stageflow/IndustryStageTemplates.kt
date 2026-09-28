@@ -35,7 +35,7 @@ object IndustryStageTemplates {
 
     // Sisa kerja = DefaultStageWorkProfile lama (paritas dijaga test).
     // Warna = nilai token WeMadeColors yang dulu dipakai samplingStageTint (paritas dijaga test
-    // di app/shared). Label ringkas = badge timeline lama.
+    // di app/shared). Label ringkas = istilah lantai (meja operator), keputusan 2026-09-29.
     private const val MUTED = 0xFF64748B
     private const val ORANGE = 0xFFEA580C
     private const val BLUE = 0xFF2563EB
@@ -52,7 +52,7 @@ object IndustryStageTemplates {
         stage("CAM_PROGRAMMING", "Program CAM", "CAM", BLUE, WORK, ModuleArchetype.PRODUCT_ENGINEERING, 0.85),
         stage("MACHINE_KNITTING", "Rajut Turun Mesin", "Rajut", AMBER, WORK, ModuleArchetype.CUTTING, 0.55, OPERATOR_DESK),
         stage(
-            "LINKING_ASSEMBLY", "Linking & Tambahan", "Jahit", VIOLET, WORK, ModuleArchetype.SEWING, 0.35,
+            "LINKING_ASSEMBLY", "Linking & Tambahan", "Linking", VIOLET, WORK, ModuleArchetype.SEWING, 0.35,
             FINISHING_FLOOR, OPERATOR_DESK
         ),
         stage(
@@ -64,7 +64,7 @@ object IndustryStageTemplates {
             FINISHING_FLOOR, WET_OR_PRESS, PHASE_TAGGABLE, OPERATOR_DESK
         ),
         stage(
-            "QC_FINISHING", "QC Finishing", "QC 2", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08,
+            "QC_FINISHING", "QC Finishing", "QC", TEAL, WORK, ModuleArchetype.QUALITY_CONTROL, 0.08,
             FINISHING_FLOOR, OPERATOR_DESK
         ),
         stage("PENGEMASAN", "Pengemasan", "Kemas", TEAL, WORK, ModuleArchetype.FULFILLMENT, 0.04, FINISHING_FLOOR, OPERATOR_DESK),

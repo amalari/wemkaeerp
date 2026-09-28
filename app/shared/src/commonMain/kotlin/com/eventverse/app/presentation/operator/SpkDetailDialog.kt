@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -33,7 +33,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 fun SpkDetailDialog(
     order: SamplingOrder,
-    stage: SamplingPipelineStage,
+    stage: StageCode,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {

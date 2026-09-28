@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.workqueue.WorkStationSpec
@@ -59,7 +60,7 @@ private val CONNECTOR_MIN_WIDTH = 116.dp
 internal fun ProcessFlowGap(
     slotId: String,
     isLast: Boolean,
-    anchor: SamplingPipelineStage,
+    anchor: StageCode,
     legs: List<FlowLegView>,
     dragState: ProcessFlowDragState,
     availableTemplates: List<WorkStationSpec>,

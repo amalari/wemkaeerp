@@ -11,9 +11,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.stageFrame
 import com.eventverse.app.domain.sampling.stageInputFor
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -25,10 +29,11 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * khusus (Cuci, Setrika, QC, Kemas) tidak menampilkan apa-apa — kartunya tetap ringkas.
  */
 @Composable
-fun OperatorDeskDetails(order: SamplingOrder, stage: SamplingPipelineStage) {
-    when (stage) {
-        SamplingPipelineStage.MACHINE_KNITTING -> CamProgramReadOnly(order)
-        SamplingPipelineStage.LINKING_ASSEMBLY -> LinkingDepositSummary(order)
+fun OperatorDeskDetails(order: SamplingOrder, stage: StageCode) {
+    when {
+        // Program CAM khas rajut; meja perakitan dikenali dari perannya (SEWING), bukan namanya.
+        stage == SamplingPipelineStage.MACHINE_KNITTING.toStageCode() -> CamProgramReadOnly(order)
+        order.stageFrame.firstOrNull { it.code == stage }?.archetype == ModuleArchetype.SEWING -> LinkingDepositSummary(order)
         else -> Unit
     }
 }

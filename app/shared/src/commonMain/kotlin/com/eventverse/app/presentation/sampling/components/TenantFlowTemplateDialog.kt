@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -33,7 +35,11 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * detail SPK, supaya membuka template tidak menggeser lingkup panel desain yang sedang diatur.
  */
 @Composable
-fun TenantFlowTemplateDialog(onDismiss: () -> Unit) {
+fun TenantFlowTemplateDialog(
+    onDismiss: () -> Unit,
+    /** Kerangka pabrik yang disisipi template alur (TRD-FLOW-001). */
+    stageFlow: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES
+) {
     val viewModel = remember { ProcessFlowViewModel() }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ClayCard(
@@ -60,7 +66,7 @@ fun TenantFlowTemplateDialog(onDismiss: () -> Unit) {
                         IconClose(modifier = Modifier.size(16.dp))
                     }
                 }
-                ProcessFlowAdjusterPanel(viewModel = viewModel, hideScopeSelector = true)
+                ProcessFlowAdjusterPanel(viewModel = viewModel, hideScopeSelector = true, frame = stageFlow)
             }
         }
     }

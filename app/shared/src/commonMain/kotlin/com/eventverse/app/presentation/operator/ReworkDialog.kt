@@ -22,8 +22,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.reworkTargets
+import com.eventverse.app.domain.sampling.currentStage
+import com.eventverse.app.domain.sampling.reworkTargetCodes
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -44,9 +45,9 @@ fun ReworkDialog(
     order: SamplingOrder,
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (target: SamplingPipelineStage, reason: String, liability: DefectLiability) -> Unit
+    onConfirm: (target: StageCode, reason: String, liability: DefectLiability) -> Unit
 ) {
-    val targets = order.reworkTargets
+    val targets = order.reworkTargetCodes
     var target by remember(order.id) { mutableStateOf(targets.lastOrNull()) }
     var reason by remember(order.id) { mutableStateOf("") }
     var liability by remember(order.id) { mutableStateOf(DefectLiability.FACTORY_WORKMANSHIP) }
@@ -56,7 +57,7 @@ fun ReworkDialog(
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Text(text = "Kirim Rework", style = MaterialTheme.typography.titleLarge, color = WeMadeColors.OnSurface)
                 Text(
-                    text = "${order.spkNumber.value} • ${order.clientName} • dari ${order.pipelineStage.displayName}",
+                    text = "${order.spkNumber.value} • ${order.clientName} • dari ${order.currentStage.displayName}",
                     fontSize = 12.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )
@@ -64,7 +65,7 @@ fun ReworkDialog(
                 SectionLabel("Kirim ke bagian")
                 ClayFlowRow {
                     targets.forEach { stage ->
-                        ClayChoiceChip(text = stage.deskLabel, selected = target == stage, onClick = { target = stage })
+                        ClayChoiceChip(text = order.deskLabelOf(stage), selected = target == stage, onClick = { target = stage })
                     }
                 }
 

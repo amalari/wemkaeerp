@@ -14,9 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.extractSizeColumns
 import com.eventverse.app.domain.sampling.isSizeColumnActive
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -36,7 +36,7 @@ import kotlinx.datetime.LocalDate
 @Composable
 fun SpkDetailPanel(
     order: SamplingOrder,
-    stage: SamplingPipelineStage,
+    stage: StageCode,
     modifier: Modifier = Modifier
 ) {
     Column(

@@ -27,19 +27,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.text.TextStyle
-import com.eventverse.app.domain.sampling.SizeChartRow
-import com.eventverse.app.domain.sampling.addColumnToMatrix
-import com.eventverse.app.domain.sampling.defaultSamplingSizeMatrix
-import com.eventverse.app.domain.sampling.deleteColumnFromMatrix
-import com.eventverse.app.domain.sampling.ensureSamplingQtyRow
-import com.eventverse.app.domain.sampling.extractSizeColumns
-import com.eventverse.app.domain.sampling.renameColumnInMatrix
-import com.eventverse.app.domain.sampling.resolveGarmentTimeline
-import com.eventverse.app.domain.sampling.sanitizeSamplingMatrix
-import com.eventverse.app.domain.sampling.isSizeColumnActive
-import com.eventverse.app.domain.sampling.hasAtLeastOneCompleteMeasurementColumn
-import com.eventverse.app.domain.sampling.calculateTotalSampleQuantity
-import com.eventverse.app.domain.sampling.isQtyRow
+import com.eventverse.app.domain.sampling.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Instant
@@ -50,10 +38,6 @@ import kotlinx.datetime.toLocalDateTime
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.invoicing.InvoiceKind
 import com.eventverse.app.domain.invoicing.InvoiceSourceKind
-import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingStatus
-import com.eventverse.app.domain.sampling.GarmentStepState
-import com.eventverse.app.domain.sampling.GarmentTrackingStep
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.deal.DealDetailTab
 import com.eventverse.app.presentation.deal.DealUiEvent
@@ -1152,7 +1136,7 @@ private fun SamplingDesignCard(
                                             val label = buildString {
                                                 append("SPK #${spk.spkNumber.value}")
                                                 spk.sizeLabel?.let { append(" • $it (${spk.sampleQuantity} pcs)") }
-                                                append(" • ${spk.pipelineStage.displayName}")
+                                                append(" • ${spk.currentStage.displayName}")
                                             }
                                             ClayTag(
                                                 text = label,

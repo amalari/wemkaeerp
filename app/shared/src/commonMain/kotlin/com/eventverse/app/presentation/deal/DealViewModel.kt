@@ -2,8 +2,11 @@ package com.eventverse.app.presentation.deal
 
 import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrderLine
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.currentStage
+import com.eventverse.app.domain.sampling.storage.hasReachedStorage
 import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
@@ -293,7 +296,7 @@ class DealViewModel(
                     _uiState.update { current ->
                         current.copy(
                             isSaving = false,
-                            statusMessage = "Status lembar sampling diubah ke ${updatedOrder.pipelineStage.displayName}.",
+                            statusMessage = "Status lembar sampling diubah ke ${updatedOrder.currentStage.displayName}.",
                             samplingOrders = current.samplingOrders.replaceOrAppendById(updatedOrder)
                         )
                     }
@@ -313,7 +316,7 @@ class DealViewModel(
      */
     private fun releaseSamplingFromStorage(samplingIds: List<String>) {
         val targets = _uiState.value.samplingOrders.filter { it.id.value in samplingIds }
-        val notStored = targets.filter { it.pipelineStage.order < SamplingPipelineStage.STORAGE_HOLDING.order }
+        val notStored = targets.filter { !it.hasReachedStorage }
         if (notStored.isNotEmpty()) {
             _uiState.update {
                 it.copy(error = "Belum bisa kirim: ${notStored.joinToString { o -> o.spkNumber.value }} belum masuk penyimpanan.")
@@ -322,7 +325,7 @@ class DealViewModel(
         }
         _uiState.update { it.copy(isSaving = true) }
         scope.launch {
-            targets.filter { it.pipelineStage == SamplingPipelineStage.STORAGE_HOLDING }.forEach { spk ->
+            targets.filter { it.stageCode == ExitStages.STORAGE }.forEach { spk ->
                 storageDataSource.release(tenantSlug, spk.id.value, partialReason = null)
                     .onSuccess { result ->
                         _uiState.update { it.copy(samplingOrders = it.samplingOrders.replaceOrAppendById(result.order)) }

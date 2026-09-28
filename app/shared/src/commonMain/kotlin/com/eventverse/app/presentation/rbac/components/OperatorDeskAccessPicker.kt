@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
-import com.eventverse.app.domain.sampling.isOperatorDesk
+import com.eventverse.app.domain.sampling.DEFAULT_OPERATOR_DESKS
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -36,10 +36,12 @@ import com.eventverse.app.presentation.operator.deskLabel
 @Composable
 fun OperatorDeskAccessPicker(
     selected: Set<String>?,
-    onSelectionChange: (Set<String>?) -> Unit
+    onSelectionChange: (Set<String>?) -> Unit,
+    /** Meja pada kerangka pabrik tenant (TRD-FLOW-001); rajut bila pemanggil belum memuatnya. */
+    desks: List<StageDefinition> = DEFAULT_OPERATOR_DESKS
 ) {
-    val allDesks = SamplingPipelineStage.entries.filter { it.isOperatorDesk }
-    val allCodes = allDesks.map { it.name }.toSet()
+    val allDesks = desks
+    val allCodes = allDesks.map { it.code.value }.toSet()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -71,9 +73,9 @@ fun OperatorDeskAccessPicker(
                 val base = selected ?: allCodes
                 ClayChoiceChip(
                     text = stage.deskLabel,
-                    selected = stage.name in base,
+                    selected = stage.code.value in base,
                     onClick = {
-                        val next = if (stage.name in base) base - stage.name else base + stage.name
+                        val next = if (stage.code.value in base) base - stage.code.value else base + stage.code.value
                         onSelectionChange(next.takeIf { it.isNotEmpty() && it != allCodes })
                     }
                 )

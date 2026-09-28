@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.sampling.OperatorDeskColumn
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.currentWork
-import com.eventverse.app.domain.sampling.reworkTargets
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -66,11 +65,11 @@ fun OperatorStageDesk(
     onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val finishLabel = board.stage.finishAction()?.label
-    val canRework = board.stage.reworkTargets.isNotEmpty()
+    val finishLabel = board.stage.finishAction(board.frame)?.label
+    val canRework = board.stage.hasEarlierDesk(board.frame)
     var detailOrder by remember { mutableStateOf<SamplingOrder?>(null) }
     detailOrder?.let { order ->
-        SpkDetailDialog(order = order, stage = board.stage, onDismiss = { detailOrder = null })
+        SpkDetailDialog(order = order, stage = board.stage.code, onDismiss = { detailOrder = null })
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -275,7 +274,7 @@ private fun OperatorDeskColumnContent(
                         order = order,
                         onClick = { onOpenDetail(order) },
                         statusLine = claim?.let { "${it.operatorName} • mulai ${formatDeskTime(it.startedAt, timeZone)}" },
-                        details = { OperatorDeskDetails(order, board.stage) }
+                        details = { OperatorDeskDetails(order, board.stage.code) }
                     ) {
                         ClayButton(
                             text = "Kembalikan",
@@ -316,7 +315,7 @@ private fun OperatorDeskColumnContent(
                     OperatorDeskCard(
                         order = handoff.order,
                         onClick = { onOpenDetail(handoff.order) },
-                        statusLine = "Ke ${handoff.audit.toStage.deskLabel} • ${handoff.workerLabel}\n" +
+                        statusLine = "Ke ${handoff.order.deskLabelOf(handoff.audit.toCode)} • ${handoff.workerLabel}\n" +
                             handoff.timingLine(timeZone)
                     )
                 }

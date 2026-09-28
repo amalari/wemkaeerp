@@ -3,6 +3,7 @@ package com.eventverse.app.infrastructure.api
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCode
@@ -42,13 +43,13 @@ interface ProcessCatalogRemoteDataSource {
     suspend fun addProcess(
         code: String,
         displayName: String,
-        anchorAfter: SamplingPipelineStage,
+        anchorAfter: StageCode,
         executionMode: WorkExecutionMode = WorkExecutionMode.IN_HOUSE,
         vendorRef: String? = null,
         piecerateTariffIdr: Long = 0L,
         standardMinutesPerPiece: Double = 0.0
     ): Result<TenantOptionalProcess>
-    suspend fun repositionProcess(processId: String, newAnchorAfter: SamplingPipelineStage): Result<Unit>
+    suspend fun repositionProcess(processId: String, newAnchorAfter: StageCode): Result<Unit>
     suspend fun removeProcess(processId: String): Result<Unit>
 
     /** Alur proses spesifik per desain/SPK */
@@ -93,7 +94,7 @@ class ProcessCatalogApiClient(
     override suspend fun addProcess(
         code: String,
         displayName: String,
-        anchorAfter: SamplingPipelineStage,
+        anchorAfter: StageCode,
         executionMode: WorkExecutionMode,
         vendorRef: String?,
         piecerateTariffIdr: Long,
@@ -102,7 +103,7 @@ class ProcessCatalogApiClient(
         val body = jsonObjectOf(
             "code" to jsonOf(code),
             "displayName" to jsonOf(displayName),
-            "samplingAnchorAfter" to jsonOf(anchorAfter.name),
+            "samplingAnchorAfter" to jsonOf(anchorAfter.value),
             "executionMode" to jsonOf(executionMode.name),
             "vendorRef" to jsonOf(vendorRef),
             "piecerateTariffIdr" to jsonOf(piecerateTariffIdr),
@@ -119,9 +120,9 @@ class ProcessCatalogApiClient(
 
     override suspend fun repositionProcess(
         processId: String,
-        newAnchorAfter: SamplingPipelineStage
+        newAnchorAfter: StageCode
     ): Result<Unit> = runCatching {
-        val body = jsonObjectOf("samplingAnchorAfter" to jsonOf(newAnchorAfter.name))
+        val body = jsonObjectOf("samplingAnchorAfter" to jsonOf(newAnchorAfter.value))
         val response = httpClient.patch("$baseUrl/api/tenant/process-catalog/$processId") {
             tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
