@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -39,12 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.RowScope
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.presentation.sampling.effectiveFrame
 import kotlin.math.roundToInt
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.storage.dealStorageReadiness
-import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -53,70 +56,6 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlin.math.roundToInt
 
 private val NARROW_BOARD_BREAKPOINT = 1100.dp
-
-/**
- * Zona drop di papan Kanban. Tiga kolom tahap murni memetakan 1:1 ke stage; dua kolom
- * grup memetakan ke stage PERTAMA di dalamnya — itulah target sah drag lintas divisi
- * (Mesin Rajut -> Linking, Finishing QC -> Tunggu ACC).
- */
-enum class SamplingStageZone(
-    val title: String,
-    val subtitle: String,
-    val stages: List<SamplingPipelineStage>,
-    val dropStage: SamplingPipelineStage,
-    val showActions: Boolean
-) {
-    SPK_BARU(
-        title = "1. SPK Masuk",
-        subtitle = "Order baru dari deal/klien",
-        stages = listOf(SamplingPipelineStage.NEW_INTAKE),
-        dropStage = SamplingPipelineStage.NEW_INTAKE,
-        showActions = true
-    ),
-    PENENTUAN_ALUR(
-        title = "2. Penentuan Alur",
-        subtitle = "Setup bordir/sablon per desain",
-        stages = listOf(SamplingPipelineStage.FLOW_REVIEW),
-        dropStage = SamplingPipelineStage.FLOW_REVIEW,
-        showActions = true
-    ),
-    PROGRAM_CAM(
-        title = "3. Program CAM",
-        subtitle = "Program pola & instruksi",
-        stages = listOf(SamplingPipelineStage.CAM_PROGRAMMING),
-        dropStage = SamplingPipelineStage.CAM_PROGRAMMING,
-        showActions = true
-    ),
-    // Rajut hingga kemas digabung jadi satu kolom R&D. Rajut dikerjakan tim sampling lewat
-    // menu operator rajut (modul yang sama), sisanya lewat modul finishing — jadi kolom ini
-    // hanya memantau: posisi persis dibaca dari jejak progres di kartu + chip saring di kepala.
-    RND(
-        title = "4. R&D",
-        subtitle = "Rajut, linking, cuci, setrika, QC & kemas",
-        stages = RD_STAGES,
-        dropStage = SamplingPipelineStage.MACHINE_KNITTING,
-        showActions = false
-    ),
-    // Barang selesai kemas tidak langsung dikirim: ditaruh dulu (rak packing / gudang) dan
-    // menunggu SPK sedeal lengkap. Drop ke sini membuka dialog simpan (lokasi + penerima).
-    PENYIMPANAN(
-        title = "5. Penyimpanan",
-        subtitle = "Disimpan, tunggu deal lengkap",
-        stages = listOf(SamplingPipelineStage.STORAGE_HOLDING),
-        dropStage = SamplingPipelineStage.STORAGE_HOLDING,
-        showActions = true
-    ),
-    SELESAI(
-        title = "6. Selesai",
-        subtitle = "Terkirim, tunggu ACC buyer",
-        stages = listOf(
-            SamplingPipelineStage.IN_DELIVERY,
-            SamplingPipelineStage.ACC_APPROVED
-        ),
-        dropStage = SamplingPipelineStage.IN_DELIVERY,
-        showActions = true
-    );
-}
 
 /**
  * Pipeline Kanban Sampling — full width, drag & drop ala Jira.
@@ -135,14 +74,18 @@ fun SamplingPipelineKanbanBoard(
     selectedOrderId: SamplingOrderId?,
     onSelectOrder: (SamplingOrderId) -> Unit,
     onOpenSpkDetail: (SamplingOrder, Boolean) -> Unit,
-    onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
+    onAdvanceStageRequested: (SamplingOrder, StageCode) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
     modifier: Modifier = Modifier,
+    /** Kerangka tahap pabrik — sumber kolom papan (TRD-FLOW-001). */
+    stageFlow: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES,
     /** Seluruh SPK tanpa saring — kelengkapan deal di kolom Penyimpanan tidak boleh ikut tersaring. */
     allOrders: List<SamplingOrder> = orders
 ) {
     val dragState = rememberSamplingDragDropState()
+    dragState.tenantStages = stageFlow
+    val zones = remember(stageFlow) { samplingStageZones(stageFlow) }
     var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
 
     Box(
@@ -166,10 +109,11 @@ fun SamplingPipelineKanbanBoard(
                     modifier = rowModifier.padding(ClaySpacing.Md),
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
-                    SamplingStageZone.entries.forEach { zone ->
+                    zones.forEach { zone ->
                         KanbanStageZoneColumn(
                             zone = zone,
-                            orders = orders.filter { it.pipelineStage in zone.stages },
+                            orders = orders.filter { it.stageCode in zone.stages },
+                            stageFlow = stageFlow,
                             selectedOrderId = selectedOrderId,
                             dragState = dragState,
                             isWide = isWide,
@@ -201,12 +145,13 @@ fun SamplingPipelineKanbanBoard(
 private fun RowScope.KanbanStageZoneColumn(
     zone: SamplingStageZone,
     orders: List<SamplingOrder>,
+    stageFlow: List<StageDefinition>,
     selectedOrderId: SamplingOrderId?,
     dragState: SamplingDragDropState,
     isWide: Boolean,
     onSelectOrder: (SamplingOrderId) -> Unit,
     onOpenSpkDetail: (SamplingOrder, Boolean) -> Unit,
-    onAdvanceStageRequested: (SamplingOrder, SamplingPipelineStage) -> Unit,
+    onAdvanceStageRequested: (SamplingOrder, StageCode) -> Unit,
     onOpenRevisionDialog: (SamplingOrder) -> Unit,
     onApproveOrder: (SamplingOrderId, String) -> Unit,
     allOrders: List<SamplingOrder>
@@ -221,8 +166,8 @@ private fun RowScope.KanbanStageZoneColumn(
         zone.dropStage in dragState.allowedTargetsFor(it)
     } == true
 
-    var rdStageFilter by remember { mutableStateOf<SamplingPipelineStage?>(null) }
-    val visibleOrders = rdStageFilter?.let { stage -> orders.filter { it.pipelineStage == stage } } ?: orders
+    var rdStageFilter by remember { mutableStateOf<StageCode?>(null) }
+    val visibleOrders = rdStageFilter?.let { stage -> orders.filter { it.stageCode == stage } } ?: orders
 
     // Daftarkan batas zona drop setiap layout berubah — hit-test drag memakai window coordinate.
     Column(
@@ -279,12 +224,17 @@ private fun RowScope.KanbanStageZoneColumn(
             }
             ClayBadge(
                 text = "${orders.size}",
-                tint = samplingStageTint(zone.dropStage)
+                tint = Color(zone.tintHex)
             )
         }
 
-        if (zone == SamplingStageZone.RND && orders.isNotEmpty()) {
-            SamplingRdStageFilterRow(orders = orders, selected = rdStageFilter, onSelect = { rdStageFilter = it })
+        if (zone.kind == SamplingZoneKind.RND && orders.isNotEmpty()) {
+            SamplingRdStageFilterRow(
+                orders = orders,
+                stages = stageFlow.filter { it.code in zone.stages },
+                selected = rdStageFilter,
+                onSelect = { rdStageFilter = it }
+            )
             Spacer(Modifier.height(ClaySpacing.Sm))
         }
 
@@ -315,6 +265,7 @@ private fun RowScope.KanbanStageZoneColumn(
                     val nextStage = dragState.allowedTargetsFor(order).firstOrNull()
                     SamplingKanbanCard(
                         order = order,
+                        frame = order.effectiveFrame(stageFlow),
                         isSelected = order.id == selectedOrderId,
                         showActions = zone.showActions,
                         nextStage = nextStage,
@@ -331,7 +282,7 @@ private fun RowScope.KanbanStageZoneColumn(
                             onSelectOrder(order.id)
                             onOpenSpkDetail(order, true)
                         },
-                        storageReadiness = order.dealId?.takeIf { zone == SamplingStageZone.PENYIMPANAN }
+                        storageReadiness = order.dealId?.takeIf { zone.kind == SamplingZoneKind.STORAGE }
                             ?.let { dealId -> dealStorageReadiness(allOrders.filter { it.dealId == dealId }) }
                     )
                 }

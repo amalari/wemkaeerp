@@ -10,9 +10,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.samplingRoute
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.presentation.sampling.effectiveFrame
+import com.eventverse.app.presentation.sampling.firstWorkStage
+import com.eventverse.app.presentation.sampling.routeOn
 
 /**
  * State coordinator drag & drop kartu Pipeline Kanban Sampling — pola yang sama dengan
@@ -43,17 +51,17 @@ class SamplingDragDropState {
     var dragOffset by mutableStateOf(Offset.Zero)
         private set
 
-    var hoveredStage by mutableStateOf<SamplingPipelineStage?>(null)
+    var hoveredStage by mutableStateOf<StageCode?>(null)
         private set
 
     private var startPointerOffset = Offset.Zero
-    private val stageBounds = mutableStateMapOf<SamplingPipelineStage, Rect>()
+    private val stageBounds = mutableStateMapOf<StageCode, Rect>()
 
-    fun registerStage(stage: SamplingPipelineStage, bounds: Rect) {
+    fun registerStage(stage: StageCode, bounds: Rect) {
         stageBounds[stage] = bounds
     }
 
-    fun unregisterStage(stage: SamplingPipelineStage) {
+    fun unregisterStage(stage: StageCode) {
         stageBounds.remove(stage)
     }
 
@@ -72,10 +80,10 @@ class SamplingDragDropState {
         updateHoveredStage()
     }
 
-    fun onDragEnd(onCommit: (SamplingPipelineStage) -> Unit) {
+    fun onDragEnd(onCommit: (StageCode) -> Unit) {
         val target = hoveredStage
         val order = draggedOrder
-        if (target != null && order != null && target != order.pipelineStage) {
+        if (target != null && order != null && target != order.stageCode) {
             onCommit(target)
         }
         reset()
@@ -92,16 +100,19 @@ class SamplingDragDropState {
      * langsung ke Setrika, dan kolom Cuci tidak menyala sebagai tujuan. Satu-satunya pengecualian
      * adalah SPK Masuk yang boleh langsung ke Program CAM bila alurnya tidak perlu ditinjau.
      */
-    fun allowedTargetsFor(order: SamplingOrder): Set<SamplingPipelineStage> {
-        val route = order.samplingRoute
-        return when (val stage = order.pipelineStage) {
-            SamplingPipelineStage.NEW_INTAKE -> setOf(SamplingPipelineStage.FLOW_REVIEW, SamplingPipelineStage.CAM_PROGRAMMING)
+    fun allowedTargetsFor(order: SamplingOrder): Set<StageCode> {
+        val frame = order.effectiveFrame(tenantStages)
+        return when (order.stageCode) {
+            INTAKE -> setOfNotNull(FLOW_REVIEW, frame.firstWorkStage()?.code)
             // Selesai kemas selalu disimpan dulu, dan pengiriman hanya keluar dari penyimpanan —
             // keduanya lewat jalur kustodi, tapi kolomnya tetap tujuan seret yang sah.
-            SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.ACC_APPROVED -> emptySet()
-            else -> setOfNotNull(route.nextAfter(stage))
+            ExitStages.DELIVERY, ExitStages.APPROVED -> emptySet()
+            else -> setOfNotNull(order.routeOn(frame).nextAfter(order.stageCode))
         }
     }
+
+    /** Kerangka pabrik terkini, diisi papan dari state — dipakai SPK yang belum beku. */
+    var tenantStages: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES
 
     private fun reset() {
         isDragging = false
@@ -131,3 +142,6 @@ val LocalSamplingDragDropState = compositionLocalOf<SamplingDragDropState?> { nu
 
 @Composable
 fun rememberSamplingDragDropState(): SamplingDragDropState = remember { SamplingDragDropState() }
+
+private val INTAKE = SamplingPipelineStage.NEW_INTAKE.toStageCode()
+private val FLOW_REVIEW = SamplingPipelineStage.FLOW_REVIEW.toStageCode()

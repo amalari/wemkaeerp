@@ -3,10 +3,13 @@ package com.eventverse.app.infrastructure
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.process.ProcessCatalogCodec
 import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.json.*
+import com.eventverse.app.shared.stageflow.TenantStageFlowCodec
 import kotlinx.datetime.Instant
 
 /**
@@ -25,6 +28,27 @@ internal object SamplingOrderPersistenceMapper {
     /** Tag fase beku desain; `null` = belum dibekukan, warisi template pabrik. */
     fun parsePhaseTags(raw: String?): StagePhaseTags? =
         raw?.let { runCatching { StagePhaseTagsCodec.decode(JsonParser.parse(it)) }.getOrNull() }
+
+    fun encodePhaseTags(tags: StagePhaseTags?): String? = tags?.let { StagePhaseTagsCodec.encode(it).encode() }
+
+    fun encodeCustomFlow(processes: List<TenantOptionalProcess>?): String? =
+        processes?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
+
+    /**
+     * Kerangka tahap beku SPK (V73). Dekode **ketat**: kerangka yang rusak dibiarkan meledak
+     * alih-alih dianggap `null`, karena `null` berarti "pakai kerangka default" — kartu bordir
+     * akan diam-diam dirender di atas kerangka rajut.
+     */
+    fun parseStageFlow(raw: String?): List<StageDefinition>? =
+        raw?.let { TenantStageFlowCodec.decodeStages((JsonParser.parse(it) as JsonValue.Arr).items) }
+
+    /** Tahap tersimpan, divalidasi terhadap kerangka beku SPK; tak dikenali → `NEW_INTAKE` seperti sebelumnya. */
+    fun parseStageCode(rawStage: String?, rawFlow: String?): StageCode =
+        resolveStoredStageCode(rawStage, parseStageFlow(rawFlow) ?: SamplingRoute.DEFAULT_STAGES)
+            ?: SamplingPipelineStage.NEW_INTAKE.toStageCode()
+
+    fun encodeStageFlow(stages: List<StageDefinition>?): String? =
+        stages?.let { TenantStageFlowCodec.encodeStages(it).encode() }
 
     fun parseSizeMatrix(raw: String?): List<SizeChartRow> =
         runCatching {

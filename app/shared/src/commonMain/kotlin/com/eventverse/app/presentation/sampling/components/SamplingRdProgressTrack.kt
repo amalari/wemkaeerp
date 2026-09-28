@@ -21,14 +21,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.domain.sampling.RD_STALL_WARNING_DAYS
 import com.eventverse.app.domain.sampling.RdStep
 import com.eventverse.app.domain.sampling.RdStepState
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.daysInCurrentStage
 import com.eventverse.app.domain.sampling.rdProgress
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -103,35 +103,28 @@ private fun RdSegment(step: RdStep, modifier: Modifier) {
 @Composable
 fun SamplingRdStageFilterRow(
     orders: List<SamplingOrder>,
-    selected: SamplingPipelineStage?,
-    onSelect: (SamplingPipelineStage?) -> Unit
+    /** Tahap bermeja operator pada kerangka pabrik — urutan kolom R&D. */
+    stages: List<StageDefinition>,
+    selected: StageCode?,
+    onSelect: (StageCode?) -> Unit
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xxs),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xxs)
     ) {
-        RD_STAGES.forEach { stage ->
-            val count = orders.count { it.pipelineStage == stage }
-            val isSelected = selected == stage
+        stages.forEach { stage ->
+            val count = orders.count { it.stageCode == stage.code }
+            val isSelected = selected == stage.code
             ClayBadge(
-                text = "${stage.rdShortLabel()} $count",
+                // Pemisah wajib: label tenant boleh berisi angka ("QC 2"), dan "QC 2 0" tak terbaca.
+                text = "${stage.shortLabel} · $count",
                 tint = if (isSelected) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted,
                 fontSize = 10.sp,
                 modifier = Modifier
                     .clip(ClayShapes.Pill)
-                    .clickable { onSelect(if (isSelected) null else stage) }
+                    .clickable { onSelect(if (isSelected) null else stage.code) }
             )
         }
     }
-}
-
-private fun SamplingPipelineStage.rdShortLabel(): String = when (this) {
-    SamplingPipelineStage.MACHINE_KNITTING -> "Rajut"
-    SamplingPipelineStage.LINKING_ASSEMBLY -> "Linking"
-    SamplingPipelineStage.CUCI_SOFTENER -> "Cuci"
-    SamplingPipelineStage.SETRIKA_UAP -> "Setrika"
-    SamplingPipelineStage.QC_FINISHING -> "QC"
-    SamplingPipelineStage.PENGEMASAN -> "Kemas"
-    else -> displayName
 }

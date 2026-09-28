@@ -27,9 +27,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.requiresStageWorksheet
+import com.eventverse.app.domain.sampling.toSamplingStageOrNull
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.traceability.TraceWorkOrderKind
 import com.eventverse.app.domain.traceability.TraceWorkOrderRef
 import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
@@ -213,15 +216,15 @@ fun SamplingWorkspaceScreen(
                         // Satu sumber kebenaran: transisi yang menuntut lembar kerja
                         // membuka dialog dulu; sisanya langsung maju (backend tetap
                         // memvalidasi gerbang + mencatat audit aktor).
-                        if (stage == SamplingPipelineStage.STORAGE_HOLDING) {
+                        if (stage == ExitStages.STORAGE) {
                             viewModel.onEvent(SamplingUiEvent.OpenStoreDialog(order))
-                        } else if (stage == SamplingPipelineStage.IN_DELIVERY) {
+                        } else if (stage == ExitStages.DELIVERY) {
                             viewModel.onEvent(SamplingUiEvent.OpenReleaseDialog(order))
-                        } else if (stage == SamplingPipelineStage.CAM_PROGRAMMING) {
+                        } else if (stage == CAM) {
                             // Masuk Program CAM menuntut lembar Program CAM (program, feeder,
                             // tenselity, dan catatan rumus pola) diisi di dialog Detail SPK.
                             viewModel.onEvent(SamplingUiEvent.OpenSpkDetailDialog(order, focusCam = true))
-                        } else if (stage.requiresStageWorksheet()) {
+                        } else if (stage.toSamplingStageOrNull()?.requiresStageWorksheet() == true) {
                             viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, stage))
                         } else {
                             viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, stage))
@@ -233,7 +236,8 @@ fun SamplingWorkspaceScreen(
                     onApproveOrder = { id, notes ->
                         viewModel.onEvent(SamplingUiEvent.ApproveOrder(id, true, notes))
                     },
-                    allOrders = state.orders
+                    allOrders = state.orders,
+                    stageFlow = state.stageFlow
                 )
             }
         }
@@ -249,25 +253,22 @@ fun SamplingWorkspaceScreen(
             initialShowCamSection = state.spkDetailFocusCam,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },
             onSubmitCamProgram = { sections ->
-                val targetStage = if (target.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING) {
-                    SamplingPipelineStage.MACHINE_KNITTING
-                } else {
-                    SamplingPipelineStage.CAM_PROGRAMMING
-                }
+                // Lembar Program CAM khas rajut (CAM → Rajut); lembar per tahap kerangka lain = Tahap 3.
+                val targetStage = if (target.stageCode == CAM) KNITTING else CAM
                 viewModel.onEvent(
                     SamplingUiEvent.ConfirmStageAdvance(
                         orderId = target.id,
                         targetStage = targetStage,
                         sections = sections,
-                        inputStage = SamplingPipelineStage.CAM_PROGRAMMING,
+                        inputStage = CAM,
                         // Hanya CAM → Rajut yang mencetak kartu; gerbang → CAM belum punya kartu fisik.
-                        openSpkCardOnSuccess = target.pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING
+                        openSpkCardOnSuccess = target.stageCode == CAM
                     )
                 )
             },
             draftSaveStatus = state.draftSave.statusFor(target.id),
             onDraftChange = { sections ->
-                viewModel.onEvent(SamplingUiEvent.SaveStageInput(target.id, SamplingPipelineStage.CAM_PROGRAMMING, sections))
+                viewModel.onEvent(SamplingUiEvent.SaveStageInput(target.id, CAM, sections))
             },
             onDetermineFlow = { viewModel.onEvent(SamplingUiEvent.DetermineFlow(target.id)) },
             onCreateTechPack = onCreateTechPack,
@@ -290,10 +291,11 @@ fun SamplingWorkspaceScreen(
     // Stage Advance Dialog — lembar kerja dinamis (CAM, Rajut, Finishing)
     val advanceTarget = state.stageAdvanceTarget
     val advanceTargetStage = state.stageAdvanceTargetStage
-    if (advanceTarget != null && advanceTargetStage != null) {
+    val advanceWorksheetStage = advanceTargetStage?.toSamplingStageOrNull()
+    if (advanceTarget != null && advanceTargetStage != null && advanceWorksheetStage != null) {
         StageAdvanceDialog(
             order = advanceTarget,
-            targetStage = advanceTargetStage,
+            targetStage = advanceWorksheetStage,
             isSubmitting = state.isSubmitting,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseStageAdvanceDialog) },
             onConfirm = { sections ->
@@ -306,3 +308,6 @@ fun SamplingWorkspaceScreen(
 
     SampleStorageDialogHost(state = state, onEvent = viewModel::onEvent)
 }
+
+private val CAM = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode()
+private val KNITTING = SamplingPipelineStage.MACHINE_KNITTING.toStageCode()

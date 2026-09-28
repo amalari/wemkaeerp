@@ -1,13 +1,16 @@
 package com.eventverse.app.domain.sampling.usecases
 
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.sampling.currentStage
 import com.eventverse.app.domain.sampling.storage.SampleStorageRecord
 import com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository
 import com.eventverse.app.domain.sampling.storage.StorageCustodian
 import com.eventverse.app.domain.sampling.storage.dealStorageReadiness
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlinx.datetime.Instant
 
 data class ReleaseSampleFromStorageCommand(
@@ -17,7 +20,7 @@ data class ReleaseSampleFromStorageCommand(
     val actorRole: String = "",
     /** Wajib bila SPK lain dalam deal yang sama belum tersimpan. */
     val partialReason: String? = null,
-    val stages: List<SamplingPipelineStage> = SamplingPipelineStage.entries,
+    val stages: List<StageCode> = SamplingRoute.DEFAULT_FRAME,
     val processes: List<TenantOptionalProcess> = emptyList(),
     val now: Instant
 )
@@ -38,8 +41,8 @@ class ReleaseSampleFromStorageUseCase(
 ) {
     suspend operator fun invoke(command: ReleaseSampleFromStorageCommand): Result<ReleasedSample> = runCatching {
         val order = command.order
-        require(order.pipelineStage == SamplingPipelineStage.STORAGE_HOLDING) {
-            "Pengiriman hanya dari penyimpanan — ${order.spkNumber.value} masih di ${order.pipelineStage.displayName}"
+        require(order.stageCode == ExitStages.STORAGE) {
+            "Pengiriman hanya dari penyimpanan — ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
         }
         val record = requireNotNull(storageRepository.findLatestByOrderId(order.tenantId, order.id)) {
             "Catatan penyimpanan ${order.spkNumber.value} tidak ditemukan — simpan ulang barangnya dulu"
@@ -51,7 +54,7 @@ class ReleaseSampleFromStorageUseCase(
         val advanced = advanceStage(
             AdvanceSamplingStageCommand(
                 order = order,
-                target = SamplingPipelineStage.IN_DELIVERY,
+                target = ExitStages.DELIVERY,
                 stages = command.stages,
                 processes = command.processes,
                 actorEmail = command.pic.email,

@@ -4,13 +4,13 @@ import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.sendBackForRework
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlinx.datetime.Instant
 
 data class SendBackSamplingReworkCommand(
     val orderId: SamplingOrderId,
-    val target: SamplingPipelineStage,
+    val target: StageCode,
     val reason: String,
     val liability: DefectLiability,
     val actorEmail: String,

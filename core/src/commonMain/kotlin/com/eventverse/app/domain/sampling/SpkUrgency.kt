@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.stageflow.StageDefinition
 import kotlinx.datetime.LocalDate
 import kotlin.jvm.JvmInline
 import kotlin.math.ceil
@@ -21,30 +22,22 @@ import kotlin.math.ceil
 interface StageWorkProfile {
 
     /** Fraksi pekerjaan yang masih tersisa saat SPK berada di [stage] (1 = belum ada yang dikerjakan). */
-    fun remainingFactor(stage: SamplingPipelineStage): Double
+    fun remainingFactor(stage: StageDefinition): Double
+
+    /** Jembatan TRD-FLOW-001 untuk pemanggil yang masih memegang enum: dibaca dari template rajut. */
+    fun remainingFactor(stage: SamplingPipelineStage): Double = remainingFactor(stage.knitDefinition())
 }
 
 /**
- * Default awal sebelum ada data durasi nyata: perkiraan proporsi beban tahap rajut sampling.
+ * Default awal sebelum ada data durasi nyata: sisa kerja dibaca dari kerangka tahap SPK
+ * ([StageDefinition.remainingWorkFactor]) — nilai rajutnya adalah perkiraan proporsi beban lama.
  *
  * Angkanya titik mulai, bukan kebenaran — begitu `StageTransitionAudit` mengumpulkan cukup sejarah
  * (durasi kerja nyata per tahap), profil terukur tinggal menggantikan objek ini di wiring server
  * tanpa menyentuh rumus, kartu, maupun test. Test mengunci *sifatnya* (monoton turun), bukan nilainya.
  */
 object DefaultStageWorkProfile : StageWorkProfile {
-    override fun remainingFactor(stage: SamplingPipelineStage): Double = when (stage) {
-        SamplingPipelineStage.NEW_INTAKE, SamplingPipelineStage.FLOW_REVIEW -> 1.00
-        SamplingPipelineStage.CAM_PROGRAMMING -> 0.85
-        SamplingPipelineStage.MACHINE_KNITTING -> 0.55
-        SamplingPipelineStage.LINKING_ASSEMBLY -> 0.35
-        SamplingPipelineStage.CUCI_SOFTENER -> 0.25
-        SamplingPipelineStage.SETRIKA_UAP -> 0.15
-        SamplingPipelineStage.QC_FINISHING -> 0.08
-        SamplingPipelineStage.PENGEMASAN -> 0.04
-        SamplingPipelineStage.STORAGE_HOLDING -> 0.03
-        SamplingPipelineStage.IN_DELIVERY -> 0.02
-        SamplingPipelineStage.ACC_APPROVED -> 0.00
-    }
+    override fun remainingFactor(stage: StageDefinition): Double = stage.remainingWorkFactor
 }
 
 /**
@@ -89,11 +82,14 @@ enum class SpkUrgencyLevel(val displayName: String) {
 /** Proyeksi minimal satu SPK untuk perhitungan urgensi — cukup ringan untuk seluruh SPK aktif sekaligus. */
 data class SpkUrgencyInput(
     val spkId: String,
-    val stage: SamplingPipelineStage,
+    val stage: StageDefinition,
     val deadline: LocalDate?,
     val totalStdMinutes: Int,
     val qtyPcs: Int
-)
+) {
+    constructor(spkId: String, stage: SamplingPipelineStage, deadline: LocalDate?, totalStdMinutes: Int, qtyPcs: Int) :
+        this(spkId, stage.knitDefinition(), deadline, totalStdMinutes, qtyPcs)
+}
 
 data class SpkSlackAssessment(
     val spkId: String,

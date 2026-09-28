@@ -3,6 +3,7 @@ package com.eventverse.app.domain.sampling
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -87,6 +88,8 @@ data class SamplingOrder(
     val isCustomFlow: Boolean = false,
     /** Tag fase Cuci/Setrika desain ini. `null` = mewarisi template pabrik (belum dibekukan). */
     val stagePhaseTags: StagePhaseTags? = null,
+    /** Kerangka tahap beku SPK ini (TRD-FLOW-001). `null` = belum beku — lihat [stageFrame]. */
+    val frozenStageFlow: List<StageDefinition>? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
     val archivedAt: Instant? = null
@@ -186,27 +189,31 @@ data class SamplingOrder(
      * Simpan lembar input dinamis untuk satu tahap — menggantikan entry tahap yang sama
      * bila sudah ada (satu tahap = satu lembar kerja aktif).
      */
-    fun fillStageInput(stage: SamplingPipelineStage, sections: List<StageInputSection>, updatedAt: Instant): SamplingOrder {
+    fun fillStageInput(stage: StageCode, sections: List<StageInputSection>, updatedAt: Instant): SamplingOrder {
         require(sections.isNotEmpty()) { "Lembar input tahap tidak boleh kosong" }
-        val entry = StageWorkInput(stage = stage, sections = sections)
-        val updated = stageInputs.filterNot { it.stage == stage } + entry
+        val entry = StageWorkInput(stageCode = stage, sections = sections)
+        val updated = stageInputs.filterNot { it.stageCode == stage } + entry
         return copy(stageInputs = updated, updatedAt = updatedAt)
     }
 
     /** Section input yang sudah diisi untuk satu tahap (untuk tampilan read-only antar tahap). */
-    fun stageInputFor(stage: SamplingPipelineStage): StageWorkInput? = stageInputs.firstOrNull { it.stage == stage }
+    fun stageInputFor(stage: StageCode): StageWorkInput? = stageInputs.firstOrNull { it.stageCode == stage }
+
+    /** Jembatan enum untuk pemanggil yang belum pindah (TRD-FLOW-001 R3). */
+    fun advancePipelineStage(target: SamplingPipelineStage, updatedAt: Instant, actorEmail: String = "", actorRole: String = "") =
+        advancePipelineStage(target.toStageCode(), updatedAt, actorEmail, actorRole)
 
     fun advancePipelineStage(
-        target: SamplingPipelineStage,
+        target: StageCode,
         updatedAt: Instant,
         actorEmail: String = "",
         actorRole: String = ""
     ): SamplingOrder {
-        require(target in samplingRoute) { "Tahap ${target.displayName} tidak ada di alur sampling desain ini" }
+        require(target in samplingRoute) { "Tahap ${stageFrame.firstOrNull { it.code == target }?.displayName ?: target.value} tidak ada di alur sampling desain ini" }
         requireStageGate(target)
         // Transisi apa pun — termasuk NEW_INTAKE -> NEW_INTAKE saat Deals menerbitkan SPK —
         // menandai order sudah diserahkan ke Divisi Sampling, jadi DRAFT berakhir di sini.
-        return movedTo(target, StageTransitionAudit(pipelineStage, target, actorEmail, actorRole, updatedAt))
+        return movedTo(target, StageTransitionAudit(stageCode, target, actorEmail, actorRole, updatedAt))
             .copy(status = if (status == SamplingStatus.DRAFT) SamplingStatus.IN_PROGRESS else status)
     }
 
@@ -214,8 +221,8 @@ data class SamplingOrder(
      * Satu-satunya jalan memindahkan tahap yang meninggalkan jejak: tahap berganti, entri audit
      * ditambahkan, dan klaim "sedang dikerjakan" dilepas — pekerjaan di tahap lama sudah selesai.
      */
-    internal fun movedTo(target: SamplingPipelineStage, audit: StageTransitionAudit): SamplingOrder = copy(
-        stageCode = target.toStageCode(),
+    internal fun movedTo(target: StageCode, audit: StageTransitionAudit): SamplingOrder = copy(
+        stageCode = target,
         activeWork = null,
         stageHistory = stageHistory + audit.copy(
             workStartedAt = audit.workStartedAt ?: currentWork?.startedAt,
@@ -228,8 +235,8 @@ data class SamplingOrder(
         val updatedInfo = info.copy(status = VendorFollowUpStatus.WITH_VENDOR)
         return copy(finishingPath = FinishingPath.MAKLOON_VENDOR, vendorInfo = updatedInfo)
             .movedTo(
-                SamplingPipelineStage.LINKING_ASSEMBLY,
-                StageTransitionAudit(pipelineStage, SamplingPipelineStage.LINKING_ASSEMBLY, actorEmail, "MAKLOON", updatedAt, operatorName = updatedInfo.vendorName.ifBlank { null })
+                assemblyStage,
+                StageTransitionAudit(stageCode, assemblyStage, actorEmail, "MAKLOON", updatedAt, operatorName = updatedInfo.vendorName.ifBlank { null })
             )
     }
 
@@ -242,11 +249,11 @@ data class SamplingOrder(
     }
 
     /** Tangan pertama sesudah perakitan — Cuci, atau Setrika/QC bila Cuci dilompati rute ini. */
-    private val afterAssembly: SamplingPipelineStage
-        get() = samplingRoute.nextAfter(SamplingPipelineStage.LINKING_ASSEMBLY) ?: SamplingPipelineStage.QC_FINISHING
+    private val afterAssembly: StageCode
+        get() = samplingRoute.nextAfter(assemblyStage) ?: finalQcStage
 
-    private fun vendorAudit(target: SamplingPipelineStage, actorEmail: String, at: Instant) =
-        StageTransitionAudit(pipelineStage, target, actorEmail, "MAKLOON", at, operatorName = vendorInfo.vendorName.ifBlank { null })
+    private fun vendorAudit(target: StageCode, actorEmail: String, at: Instant) =
+        StageTransitionAudit(stageCode, target, actorEmail, "MAKLOON", at, operatorName = vendorInfo.vendorName.ifBlank { null })
 
     fun updateTenselity(entries: List<TenselityEntry>, updatedAt: Instant): SamplingOrder =
         copy(
@@ -276,14 +283,14 @@ data class SamplingOrder(
         // disetrika padahal tidak ada satu pun catatan yang mengatakan begitu — kesalahan yang
         // sama persis dengan memetakan baris lama ke QC saat migrasi. Dua tahap di antaranya
         // dimajukan oleh orang yang benar-benar mengerjakannya, lewat tombol di meja finishing.
-        val newStage = if (newFinishedQty >= sampleQuantity && pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY) {
+        val newStage = if (newFinishedQty >= sampleQuantity && stageCode == assemblyStage) {
             afterAssembly
         } else {
-            pipelineStage
+            stageCode
         }
         val withDeposit = copy(finishingDeposits = updatedDeposits, updatedAt = updatedAt)
-        if (newStage == pipelineStage) return withDeposit
-        return withDeposit.movedTo(newStage, StageTransitionAudit(pipelineStage, newStage, deposit.operatorName, "OPERATOR", updatedAt))
+        if (newStage == stageCode) return withDeposit
+        return withDeposit.movedTo(newStage, StageTransitionAudit(stageCode, newStage, deposit.operatorName, "OPERATOR", updatedAt))
     }
 
     fun completeQcInspection(report: QcInspectionReport, updatedAt: Instant): SamplingOrder {
@@ -292,18 +299,18 @@ data class SamplingOrder(
         // yang bahkan belum dirakit — meloloskannya tidak berarti bajunya siap jalan.
         val newStage = if (report.kind == QcInspectionKind.FINISHING &&
             report.qcResult == QcInspectionResult.PASSED &&
-            pipelineStage == SamplingPipelineStage.QC_FINISHING
+            stageCode == finalQcStage
         ) {
             // QC yang lolos memindahkan barang ke meja pengemasan, bukan langsung ke pengiriman:
             // sejak pengemasan jadi tahapnya sendiri, melompatinya berarti menyatakan sampel sudah
             // dilipat, di-hangtag, dan masuk polybag padahal belum ada yang mengerjakannya.
-            SamplingPipelineStage.PENGEMASAN
+            packingStage
         } else {
-            pipelineStage
+            stageCode
         }
         val withReport = copy(qcInspections = updatedInspections, updatedAt = updatedAt)
-        if (newStage == pipelineStage) return withReport
-        return withReport.movedTo(newStage, StageTransitionAudit(pipelineStage, newStage, report.inspectorName, "QC", updatedAt))
+        if (newStage == stageCode) return withReport
+        return withReport.movedTo(newStage, StageTransitionAudit(stageCode, newStage, report.inspectorName, "QC", updatedAt))
     }
 
     /** Snapshot arsip desain untuk nomor revisi tertentu; `null` bila belum ada snapshot. */

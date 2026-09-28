@@ -5,6 +5,7 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.currentStage
 import com.eventverse.app.domain.sampling.samplingRoute
 import com.eventverse.app.domain.sampling.SpkUrgencyInput
 import com.eventverse.app.domain.sampling.SpkUrgencyLevel
@@ -13,6 +14,7 @@ import com.eventverse.app.domain.sampling.StageWorkProfile
 import com.eventverse.app.domain.sampling.assessSamplingUrgency
 import com.eventverse.app.domain.sampling.calculateTotalSampleQuantity
 import com.eventverse.app.domain.sampling.isQtyRow
+import com.eventverse.app.domain.sampling.stageInputFor
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.TraceAllocationPlan
 import com.eventverse.app.domain.traceability.TraceCodec
@@ -83,11 +85,11 @@ class SpkCardBuilder(
                 styleName = order.styleName,
                 clientName = order.clientName,
                 revision = order.revisionCount,
-                stageLabel = order.pipelineStage.displayName,
+                stageLabel = order.currentStage.displayName,
                 // Nomor & jumlah tahap mengikuti rute desain: kartu yang melompati Cuci
                 // mencetak "8/11", bukan "9/12" dengan satu tahap yang tak pernah dilewati.
-                stageNumber = order.samplingRoute.stages.indexOf(order.pipelineStage) + 1,
-                stageCount = order.samplingRoute.stages.size,
+                stageNumber = order.samplingRoute.stageCodes.indexOf(order.stageCode) + 1,
+                stageCount = order.samplingRoute.stageCodes.size,
                 deadline = order.deadlineDelivery ?: order.deadlineFinishing ?: order.deadlineProgram,
                 urgencyLevel = mine?.level ?: SpkUrgencyLevel.URGENT,
                 slackDays = mine?.slackDays,
@@ -103,7 +105,7 @@ class SpkCardBuilder(
     /** Proyeksi ringan satu SPK untuk [assessUrgency] — deadline kirim yang mengejar, lalu finishing, lalu program. */
     private fun SamplingOrder.toUrgencyInput() = SpkUrgencyInput(
         spkId = id.value,
-        stage = pipelineStage,
+        stage = currentStage,
         deadline = deadlineDelivery ?: deadlineFinishing ?: deadlineProgram,
         totalStdMinutes = yieldAndTiming.panelMinutes.total,
         qtyPcs = calculateTotalSampleQuantity(sizeMatrix).takeIf { it > 0 } ?: sampleQuantity

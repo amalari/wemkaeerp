@@ -1,8 +1,10 @@
 package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.sampling.SamplingOrderId
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputSection
+import com.eventverse.app.domain.sampling.fillStageInput
+import com.eventverse.app.domain.sampling.stageInputFor
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -45,7 +47,7 @@ internal class SamplingDraftAutosaver(
 ) {
     private var pending: Job? = null
 
-    fun onDraftChanged(orderId: SamplingOrderId, stage: SamplingPipelineStage, sections: List<StageInputSection>) {
+    fun onDraftChanged(orderId: SamplingOrderId, stage: StageCode, sections: List<StageInputSection>) {
         val current = state.value.orders.firstOrNull { it.id == orderId } ?: return
         // Compose bisa memancarkan ulang isi yang sama (normalisasi saat render) — jangan jadikan request.
         if (sections.isEmpty() || current.stageInputFor(stage)?.sections == sections) return

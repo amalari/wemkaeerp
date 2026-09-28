@@ -1,17 +1,20 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.stageflow.StageTrait
+
 /**
  * Kalkulator murni timeline 5 langkah garment — dipisah dari [SamplingOrder] supaya
  * entity tetap pada satu tanggung jawab dan logika presentasi timeline bisa diuji
  * tanpa menyentuh entity (pola kalkulator murni, lihat file-size-rules §4).
  */
 fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
-    val isDraft = status == SamplingStatus.DRAFT || pipelineStage == SamplingPipelineStage.NEW_INTAKE
+    val stage = currentStage
+    val isDraft = status == SamplingStatus.DRAFT || stageCode == SamplingPipelineStage.NEW_INTAKE.toStageCode()
     val totalDeposited = finishingDeposits.sumOf { it.qtyPcs }
     // Barang yang sudah masuk penyimpanan selesai diproduksi — yang tersisa hanya pengiriman.
-    val isStored = pipelineStage == SamplingPipelineStage.STORAGE_HOLDING
-    val isDeliveredOrApproved = isStored || pipelineStage == SamplingPipelineStage.IN_DELIVERY ||
-        pipelineStage == SamplingPipelineStage.ACC_APPROVED ||
+    val isStored = stageCode == ExitStages.STORAGE
+    val isDeliveredOrApproved = isStored || stageCode == ExitStages.DELIVERY ||
+        stageCode == ExitStages.APPROVED ||
         isAccApproved ||
         !courierTracking.isNullOrBlank()
 
@@ -21,36 +24,16 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
     val samplingSubtitle = when {
         isDraft -> "Menunggu Rilis SPK"
         status == SamplingStatus.REVISION -> "Perlu Revisi (Rev $revisionCount)"
-        pipelineStage == SamplingPipelineStage.FLOW_REVIEW -> "Penentuan Alur Desain"
-        pipelineStage == SamplingPipelineStage.CAM_PROGRAMMING -> "Program Mesin CAM"
-        pipelineStage == SamplingPipelineStage.MACHINE_KNITTING -> "Rajut Turun Mesin"
-        pipelineStage == SamplingPipelineStage.LINKING_ASSEMBLY -> "Linking & Jahit"
-        pipelineStage == SamplingPipelineStage.CUCI_SOFTENER ->
-            "Cuci & Softener ($totalDeposited/$sampleQuantity pcs)"
-        pipelineStage == SamplingPipelineStage.SETRIKA_UAP ->
-            "Setrika Uap ($totalDeposited/$sampleQuantity pcs)"
-        pipelineStage == SamplingPipelineStage.QC_FINISHING -> "QC 2 (Final Inspection)"
-        pipelineStage == SamplingPipelineStage.PENGEMASAN -> "Pengemasan & Hangtag"
         isDeliveredOrApproved -> "Sampling Tuntas"
-        else -> "Produksi Fisik Berjalan"
+        // Nama tahap milik kerangka SPK (keputusan 2026-09-29: satu nama per tahap, bukan dua).
+        stage.has(StageTrait.WET_OR_PRESS) -> "${stage.displayName} ($totalDeposited/$sampleQuantity pcs)"
+        else -> stage.displayName
     }
 
     val samplingBadge = when {
         status == SamplingStatus.REVISION -> "Revisi"
         isSamplingComplete -> "Selesai"
-        isSamplingActive -> when (pipelineStage) {
-            SamplingPipelineStage.NEW_INTAKE -> "Draft"
-            SamplingPipelineStage.FLOW_REVIEW -> "Alur"
-            SamplingPipelineStage.CAM_PROGRAMMING -> "CAM"
-            SamplingPipelineStage.MACHINE_KNITTING -> "Rajut"
-            SamplingPipelineStage.LINKING_ASSEMBLY -> "Jahit"
-            SamplingPipelineStage.CUCI_SOFTENER -> "Cuci"
-            SamplingPipelineStage.SETRIKA_UAP -> "Setrika"
-            SamplingPipelineStage.QC_FINISHING -> "QC 2"
-            SamplingPipelineStage.PENGEMASAN -> "Kemas"
-            SamplingPipelineStage.STORAGE_HOLDING -> "Disimpan"
-            SamplingPipelineStage.IN_DELIVERY, SamplingPipelineStage.ACC_APPROVED -> "Selesai"
-        }
+        isSamplingActive -> stage.shortLabel
         else -> null
     }
 
@@ -86,17 +69,17 @@ fun SamplingOrder.resolveGarmentTimeline(): List<GarmentStepState> {
         GarmentStepState(
             step = GarmentTrackingStep.READY_TO_SHIP,
             isCompleted = !isDraft && !courierTracking.isNullOrBlank(),
-            isActive = !isDraft && (isStored || pipelineStage == SamplingPipelineStage.IN_DELIVERY) && courierTracking.isNullOrBlank(),
+            isActive = !isDraft && (isStored || stageCode == ExitStages.DELIVERY) && courierTracking.isNullOrBlank(),
             subtitle = when {
                 !courierTracking.isNullOrBlank() -> "Resi: $courierTracking"
                 isStored -> "Disimpan, Menunggu Lengkap"
-                pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim ke Buyer"
+                stageCode == ExitStages.DELIVERY -> "Siap Kirim ke Buyer"
                 else -> "Menunggu Sampling Tuntas"
             },
             badgeText = when {
                 isDraft || !courierTracking.isNullOrBlank() -> null
                 isStored -> "Disimpan"
-                pipelineStage == SamplingPipelineStage.IN_DELIVERY -> "Siap Kirim"
+                stageCode == ExitStages.DELIVERY -> "Siap Kirim"
                 else -> null
             }
         ),

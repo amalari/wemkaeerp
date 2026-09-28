@@ -1,12 +1,15 @@
 package com.eventverse.app.domain.stageflow
 
 import com.eventverse.app.domain.process.PhaseTaggableStage
+import com.eventverse.app.domain.sampling.DefaultStageWorkProfile
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.isOperatorDesk
 import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.sampling.toSamplingStageOrNull
 import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.stageflow.usecases.GetTenantStageFlowUseCase
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.stageflow.TenantStageFlowCodec
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
@@ -45,6 +48,36 @@ class IndustryStageTemplatesTest {
                 "phase taggable $legacy"
             )
         }
+    }
+
+    @Test
+    fun knitTemplate_operatorDesk_shouldMatchLegacyIsOperatorDesk() {
+        SamplingPipelineStage.entries.forEach { legacy ->
+            val stage = assertNotNull(knit.find(legacy.toStageCode()))
+            assertEquals(legacy.isOperatorDesk, stage.has(StageTrait.OPERATOR_DESK), "operator desk $legacy")
+        }
+    }
+
+    @Test
+    fun knitTemplate_remainingWorkFactor_shouldEqualLegacyUrgencyTable() {
+        // Nilai tabel `when` DefaultStageWorkProfile sebelum TRD-FLOW-001 (git HEAD 0f5c080).
+        val legacy = mapOf(
+            "NEW_INTAKE" to 1.00, "FLOW_REVIEW" to 1.00, "CAM_PROGRAMMING" to 0.85, "MACHINE_KNITTING" to 0.55,
+            "LINKING_ASSEMBLY" to 0.35, "CUCI_SOFTENER" to 0.25, "SETRIKA_UAP" to 0.15, "QC_FINISHING" to 0.08,
+            "PENGEMASAN" to 0.04, "STORAGE_HOLDING" to 0.03, "IN_DELIVERY" to 0.02, "ACC_APPROVED" to 0.00
+        )
+        SamplingPipelineStage.entries.forEach { stage ->
+            assertEquals(legacy.getValue(stage.name), DefaultStageWorkProfile.remainingFactor(stage), "sisa kerja $stage")
+        }
+    }
+
+    @Test
+    fun codec_withoutDisplayFields_shouldFallBackToDefaults() {
+        val decoded = TenantStageFlowCodec.decodeStages(
+            listOf(JsonParser.parse("""{"code":"HOOPING","displayName":"Hooping","kind":"WORK","archetype":"custom_extension","traits":[]}"""))
+        ).single()
+        assertEquals("Hooping", decoded.shortLabel)
+        assertEquals(StageDefinition.DEFAULT_COLOR_HEX, decoded.colorHex)
     }
 
     @Test

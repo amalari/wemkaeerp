@@ -117,8 +117,8 @@ class AdvanceSamplingStageGateTest {
         overrideReason: String? = null
     ) = AdvanceSamplingStageCommand(
         order = useCaseOrder,
-        target = SamplingPipelineStage.LINKING_ASSEMBLY,
-        stages = SamplingPipelineStage.entries,
+        target = SamplingPipelineStage.LINKING_ASSEMBLY.toStageCode(),
+        stages = SamplingRoute.DEFAULT_FRAME,
         processes = emptyList(),
         actorEmail = "ppic@pabrik.id",
         actorRole = "PPIC",
@@ -198,7 +198,7 @@ class AdvanceSamplingStageGateTest {
     fun `advance when cam worksheet incomplete should keep reporting the cam gate`() = runTest {
         val atCam = order().copy(stageCode = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode())
         val result = useCase(config = null)(
-            command(useCaseOrder = atCam).copy(target = SamplingPipelineStage.MACHINE_KNITTING)
+            command(useCaseOrder = atCam).copy(target = SamplingPipelineStage.MACHINE_KNITTING.toStageCode())
         )
 
         assertTrue(result.isFailure)

@@ -71,6 +71,8 @@ fun Route.operationalModuleRoutes(
         com.eventverse.app.infrastructure.PostgresTenantProcessRepository()
     val phaseTagsRepository: com.eventverse.app.domain.process.TenantStagePhaseTagsRepository =
         com.eventverse.app.infrastructure.PostgresTenantStagePhaseTagsRepository()
+    val stageFlowRepository: com.eventverse.app.domain.stageflow.TenantStageFlowRepository =
+        com.eventverse.app.infrastructure.PostgresTenantStageFlowRepository()
 
     // Dideklarasikan di sini, bukan di dekat rute Surat Jalan di bawah, karena gerbang
     // perpindahan tahap pada samplingRoutes membutuhkan keduanya.
@@ -90,7 +92,8 @@ fun Route.operationalModuleRoutes(
         poFileStorage = poFileStorage,
         flowLegsUseCase = flowLegsUseCase,
         storageRepository = com.eventverse.app.infrastructure.PostgresSampleStorageRecordRepository(),
-        phaseTagsRepository = phaseTagsRepository
+        phaseTagsRepository = phaseTagsRepository,
+        stageFlowRepository = stageFlowRepository
     )
     samplingStageWorkRoutes(samplingOrderRepo)
             productionRoutes(
@@ -184,7 +187,7 @@ fun Route.operationalModuleRoutes(
 
     tenantProcessRoutes(repository = tenantProcessCatalogRepository)
     tenantPhaseTagRoutes(repository = phaseTagsRepository)
-    tenantStageFlowRoutes(repository = com.eventverse.app.infrastructure.PostgresTenantStageFlowRepository())
+    tenantStageFlowRoutes(repository = stageFlowRepository)
 
     tenantLocationRoutes(
         repository = tenantLocationRepository,

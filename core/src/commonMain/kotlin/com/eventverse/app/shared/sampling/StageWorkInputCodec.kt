@@ -6,7 +6,8 @@ import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageTransitionAudit
 import com.eventverse.app.domain.sampling.StageWorkClaim
 import com.eventverse.app.domain.sampling.StageWorkInput
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.shared.common.DateTimeCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -38,8 +39,8 @@ object StageWorkInputCodec {
     fun encodeHistory(history: List<StageTransitionAudit>): String =
         jsonArrayOf(history.map { entry ->
             jsonObjectOf(
-                "fromStage" to jsonOf(entry.fromStage.name),
-                "toStage" to jsonOf(entry.toStage.name),
+                "fromStage" to jsonOf(entry.fromCode.value),
+                "toStage" to jsonOf(entry.toCode.value),
                 "actorEmail" to jsonOf(entry.actorEmail),
                 "actorRole" to jsonOf(entry.actorRole),
                 "at" to jsonOf(entry.at.toString()),
@@ -58,8 +59,8 @@ object StageWorkInputCodec {
                     ?.items?.mapNotNull { item ->
                         val obj = item as? JsonValue.Obj ?: return@mapNotNull null
                         StageTransitionAudit(
-                            fromStage = parseStage(obj.string("fromStage")) ?: return@mapNotNull null,
-                            toStage = parseStage(obj.string("toStage")) ?: return@mapNotNull null,
+                            fromCode = parseStage(obj.string("fromStage")) ?: return@mapNotNull null,
+                            toCode = parseStage(obj.string("toStage")) ?: return@mapNotNull null,
                             actorEmail = obj.string("actorEmail") ?: "",
                             actorRole = obj.string("actorRole") ?: "",
                             at = DateTimeCodec.parseInstantOrFallback(obj.string("at"), fallbackAt),
@@ -79,7 +80,7 @@ object StageWorkInputCodec {
     fun encodeClaim(claim: StageWorkClaim?): String =
         claim?.let {
             jsonObjectOf(
-                "stage" to jsonOf(it.stage.name),
+                "stage" to jsonOf(it.stageCode.value),
                 "operatorName" to jsonOf(it.operatorName),
                 "actorEmail" to jsonOf(it.actorEmail),
                 "startedAt" to jsonOf(it.startedAt.toString())
@@ -91,7 +92,7 @@ object StageWorkInputCodec {
         val obj = runCatching { JsonParser.parse(raw) as? JsonValue.Obj }.getOrNull() ?: return null
         val startedAt = obj.string("startedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
         return StageWorkClaim(
-            stage = parseStage(obj.string("stage")) ?: return null,
+            stageCode = parseStage(obj.string("stage")) ?: return null,
             operatorName = obj.string("operatorName") ?: "",
             actorEmail = obj.string("actorEmail") ?: "",
             startedAt = startedAt
@@ -99,14 +100,14 @@ object StageWorkInputCodec {
     }
 
     fun encodeInput(input: StageWorkInput): JsonValue.Obj = jsonObjectOf(
-        "stage" to jsonOf(input.stage.name),
+        "stage" to jsonOf(input.stageCode.value),
         "sections" to jsonArrayOf(input.sections.map(::encodeSection))
     )
 
     private fun decodeInput(obj: JsonValue.Obj): StageWorkInput? {
         val stage = parseStage(obj.string("stage")) ?: return null
         return StageWorkInput(
-            stage = stage,
+            stageCode = stage,
             sections = obj.objectArray("sections").map(::decodeSection)
         )
     }
@@ -131,6 +132,8 @@ object StageWorkInputCodec {
         }
     )
 
-    private fun parseStage(name: String?): SamplingPipelineStage? =
-        SamplingPipelineStage.parseOrNull(name)
+    // Alias lama dulu (FINISHING_QC → CUCI_SOFTENER), lalu kode kerangka lain. Nama rajut tetap
+    // terbaca persis seperti sebelumnya; kode non-rajut hanya pernah ditulis oleh SPK non-rajut.
+    private fun parseStage(name: String?): StageCode? =
+        parseLegacyStageCodeOrNull(name) ?: StageCode.parseOrNull(name)
 }

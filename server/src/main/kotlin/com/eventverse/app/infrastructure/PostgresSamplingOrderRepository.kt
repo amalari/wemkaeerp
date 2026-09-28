@@ -5,8 +5,6 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.sampling.SamplingProgramCodec
 import com.eventverse.app.infrastructure.tables.*
 import com.eventverse.app.shared.json.*
-import com.eventverse.app.shared.process.ProcessCatalogCodec
-import com.eventverse.app.shared.process.StagePhaseTagsCodec
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -69,7 +67,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         row[clientName] = order.clientName
         row[styleName] = order.styleName
         row[status] = order.status.name
-        row[pipelineStage] = order.pipelineStage.name
+        row[pipelineStage] = order.stageCode.value
         row[finishingPath] = order.finishingPath.name
         row[vendorName] = order.vendorInfo.vendorName.takeIf { it.isNotBlank() }
         row[vendorPhone] = order.vendorInfo.vendorPhone.takeIf { it.isNotBlank() }
@@ -95,9 +93,10 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
         row[sizeMatrix] = SamplingOrderPersistenceMapper.sizeMatrixJson(order.sizeMatrix).encode()
         row[stageInputs] = StageWorkInputCodec.encodeInputs(order.stageInputs)
         row[stageHistory] = StageWorkInputCodec.encodeHistory(order.stageHistory)
-        row[customFlowProcesses] = order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it).encode() }
+        row[customFlowProcesses] = SamplingOrderPersistenceMapper.encodeCustomFlow(order.customFlowProcesses)
         row[isCustomFlow] = order.isCustomFlow
-        row[stagePhaseTags] = order.stagePhaseTags?.let { StagePhaseTagsCodec.encode(it).encode() }
+        row[stagePhaseTags] = SamplingOrderPersistenceMapper.encodePhaseTags(order.stagePhaseTags)
+        row[frozenStageFlow] = SamplingOrderPersistenceMapper.encodeStageFlow(order.frozenStageFlow)
         row[accNotes] = order.accNotes
         row[notes] = order.notes
         row[activeWork] = StageWorkInputCodec.encodeClaim(order.activeWork)
@@ -553,7 +552,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             clientName = orderRow[SamplingOrdersTable.clientName],
             styleName = orderRow[SamplingOrdersTable.styleName],
             status = runCatching { SamplingStatus.valueOf(orderRow[SamplingOrdersTable.status]) }.getOrNull() ?: SamplingStatus.DRAFT,
-            stageCode = (SamplingPipelineStage.parseOrNull(orderRow[SamplingOrdersTable.pipelineStage]) ?: SamplingPipelineStage.NEW_INTAKE).toStageCode(),
+            stageCode = SamplingOrderPersistenceMapper.parseStageCode(orderRow[SamplingOrdersTable.pipelineStage], orderRow[SamplingOrdersTable.frozenStageFlow]),
             finishingPath = runCatching { FinishingPath.valueOf(orderRow[SamplingOrdersTable.finishingPath]) }.getOrNull() ?: FinishingPath.INTERNAL,
             vendorInfo = vendorInfo,
             sizeMode = runCatching { SizeMode.valueOf(orderRow[SamplingOrdersTable.sizeMode]) }.getOrNull() ?: SizeMode.ALL_SIZE,
@@ -594,6 +593,7 @@ class PostgresSamplingOrderRepository : SamplingOrderRepository {
             ),
             isCustomFlow = orderRow[SamplingOrdersTable.isCustomFlow],
             stagePhaseTags = SamplingOrderPersistenceMapper.parsePhaseTags(orderRow[SamplingOrdersTable.stagePhaseTags]),
+            frozenStageFlow = SamplingOrderPersistenceMapper.parseStageFlow(orderRow[SamplingOrdersTable.frozenStageFlow]),
             createdAt = orderRow[SamplingOrdersTable.createdAt],
             updatedAt = orderRow[SamplingOrdersTable.updatedAt],
             archivedAt = orderRow[SamplingOrdersTable.archivedAt]

@@ -1,10 +1,12 @@
 package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageTrait
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import kotlinx.datetime.Instant
 
-/** Tahap wajib yang tergabung di kolom R&D (rajut hingga kemas). */
+/** Tahap wajib yang tergabung di kolom R&D (rajut hingga kemas) pada kerangka rajut. */
 val RD_STAGES: List<SamplingPipelineStage> = listOf(
     SamplingPipelineStage.MACHINE_KNITTING,
     SamplingPipelineStage.LINKING_ASSEMBLY,
@@ -21,9 +23,12 @@ enum class RdStepState { DONE, ACTIVE, PENDING, SKIPPED }
 data class RdStep(
     val label: String,
     val state: RdStepState,
-    val stage: SamplingPipelineStage? = null,
+    val stageCode: StageCode? = null,
     val isSubcontracted: Boolean = false
-)
+) {
+    /** Jembatan enum untuk layar yang belum pindah (TRD-FLOW-001 R3). */
+    val stage: SamplingPipelineStage? get() = stageCode?.requireSamplingStage()
+}
 
 /**
  * Jejak progres R&D satu SPK — dirakit dari alur efektifnya.
@@ -33,30 +38,33 @@ data class RdStep(
  * masih tertunda selama SPK belum melewatinya — tidak pernah ditebak sebagai "aktif".
  */
 fun SamplingOrder.rdProgress(processes: List<TenantOptionalProcess> = customFlowProcesses.orEmpty()): List<RdStep> {
-    val current = pipelineStage.order
+    // Kolom R&D = meja operator pada kerangka SPK (rajut: Rajut hingga Kemas, sama dengan RD_STAGES).
+    val rdStages = stagesWith(StageTrait.OPERATOR_DESK)
+    val current = positionOf(stageCode)
     val route = samplingRoute
-    fun stateOf(stage: SamplingPipelineStage) = when {
-        stage !in route -> RdStepState.SKIPPED
-        stage.order < current -> RdStepState.DONE
-        stage.order == current -> RdStepState.ACTIVE
+    val afterRd = rdStages.lastOrNull()?.let { positionOf(it.code) + 1 } ?: stageFrame.size
+    fun stateOf(code: StageCode) = when {
+        code !in route -> RdStepState.SKIPPED
+        positionOf(code) < current -> RdStepState.DONE
+        positionOf(code) == current -> RdStepState.ACTIVE
         else -> RdStepState.PENDING
     }
-    return RD_STAGES.flatMapIndexed { index, stage ->
-        val next = RD_STAGES.getOrNull(index + 1) ?: SamplingPipelineStage.STORAGE_HOLDING
-        val inserted = processes.filter { it.samplingAnchorAfter == stage.toStageCode() }.map { process ->
+    return rdStages.flatMapIndexed { index, stage ->
+        val next = rdStages.getOrNull(index + 1)?.let { positionOf(it.code) } ?: afterRd
+        val inserted = processes.filter { it.samplingAnchorAfter == stage.code }.map { process ->
             RdStep(
                 label = process.displayName,
-                state = if (current >= next.order) RdStepState.DONE else RdStepState.PENDING,
+                state = if (current >= next) RdStepState.DONE else RdStepState.PENDING,
                 isSubcontracted = process.executionMode == WorkExecutionMode.SUBCONTRACTED
             )
         }
-        listOf(RdStep(label = stage.displayName, state = stateOf(stage), stage = stage)) + inserted
+        listOf(RdStep(label = stage.displayName, state = stateOf(stage.code), stageCode = stage.code)) + inserted
     }
 }
 
 /** Kapan SPK masuk tahap saat ini — dari jejak audit; null bila belum pernah berpindah. */
 val SamplingOrder.enteredCurrentStageAt: Instant?
-    get() = stageHistory.lastOrNull { it.toStage == pipelineStage }?.at
+    get() = stageHistory.lastOrNull { it.toCode == stageCode }?.at
 
 /** Ambang lama tertahan di satu tahap R&D sebelum kartu ditandai perlu perhatian. */
 const val RD_STALL_WARNING_DAYS = 3

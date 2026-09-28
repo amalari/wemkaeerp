@@ -23,6 +23,8 @@ import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.samplingRoute
 import com.eventverse.app.domain.sampling.isOperatorDesk
 import com.eventverse.app.domain.sampling.resolveAccessibleOperatorDesks
+import com.eventverse.app.domain.sampling.toSamplingStageOrNull
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayStatusBanner
@@ -129,10 +131,10 @@ fun OperatorFloorWorkspaceScreen(
             onFinish = { order ->
                 when (val action = desk.finishAction(order.samplingRoute)) {
                     is DeskFinishAction.Worksheet ->
-                        viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, action.target))
+                        viewModel.onEvent(SamplingUiEvent.OpenStageAdvanceDialog(order, action.target.toStageCode()))
                     DeskFinishAction.Deposit -> setoranTarget = order
                     DeskFinishAction.QcInspection -> qcTarget = order
-                    is DeskFinishAction.Handoff -> viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, action.target))
+                    is DeskFinishAction.Handoff -> viewModel.onEvent(SamplingUiEvent.AdvanceStage(order.id, action.target.toStageCode()))
                     DeskFinishAction.Store -> viewModel.onEvent(SamplingUiEvent.OpenStoreDialog(order))
                     null -> Unit
                 }
@@ -145,7 +147,8 @@ fun OperatorFloorWorkspaceScreen(
 
     // Lembar hasil turun mesin — dialog tahap yang sama dengan Kanban (satu sumber kebenaran).
     val target = state.stageAdvanceTarget
-    val targetStage = state.stageAdvanceTargetStage
+    // Meja operator masih enum (TRD-FLOW-001 R3b); lembar tahap hanya ada untuk tahap rajut.
+    val targetStage = state.stageAdvanceTargetStage?.toSamplingStageOrNull()
     if (target != null && targetStage != null) {
         StageAdvanceDialog(
             order = target,
@@ -153,7 +156,7 @@ fun OperatorFloorWorkspaceScreen(
             isSubmitting = state.isSubmitting,
             deskStage = desk,
             onConfirm = { sections ->
-                viewModel.onEvent(SamplingUiEvent.ConfirmStageAdvance(target.id, targetStage, sections))
+                viewModel.onEvent(SamplingUiEvent.ConfirmStageAdvance(target.id, targetStage.toStageCode(), sections))
             },
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseStageAdvanceDialog) }
         )
@@ -191,7 +194,7 @@ fun OperatorFloorWorkspaceScreen(
             isSubmitting = state.isSubmitting,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseReworkDialog) },
             onConfirm = { reworkStage, reason, liability ->
-                viewModel.onEvent(SamplingUiEvent.ConfirmRework(order.id, reworkStage, reason, liability))
+                viewModel.onEvent(SamplingUiEvent.ConfirmRework(order.id, reworkStage.toStageCode(), reason, liability))
             }
         )
     }

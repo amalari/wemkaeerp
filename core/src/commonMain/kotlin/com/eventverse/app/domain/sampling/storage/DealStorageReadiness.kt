@@ -1,8 +1,9 @@
 package com.eventverse.app.domain.sampling.storage
 
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.SamplingStatus
+import com.eventverse.app.domain.sampling.positionOf
 
 /**
  * Seberapa lengkap barang satu deal di penyimpanan — dasar keputusan "kirim sekarang atau
@@ -27,7 +28,7 @@ fun dealStorageReadiness(siblings: List<SamplingOrder>): DealStorageReadiness {
 }
 
 val SamplingOrder.hasReachedStorage: Boolean
-    get() = pipelineStage.order >= SamplingPipelineStage.STORAGE_HOLDING.order
+    get() = positionOf(stageCode) >= positionOf(ExitStages.STORAGE)
 
 /**
  * Gambaran penyimpanan satu SPK untuk layar: catatan kustodinya (bila sudah disimpan) dan

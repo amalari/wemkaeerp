@@ -7,6 +7,8 @@ import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.*
 import com.eventverse.app.domain.sampling.usecases.*
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.usecases.GetTenantStageFlowUseCase
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.domain.transfer.usecases.GetFlowTransferLegsUseCase
 import com.eventverse.app.plugins.callerPrincipalOrNull
@@ -36,7 +38,8 @@ fun Route.samplingRoutes(
      */
     flowLegsUseCase: GetFlowTransferLegsUseCase? = null,
     storageRepository: com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository? = null,
-    phaseTagsRepository: com.eventverse.app.domain.process.TenantStagePhaseTagsRepository? = null
+    phaseTagsRepository: com.eventverse.app.domain.process.TenantStagePhaseTagsRepository? = null,
+    stageFlowRepository: com.eventverse.app.domain.stageflow.TenantStageFlowRepository? = null
 ) {
     val listOrdersUseCase = GetSamplingOrderListUseCase(repository)
     val getDetailUseCase = GetSamplingOrderDetailUseCase(repository)
@@ -211,7 +214,8 @@ fun Route.samplingRoutes(
             val body = call.receiveText()
             val json = JsonParser.parse(body) as? JsonValue.Obj
             val stageName = json?.string("targetStage") ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing targetStage")
-            val targetStage = SamplingPipelineStage.parseOrNull(stageName)
+            // Longgar di sini; keanggotaan tahap di kerangka SPK diputuskan domain (advancePipelineStage).
+            val targetStage = parseLegacyStageCodeOrNull(stageName) ?: StageCode.parseOrNull(stageName)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid stage: $stageName")
 
             val order = repository.findById(SamplingOrderId(idParam))
@@ -220,7 +224,7 @@ fun Route.samplingRoutes(
             val now = Clock.System.now()
             val stageInputs = StageWorkInputCodec.decodeInputs(json?.string("stageInputs"))
             val withInputs = stageInputs.firstOrNull()?.let {
-                order.fillStageInput(it.stage, it.sections, now)
+                order.fillStageInput(it.stageCode, it.sections, now)
             } ?: order
 
             val caller = call.callerPrincipalOrNull
@@ -228,6 +232,7 @@ fun Route.samplingRoutes(
                 // Gerbang perpindahan barang butuh alur efektif SPK ini: alur kustomnya bila ada,
                 // kalau tidak template pabrik. Sumber yang sama dipakai panel alur, supaya yang
                 // ditolak gerbang persis yang ditandai merah di layar.
+                val tenantStageFlow = stageFlowRepository?.let { GetTenantStageFlowUseCase(it)(withInputs.tenantId).getOrThrow() }
                 val effectiveProcesses = withInputs.customFlowProcesses
                     ?: processCatalogRepository?.findByTenantId(withInputs.tenantId)?.processes
                     ?: emptyList()
@@ -236,12 +241,13 @@ fun Route.samplingRoutes(
                     AdvanceSamplingStageCommand(
                         order = withInputs,
                         target = targetStage,
-                        stages = SamplingPipelineStage.entries,
+                        stages = (withInputs.frozenStageFlow ?: tenantStageFlow?.stages ?: SamplingRoute.DEFAULT_STAGES).map { it.code },
                         processes = effectiveProcesses,
                         actorEmail = caller?.email ?: "unknown",
                         actorRole = caller?.role?.name ?: "UNKNOWN",
                         overrideReason = json.string("overrideReason")?.takeIf { it.isNotBlank() },
                         tenantPhaseTags = phaseTagsRepository?.findByTenantId(withInputs.tenantId),
+                        tenantStageFlow = tenantStageFlow,
                         now = now
                     )
                 ).getOrThrow()

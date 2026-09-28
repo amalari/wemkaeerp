@@ -2,12 +2,16 @@ package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.masterdata.MaterialCatalogQuery
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.stageFrame
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.infrastructure.api.MasterDataApiClient
 import com.eventverse.app.infrastructure.api.MasterDataRemoteDataSource
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import com.eventverse.app.infrastructure.api.SamplingStorageApiClient
 import com.eventverse.app.infrastructure.api.SamplingStorageRemoteDataSource
+import com.eventverse.app.infrastructure.api.StageFlowApiClient
+import com.eventverse.app.infrastructure.api.StageFlowRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +26,7 @@ class SamplingViewModel(
     private val remoteDataSource: SamplingRemoteDataSource = SamplingApiClient(),
     storageDataSource: SamplingStorageRemoteDataSource = SamplingStorageApiClient(),
     private val masterDataSource: MasterDataRemoteDataSource = MasterDataApiClient(),
+    private val stageFlowSource: StageFlowRemoteDataSource = StageFlowApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(SamplingUiState())
@@ -105,6 +110,8 @@ class SamplingViewModel(
             _uiState.update { it.copy(isLoading = true) }
             val materialsResult = masterDataSource.searchMaterials(tenantSlug, MaterialCatalogQuery(pageSize = 200))
             val materials = materialsResult.getOrNull()?.items.orEmpty()
+            // Gagal memuat kerangka → papan tetap rajut, persis seperti sebelum TRD-FLOW-001.
+            stageFlowSource.fetchTenantStages().onSuccess { stages -> _uiState.update { it.copy(stageFlow = stages) } }
 
             remoteDataSource.getOrders(tenantSlug)
                 .onSuccess { list ->
@@ -265,8 +272,8 @@ class SamplingViewModel(
 
     private fun determineFlow(orderId: SamplingOrderId) {
         val order = _uiState.value.orders.firstOrNull { it.id == orderId } ?: return
-        if (order.pipelineStage != SamplingPipelineStage.NEW_INTAKE) return
-        advanceStage(orderId, SamplingPipelineStage.FLOW_REVIEW)
+        if (order.stageCode != SamplingPipelineStage.NEW_INTAKE.toStageCode()) return
+        advanceStage(orderId, SamplingPipelineStage.FLOW_REVIEW.toStageCode())
         // Dialog memegang snapshot order; ikut dimajukan agar gerbangnya konsisten dengan kolom.
         _uiState.update { state ->
             state.copy(
@@ -278,7 +285,7 @@ class SamplingViewModel(
         }
     }
 
-    private fun advanceStage(orderId: SamplingOrderId, targetStage: SamplingPipelineStage) {
+    private fun advanceStage(orderId: SamplingOrderId, targetStage: StageCode) {
         scope.launch {
             remoteDataSource.advanceStage(tenantSlug, orderId.value, targetStage)
                 .onSuccess { updated ->
@@ -289,7 +296,7 @@ class SamplingViewModel(
                             // Dialog Detail SPK yang terbuka ikut berganti tahap — "Mulai CAM"
                             // langsung mengunci alur dan membuka section Program di tempat.
                             spkDetailTarget = current.spkDetailTarget?.let { if (it.id == updated.id) updated else it },
-                            statusMessage = "Tahapan SPK diperbarui ke ${targetStage.displayName}",
+                            statusMessage = "Tahapan SPK diperbarui ke ${updated.stageFrame.nameOf(targetStage)}",
                             isErrorMessage = false
                         )
                     }
@@ -307,9 +314,9 @@ class SamplingViewModel(
 
     private fun confirmStageAdvance(
         orderId: SamplingOrderId,
-        targetStage: SamplingPipelineStage,
+        targetStage: StageCode,
         sections: List<StageInputSection>,
-        inputStage: SamplingPipelineStage,
+        inputStage: StageCode,
         openSpkCardOnSuccess: Boolean
     ) {
         draftAutosaver.cancelPending()
@@ -319,7 +326,7 @@ class SamplingViewModel(
                 tenantSlug = tenantSlug,
                 orderId = orderId.value,
                 targetStage = targetStage,
-                stageInputs = listOf(StageWorkInput(stage = inputStage, sections = sections))
+                stageInputs = listOf(StageWorkInput(stageCode = inputStage, sections = sections))
             ).onSuccess { updated ->
                 _uiState.update { current ->
                     val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
@@ -332,7 +339,7 @@ class SamplingViewModel(
                         spkDetailFocusFlow = false,
                         spkDetailFocusCam = false,
                         spkCardToPrint = if (openSpkCardOnSuccess) updated.id else current.spkCardToPrint,
-                        statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${targetStage.displayName}",
+                        statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${updated.stageFrame.nameOf(targetStage)}",
                         isErrorMessage = false
                     )
                 }

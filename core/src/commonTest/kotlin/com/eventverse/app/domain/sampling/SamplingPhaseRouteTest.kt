@@ -158,8 +158,8 @@ class SamplingPhaseRouteTest {
         val advanced = AdvanceSamplingStageUseCase(legsUseCase = null)(
             AdvanceSamplingStageCommand(
                 order = order(SamplingPipelineStage.FLOW_REVIEW),
-                target = SamplingPipelineStage.CAM_PROGRAMMING,
-                stages = SamplingPipelineStage.entries,
+                target = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(),
+                stages = SamplingRoute.DEFAULT_FRAME,
                 processes = emptyList(),
                 tenantPhaseTags = noSamplingWash,
                 now = now
@@ -176,8 +176,8 @@ class SamplingPhaseRouteTest {
         val advanced = AdvanceSamplingStageUseCase(legsUseCase = null)(
             AdvanceSamplingStageCommand(
                 order = order(SamplingPipelineStage.FLOW_REVIEW, own),
-                target = SamplingPipelineStage.CAM_PROGRAMMING,
-                stages = SamplingPipelineStage.entries,
+                target = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(),
+                stages = SamplingRoute.DEFAULT_FRAME,
                 processes = emptyList(),
                 tenantPhaseTags = noSamplingWash,
                 now = now

@@ -2,11 +2,13 @@
 package com.eventverse.app.shared.sampling
 
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.resolveStoredStageCode
 import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.process.ProcessCatalogCodec
 import com.eventverse.app.shared.process.StagePhaseTagsCodec
+import com.eventverse.app.shared.stageflow.TenantStageFlowCodec
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
@@ -19,7 +21,7 @@ object SamplingOrderCodec {
         "clientName" to jsonOf(order.clientName),
         "styleName" to jsonOf(order.styleName),
         "status" to jsonOf(order.status.name),
-        "pipelineStage" to jsonOf(order.pipelineStage.name),
+        "pipelineStage" to jsonOf(order.stageCode.value),
         "finishingPath" to jsonOf(order.finishingPath.name),
         "vendorInfo" to encodeVendorInfo(order.vendorInfo),
         "sizeMode" to jsonOf(order.sizeMode.name),
@@ -47,7 +49,7 @@ object SamplingOrderCodec {
                     "sampleQuantity" to jsonOf(snap.sampleQuantity),
                     "samplingFeeIdr" to jsonOf(snap.samplingFeeIdr),
                     "notes" to jsonOf(snap.notes),
-                    "pipelineStage" to jsonOf(snap.pipelineStage.name),
+                    "pipelineStage" to jsonOf(snap.stageCode.value),
                     "finishingPath" to jsonOf(snap.finishingPath.name),
                     "vendorInfo" to encodeVendorInfo(snap.vendorInfo),
                     "finishingDeposits" to jsonArrayOf(snap.finishingDeposits.map(::encodeFinishingDeposit)),
@@ -87,6 +89,7 @@ object SamplingOrderCodec {
         "isCustomFlow" to jsonOf(order.isCustomFlow),
         "customFlowProcesses" to (order.customFlowProcesses?.let { ProcessCatalogCodec.encodeProcesses(it) } ?: JsonValue.Null),
         "stagePhaseTags" to StagePhaseTagsCodec.encode(order.stagePhaseTags),
+        "frozenStageFlow" to (order.frozenStageFlow?.let(TenantStageFlowCodec::encodeStages) ?: JsonValue.Null),
         "createdAt" to jsonOf(order.createdAt.toString()),
         "updatedAt" to jsonOf(order.updatedAt.toString()),
         "archivedAt" to jsonOf(order.archivedAt?.toString())
@@ -99,14 +102,15 @@ object SamplingOrderCodec {
         val clientName = obj.string("clientName") ?: ""
         val styleName = obj.string("styleName") ?: ""
         val status = obj.string("status")?.let { runCatching { SamplingStatus.valueOf(it) }.getOrNull() } ?: SamplingStatus.DRAFT
-        val pipelineStage = SamplingPipelineStage.parseOrNull(obj.string("pipelineStage"))
+        val frozenStageFlow = (obj.entries["frozenStageFlow"] as? JsonValue.Arr)?.let { TenantStageFlowCodec.decodeStages(it.items) }
+        val stageCode = resolveStoredStageCode(obj.string("pipelineStage"), frozenStageFlow ?: SamplingRoute.DEFAULT_STAGES)
             ?: when (status) {
                 SamplingStatus.DRAFT -> SamplingPipelineStage.NEW_INTAKE
                 SamplingStatus.IN_PROGRESS -> SamplingPipelineStage.MACHINE_KNITTING
                 SamplingStatus.REVISION -> SamplingPipelineStage.CAM_PROGRAMMING
                 SamplingStatus.ACC_APPROVED -> SamplingPipelineStage.ACC_APPROVED
                 SamplingStatus.CANCELLED -> SamplingPipelineStage.NEW_INTAKE
-            }
+            }.toStageCode()
         val finishingPath = obj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
         val vendorInfo = decodeVendorInfo(obj.obj("vendorInfo")) ?: MakloonVendorInfo()
         val sizeMode = obj.string("sizeMode")?.let { runCatching { SizeMode.valueOf(it) }.getOrNull() } ?: SizeMode.ALL_SIZE
@@ -182,7 +186,8 @@ object SamplingOrderCodec {
                         values = valuesMap
                     )
                 }.ifEmpty { defaultSamplingSizeMatrix() }.let(::ensureSamplingQtyRow)
-                val snapStage = SamplingPipelineStage.parseOrNull(sObj.string("pipelineStage")) ?: SamplingPipelineStage.NEW_INTAKE
+                val snapStage = resolveStoredStageCode(sObj.string("pipelineStage"), frozenStageFlow ?: SamplingRoute.DEFAULT_STAGES)
+                    ?: SamplingPipelineStage.NEW_INTAKE.toStageCode()
                 val snapPath = sObj.string("finishingPath")?.let { runCatching { FinishingPath.valueOf(it) }.getOrNull() } ?: FinishingPath.INTERNAL
                 val snapVendor = decodeVendorInfo(sObj.obj("vendorInfo")) ?: MakloonVendorInfo()
                 val snapDeposits = sObj.objectArray("finishingDeposits").map(::decodeFinishingDeposit)
@@ -194,7 +199,7 @@ object SamplingOrderCodec {
                     sampleQuantity = sObj.int("sampleQuantity") ?: 1,
                     samplingFeeIdr = sObj.long("samplingFeeIdr") ?: 0L,
                     notes = sObj.string("notes") ?: "",
-                    stageCode = snapStage.toStageCode(),
+                    stageCode = snapStage,
                     finishingPath = snapPath,
                     vendorInfo = snapVendor,
                     finishingDeposits = snapDeposits,
@@ -224,7 +229,7 @@ object SamplingOrderCodec {
             clientName = clientName,
             styleName = styleName,
             status = status,
-            stageCode = pipelineStage.toStageCode(),
+            stageCode = stageCode,
             finishingPath = finishingPath,
             vendorInfo = vendorInfo,
             sizeMode = sizeMode,
@@ -257,6 +262,7 @@ object SamplingOrderCodec {
             customFlowProcesses = customFlowProcesses,
             isCustomFlow = isCustomFlow,
             stagePhaseTags = StagePhaseTagsCodec.decode(obj.entries["stagePhaseTags"]),
+            frozenStageFlow = frozenStageFlow,
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = archivedAt

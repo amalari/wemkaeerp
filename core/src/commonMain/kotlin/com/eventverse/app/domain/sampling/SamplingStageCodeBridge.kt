@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.stageflow.IndustryStageTemplates
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 
 /**
  * Jembatan sementara enum [SamplingPipelineStage] ↔ [StageCode] selama migrasi TRD-FLOW-001
@@ -32,3 +35,18 @@ fun parseLegacyStageCodeOrNull(raw: String?): StageCode? = SamplingPipelineStage
  */
 fun StageCode.requireSamplingStage(): SamplingPipelineStage =
     checkNotNull(toSamplingStageOrNull()) { "Tahap ${value} belum didukung jalur enum" }
+
+/** Definisi template rajut untuk tahap enum ini — untuk pemanggil lama yang belum memegang kerangka SPK. */
+fun SamplingPipelineStage.knitDefinition(): StageDefinition =
+    IndustryStageTemplates.stagesOf(IndustryTemplateCode.KNIT_SWEATER).first { it.code.value == name }
+
+/**
+ * Membaca tahap tersimpan SPK terhadap **kerangka SPK itu sendiri**: alias lama diterjemahkan
+ * dulu, lalu kode apa adanya — dan keduanya hanya diterima bila ada di [frame]. `null` berarti
+ * nilai tersimpan tidak dikenali kerangkanya; pemanggil memakai fallback lamanya, sehingga baris
+ * rusak diperlakukan persis seperti sebelum TRD-FLOW-001 (bukan diterima lalu meledak saat dibaca).
+ */
+fun resolveStoredStageCode(raw: String?, frame: List<StageDefinition>): StageCode? {
+    fun inFrame(code: StageCode?) = code?.takeIf { c -> frame.any { it.code == c } }
+    return inFrame(parseLegacyStageCodeOrNull(raw)) ?: inFrame(StageCode.parseOrNull(raw))
+}

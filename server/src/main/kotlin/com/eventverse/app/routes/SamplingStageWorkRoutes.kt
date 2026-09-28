@@ -5,12 +5,14 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.sampling.usecases.ReleaseSamplingStageWorkCommand
 import com.eventverse.app.domain.sampling.usecases.ReleaseSamplingStageWorkUseCase
 import com.eventverse.app.domain.sampling.usecases.SendBackSamplingReworkCommand
 import com.eventverse.app.domain.sampling.usecases.SendBackSamplingReworkUseCase
 import com.eventverse.app.domain.sampling.usecases.StartSamplingStageWorkCommand
 import com.eventverse.app.domain.sampling.usecases.StartSamplingStageWorkUseCase
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -73,7 +75,7 @@ fun Route.samplingStageWorkRoutes(repository: SamplingOrderRepository) {
             val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing ID")
             val json = JsonParser.parse(call.receiveText()) as? JsonValue.Obj
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid JSON body")
-            val target = SamplingPipelineStage.parseOrNull(json.string("targetStage"))
+            val target = parseLegacyStageCodeOrNull(json.string("targetStage")) ?: StageCode.parseOrNull(json.string("targetStage"))
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid targetStage")
             val liability = DefectLiability.entries.firstOrNull { it.name == json.string("liability") }
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid liability")

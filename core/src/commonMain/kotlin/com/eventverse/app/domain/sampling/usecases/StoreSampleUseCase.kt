@@ -1,14 +1,18 @@
 package com.eventverse.app.domain.sampling.usecases
 
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.sampling.currentStage
+import com.eventverse.app.domain.sampling.packingStage
 import com.eventverse.app.domain.sampling.storage.SampleStorageRecord
 import com.eventverse.app.domain.sampling.storage.SampleStorageRecordId
 import com.eventverse.app.domain.sampling.storage.SampleStorageRecordRepository
 import com.eventverse.app.domain.sampling.storage.StorageCustodian
 import com.eventverse.app.domain.sampling.storage.StorageLocationLabel
+import com.eventverse.app.domain.stageflow.StageCode
 import kotlinx.datetime.Instant
 
 data class StoreSampleCommand(
@@ -18,7 +22,7 @@ data class StoreSampleCommand(
     /** Penerima simpan — diambil server dari JWT, bukan dari body. */
     val custodian: StorageCustodian,
     val actorRole: String = "",
-    val stages: List<SamplingPipelineStage> = SamplingPipelineStage.entries,
+    val stages: List<StageCode> = SamplingRoute.DEFAULT_FRAME,
     val processes: List<TenantOptionalProcess> = emptyList(),
     val now: Instant
 )
@@ -39,13 +43,13 @@ class StoreSampleUseCase(
 ) {
     suspend operator fun invoke(command: StoreSampleCommand): Result<StoredSample> = runCatching {
         val order = command.order
-        require(order.pipelineStage == SamplingPipelineStage.PENGEMASAN) {
-            "Hanya barang yang selesai dikemas yang bisa disimpan — ${order.spkNumber.value} masih di ${order.pipelineStage.displayName}"
+        require(order.stageCode == order.packingStage) {
+            "Hanya barang yang selesai dikemas yang bisa disimpan — ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
         }
         val advanced = advanceStage(
             AdvanceSamplingStageCommand(
                 order = order,
-                target = SamplingPipelineStage.STORAGE_HOLDING,
+                target = ExitStages.STORAGE,
                 stages = command.stages,
                 processes = command.processes,
                 actorEmail = command.custodian.email,

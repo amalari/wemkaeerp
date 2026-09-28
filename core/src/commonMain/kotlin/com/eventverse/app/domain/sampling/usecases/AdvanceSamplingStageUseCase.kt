@@ -2,11 +2,16 @@ package com.eventverse.app.domain.sampling.usecases
 
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.SamplingOrder
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.freezePhaseTags
+import com.eventverse.app.domain.sampling.freezeStageFlow
 import com.eventverse.app.domain.sampling.samplingRoute
-import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.sampling.stageDefinition
+import com.eventverse.app.domain.sampling.stageFrame
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageKind
+import com.eventverse.app.domain.stageflow.TenantStageFlow
 import com.eventverse.app.domain.transfer.FlowLegStatus
 import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.transfer.SuratJalanRepository
@@ -17,8 +22,9 @@ import kotlinx.datetime.Instant
 
 data class AdvanceSamplingStageCommand(
     val order: SamplingOrder,
-    val target: SamplingPipelineStage,
-    val stages: List<SamplingPipelineStage>,
+    val target: StageCode,
+    /** Kerangka tahap berurutan untuk penurunan leg — lihat `SamplingRoute.DEFAULT_FRAME`. */
+    val stages: List<StageCode>,
     val processes: List<TenantOptionalProcess>,
     val actorEmail: String = "",
     val actorRole: String = "",
@@ -40,6 +46,8 @@ data class AdvanceSamplingStageCommand(
      * tidak memuat template (jalur kustodi di ujung alur, yang tagnya pasti sudah beku).
      */
     val tenantPhaseTags: StagePhaseTags? = null,
+    /** Kerangka tahap pabrik, dibekukan ke order bersama tag fase. `null` = tidak dimuat pemanggil. */
+    val tenantStageFlow: TenantStageFlow? = null,
     val now: Instant
 )
 
@@ -78,9 +86,11 @@ class AdvanceSamplingStageUseCase(
         }
 
     private fun frozenIfEnteringFloor(command: AdvanceSamplingStageCommand): SamplingOrder {
-        val template = command.tenantPhaseTags ?: return command.order
-        if (command.target.order < SamplingPipelineStage.CAM_PROGRAMMING.order) return command.order
-        return command.order.freezePhaseTags(template)
+        // Beku saat kartu pertama kali menyentuh lantai: target bukan lagi tahap masuk (rajut: Program CAM).
+        val frame = command.tenantStageFlow?.stages ?: command.order.stageFrame
+        if (frame.firstOrNull { it.code == command.target }?.kind == StageKind.ENTRY_ANCHOR) return command.order
+        val withTags = command.tenantPhaseTags?.let { command.order.freezePhaseTags(it) } ?: command.order
+        return command.tenantStageFlow?.let { withTags.freezeStageFlow(it) } ?: withTags
     }
 
     /**
@@ -93,10 +103,10 @@ class AdvanceSamplingStageUseCase(
     private fun requireCustodyPath(command: AdvanceSamplingStageCommand) {
         if (command.custodyRecorded) return
         when (command.target) {
-            SamplingPipelineStage.STORAGE_HOLDING -> throw IllegalArgumentException(
+            ExitStages.STORAGE -> throw IllegalArgumentException(
                 "Masukkan ke penyimpanan lewat \"Simpan\" — lokasi dan penerima simpan wajib dicatat."
             )
-            SamplingPipelineStage.IN_DELIVERY -> throw IllegalArgumentException(
+            ExitStages.DELIVERY -> throw IllegalArgumentException(
                 "Pengiriman ke buyer hanya dari penyimpanan, lewat \"Rilis Kirim\" dengan PIC tercatat."
             )
             else -> Unit
@@ -117,7 +127,7 @@ class AdvanceSamplingStageUseCase(
             GetFlowTransferLegsQuery(
                 tenantId = command.order.tenantId.value,
                 subjectId = command.order.id.value,
-                stages = command.stages.map { it.toStageCode() },
+                stages = command.stages,
                 processes = command.processes,
                 skippedStages = command.order.samplingRoute.skipped,
                 customerName = command.order.clientName
@@ -131,7 +141,7 @@ class AdvanceSamplingStageUseCase(
         val leg = blocking.leg
         val message = when (blocking.status) {
             FlowLegStatus.BELUM_TERBIT ->
-                "Tahap ${command.target.displayName} ada di ${leg.destination.displayLabel}. " +
+                "Tahap ${command.order.stageDefinition(command.target).displayName} ada di ${leg.destination.displayLabel}. " +
                     "Terbitkan Surat Jalan dari ${leg.origin.displayLabel} lebih dulu."
             FlowLegStatus.DIKIRIM ->
                 "Barang menuju ${leg.destination.displayLabel} masih dalam perjalanan. " +

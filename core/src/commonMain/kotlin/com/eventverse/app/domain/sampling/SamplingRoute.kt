@@ -4,6 +4,7 @@ import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.stageflow.IndustryStageTemplates
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 
 /**
  * Urutan tahap yang benar-benar dilewati kartu sampling satu desain.
@@ -46,12 +47,13 @@ data class SamplingRoute(
 
     companion object {
         /** Kerangka rajut, identik dengan urutan enum lama (dijaga `IndustryStageTemplatesTest`). */
-        val DEFAULT_FRAME: List<StageCode> =
-            IndustryStageTemplates.stagesOf(IndustryTemplateCode.KNIT_SWEATER).map { it.code }
+        val DEFAULT_STAGES: List<StageDefinition> = IndustryStageTemplates.stagesOf(IndustryTemplateCode.KNIT_SWEATER)
+        val DEFAULT_FRAME: List<StageCode> = DEFAULT_STAGES.map { it.code }
 
         val FULL = SamplingRoute()
 
-        fun from(tags: StagePhaseTags): SamplingRoute = SamplingRoute(tags.skippedSamplingStages)
+        fun from(tags: StagePhaseTags, frame: List<StageCode> = DEFAULT_FRAME): SamplingRoute =
+            SamplingRoute(tags.skippedSamplingStages, frame)
     }
 }
 
@@ -60,7 +62,7 @@ data class SamplingRoute(
  * tenant dibekukan ke order saat SPK masuk Program CAM, sebelum kartu menyentuh meja mana pun.
  */
 val SamplingOrder.samplingRoute: SamplingRoute
-    get() = SamplingRoute.from(stagePhaseTags ?: StagePhaseTags.DEFAULT)
+    get() = SamplingRoute.from(stagePhaseTags ?: StagePhaseTags.DEFAULT, stageFrame.map { it.code })
 
 /** Tag efektif: milik desain bila sudah ada (atau beku), kalau tidak template pabrik. */
 fun SamplingOrder.effectivePhaseTags(tenantDefault: StagePhaseTags): StagePhaseTags =
@@ -68,4 +70,4 @@ fun SamplingOrder.effectivePhaseTags(tenantDefault: StagePhaseTags): StagePhaseT
 
 /** Rute efektif untuk tampilan & penurunan leg sebelum tag dibekukan. */
 fun SamplingOrder.routeWith(tenantDefault: StagePhaseTags): SamplingRoute =
-    SamplingRoute.from(effectivePhaseTags(tenantDefault))
+    SamplingRoute.from(effectivePhaseTags(tenantDefault), stageFrame.map { it.code })

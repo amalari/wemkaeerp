@@ -2,6 +2,9 @@ package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
 import kotlinx.datetime.LocalDate
 
 data class SamplingUiState(
@@ -17,7 +20,9 @@ data class SamplingUiState(
     val spkDetailFocusFlow: Boolean = false,
     val spkDetailFocusCam: Boolean = false,
     val selectedStatusFilter: SamplingStatus? = null,
-    val selectedStageFilter: SamplingPipelineStage? = null,
+    val selectedStageFilter: StageCode? = null,
+    /** Kerangka tahap pabrik — sumber kolom papan (TRD-FLOW-001); rajut sampai berhasil dimuat. */
+    val stageFlow: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES,
     val searchQuery: String = "",
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
@@ -32,7 +37,7 @@ data class SamplingUiState(
      * Null = tidak ada dialog tahap terbuka.
      */
     val stageAdvanceTarget: SamplingOrder? = null,
-    val stageAdvanceTargetStage: SamplingPipelineStage? = null,
+    val stageAdvanceTargetStage: StageCode? = null,
     /** SPK yang sedang membuka dialog kirim rework di meja operator. */
     val reworkTarget: SamplingOrder? = null,
     /** Status autosave draft lembar kerja di dialog Detail SPK. */
@@ -51,7 +56,7 @@ data class SamplingUiState(
     val filteredOrders: List<SamplingOrder>
         get() = orders.filter { order ->
             val matchStatus = selectedStatusFilter == null || order.status == selectedStatusFilter
-            val matchStage = selectedStageFilter == null || order.pipelineStage == selectedStageFilter
+            val matchStage = selectedStageFilter == null || order.stageCode == selectedStageFilter
             val matchSearch = searchQuery.isBlank() ||
                 order.clientName.contains(searchQuery, ignoreCase = true) ||
                 order.styleName.contains(searchQuery, ignoreCase = true) ||
@@ -74,7 +79,7 @@ sealed interface SamplingUiEvent {
     ) : SamplingUiEvent
     data object CloseSpkDetailDialog : SamplingUiEvent
     data class SetFilter(val status: SamplingStatus?) : SamplingUiEvent
-    data class SetStageFilter(val stage: SamplingPipelineStage?) : SamplingUiEvent
+    data class SetStageFilter(val stage: StageCode?) : SamplingUiEvent
     data class UpdateSearchQuery(val query: String) : SamplingUiEvent
     data object OpenCreateDialog : SamplingUiEvent
     data object CloseCreateDialog : SamplingUiEvent
@@ -97,15 +102,15 @@ sealed interface SamplingUiEvent {
     data class SaveTechnicalSpec(val updatedOrder: SamplingOrder) : SamplingUiEvent
     /** "Tentukan Alur Desain": SPK Masuk pindah ke kolom Penentuan Alur; tahap lain tidak disentuh. */
     data class DetermineFlow(val orderId: SamplingOrderId) : SamplingUiEvent
-    data class AdvanceStage(val orderId: SamplingOrderId, val targetStage: SamplingPipelineStage) : SamplingUiEvent
-    data class OpenStageAdvanceDialog(val order: SamplingOrder, val targetStage: SamplingPipelineStage) : SamplingUiEvent
+    data class AdvanceStage(val orderId: SamplingOrderId, val targetStage: StageCode) : SamplingUiEvent
+    data class OpenStageAdvanceDialog(val order: SamplingOrder, val targetStage: StageCode) : SamplingUiEvent
     data object CloseStageAdvanceDialog : SamplingUiEvent
     data class ConfirmStageAdvance(
         val orderId: SamplingOrderId,
-        val targetStage: SamplingPipelineStage,
+        val targetStage: StageCode,
         val sections: List<StageInputSection>,
         /** Tahap pemilik lembar; lembar Program CAM disimpan di CAM walau tujuannya Mesin Rajut. */
-        val inputStage: SamplingPipelineStage = targetStage,
+        val inputStage: StageCode = targetStage,
         /** Buka Kartu SPK A6 setelah server mengonfirmasi pindah tahap (CAM → lantai produksi). */
         val openSpkCardOnSuccess: Boolean = false
     ) : SamplingUiEvent
@@ -120,7 +125,7 @@ sealed interface SamplingUiEvent {
     /** Draft lembar kerja satu tahap berubah — di-autosave (debounce) tanpa memindahkan tahap. */
     data class SaveStageInput(
         val orderId: SamplingOrderId,
-        val stage: SamplingPipelineStage,
+        val stage: StageCode,
         val sections: List<StageInputSection>
     ) : SamplingUiEvent
 
@@ -136,7 +141,7 @@ sealed interface SamplingUiEvent {
     data object CloseReworkDialog : SamplingUiEvent
     data class ConfirmRework(
         val orderId: SamplingOrderId,
-        val target: SamplingPipelineStage,
+        val target: StageCode,
         val reason: String,
         val liability: com.eventverse.app.domain.pipeline.DefectLiability
     ) : SamplingUiEvent

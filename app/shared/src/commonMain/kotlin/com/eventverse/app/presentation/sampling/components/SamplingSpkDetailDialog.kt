@@ -21,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageSectionNames
+import com.eventverse.app.domain.sampling.currentStage
+import com.eventverse.app.domain.sampling.stageInputFor
 import com.eventverse.app.domain.traceability.TraceWorkOrderKind
 import com.eventverse.app.domain.traceability.TraceWorkOrderRef
 import com.eventverse.app.presentation.deal.components.rememberPdfPrintLauncher
@@ -194,7 +197,7 @@ fun SamplingSpkDetailDialog(
                     }
                     ClayBadge(
                         text = order.pipelineStage.displayName,
-                        tint = samplingStageTint(order.pipelineStage)
+                        tint = Color(order.currentStage.colorHex)
                     )
                     androidx.compose.material3.IconButton(onClick = onDismiss) {
                         IconClose(modifier = Modifier.size(18.dp))

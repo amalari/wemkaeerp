@@ -1,6 +1,13 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.stageflow.IndustryStageTemplates
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.domain.stageflow.StageKind
+import com.eventverse.app.domain.stageflow.StageTrait
+import com.eventverse.app.domain.stageflow.TenantStageFlow
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import kotlinx.datetime.Instant
@@ -74,6 +81,41 @@ class SamplingOrderStageCodeTest {
 
         assertEquals(StageCode("QC_FINISHING"), revised.revisionHistory.last().snapshot?.stageCode)
         assertEquals(StageCode("CAM_PROGRAMMING"), revised.stageCode)
+    }
+
+    private val embroideryFlow = TenantStageFlow(
+        TenantId("ten-code"),
+        IndustryTemplateCode.KNIT_SWEATER,
+        listOf(
+            StageDefinition(StageCode("NEW_INTAKE"), "SPK Masuk", StageKind.ENTRY_ANCHOR, ModuleArchetype.ORDER_INGESTION),
+            StageDefinition(StageCode("DIGITIZING"), "Digitizing", StageKind.WORK, ModuleArchetype.PRODUCT_ENGINEERING),
+            StageDefinition(StageCode("MACHINE_EMBROIDERY"), "Bordir Mesin", StageKind.WORK, ModuleArchetype.SEWING, setOf(StageTrait.OPERATOR_DESK)),
+            StageDefinition(StageCode("ACC_APPROVED"), "ACC", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT)
+        )
+    )
+
+    @Test
+    fun stageFrame_whenNotFrozen_shouldBeKnitTemplate() {
+        assertEquals(SamplingRoute.DEFAULT_FRAME, order().stageFrame.map { it.code })
+        assertEquals("Draft", order().currentStage.shortLabel)
+    }
+
+    @Test
+    fun freezeStageFlow_shouldBeIdempotentAndDriveRoleLookupsAndRoute() {
+        val frozen = order().freezeStageFlow(embroideryFlow)
+
+        assertSame(frozen, frozen.freezeStageFlow(IndustryStageTemplates.instantiate(TenantId("ten-code"), IndustryTemplateCode.KNIT_SWEATER)))
+        assertEquals(StageCode("MACHINE_EMBROIDERY"), frozen.firstStageWith(ModuleArchetype.SEWING)?.code)
+        assertEquals(listOf(StageCode("MACHINE_EMBROIDERY")), frozen.stagesWith(StageTrait.OPERATOR_DESK).map { it.code })
+        assertEquals(StageCode("MACHINE_EMBROIDERY"), frozen.samplingRoute.nextAfter(StageCode("DIGITIZING")))
+    }
+
+    @Test
+    fun codec_roundTrip_shouldPreserveFrozenStageFlow() {
+        val frozen = order().freezeStageFlow(embroideryFlow)
+
+        assertEquals(frozen.frozenStageFlow, SamplingOrderCodec.decode(SamplingOrderCodec.encode(frozen)).frozenStageFlow)
+        assertNull(SamplingOrderCodec.decode(SamplingOrderCodec.encode(order())).frozenStageFlow)
     }
 
     @Test

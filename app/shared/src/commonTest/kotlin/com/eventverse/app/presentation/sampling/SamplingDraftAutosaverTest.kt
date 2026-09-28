@@ -2,6 +2,8 @@ package com.eventverse.app.presentation.sampling
 
 import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,9 +45,9 @@ class SamplingDraftAutosaverTest {
         val state = MutableStateFlow(SamplingUiState(orders = listOf(order)))
         val saver = autosaver(remote, state)
 
-        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING, sections("1"))
+        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(), sections("1"))
         advanceTimeBy(500)
-        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING, sections("12"))
+        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(), sections("12"))
         advanceTimeBy(1_001)
         runCurrent()
 
@@ -63,7 +65,7 @@ class SamplingDraftAutosaverTest {
         val saved = order.fillStageInput(SamplingPipelineStage.CAM_PROGRAMMING, sections("5"), now)
         val state = MutableStateFlow(SamplingUiState(orders = listOf(saved)))
 
-        autosaver(remote, state).onDraftChanged(saved.id, SamplingPipelineStage.CAM_PROGRAMMING, sections("5"))
+        autosaver(remote, state).onDraftChanged(saved.id, SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(), sections("5"))
         advanceTimeBy(2_000)
         runCurrent()
 
@@ -76,7 +78,7 @@ class SamplingDraftAutosaverTest {
         val state = MutableStateFlow(SamplingUiState(orders = listOf(order)))
         val saver = autosaver(remote, state)
 
-        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING, sections("9"))
+        saver.onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(), sections("9"))
         saver.cancelPending()
         advanceTimeBy(2_000)
         runCurrent()
@@ -89,7 +91,7 @@ class SamplingDraftAutosaverTest {
         val remote = FakeRemote(fail = true)
         val state = MutableStateFlow(SamplingUiState(orders = listOf(order)))
 
-        autosaver(remote, state).onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING, sections("3"))
+        autosaver(remote, state).onDraftChanged(order.id, SamplingPipelineStage.CAM_PROGRAMMING.toStageCode(), sections("3"))
         advanceTimeBy(1_001)
         runCurrent()
 
@@ -113,7 +115,7 @@ class SamplingDraftAutosaverTest {
         override suspend fun toggleMilestone(tenantSlug: String, orderId: String, step: MilestoneStep, isCompleted: Boolean) = unused()
         override suspend fun approveOrder(tenantSlug: String, orderId: String, isApproved: Boolean, accNotes: String) = unused()
         override suspend fun advanceStage(
-            tenantSlug: String, orderId: String, targetStage: SamplingPipelineStage, stageInputs: List<StageWorkInput>
+            tenantSlug: String, orderId: String, targetStage: StageCode, stageInputs: List<StageWorkInput>
         ) = unused()
         override suspend fun addFinishingDeposit(tenantSlug: String, orderId: String, deposit: FinishingDeposit) = unused()
         override suspend fun assignMakloonVendor(tenantSlug: String, orderId: String, info: MakloonVendorInfo) = unused()
@@ -123,7 +125,7 @@ class SamplingDraftAutosaverTest {
         override suspend fun startStageWork(tenantSlug: String, orderId: String, operatorName: String) = unused()
         override suspend fun releaseStageWork(tenantSlug: String, orderId: String) = unused()
         override suspend fun sendBackForRework(
-            tenantSlug: String, orderId: String, target: SamplingPipelineStage, reason: String, liability: DefectLiability
+            tenantSlug: String, orderId: String, target: StageCode, reason: String, liability: DefectLiability
         ) = unused()
     }
 }

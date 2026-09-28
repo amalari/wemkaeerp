@@ -44,13 +44,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.QcInspectionResult
-import com.eventverse.app.domain.sampling.RD_STAGES
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.currentWork
+import com.eventverse.app.domain.sampling.stageFrame
 import com.eventverse.app.domain.sampling.storage.DealStorageReadiness
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.domain.stageflow.StageKind
+import com.eventverse.app.domain.stageflow.StageTrait
 import com.eventverse.app.presentation.deal.components.rememberMockupBitmap
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -62,6 +68,7 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.IconInbox
+import com.eventverse.app.presentation.sampling.firstWorkStage
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -77,13 +84,15 @@ fun SamplingKanbanCard(
     order: SamplingOrder,
     isSelected: Boolean,
     showActions: Boolean,
-    nextStage: SamplingPipelineStage?,
+    nextStage: StageCode?,
     onSelectOrder: () -> Unit,
-    onAdvanceStage: (SamplingPipelineStage) -> Unit,
+    onAdvanceStage: (StageCode) -> Unit,
     onOpenRevisionDialog: () -> Unit,
     onApproveOrder: () -> Unit,
     onDetermineFlow: (() -> Unit)? = null,
-    storageReadiness: DealStorageReadiness? = null
+    storageReadiness: DealStorageReadiness? = null,
+    /** Kerangka yang berlaku bagi SPK ini — kerangka pabrik bila SPK belum beku. */
+    frame: List<StageDefinition> = order.stageFrame
 ) {
     val dragDropState = LocalSamplingDragDropState.current
     val canDrag = nextStage != null
@@ -102,7 +111,7 @@ fun SamplingKanbanCard(
             }
             .then(
                 if (canDrag) {
-                    Modifier.pointerInput(order.id, order.pipelineStage) {
+                    Modifier.pointerInput(order.id, order.stageCode) {
                         detectDragGestures(
                             onDragStart = { pointerOffset ->
                                 dragDropState?.onDragStart(order, cardWindowOffset, cardSize, pointerOffset)
@@ -137,6 +146,8 @@ fun SamplingKanbanCard(
                 if (showActions) {
                     SamplingKanbanCardActions(
                         order = order,
+                        frame = frame,
+                        nextStage = nextStage,
                         onAdvanceStage = onAdvanceStage,
                         onOpenRevisionDialog = onOpenRevisionDialog,
                         onApproveOrder = onApproveOrder,
@@ -144,7 +155,7 @@ fun SamplingKanbanCard(
                         storageReadiness = storageReadiness
                     )
                 } else {
-                    SamplingKanbanReadOnlyBadges(order)
+                    SamplingKanbanReadOnlyBadges(order, frame)
                 }
             }
         }
@@ -231,7 +242,7 @@ private fun SamplingKanbanCardBody(order: SamplingOrder, isSelected: Boolean) {
         SamplingKanbanMockupPreview(order)
     }
 
-    if (order.pipelineStage in RD_STAGES) SamplingRdProgressTrack(order)
+    if (order.isAtOperatorDesk(order.stageFrame)) SamplingRdProgressTrack(order)
 }
 
 /**
@@ -401,41 +412,46 @@ private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
 @Composable
 private fun SamplingKanbanCardActions(
     order: SamplingOrder,
-    onAdvanceStage: (SamplingPipelineStage) -> Unit,
+    frame: List<StageDefinition>,
+    nextStage: StageCode?,
+    onAdvanceStage: (StageCode) -> Unit,
     onOpenRevisionDialog: () -> Unit,
     onApproveOrder: () -> Unit,
     onDetermineFlow: (() -> Unit)? = null,
     storageReadiness: DealStorageReadiness? = null
 ) {
-    when (order.pipelineStage) {
-        SamplingPipelineStage.NEW_INTAKE -> {
+    val current = frame.firstOrNull { it.code == order.stageCode }
+    val firstWork = frame.firstWorkStage()
+    when {
+        order.stageCode == INTAKE -> {
             ClayButton(
                 text = "Tentukan Alur Desain ->",
                 style = ClayButtonStyle.Primary,
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onDetermineFlow ?: { onAdvanceStage(SamplingPipelineStage.FLOW_REVIEW) }
+                onClick = onDetermineFlow ?: { onAdvanceStage(FLOW_REVIEW) }
             )
         }
-        SamplingPipelineStage.FLOW_REVIEW -> {
+        order.stageCode == FLOW_REVIEW && firstWork != null -> {
             ClayButton(
-                text = "Alur Siap -> Mulai CAM ->",
+                text = "Alur Siap -> Mulai ${firstWork.shortLabel} ->",
                 style = ClayButtonStyle.Primary,
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { onAdvanceStage(SamplingPipelineStage.CAM_PROGRAMMING) }
+                onClick = { onAdvanceStage(firstWork.code) }
             )
         }
-        SamplingPipelineStage.CAM_PROGRAMMING -> {
+        // Tahap persiapan (kerja tanpa meja operator; rajut: Program CAM) → ke lantai produksi.
+        current != null && current.kind == StageKind.WORK && !current.has(StageTrait.OPERATOR_DESK) && nextStage != null -> {
             ClayButton(
                 text = "Mulai Pembuatan ->",
                 style = ClayButtonStyle.Accent,
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { onAdvanceStage(SamplingPipelineStage.MACHINE_KNITTING) }
+                onClick = { onAdvanceStage(nextStage) }
             )
         }
-        SamplingPipelineStage.STORAGE_HOLDING -> SamplingStorageCardSection(order, storageReadiness) {
-            onAdvanceStage(SamplingPipelineStage.IN_DELIVERY)
+        order.stageCode == ExitStages.STORAGE -> SamplingStorageCardSection(order, storageReadiness) {
+            onAdvanceStage(ExitStages.DELIVERY)
         }
-        SamplingPipelineStage.IN_DELIVERY -> {
+        order.stageCode == ExitStages.DELIVERY -> {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
@@ -454,7 +470,7 @@ private fun SamplingKanbanCardActions(
                 )
             }
         }
-        SamplingPipelineStage.ACC_APPROVED -> {
+        order.stageCode == ExitStages.APPROVED -> {
             ClayBadge(
                 text = "GOLDEN SAMPLE LOCKED",
                 tint = WeMadeColors.Success,
@@ -466,7 +482,7 @@ private fun SamplingKanbanCardActions(
 }
 
 @Composable
-private fun SamplingKanbanReadOnlyBadges(order: SamplingOrder) {
+private fun SamplingKanbanReadOnlyBadges(order: SamplingOrder, frame: List<StageDefinition>) {
     // Sinyal visual hasil QC terakhir di kolom read-only "Di Meja Finishing & QC".
     val qcResult = order.latestQcReport?.qcResult
     if (qcResult == QcInspectionResult.REWORK || qcResult == QcInspectionResult.REJECT) {
@@ -477,12 +493,19 @@ private fun SamplingKanbanReadOnlyBadges(order: SamplingOrder) {
         )
     }
     // Kartu R&D sudah menyebut tahapnya di jejak progres; badge tahap di sini jadi dobel.
-    if (order.pipelineStage !in RD_STAGES) {
+    val stage = frame.firstOrNull { it.code == order.stageCode }
+    if (stage != null && !stage.has(StageTrait.OPERATOR_DESK)) {
         ClayBadge(
-            text = order.pipelineStage.displayName,
-            tint = samplingStageTint(order.pipelineStage),
+            text = stage.displayName,
+            tint = Color(stage.colorHex),
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
+/** SPK sedang di meja operator (kolom R&D) pada [frame]. */
+private fun SamplingOrder.isAtOperatorDesk(frame: List<StageDefinition>): Boolean =
+    frame.firstOrNull { it.code == stageCode }?.has(StageTrait.OPERATOR_DESK) == true
+
+private val INTAKE = SamplingPipelineStage.NEW_INTAKE.toStageCode()
+private val FLOW_REVIEW = SamplingPipelineStage.FLOW_REVIEW.toStageCode()

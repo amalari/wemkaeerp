@@ -9,6 +9,9 @@
 |---|---|---|---|
 | 0.1 | 2026-09-28 | Achmad Jamaludin (dibantu Claude) | Draf awal dari analisis codebase |
 | 0.2 | 2026-09-28 | Achmad Jamaludin (dibantu Claude) | Tahap 1 diimplementasi; koreksi skema (`tenant_id` VARCHAR), `CUSTODY_NODE` ditunda, kolom `tenants.industry_template` pindah ke Tahap 3 |
+| 0.3 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Keputusan: kerangka **beku per SPK** (bersama tag fase, saat masuk Program CAM; kolom V73) dan `shortLabel` + `colorHex` sebagai field `StageDefinition`. Trait baru `OPERATOR_DESK`. |
+| 0.4 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R2 selesai: aturan domain & server berbasis peran/trait pada kerangka SPK; `remainingWorkFactor` di `StageDefinition` (nilai rajut dipertahankan persis). Sisa: pembaca presentasi (R3). |
+| 0.5 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R3a: papan sampling dari kerangka tenant (`GET /api/tenant/stage-flow`), kolom dari peran tahap, warna = `colorHex`. Keputusan: label timeline disamakan ke nama tahap. V72/V73 teraplikasi di dev. |
 
 ### Summary & Business Context
 
@@ -157,6 +160,17 @@ Pemetaan dari perilaku enum sekarang:
   `FlowNodeRef.Stage(code)` belum `DITERIMA`.
 - `FlowNodeRef.Stage` berubah dari membungkus enum menjadi membungkus `StageCode`; format key
   tersimpan `STAGE:<code>` **tidak berubah**.
+
+### FR-5b — Kerangka beku per SPK (keputusan 2026-09-29)
+
+- `SamplingOrder.frozenStageFlow: List<StageDefinition>?` disalin dari `TenantStageFlow` saat SPK
+  masuk lantai (target ≥ Program CAM), **bersamaan** dengan pembekuan `stagePhaseTags` — satu titik
+  beku, bukan dua. `null` = belum beku → kerangka rajut default.
+- Mengubah kerangka pabrik **tidak** me-rute ulang SPK yang sudah beku. Konsekuensinya, aturan
+  `STAGE_OCCUPIED` di FR-3 hanya berlaku untuk SPK yang **belum** beku.
+- Semua pembaca peran tahap (R2/R3) wajib membaca `order.stageFrame`, bukan template global.
+- Label ringkas & warna tahap adalah field `StageDefinition.shortLabel` / `colorHex` — data tenant
+  yang boleh dirender sebagai `Color(colorHex)` (design-system-rules Kontrak 1, pengecualian 1).
 
 ### FR-6 — Kanvas dua level
 
@@ -351,7 +365,7 @@ string yang sama; `FlowNodeRef.key` tetap `STAGE:<code>`.
 | Tahap | Isi | Perubahan perilaku | Bisa di-rollback |
 |---|---|---|---|
 | **1** ✅ | `stageflow` domain + template `KNIT_SWEATER` + tabel V72 + API GET; adapter `SamplingPipelineStage.toStageCode()` | **Tidak ada** | Ya, drop tabel |
-| **2** 🟡 (`transfer` ✅, `process` anchor ✅, `sampling` 2/3 `SamplingOrder.stageCode` ✅) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
+| **2** 🟡 (data tersimpan ✅, domain+server R1/R2 ✅, papan sampling R3a ✅, sisa presentasi R3b ⏳) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
 | **3** | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
 | **4** | Kanvas dua level + telemetri per tahap | Visual Factory Flow | Ya |
 

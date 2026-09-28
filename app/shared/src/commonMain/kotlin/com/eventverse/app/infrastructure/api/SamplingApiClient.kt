@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.shared.json.*
 import com.eventverse.app.shared.sampling.SamplingOrderCodec
 import com.eventverse.app.shared.sampling.StageWorkInputCodec
@@ -36,7 +37,7 @@ interface SamplingRemoteDataSource {
     suspend fun advanceStage(
         tenantSlug: String,
         orderId: String,
-        targetStage: SamplingPipelineStage,
+        targetStage: StageCode,
         stageInputs: List<StageWorkInput> = emptyList()
     ): Result<SamplingOrder>
     suspend fun addFinishingDeposit(tenantSlug: String, orderId: String, deposit: FinishingDeposit): Result<SamplingOrder>
@@ -51,7 +52,7 @@ interface SamplingRemoteDataSource {
     suspend fun sendBackForRework(
         tenantSlug: String,
         orderId: String,
-        target: SamplingPipelineStage,
+        target: StageCode,
         reason: String,
         liability: com.eventverse.app.domain.pipeline.DefectLiability
     ): Result<SamplingOrder>
@@ -179,14 +180,14 @@ class SamplingApiClient(
     override suspend fun advanceStage(
         tenantSlug: String,
         orderId: String,
-        targetStage: SamplingPipelineStage,
+        targetStage: StageCode,
         stageInputs: List<StageWorkInput>
     ): Result<SamplingOrder> = runCatching {
         val payload = if (stageInputs.isEmpty()) {
-            jsonObjectOf("targetStage" to jsonOf(targetStage.name))
+            jsonObjectOf("targetStage" to jsonOf(targetStage.value))
         } else {
             jsonObjectOf(
-                "targetStage" to jsonOf(targetStage.name),
+                "targetStage" to jsonOf(targetStage.value),
                 "stageInputs" to jsonArrayOf(stageInputs.map { StageWorkInputCodec.encodeInput(it) })
             )
         }.encode()
@@ -306,14 +307,14 @@ class SamplingApiClient(
     override suspend fun sendBackForRework(
         tenantSlug: String,
         orderId: String,
-        target: SamplingPipelineStage,
+        target: StageCode,
         reason: String,
         liability: com.eventverse.app.domain.pipeline.DefectLiability
     ) = postOrder(
         tenantSlug,
         "$orderId/rework",
         jsonObjectOf(
-            "targetStage" to jsonOf(target.name),
+            "targetStage" to jsonOf(target.value),
             "reason" to jsonOf(reason),
             "liability" to jsonOf(liability.name)
         ),

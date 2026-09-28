@@ -4,6 +4,7 @@ import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.sampling.SamplingStatus
 import com.eventverse.app.domain.sampling.SpkNumber
 import com.eventverse.app.domain.sampling.toStageCode
@@ -115,8 +116,8 @@ class SampleStorageFlowTest {
             val result = advance(
                 AdvanceSamplingStageCommand(
                     order = order,
-                    target = target,
-                    stages = SamplingPipelineStage.entries,
+                    target = target.toStageCode(),
+                    stages = SamplingRoute.DEFAULT_FRAME,
                     processes = emptyList(),
                     overrideReason = "admin telat",
                     now = now

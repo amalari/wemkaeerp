@@ -4,6 +4,7 @@ import com.eventverse.app.domain.deal.DealStage
 import com.eventverse.app.domain.deal.PurchaseOrderLine
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import com.eventverse.app.infrastructure.api.SamplingStorageApiClient
@@ -287,7 +288,7 @@ class DealViewModel(
         val deal = _uiState.value.deal ?: return
         _uiState.update { it.copy(isSaving = true) }
         scope.launch {
-            samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage)
+            samplingDataSource.advanceStage(tenantSlug, samplingId, targetStage.toStageCode())
                 .onSuccess { updatedOrder ->
                     _uiState.update { current ->
                         current.copy(

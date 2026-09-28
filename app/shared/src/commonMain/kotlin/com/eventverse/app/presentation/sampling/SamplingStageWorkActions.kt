@@ -4,6 +4,8 @@ import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.stageFrame
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,12 +37,12 @@ internal class SamplingStageWorkActions(
 
     fun sendBackForRework(
         orderId: SamplingOrderId,
-        target: SamplingPipelineStage,
+        target: StageCode,
         reason: String,
         liability: DefectLiability
     ) = submit(
         call = { remote.sendBackForRework(tenantSlug, orderId.value, target, reason, liability) },
-        success = { "${it.spkNumber.value} dikirim rework ke ${target.displayName}" },
+        success = { "${it.spkNumber.value} dikirim rework ke ${it.stageFrame.nameOf(target)}" },
         failure = "Gagal mengirim rework"
     )
 
