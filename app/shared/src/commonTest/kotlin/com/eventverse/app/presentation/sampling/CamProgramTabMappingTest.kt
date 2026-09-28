@@ -49,11 +49,16 @@ class CamProgramTabMappingTest {
         val sections = serializeCamSections(tabs, formulaNote)
 
         // Verifikasi section names
-        assertEquals(7, sections.size)
+        assertEquals(9, sections.size)
         assertTrue(sections.any { it.section == StageSectionNames.PROGRAM })
         assertTrue(sections.any { it.section == StageSectionNames.FEEDER_INSTRUCTIONS })
         assertTrue(sections.any { it.section == StageSectionNames.TENSELITY })
+        assertTrue(sections.any { it.section == StageSectionNames.PANEL_MATERIALS })
+        assertTrue(sections.any { it.section == StageSectionNames.PANEL_WEIGHTS })
+        assertTrue(sections.any { it.section == StageSectionNames.PANEL_MINUTES })
         assertTrue(sections.any { it.section == StageSectionNames.PATTERN_FORMULAS })
+        assertTrue(sections.any { it.section == StageSectionNames.FINISHED_MEASUREMENTS })
+        assertTrue(sections.any { it.section == StageSectionNames.ADDITIONAL_MATERIALS })
 
         // Verifikasi gerbang CAM_REQUIRED
         val requiredFilled = sections.filter { it.section in StageSectionNames.CAM_REQUIRED }.all { it.hasFilledRow }
@@ -85,18 +90,35 @@ class CamProgramTabMappingTest {
         val tabs = listOf(
             CamPartTab(
                 id = "tab-0-Depan", name = "Depan", program = "BIAN-D",
-                feederInstructions = listOf("F1"), gramasi = "117 GR", waktu = "37 MENIT"
+                feederInstructions = listOf("F1"), gramasi = "117 GR", waktu = "37 MENIT",
+                material = "YRN-001 — Cotton 2/32 Navy"
             ),
             CamPartTab(id = "tab-1-Lengan", name = "Lengan", program = "BIAN-L", feederInstructions = listOf("F1"))
         )
         val measurements = listOf(StageInputRow("P BADAN", "55 CM"), StageInputRow("", ""))
+        val additionalMaterials = listOf(
+            com.eventverse.app.presentation.sampling.components.AdditionalMaterialItem(
+                id = "add-1", materialName = "TRM-001 — Zipper Metal 50cm", quantity = "1 PCS", notes = "Gigi besi hitam"
+            ),
+            com.eventverse.app.presentation.sampling.components.AdditionalMaterialItem(
+                id = "add-2", materialName = "TRM-004 — Kancing Batok", quantity = "4 PCS", notes = ""
+            )
+        )
 
-        val sheet = parseCamSections(serializeCamSections(tabs, "", measurements))
+        val sheet = parseCamSections(serializeCamSections(tabs, "", measurements, additionalMaterials))
 
         assertEquals("117 GR", sheet.tabs[0].gramasi)
         assertEquals("37 MENIT", sheet.tabs[0].waktu)
+        assertEquals("YRN-001 — Cotton 2/32 Navy", sheet.tabs[0].material)
         assertEquals("", sheet.tabs[1].gramasi)
         assertEquals(measurements, sheet.finishedMeasurements, "Baris kosong yang baru ditambah tidak boleh hilang")
+        assertEquals(2, sheet.additionalMaterials.size)
+        assertEquals("TRM-001 — Zipper Metal 50cm", sheet.additionalMaterials[0].materialName)
+        assertEquals("1 PCS", sheet.additionalMaterials[0].quantity)
+        assertEquals("Gigi besi hitam", sheet.additionalMaterials[0].notes)
+        assertEquals("TRM-004 — Kancing Batok", sheet.additionalMaterials[1].materialName)
+        assertEquals("4 PCS", sheet.additionalMaterials[1].quantity)
+        assertEquals("", sheet.additionalMaterials[1].notes)
     }
 
     @Test

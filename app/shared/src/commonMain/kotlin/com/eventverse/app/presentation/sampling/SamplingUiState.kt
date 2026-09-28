@@ -1,10 +1,12 @@
 package com.eventverse.app.presentation.sampling
 
+import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.sampling.*
 import kotlinx.datetime.LocalDate
 
 data class SamplingUiState(
     val orders: List<SamplingOrder> = emptyList(),
+    val availableMaterials: List<MaterialItem> = emptyList(),
     val selectedOrderId: SamplingOrderId? = null,
     /**
      * SPK yang sedang membuka dialog detail — dibuka saat kartu di kolom "SPK Baru"

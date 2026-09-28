@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.StageInputSection
@@ -72,6 +73,7 @@ fun SamplingSpkDetailDialog(
     onDetermineFlow: () -> Unit = {},
     onCreateTechPack: ((SamplingOrder) -> Unit)? = null,
     processFlowViewModel: ProcessFlowViewModel? = null,
+    availableMaterials: List<MaterialItem> = emptyList(),
     initialShowFlowSection: Boolean = false,
     initialShowCamSection: Boolean = false
 ) {
@@ -249,7 +251,8 @@ fun SamplingSpkDetailDialog(
                             onSectionsChange = {
                                 camSections = it
                                 if (isCamStage || isRdStage) onDraftChange(it)
-                            }
+                            },
+                            availableMaterials = availableMaterials
                         )
                     }
                 }

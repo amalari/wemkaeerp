@@ -3,6 +3,7 @@ package com.eventverse.app.domain.process.usecases
 import com.eventverse.app.domain.process.ResolvedProcessRouting
 import com.eventverse.app.domain.process.TenantProcessCatalog
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
+import com.eventverse.app.domain.sampling.toSamplingStageOrNull
 import com.eventverse.app.domain.tenant.TenantId
 
 data class ResolveActiveProcessesQuery(
@@ -38,7 +39,7 @@ class ResolveActiveProcessesUseCase(
             customStations = active.filter { it.hasStationPlacement }.map { it.toWorkStationSpec() },
             samplingSteps = active
                 .filter { it.hasSamplingPlacement }
-                .sortedBy { it.samplingAnchorAfter?.order ?: Int.MAX_VALUE }
+                .sortedBy { it.samplingAnchorAfter?.toSamplingStageOrNull()?.order ?: Int.MAX_VALUE }
         )
     }
 }

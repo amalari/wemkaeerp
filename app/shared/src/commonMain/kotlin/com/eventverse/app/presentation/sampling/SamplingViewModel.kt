@@ -1,6 +1,9 @@
 package com.eventverse.app.presentation.sampling
 
+import com.eventverse.app.domain.masterdata.MaterialCatalogQuery
 import com.eventverse.app.domain.sampling.*
+import com.eventverse.app.infrastructure.api.MasterDataApiClient
+import com.eventverse.app.infrastructure.api.MasterDataRemoteDataSource
 import com.eventverse.app.infrastructure.api.SamplingApiClient
 import com.eventverse.app.infrastructure.api.SamplingRemoteDataSource
 import com.eventverse.app.infrastructure.api.SamplingStorageApiClient
@@ -18,6 +21,7 @@ class SamplingViewModel(
     private val tenantSlug: String,
     private val remoteDataSource: SamplingRemoteDataSource = SamplingApiClient(),
     storageDataSource: SamplingStorageRemoteDataSource = SamplingStorageApiClient(),
+    private val masterDataSource: MasterDataRemoteDataSource = MasterDataApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val _uiState = MutableStateFlow(SamplingUiState())
@@ -99,11 +103,15 @@ class SamplingViewModel(
     private fun load() {
         scope.launch {
             _uiState.update { it.copy(isLoading = true) }
+            val materialsResult = masterDataSource.searchMaterials(tenantSlug, MaterialCatalogQuery(pageSize = 200))
+            val materials = materialsResult.getOrNull()?.items.orEmpty()
+
             remoteDataSource.getOrders(tenantSlug)
                 .onSuccess { list ->
                     _uiState.update { current ->
                         current.copy(
                             orders = list,
+                            availableMaterials = materials,
                             selectedOrderId = current.selectedOrderId ?: list.firstOrNull()?.id,
                             isLoading = false
                         )
@@ -113,6 +121,7 @@ class SamplingViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            availableMaterials = materials,
                             statusMessage = "Gagal memuat SPK sample: ${err.message}",
                             isErrorMessage = true
                         )
@@ -396,29 +405,24 @@ class SamplingViewModel(
         }
     }
 
+    private fun updateOrder(updated: SamplingOrder, message: String, extra: (SamplingUiState) -> SamplingUiState = { it }) {
+        _uiState.update { current ->
+            extra(current.copy(
+                orders = current.orders.map { if (it.id == updated.id) updated else it },
+                isSubmitting = false,
+                statusMessage = message,
+                isErrorMessage = false
+            ))
+        }
+    }
+
     private fun confirmVendorReturn(orderId: SamplingOrderId, returnedAt: kotlinx.datetime.LocalDate?) {
         scope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
             remoteDataSource.confirmVendorReturn(tenantSlug, orderId.value, returnedAt)
-                .onSuccess { updated ->
-                    _uiState.update { current ->
-                        val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
-                        current.copy(
-                            orders = newOrders,
-                            isSubmitting = false,
-                            statusMessage = "Konfirmasi barang kembali dari vendor diterima. Masuk ke Finishing & QC.",
-                            isErrorMessage = false
-                        )
-                    }
-                }
+                .onSuccess { updateOrder(it, "Konfirmasi barang kembali dari vendor diterima. Masuk ke Finishing & QC.") }
                 .onFailure { err ->
-                    _uiState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            statusMessage = "Gagal konfirmasi dari vendor: ${err.message}",
-                            isErrorMessage = true
-                        )
-                    }
+                    _uiState.update { it.copy(isSubmitting = false, statusMessage = "Gagal konfirmasi dari vendor: ${err.message}", isErrorMessage = true) }
                 }
         }
     }
@@ -428,25 +432,12 @@ class SamplingViewModel(
             _uiState.update { it.copy(isSubmitting = true) }
             remoteDataSource.submitQcInspection(tenantSlug, orderId.value, report)
                 .onSuccess { updated ->
-                    _uiState.update { current ->
-                        val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
-                        current.copy(
-                            orders = newOrders,
-                            isSubmitting = false,
-                            targetOrderForAction = null,
-                            statusMessage = "Laporan inspeksi QC tersimpan (${report.qcResult.displayName})",
-                            isErrorMessage = false
-                        )
+                    updateOrder(updated, "Laporan inspeksi QC tersimpan (${report.qcResult.displayName})") {
+                        it.copy(targetOrderForAction = null)
                     }
                 }
                 .onFailure { err ->
-                    _uiState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            statusMessage = "Gagal menyimpan laporan QC: ${err.message}",
-                            isErrorMessage = true
-                        )
-                    }
+                    _uiState.update { it.copy(isSubmitting = false, statusMessage = "Gagal menyimpan laporan QC: ${err.message}", isErrorMessage = true) }
                 }
         }
     }
@@ -456,26 +447,12 @@ class SamplingViewModel(
             _uiState.update { it.copy(isSubmitting = true) }
             remoteDataSource.requestRevision(tenantSlug, orderId.value, notes)
                 .onSuccess { updated ->
-                    _uiState.update { current ->
-                        val newOrders = current.orders.map { if (it.id == updated.id) updated else it }
-                        current.copy(
-                            orders = newOrders,
-                            isSubmitting = false,
-                            isRevisionDialogOpen = false,
-                            targetOrderForAction = null,
-                            statusMessage = "Revisi berhasil diajukan. SPK kembali ke tahap Program CAM (Rev ${updated.revisionCount})",
-                            isErrorMessage = false
-                        )
+                    updateOrder(updated, "Revisi berhasil diajukan. SPK kembali ke tahap Program CAM (Rev ${updated.revisionCount})") {
+                        it.copy(isRevisionDialogOpen = false, targetOrderForAction = null)
                     }
                 }
                 .onFailure { err ->
-                    _uiState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            statusMessage = "Gagal mengajukan revisi: ${err.message}",
-                            isErrorMessage = true
-                        )
-                    }
+                    _uiState.update { it.copy(isSubmitting = false, statusMessage = "Gagal mengajukan revisi: ${err.message}", isErrorMessage = true) }
                 }
         }
     }

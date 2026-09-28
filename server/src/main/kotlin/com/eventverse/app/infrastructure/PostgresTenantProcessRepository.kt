@@ -4,7 +4,7 @@ import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.process.TenantProcessCatalog
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCode
@@ -64,7 +64,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
                         it[processCode] = process.code
                         it[displayName] = process.displayName
                         it[archetype] = process.archetype.name
-                        it[samplingAnchorAfter] = process.samplingAnchorAfter?.name
+                        it[samplingAnchorAfter] = process.samplingAnchorAfter?.value
                         it[stationAnchorAfter] = process.stationAnchorAfter?.value
                         it[executionMode] = process.executionMode.name
                         it[vendorRef] = process.vendorRef
@@ -77,7 +77,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
                     TenantOptionalProcessesTable.update({ TenantOptionalProcessesTable.id eq process.processId }) {
                         it[displayName] = process.displayName
                         it[archetype] = process.archetype.name
-                        it[samplingAnchorAfter] = process.samplingAnchorAfter?.name
+                        it[samplingAnchorAfter] = process.samplingAnchorAfter?.value
                         it[stationAnchorAfter] = process.stationAnchorAfter?.value
                         it[executionMode] = process.executionMode.name
                         it[vendorRef] = process.vendorRef
@@ -113,7 +113,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
             displayName = row[TenantOptionalProcessesTable.displayName],
             archetype = ModuleArchetype.valueOf(row[TenantOptionalProcessesTable.archetype]),
             samplingAnchorAfter = row[TenantOptionalProcessesTable.samplingAnchorAfter]
-                ?.let { SamplingPipelineStage.parseOrNull(it) },
+                ?.let { parseLegacyStageCodeOrNull(it) },
             stationAnchorAfter = row[TenantOptionalProcessesTable.stationAnchorAfter]
                 ?.takeIf { it.isNotBlank() }
                 ?.let(::WorkStationCode),

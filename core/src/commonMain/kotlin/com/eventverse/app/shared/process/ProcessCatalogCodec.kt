@@ -3,7 +3,7 @@ package com.eventverse.app.shared.process
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.process.TenantProcessCatalog
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCode
@@ -23,7 +23,7 @@ object ProcessCatalogCodec {
         "code" to jsonOf(process.code),
         "displayName" to jsonOf(process.displayName),
         "archetype" to jsonOf(process.archetype.name),
-        "samplingAnchorAfter" to jsonOf(process.samplingAnchorAfter?.name),
+        "samplingAnchorAfter" to jsonOf(process.samplingAnchorAfter?.value),
         "stationAnchorAfter" to jsonOf(process.stationAnchorAfter?.value),
         "executionMode" to jsonOf(process.executionMode.name),
         "vendorRef" to jsonOf(process.vendorRef),
@@ -50,7 +50,7 @@ object ProcessCatalogCodec {
                 ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
                 ?: ModuleArchetype.CUSTOM_EXTENSION,
             samplingAnchorAfter = obj.string("samplingAnchorAfter")
-                ?.let { SamplingPipelineStage.parseOrNull(it) },
+                ?.let { parseLegacyStageCodeOrNull(it) },
             stationAnchorAfter = obj.string("stationAnchorAfter")
                 ?.takeIf { it.isNotBlank() }
                 ?.let { WorkStationCode(it) },

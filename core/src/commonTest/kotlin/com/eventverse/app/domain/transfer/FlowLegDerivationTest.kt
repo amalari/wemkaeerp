@@ -3,6 +3,7 @@ package com.eventverse.app.domain.transfer
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import kotlin.test.Test
@@ -65,7 +66,7 @@ class FlowLegDerivationTest {
         code = code,
         displayName = code,
         archetype = ModuleArchetype.CUSTOM_EXTENSION,
-        samplingAnchorAfter = anchor,
+        samplingAnchorAfter = anchor?.toStageCode(),
         executionMode = mode,
         vendorRef = vendor
     )

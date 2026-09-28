@@ -1,6 +1,6 @@
 package com.eventverse.app.domain.process
 
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkStationCode
 import com.eventverse.app.domain.workqueue.WorkStationSpec
@@ -56,7 +56,7 @@ data class TenantProcessCatalog(
      */
     fun reposition(
         processId: String,
-        samplingAnchorAfter: SamplingPipelineStage?,
+        samplingAnchorAfter: StageCode?,
         stationAnchorAfter: WorkStationCode?
     ): TenantProcessCatalog {
         requireNotNull(findProcess(processId)) { "Process not found in catalog: $processId" }

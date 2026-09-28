@@ -244,6 +244,7 @@ fun SamplingWorkspaceScreen(
         SamplingSpkDetailDialog(
             order = target,
             isSubmitting = state.isSubmitting,
+            availableMaterials = state.availableMaterials,
             initialShowFlowSection = state.spkDetailFocusFlow,
             initialShowCamSection = state.spkDetailFocusCam,
             onDismiss = { viewModel.onEvent(SamplingUiEvent.CloseSpkDetailDialog) },

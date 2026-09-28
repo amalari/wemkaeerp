@@ -2,7 +2,10 @@ package com.eventverse.app.domain.transfer
 
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
+import kotlin.jvm.JvmName
 
 /**
  * Menurunkan daftar perpindahan barang ([FlowTransferLeg]) dari susunan alur dan konfigurasi
@@ -42,9 +45,9 @@ object FlowLegDerivation {
      * jangkar adalah posisi, bukan syarat bahwa tahapnya dikerjakan.
      */
     fun resolveNodes(
-        stages: List<SamplingPipelineStage>,
+        stages: List<StageCode>,
         processes: List<TenantOptionalProcess>,
-        skipped: Set<SamplingPipelineStage> = emptySet()
+        skipped: Set<StageCode> = emptySet()
     ): List<FlowNodeRef> = buildList {
         stages.forEach { stage ->
             if (stage !in skipped) add(FlowNodeRef.Stage(stage))
@@ -52,6 +55,18 @@ object FlowLegDerivation {
                 .forEach { add(FlowNodeRef.Process(it.code)) }
         }
     }
+
+    /** Jembatan TRD-FLOW-001 Tahap 2 untuk pemanggil yang masih memegang enum. */
+    @JvmName("resolveNodesFromLegacyStages")
+    fun resolveNodes(
+        stages: List<SamplingPipelineStage>,
+        processes: List<TenantOptionalProcess>,
+        skipped: Set<SamplingPipelineStage> = emptySet()
+    ): List<FlowNodeRef> = resolveNodes(
+        stages.map { it.toStageCode() },
+        processes,
+        skipped.mapTo(mutableSetOf()) { it.toStageCode() }
+    )
 
     /**
      * Menurunkan leg dari barisan simpul.

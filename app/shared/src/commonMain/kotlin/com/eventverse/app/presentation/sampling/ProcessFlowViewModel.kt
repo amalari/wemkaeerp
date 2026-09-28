@@ -6,6 +6,7 @@ import com.eventverse.app.domain.process.PhaseTaggableStage
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.transfer.FlowNodeRef
@@ -214,7 +215,7 @@ class ProcessFlowViewModel(
                         // Laundry misalnya ber-archetype FINISHING, dan menyeragamkannya
                         // membuat proses itu tidak lagi sepadan dengan slot finishing.
                         archetype = template?.archetype ?: ModuleArchetype.CUSTOM_EXTENSION,
-                        samplingAnchorAfter = event.anchorAfter,
+                        samplingAnchorAfter = event.anchorAfter.toStageCode(),
                         executionMode = event.executionMode,
                         vendorRef = event.vendorRef,
                         piecerateTariffIdr = template?.piecerateTariffIdr ?: 0L,
@@ -246,7 +247,7 @@ class ProcessFlowViewModel(
                 }
                 is ProcessFlowScope.Design -> {
                     val updatedList = _uiState.value.processes.map { proc ->
-                        if (proc.processId == event.processId) proc.copy(samplingAnchorAfter = event.newAnchorAfter) else proc
+                        if (proc.processId == event.processId) proc.copy(samplingAnchorAfter = event.newAnchorAfter.toStageCode()) else proc
                     }
                     remote.saveOrderFlow(currentScope.orderId, updatedList)
                         .onSuccess { dto ->

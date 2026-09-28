@@ -2,6 +2,7 @@ package com.eventverse.app.domain.sampling
 
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -42,7 +43,7 @@ class SamplingRdProgressTest {
             code = "BORDIR",
             displayName = "Bordir",
             archetype = ModuleArchetype.CUSTOM_EXTENSION,
-            samplingAnchorAfter = SamplingPipelineStage.LINKING_ASSEMBLY
+            samplingAnchorAfter = SamplingPipelineStage.LINKING_ASSEMBLY.toStageCode()
         )
         val pending = order(SamplingPipelineStage.LINKING_ASSEMBLY).rdProgress(listOf(bordir))
         assertEquals(RdStepState.PENDING, pending.first { it.label == "Bordir" }.state)

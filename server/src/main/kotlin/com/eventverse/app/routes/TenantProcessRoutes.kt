@@ -2,7 +2,7 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCode
@@ -75,7 +75,7 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                     ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
                     ?: ModuleArchetype.CUSTOM_EXTENSION,
                 samplingAnchorAfter = body.string("samplingAnchorAfter")
-                    ?.let { SamplingPipelineStage.parseOrNull(it) },
+                    ?.let { parseLegacyStageCodeOrNull(it) },
                 stationAnchorAfter = body.string("stationAnchorAfter")
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::WorkStationCode),
@@ -113,7 +113,7 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                 tenantId = tenant.tenantId,
                 processId = processId,
                 samplingAnchorAfter = if ("samplingAnchorAfter" in body.entries) {
-                    body.string("samplingAnchorAfter")?.let { SamplingPipelineStage.parseOrNull(it) }
+                    parseLegacyStageCodeOrNull(body.string("samplingAnchorAfter"))
                 } else current?.samplingAnchorAfter,
                 stationAnchorAfter = if ("stationAnchorAfter" in body.entries) {
                     body.string("stationAnchorAfter")?.takeIf { it.isNotBlank() }?.let(::WorkStationCode)

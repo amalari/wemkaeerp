@@ -4,6 +4,7 @@ import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.usecases.ResolveActiveProcessesQuery
 import com.eventverse.app.domain.process.usecases.ResolveActiveProcessesUseCase
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkStationCode
 import kotlinx.coroutines.test.runTest
@@ -37,7 +38,7 @@ class ResolveActiveProcessesTest {
         code = "BORDIR",
         displayName = "Bordir Komputer",
         archetype = ModuleArchetype.CUSTOM_EXTENSION,
-        samplingAnchorAfter = samplingAnchor,
+        samplingAnchorAfter = samplingAnchor?.toStageCode(),
         stationAnchorAfter = stationAnchor,
         piecerateTariffIdr = 1500L
     )
@@ -48,7 +49,7 @@ class ResolveActiveProcessesTest {
         code = "SABLON",
         displayName = "Sablon / Print",
         archetype = ModuleArchetype.CUSTOM_EXTENSION,
-        samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER,
+        samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER.toStageCode(),
         stationAnchorAfter = null,
         piecerateTariffIdr = 1200L
     )

@@ -184,6 +184,7 @@ fun Route.operationalModuleRoutes(
 
     tenantProcessRoutes(repository = tenantProcessCatalogRepository)
     tenantPhaseTagRoutes(repository = phaseTagsRepository)
+    tenantStageFlowRoutes(repository = com.eventverse.app.infrastructure.PostgresTenantStageFlowRepository())
 
     tenantLocationRoutes(
         repository = tenantLocationRepository,

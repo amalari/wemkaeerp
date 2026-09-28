@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.transfer
 
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toSamplingStageOrNull
+import com.eventverse.app.domain.sampling.toStageCode
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.workqueue.WorkStationCode
 
 /**
@@ -25,10 +28,20 @@ sealed interface FlowNodeRef {
     /** Nama yang bisa dibaca manusia di layar pemetaan lokasi. */
     val displayName: String
 
-    /** Tahap pada alur sampling (papan kanban SPK). */
-    data class Stage(val stage: SamplingPipelineStage) : FlowNodeRef {
-        override val key: String get() = "$KIND_STAGE$SEPARATOR${stage.name}"
-        override val displayName: String get() = stage.displayName
+    /**
+     * Tahap pada kerangka alur tenant (papan kanban SPK), dirujuk lewat [StageCode] — bukan
+     * enum — supaya tahap template industri lain dan tahap sisipan tenant bisa punya lokasi.
+     * Key tersimpan tidak berubah: `STAGE:<code>`, dan kode rajut identik dengan nama enum lama.
+     */
+    data class Stage(val code: StageCode) : FlowNodeRef {
+        /** Jembatan TRD-FLOW-001 Tahap 2 untuk pemanggil yang belum pindah dari enum. */
+        constructor(stage: SamplingPipelineStage) : this(stage.toStageCode())
+
+        override val key: String get() = "$KIND_STAGE$SEPARATOR${code.value}"
+
+        // Sementara nama diambil dari enum; kode di luar enum tampil apa adanya. Di Tahap 3 nama
+        // datang dari TenantStageFlow milik tenant, yang memang pemilik nama tahapnya.
+        override val displayName: String get() = code.toSamplingStageOrNull()?.displayName ?: code.value
     }
 
     /** Proses opsional yang tenant sisipkan (Bordir, Sablon, Laundry, dan sebagainya). */
@@ -70,7 +83,11 @@ sealed interface FlowNodeRef {
             val value = key.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (kind.isBlank() || value.isBlank()) return null
             return when (kind) {
-                KIND_STAGE -> SamplingPipelineStage.entries.firstOrNull { it.name == value }?.let(::Stage)
+                // Masih hanya nama enum persis (bukan alias, bukan kode bebas): baris pemetaan dengan
+                // nama tahap yang sudah dihapus tetap dibuang, sama seperti sebelumnya. Dilonggarkan
+                // di Tahap 3, saat tahap non-rajut benar-benar ada.
+                KIND_STAGE -> SamplingPipelineStage.entries.firstOrNull { it.name == value }
+                    ?.let { Stage(it.toStageCode()) }
                 KIND_PROCESS -> Process(value)
                 KIND_STATION -> Station(WorkStationCode(value))
                 else -> null

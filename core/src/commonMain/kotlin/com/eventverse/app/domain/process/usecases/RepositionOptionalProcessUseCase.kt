@@ -2,14 +2,14 @@ package com.eventverse.app.domain.process.usecases
 
 import com.eventverse.app.domain.process.TenantProcessCatalog
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkStationCode
 
 data class RepositionProcessCommand(
     val tenantId: TenantId,
     val processId: String,
-    val samplingAnchorAfter: SamplingPipelineStage? = null,
+    val samplingAnchorAfter: StageCode? = null,
     val stationAnchorAfter: WorkStationCode? = null
 )
 

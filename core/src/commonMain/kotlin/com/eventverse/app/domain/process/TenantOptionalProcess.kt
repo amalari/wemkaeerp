@@ -1,7 +1,7 @@
 package com.eventverse.app.domain.process
 
 import com.eventverse.app.domain.pipeline.ModuleArchetype
-import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WorkExecutionMode
 import com.eventverse.app.domain.workqueue.WorkStationCode
@@ -14,7 +14,8 @@ import com.eventverse.app.domain.workqueue.WorkTrackingUnit
  * — sejalan dengan paradigma Composable ERP dan Kontrak 7 (isolasi pipeline per tenant).
  *
  * Posisi dinyatakan dengan jangkar (anchor): tahapan disisipkan **setelah** tahap jangkar.
- * - [samplingAnchorAfter]: posisi di flow sampling (anchor = [SamplingPipelineStage]).
+ * - [samplingAnchorAfter]: posisi di flow sampling (anchor = kode tahap kerangka tenant, [StageCode]).
+ *   Tersimpan sebagai string yang sama dengan nama enum lama, jadi baris lama tetap valid.
  * - [stationAnchorAfter]: posisi di line workqueue (anchor = [WorkStationCode]).
  * Minimal satu jangkar wajib terisi; `null` berarti tahapan tidak tampil di flow tersebut.
  *
@@ -27,7 +28,7 @@ data class TenantOptionalProcess(
     val code: String,
     val displayName: String,
     val archetype: ModuleArchetype,
-    val samplingAnchorAfter: SamplingPipelineStage? = null,
+    val samplingAnchorAfter: StageCode? = null,
     val stationAnchorAfter: WorkStationCode? = null,
     val executionMode: WorkExecutionMode = WorkExecutionMode.IN_HOUSE,
     val vendorRef: String? = null,
@@ -71,7 +72,7 @@ data class TenantOptionalProcess(
 
     /** Mengganti posisi jangkar (hasil adjust flow / drag-and-drop divisi sampling). */
     fun withAnchors(
-        samplingAnchorAfter: SamplingPipelineStage?,
+        samplingAnchorAfter: StageCode?,
         stationAnchorAfter: WorkStationCode?
     ): TenantOptionalProcess = copy(
         samplingAnchorAfter = samplingAnchorAfter,

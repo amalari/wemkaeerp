@@ -5,6 +5,7 @@ import com.eventverse.app.domain.process.FlowPhase
 import com.eventverse.app.domain.process.PhaseTaggableStage
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.sampling.usecases.AdvanceSamplingStageCommand
 import com.eventverse.app.domain.sampling.usecases.AdvanceSamplingStageUseCase
 import com.eventverse.app.domain.tenant.TenantId
@@ -196,7 +197,7 @@ class SamplingPhaseRouteTest {
             code = "LAUNDRY",
             displayName = "Laundry",
             archetype = ModuleArchetype.FINISHING,
-            samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER
+            samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER.toStageCode()
         )
         val nodes = FlowLegDerivation.resolveNodes(
             SamplingPipelineStage.entries,

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
+import com.eventverse.app.domain.sampling.toStageCode
 import com.eventverse.app.domain.transfer.FlowLegView
 import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.domain.workqueue.WorkStationCatalog
@@ -121,7 +122,7 @@ fun ProcessFlowAdjusterPanel(
                         onToggle = { st, phase -> viewModel.onEvent(ProcessFlowUiEvent.TogglePhaseTag(st, phase)) }
                     )
 
-                    val anchored = state.processes.filter { it.samplingAnchorAfter == stage }
+                    val anchored = state.processes.filter { it.samplingAnchorAfter == stage.toStageCode() }
                     anchored.forEachIndexed { procIndex, process ->
                         // Celah juga ada di antara tahap dan proses pertamanya (dan antar
                         // proses) — menyisipkan proses tidak boleh "memakan" tombol + yang

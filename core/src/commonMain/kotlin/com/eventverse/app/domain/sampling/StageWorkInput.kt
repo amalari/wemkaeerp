@@ -80,6 +80,8 @@ object StageSectionNames {
     const val PATTERN_FORMULAS = "RUMUS POLA"
     const val PANEL_WEIGHTS = "GRAMASI"
     const val PANEL_MINUTES = "WAKTU"
+    const val PANEL_MATERIALS = "BAHAN BAKU PER BAGIAN"
+    const val ADDITIONAL_MATERIALS = "BAHAN BAKU TAMBAHAN"
     const val SIZE_CHART = "DETAIL SIZE CHART"
     const val TENSELITY = "TENSELITY"
     const val FINISHED_MEASUREMENTS = "HASIL UKURAN JADI"
@@ -88,7 +90,9 @@ object StageSectionNames {
     val CAM_REQUIRED: List<String> = listOf(PROGRAM, FEEDER_INSTRUCTIONS)
 
     /** Section inputan aktif saat lembar Rajut Mesin. */
-    val KNITTING_INPUTS: List<String> = listOf(PANEL_WEIGHTS, PANEL_MINUTES, SIZE_CHART, TENSELITY)
+    val KNITTING_INPUTS: List<String> = listOf(
+        PANEL_MATERIALS, PANEL_WEIGHTS, PANEL_MINUTES, SIZE_CHART, TENSELITY, ADDITIONAL_MATERIALS
+    )
 }
 
 /**

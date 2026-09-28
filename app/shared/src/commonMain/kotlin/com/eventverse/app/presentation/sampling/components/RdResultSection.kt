@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.masterdata.MaterialCategory
+import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.sampling.StageInputRow
 import com.eventverse.app.domain.sampling.StageInputSection
 import com.eventverse.app.domain.sampling.StageSectionNames
@@ -19,7 +21,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
  * Section "Hasil R&D" di dialog Detail SPK — tampil saat SPK sudah turun ke lantai R&D
- * (rajut sampai kemas). Gramasi, waktu, dan ukuran jadi diisi di sini setelah panel selesai dirajut.
+ * (rajut sampai kemas). Gramasi, waktu, bahan baku, dan ukuran jadi diisi di sini setelah panel selesai dirajut.
  *
  * Tab bagian garmen diturunkan langsung dari Program CAM (satu lembar teknis per SPK)
  * dengan sinkronisasi dua arah: penambahan atau penghapusan bagian di CAM langsung terefleksi
@@ -28,10 +30,12 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 fun RdResultSection(
     sections: List<StageInputSection>,
-    onSectionsChange: (List<StageInputSection>) -> Unit
+    onSectionsChange: (List<StageInputSection>) -> Unit,
+    availableMaterials: List<MaterialItem> = emptyList()
 ) {
     val sheet = remember(sections) { parseCamSections(sections) }
     var tabs by remember(sections) { mutableStateOf(sheet.tabs) }
+    var additionalMaterials by remember(sections) { mutableStateOf(sheet.additionalMaterials) }
     var selectedTabId by remember { mutableStateOf(tabs.firstOrNull()?.id.orEmpty()) }
     var selectedTabName by remember { mutableStateOf(tabs.firstOrNull()?.name.orEmpty()) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -50,14 +54,16 @@ fun RdResultSection(
 
     fun updateAndEmit(
         newTabs: List<CamPartTab> = tabs,
-        newMeasurements: List<StageInputRow> = sheet.finishedMeasurements
+        newMeasurements: List<StageInputRow> = sheet.finishedMeasurements,
+        newAdditionalMaterials: List<AdditionalMaterialItem> = additionalMaterials
     ) {
         tabs = newTabs
-        onSectionsChange(serializeCamSections(newTabs, sheet.formulaNote, newMeasurements))
+        additionalMaterials = newAdditionalMaterials
+        onSectionsChange(serializeCamSections(newTabs, sheet.formulaNote, newMeasurements, newAdditionalMaterials))
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-        // Section 1: Gramasi & Waktu per Bagian (Tabbing Sinkron dengan CAM)
+        // Section 1: Gramasi, Waktu & Bahan Baku per Bagian (Tabbing Sinkron dengan CAM)
         ClayCard(modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 // Header dengan Badge progres
@@ -68,7 +74,7 @@ fun RdResultSection(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
                         Text(
-                            text = "HASIL R&D — GRAMASI & WAKTU PER BAGIAN",
+                            text = "HASIL R&D — GRAMASI, WAKTU & BAHAN BAKU PER BAGIAN",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurface
@@ -223,6 +229,20 @@ fun RdResultSection(
                             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            MaterialSearchableDropdown(
+                                value = activeTab.material,
+                                onValueChange = { newMaterial ->
+                                    val newTabs = tabs.map {
+                                        if (it.id == activeTab.id) it.copy(material = newMaterial) else it
+                                    }
+                                    updateAndEmit(newTabs = newTabs)
+                                },
+                                availableMaterials = availableMaterials,
+                                label = "MASTER BAHAN BAKU (${activeTab.name.uppercase()})",
+                                placeholder = "Cari benang / bahan...",
+                                categoryPriority = listOf(MaterialCategory.YARN, MaterialCategory.FABRIC),
+                                modifier = Modifier.weight(1.3f)
+                            )
                             ClayTextField(
                                 value = activeTab.gramasi,
                                 onValueChange = { newGramasi ->
@@ -233,7 +253,7 @@ fun RdResultSection(
                                 },
                                 label = "GRAMASI PANEL (${activeTab.name.uppercase()})",
                                 placeholder = "mis. 117 GR",
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(0.85f)
                             )
                             ClayTextField(
                                 value = activeTab.waktu,
@@ -245,7 +265,7 @@ fun RdResultSection(
                                 },
                                 label = "WAKTU RAJUT (${activeTab.name.uppercase()})",
                                 placeholder = "mis. 37 MENIT",
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(0.85f)
                             )
                         }
                     }
@@ -279,7 +299,14 @@ fun RdResultSection(
             }
         }
 
-        // Section 2: Hasil Ukuran Jadi
+        // Section 2: Tambahan Bahan Baku (Non-Perbagian / Aksesoris seperti Zipper, Kancing, dll.)
+        AdditionalMaterialsSection(
+            items = additionalMaterials,
+            availableMaterials = availableMaterials,
+            onItemsChange = { updateAndEmit(newAdditionalMaterials = it) }
+        )
+
+        // Section 3: Hasil Ukuran Jadi
         ClayCard(modifier = Modifier.fillMaxWidth()) {
             DynamicSectionTable(
                 sectionName = StageSectionNames.FINISHED_MEASUREMENTS,
