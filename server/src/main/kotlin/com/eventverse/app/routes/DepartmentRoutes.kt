@@ -33,6 +33,11 @@ fun Route.departmentRoutes(
     val restoreDefaultDepartmentsUseCase = RestoreDefaultDepartmentsUseCase(departmentRepository)
 
     route("/api/tenant/departments") {
+        // B5: tulis = MANAGE fail-closed. Baca belum digerbang: klien menghitung menu setiap pengguna dari daftar divisi
+        // (RbacAccessPolicyRepository). Tutup setelah endpoint "wewenang saya" dihitung di server.
+        if (roleRepository != null && moduleAssignmentRepository != null) {
+            moduleGate(com.eventverse.app.domain.rbac.BusinessModule.ORG_CHART, roleRepository, moduleAssignmentRepository, read = AccessLevel.NONE)
+        }
         get {
             val tenant = call.tenantContextOrNull ?: run {
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")

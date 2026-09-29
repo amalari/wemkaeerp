@@ -13,7 +13,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.rbacRoutes(roleRepository: RoleRepository) {
+fun Route.rbacRoutes(roleRepository: RoleRepository, moduleAssignmentRepository: com.eventverse.app.domain.rbac.ModuleAssignmentRepository) {
     val getRolesUseCase = GetRolesUseCase(roleRepository)
     val createRoleUseCase = CreateRoleUseCase(roleRepository)
     val updateRoleUseCase = UpdateRoleUseCase(roleRepository)
@@ -21,6 +21,10 @@ fun Route.rbacRoutes(roleRepository: RoleRepository) {
     val restoreDefaultRolesUseCase = RestoreDefaultRolesUseCase(roleRepository)
 
     route("/api/tenant/roles") {
+        // B5: tulis = MANAGE fail-closed. Baca belum digerbang: klien menghitung menu setiap pengguna dari daftar ini
+        // (RbacAccessPolicyRepository). Tutup setelah endpoint "wewenang saya" dihitung di server.
+        moduleGate(com.eventverse.app.domain.rbac.BusinessModule.DYNAMIC_RBAC, roleRepository, moduleAssignmentRepository, read = com.eventverse.app.domain.rbac.AccessLevel.NONE)
+
         get {
             val tenant = call.tenantContextOrNull ?: run {
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")

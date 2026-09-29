@@ -514,8 +514,8 @@ fun Application.module(
             }
         }
 
-        rbacRoutes(roleRepo)
-        moduleAssignmentRoutes(assignmentRepo)
+        rbacRoutes(roleRepo, assignmentRepo)
+        moduleAssignmentRoutes(assignmentRepo, roleRepo)
         departmentRoutes(deptRepo, empRepo, roleRepo, assignmentRepo)
         // roleRepo + assignmentRepo dipakai untuk menghitung jangkauan data Bagan Organisasi
         // (ScopeCapability.HIERARCHICAL), bukan untuk CRUD karyawan.
