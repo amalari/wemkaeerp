@@ -1,7 +1,9 @@
 package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.domain.rbac.moduleIds
-import com.eventverse.app.presentation.pack.ActiveTenantPack
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.shared.pack.DomainPackCodec
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -56,6 +58,8 @@ import io.ktor.http.*
 data class TenantAdminView(
     val slug: String,
     val name: String,
+    /** Pack tenant **target** (B7) — bukan pack sesi superadmin. Modul yang dapat disambungkan berasal dari sini. */
+    val pack: DomainPack,
     val grantedModules: Set<BusinessModule>,
     val grantedCustomModuleIds: Set<String>,
     val catalog: TenantModuleCatalogSnapshot
@@ -66,7 +70,7 @@ data class TenantAdminView(
     val maxActiveModules: Int get() = catalog.maxActiveModules
 
     fun toGrants(): TenantEntitlementGrants = TenantEntitlementGrants(
-        grantedModules = grantedModules.takeIf { it != ActiveTenantPack.current.moduleIds.toSet() },
+        grantedModules = grantedModules.takeIf { it != pack.moduleIds.toSet() },
         grantedCustomModuleIds = grantedCustomModuleIds
     )
 }
@@ -123,12 +127,16 @@ class AdminApiClient(
 
     private fun parseAdminView(rawJson: String): TenantAdminView {
         val root = JsonParser.parseObject(rawJson)
+        // Pack didaftarkan dulu: kunci modul pack data di grants baru terbaca parser setelah pack-nya dikenal.
+        val pack = DomainPackCodec.decode(requireNotNull(root.obj("domainPack")) { "Respons admin tanpa domainPack" })
+        if (!DomainPackRegistry.isShipped(pack.code)) DomainPackRegistry.register(pack)
         val grants = TenantEntitlementGrantsCodec.decode(root)
 
         return TenantAdminView(
             slug = root.string("slug") ?: "",
             name = root.string("name") ?: "",
-            grantedModules = grants.grantedModules ?: ActiveTenantPack.current.moduleIds.toSet(),
+            pack = pack,
+            grantedModules = grants.grantedModules ?: pack.moduleIds.toSet(),
             grantedCustomModuleIds = grants.grantedCustomModuleIds,
             catalog = TenantModuleCatalogCodec.decode(rawJson)
         )

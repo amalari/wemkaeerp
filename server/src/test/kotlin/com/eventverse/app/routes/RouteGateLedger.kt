@@ -18,6 +18,8 @@ internal object RouteGateLedger {
         "GET /api/tenant/entitlement",
         // Wewenang pemanggil sendiri — setiap anggota tenant butuh ini untuk menyusun menunya.
         "GET /api/tenant/me/access",
+        // Kosakata vertikal tenant (nama modul, fase, port) — setiap anggota butuh untuk menyusun menu & kanvas (B7).
+        "GET /api/tenant/pack",
         // Katalog template kerangka tahap bawaan platform (IndustryStageTemplates) — bukan data tenant.
         "GET /api/tenant/stage-templates"
     )

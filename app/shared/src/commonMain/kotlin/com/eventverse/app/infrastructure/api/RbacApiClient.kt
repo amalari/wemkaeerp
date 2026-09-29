@@ -125,6 +125,21 @@ class RbacApiClient(
     }
 
     /**
+     * GET /api/tenant/pack — kosakata vertikal tenant (B7). Wajib dimuat **sebelum** [getMyAccess]: kunci modul pack data
+     * baru terbaca parser setelah pack-nya terdaftar.
+     */
+    suspend fun getTenantPack(tenantSlug: String): Result<com.eventverse.app.domain.pack.DomainPack> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/tenant/pack")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal memuat vertikal tenant (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        com.eventverse.app.shared.pack.DomainPackCodec.decode(response.bodyAsText())
+    }
+
+    /**
      * GET /api/tenant/me/access — wewenang pengguna yang sedang login, dihitung server (B5). Pengganti
      * menghitung menu dari daftar jabatan & penugasan semua orang, yang kini hanya terbuka untuk admin.
      */

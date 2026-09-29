@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
@@ -42,6 +43,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[activeMachineCount] = tenant.activeMachineCount
                     it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
+                    it[domainPack] = tenant.domainPack.value
                 }
             } else {
                 TenantsTable.insert {
@@ -53,6 +55,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[activeMachineCount] = tenant.activeMachineCount
                     it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
+                    it[domainPack] = tenant.domainPack.value
                 }
             }
             tenant
@@ -78,6 +81,8 @@ class PostgresTenantRepository : TenantRepository {
         activeMachineCount = row[TenantsTable.activeMachineCount],
         businessPreset = GarmentBlueprints.parse(row[TenantsTable.businessPreset]),
         // Nilai asing jatuh ke rajut: satu-satunya kerangka sebelum kolom ini ada (V74).
-        industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER
+        industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER,
+        // Kode tak dikenal tetap dibaca apa adanya; plugin tenant menolaknya 409 (B7 FR-4), bukan jatuh ke garment.
+        domainPack = DomainPackCode(row[TenantsTable.domainPack])
     )
 }

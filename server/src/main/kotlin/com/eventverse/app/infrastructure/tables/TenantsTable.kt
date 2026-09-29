@@ -17,5 +17,8 @@ object TenantsTable : Table("tenants") {
     val businessPreset = varchar("business_preset", 50).default("fob_full_package")
     val industryTemplate = varchar("industry_template", 32).default("KNIT_SWEATER")
 
+    /** Vertikal tenant (V75, B7). */
+    val domainPack = varchar("domain_pack", 64).default("garment")
+
     override val primaryKey = PrimaryKey(id)
 }

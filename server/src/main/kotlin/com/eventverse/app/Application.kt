@@ -33,6 +33,7 @@ import com.eventverse.app.routes.departmentRoutes
 import com.eventverse.app.routes.employeeRoutes
 import com.eventverse.app.routes.pipelineRoutes
 import com.eventverse.app.routes.adminRoutes
+import com.eventverse.app.routes.domainPackRoutes
 import com.eventverse.app.infrastructure.PostgresTenantEntitlementRepository
 import com.eventverse.app.infrastructure.PostgresTenantPipelineRepository
 import com.eventverse.app.infrastructure.PostgresAuditLogRepository
@@ -157,7 +158,8 @@ fun Application.module(
     invoiceIssuerProfileRepository: InvoiceIssuerProfileRepository? = null,
     costingSheetRepository: CostingSheetRepository? = null,
     costingRateCardRepository: CostingRateCardRepository? = null,
-    costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null
+    costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null,
+    domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -170,6 +172,7 @@ fun Application.module(
     val empRepo = employeeRepository ?: PostgresEmployeeRepository()
     val pipeRepo = pipelineRepository ?: PostgresTenantPipelineRepository()
     val entitlementRepo = entitlementRepository ?: PostgresTenantEntitlementRepository()
+    val domainPackRepo = domainPackRepository ?: com.eventverse.app.infrastructure.PostgresDomainPackRepository()
     val auditLogRepo = auditLogRepository ?: PostgresAuditLogRepository()
     val catalogRepo = moduleCatalogRepository ?: PostgresModuleCatalogRepository()
     val buildRepo = moduleBuildRepository ?: PostgresModuleBuildRepository()
@@ -192,8 +195,7 @@ fun Application.module(
         bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
     )
     val knitWorksheetBuilder = KnitWorksheetBuilder(samplingOrderRepo)
-    // Host ini ikut tercetak di dalam setiap QR. Kartu yang sudah keluar printer tidak bisa
-    // diperbarui, jadi mengubah nilai ini kelak akan mematikan seluruh kartu yang beredar di lantai.
+    // Host ini tercetak di setiap QR: mengubahnya kelak mematikan seluruh kartu yang sudah beredar di lantai.
     val traceScanHost = System.getenv("TRACE_SCAN_HOST")?.takeIf { it.isNotBlank() } ?: "wemade.local"
     val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
     val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
@@ -224,8 +226,7 @@ fun Application.module(
     val prospectEstimateRepo =
         prospectPriceEstimateRepository ?: PostgresProspectPriceEstimateRepository()
 
-    // Keyword matching, not comprehension — see KeywordFlowTranslator. Safe to run on a public
-    // endpoint because it costs nothing; a real model needs rate limiting first.
+    // Keyword matching, not comprehension (KeywordFlowTranslator): free, so safe on a public endpoint; a real model needs rate limiting.
     val flowTranslatorImpl = flowTranslator ?: KeywordFlowTranslator()
 
     // Derived from REAL productive hours (~4/day), not a nominal 160-hour month. Using a nominal
@@ -236,11 +237,9 @@ fun Application.module(
     val defaultMargin = Percentage(
         System.getenv("WEMADE_DEFAULT_MARGIN_PERCENT")?.toDoubleOrNull() ?: 35.0
     )
-
     val registerTenantUseCase = RegisterTenantUseCase(repository)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
     val authenticateWithGoogleUseCase = AuthenticateWithGoogleUseCase(userRepo, repository)
-
     val googleAuthService = GoogleAuthService()
     val jwtTokenService = JwtTokenService()
     install(TenantResolutionPlugin) {
@@ -248,6 +247,7 @@ fun Application.module(
         this.jwtTokenService = jwtTokenService
         this.publicRoutePrefixes = listOf("/api/public", "/health")
         this.entitlementRepository = entitlementRepo
+        this.domainPackRepository = domainPackRepo
     }
 
     routing {
@@ -517,11 +517,11 @@ fun Application.module(
         rbacRoutes(roleRepo, assignmentRepo)
         moduleAssignmentRoutes(assignmentRepo, roleRepo)
         departmentRoutes(deptRepo, empRepo, roleRepo, assignmentRepo)
-        // roleRepo + assignmentRepo dipakai untuk menghitung jangkauan data Bagan Organisasi
-        // (ScopeCapability.HIERARCHICAL), bukan untuk CRUD karyawan.
+        // roleRepo + assignmentRepo: jangkauan data Bagan Organisasi (HIERARCHICAL), bukan CRUD karyawan.
         employeeRoutes(empRepo, deptRepo, roleRepo, assignmentRepo)
         pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
+        domainPackRoutes(repository, domainPackRepo, com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), auditLogRepo)
         moduleDevRoutes(
             catalogRepository = catalogRepo,
             buildRepository = buildRepo,

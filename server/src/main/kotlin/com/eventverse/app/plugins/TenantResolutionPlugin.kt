@@ -1,6 +1,7 @@
 package com.eventverse.app.plugins
 
 import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.usecases.ResolveDomainPackUseCase
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -71,6 +72,9 @@ class TenantResolutionConfig {
      * disembunyikan dari menu klien (TRD-FLOW-002 Fase 2).
      */
     var entitlementRepository: TenantEntitlementRepository? = null
+
+    /** Sumber pack data (B7). Tanpa ini hanya pack bawaan yang dikenal; tenant pack data ditolak 409. */
+    var domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null
 }
 
 /** Modul yang di-grant untuk tenant request ini; `null` = tidak dimuat (guard tidak membatasi paket). */
@@ -100,6 +104,7 @@ val TenantResolutionPlugin = createApplicationPlugin(
     val platformPrefixes = pluginConfig.platformRoutePrefixes
     val printTickets = pluginConfig.printTicketService
     val entitlements = pluginConfig.entitlementRepository?.let(::GetTenantEntitlementUseCase)
+    val resolvePack = pluginConfig.domainPackRepository?.let(::ResolveDomainPackUseCase)
 
     onCall { call ->
         val path = call.request.path()
@@ -230,7 +235,7 @@ val TenantResolutionPlugin = createApplicationPlugin(
         }
 
         // Pack tak dikenal = konfigurasi tenant rusak: tolak, jangan jalankan tenant dengan kosakata garment (B7 FR-4).
-        val pack = DomainPackRegistry.find(resolvedTenant.domainPack)
+        val pack = resolvePack?.invoke(resolvedTenant.domainPack) ?: DomainPackRegistry.find(resolvedTenant.domainPack)
         if (pack == null) {
             call.respond(
                 HttpStatusCode.Conflict,

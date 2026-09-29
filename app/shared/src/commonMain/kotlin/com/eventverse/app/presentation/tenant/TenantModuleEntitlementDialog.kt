@@ -3,7 +3,6 @@ package com.eventverse.app.presentation.tenant
 import com.eventverse.app.domain.rbac.operationalModules
 import com.eventverse.app.domain.rbac.foundationModules
 import com.eventverse.app.domain.rbac.governanceModules
-import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.section
 
 import com.eventverse.app.domain.rbac.isScopeSupported
@@ -214,6 +213,7 @@ fun TenantModuleEntitlementDialog(
 
                         else -> {
                             val current = draft.orEmpty()
+                            val pack = requireNotNull(view).pack
                             Column(
                                 modifier = Modifier
                                     .heightIn(max = 420.dp)
@@ -223,7 +223,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Sistem & Tata Kelola",
                                     subtitle = "Tidak memakan kuota modul produksi.",
-                                    modules = ActiveTenantPack.current.governanceModules,
+                                    modules = pack.governanceModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -233,7 +233,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Data Induk & Referensi",
                                     subtitle = "Master data, vendor, penagihan. Tidak memakan kuota modul produksi.",
-                                    modules = ActiveTenantPack.current.foundationModules,
+                                    modules = pack.foundationModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -243,7 +243,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Operasional Pabrik",
                                     subtitle = "Terhitung terhadap batas paket langganan.",
-                                    modules = ActiveTenantPack.current.operationalModules,
+                                    modules = pack.operationalModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->

@@ -11,6 +11,9 @@ enum class AuditAction(val code: String) {
     TENANT_ENTITLEMENT_UPDATED("tenant_entitlement_updated"),
     TENANT_TIER_UPDATED("tenant_tier_updated"),
 
+    /** Vertikal (Domain Pack) sebuah tenant ditetapkan (B7): mengubah seluruh kosakata modul tenant itu. */
+    TENANT_DOMAIN_PACK_ASSIGNED("tenant_domain_pack_assigned"),
+
     /**
      * A build was closed with its actual hours and cost.
      *

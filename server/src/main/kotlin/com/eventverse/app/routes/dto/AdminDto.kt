@@ -44,7 +44,10 @@ object AdminDto {
             "slug" to jsonOf(tenant.slug.value),
             "name" to jsonOf(tenant.name.value),
             "status" to jsonOf(tenant.status.name),
-            "businessPreset" to jsonOf(tenant.businessPreset.code.value)
+            "businessPreset" to jsonOf(tenant.businessPreset.code.value),
+            // Pack tenant utuh (B7): dialog entitlement superadmin menampilkan modul vertikal **tenant target**,
+            // bukan vertikal sesi superadmin.
+            "domainPack" to com.eventverse.app.shared.pack.DomainPackCodec.encode(tenant.pack)
         )
         val grantsValue = TenantEntitlementGrantsCodec.encode(grants)
 

@@ -69,6 +69,7 @@ object RouteOwnership {
         "/api/tenant/vendor" to RouteOwner.Module(GarmentModules.VENDOR_CONTACTS),
         "/api/tenant/info" to RouteOwner.Platform("info tenant aktif"),
         "/api/tenant/me" to RouteOwner.Platform("wewenang pemanggil sendiri (menu)"),
+        "/api/tenant/pack" to RouteOwner.Platform("kosakata vertikal tenant (Domain Pack)"),
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
         "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform")

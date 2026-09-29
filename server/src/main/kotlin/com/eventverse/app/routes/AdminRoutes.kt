@@ -151,7 +151,7 @@ fun Route.adminRoutes(
 // Shared request/response plumbing
 // ---------------------------------------------------------------------------
 
-private suspend fun ApplicationCall.requireTargetTenant(
+internal suspend fun ApplicationCall.requireTargetTenant(
     tenantRepository: TenantRepository
 ): Tenant? {
     val rawSlug = parameters["slug"]?.trim()?.lowercase()
@@ -182,7 +182,7 @@ private suspend fun respondAdminView(
     )
 }
 
-private suspend fun ApplicationCall.recordAudit(
+internal suspend fun ApplicationCall.recordAudit(
     auditLogRepository: AuditLogRepository,
     actor: CallerPrincipal,
     tenant: Tenant,

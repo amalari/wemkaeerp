@@ -164,6 +164,8 @@ class RbacAccessPolicyRepository(
         scope.launch {
             // Sumber menu pengguna yang login. Daftar jabatan/penugasan di bawah kini hanya terbuka untuk admin
             // RBAC/Org Chart; bagi pengguna lain permintaannya ditolak dan fallback lokal tidak menentukan menu.
+            // B7: pack tenant dulu — tanpa itu kunci modul pack data dibuang parser dan menunya kosong.
+            client.getTenantPack(tenantSlug).onSuccess { ActiveTenantPack.activate(it) }
             val server = client.getMyAccess(tenantSlug).getOrNull()?.also { _serverDecisions.value = it }
             // Daftar wewenang semua orang hanya untuk admin RBAC. Tanpa keputusan server (offline/server lama) tetap
             // dicoba seperti dulu, termasuk fallback preset; dengan keputusan server yang menolak, tidak diminta sama
