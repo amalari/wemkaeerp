@@ -41,9 +41,9 @@ print_banner() {
     echo "            🚀 WeMade ERP — Development Environment                     "
     echo "========================================================================"
     echo -e "${RESET}"
-    echo -e "  🌐 ${BOLD}Frontend (Wasm Compose)${RESET} : ${GREEN}http://localhost:3000${RESET}"
-    echo -e "  🔌 ${BOLD}Backend API (Ktor)${RESET}     : ${GREEN}http://localhost:8080${RESET}"
-    echo -e "  🔄 ${BOLD}Webpack Proxy API${RESET}      : ${PURPLE}/api -> http://localhost:8080${RESET}"
+    echo -e "  🌐 ${BOLD}Frontend (Wasm Compose)${RESET} : ${GREEN}http://localhost:3001${RESET}"
+    echo -e "  🔌 ${BOLD}Backend API (Ktor)${RESET}     : ${GREEN}http://localhost:8081${RESET}"
+    echo -e "  🔄 ${BOLD}Webpack Proxy API${RESET}      : ${PURPLE}/api -> http://localhost:8081${RESET}"
     echo -e "  🐘 ${BOLD}Database (PostgreSQL)${RESET}  : ${YELLOW}localhost:${DB_PORT:-5432} (${DB_NAME:-wemade_erp})${RESET}"
     echo -e "${CYAN}------------------------------------------------------------------------${RESET}"
 }
@@ -95,7 +95,7 @@ WATCH_PID=""
 # Perubahan di core/ tetap butuh restart manual: core masuk sebagai jar, bukan folder class.
 start_server_watcher() {
     (
-        until lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; do sleep 2; done
+        until lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1; do sleep 2; done
         echo -e "${GREEN}${BOLD}[RELOAD]${RESET} Memantau perubahan server/ — class dikompilasi ulang otomatis."
         ./gradlew -t :server:classes -q 2>&1 | sed -e "s/^/[RELOAD] /"
     ) &
@@ -127,7 +127,7 @@ MODE="${1:-all}"
 case "$MODE" in
     wasm)
         print_banner
-        check_port 3000 "Wasm Webpack Dev Server"
+        check_port 3001 "Wasm Webpack Dev Server"
         echo -e "${CYAN}${BOLD}[WASM]${RESET} Memulai Wasm Development Server (Auto-Watching & Hot Reload)..."
         ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous
         ;;
@@ -135,8 +135,8 @@ case "$MODE" in
     server)
         print_banner
         check_postgres
-        check_port 8080 "Ktor Backend Server"
-        echo -e "${GREEN}${BOLD}[SERVER]${RESET} Memulai Ktor Backend Server pada port 8080 (auto-reload aktif)..."
+        check_port 8081 "Ktor Backend Server"
+        echo -e "${GREEN}${BOLD}[SERVER]${RESET} Memulai Ktor Backend Server pada port 8081 (auto-reload aktif)..."
         start_server_watcher
         ./gradlew :server:run
         ;;
@@ -170,7 +170,7 @@ case "$MODE" in
 
     help|--help|-h)
         echo -e "${BOLD}Panduan Penggunaan dev.sh:${RESET}"
-        echo "  ./dev.sh         : Menjalankan Server Backend (8080) dan Wasm Watcher (3000) sekaligus"
+        echo "  ./dev.sh         : Menjalankan Server Backend (8081) dan Wasm Watcher (3001) sekaligus"
         echo "  ./dev.sh wasm    : Hanya menjalankan Wasm Dev Server dengan auto-watching/hot-reload"
         echo "  ./dev.sh server  : Hanya menjalankan Ktor Backend API Server (auto-reload server/)"
         echo "  ./dev.sh docker  : Menyalakan container database PostgreSQL"
@@ -184,10 +184,10 @@ case "$MODE" in
     all|*)
         print_banner
         check_postgres
-        check_port 8080 "Ktor Backend Server"
-        check_port 3000 "Wasm Webpack Dev Server"
+        check_port 8081 "Ktor Backend Server"
+        check_port 3001 "Wasm Webpack Dev Server"
 
-        echo -e "\n${GREEN}${BOLD}▶ [1/2] Menjalankan Ktor Backend Server (Port 8080)...${RESET}"
+        echo -e "\n${GREEN}${BOLD}▶ [1/2] Menjalankan Ktor Backend Server (Port 8081)...${RESET}"
         ./gradlew :server:run 2>&1 | sed -e "s/^/[SERVER] /" &
         SERVER_PID=$!
         start_server_watcher
@@ -195,7 +195,7 @@ case "$MODE" in
         # Beri jeda singkat agar Ktor sempat binding port sebelum webpack proxy aktif
         sleep 2
 
-        echo -e "\n${CYAN}${BOLD}▶ [2/2] Menjalankan Wasm Compose Dev Server dengan Continuous Watcher (Port 3000)...${RESET}"
+        echo -e "\n${CYAN}${BOLD}▶ [2/2] Menjalankan Wasm Compose Dev Server dengan Continuous Watcher (Port 3001)...${RESET}"
         ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun --continuous 2>&1 | sed -e "s/^/[WASM] /" &
         WASM_PID=$!
 
