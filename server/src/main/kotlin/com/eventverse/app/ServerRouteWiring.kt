@@ -117,7 +117,9 @@ fun Route.operationalModuleRoutes(
             masterDataRoutes(
                 materialRepository = materialRepo,
                 priceRepository = materialPriceRepo,
-                customFieldRepository = customFieldRepo
+                customFieldRepository = customFieldRepo,
+                roleRepository = roleRepo,
+                moduleAssignmentRepository = assignmentRepo
             )
             techPackRoutes(
                 techPackRepository = techPackRepo,
@@ -132,7 +134,9 @@ fun Route.operationalModuleRoutes(
                 templateRepository = invoiceTemplateRepo,
                 paymentRepository = invoicePaymentRepo,
                 issuerProfileRepository = invoiceIssuerProfileRepo,
-                samplingOrderRepository = samplingOrderRepo
+                samplingOrderRepository = samplingOrderRepo,
+                roleRepository = roleRepo,
+                moduleAssignmentRepository = assignmentRepo
             )
             costingRoutes(
                 sheetRepository = costingSheetRepo,

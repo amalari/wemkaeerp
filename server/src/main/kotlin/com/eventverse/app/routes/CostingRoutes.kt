@@ -99,6 +99,12 @@ fun Route.costingRoutes(
     val telemetryUseCase = GetCostingNodeTelemetryUseCase(sheetRepository, clock)
 
     route("/api/tenant/costing") {
+        // B5: lembar HPP = OPERATE; rate card (tarif dasar semua perhitungan) = MANAGE.
+        if (roleRepository != null && moduleAssignmentRepository != null) {
+            moduleGate(BusinessModule.COSTING_HPP, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+                if (method != io.ktor.http.HttpMethod.Get && path.endsWith("/rate-card")) GateRule(AccessLevel.MANAGE, listOf(BusinessModule.COSTING_HPP)) else null
+            }
+        }
 
         // GET /api/tenant/costing/sheets
         get("/sheets") {

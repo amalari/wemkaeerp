@@ -120,16 +120,31 @@ class CostingApiTest {
         )
         runBlocking { sheetRepo.save(testSheet) }
 
+        // Lolos gerbang modul (Costing OPERATE, B5) supaya yang diuji benar-benar izin APPROVE_COSTING di handler.
+        val roles = com.eventverse.app.infrastructure.InMemoryRoleRepository()
+        runBlocking {
+            roles.save(
+                com.eventverse.app.domain.rbac.CustomRole(
+                    com.eventverse.app.domain.rbac.RoleId("role-costing-operator"), tenantId, "Staf HPP", "operasi HPP tanpa approve",
+                    modulePermissions = mapOf(
+                        com.eventverse.app.domain.rbac.BusinessModule.COSTING_HPP to
+                            com.eventverse.app.domain.rbac.ModuleAccessConfig(level = com.eventverse.app.domain.rbac.AccessLevel.OPERATE)
+                    )
+                )
+            )
+        }
         application {
             module(
                 tenantRepository = tenantRepo,
                 costingSheetRepository = sheetRepo,
-                costingRateCardRepository = rateCardRepo
+                costingRateCardRepository = rateCardRepo,
+                roleRepository = roles,
+                moduleAssignmentRepository = com.eventverse.app.infrastructure.InMemoryModuleAssignmentRepository()
             )
         }
 
         // Role.SALES does not have APPROVE_COSTING permission
-        val salesToken = TestAuth.tenantToken(tenantSlug = tenantSlug, role = Role.SALES)
+        val salesToken = TestAuth.staffToken(tenantSlug, customRoleId = "role-costing-operator", role = Role.SALES)
         val response = client.post("/api/tenant/costing/sheets/${sheetId.value}/approve") {
             header(HttpHeaders.Authorization, "Bearer $salesToken")
         }

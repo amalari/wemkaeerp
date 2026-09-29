@@ -61,7 +61,11 @@ internal suspend fun ApplicationCall.moduleDecision(
         persona = persona,
         module = module,
         role = role,
-        assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)[module].orEmpty(),
+        // Owner/superadmin selalu MANAGE apa pun isi penugasan divisi (penugasan hanya mengisi penjelasan
+        // `fromDepartment`, yang tidak dibaca server) — jadi query-nya dilewati: satu query DB lebih sedikit per
+        // request admin, dan gerbang modul (B5) tidak menyentuh DB untuk pemilik pabrik.
+        assignments = if (persona.isOwnerOrSuperAdmin) emptyList()
+            else moduleAssignmentRepository.findAllByTenant(tenant.tenantId)[module].orEmpty(),
         grantedModules = grantedModulesOrNull
     )
 }

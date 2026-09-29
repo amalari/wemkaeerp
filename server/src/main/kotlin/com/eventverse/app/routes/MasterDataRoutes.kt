@@ -1,5 +1,13 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.RoleRepository
+
+import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
+
+import com.eventverse.app.domain.rbac.BusinessModule
+
+import com.eventverse.app.domain.rbac.AccessLevel
+
 import com.eventverse.app.domain.common.CurrencyCode
 import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.UnitOfMeasure
@@ -27,7 +35,9 @@ import kotlinx.datetime.Instant
 fun Route.masterDataRoutes(
     materialRepository: MaterialItemRepository,
     priceRepository: MaterialPriceRepository,
-    customFieldRepository: CustomFieldDefinitionRepository
+    customFieldRepository: CustomFieldDefinitionRepository,
+    roleRepository: RoleRepository,
+    moduleAssignmentRepository: ModuleAssignmentRepository
 ) {
     val createMaterialUseCase = CreateMaterialItemUseCase(materialRepository, customFieldRepository)
     val updateMaterialUseCase = UpdateMaterialItemUseCase(materialRepository, priceRepository, customFieldRepository)
@@ -40,6 +50,18 @@ fun Route.masterDataRoutes(
     val resolvePriceUseCase = ResolveMaterialPriceUseCase(priceResolver, priceRepository)
 
     route("/api/tenant/master-data") {
+        // B5. Daftar/detail bahan juga dibaca dropdown bahan di Sampling & Tech Pack; harga = data keuangan.
+        moduleGate(BusinessModule.MASTER_DATA, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+            val isPrice = path.endsWith("/prices") || path.contains("/price-policy") || path.contains("/price-resolution")
+            when {
+                method == io.ktor.http.HttpMethod.Get && isPrice ->
+                    GateRule(AccessLevel.VIEW, listOf(BusinessModule.MASTER_DATA, BusinessModule.COSTING_HPP))
+                method == io.ktor.http.HttpMethod.Get ->
+                    GateRule(AccessLevel.VIEW, listOf(BusinessModule.MASTER_DATA, BusinessModule.SAMPLING_ORDER, BusinessModule.TECH_PACK_BOM))
+                path.contains("/price-policy") -> GateRule(AccessLevel.MANAGE, listOf(BusinessModule.MASTER_DATA))
+                else -> null
+            }
+        }
 
         // GET /api/tenant/master-data/materials (Search & List)
         get("/materials") {

@@ -1,5 +1,13 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.RoleRepository
+
+import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
+
+import com.eventverse.app.domain.rbac.BusinessModule
+
+import com.eventverse.app.domain.rbac.AccessLevel
+
 import com.eventverse.app.domain.common.CurrencyCode
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.invoicing.*
@@ -31,7 +39,9 @@ fun Route.invoicingRoutes(
     paymentRepository: InvoicePaymentRepository,
     issuerProfileRepository: InvoiceIssuerProfileRepository,
     samplingOrderRepository: SamplingOrderRepository? = null,
-    pdfRenderer: InvoicePdfRenderer = InvoicePdfRenderer()
+    pdfRenderer: InvoicePdfRenderer = InvoicePdfRenderer(),
+    roleRepository: RoleRepository,
+    moduleAssignmentRepository: ModuleAssignmentRepository
 ) {
     val createInvoiceUseCase = CreateInvoiceUseCase(invoiceRepository, templateRepository, issuerProfileRepository)
     val updateInvoiceDraftUseCase = UpdateInvoiceDraftUseCase(invoiceRepository, templateRepository)
@@ -43,6 +53,11 @@ fun Route.invoicingRoutes(
     val prefillSamplingUseCase = PrefillInvoiceFromSamplingUseCase(invoiceRepository, templateRepository, issuerProfileRepository)
 
     route("/api/tenant/invoicing") {
+        // B5: transaksi invoice = OPERATE; template & profil penerbit (identitas hukum di dokumen) = MANAGE.
+        moduleGate(BusinessModule.INVOICING, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+            val isConfig = path.contains("/templates") || path.endsWith("/issuer-profile")
+            if (method != io.ktor.http.HttpMethod.Get && isConfig) GateRule(AccessLevel.MANAGE, listOf(BusinessModule.INVOICING)) else null
+        }
 
         // ── INVOICES API ──────────────────────────────────────────────────────────
 
