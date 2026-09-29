@@ -1,5 +1,39 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -17,15 +51,15 @@ class ModuleRegistrationConsistencyTest {
     @Test
     fun everyOperationalModule_hasExactlyOneCatalogSpec_andNoOtherKindDoes() {
         val specModules = OperationalModuleCatalog.all.map { it.module }
-        assertEquals(BusinessModule.operational.toSet(), specModules.toSet(), "Spec katalog ≠ BusinessModule.operational")
+        assertEquals(BusinessModules.operational.toSet(), specModules.toSet(), "Spec katalog ≠ BusinessModules.operational")
         assertEquals(specModules.size, specModules.toSet().size, "Spec ganda di OperationalModuleCatalog.all")
     }
 
     @Test
     fun everyFoundationModule_hasFoundationSpec_andGovernanceHasNoSpecAtAll() {
-        assertEquals(BusinessModule.foundation.toSet(), FoundationModuleCatalog.all.map { it.module }.toSet())
+        assertEquals(BusinessModules.foundation.toSet(), FoundationModuleCatalog.all.map { it.module }.toSet())
         val specced = OperationalModuleCatalog.all.map { it.module } + FoundationModuleCatalog.all.map { it.module }
-        BusinessModule.governance.forEach { assertTrue(it !in specced, "Modul governance ${it.code} tidak boleh punya spec katalog") }
+        BusinessModules.governance.forEach { assertTrue(it !in specced, "Modul governance ${it.code} tidak boleh punya spec katalog") }
     }
 
     @Test
@@ -49,7 +83,7 @@ class ModuleRegistrationConsistencyTest {
                 if (spec.inputsFor(blueprint.parametersOf(spec.module.code)).isNotEmpty()) {
                     assertTrue(edges.any { it.to == module }, "${blueprint.code.value}: ${module.code} punya port masuk tapi tak ada yang menyuplai")
                 }
-                if (spec.outputsFor(blueprint.parametersOf(spec.module.code)).isNotEmpty() && module != BusinessModule.FULFILLMENT) {
+                if (spec.outputsFor(blueprint.parametersOf(spec.module.code)).isNotEmpty() && module != GarmentModules.FULFILLMENT) {
                     assertTrue(edges.any { it.from == module }, "${blueprint.code.value}: port keluar ${module.code} tidak dikonsumsi siapa pun")
                 }
             }

@@ -186,7 +186,7 @@ object AccessDecisionEngine {
         grantedModules: Set<BusinessModule>? = null
     ): Map<BusinessModule, AccessDecision> {
         val role = persona.roleId?.let { id -> roles.firstOrNull { it.id == id } }
-        return BusinessModule.entries.associateWith { module ->
+        return BusinessModules.entries.associateWith { module ->
             explain(persona, module, role, assignments[module].orEmpty(), grantedModules)
         }
     }

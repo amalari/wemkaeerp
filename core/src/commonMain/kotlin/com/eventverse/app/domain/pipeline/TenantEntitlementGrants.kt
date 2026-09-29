@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -40,12 +72,12 @@ data class TenantEntitlementGrants(
      * delapan modul lain sekaligus.
      */
     fun withModule(module: BusinessModule, enabled: Boolean): TenantEntitlementGrants {
-        val current = grantedModules ?: BusinessModule.entries.toSet()
+        val current = grantedModules ?: BusinessModules.entries.toSet()
         val updated = if (enabled) current + module else current - module
         return copy(
             // Kembali ke null bila hasilnya utuh: menyimpan "semua" sebagai null membuat tenant
             // ikut mewarisi modul baru yang dirilis kemudian, tanpa perlu migrasi data lagi.
-            grantedModules = updated.takeIf { it != BusinessModule.entries.toSet() }
+            grantedModules = updated.takeIf { it != BusinessModules.entries.toSet() }
         )
     }
 

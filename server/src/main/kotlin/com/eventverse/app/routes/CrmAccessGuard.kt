@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.crm.LeadScope
 import com.eventverse.app.domain.orgchart.EmployeeRepository
@@ -21,7 +53,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 
 /**
- * Authority guard for CRM Leads routes (`BusinessModule.CRM_SALES`), modeled on
+ * Authority guard for CRM Leads routes (`GarmentModules.CRM_SALES`), modeled on
  * [OrgChartAccessGuard.kt] — including its "already responded 403" convention: a caller
  * returns `false` and this file has already written the response, so a handler just
  * `return@get`/`return@post`s.
@@ -73,9 +105,9 @@ internal suspend fun ApplicationCall.crmDecision(
     val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
     return AccessDecisionEngine.explain(
         persona = persona,
-        module = BusinessModule.CRM_SALES,
+        module = GarmentModules.CRM_SALES,
         role = role,
-        assignments = assignments[BusinessModule.CRM_SALES].orEmpty()
+        assignments = assignments[GarmentModules.CRM_SALES].orEmpty()
     )
 }
 
@@ -92,7 +124,7 @@ internal suspend fun ApplicationCall.requireCrmAccess(decision: AccessDecision, 
     respond(
         HttpStatusCode.Forbidden,
         "Butuh wewenang ${required.displayName} atas modul " +
-            "\"${BusinessModule.CRM_SALES.displayName}\"; wewenang Anda saat ini " +
+            "\"${GarmentModules.CRM_SALES.displayName}\"; wewenang Anda saat ini " +
             "${decision.config.level.displayName} (${decision.source.label})."
     )
     return false
@@ -111,7 +143,7 @@ internal suspend fun ApplicationCall.crmOwnerReach(
     decision: AccessDecision,
     employeeRepository: EmployeeRepository
 ): Set<OrgNodeId>? {
-    val scope = decision.config.sanitizeFor(BusinessModule.CRM_SALES).scope
+    val scope = decision.config.sanitizeFor(GarmentModules.CRM_SALES).scope
     val principal = callerPrincipalOrNull
 
     val viewerDepartmentId = principal?.departmentId
@@ -135,7 +167,7 @@ internal suspend fun ApplicationCall.requireReachableOwner(reach: Set<OrgNodeId>
     respond(
         HttpStatusCode.Forbidden,
         "PIC yang dipilih berada di luar jangkauan data Anda untuk modul " +
-            "\"${BusinessModule.CRM_SALES.displayName}\"."
+            "\"${GarmentModules.CRM_SALES.displayName}\"."
     )
     return false
 }

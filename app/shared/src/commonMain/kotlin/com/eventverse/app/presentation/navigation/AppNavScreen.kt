@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import androidx.compose.runtime.compositionLocalOf
 import com.eventverse.app.domain.rbac.BusinessModule
 
@@ -32,62 +64,62 @@ enum class AppNavScreen(
         route = "/org-chart",
         title = "Bagan Organisasi",
         aliases = listOf("/orgchart", "/organization", "/bagan-organisasi"),
-        businessModule = BusinessModule.ORG_CHART
+        businessModule = GarmentModules.ORG_CHART
     ),
     DYNAMIC_RBAC(
         route = "/rbac",
         title = "Hak Akses (RBAC)",
         aliases = listOf("/roles", "/hak-akses", "/permissions"),
-        businessModule = BusinessModule.DYNAMIC_RBAC
+        businessModule = GarmentModules.DYNAMIC_RBAC
     ),
     FACTORY_FLOW(
         route = "/factory-flow",
         title = "Alur Pabrik (Pipeline)",
         aliases = listOf("/pipeline", "/alur-pabrik", "/flow"),
-        businessModule = BusinessModule.FACTORY_FLOW
+        businessModule = GarmentModules.FACTORY_FLOW
     ),
     // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
     CRM_SALES(
         route = "/crm-sales",
         title = "Penjualan & Pelanggan",
         aliases = listOf("/sales", "/crm"),
-        businessModule = BusinessModule.CRM_SALES
+        businessModule = GarmentModules.CRM_SALES
     ),
     SAMPLING_ORDER(
         route = "/sampling-order",
         title = "Order Sampling",
         aliases = listOf("/sampling", "/sample"),
-        businessModule = BusinessModule.SAMPLING_ORDER
+        businessModule = GarmentModules.SAMPLING_ORDER
     ),
     INVENTORY(
         route = "/inventory",
         title = "Gudang & Bahan Baku",
         aliases = listOf("/gudang", "/stok"),
-        businessModule = BusinessModule.INVENTORY
+        businessModule = GarmentModules.INVENTORY
     ),
     TECH_PACK_BOM(
         route = "/tech-pack",
         title = "Tech Pack & BOM",
         aliases = listOf("/techpack", "/bom"),
-        businessModule = BusinessModule.TECH_PACK_BOM
+        businessModule = GarmentModules.TECH_PACK_BOM
     ),
     COSTING_HPP(
         route = "/costing-hpp",
         title = "Kalkulasi HPP",
         aliases = listOf("/hpp", "/costing"),
-        businessModule = BusinessModule.COSTING_HPP
+        businessModule = GarmentModules.COSTING_HPP
     ),
     PRODUCTION_MRP(
         route = "/production-mrp",
         title = "Jadwal Produksi (MRP)",
         aliases = listOf("/produksi", "/mrp"),
-        businessModule = BusinessModule.PRODUCTION_MRP
+        businessModule = GarmentModules.PRODUCTION_MRP
     ),
     OPERATOR_EXEC(
         route = "/operator-exec",
         title = "Lantai Produksi",
         aliases = listOf("/operator", "/shopfloor"),
-        businessModule = BusinessModule.OPERATOR_EXEC
+        businessModule = GarmentModules.OPERATOR_EXEC
     ),
     TRACEABILITY(
         route = "/telusur",
@@ -96,50 +128,50 @@ enum class AppNavScreen(
         // Bergerbang pada modul lantai produksi yang sudah ada, bukan BusinessModule baru:
         // menambah nilai enum merembet ke matriks RBAC, penugasan divisi, entitlement, dan seed
         // tiap tenant — biaya besar untuk satu layar.
-        businessModule = BusinessModule.OPERATOR_EXEC
+        businessModule = GarmentModules.OPERATOR_EXEC
     ),
     QUALITY_CONTROL(
         route = "/quality-control",
         title = "Quality Control",
         aliases = listOf("/qc", "/kualitas"),
-        businessModule = BusinessModule.QUALITY_CONTROL
+        businessModule = GarmentModules.QUALITY_CONTROL
     ),
     FULFILLMENT(
         route = "/fulfillment",
         title = "Packing & Pengiriman",
         aliases = listOf("/packing", "/pengiriman"),
-        businessModule = BusinessModule.FULFILLMENT
+        businessModule = GarmentModules.FULFILLMENT
     ),
     SURAT_JALAN(
         route = "/surat-jalan",
         title = "Surat Jalan & Transfer",
         aliases = listOf("/transfer", "/makloon-transfer", "/sj"),
-        businessModule = BusinessModule.FULFILLMENT,
+        businessModule = GarmentModules.FULFILLMENT,
         isNavMenuItem = false
     ),
     MASTER_DATA(
         route = "/master-data",
         title = "Master Data Bahan & Harga",
         aliases = listOf("/materials", "/bahan", "/masterdata"),
-        businessModule = BusinessModule.MASTER_DATA
+        businessModule = GarmentModules.MASTER_DATA
     ),
     VENDOR_CONTACTS(
         route = "/vendors",
         title = "Kontak Vendor & Makloon",
         aliases = listOf("/vendor", "/kontak-vendor", "/makloon-vendor"),
-        businessModule = BusinessModule.VENDOR_CONTACTS
+        businessModule = GarmentModules.VENDOR_CONTACTS
     ),
     INVOICING(
         route = "/invoicing",
         title = "Invoice & Penagihan",
         aliases = listOf("/invoice", "/tagihan", "/faktur"),
-        businessModule = BusinessModule.INVOICING
+        businessModule = GarmentModules.INVOICING
     ),
     INVOICING_TEMPLATES(
         route = "/invoicing/templates",
         title = "Template & Desain Faktur",
         aliases = listOf("/invoicing/design", "/invoicing/template", "/invoicing/layouts"),
-        businessModule = BusinessModule.INVOICING,
+        businessModule = GarmentModules.INVOICING,
         isNavMenuItem = false
     ),
 

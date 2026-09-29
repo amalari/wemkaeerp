@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.orgchart
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.DataScope
 
 /**
@@ -20,7 +52,7 @@ object OrgChartVisibility {
 
     /**
      * @param nodes seluruh karyawan satu tenant (isolasi antar-tenant sudah terjadi di lapisan atas)
-     * @param scope jangkauan efektif penonton atas modul [com.eventverse.app.domain.rbac.BusinessModule.ORG_CHART]
+     * @param scope jangkauan efektif penonton atas modul [GarmentModules.ORG_CHART]
      * @param viewerEmployeeId baris karyawan milik penonton sendiri, bila ia memang seorang karyawan
      * @param viewerDepartmentId divisi penonton
      */

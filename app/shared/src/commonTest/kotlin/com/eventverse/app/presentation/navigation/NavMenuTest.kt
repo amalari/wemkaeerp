@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
@@ -37,9 +69,9 @@ class NavMenuTest {
     fun build_menu_when_governance_granted_should_appear_in_first_section() {
         val sections = buildNavMenu(
             permissions = grant(
-                BusinessModule.ORG_CHART to AccessLevel.VIEW,
-                BusinessModule.DYNAMIC_RBAC to AccessLevel.MANAGE,
-                BusinessModule.INVENTORY to AccessLevel.OPERATE
+                GarmentModules.ORG_CHART to AccessLevel.VIEW,
+                GarmentModules.DYNAMIC_RBAC to AccessLevel.MANAGE,
+                GarmentModules.INVENTORY to AccessLevel.OPERATE
             ),
             auditView = false
         )
@@ -56,9 +88,9 @@ class NavMenuTest {
     fun build_menu_when_governance_module_denied_should_hide_it() {
         val sections = buildNavMenu(
             permissions = grant(
-                BusinessModule.ORG_CHART to AccessLevel.VIEW,
-                BusinessModule.DYNAMIC_RBAC to AccessLevel.NONE,
-                BusinessModule.FACTORY_FLOW to AccessLevel.NONE
+                GarmentModules.ORG_CHART to AccessLevel.VIEW,
+                GarmentModules.DYNAMIC_RBAC to AccessLevel.NONE,
+                GarmentModules.FACTORY_FLOW to AccessLevel.NONE
             ),
             auditView = false
         )
@@ -75,7 +107,7 @@ class NavMenuTest {
     @Test
     fun build_menu_when_module_granted_should_group_under_its_category_header() {
         val sections = buildNavMenu(
-            permissions = grant(BusinessModule.INVENTORY to AccessLevel.OPERATE),
+            permissions = grant(GarmentModules.INVENTORY to AccessLevel.OPERATE),
             auditView = false
         )
 
@@ -89,8 +121,8 @@ class NavMenuTest {
     fun build_menu_should_omit_categories_whose_modules_are_all_denied() {
         val sections = buildNavMenu(
             permissions = grant(
-                BusinessModule.INVENTORY to AccessLevel.VIEW,
-                BusinessModule.COSTING_HPP to AccessLevel.NONE
+                GarmentModules.INVENTORY to AccessLevel.VIEW,
+                GarmentModules.COSTING_HPP to AccessLevel.NONE
             ),
             auditView = false
         )
@@ -105,8 +137,8 @@ class NavMenuTest {
     fun build_menu_in_audit_view_should_show_denied_modules_locked() {
         val sections = buildNavMenu(
             permissions = grant(
-                BusinessModule.DYNAMIC_RBAC to AccessLevel.NONE,
-                BusinessModule.INVENTORY to AccessLevel.NONE
+                GarmentModules.DYNAMIC_RBAC to AccessLevel.NONE,
+                GarmentModules.INVENTORY to AccessLevel.NONE
             ),
             auditView = true
         )
@@ -121,8 +153,8 @@ class NavMenuTest {
         // Mode audit menampilkan modul terkunci; layar pendaratan tidak boleh mendarat di sana.
         val sections = buildNavMenu(
             permissions = grant(
-                BusinessModule.ORG_CHART to AccessLevel.NONE,
-                BusinessModule.INVENTORY to AccessLevel.OPERATE
+                GarmentModules.ORG_CHART to AccessLevel.NONE,
+                GarmentModules.INVENTORY to AccessLevel.OPERATE
             ),
             auditView = true
         )
@@ -133,7 +165,7 @@ class NavMenuTest {
     @Test
     fun first_accessible_screen_when_everything_locked_should_be_null() {
         val sections = buildNavMenu(
-            permissions = grant(BusinessModule.ORG_CHART to AccessLevel.NONE),
+            permissions = grant(GarmentModules.ORG_CHART to AccessLevel.NONE),
             auditView = true
         )
 

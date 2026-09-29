@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.crm
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.orgchart.OrgNodeId
@@ -8,7 +40,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
 /**
- * A tenant's own sales prospect for `BusinessModule.CRM_SALES`.
+ * A tenant's own sales prospect for `GarmentModules.CRM_SALES`.
  *
  * NOT the same thing as `com.eventverse.app.domain.prospect.ProspectLead` — that entity is
  * WeMade's own platform-global sales funnel for factories considering becoming a tenant

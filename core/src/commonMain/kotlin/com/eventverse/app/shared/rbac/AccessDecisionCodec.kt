@@ -1,5 +1,37 @@
 package com.eventverse.app.shared.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.AccessSource
@@ -31,7 +63,7 @@ object AccessDecisionCodec {
 
     fun decode(payload: JsonValue.Obj): Map<BusinessModule, AccessDecision> =
         payload.obj("modules")?.entries.orEmpty().mapNotNull { (name, value) ->
-            val module = BusinessModule.entries.firstOrNull { it.name == name } ?: return@mapNotNull null
+            val module = ModuleIdCodec.fromStoredName(name, "me/access") ?: return@mapNotNull null
             val o = value as? JsonValue.Obj ?: return@mapNotNull null
             val source = AccessSource.entries.firstOrNull { it.name == o.string("source") } ?: return@mapNotNull null
             val config = o.obj("config")?.let(::decodeConfig) ?: return@mapNotNull null

@@ -1,5 +1,39 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pack.GarmentSlots
@@ -73,7 +107,7 @@ class TenantEntitlementUseCaseTest {
         val entitlement = getEntitlement(tenantId, SubscriptionTier.PRO).getOrThrow()
 
         assertEquals(SubscriptionTier.PRO, entitlement.tier)
-        assertEquals(BusinessModule.entries.toSet(), entitlement.grantedModules)
+        assertEquals(BusinessModules.entries.toSet(), entitlement.grantedModules)
         assertTrue(entitlement.grantedCustomModuleIds.isEmpty())
         assertFalse(entitlement.allowsCustomPlugins)
     }
@@ -117,7 +151,7 @@ class TenantEntitlementUseCaseTest {
     @Test
     fun setEntitlement_shouldNarrowTheGrantedCatalogue() = runTest {
         val grants = TenantEntitlementGrants(
-            grantedModules = setOf(BusinessModule.CRM_SALES, BusinessModule.OPERATOR_EXEC)
+            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC)
         )
 
         val resolved = setEntitlement(tenantId, SubscriptionTier.PRO, grants).getOrThrow()
@@ -135,7 +169,7 @@ class TenantEntitlementUseCaseTest {
         val result = setEntitlement(
             tenantId,
             SubscriptionTier.PRO,
-            TenantEntitlementGrants(grantedModules = setOf(BusinessModule.CRM_SALES))
+            TenantEntitlementGrants(grantedModules = setOf(GarmentModules.CRM_SALES))
         )
 
         assertTrue(result.isFailure)
@@ -158,7 +192,7 @@ class TenantEntitlementUseCaseTest {
         val result = setEntitlement(
             tenantId,
             SubscriptionTier.PRO,
-            TenantEntitlementGrants(grantedModules = BusinessModule.entries.toSet() - bypassedModule)
+            TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet() - bypassedModule)
         )
 
         assertTrue(result.isSuccess, "Pesan: ${result.exceptionOrNull()?.message}")
@@ -168,7 +202,7 @@ class TenantEntitlementUseCaseTest {
     fun grants_roundTripThroughToGrants() = runTest {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.ENTERPRISE,
-            grantedModules = setOf(BusinessModule.CRM_SALES),
+            grantedModules = setOf(GarmentModules.CRM_SALES),
             grantedCustomModuleIds = setOf("plugin_a", "plugin_b")
         )
 
@@ -185,20 +219,20 @@ class TenantEntitlementUseCaseTest {
         // Setup a running pipeline with all FOB modules active
         getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
         val initialPipeline = pipelineRepository.findByTenantId(tenantId)!!
-        val packingNode = initialPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        val packingNode = initialPipeline.nodes.first { it.moduleId == GarmentModules.FULFILLMENT.code }
         assertFalse(packingNode.isBypassed)
 
         // Revoke packing module with autoBypassPipelineModules = true
         val result = setEntitlement(
             tenantId = tenantId,
             tier = SubscriptionTier.PRO,
-            grants = TenantEntitlementGrants(grantedModules = BusinessModule.entries.toSet() - BusinessModule.FULFILLMENT),
+            grants = TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet() - GarmentModules.FULFILLMENT),
             autoBypassPipelineModules = true
         )
 
         assertTrue(result.isSuccess, "Pesan: ${result.exceptionOrNull()?.message}")
         val updatedPipeline = pipelineRepository.findByTenantId(tenantId)!!
-        val updatedPackingNode = updatedPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        val updatedPackingNode = updatedPipeline.nodes.first { it.moduleId == GarmentModules.FULFILLMENT.code }
         assertTrue(updatedPackingNode.isBypassed, "Packing node harusnya otomatis di-bypass")
         assertNotNull(entitlementRepository.findByTenantId(tenantId))
 
@@ -206,12 +240,12 @@ class TenantEntitlementUseCaseTest {
         val reGrantResult = setEntitlement(
             tenantId = tenantId,
             tier = SubscriptionTier.PRO,
-            grants = TenantEntitlementGrants(grantedModules = BusinessModule.entries.toSet())
+            grants = TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet())
         )
 
         assertTrue(reGrantResult.isSuccess, "Pesan: ${reGrantResult.exceptionOrNull()?.message}")
         val restoredPipeline = pipelineRepository.findByTenantId(tenantId)!!
-        val restoredPackingNode = restoredPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
+        val restoredPackingNode = restoredPipeline.nodes.first { it.moduleId == GarmentModules.FULFILLMENT.code }
         assertFalse(restoredPackingNode.isBypassed, "Packing node harusnya otomatis aktif kembali (tidak bypassed)")
     }
 

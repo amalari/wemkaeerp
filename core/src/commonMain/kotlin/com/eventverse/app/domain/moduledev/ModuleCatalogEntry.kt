@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.moduledev
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.pipeline.code
 
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -49,7 +81,7 @@ data class ModuleCatalogEntry(
 
     /** The built-in module this entry mirrors, or null when it is a tenant plugin. */
     val standardModule: BusinessModule?
-        get() = BusinessModule.entries.firstOrNull { it.code == moduleId }
+        get() = ModuleIdCodec.standardOrNull(moduleId)
 
     /**
      * Whether this entry can appear on a bill.

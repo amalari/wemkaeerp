@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.TestAuth
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -66,9 +98,9 @@ class FloorGateTest {
         val roles = InMemoryRoleRepository()
         runBlocking {
             tenants.save(Tenant(tenantId, TenantSlug(slug), TenantName("Gate Floor"), TenantStatus.ACTIVE, SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON))
-            roles.save(role("role-operator", BusinessModule.OPERATOR_EXEC, AccessLevel.OPERATE))
-            roles.save(role("role-qc", BusinessModule.QUALITY_CONTROL, AccessLevel.OPERATE))
-            roles.save(role("role-sales", BusinessModule.CRM_SALES, AccessLevel.OPERATE))
+            roles.save(role("role-operator", GarmentModules.OPERATOR_EXEC, AccessLevel.OPERATE))
+            roles.save(role("role-qc", GarmentModules.QUALITY_CONTROL, AccessLevel.OPERATE))
+            roles.save(role("role-sales", GarmentModules.CRM_SALES, AccessLevel.OPERATE))
         }
         application {
             module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),

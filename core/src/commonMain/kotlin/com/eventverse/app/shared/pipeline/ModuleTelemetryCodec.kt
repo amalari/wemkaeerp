@@ -1,5 +1,37 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.pipeline.FlowHealthStatus
 import com.eventverse.app.domain.pipeline.ModuleTelemetry
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -17,7 +49,7 @@ object ModuleTelemetryCodec {
 
     /** Entri dengan modul/status yang tidak dikenal dilewati — klien lama tetap jalan. */
     fun decode(payload: JsonValue.Obj): List<ModuleTelemetry> = payload.objectArray("modules").mapNotNull { o ->
-        val module = o.string("module")?.let { n -> BusinessModule.entries.firstOrNull { it.name == n } } ?: return@mapNotNull null
+        val module = ModuleIdCodec.fromStoredName(o.string("module"), "pipeline/telemetry") ?: return@mapNotNull null
         val health = o.string("healthStatus")?.let { n -> FlowHealthStatus.entries.firstOrNull { it.name == n } } ?: return@mapNotNull null
         ModuleTelemetry(
             module = module,

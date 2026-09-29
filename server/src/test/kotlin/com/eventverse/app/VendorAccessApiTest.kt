@@ -1,5 +1,37 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.CustomRole
@@ -54,7 +86,7 @@ class VendorAccessApiTest {
                     name = "Staf Sampling",
                     description = "",
                     modulePermissions = mapOf(
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(level, DataScope.ALL_TENANT_DATA)
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(level, DataScope.ALL_TENANT_DATA)
                     )
                 )
             )

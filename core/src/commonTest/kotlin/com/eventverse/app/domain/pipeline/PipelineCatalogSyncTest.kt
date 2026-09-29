@@ -1,5 +1,39 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseCase
@@ -13,13 +47,13 @@ import kotlin.test.*
 class PipelineCatalogSyncTest {
 
     private val tenantId = TenantId("ten-catalog-sync")
-    private val allModules = BusinessModule.entries.toSet()
+    private val allModules = BusinessModules.entries.toSet()
 
     /** A tenant provisioned before QC existed in the catalogue, and who renamed sewing. */
     private fun legacyPipelineWithoutQc(): CustomTenantPipeline {
         val fresh = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
-        val qc = fresh.nodes.first { it.moduleId == BusinessModule.QUALITY_CONTROL.code }
-        val sewing = fresh.nodes.first { it.moduleId == BusinessModule.OPERATOR_EXEC.code }
+        val qc = fresh.nodes.first { it.moduleId == GarmentModules.QUALITY_CONTROL.code }
+        val sewing = fresh.nodes.first { it.moduleId == GarmentModules.OPERATOR_EXEC.code }
         return fresh.removeNode(qc.nodeId).renameNode(sewing.nodeId, "Lini Jahit A")
     }
 
@@ -35,8 +69,8 @@ class PipelineCatalogSyncTest {
         val synced = PipelineCatalogReconciler.reconcile(legacyPipelineWithoutQc(), allModules)
 
         val codes = synced.orderedNodes.map { it.moduleId }
-        val qcIndex = codes.indexOf(BusinessModule.QUALITY_CONTROL.code)
-        assertEquals(codes.indexOf(BusinessModule.OPERATOR_EXEC.code) + 1, qcIndex)
+        val qcIndex = codes.indexOf(GarmentModules.QUALITY_CONTROL.code)
+        assertEquals(codes.indexOf(GarmentModules.OPERATOR_EXEC.code) + 1, qcIndex)
         assertTrue(synced.orderedNodes[qcIndex].isBypassed)
         assertEquals((1..codes.size).toList(), synced.orderedNodes.map { it.stepOrderIndex })
     }
@@ -50,7 +84,7 @@ class PipelineCatalogSyncTest {
         assertEquals(legacy.activeNodes.size, synced.activeNodes.size)
         // TRD-FLOW-002 Fase 3: edge tenant tetap utuh; edge baru hanya menyentuh modul sisipan, dari port.
         assertTrue(synced.edges.containsAll(legacy.edges))
-        val qcNodeId = synced.nodes.single { it.moduleId == BusinessModule.QUALITY_CONTROL.code }.nodeId
+        val qcNodeId = synced.nodes.single { it.moduleId == GarmentModules.QUALITY_CONTROL.code }.nodeId
         val added = synced.edges - legacy.edges.toSet()
         assertTrue(added.isNotEmpty() && added.all { it.fromNodeId == qcNodeId || it.toNodeId == qcNodeId })
         assertTrue(added.any { it.toNodeId == qcNodeId && it.expectedDataType == "AssembledGarmentBundle" })
@@ -58,7 +92,7 @@ class PipelineCatalogSyncTest {
 
     @Test
     fun reconcile_whenModuleNotGranted_shouldNotInsertIt() {
-        val granted = allModules - BusinessModule.QUALITY_CONTROL
+        val granted = allModules - GarmentModules.QUALITY_CONTROL
         val legacy = legacyPipelineWithoutQc()
 
         assertSame(legacy, PipelineCatalogReconciler.reconcile(legacy, granted))
@@ -74,7 +108,7 @@ class PipelineCatalogSyncTest {
         val first = sync(tenantId, entitlement).getOrThrow()
         val second = sync(tenantId, entitlement).getOrThrow()
 
-        assertTrue(first.nodes.any { it.moduleId == BusinessModule.QUALITY_CONTROL.code })
+        assertTrue(first.nodes.any { it.moduleId == GarmentModules.QUALITY_CONTROL.code })
         assertEquals(first, repository.findByTenantId(tenantId))
         assertEquals(first, second)
     }
@@ -87,12 +121,12 @@ class PipelineCatalogSyncTest {
 
         val updated = activate(
             tenantId = tenantId,
-            moduleId = BusinessModule.QUALITY_CONTROL.code,
+            moduleId = GarmentModules.QUALITY_CONTROL.code,
             isActive = true,
             entitlement = TenantModuleEntitlement(SubscriptionTier.ENTERPRISE)
         ).getOrThrow()
 
-        val qc = updated.nodes.first { it.moduleId == BusinessModule.QUALITY_CONTROL.code }
+        val qc = updated.nodes.first { it.moduleId == GarmentModules.QUALITY_CONTROL.code }
         assertFalse(qc.isBypassed)
         assertTrue(updated.edges.any { it.toNodeId == qc.nodeId && !it.isFeedbackReworkLoop })
     }

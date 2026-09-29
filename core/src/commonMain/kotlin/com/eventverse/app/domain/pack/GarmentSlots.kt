@@ -1,5 +1,35 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -25,16 +55,16 @@ object GarmentSlots {
 
     /** Urutan = urutan enum lama (dipakai `all`, mis. untuk pilihan slot di UI). */
     internal val meta: List<Meta> = listOf(
-        Meta(ORDER_INGESTION, "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", BusinessModule.CRM_SALES),
-        Meta(RAW_MATERIAL, "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", BusinessModule.INVENTORY),
-        Meta(PRODUCT_ENGINEERING, "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", BusinessModule.TECH_PACK_BOM),
-        Meta(COSTING_HPP, "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", BusinessModule.COSTING_HPP),
-        Meta(CUTTING, "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", BusinessModule.PRODUCTION_MRP),
-        Meta(SEWING, "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", BusinessModule.OPERATOR_EXEC),
-        Meta(FINISHING, "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", BusinessModule.OPERATOR_EXEC),
-        Meta(QUALITY_CONTROL, "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", BusinessModule.QUALITY_CONTROL),
-        Meta(FULFILLMENT, "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", BusinessModule.FULFILLMENT),
-        Meta(CUSTOM_EXTENSION, "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", BusinessModule.PRODUCTION_MRP)
+        Meta(ORDER_INGESTION, "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES),
+        Meta(RAW_MATERIAL, "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY),
+        Meta(PRODUCT_ENGINEERING, "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM),
+        Meta(COSTING_HPP, "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP),
+        Meta(CUTTING, "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", GarmentModules.PRODUCTION_MRP),
+        Meta(SEWING, "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", GarmentModules.OPERATOR_EXEC),
+        Meta(FINISHING, "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", GarmentModules.OPERATOR_EXEC),
+        Meta(QUALITY_CONTROL, "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", GarmentModules.QUALITY_CONTROL),
+        Meta(FULFILLMENT, "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", GarmentModules.FULFILLMENT),
+        Meta(CUSTOM_EXTENSION, "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", GarmentModules.PRODUCTION_MRP)
     )
 
     val all: List<SlotCode> = meta.map { it.slot }
@@ -59,26 +89,11 @@ object GarmentSlots {
      * Slot yang diisi modul bawaan. Null untuk modul governance/foundation: mereka bukan stasiun,
      * dan memaksanya ke slot membuatnya layak tampil di kanvas — justru yang tidak boleh.
      */
-    fun forModule(module: BusinessModule): SlotCode? = when (module) {
-        BusinessModule.CRM_SALES -> ORDER_INGESTION
-        BusinessModule.SAMPLING_ORDER -> ORDER_INGESTION
-        BusinessModule.INVENTORY -> RAW_MATERIAL
-        BusinessModule.TECH_PACK_BOM -> PRODUCT_ENGINEERING
-        BusinessModule.COSTING_HPP -> COSTING_HPP
-        BusinessModule.PRODUCTION_MRP -> CUTTING
-        BusinessModule.OPERATOR_EXEC -> SEWING
-        BusinessModule.QUALITY_CONTROL -> QUALITY_CONTROL
-        BusinessModule.FULFILLMENT -> FULFILLMENT
-        BusinessModule.ORG_CHART,
-        BusinessModule.DYNAMIC_RBAC,
-        BusinessModule.FACTORY_FLOW,
-        BusinessModule.MASTER_DATA, BusinessModule.VENDOR_CONTACTS,
-        BusinessModule.INVOICING -> null
-    }
+    fun forModule(module: BusinessModule): SlotCode? = DomainPackRegistry.soleActivePack.module(module)?.slot
 
     /** Slot untuk code modul tersimpan, bawaan atau kustom (kustom → [CUSTOM_EXTENSION]). */
     fun forModuleCode(moduleCode: String): SlotCode {
-        val standard = BusinessModule.entries.firstOrNull { it.code == moduleCode }
+        val standard = ModuleIdCodec.standardOrNull(moduleCode)
         return standard?.let { forModule(it) } ?: CUSTOM_EXTENSION
     }
 }

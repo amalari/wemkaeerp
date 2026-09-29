@@ -1,5 +1,37 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -68,9 +100,7 @@ class PostgresTenantEntitlementRepository : TenantEntitlementRepository {
     )
 
     private fun decodeModules(json: String): Set<BusinessModule> =
-        decodeStrings(json).mapNotNull { name ->
-            BusinessModule.entries.firstOrNull { it.name == name }
-        }.toSet()
+        decodeStrings(json).mapNotNull { name -> ModuleIdCodec.fromStoredName(name, "tenant_module_entitlements.granted_modules") }.toSet()
 
     private fun decodeStrings(json: String): Set<String> =
         runCatching { JsonParser.parseArray(json) }

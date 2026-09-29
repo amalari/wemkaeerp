@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.usecases.*
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.test.runTest
@@ -65,7 +67,7 @@ class RoleUseCaseTest {
             name = "Mandor Bordir Komputer",
             description = "Koordinator mesin bordir",
             modulePermissions = mapOf(
-                BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA)
+                GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA)
             )
         )
 
@@ -74,7 +76,7 @@ class RoleUseCaseTest {
         val role = result.getOrThrow()
         assertEquals("Mandor Bordir Komputer", role.name)
         assertFalse(role.isSystemDefault)
-        assertEquals(AccessLevel.OPERATE, role.getAccess(BusinessModule.OPERATOR_EXEC).level)
+        assertEquals(AccessLevel.OPERATE, role.getAccess(GarmentModules.OPERATOR_EXEC).level)
     }
 
     @Test
@@ -98,7 +100,7 @@ class RoleUseCaseTest {
                 name = "Koordinator Packing & Ekspedisi",
                 description = "Updated description",
                 modulePermissions = mapOf(
-                    BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
+                    GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
                 )
             )
         )
@@ -107,7 +109,7 @@ class RoleUseCaseTest {
         val updated = updateResult.getOrThrow()
         assertEquals("Koordinator Packing & Ekspedisi", updated.name)
         assertEquals("Updated description", updated.description)
-        assertEquals(AccessLevel.MANAGE, updated.getAccess(BusinessModule.FULFILLMENT).level)
+        assertEquals(AccessLevel.MANAGE, updated.getAccess(GarmentModules.FULFILLMENT).level)
     }
 
     @Test

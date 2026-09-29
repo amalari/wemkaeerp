@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.orgchart.OrgChartVisibility
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.orgchart.TShapeHierarchyResult
@@ -33,7 +65,7 @@ import io.ktor.server.response.*
  */
 
 /**
- * Wewenang efektif pemanggil atas [BusinessModule.ORG_CHART], atau `null` bila tidak dapat
+ * Wewenang efektif pemanggil atas [GarmentModules.ORG_CHART], atau `null` bila tidak dapat
  * dihitung (repository wewenang tidak dipasang, atau pemanggil tanpa identitas pabrik).
  *
  * `null` berarti *"tidak diketahui"*, dan pemanggil memperlakukannya seperti sebelum penjagaan ini
@@ -76,9 +108,9 @@ internal suspend fun ApplicationCall.orgChartDecision(
     val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
     return AccessDecisionEngine.explain(
         persona = persona,
-        module = BusinessModule.ORG_CHART,
+        module = GarmentModules.ORG_CHART,
         role = role,
-        assignments = assignments[BusinessModule.ORG_CHART].orEmpty()
+        assignments = assignments[GarmentModules.ORG_CHART].orEmpty()
     )
 }
 
@@ -102,7 +134,7 @@ internal suspend fun ApplicationCall.requireOrgChartAccess(
     respond(
         HttpStatusCode.Forbidden,
         "Butuh wewenang ${required.displayName} atas modul " +
-            "\"${BusinessModule.ORG_CHART.displayName}\"; wewenang Anda saat ini " +
+            "\"${GarmentModules.ORG_CHART.displayName}\"; wewenang Anda saat ini " +
             "${effective.config.level.displayName} (${effective.source.label})."
     )
     return false
@@ -198,7 +230,7 @@ internal suspend fun ApplicationCall.requireWritableDepartment(
     respond(
         HttpStatusCode.Forbidden,
         "Divisi tujuan berada di luar jangkauan data Anda. Jangkauan wewenang Anda atas modul " +
-            "\"${BusinessModule.ORG_CHART.displayName}\" tidak mencakup divisi tersebut."
+            "\"${GarmentModules.ORG_CHART.displayName}\" tidak mencakup divisi tersebut."
     )
     return false
 }

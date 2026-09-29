@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.vendor
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -8,7 +40,7 @@ import kotlinx.datetime.LocalDate
  * Kontak vendor rekanan (makloon/subkon) — data induk milik pabrik, bukan milik CRM.
  *
  * CRM mengurus sisi jual (buyer yang membayar kita); vendor ada di sisi produksi (yang kita
- * bayar untuk mengerjakan). Karena itu wewenangnya ikut `BusinessModule.VENDOR_CONTACTS`,
+ * bayar untuk mengerjakan). Karena itu wewenangnya ikut `GarmentModules.VENDOR_CONTACTS`,
  * bukan `CRM_SALES` yang ber-scope hierarkis per sales.
  *
  * Vendor dinonaktifkan, tidak pernah dihapus: penugasan dan Surat Jalan lama tetap merujuknya.

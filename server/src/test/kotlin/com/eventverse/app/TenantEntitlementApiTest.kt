@@ -1,5 +1,39 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.SubscriptionTier
@@ -72,7 +106,7 @@ class TenantEntitlementApiTest {
             "Server harus selalu mengirim daftar eksplisit; klien tidak boleh perlu tahu aturan tier " +
                 "untuk memuluskan null menjadi 'semua'"
         )
-        assertEquals(BusinessModule.entries.toSet(), granted)
+        assertEquals(BusinessModules.entries.toSet(), granted)
     }
 
     @Test
@@ -90,7 +124,7 @@ class TenantEntitlementApiTest {
             .grantedModules
             .orEmpty()
 
-        BusinessModule.governance.forEach { module ->
+        BusinessModules.governance.forEach { module ->
             assertTrue(module in granted, "${module.code} harus terbawa di entitlement")
         }
     }
@@ -102,7 +136,7 @@ class TenantEntitlementApiTest {
             entitlementRepo.save(
                 tenantId,
                 TenantEntitlementGrants(
-                    grantedModules = BusinessModule.entries.toSet() - BusinessModule.FACTORY_FLOW
+                    grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
                 )
             )
         }
@@ -121,10 +155,10 @@ class TenantEntitlementApiTest {
             .orEmpty()
 
         assertFalse(
-            BusinessModule.FACTORY_FLOW in granted,
+            GarmentModules.FACTORY_FLOW in granted,
             "Modul yang diputus superadmin harus hilang dari jawaban, itulah yang mengosongkan menunya"
         )
-        assertTrue(BusinessModule.ORG_CHART in granted)
+        assertTrue(GarmentModules.ORG_CHART in granted)
     }
 
     @Test

@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pack.GarmentSlots
@@ -80,7 +112,7 @@ class TenantModuleProvisioningUseCaseTest {
     fun catalog_onStarterPlan_shouldFlagUngrantedModules() = runTest {
         val starterPlan = TenantModuleEntitlement(
             tier = SubscriptionTier.STARTER,
-            grantedModules = setOf(BusinessModule.CRM_SALES, BusinessModule.OPERATOR_EXEC)
+            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC)
         )
         getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
@@ -149,7 +181,7 @@ class TenantModuleProvisioningUseCaseTest {
         // The built-in module keeps its own catalogue name for every other tenant.
         assertEquals(
             "Bahan Baku & Stok Kain",
-            OperationalModuleCatalog.specificationFor(BusinessModule.INVENTORY).module.displayName
+            OperationalModuleCatalog.specificationFor(GarmentModules.INVENTORY).module.displayName
         )
     }
 

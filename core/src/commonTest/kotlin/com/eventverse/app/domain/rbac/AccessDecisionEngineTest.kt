@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.*
 
@@ -56,7 +58,7 @@ class AccessDecisionEngineTest {
     fun `evaluate when persona is owner should always return manage`() {
         val result = AccessDecisionEngine.evaluate(
             persona = persona(name = "Hendra", departmentId = null, roleId = null, isOwner = true),
-            module = BusinessModule.COSTING_HPP,
+            module = GarmentModules.COSTING_HPP,
             role = null,
             assignments = emptyList()
         )
@@ -69,12 +71,12 @@ class AccessDecisionEngineTest {
     fun `evaluate when role grants higher than department should take role access`() {
         val salesRole = role(
             "role-sales-head",
-            mapOf(BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA))
+            mapOf(GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA))
         )
 
         val result = AccessDecisionEngine.evaluate(
             persona = persona(roleId = "role-sales-head"),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = salesRole,
             assignments = listOf(assignment(salesDept, AccessLevel.VIEW))
         )
@@ -87,12 +89,12 @@ class AccessDecisionEngineTest {
     fun `evaluate when department grants higher than role should take department access`() {
         val salesRole = role(
             "role-sales",
-            mapOf(BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY))
+            mapOf(GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY))
         )
 
         val result = AccessDecisionEngine.evaluate(
             persona = persona(),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = salesRole,
             assignments = listOf(assignment(salesDept, AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA))
         )
@@ -105,7 +107,7 @@ class AccessDecisionEngineTest {
     fun `evaluate when neither role nor department grants should return none`() {
         val result = AccessDecisionEngine.evaluate(
             persona = persona(),
-            module = BusinessModule.QUALITY_CONTROL,
+            module = GarmentModules.QUALITY_CONTROL,
             role = role("role-sales", emptyMap()),
             assignments = listOf(assignment(warehouseDept, AccessLevel.MANAGE))
         )
@@ -118,7 +120,7 @@ class AccessDecisionEngineTest {
     fun `evaluate when assignment targets other department should be ignored`() {
         val result = AccessDecisionEngine.evaluate(
             persona = persona(departmentId = salesDept),
-            module = BusinessModule.INVENTORY,
+            module = GarmentModules.INVENTORY,
             role = null,
             assignments = listOf(assignment(warehouseDept, AccessLevel.MANAGE))
         )
@@ -134,13 +136,13 @@ class AccessDecisionEngineTest {
 
         val forHead = AccessDecisionEngine.evaluate(
             persona = persona(roleId = "role-sales-head"),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = null,
             assignments = assignments
         )
         val forStaff = AccessDecisionEngine.evaluate(
             persona = persona(roleId = "role-sales"),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = null,
             assignments = assignments
         )
@@ -153,7 +155,7 @@ class AccessDecisionEngineTest {
     fun `evaluate when department has several assignments should take the highest`() {
         val result = AccessDecisionEngine.evaluate(
             persona = persona(roleId = "role-sales-head"),
-            module = BusinessModule.SAMPLING_ORDER,
+            module = GarmentModules.SAMPLING_ORDER,
             role = null,
             assignments = listOf(
                 assignment(salesDept, AccessLevel.VIEW),
@@ -166,14 +168,14 @@ class AccessDecisionEngineTest {
 
     @Test
     fun `evaluate when module is global only should force all tenant data scope`() {
-        assertTrue(BusinessModule.COSTING_HPP.isGlobalOnly, "Prasyarat uji: COSTING_HPP harus GLOBAL_ONLY")
+        assertTrue(GarmentModules.COSTING_HPP.isGlobalOnly, "Prasyarat uji: COSTING_HPP harus GLOBAL_ONLY")
 
         val result = AccessDecisionEngine.evaluate(
             persona = persona(),
-            module = BusinessModule.COSTING_HPP,
+            module = GarmentModules.COSTING_HPP,
             role = role(
                 "role-sales",
-                mapOf(BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY))
+                mapOf(GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY))
             ),
             assignments = emptyList()
         )
@@ -184,14 +186,14 @@ class AccessDecisionEngineTest {
 
     @Test
     fun `evaluate when module is hierarchical should preserve narrow scope`() {
-        assertFalse(BusinessModule.CRM_SALES.isGlobalOnly, "Prasyarat uji: CRM_SALES harus HIERARCHICAL")
+        assertFalse(GarmentModules.CRM_SALES.isGlobalOnly, "Prasyarat uji: CRM_SALES harus HIERARCHICAL")
 
         val result = AccessDecisionEngine.evaluate(
             persona = persona(),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = role(
                 "role-sales",
-                mapOf(BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY))
+                mapOf(GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY))
             ),
             assignments = emptyList()
         )
@@ -208,13 +210,13 @@ class AccessDecisionEngineTest {
             persona = persona(roleId = salesHead.id.value),
             roles = roles,
             assignments = mapOf(
-                BusinessModule.CRM_SALES to listOf(assignment(salesDept, AccessLevel.VIEW))
+                GarmentModules.CRM_SALES to listOf(assignment(salesDept, AccessLevel.VIEW))
             )
         )
 
-        assertEquals(BusinessModule.entries.size, result.size)
-        assertEquals(AccessLevel.MANAGE, result.getValue(BusinessModule.CRM_SALES).level)
-        assertEquals(AccessLevel.NONE, result.getValue(BusinessModule.OPERATOR_EXEC).level)
+        assertEquals(BusinessModules.entries.size, result.size)
+        assertEquals(AccessLevel.MANAGE, result.getValue(GarmentModules.CRM_SALES).level)
+        assertEquals(AccessLevel.NONE, result.getValue(GarmentModules.OPERATOR_EXEC).level)
     }
 
     /**
@@ -229,7 +231,7 @@ class AccessDecisionEngineTest {
         val sablonDept = "dept-sablon-custom-001"
         val sablonRole = role(
             "role-sablon-head-777",
-            mapOf(BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW))
+            mapOf(GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW))
         ).copy(departmentId = sablonDept)
 
         val newPersona = persona(
@@ -240,13 +242,13 @@ class AccessDecisionEngineTest {
 
         val fromRoleOnly = AccessDecisionEngine.evaluate(
             persona = newPersona,
-            module = BusinessModule.PRODUCTION_MRP,
+            module = GarmentModules.PRODUCTION_MRP,
             role = sablonRole,
             assignments = emptyList()
         )
         val fromNewAssignment = AccessDecisionEngine.evaluate(
             persona = newPersona,
-            module = BusinessModule.QUALITY_CONTROL,
+            module = GarmentModules.QUALITY_CONTROL,
             role = sablonRole,
             assignments = listOf(assignment(sablonDept, AccessLevel.MANAGE))
         )
@@ -268,11 +270,11 @@ class AccessDecisionEngineTest {
         )
         val kepalaBordir = role(
             "role-bordir-kepala",
-            BusinessModule.entries.associateWith { ModuleAccessConfig(AccessLevel.MANAGE) }
+            BusinessModules.entries.associateWith { ModuleAccessConfig(AccessLevel.MANAGE) }
         ).copy(departmentId = bordirDept.id.value)
         val stafBordir = role(
             "role-bordir-staf",
-            mapOf(BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE))
+            mapOf(GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE))
         ).copy(departmentId = bordirDept.id.value)
 
         fun employee(name: String, title: String) = com.eventverse.app.domain.orgchart.OrgNode(
@@ -306,17 +308,17 @@ class AccessDecisionEngineTest {
         val jabatanA = role(
             "role-a",
             mapOf(
-                BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE),
-                BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW),
-                BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE)
+                GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE),
+                GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW),
+                GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE)
             )
         )
         val jabatanB = role(
             "role-b",
             mapOf(
-                BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
-                BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE),
-                BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.OPERATE)
+                GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
+                GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE),
+                GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.OPERATE)
             )
         )
         val roles = listOf(jabatanA, jabatanB)
@@ -329,7 +331,7 @@ class AccessDecisionEngineTest {
             persona(departmentId = null, roleId = "role-b"), roles, emptyMap()
         )
 
-        BusinessModule.entries.forEach { module ->
+        BusinessModules.entries.forEach { module ->
             assertEquals(
                 jabatanA.getAccess(module).sanitizeFor(module).level,
                 asA.getValue(module).level,
@@ -366,13 +368,13 @@ class AccessDecisionEngineTest {
     fun `explain should name the source of the granted access`() {
         val roleGrant = AccessDecisionEngine.explain(
             persona = persona(roleId = "role-sales"),
-            module = BusinessModule.CRM_SALES,
-            role = role("role-sales", mapOf(BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE))),
+            module = GarmentModules.CRM_SALES,
+            role = role("role-sales", mapOf(GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE))),
             assignments = emptyList()
         )
         val departmentGrant = AccessDecisionEngine.explain(
             persona = persona(roleId = "role-sales"),
-            module = BusinessModule.CRM_SALES,
+            module = GarmentModules.CRM_SALES,
             role = role("role-sales", emptyMap()),
             assignments = listOf(assignment(salesDept, AccessLevel.OPERATE))
         )
@@ -394,12 +396,12 @@ class AccessDecisionEngineTest {
             persona = persona(roleId = "role-does-not-exist"),
             roles = emptyList(),
             assignments = mapOf(
-                BusinessModule.CRM_SALES to listOf(assignment(salesDept, AccessLevel.OPERATE))
+                GarmentModules.CRM_SALES to listOf(assignment(salesDept, AccessLevel.OPERATE))
             )
         )
 
-        assertEquals(AccessLevel.OPERATE, result.getValue(BusinessModule.CRM_SALES).level)
-        assertEquals(AccessLevel.NONE, result.getValue(BusinessModule.INVENTORY).level)
+        assertEquals(AccessLevel.OPERATE, result.getValue(GarmentModules.CRM_SALES).level)
+        assertEquals(AccessLevel.NONE, result.getValue(GarmentModules.INVENTORY).level)
     }
 
     @Test
@@ -408,7 +410,7 @@ class AccessDecisionEngineTest {
         // tetap berwenang penuh (MANAGE) dan asalnya tercatat SUPERADMIN_BYPASS, sehingga menunya tidak hilang.
         val decision = AccessDecisionEngine.explain(
             persona = persona(name = "Superadmin", departmentId = null, roleId = null, isSuperAdmin = true),
-            module = BusinessModule.DYNAMIC_RBAC,
+            module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
             grantedModules = emptySet()

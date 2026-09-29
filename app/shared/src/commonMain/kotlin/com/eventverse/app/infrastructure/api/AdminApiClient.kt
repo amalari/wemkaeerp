@@ -1,5 +1,37 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -33,7 +65,7 @@ data class TenantAdminView(
     val maxActiveModules: Int get() = catalog.maxActiveModules
 
     fun toGrants(): TenantEntitlementGrants = TenantEntitlementGrants(
-        grantedModules = grantedModules.takeIf { it != BusinessModule.entries.toSet() },
+        grantedModules = grantedModules.takeIf { it != BusinessModules.entries.toSet() },
         grantedCustomModuleIds = grantedCustomModuleIds
     )
 }
@@ -95,7 +127,7 @@ class AdminApiClient(
         return TenantAdminView(
             slug = root.string("slug") ?: "",
             name = root.string("name") ?: "",
-            grantedModules = grants.grantedModules ?: BusinessModule.entries.toSet(),
+            grantedModules = grants.grantedModules ?: BusinessModules.entries.toSet(),
             grantedCustomModuleIds = grants.grantedCustomModuleIds,
             catalog = TenantModuleCatalogCodec.decode(rawJson)
         )

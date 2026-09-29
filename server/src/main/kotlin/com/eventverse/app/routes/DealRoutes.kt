@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.crm.ContactRepository
 import com.eventverse.app.domain.deal.DealId
 import com.eventverse.app.domain.deal.DealRepository
@@ -41,7 +73,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * REST surface for Deals (`BusinessModule.CRM_SALES` — deals are the transaction side of the
+ * REST surface for Deals (`GarmentModules.CRM_SALES` — deals are the transaction side of the
  * same module, so authority reuses [crmDecision] instead of introducing a new BusinessModule).
  *
  * Enforcement points per route, matching [CrmRoutes]: tenant (RLS) -> level
@@ -77,7 +109,7 @@ fun Route.dealRoutes(
             val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
 
-            val scope = decision.config.sanitizeFor(BusinessModule.CRM_SALES).scope
+            val scope = decision.config.sanitizeFor(GarmentModules.CRM_SALES).scope
             val principal = call.callerPrincipalOrNull
             val viewerEmployeeId = principal?.email
                 ?.let { email -> employeeRepository.findByEmail(tenant.tenantId, email) }

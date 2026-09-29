@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.rbac.AccessDecision
@@ -135,7 +167,7 @@ class RbacAccessPolicyRepository(
             // Daftar wewenang semua orang hanya untuk admin RBAC. Tanpa keputusan server (offline/server lama) tetap
             // dicoba seperti dulu, termasuk fallback preset; dengan keputusan server yang menolak, tidak diminta sama
             // sekali — tidak ada 403 sia-sia dan tidak ada jabatan contoh yang tampil seolah milik pabrik.
-            val readsRbac = server?.get(BusinessModule.DYNAMIC_RBAC)?.config?.isAccessible ?: true
+            val readsRbac = server?.get(GarmentModules.DYNAMIC_RBAC)?.config?.isAccessible ?: true
             if (readsRbac) {
                 client.getRoles(tenantSlug).onSuccess { remote ->
                     if (remote.isNotEmpty()) _roles.value = remote

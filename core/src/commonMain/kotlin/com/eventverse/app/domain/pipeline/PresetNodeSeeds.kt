@@ -1,6 +1,38 @@
 // FILE-SIZE-EXEMPT: seed preset template — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentPhases
@@ -39,10 +71,10 @@ internal object PresetNodeSeeds {
         return listOf(
             PipelineNode(
                 id = "fob-crm-sales",
-                module = BusinessModule.CRM_SALES,
+                module = GarmentModules.CRM_SALES,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
-                title = BusinessModule.CRM_SALES.displayName,
+                title = GarmentModules.CRM_SALES.displayName,
                 description = "Negosiasi pesanan produksi, penentuan kuota minimum order (MOQ), dan kesepakatan lead time pengiriman.",
                 assignedDepartment = "Marketing & Sales",
                 deptColorHex = 0xFF2563EB,
@@ -52,7 +84,7 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Target prospek berjalan normal, 3 PO menunggu persetujuan sample.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                downstreamModuleCodes = listOf(GarmentModules.SAMPLING_ORDER.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-crm-1",
@@ -75,10 +107,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-sampling",
-                module = BusinessModule.SAMPLING_ORDER,
+                module = GarmentModules.SAMPLING_ORDER,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
-                title = BusinessModule.SAMPLING_ORDER.displayName,
+                title = GarmentModules.SAMPLING_ORDER.displayName,
                 description = "Pembuatan 1 pcs prototipe baju (Golden Sample) untuk fitting, uji bahan susut, dan approval buyer.",
                 assignedDepartment = "Desain, Pola & Sampling",
                 deptColorHex = 0xFF0284C7,
@@ -88,14 +120,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 12.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample kemeja & polo batch ini telah lolos fitting buyer.",
-                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code),
+                downstreamModuleCodes = listOf(GarmentModules.TECH_PACK_BOM.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-samp-1",
                         name = "Purchase Order (PO) Induk Terverifikasi",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.CRM_SALES.code,
-                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceModuleCode = GarmentModules.CRM_SALES.code,
+                        sourceModuleName = GarmentModules.CRM_SALES.displayName,
                         sourceOutputContract = "Purchase Order (PO) Induk & Kesepakatan Spesifikasi Awal",
                         description = "Data kontrak kuantiti dan spesifikasi dasar yang telah disetujui sales."
                     ),
@@ -111,10 +143,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-tech-pack",
-                module = BusinessModule.TECH_PACK_BOM,
+                module = GarmentModules.TECH_PACK_BOM,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
-                title = BusinessModule.TECH_PACK_BOM.displayName,
+                title = GarmentModules.TECH_PACK_BOM.displayName,
                 description = "Penyusunan Bill of Materials (BOM) lengkap: konsumsi kain per yard, spesifikasi jarum jahit, dan grade ukuran.",
                 assignedDepartment = "Teknikal, Pola & R&D",
                 deptColorHex = 0xFF7C3AED,
@@ -124,14 +156,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 6.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Grading ukuran selesai, konsumsi kain rata-rata 1.45 yard/pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code),
+                downstreamModuleCodes = listOf(GarmentModules.INVENTORY.code, GarmentModules.COSTING_HPP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-tp-1",
                         name = "Golden Sample Disetujui Buyer",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
-                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceModuleCode = GarmentModules.SAMPLING_ORDER.code,
+                        sourceModuleName = GarmentModules.SAMPLING_ORDER.displayName,
                         sourceOutputContract = "Golden Sample Terverifikasi & Lembar Komentar Fitting Buyer",
                         description = "Sampel fisik dan lembar revisi fitting yang telah di-ACC oleh pihak pembeli."
                     ),
@@ -147,10 +179,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-inventory",
-                module = BusinessModule.INVENTORY,
+                module = GarmentModules.INVENTORY,
                 stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
-                title = BusinessModule.INVENTORY.displayName,
+                title = GarmentModules.INVENTORY.displayName,
                 description = "Pengadaan dan penerimaan kain rol dari pabrik tenun, pengecekan lot warna (shading), zipper, kancing, dan benang.",
                 assignedDepartment = "Gudang & Logistik Masuk",
                 deptColorHex = 0xFF0D9488,
@@ -165,14 +197,14 @@ internal object PresetNodeSeeds {
                     "Stok kain Cotton Combed 24s & 30s aman di rak penerimaan."
                 },
                 activeFeedbackBadge = "Titik Balik: Penerimaan Retur Kain dari QC",
-                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code, BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.COSTING_HPP.code, GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-inv-1",
                         name = "Daftar Kebutuhan Rol Kain BOM",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
                         description = "Jumlah yard kain dan jenis aksesoris yang dipesan sesuai rincian BOM."
                     ),
@@ -188,10 +220,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-costing-hpp",
-                module = BusinessModule.COSTING_HPP,
+                module = GarmentModules.COSTING_HPP,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
-                title = BusinessModule.COSTING_HPP.displayName,
+                title = GarmentModules.COSTING_HPP.displayName,
                 description = "Perhitungan HPP akurat: biaya kain per kg + ongkos potong + SAM (Standard Allowed Minute) jahit + margin rahasia.",
                 assignedDepartment = "Finance & Akuntansi Biaya",
                 deptColorHex = 0xFF6366F1,
@@ -201,14 +233,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 3.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "HPP tervalidasi Rp 48.500/pcs dengan proyeksi margin 24.5%.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-cost-1",
                         name = "Spesifikasi BOM & Konsumsi Kain",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
                         description = "Total konsumsi material per potong baju untuk dasar biaya pokok."
                     ),
@@ -216,8 +248,8 @@ internal object PresetNodeSeeds {
                         id = "in-fob-cost-2",
                         name = "Harga Pembelian Aktual Rol Kain",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.INVENTORY.code,
-                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceModuleCode = GarmentModules.INVENTORY.code,
+                        sourceModuleName = GarmentModules.INVENTORY.displayName,
                         sourceOutputContract = "Kain Rol Teruji Shading + Aksesoris Siap Alokasi Potong",
                         description = "Faktur harga riil pembelian dari pabrik tekstil."
                     ),
@@ -233,10 +265,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-mrp-spk",
-                module = BusinessModule.PRODUCTION_MRP,
+                module = GarmentModules.PRODUCTION_MRP,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
-                title = BusinessModule.PRODUCTION_MRP.displayName,
+                title = GarmentModules.PRODUCTION_MRP.displayName,
                 description = "Penjadwalan 10 mesin jahit, penetapan kapasitas harian per line, dan penerbitan SPK Potong & Jahit massal.",
                 assignedDepartment = "PPIC & Manajemen Pabrik",
                 deptColorHex = 0xFFD97706,
@@ -246,14 +278,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Line A dan Line B terjadwal penuh untuk pesanan 2.500 pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                downstreamModuleCodes = listOf(GarmentModules.OPERATOR_EXEC.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-mrp-1",
                         name = "Persetujuan HPP & Kuota Produksi",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
-                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceModuleCode = GarmentModules.COSTING_HPP.code,
+                        sourceModuleName = GarmentModules.COSTING_HPP.displayName,
                         sourceOutputContract = "Kalkulasi HPP Bersih per Pcs & Batas Margin Laba Pabrik",
                         description = "Status kelayakan margin biaya sebelum produksi massal dijalankan."
                     ),
@@ -261,8 +293,8 @@ internal object PresetNodeSeeds {
                         id = "in-fob-mrp-2",
                         name = "Kain Ready di Gudang Siap Potong",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.INVENTORY.code,
-                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceModuleCode = GarmentModules.INVENTORY.code,
+                        sourceModuleName = GarmentModules.INVENTORY.displayName,
                         sourceOutputContract = "Kain Rol Teruji Shading + Aksesoris Siap Alokasi Potong",
                         description = "Verifikasi fisik kain sudah berada di rak antrean potong pabrik."
                     ),
@@ -278,10 +310,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-operator-exec",
-                module = BusinessModule.OPERATOR_EXEC,
+                module = GarmentModules.OPERATOR_EXEC,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
-                title = BusinessModule.OPERATOR_EXEC.displayName,
+                title = GarmentModules.OPERATOR_EXEC.displayName,
                 description = "Gelar kain, pemotongan massal, pembagian bundel jahit (bundling), dan perakitan garmen di mesin jahit jarum 1 & obras.",
                 assignedDepartment = "Lantai Produksi (Operator Jahit & Potong)",
                 deptColorHex = 0xFFEA580C,
@@ -296,14 +328,14 @@ internal object PresetNodeSeeds {
                     "WIP menumpuk 1.350 pcs di Line Jahit B karena pergantian benang warna navy."
                 },
                 activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahit dari QC",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                downstreamModuleCodes = listOf(GarmentModules.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-fob-op-1",
                         name = "Surat Perintah Kerja (SPK) Potong & Jahit",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
-                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceModuleCode = GarmentModules.PRODUCTION_MRP.code,
+                        sourceModuleName = GarmentModules.PRODUCTION_MRP.displayName,
                         sourceOutputContract = "Surat Perintah Kerja (SPK) Potong & Matriks Penugasan Line Jahit",
                         description = "Rincian urutan pengerjaan potong dan susunan assembly line penjahit."
                     ),
@@ -319,10 +351,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-qc-defect",
-                module = BusinessModule.QUALITY_CONTROL,
+                module = GarmentModules.QUALITY_CONTROL,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
-                title = BusinessModule.QUALITY_CONTROL.displayName,
+                title = GarmentModules.QUALITY_CONTROL.displayName,
                 description = "Inspeksi jahitan loncat, noda minyak, pengukuran toleransi dimensi baju, dan pemisahan reject/cacat produksi.",
                 assignedDepartment = "Quality Control (QC Inspeksi)",
                 deptColorHex = 0xFF16A34A,
@@ -349,12 +381,12 @@ internal object PresetNodeSeeds {
                     else -> "Tingkat cacat terkendali di 1.2% (standar toleransi ekspor < 2.5%)."
                 },
                 activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(
                         id = "fob-qc-fb-inventory",
-                        targetModuleCode = BusinessModule.INVENTORY.code,
-                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        targetModuleCode = GarmentModules.INVENTORY.code,
+                        targetModuleName = GarmentModules.INVENTORY.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
                         triggerReason = "QC Gagal: Cacat Bahan Baku (Fabric Defect / Shading Belang)",
                         actionContract = "Retur ke Rantai Pasok: Klaim Suplier Tekstil & Penggantian Kain (+3 Hari)",
@@ -362,8 +394,8 @@ internal object PresetNodeSeeds {
                     ),
                     PipelineFeedbackRoute(
                         id = "fob-qc-fb-operator",
-                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        targetModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        targetModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_REWORK,
                         triggerReason = "QC Gagal: Cacat Pengerjaan Jahitan (Workmanship Defect)",
                         actionContract = "Rework ke Lantai Jahit: Bongkar Jahitan & Alterasi Operator (+1 Hari)",
@@ -372,7 +404,7 @@ internal object PresetNodeSeeds {
                 ),
                 conditionalPaths = listOf(
                     PipelineConditionalPath(
-                        targetModuleCode = BusinessModule.PRODUCTION_MRP.code,
+                        targetModuleCode = GarmentModules.PRODUCTION_MRP.code,
                         label = "Jika Reject: Jadwal Ulang Produksi"
                     )
                 ),
@@ -381,8 +413,8 @@ internal object PresetNodeSeeds {
                         id = "in-fob-qc-1",
                         name = "Garmen Grey Goods dari Lantai Jahit",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        sourceModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         sourceOutputContract = "Pakaian Jadi Belum Diinspeksi (Grey Goods) + Catatan Target Harian",
                         description = "Kumpulan pakaian jadi hasil rakitan operator yang siap diinspeksi."
                     ),
@@ -390,8 +422,8 @@ internal object PresetNodeSeeds {
                         id = "in-fob-qc-2",
                         name = "Spesifikasi Toleransi Ukuran Tech Pack",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Tech Pack Final, Pola Potong CAD, & Lembar Konsumsi BOM Kain",
                         description = "Batas deviasi dimensi ukuran baju yang diperbolehkan buyer."
                     ),
@@ -407,10 +439,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "fob-fulfillment",
-                module = BusinessModule.FULFILLMENT,
+                module = GarmentModules.FULFILLMENT,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
-                title = BusinessModule.FULFILLMENT.displayName,
+                title = GarmentModules.FULFILLMENT.displayName,
                 description = "Setrika uap (finishing iron), pasang hangtag merk, pemilahan ukuran per karton ekspor, dan penerbitan Surat Jalan.",
                 assignedDepartment = "Finishing, Packing & Ekspedisi",
                 deptColorHex = 0xFF059669,
@@ -426,8 +458,8 @@ internal object PresetNodeSeeds {
                         id = "in-fob-ful-1",
                         name = "Garmen Grade A Lolos QC Bertiket",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
-                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceModuleCode = GarmentModules.QUALITY_CONTROL.code,
+                        sourceModuleName = GarmentModules.QUALITY_CONTROL.displayName,
                         sourceOutputContract = "Pakaian Lolos QC Grade A Bertiket + Laporan Cacat (Reject Rate)",
                         description = "Pakaian yang telah tervalidasi bersih dari cacat produksi."
                     ),
@@ -450,10 +482,10 @@ internal object PresetNodeSeeds {
         return listOf(
             PipelineNode(
                 id = "cmt-crm-sales",
-                module = BusinessModule.CRM_SALES,
+                module = GarmentModules.CRM_SALES,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
-                title = BusinessModule.CRM_SALES.displayName,
+                title = GarmentModules.CRM_SALES.displayName,
                 description = "Penerimaan PO jasa jahit makloon dari Brand Klien dengan kuantiti dan tanggal kirim target.",
                 assignedDepartment = "Marketing & Akun Makloon",
                 deptColorHex = 0xFF2563EB,
@@ -463,7 +495,7 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kontrak makloon 3 brand lokal aktif berjalan.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                downstreamModuleCodes = listOf(GarmentModules.SAMPLING_ORDER.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-crm-1",
@@ -485,10 +517,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-sampling",
-                module = BusinessModule.SAMPLING_ORDER,
+                module = GarmentModules.SAMPLING_ORDER,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
-                title = BusinessModule.SAMPLING_ORDER.displayName,
+                title = GarmentModules.SAMPLING_ORDER.displayName,
                 description = "Uji jahit 1 sample fitting dengan kain yang dikirim oleh brand untuk memastikan kerapihan jarum.",
                 assignedDepartment = "Tim Sampling & Approval",
                 deptColorHex = 0xFF0284C7,
@@ -498,14 +530,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 6.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample fitting disetujui tanpa revisi jahitan.",
-                downstreamModuleCodes = listOf(BusinessModule.COSTING_HPP.code),
+                downstreamModuleCodes = listOf(GarmentModules.COSTING_HPP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-samp-1",
                         name = "Kontrak Kerja Jasa Makloon",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.CRM_SALES.code,
-                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceModuleCode = GarmentModules.CRM_SALES.code,
+                        sourceModuleName = GarmentModules.CRM_SALES.displayName,
                         sourceOutputContract = "Kontrak Kerja Jasa Makloon & Perjanjian Waktu Selesai Jahit",
                         description = "PO dan kesepakatan jahit resmi dari klien brand."
                     ),
@@ -521,10 +553,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-tech-pack",
-                module = BusinessModule.TECH_PACK_BOM,
+                module = GarmentModules.TECH_PACK_BOM,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
-                title = BusinessModule.TECH_PACK_BOM.displayName,
+                title = GarmentModules.TECH_PACK_BOM.displayName,
                 description = "Modul Tech Pack di-bypass karena pola potong dan spesifikasi jahitan disediakan 100% oleh Buyer.",
                 assignedDepartment = "Buyer / Pihak Brand Eksternal",
                 deptColorHex = 0xFF94A3B8,
@@ -534,7 +566,7 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 0.0,
                 healthStatus = FlowHealthStatus.BYPASSED,
                 healthMessage = "Tahapan ini di-bypass pada model makloon CMT (Disediakan Brand Buyer).",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-tp-1",
@@ -548,10 +580,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-inventory",
-                module = BusinessModule.INVENTORY,
+                module = GarmentModules.INVENTORY,
                 stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
-                title = BusinessModule.INVENTORY.displayName,
+                title = GarmentModules.INVENTORY.displayName,
                 description = "Modul pengadaan kain di-bypass. Pabrik hanya menerima kain drop dari buyer tanpa membeli bahan baku sendiri.",
                 assignedDepartment = "Buyer / Logistik Pihak Ketiga",
                 deptColorHex = 0xFF94A3B8,
@@ -566,7 +598,7 @@ internal object PresetNodeSeeds {
                     "Tahapan ini di-bypass pada model makloon CMT (Kain tidak dibeli pabrik)."
                 },
                 activeFeedbackBadge = "Titik Balik: Klaim Kain Cacat ke Klien Buyer",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-inv-1",
@@ -580,10 +612,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-costing-hpp",
-                module = BusinessModule.COSTING_HPP,
+                module = GarmentModules.COSTING_HPP,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
-                title = BusinessModule.COSTING_HPP.displayName,
+                title = GarmentModules.COSTING_HPP.displayName,
                 description = "Penetapan tarif ongkos jahit makloon per pcs (hanya biaya tenaga kerja operator potong + jahit + listrik).",
                 assignedDepartment = "Finance & Manajemen Makloon",
                 deptColorHex = 0xFF6366F1,
@@ -593,14 +625,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Ongkos makloon disepakati Rp 13.500/pcs untuk polo shirt.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-cost-1",
                         name = "Approval Jahit Percontohan Brand",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
-                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceModuleCode = GarmentModules.SAMPLING_ORDER.code,
+                        sourceModuleName = GarmentModules.SAMPLING_ORDER.displayName,
                         sourceOutputContract = "Approval Jahit Percontohan dari Brand",
                         description = "Hasil uji coba tingkat kesulitan jahit dan kerapihan setikan."
                     ),
@@ -616,10 +648,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-mrp-spk",
-                module = BusinessModule.PRODUCTION_MRP,
+                module = GarmentModules.PRODUCTION_MRP,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
-                title = BusinessModule.PRODUCTION_MRP.displayName,
+                title = GarmentModules.PRODUCTION_MRP.displayName,
                 description = "Alokasi meja potong dan giliran mesin jahit untuk pesanan makloon brand.",
                 assignedDepartment = "Kepala Bengkel / PPIC Makloon",
                 deptColorHex = 0xFFD97706,
@@ -629,14 +661,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 3.5,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Kain titipan buyer sudah masuk antrean meja potong.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                downstreamModuleCodes = listOf(GarmentModules.OPERATOR_EXEC.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-mrp-1",
                         name = "Tarif Ongkos Jahit Disepakati",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
-                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceModuleCode = GarmentModules.COSTING_HPP.code,
+                        sourceModuleName = GarmentModules.COSTING_HPP.displayName,
                         sourceOutputContract = "Tarif Ongkos Jahit Bersih (misal Rp 14.000/pcs)",
                         description = "Biaya jasa makloon terverifikasi oleh manajemen."
                     ),
@@ -660,10 +692,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-operator-exec",
-                module = BusinessModule.OPERATOR_EXEC,
+                module = GarmentModules.OPERATOR_EXEC,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
-                title = BusinessModule.OPERATOR_EXEC.displayName,
+                title = GarmentModules.OPERATOR_EXEC.displayName,
                 description = "Penjahitan massal oleh para penjahit sesuai instruksi pola buyer.",
                 assignedDepartment = "Operator Jahit Makloon",
                 deptColorHex = 0xFFEA580C,
@@ -678,14 +710,14 @@ internal object PresetNodeSeeds {
                     "Output jahit harian mencapai 220 pcs/hari dengan 6 operator."
                 },
                 activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahitan Makloon",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                downstreamModuleCodes = listOf(GarmentModules.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-cmt-op-1",
                         name = "SPK Meja Potong & Pembagian Mesin",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
-                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceModuleCode = GarmentModules.PRODUCTION_MRP.code,
+                        sourceModuleName = GarmentModules.PRODUCTION_MRP.displayName,
                         sourceOutputContract = "SPK Meja Potong & Pembagian Mesin Jahit Makloon",
                         description = "Instruksi alokasi potongan bahan per penjahit."
                     ),
@@ -701,10 +733,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-qc-defect",
-                module = BusinessModule.QUALITY_CONTROL,
+                module = GarmentModules.QUALITY_CONTROL,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
-                title = BusinessModule.QUALITY_CONTROL.displayName,
+                title = GarmentModules.QUALITY_CONTROL.displayName,
                 description = "Pemeriksaan mutu jahitan sesuai standar toleransi yang disepakati dengan brand.",
                 assignedDepartment = "Pemeriksa QC Makloon",
                 deptColorHex = 0xFF16A34A,
@@ -731,12 +763,12 @@ internal object PresetNodeSeeds {
                     else -> "Kerapihan jahitan lolos audit perwakilan brand."
                 },
                 activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan Buyer (Tahap 3) & Rework Jahit (Tahap 4)",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(
                         id = "cmt-qc-fb-inventory",
-                        targetModuleCode = BusinessModule.INVENTORY.code,
-                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        targetModuleCode = GarmentModules.INVENTORY.code,
+                        targetModuleName = GarmentModules.INVENTORY.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
                         triggerReason = "QC Makloon: Cacat Bahan Titipan Buyer",
                         actionContract = "Retur Bahan Buyer: Klaim Defect Kain & Drop Rol Pengganti (+3 Hari)",
@@ -744,8 +776,8 @@ internal object PresetNodeSeeds {
                     ),
                     PipelineFeedbackRoute(
                         id = "cmt-qc-fb-operator",
-                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        targetModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        targetModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_REWORK,
                         triggerReason = "QC Makloon: Cacat Jahitan Operator",
                         actionContract = "Rework Jahit: Perintah Bongkar Jahit & Alterasi Operator (+1 Hari)",
@@ -757,8 +789,8 @@ internal object PresetNodeSeeds {
                         id = "in-cmt-qc-1",
                         name = "Baju Jadi Selesai Jahit dari Operator",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        sourceModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         sourceOutputContract = "Baju Jadi Selesai Jahit Siap Disortir",
                         description = "Setelan pakaian siap inspeksi benang dan kerapihan setikan."
                     ),
@@ -774,10 +806,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "cmt-fulfillment",
-                module = BusinessModule.FULFILLMENT,
+                module = GarmentModules.FULFILLMENT,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
-                title = BusinessModule.FULFILLMENT.displayName,
+                title = GarmentModules.FULFILLMENT.displayName,
                 description = "Packing plastik bening sederhana per lusin dan pengembalian ke gudang brand buyer.",
                 assignedDepartment = "Ekspedisi & Serah Terima",
                 deptColorHex = 0xFF059669,
@@ -793,8 +825,8 @@ internal object PresetNodeSeeds {
                         id = "in-cmt-ful-1",
                         name = "Baju Jadi Lolos Sortir & Kain Perca Sisa",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
-                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceModuleCode = GarmentModules.QUALITY_CONTROL.code,
+                        sourceModuleName = GarmentModules.QUALITY_CONTROL.displayName,
                         sourceOutputContract = "Laporan Sortir Lolos & Kain Sisa Potong untuk Dikembalikan",
                         description = "Pakaian yang siap dipack lusinan beserta sisa kain milik buyer."
                     ),
@@ -817,10 +849,10 @@ internal object PresetNodeSeeds {
         return listOf(
             PipelineNode(
                 id = "d2c-crm-sales",
-                module = BusinessModule.CRM_SALES,
+                module = GarmentModules.CRM_SALES,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
-                title = BusinessModule.CRM_SALES.displayName,
+                title = GarmentModules.CRM_SALES.displayName,
                 description = "Analisis tren penjualan toko online, reseller, dan proyeksi dropship untuk koleksi baru.",
                 assignedDepartment = "E-Commerce & Retail Sales",
                 deptColorHex = 0xFF2563EB,
@@ -830,7 +862,7 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 5.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Koleksi Ramadhan siap diproduksi sebanyak 3.000 pcs.",
-                downstreamModuleCodes = listOf(BusinessModule.SAMPLING_ORDER.code),
+                downstreamModuleCodes = listOf(GarmentModules.SAMPLING_ORDER.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-crm-1",
@@ -852,10 +884,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-sampling",
-                module = BusinessModule.SAMPLING_ORDER,
+                module = GarmentModules.SAMPLING_ORDER,
                 stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
-                title = BusinessModule.SAMPLING_ORDER.displayName,
+                title = GarmentModules.SAMPLING_ORDER.displayName,
                 description = "Desain prototipe in-house, fotoshoot sample untuk pre-order konten media sosial.",
                 assignedDepartment = "Kreatif, Desain & Model",
                 deptColorHex = 0xFF0284C7,
@@ -865,14 +897,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 10.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Sample disetujui tim kreatif untuk konten TikTok & Reels.",
-                downstreamModuleCodes = listOf(BusinessModule.TECH_PACK_BOM.code),
+                downstreamModuleCodes = listOf(GarmentModules.TECH_PACK_BOM.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-samp-1",
                         name = "Rencana Peluncuran Koleksi Baru",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.CRM_SALES.code,
-                        sourceModuleName = BusinessModule.CRM_SALES.displayName,
+                        sourceModuleCode = GarmentModules.CRM_SALES.code,
+                        sourceModuleName = GarmentModules.CRM_SALES.displayName,
                         sourceOutputContract = "Rencana Peluncuran Koleksi Baru (Drop Collection)",
                         description = "Target tema model dan kuota batch drop koleksi."
                     ),
@@ -888,10 +920,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-tech-pack",
-                module = BusinessModule.TECH_PACK_BOM,
+                module = GarmentModules.TECH_PACK_BOM,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
-                title = BusinessModule.TECH_PACK_BOM.displayName,
+                title = GarmentModules.TECH_PACK_BOM.displayName,
                 description = "Standarisasi fitting brand sendiri (misal: Oversized Streetwear Fit) dan konsumsi kain.",
                 assignedDepartment = "Pola Mandiri & Spesifikasi",
                 deptColorHex = 0xFF7C3AED,
@@ -901,14 +933,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Pola cutting oversize grade S, M, L, XL tersimpan di arsip digital.",
-                downstreamModuleCodes = listOf(BusinessModule.INVENTORY.code, BusinessModule.COSTING_HPP.code),
+                downstreamModuleCodes = listOf(GarmentModules.INVENTORY.code, GarmentModules.COSTING_HPP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-tp-1",
                         name = "Sample Fitting Disetujui Tim Kreatif",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.SAMPLING_ORDER.code,
-                        sourceModuleName = BusinessModule.SAMPLING_ORDER.displayName,
+                        sourceModuleCode = GarmentModules.SAMPLING_ORDER.code,
+                        sourceModuleName = GarmentModules.SAMPLING_ORDER.displayName,
                         sourceOutputContract = "Sample Terpilih untuk Fotoshoot & Pola Produksi Massal",
                         description = "Baju contoh yang telah dites kenyamanan jatuhnya di badan model."
                     ),
@@ -924,10 +956,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-inventory",
-                module = BusinessModule.INVENTORY,
+                module = GarmentModules.INVENTORY,
                 stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
-                title = BusinessModule.INVENTORY.displayName,
+                title = GarmentModules.INVENTORY.displayName,
                 description = "Penyimpanan stok kain custom wash, label woven brand, polybag bermerk, dan hangtag eksklusif.",
                 assignedDepartment = "Gudang Stok Internal",
                 deptColorHex = 0xFF0D9488,
@@ -942,14 +974,14 @@ internal object PresetNodeSeeds {
                     "Kain Heavyweight Cotton aman tersedia untuk 2 batch produksi."
                 },
                 activeFeedbackBadge = "Titik Balik: Alokasi Buffer Bahan Baku Pengganti",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-inv-1",
                         name = "Kebutuhan Material dari Pola Master CAD",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Pola Master CAD Brand Sendiri",
                         description = "Kalkulasi rol kain dan aksesoris tag brand."
                     ),
@@ -965,10 +997,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-costing-hpp",
-                module = BusinessModule.COSTING_HPP,
+                module = GarmentModules.COSTING_HPP,
                 stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
-                title = BusinessModule.COSTING_HPP.displayName,
+                title = GarmentModules.COSTING_HPP.displayName,
                 description = "Penetapan harga jual ritel (MSRP) berdasarkan modal produksi agar margin toko dan diskon promosi tetap untung.",
                 assignedDepartment = "Keuangan Bisnis Retail",
                 deptColorHex = 0xFF6366F1,
@@ -978,14 +1010,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 2.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Margin e-commerce ditetapkan di angka 62% pasca biaya packaging.",
-                downstreamModuleCodes = listOf(BusinessModule.PRODUCTION_MRP.code),
+                downstreamModuleCodes = listOf(GarmentModules.PRODUCTION_MRP.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-cost-1",
                         name = "Konsumsi Kain Master CAD",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Pola Master CAD Brand Sendiri",
                         description = "Rincian biaya modal kain per kaos."
                     ),
@@ -1001,10 +1033,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-mrp-spk",
-                module = BusinessModule.PRODUCTION_MRP,
+                module = GarmentModules.PRODUCTION_MRP,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
-                title = BusinessModule.PRODUCTION_MRP.displayName,
+                title = GarmentModules.PRODUCTION_MRP.displayName,
                 description = "Pengaturan jadwal jahit mingguan untuk restock varian ukuran terlaris (fast moving SKU).",
                 assignedDepartment = "Perencanaan Produksi Brand",
                 deptColorHex = 0xFFD97706,
@@ -1014,14 +1046,14 @@ internal object PresetNodeSeeds {
                 cycleTimeHours = 4.0,
                 healthStatus = FlowHealthStatus.HEALTHY,
                 healthMessage = "Batch restock warna Black & Washed Grey berjalan sesuai jadwal.",
-                downstreamModuleCodes = listOf(BusinessModule.OPERATOR_EXEC.code),
+                downstreamModuleCodes = listOf(GarmentModules.OPERATOR_EXEC.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-mrp-1",
                         name = "Batas Margin HPP & MSRP Resmi",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.COSTING_HPP.code,
-                        sourceModuleName = BusinessModule.COSTING_HPP.displayName,
+                        sourceModuleCode = GarmentModules.COSTING_HPP.code,
+                        sourceModuleName = GarmentModules.COSTING_HPP.displayName,
                         sourceOutputContract = "Harga Retail Resmi & Batas Diskon Promo Flash Sale",
                         description = "Target volume produksi batch baru."
                     ),
@@ -1029,8 +1061,8 @@ internal object PresetNodeSeeds {
                         id = "in-d2c-mrp-2",
                         name = "Stok Kain Gudang Internal Ready",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.INVENTORY.code,
-                        sourceModuleName = BusinessModule.INVENTORY.displayName,
+                        sourceModuleCode = GarmentModules.INVENTORY.code,
+                        sourceModuleName = GarmentModules.INVENTORY.displayName,
                         sourceOutputContract = "Bahan Siap Potong Terverifikasi Kualitasnya",
                         description = "Ketersediaan kain ready di lantai workshop."
                     ),
@@ -1046,10 +1078,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-operator-exec",
-                module = BusinessModule.OPERATOR_EXEC,
+                module = GarmentModules.OPERATOR_EXEC,
                 stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
-                title = BusinessModule.OPERATOR_EXEC.displayName,
+                title = GarmentModules.OPERATOR_EXEC.displayName,
                 description = "Penjahitan oleh konveksi in-house dengan penekanan detail sablon discharge / bordir komputer.",
                 assignedDepartment = "Lantai Jahit Brand",
                 deptColorHex = 0xFFEA580C,
@@ -1064,14 +1096,14 @@ internal object PresetNodeSeeds {
                     "Operator jahit rantai leher bekerja sesuai standar kerapihan brand."
                 },
                 activeFeedbackBadge = "Titik Balik: Penerimaan Rework Jahit In-House",
-                downstreamModuleCodes = listOf(BusinessModule.QUALITY_CONTROL.code),
+                downstreamModuleCodes = listOf(GarmentModules.QUALITY_CONTROL.code),
                 inputs = listOf(
                     PipelineInputPort(
                         id = "in-d2c-op-1",
                         name = "SPK Restock Batch Baru per Warna",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.PRODUCTION_MRP.code,
-                        sourceModuleName = BusinessModule.PRODUCTION_MRP.displayName,
+                        sourceModuleCode = GarmentModules.PRODUCTION_MRP.code,
+                        sourceModuleName = GarmentModules.PRODUCTION_MRP.displayName,
                         sourceOutputContract = "SPK Restock Batch Baru per Warna & Ukuran",
                         description = "Instruksi potong dan assembly jahit in-house."
                     ),
@@ -1087,10 +1119,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-qc-defect",
-                module = BusinessModule.QUALITY_CONTROL,
+                module = GarmentModules.QUALITY_CONTROL,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
-                title = BusinessModule.QUALITY_CONTROL.displayName,
+                title = GarmentModules.QUALITY_CONTROL.displayName,
                 description = "Pengecekan super ketat untuk menghindari ulasan bintang 1 dari pembeli online (Zero defect customer policy).",
                 assignedDepartment = "QC Tim Brand",
                 deptColorHex = 0xFF16A34A,
@@ -1117,12 +1149,12 @@ internal object PresetNodeSeeds {
                     else -> "Inspeksi teliti, 100% item dipastikan bebas noda dan benang sisa."
                 },
                 activeFeedbackBadge = "Disposisi QC: ⤶ Retur Gudang Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
-                downstreamModuleCodes = listOf(BusinessModule.FULFILLMENT.code),
+                downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(
                         id = "d2c-qc-fb-inventory",
-                        targetModuleCode = BusinessModule.INVENTORY.code,
-                        targetModuleName = BusinessModule.INVENTORY.displayName,
+                        targetModuleCode = GarmentModules.INVENTORY.code,
+                        targetModuleName = GarmentModules.INVENTORY.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_DEFECT,
                         triggerReason = "QC Brand: Cacat Shading Kain Heavyweight",
                         actionContract = "Retur Gudang Bahan: Alokasi Buffer Rol Kain Pengganti (+3 Hari)",
@@ -1130,8 +1162,8 @@ internal object PresetNodeSeeds {
                     ),
                     PipelineFeedbackRoute(
                         id = "d2c-qc-fb-operator",
-                        targetModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        targetModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        targetModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        targetModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         edgeType = PipelineEdgeType.FEEDBACK_REWORK,
                         triggerReason = "QC Brand: Cacat Jahitan Rantai Leher",
                         actionContract = "Rework Jahit In-House: Perintah Bongkar Jahit & Alterasi (+1 Hari)",
@@ -1143,8 +1175,8 @@ internal object PresetNodeSeeds {
                         id = "in-d2c-qc-1",
                         name = "Kaos / Hoodie Selesai Jahit",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.OPERATOR_EXEC.code,
-                        sourceModuleName = BusinessModule.OPERATOR_EXEC.displayName,
+                        sourceModuleCode = GarmentModules.OPERATOR_EXEC.code,
+                        sourceModuleName = GarmentModules.OPERATOR_EXEC.displayName,
                         sourceOutputContract = "Kaos / Hoodie Selesai Jahit",
                         description = "Pakaian jadi dari lantai workshop in-house."
                     ),
@@ -1153,8 +1185,8 @@ internal object PresetNodeSeeds {
                         id = "in-d2c-qc-spec",
                         name = "Spesifikasi Toleransi Ukuran Tech Pack",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.TECH_PACK_BOM.code,
-                        sourceModuleName = BusinessModule.TECH_PACK_BOM.displayName,
+                        sourceModuleCode = GarmentModules.TECH_PACK_BOM.code,
+                        sourceModuleName = GarmentModules.TECH_PACK_BOM.displayName,
                         sourceOutputContract = "Tech Pack Final & Grading Ukuran",
                         description = "Batas deviasi ukuran yang dipakai inspektor brand."
                     ),
@@ -1170,10 +1202,10 @@ internal object PresetNodeSeeds {
             ),
             PipelineNode(
                 id = "d2c-fulfillment",
-                module = BusinessModule.FULFILLMENT,
+                module = GarmentModules.FULFILLMENT,
                 stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
-                title = BusinessModule.FULFILLMENT.displayName,
+                title = GarmentModules.FULFILLMENT.displayName,
                 description = "Finishing wangi, kemas ziplock bag bermerk, stiker merchandise, dan serah terima ke kurir marketplace.",
                 assignedDepartment = "Packing & Pengiriman Retail",
                 deptColorHex = 0xFF059669,
@@ -1189,8 +1221,8 @@ internal object PresetNodeSeeds {
                         id = "in-d2c-ful-1",
                         name = "Kaos Siap Pasang Barcode SKU Retail",
                         isManual = false,
-                        sourceModuleCode = BusinessModule.QUALITY_CONTROL.code,
-                        sourceModuleName = BusinessModule.QUALITY_CONTROL.displayName,
+                        sourceModuleCode = GarmentModules.QUALITY_CONTROL.code,
+                        sourceModuleName = GarmentModules.QUALITY_CONTROL.displayName,
                         sourceOutputContract = "Kaos Siap Pasang Tag Barcode SKU Retail",
                         description = "Item terverifikasi siap dibungkus kemasan ritel."
                     ),

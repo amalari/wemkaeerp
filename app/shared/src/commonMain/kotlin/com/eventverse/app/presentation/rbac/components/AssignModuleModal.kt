@@ -1,5 +1,39 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,7 +79,7 @@ fun AssignModuleModal(
     }
 
     var selectedModule by remember(initialModule, initialAssignment) {
-        mutableStateOf(initialModule ?: BusinessModule.CRM_SALES)
+        mutableStateOf(initialModule ?: GarmentModules.CRM_SALES)
     }
 
     val deptRoles = remember(targetDept, roles) {
@@ -167,7 +201,7 @@ fun AssignModuleModal(
                         .verticalScroll(modulesScrollState),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    BusinessModule.entries.forEach { mod ->
+                    BusinessModules.entries.forEach { mod ->
                         val isSelected = mod == selectedModule
                         Row(
                             modifier = Modifier

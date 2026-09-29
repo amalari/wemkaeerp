@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.auth
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import kotlin.jvm.JvmInline
 
 @JvmInline
@@ -66,7 +98,7 @@ enum class Permission {
     APPROVE_COSTING,
     /**
      * Melihat bucket MARGIN dan harga jual akhir. Dipisah karena margin laba pabrik
-     * bersifat "rahasia" per deskripsi BusinessModule.COSTING_HPP — staf yang bisa
+     * bersifat "rahasia" per deskripsi GarmentModules.COSTING_HPP — staf yang bisa
      * menghitung HPP tidak otomatis boleh melihat berapa persen laba pabriknya.
      */
     VIEW_COSTING_MARGIN,

@@ -1,5 +1,39 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.DataScope
@@ -23,7 +57,7 @@ fun Route.moduleAssignmentRoutes(assignmentRepository: ModuleAssignmentRepositor
     route("/api/tenant/module-assignments") {
         // B5: baca = VIEW, tulis = MANAGE (fail-closed). Menu pengguna kini dari GET /api/tenant/me/access, jadi daftar
         // wewenang semua orang hanya untuk admin.
-        moduleGate(BusinessModule.DYNAMIC_RBAC, roleRepository, assignmentRepository)
+        moduleGate(GarmentModules.DYNAMIC_RBAC, roleRepository, assignmentRepository)
 
         get {
             val tenant = call.tenantContextOrNull ?: run {
@@ -42,7 +76,7 @@ fun Route.moduleAssignmentRoutes(assignmentRepository: ModuleAssignmentRepositor
 
             val body = call.receiveText()
             val module = stringField(body, "module")
-                ?.let { name -> runCatching { BusinessModule.valueOf(name) }.getOrNull() }
+                ?.let { name -> ModuleIdCodec.fromStoredName(name, "api module-assignments") }
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, "Field 'module' tidak valid")
                     return@put
@@ -89,7 +123,7 @@ fun Route.moduleAssignmentRoutes(assignmentRepository: ModuleAssignmentRepositor
                 return@delete
             }
             val module = call.parameters["module"]
-                ?.let { name -> runCatching { BusinessModule.valueOf(name) }.getOrNull() }
+                ?.let { name -> ModuleIdCodec.fromStoredName(name, "api module-assignments") }
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, "Modul tidak valid")
                     return@delete

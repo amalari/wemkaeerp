@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -53,7 +85,7 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "stage_frame",
             displayName = "Kerangka Tahap Sampling",
-            hostModule = BusinessModule.SAMPLING_ORDER,
+            hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.STAGE_FRAME,
             description = "Urutan tahap kerja SPK sampling milik pabrik, dari template industri.",
             routePrefixes = listOf("/api/tenant/stage-flow", "/api/tenant/stage-templates")
@@ -61,7 +93,7 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "optional_process",
             displayName = "Proses Sisipan & Tag Fase",
-            hostModule = BusinessModule.SAMPLING_ORDER,
+            hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.OPTIONAL_PROCESS,
             description = "Bordir, sablon, laundry yang disisipkan per desain; tag fase Cuci/Setrika.",
             routePrefixes = listOf("/api/tenant/process-catalog")
@@ -69,14 +101,14 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "sample_storage",
             displayName = "Penyimpanan Sampel",
-            hostModule = BusinessModule.SAMPLING_ORDER,
+            hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.TOOL,
             description = "Kustodi sampel selesai kemas: lokasi rak, penerima simpan, rilis kirim."
         ),
         ModuleFeature(
             code = "production_line",
             displayName = "Stasiun Lini Produksi",
-            hostModule = BusinessModule.PRODUCTION_MRP,
+            hostModule = GarmentModules.PRODUCTION_MRP,
             kind = ModuleFeatureKind.STATION,
             description = "Urutan stasiun lini massal (potong, jahit, cuci, steam, QC, kemas).",
             routePrefixes = listOf("/api/tenant/production")
@@ -84,7 +116,7 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "work_queue",
             displayName = "Antrian Kerja & Washing Batch",
-            hostModule = BusinessModule.OPERATOR_EXEC,
+            hostModule = GarmentModules.OPERATOR_EXEC,
             kind = ModuleFeatureKind.TOOL,
             description = "Kartu kerja per stasiun dan batch cuci bundle berfoto.",
             routePrefixes = listOf("/api/tenant/work-queue")
@@ -92,7 +124,7 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "traceability",
             displayName = "Telusur & Cetak Kartu",
-            hostModule = BusinessModule.OPERATOR_EXEC,
+            hostModule = GarmentModules.OPERATOR_EXEC,
             kind = ModuleFeatureKind.TOOL,
             description = "Pindai QR, kartu SPK A6, jejak kontainer.",
             routePrefixes = listOf("/api/tenant/traceability")
@@ -100,7 +132,7 @@ object ModuleFeatureRegistry {
         ModuleFeature(
             code = "surat_jalan",
             displayName = "Surat Jalan & Transfer",
-            hostModule = BusinessModule.FULFILLMENT,
+            hostModule = GarmentModules.FULFILLMENT,
             kind = ModuleFeatureKind.TOOL,
             description = "Manifest perpindahan barang antar gedung dan ke buyer.",
             routePrefixes = listOf("/api/tenant/transfers")

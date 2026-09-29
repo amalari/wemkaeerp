@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pipeline.FlowHealthStatus
 import com.eventverse.app.domain.pipeline.ModuleTelemetry
 import com.eventverse.app.domain.pipeline.ModuleTelemetryProvider
@@ -17,7 +49,7 @@ class SamplingTelemetryProvider(
     private val repository: SamplingOrderRepository,
     private val clock: Clock = Clock.System
 ) : ModuleTelemetryProvider {
-    override val module = BusinessModule.SAMPLING_ORDER
+    override val module = GarmentModules.SAMPLING_ORDER
 
     override suspend fun read(tenantId: TenantId): Result<ModuleTelemetry> = runCatching {
         val onFloor = repository.findAll(tenantId)

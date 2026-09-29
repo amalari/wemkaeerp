@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.orgchart.DepartmentId
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
@@ -36,7 +68,7 @@ fun Route.departmentRoutes(
         // B5: baca = VIEW, tulis = MANAGE (fail-closed). Daftar divisi (GET persis /departments) memakai guard
         // orgChartDecision miliknya sendiri di handler — tidak digerbang dua kali.
         if (roleRepository != null && moduleAssignmentRepository != null) {
-            moduleGate(com.eventverse.app.domain.rbac.BusinessModule.ORG_CHART, roleRepository, moduleAssignmentRepository) { method, path ->
+            moduleGate(GarmentModules.ORG_CHART, roleRepository, moduleAssignmentRepository) { method, path ->
                 if (method == io.ktor.http.HttpMethod.Get && path == "/api/tenant/departments") GateRule(AccessLevel.NONE, emptyList()) else null
             }
         }

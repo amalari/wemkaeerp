@@ -1,5 +1,37 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.DataScope
@@ -37,7 +69,7 @@ object ModulePermissionsSerializer {
             val moduleKey = match.groupValues[1]
             val body = match.groupValues[2]
 
-            val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull() ?: return@forEach
+            val module = ModuleIdCodec.fromStoredName(moduleKey, "custom_roles.module_permissions") ?: return@forEach
             val level = levelRegex.find(body)?.groupValues?.get(1)
                 ?.let { runCatching { AccessLevel.valueOf(it) }.getOrNull() }
                 ?: AccessLevel.NONE

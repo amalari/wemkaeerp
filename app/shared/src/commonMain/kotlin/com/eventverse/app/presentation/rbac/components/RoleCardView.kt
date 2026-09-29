@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,7 +85,7 @@ fun resolveAccessibleModulesForRole(
     val roleIdStr = role.id.value
     val deptIdStr = dept?.id?.value
 
-    BusinessModule.entries.forEach { mod ->
+    BusinessModules.entries.forEach { mod ->
         val assignList = assignments[mod].orEmpty()
         val specific = assignList.find { it.specificRoleIds.contains(roleIdStr) }
         val deptWide = if (deptIdStr != null) {

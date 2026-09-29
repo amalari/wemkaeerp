@@ -1,5 +1,39 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.rbac.*
@@ -86,7 +120,7 @@ class RbacApiClient(
             error("Gagal memuat entitlement modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
         }
         TenantEntitlementGrantsCodec.decode(response.bodyAsText()).grantedModules
-            ?: BusinessModule.entries.toSet()
+            ?: BusinessModules.entries.toSet()
     }
 
     /**
@@ -255,8 +289,8 @@ class RbacApiClient(
         fun parseAssignments(json: String): Map<BusinessModule, List<DepartmentModuleAssignment>> {
             if (json.isBlank() || json == "{}") return emptyMap()
 
-            return BusinessModule.entries.mapNotNull { module ->
-                val array = extractJsonArray(json, module.name) ?: return@mapNotNull null
+            return BusinessModules.entries.mapNotNull { module ->
+                val array = extractJsonArray(json, ModuleIdCodec.storedName(module)) ?: return@mapNotNull null
                 val items = OrgChartApiClient.parseJsonArray(array).map { parseAssignment(it) }
                 if (items.isEmpty()) null else module to items
             }.toMap()
@@ -351,7 +385,7 @@ class RbacApiClient(
                 val moduleKey = match.groupValues[1]
                 val body = match.groupValues[2]
 
-                val module = runCatching { BusinessModule.valueOf(moduleKey) }.getOrNull() ?: return@forEach
+                val module = ModuleIdCodec.fromStoredName(moduleKey, "role.modulePermissions") ?: return@forEach
                 val level = levelRegex.find(body)?.groupValues?.get(1)
                     ?.let { runCatching { AccessLevel.valueOf(it) }.getOrNull() }
                     ?: AccessLevel.NONE

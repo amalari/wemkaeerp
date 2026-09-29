@@ -1,5 +1,39 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pack.GarmentSlots
@@ -106,13 +140,13 @@ class TenantModuleEntitlementTest {
     fun narrowedCatalogue_shouldRejectModuleOutsidePlan() {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.ENTERPRISE,
-            grantedModules = BusinessModule.entries.toSet() - BusinessModule.COSTING_HPP
+            grantedModules = BusinessModules.entries.toSet() - GarmentModules.COSTING_HPP
         )
 
         val violations = entitlement.validate(fobPipeline())
 
         assertTrue(
-            violations.any { it.contains(BusinessModule.COSTING_HPP.displayName) },
+            violations.any { it.contains(GarmentModules.COSTING_HPP.displayName) },
             "Violations: $violations"
         )
     }
@@ -121,7 +155,7 @@ class TenantModuleEntitlementTest {
     fun validate_shouldReportEveryViolationNotJustTheFirst() {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.STARTER,
-            grantedModules = setOf(BusinessModule.CRM_SALES)
+            grantedModules = setOf(GarmentModules.CRM_SALES)
         )
 
         val violations = entitlement.validate(fobPipeline())
@@ -155,7 +189,7 @@ class GovernanceEntitlementTest {
     fun defaultGrant_shouldIncludeGovernanceModules() {
         val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
 
-        BusinessModule.governance.forEach { module ->
+        BusinessModules.governance.forEach { module ->
             assertTrue(
                 entitlement.permitsModule(module),
                 "${module.code} harus aktif secara bawaan; paket membatasi jumlah modul produksi, " +
@@ -169,24 +203,24 @@ class GovernanceEntitlementTest {
         val entitlement = TenantModuleEntitlement.resolve(
             tier = SubscriptionTier.PRO,
             grants = TenantEntitlementGrants(
-                grantedModules = BusinessModule.entries.toSet() - BusinessModule.FACTORY_FLOW
+                grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
             )
         )
 
-        assertFalse(entitlement.permitsModule(BusinessModule.FACTORY_FLOW))
-        assertTrue(entitlement.permitsModule(BusinessModule.ORG_CHART))
+        assertFalse(entitlement.permitsModule(GarmentModules.FACTORY_FLOW))
+        assertTrue(entitlement.permitsModule(GarmentModules.ORG_CHART))
     }
 
     @Test
     fun withModule_fromAllGranted_shouldRemoveOnlyTheNamedModule() {
         // Jebakan utamanya: grantedModules == null berarti "semua", bukan "kosong". Pengurangan
         // himpunan tanpa memadatkannya lebih dulu akan mencabut seluruh modul lain sekaligus.
-        val grants = TenantEntitlementGrants().withModule(BusinessModule.FACTORY_FLOW, enabled = false)
+        val grants = TenantEntitlementGrants().withModule(GarmentModules.FACTORY_FLOW, enabled = false)
 
         val modules = grants.grantedModules
         assertNotNull(modules)
-        assertFalse(BusinessModule.FACTORY_FLOW in modules)
-        assertEquals(BusinessModule.entries.size - 1, modules.size)
+        assertFalse(GarmentModules.FACTORY_FLOW in modules)
+        assertEquals(BusinessModules.entries.size - 1, modules.size)
     }
 
     @Test
@@ -194,8 +228,8 @@ class GovernanceEntitlementTest {
         // null disimpan kembali supaya tenant ikut mewarisi modul yang dirilis kemudian, tanpa
         // perlu migrasi data lagi seperti V18.
         val grants = TenantEntitlementGrants()
-            .withModule(BusinessModule.ORG_CHART, enabled = false)
-            .withModule(BusinessModule.ORG_CHART, enabled = true)
+            .withModule(GarmentModules.ORG_CHART, enabled = false)
+            .withModule(GarmentModules.ORG_CHART, enabled = true)
 
         assertEquals(null, grants.grantedModules)
     }

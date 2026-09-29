@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.RoleRepository
 
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
@@ -51,14 +83,14 @@ fun Route.masterDataRoutes(
 
     route("/api/tenant/master-data") {
         // B5. Daftar/detail bahan juga dibaca dropdown bahan di Sampling & Tech Pack; harga = data keuangan.
-        moduleGate(BusinessModule.MASTER_DATA, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+        moduleGate(GarmentModules.MASTER_DATA, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
             val isPrice = path.endsWith("/prices") || path.contains("/price-policy") || path.contains("/price-resolution")
             when {
                 method == io.ktor.http.HttpMethod.Get && isPrice ->
-                    GateRule(AccessLevel.VIEW, listOf(BusinessModule.MASTER_DATA, BusinessModule.COSTING_HPP))
+                    GateRule(AccessLevel.VIEW, listOf(GarmentModules.MASTER_DATA, GarmentModules.COSTING_HPP))
                 method == io.ktor.http.HttpMethod.Get ->
-                    GateRule(AccessLevel.VIEW, listOf(BusinessModule.MASTER_DATA, BusinessModule.SAMPLING_ORDER, BusinessModule.TECH_PACK_BOM))
-                path.contains("/price-policy") -> GateRule(AccessLevel.MANAGE, listOf(BusinessModule.MASTER_DATA))
+                    GateRule(AccessLevel.VIEW, listOf(GarmentModules.MASTER_DATA, GarmentModules.SAMPLING_ORDER, GarmentModules.TECH_PACK_BOM))
+                path.contains("/price-policy") -> GateRule(AccessLevel.MANAGE, listOf(GarmentModules.MASTER_DATA))
                 else -> null
             }
         }

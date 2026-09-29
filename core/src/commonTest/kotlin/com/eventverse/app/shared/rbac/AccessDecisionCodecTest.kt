@@ -1,5 +1,37 @@
 package com.eventverse.app.shared.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.AccessSource
@@ -21,14 +53,14 @@ class AccessDecisionCodecTest {
 
     @Test
     fun roundTrip_keepsLevelScopeDesksAndSource() {
-        val decisions = mapOf(BusinessModule.OPERATOR_EXEC to operator, BusinessModule.CRM_SALES to AccessDecision(
+        val decisions = mapOf(GarmentModules.OPERATOR_EXEC to operator, GarmentModules.CRM_SALES to AccessDecision(
             ModuleAccessConfig(), AccessSource.NONE, ModuleAccessConfig(), ModuleAccessConfig()))
         assertEquals(decisions, AccessDecisionCodec.decode(JsonParser.parseObject(AccessDecisionCodec.encode(decisions).encode())))
     }
 
     @Test
     fun unknownModuleOrLevel_isSkipped_notGuessed() {
-        val json = AccessDecisionCodec.encode(mapOf(BusinessModule.OPERATOR_EXEC to operator)).encode()
+        val json = AccessDecisionCodec.encode(mapOf(GarmentModules.OPERATOR_EXEC to operator)).encode()
             .replace("\"modules\":{", "\"modules\":{\"MODUL_BARU\":{\"config\":{\"level\":\"MANAGE\",\"scope\":\"ALL_TENANT_DATA\"},\"source\":\"ROLE\"},")
             .replace("\"level\":\"OPERATE\",\"scope\":\"OWN_DATA_ONLY\"", "\"level\":\"SUPER\",\"scope\":\"OWN_DATA_ONLY\"")
         val decoded = AccessDecisionCodec.decode(JsonParser.parseObject(json))

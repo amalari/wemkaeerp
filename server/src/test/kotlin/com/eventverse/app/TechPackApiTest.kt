@@ -1,5 +1,37 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.common.CurrencyCode
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.common.Quantity
@@ -327,8 +359,8 @@ class TechPackApiTest {
             name = "Operator Jahit",
             description = "Operator",
             modulePermissions = mapOf(
-                BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE, DataScope.ALL_TENANT_DATA)
+                GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE, DataScope.ALL_TENANT_DATA)
             )
         )
         roleRepo.save(customRole)

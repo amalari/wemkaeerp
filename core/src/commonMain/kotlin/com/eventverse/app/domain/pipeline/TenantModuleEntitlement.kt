@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.SubscriptionTier
 
@@ -17,7 +49,7 @@ data class TenantModuleEntitlement(
      * Built-in modules the plan grants. Defaults to every module, so a plan restricts by
      * *count* unless a narrower catalogue is explicitly configured for it.
      */
-    val grantedModules: Set<BusinessModule> = BusinessModule.entries.toSet(),
+    val grantedModules: Set<BusinessModule> = BusinessModules.entries.toSet(),
     /** Custom plugin module ids explicitly provisioned for this tenant. */
     val grantedCustomModuleIds: Set<String> = emptySet()
 ) {
@@ -96,7 +128,7 @@ data class TenantModuleEntitlement(
 
     /** The durable part of this entitlement, for persistence. */
     fun toGrants(): TenantEntitlementGrants = TenantEntitlementGrants(
-        grantedModules = grantedModules.takeIf { it != BusinessModule.entries.toSet() },
+        grantedModules = grantedModules.takeIf { it != BusinessModules.entries.toSet() },
         grantedCustomModuleIds = grantedCustomModuleIds
     )
 
@@ -115,7 +147,7 @@ data class TenantModuleEntitlement(
             grants: TenantEntitlementGrants?
         ): TenantModuleEntitlement = TenantModuleEntitlement(
             tier = tier,
-            grantedModules = grants?.grantedModules ?: BusinessModule.entries.toSet(),
+            grantedModules = grants?.grantedModules ?: BusinessModules.entries.toSet(),
             grantedCustomModuleIds = grants?.grantedCustomModuleIds ?: emptySet()
         )
     }

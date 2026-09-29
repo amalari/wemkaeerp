@@ -1,5 +1,39 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.TestAuth
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -57,7 +91,7 @@ class MyAccessApiTest {
         runBlocking {
             tenants.save(Tenant(tenantId, TenantSlug(slug), TenantName("Gate Me"), TenantStatus.ACTIVE, SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON))
             roles.save(CustomRole(RoleId("role-qc"), tenantId, "QC", "uji", modulePermissions = mapOf(
-                BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(level = AccessLevel.OPERATE))))
+                GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(level = AccessLevel.OPERATE))))
         }
         application {
             module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),
@@ -72,9 +106,9 @@ class MyAccessApiTest {
         )
 
         val qc = access(TestAuth.staffToken(slug, customRoleId = "role-qc", role = Role.OPERATOR))
-        assertEquals(AccessLevel.OPERATE, qc.getValue(BusinessModule.QUALITY_CONTROL).config.level)
-        assertEquals(AccessLevel.NONE, qc.getValue(BusinessModule.DYNAMIC_RBAC).config.level)
-        assertEquals(BusinessModule.entries.toSet(), qc.keys, "semua modul dikirim — modul tanpa entri tidak ditebak klien")
+        assertEquals(AccessLevel.OPERATE, qc.getValue(GarmentModules.QUALITY_CONTROL).config.level)
+        assertEquals(AccessLevel.NONE, qc.getValue(GarmentModules.DYNAMIC_RBAC).config.level)
+        assertEquals(BusinessModules.entries.toSet(), qc.keys, "semua modul dikirim — modul tanpa entri tidak ditebak klien")
 
         // Gerbang setuju dengan menu: QC boleh inspeksi, tidak boleh membaca daftar jabatan.
         val qcToken = TestAuth.staffToken(slug, customRoleId = "role-qc", role = Role.OPERATOR)
@@ -82,7 +116,7 @@ class MyAccessApiTest {
         assertEquals(HttpStatusCode.Forbidden, roleList.status)
 
         val owner = access(TestAuth.tenantToken(slug, Role.TENANT_ADMIN))
-        assertEquals(AccessLevel.MANAGE, owner.getValue(BusinessModule.DYNAMIC_RBAC).config.level)
-        assertEquals(com.eventverse.app.domain.rbac.AccessSource.OWNER_BYPASS, owner.getValue(BusinessModule.DYNAMIC_RBAC).source)
+        assertEquals(AccessLevel.MANAGE, owner.getValue(GarmentModules.DYNAMIC_RBAC).config.level)
+        assertEquals(com.eventverse.app.domain.rbac.AccessSource.OWNER_BYPASS, owner.getValue(GarmentModules.DYNAMIC_RBAC).source)
     }
 }

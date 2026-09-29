@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.*
 
@@ -25,11 +27,11 @@ class CustomRoleTest {
     fun head_of_sales_preset_should_have_subordinate_data_scope() {
         val headSales = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("sales-head") }
 
-        val crmAccess = headSales.getAccess(BusinessModule.CRM_SALES)
+        val crmAccess = headSales.getAccess(GarmentModules.CRM_SALES)
         assertEquals(AccessLevel.MANAGE, crmAccess.level)
         assertEquals(DataScope.SUBORDINATE_DATA, crmAccess.scope)
 
-        val sampleAccess = headSales.getAccess(BusinessModule.SAMPLING_ORDER)
+        val sampleAccess = headSales.getAccess(GarmentModules.SAMPLING_ORDER)
         assertEquals(AccessLevel.MANAGE, sampleAccess.level)
         assertEquals(DataScope.SUBORDINATE_DATA, sampleAccess.scope)
     }
@@ -38,7 +40,7 @@ class CustomRoleTest {
     fun owner_preset_should_have_manage_access_to_all_modules() {
         val owner = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("owner") }
 
-        for (module in BusinessModule.entries) {
+        for (module in BusinessModules.entries) {
             assertTrue(
                 owner.hasAccess(module, AccessLevel.MANAGE),
                 "Owner must have MANAGE access to ${module.displayName}"
@@ -52,14 +54,14 @@ class CustomRoleTest {
         val operator = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("operator") }
 
         // Operator has OPERATE access on OPERATOR_EXEC with OWN_DATA_ONLY
-        val execAccess = operator.getAccess(BusinessModule.OPERATOR_EXEC)
+        val execAccess = operator.getAccess(GarmentModules.OPERATOR_EXEC)
         assertEquals(AccessLevel.OPERATE, execAccess.level)
         assertEquals(DataScope.OWN_DATA_ONLY, execAccess.scope)
 
         // Operator must NOT have access to costing or inventory
-        assertFalse(operator.hasAccess(BusinessModule.COSTING_HPP, AccessLevel.VIEW))
-        assertFalse(operator.hasAccess(BusinessModule.INVENTORY, AccessLevel.VIEW))
-        assertEquals(AccessLevel.NONE, operator.getAccess(BusinessModule.COSTING_HPP).level)
+        assertFalse(operator.hasAccess(GarmentModules.COSTING_HPP, AccessLevel.VIEW))
+        assertFalse(operator.hasAccess(GarmentModules.INVENTORY, AccessLevel.VIEW))
+        assertEquals(AccessLevel.NONE, operator.getAccess(GarmentModules.COSTING_HPP).level)
     }
 
     @Test
@@ -71,19 +73,19 @@ class CustomRoleTest {
             description = "Petugas potong kain"
         )
 
-        assertEquals(AccessLevel.NONE, role.getAccess(BusinessModule.INVENTORY).level)
+        assertEquals(AccessLevel.NONE, role.getAccess(GarmentModules.INVENTORY).level)
 
         val updated = role.updateModuleAccess(
-            module = BusinessModule.INVENTORY,
+            module = GarmentModules.INVENTORY,
             level = AccessLevel.OPERATE,
             scope = DataScope.ALL_TENANT_DATA
         )
 
         // Original remains unchanged
-        assertEquals(AccessLevel.NONE, role.getAccess(BusinessModule.INVENTORY).level)
+        assertEquals(AccessLevel.NONE, role.getAccess(GarmentModules.INVENTORY).level)
         // Updated has new access
-        assertEquals(AccessLevel.OPERATE, updated.getAccess(BusinessModule.INVENTORY).level)
-        assertEquals(DataScope.ALL_TENANT_DATA, updated.getAccess(BusinessModule.INVENTORY).scope)
+        assertEquals(AccessLevel.OPERATE, updated.getAccess(GarmentModules.INVENTORY).level)
+        assertEquals(DataScope.ALL_TENANT_DATA, updated.getAccess(GarmentModules.INVENTORY).scope)
     }
 
     @Test
@@ -114,24 +116,24 @@ class CustomRoleTest {
     @Test
     fun scope_capabilities_should_match_enterprise_garment_nature() {
         // Shared Enterprise Master Data should be GLOBAL_ONLY
-        assertTrue(BusinessModule.INVENTORY.isGlobalOnly)
-        assertTrue(BusinessModule.COSTING_HPP.isGlobalOnly)
-        assertTrue(BusinessModule.PRODUCTION_MRP.isGlobalOnly)
-        assertTrue(BusinessModule.TECH_PACK_BOM.isGlobalOnly)
-        assertTrue(BusinessModule.QUALITY_CONTROL.isGlobalOnly)
-        assertTrue(BusinessModule.FULFILLMENT.isGlobalOnly)
+        assertTrue(GarmentModules.INVENTORY.isGlobalOnly)
+        assertTrue(GarmentModules.COSTING_HPP.isGlobalOnly)
+        assertTrue(GarmentModules.PRODUCTION_MRP.isGlobalOnly)
+        assertTrue(GarmentModules.TECH_PACK_BOM.isGlobalOnly)
+        assertTrue(GarmentModules.QUALITY_CONTROL.isGlobalOnly)
+        assertTrue(GarmentModules.FULFILLMENT.isGlobalOnly)
 
-        assertEquals(setOf(DataScope.ALL_TENANT_DATA), BusinessModule.INVENTORY.supportedScopes)
-        assertEquals(setOf(DataScope.ALL_TENANT_DATA), BusinessModule.COSTING_HPP.supportedScopes)
+        assertEquals(setOf(DataScope.ALL_TENANT_DATA), GarmentModules.INVENTORY.supportedScopes)
+        assertEquals(setOf(DataScope.ALL_TENANT_DATA), GarmentModules.COSTING_HPP.supportedScopes)
 
         // Transactional / Boundary documents should be HIERARCHICAL
-        assertTrue(BusinessModule.CRM_SALES.isHierarchical)
-        assertTrue(BusinessModule.SAMPLING_ORDER.isHierarchical)
-        assertTrue(BusinessModule.OPERATOR_EXEC.isHierarchical)
+        assertTrue(GarmentModules.CRM_SALES.isHierarchical)
+        assertTrue(GarmentModules.SAMPLING_ORDER.isHierarchical)
+        assertTrue(GarmentModules.OPERATOR_EXEC.isHierarchical)
 
         val allScopes = setOf(DataScope.OWN_DATA_ONLY, DataScope.SUBORDINATE_DATA, DataScope.ALL_TENANT_DATA)
-        assertEquals(allScopes, BusinessModule.CRM_SALES.supportedScopes)
-        assertEquals(allScopes, BusinessModule.OPERATOR_EXEC.supportedScopes)
+        assertEquals(allScopes, GarmentModules.CRM_SALES.supportedScopes)
+        assertEquals(allScopes, GarmentModules.OPERATOR_EXEC.supportedScopes)
     }
 
     @Test
@@ -141,7 +143,7 @@ class CustomRoleTest {
             level = AccessLevel.OPERATE,
             scope = DataScope.OWN_DATA_ONLY
         )
-        val sanitized = invalidInventoryConfig.sanitizeFor(BusinessModule.INVENTORY)
+        val sanitized = invalidInventoryConfig.sanitizeFor(GarmentModules.INVENTORY)
         assertEquals(DataScope.ALL_TENANT_DATA, sanitized.scope)
 
         // For hierarchical modules, scope should remain as configured
@@ -149,7 +151,7 @@ class CustomRoleTest {
             level = AccessLevel.OPERATE,
             scope = DataScope.OWN_DATA_ONLY
         )
-        val untouched = validCrmConfig.sanitizeFor(BusinessModule.CRM_SALES)
+        val untouched = validCrmConfig.sanitizeFor(GarmentModules.CRM_SALES)
         assertEquals(DataScope.OWN_DATA_ONLY, untouched.scope)
     }
 

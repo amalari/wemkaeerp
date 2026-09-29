@@ -1,5 +1,37 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.shared.json.JsonParser
@@ -34,7 +66,7 @@ object TenantEntitlementGrantsCodec {
     fun decode(root: JsonValue.Obj): TenantEntitlementGrants = TenantEntitlementGrants(
         grantedModules = if (root[KEY_GRANTED_MODULES] is JsonValue.Arr) {
             root.stringArray(KEY_GRANTED_MODULES)
-                .mapNotNull { name -> BusinessModule.entries.firstOrNull { it.name == name } }
+                .mapNotNull { name -> ModuleIdCodec.fromStoredName(name, "entitlement.grantedModules") }
                 .toSet()
         } else {
             null

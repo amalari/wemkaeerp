@@ -1,5 +1,39 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
+import com.eventverse.app.domain.pack.ModuleIdCodec
+
 import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.pack.GarmentBlueprintParams
 
@@ -19,7 +53,7 @@ object OperationalModuleCatalog {
 
     /** Order intake: leads, negotiation, purchase orders. */
     object CrmSalesModule : OperationalModuleSpecification {
-        override val module = BusinessModule.CRM_SALES
+        override val module = GarmentModules.CRM_SALES
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = emptyList<String>()
@@ -28,7 +62,7 @@ object OperationalModuleCatalog {
 
     /** Prototype sampling and pattern approval before mass production. */
     object SamplingOrderModule : OperationalModuleSpecification {
-        override val module = BusinessModule.SAMPLING_ORDER
+        override val module = GarmentModules.SAMPLING_ORDER
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.SERVICE_FEE_ONLY
         override val upstreamPrerequisites = listOf("ProductionOrderDraft")
@@ -40,7 +74,7 @@ object OperationalModuleCatalog {
      * the fabric — the defining difference between CMT and a full package operation.
      */
     object InventoryModule : OperationalModuleSpecification {
-        override val module = BusinessModule.INVENTORY
+        override val module = GarmentModules.INVENTORY
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("MaterialRequisition")
@@ -52,7 +86,7 @@ object OperationalModuleCatalog {
      * di-bypass di preset makloon (paritas dengan PipelinePresetFactory).
      */
     object TechPackBomModule : OperationalModuleSpecification {
-        override val module = BusinessModule.TECH_PACK_BOM
+        override val module = GarmentModules.TECH_PACK_BOM
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("ApprovedSampleSpecification")
@@ -61,7 +95,7 @@ object OperationalModuleCatalog {
 
     /** Cost of goods calculation — the module whose rules differ most by business model. */
     object CostingHppModule : OperationalModuleSpecification {
-        override val module = BusinessModule.COSTING_HPP
+        override val module = GarmentModules.COSTING_HPP
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("TechPackAndYieldData", "VerifiedMaterialStock")
@@ -84,7 +118,7 @@ object OperationalModuleCatalog {
 
     /** Machine scheduling, cutting orders, mass production work orders. */
     object ProductionMrpModule : OperationalModuleSpecification {
-        override val module = BusinessModule.PRODUCTION_MRP
+        override val module = GarmentModules.PRODUCTION_MRP
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = listOf("CostingCalculationResult", "VerifiedMaterialStock")
@@ -93,7 +127,7 @@ object OperationalModuleCatalog {
 
     /** Sewing line execution and daily operator output. */
     object OperatorExecModule : OperationalModuleSpecification {
-        override val module = BusinessModule.OPERATOR_EXEC
+        override val module = GarmentModules.OPERATOR_EXEC
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.SERVICE_FEE_ONLY
         override val upstreamPrerequisites = listOf("CutPiecesBundle")
@@ -102,7 +136,7 @@ object OperationalModuleCatalog {
 
     /** Inspection and grading — the module that attributes defect liability. */
     object QualityControlModule : OperationalModuleSpecification {
-        override val module = BusinessModule.QUALITY_CONTROL
+        override val module = GarmentModules.QUALITY_CONTROL
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = listOf("AssembledGarmentBundle")
@@ -113,7 +147,7 @@ object OperationalModuleCatalog {
 
     /** Packing, delivery notes, dispatch. */
     object FulfillmentModule : OperationalModuleSpecification {
-        override val module = BusinessModule.FULFILLMENT
+        override val module = GarmentModules.FULFILLMENT
         override val stockOwnership = StockOwnershipSemantics.INTERNAL_FINISHED_GOODS
         override val costingBehavior = CostingBehavior.RETAIL_VALUATION_WITH_FEES
         override val upstreamPrerequisites = listOf("InspectedAndGradedUnit")
@@ -143,7 +177,7 @@ object OperationalModuleCatalog {
         byModule.getValue(module)
 
     fun specificationForCode(moduleCode: String): OperationalModuleSpecification? =
-        BusinessModule.entries.firstOrNull { it.code == moduleCode }?.let { byModule[it] }
+        ModuleIdCodec.standardOrNull(moduleCode)?.let { byModule[it] }
 
     /** Modules recommended as the starting set for a business model. */
     fun recommendedFor(blueprint: Blueprint): List<OperationalModuleSpecification> =

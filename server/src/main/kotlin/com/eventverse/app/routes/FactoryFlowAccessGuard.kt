@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessDecisionEngine
 import com.eventverse.app.domain.rbac.AccessLevel
@@ -17,7 +49,7 @@ import io.ktor.server.response.respond
 
 /**
  * Penjagaan wewenang untuk konfigurasi lokasi pabrik, bergerbang pada
- * [BusinessModule.FACTORY_FLOW].
+ * [GarmentModules.FACTORY_FLOW].
  *
  * ## Kenapa FACTORY_FLOW, bukan modul baru
  *
@@ -70,9 +102,9 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
     val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
     return AccessDecisionEngine.explain(
         persona = persona,
-        module = BusinessModule.FACTORY_FLOW,
+        module = GarmentModules.FACTORY_FLOW,
         role = role,
-        assignments = assignments[BusinessModule.FACTORY_FLOW].orEmpty(),
+        assignments = assignments[GarmentModules.FACTORY_FLOW].orEmpty(),
         grantedModules = grantedModulesOrNull
     )
 }
@@ -97,7 +129,7 @@ internal suspend fun ApplicationCall.requireFactoryFlowAccess(
     respond(
         HttpStatusCode.Forbidden,
         "Butuh wewenang ${required.displayName} atas modul " +
-            "\"${BusinessModule.FACTORY_FLOW.displayName}\"; wewenang Anda saat ini " +
+            "\"${GarmentModules.FACTORY_FLOW.displayName}\"; wewenang Anda saat ini " +
             "${effective.config.level.displayName} (${effective.source.label})."
     )
     return false

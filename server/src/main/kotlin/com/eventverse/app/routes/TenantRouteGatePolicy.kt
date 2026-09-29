@@ -1,18 +1,50 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessLevel.MANAGE
 import com.eventverse.app.domain.rbac.AccessLevel.OPERATE
 import com.eventverse.app.domain.rbac.AccessLevel.VIEW
-import com.eventverse.app.domain.rbac.BusinessModule.COSTING_HPP
-import com.eventverse.app.domain.rbac.BusinessModule.CRM_SALES
-import com.eventverse.app.domain.rbac.BusinessModule.DYNAMIC_RBAC
-import com.eventverse.app.domain.rbac.BusinessModule.FACTORY_FLOW
-import com.eventverse.app.domain.rbac.BusinessModule.FULFILLMENT
-import com.eventverse.app.domain.rbac.BusinessModule.OPERATOR_EXEC
-import com.eventverse.app.domain.rbac.BusinessModule.PRODUCTION_MRP
-import com.eventverse.app.domain.rbac.BusinessModule.QUALITY_CONTROL
-import com.eventverse.app.domain.rbac.BusinessModule.SAMPLING_ORDER
-import com.eventverse.app.domain.rbac.BusinessModule.TECH_PACK_BOM
+import com.eventverse.app.domain.pack.GarmentModules.COSTING_HPP
+import com.eventverse.app.domain.pack.GarmentModules.CRM_SALES
+import com.eventverse.app.domain.pack.GarmentModules.DYNAMIC_RBAC
+import com.eventverse.app.domain.pack.GarmentModules.FACTORY_FLOW
+import com.eventverse.app.domain.pack.GarmentModules.FULFILLMENT
+import com.eventverse.app.domain.pack.GarmentModules.OPERATOR_EXEC
+import com.eventverse.app.domain.pack.GarmentModules.PRODUCTION_MRP
+import com.eventverse.app.domain.pack.GarmentModules.QUALITY_CONTROL
+import com.eventverse.app.domain.pack.GarmentModules.SAMPLING_ORDER
+import com.eventverse.app.domain.pack.GarmentModules.TECH_PACK_BOM
 import io.ktor.http.HttpMethod
 
 /**

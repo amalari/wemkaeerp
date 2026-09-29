@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -139,7 +171,7 @@ fun AssignDepartmentModal(
         )
     }
     var selectedDesks by remember(initialAssignment, module) {
-        mutableStateOf(if (module == BusinessModule.OPERATOR_EXEC) initialAssignment?.allowedDesks else null)
+        mutableStateOf(if (module == GarmentModules.OPERATOR_EXEC) initialAssignment?.allowedDesks else null)
     }
 
     var showConfirmationView by remember(initialAssignment, isOpen) { mutableStateOf(false) }
@@ -647,7 +679,7 @@ fun AssignDepartmentModal(
                     }
                 }
 
-                if (module == BusinessModule.OPERATOR_EXEC && selectedAccessLevel != AccessLevel.NONE) {
+                if (module == GarmentModules.OPERATOR_EXEC && selectedAccessLevel != AccessLevel.NONE) {
                     Spacer(modifier = Modifier.height(12.dp))
                     OperatorDeskAccessPicker(
                         selected = selectedDesks,

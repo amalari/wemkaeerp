@@ -1,5 +1,39 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.*
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CoroutineScope
@@ -44,8 +78,8 @@ class RbacAccessPolicyRepositoryTest {
         description = "",
         departmentId = "dept-sales",
         modulePermissions = mapOf(
-            BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE),
-            BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW)
+            GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE),
+            GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW)
         )
     )
 
@@ -56,8 +90,8 @@ class RbacAccessPolicyRepositoryTest {
         description = "",
         departmentId = "dept-warehouse",
         modulePermissions = mapOf(
-            BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
-            BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE)
+            GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
+            GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE)
         )
     )
 
@@ -92,31 +126,31 @@ class RbacAccessPolicyRepositoryTest {
     fun `switching persona should replace effective permissions entirely`() {
         repository.setPersona(persona("Budi", "dept-sales", jabatanA))
 
-        assertEquals(AccessLevel.MANAGE, repository.accessFor(BusinessModule.CRM_SALES).level)
-        assertEquals(AccessLevel.VIEW, repository.accessFor(BusinessModule.INVENTORY).level)
+        assertEquals(AccessLevel.MANAGE, repository.accessFor(GarmentModules.CRM_SALES).level)
+        assertEquals(AccessLevel.VIEW, repository.accessFor(GarmentModules.INVENTORY).level)
 
         repository.setPersona(persona("Siti", "dept-warehouse", jabatanB))
 
-        assertEquals(AccessLevel.NONE, repository.accessFor(BusinessModule.CRM_SALES).level)
-        assertEquals(AccessLevel.MANAGE, repository.accessFor(BusinessModule.INVENTORY).level)
+        assertEquals(AccessLevel.NONE, repository.accessFor(GarmentModules.CRM_SALES).level)
+        assertEquals(AccessLevel.MANAGE, repository.accessFor(GarmentModules.INVENTORY).level)
     }
 
     @Test
     fun `editing the matrix should update permissions without re-selecting the persona`() {
         repository.setPersona(persona("Budi", "dept-sales", jabatanA))
-        assertEquals(AccessLevel.MANAGE, repository.accessFor(BusinessModule.CRM_SALES).level)
+        assertEquals(AccessLevel.MANAGE, repository.accessFor(GarmentModules.CRM_SALES).level)
 
         // Admin menutup akses CRM untuk jabatan A di layar RBAC.
         repository.syncRoles(
             listOf(
-                jabatanA.updateModuleAccess(BusinessModule.CRM_SALES, AccessLevel.NONE),
+                jabatanA.updateModuleAccess(GarmentModules.CRM_SALES, AccessLevel.NONE),
                 jabatanB
             )
         )
 
         assertEquals(
             AccessLevel.NONE,
-            repository.accessFor(BusinessModule.CRM_SALES).level,
+            repository.accessFor(GarmentModules.CRM_SALES).level,
             "Perubahan matriks harus langsung terasa tanpa memilih ulang persona"
         )
     }
@@ -124,11 +158,11 @@ class RbacAccessPolicyRepositoryTest {
     @Test
     fun `assigning a module to a division should open it for that division's persona`() {
         repository.setPersona(persona("Budi", "dept-sales", jabatanA))
-        assertEquals(AccessLevel.NONE, repository.accessFor(BusinessModule.QUALITY_CONTROL).level)
+        assertEquals(AccessLevel.NONE, repository.accessFor(GarmentModules.QUALITY_CONTROL).level)
 
         repository.syncAssignments(
             mapOf(
-                BusinessModule.QUALITY_CONTROL to listOf(
+                GarmentModules.QUALITY_CONTROL to listOf(
                     DepartmentModuleAssignment(
                         departmentId = "dept-sales",
                         departmentName = "Penjualan",
@@ -138,7 +172,7 @@ class RbacAccessPolicyRepositoryTest {
             )
         )
 
-        val decision = repository.accessDecisions.value.getValue(BusinessModule.QUALITY_CONTROL)
+        val decision = repository.accessDecisions.value.getValue(GarmentModules.QUALITY_CONTROL)
         assertEquals(AccessLevel.OPERATE, decision.config.level)
         assertEquals(AccessSource.DEPARTMENT, decision.source)
         assertTrue(
@@ -157,25 +191,25 @@ class RbacAccessPolicyRepositoryTest {
             description = "",
             departmentId = "dept-sablon-901",
             modulePermissions = mapOf(
-                BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.OPERATE)
+                GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.OPERATE)
             )
         )
         repository.syncRoles(listOf(jabatanA, jabatanB, jabatanBaru))
         repository.setPersona(persona("Wati", "dept-sablon-901", jabatanBaru))
 
-        assertEquals(AccessLevel.OPERATE, repository.accessFor(BusinessModule.PRODUCTION_MRP).level)
-        assertEquals(AccessLevel.NONE, repository.accessFor(BusinessModule.CRM_SALES).level)
+        assertEquals(AccessLevel.OPERATE, repository.accessFor(GarmentModules.PRODUCTION_MRP).level)
+        assertEquals(AccessLevel.NONE, repository.accessFor(GarmentModules.CRM_SALES).level)
     }
 
     @Test
     fun `clearing the persona should close every module`() {
         repository.setPersona(persona("Budi", "dept-sales", jabatanA))
-        assertTrue(repository.accessFor(BusinessModule.CRM_SALES).isAccessible)
+        assertTrue(repository.accessFor(GarmentModules.CRM_SALES).isAccessible)
 
         repository.setPersona(null)
 
         assertTrue(
-            BusinessModule.entries.none { repository.accessFor(it).isAccessible },
+            BusinessModules.entries.none { repository.accessFor(it).isAccessible },
             "Tanpa persona tidak ada modul yang boleh terbuka"
         )
     }

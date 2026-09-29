@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -185,7 +217,7 @@ fun DynamicRbacScreen(
 
                 when (state.viewMode) {
                     RbacViewMode.PER_MODULE -> {
-                        val filteredModules = BusinessModule.entries.filter { module ->
+                        val filteredModules = BusinessModules.entries.filter { module ->
                             state.searchQuery.isBlank() ||
                                     module.displayName.contains(state.searchQuery, ignoreCase = true) ||
                                     module.description.contains(state.searchQuery, ignoreCase = true)

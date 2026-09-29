@@ -68,6 +68,10 @@ fun Route.operationalModuleRoutes(
     traceScanHost: String,
     poFileStorage: PoFileStorage? = null
 ) {
+    // B6c: kunci modul tersimpan yang tak dikenal ditolak (fail-closed) tapi kini meninggalkan jejak di log.
+    com.eventverse.app.domain.pack.ModuleIdCodec.unknownSink = com.eventverse.app.domain.pack.ModuleIdCodec.UnknownSink { location, raw ->
+        org.slf4j.LoggerFactory.getLogger("ModuleIdCodec").warn("Kunci modul tak dikenal di {}: '{}' — diabaikan (akses tidak diberikan)", location, raw)
+    }
     // B5: satu gerbang untuk grup route yang tersebar di banyak file (lihat TenantRouteGatePolicy).
     route("/api/tenant") { tenantRouteGate(roleRepo, assignmentRepo) }
     myAccessRoutes(roleRepo, assignmentRepo)

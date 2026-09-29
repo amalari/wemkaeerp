@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.auth.Permission
 import com.eventverse.app.domain.costing.*
 import com.eventverse.app.domain.costing.usecases.*
@@ -101,8 +133,8 @@ fun Route.costingRoutes(
     route("/api/tenant/costing") {
         // B5: lembar HPP = OPERATE; rate card (tarif dasar semua perhitungan) = MANAGE.
         if (roleRepository != null && moduleAssignmentRepository != null) {
-            moduleGate(BusinessModule.COSTING_HPP, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
-                if (method != io.ktor.http.HttpMethod.Get && path.endsWith("/rate-card")) GateRule(AccessLevel.MANAGE, listOf(BusinessModule.COSTING_HPP)) else null
+            moduleGate(GarmentModules.COSTING_HPP, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+                if (method != io.ktor.http.HttpMethod.Get && path.endsWith("/rate-card")) GateRule(AccessLevel.MANAGE, listOf(GarmentModules.COSTING_HPP)) else null
             }
         }
 
@@ -299,7 +331,7 @@ fun Route.costingRoutes(
                 roleRepository != null && principal.customRoleId != null -> {
                     val role = roleRepository.findById(tenant.tenantId, RoleId(principal.customRoleId))
                     role != null && (
-                        role.hasAccess(BusinessModule.COSTING_HPP, AccessLevel.MANAGE) ||
+                        role.hasAccess(GarmentModules.COSTING_HPP, AccessLevel.MANAGE) ||
                         role.isSystemOwnerRole
                     )
                 }
@@ -756,5 +788,5 @@ private suspend fun ApplicationCall.canManageCosting(
 
     val customRoleId = principal.customRoleId ?: return false
     val role = roleRepository?.findById(tenant.tenantId, RoleId(customRoleId)) ?: return false
-    return role.hasAccess(BusinessModule.COSTING_HPP, AccessLevel.MANAGE) || role.isSystemOwnerRole
+    return role.hasAccess(GarmentModules.COSTING_HPP, AccessLevel.MANAGE) || role.isSystemOwnerRole
 }

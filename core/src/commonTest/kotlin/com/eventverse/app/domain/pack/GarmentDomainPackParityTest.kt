@@ -1,5 +1,35 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
 import com.eventverse.app.domain.pipeline.defaultProducedOutputType
 
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
@@ -72,16 +102,16 @@ class GarmentDomainPackParityTest {
 
     /** Salinan persis `enum class ModuleArchetype` terakhir (commit 171038e), urutan deklarasi dipertahankan. */
     private val LEGACY_ARCHETYPES = listOf(
-        LegacySlot("order_ingestion", "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", BusinessModule.CRM_SALES),
-        LegacySlot("raw_material", "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", BusinessModule.INVENTORY),
-        LegacySlot("product_engineering", "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", BusinessModule.TECH_PACK_BOM),
-        LegacySlot("costing_hpp", "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", BusinessModule.COSTING_HPP),
-        LegacySlot("cutting", "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", BusinessModule.PRODUCTION_MRP),
-        LegacySlot("sewing", "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", BusinessModule.OPERATOR_EXEC),
-        LegacySlot("finishing", "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", BusinessModule.OPERATOR_EXEC),
-        LegacySlot("quality_control", "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", BusinessModule.QUALITY_CONTROL),
-        LegacySlot("fulfillment", "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", BusinessModule.FULFILLMENT),
-        LegacySlot("custom_extension", "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", BusinessModule.PRODUCTION_MRP)
+        LegacySlot("order_ingestion", "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES),
+        LegacySlot("raw_material", "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY),
+        LegacySlot("product_engineering", "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM),
+        LegacySlot("costing_hpp", "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP),
+        LegacySlot("cutting", "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", GarmentModules.PRODUCTION_MRP),
+        LegacySlot("sewing", "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", GarmentModules.OPERATOR_EXEC),
+        LegacySlot("finishing", "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", GarmentModules.OPERATOR_EXEC),
+        LegacySlot("quality_control", "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", GarmentModules.QUALITY_CONTROL),
+        LegacySlot("fulfillment", "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", GarmentModules.FULFILLMENT),
+        LegacySlot("custom_extension", "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", GarmentModules.PRODUCTION_MRP)
     )
 
     @Test

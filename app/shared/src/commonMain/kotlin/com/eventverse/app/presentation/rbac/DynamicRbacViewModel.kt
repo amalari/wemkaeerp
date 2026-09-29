@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.*
 import com.eventverse.app.domain.tenant.TenantId
@@ -88,7 +120,7 @@ class DynamicRbacViewModel(
         val mgmtDept = depts.find { it.code.equals("management", ignoreCase = true) || it.code.contains("finance", ignoreCase = true) }
 
         return mapOf(
-            BusinessModule.CRM_SALES to listOfNotNull(
+            GarmentModules.CRM_SALES to listOfNotNull(
                 salesDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -107,7 +139,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.SAMPLING_ORDER to listOfNotNull(
+            GarmentModules.SAMPLING_ORDER to listOfNotNull(
                 salesDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -125,7 +157,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.MASTER_DATA to listOfNotNull(
+            GarmentModules.MASTER_DATA to listOfNotNull(
                 whDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -135,7 +167,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.INVENTORY to listOfNotNull(
+            GarmentModules.INVENTORY to listOfNotNull(
                 whDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -145,7 +177,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.TECH_PACK_BOM to listOfNotNull(
+            GarmentModules.TECH_PACK_BOM to listOfNotNull(
                 cutDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -163,7 +195,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.COSTING_HPP to listOfNotNull(
+            GarmentModules.COSTING_HPP to listOfNotNull(
                 mgmtDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -173,7 +205,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.PRODUCTION_MRP to listOfNotNull(
+            GarmentModules.PRODUCTION_MRP to listOfNotNull(
                 sewDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -183,7 +215,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.OPERATOR_EXEC to listOfNotNull(
+            GarmentModules.OPERATOR_EXEC to listOfNotNull(
                 sewDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -193,7 +225,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.QUALITY_CONTROL to listOfNotNull(
+            GarmentModules.QUALITY_CONTROL to listOfNotNull(
                 qcDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,
@@ -203,7 +235,7 @@ class DynamicRbacViewModel(
                     )
                 }
             ),
-            BusinessModule.FULFILLMENT to listOfNotNull(
+            GarmentModules.FULFILLMENT to listOfNotNull(
                 finishDept?.let {
                     DepartmentModuleAssignment(
                         departmentId = it.id.value,

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.tenant.TenantId
@@ -46,10 +48,10 @@ class GovernanceModuleAccessTest {
     fun module_notGrantedToTenant_shouldBeReportedAsNotEntitled() {
         val decision = AccessDecisionEngine.explain(
             persona = persona(salesRole),
-            module = BusinessModule.FACTORY_FLOW,
+            module = GarmentModules.FACTORY_FLOW,
             role = salesRole,
             assignments = emptyList(),
-            grantedModules = BusinessModule.entries.toSet() - BusinessModule.FACTORY_FLOW
+            grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
         )
 
         assertEquals(AccessSource.NOT_ENTITLED, decision.source)
@@ -63,10 +65,10 @@ class GovernanceModuleAccessTest {
         // "Owner-nya berwenang tapi stafnya tidak" — ia tidak ada untuk pabrik itu.
         val decision = AccessDecisionEngine.explain(
             persona = persona(role = null, isOwner = true),
-            module = BusinessModule.DYNAMIC_RBAC,
+            module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
-            grantedModules = BusinessModule.entries.toSet() - BusinessModule.DYNAMIC_RBAC
+            grantedModules = BusinessModules.entries.toSet() - GarmentModules.DYNAMIC_RBAC
         )
 
         assertEquals(AccessSource.NOT_ENTITLED, decision.source)
@@ -79,10 +81,10 @@ class GovernanceModuleAccessTest {
         // superadmin harus tetap bisa melihat menu dan mengonfigurasi modul tersebut.
         val decision = AccessDecisionEngine.explain(
             persona = persona(role = null, isSuperAdmin = true),
-            module = BusinessModule.DYNAMIC_RBAC,
+            module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
-            grantedModules = BusinessModule.entries.toSet() - BusinessModule.DYNAMIC_RBAC
+            grantedModules = BusinessModules.entries.toSet() - GarmentModules.DYNAMIC_RBAC
         )
 
         assertEquals(AccessSource.SUPERADMIN_BYPASS, decision.source)
@@ -97,7 +99,7 @@ class GovernanceModuleAccessTest {
         // boleh tampil sebagai langganan yang dicabut.
         val decision = AccessDecisionEngine.explain(
             persona = persona(role = null, isOwner = true),
-            module = BusinessModule.DYNAMIC_RBAC,
+            module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
             grantedModules = null
@@ -113,10 +115,10 @@ class GovernanceModuleAccessTest {
         // jabatan yang tidak diberi akses.
         val decision = AccessDecisionEngine.explain(
             persona = persona(salesRole),
-            module = BusinessModule.DYNAMIC_RBAC,
+            module = GarmentModules.DYNAMIC_RBAC,
             role = salesRole,
             assignments = emptyList(),
-            grantedModules = BusinessModule.entries.toSet()
+            grantedModules = BusinessModules.entries.toSet()
         )
 
         assertEquals(AccessSource.NONE, decision.source)
@@ -127,11 +129,11 @@ class GovernanceModuleAccessTest {
 
     @Test
     fun ownerRole_shouldRefuseToLowerItsOwnRbacAccess() {
-        val downgraded = ownerRole.updateModuleAccess(BusinessModule.DYNAMIC_RBAC, AccessLevel.NONE)
+        val downgraded = ownerRole.updateModuleAccess(GarmentModules.DYNAMIC_RBAC, AccessLevel.NONE)
 
         assertEquals(
             AccessLevel.MANAGE,
-            downgraded.getAccess(BusinessModule.DYNAMIC_RBAC).level,
+            downgraded.getAccess(GarmentModules.DYNAMIC_RBAC).level,
             "Jabatan Owner tidak boleh kehilangan satu-satunya layar untuk memperbaiki matriks"
         )
     }
@@ -141,35 +143,35 @@ class GovernanceModuleAccessTest {
         // Jalur API mengganti seluruh matriks sekaligus; matriks yang tidak menyebut DYNAMIC_RBAC
         // sama artinya dengan menyetelnya ke NONE bagi Owner.
         val rewritten = ownerRole.withModulePermissions(
-            mapOf(BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW))
+            mapOf(GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW))
         )
 
-        assertEquals(AccessLevel.MANAGE, rewritten.getAccess(BusinessModule.DYNAMIC_RBAC).level)
+        assertEquals(AccessLevel.MANAGE, rewritten.getAccess(GarmentModules.DYNAMIC_RBAC).level)
     }
 
     @Test
     fun nonOwnerRole_shouldBeFreelyAdjustableOnRbac() {
-        val raised = salesRole.updateModuleAccess(BusinessModule.DYNAMIC_RBAC, AccessLevel.MANAGE)
-        val lowered = raised.updateModuleAccess(BusinessModule.DYNAMIC_RBAC, AccessLevel.NONE)
+        val raised = salesRole.updateModuleAccess(GarmentModules.DYNAMIC_RBAC, AccessLevel.MANAGE)
+        val lowered = raised.updateModuleAccess(GarmentModules.DYNAMIC_RBAC, AccessLevel.NONE)
 
-        assertEquals(AccessLevel.MANAGE, raised.getAccess(BusinessModule.DYNAMIC_RBAC).level)
-        assertEquals(AccessLevel.NONE, lowered.getAccess(BusinessModule.DYNAMIC_RBAC).level)
+        assertEquals(AccessLevel.MANAGE, raised.getAccess(GarmentModules.DYNAMIC_RBAC).level)
+        assertEquals(AccessLevel.NONE, lowered.getAccess(GarmentModules.DYNAMIC_RBAC).level)
     }
 
     @Test
     fun ownerRole_shouldRemainAdjustableOnOtherGovernanceModules() {
         // Hanya modul RBAC yang dikunci. Mengunci lebih dari itu akan menjadi pembatasan yang tidak
         // dibutuhkan oleh alasan anti-lockout mana pun.
-        val lowered = ownerRole.updateModuleAccess(BusinessModule.FACTORY_FLOW, AccessLevel.VIEW)
+        val lowered = ownerRole.updateModuleAccess(GarmentModules.FACTORY_FLOW, AccessLevel.VIEW)
 
-        assertEquals(AccessLevel.VIEW, lowered.getAccess(BusinessModule.FACTORY_FLOW).level)
+        assertEquals(AccessLevel.VIEW, lowered.getAccess(GarmentModules.FACTORY_FLOW).level)
     }
 
     // ── Bentuk modul tata kelola ─────────────────────────────────────────────────────────────
 
     @Test
     fun governanceModules_shouldFillNoCapabilitySlot() {
-        BusinessModule.governance.forEach { module ->
+        BusinessModules.governance.forEach { module ->
             assertEquals(
                 null,
                 GarmentSlots.forModule(module),
@@ -180,20 +182,20 @@ class GovernanceModuleAccessTest {
 
     @Test
     fun operationalModules_shouldAllStillFillACapabilitySlot() {
-        BusinessModule.operational.forEach { module ->
+        BusinessModules.operational.forEach { module ->
             assertNotNull(GarmentSlots.forModule(module))
         }
     }
 
     @Test
     fun orgChart_shouldBeGlobalOnly() {
-        assertTrue(BusinessModule.ORG_CHART.isGlobalOnly)
-        assertEquals(setOf(DataScope.ALL_TENANT_DATA), BusinessModule.ORG_CHART.supportedScopes)
+        assertTrue(GarmentModules.ORG_CHART.isGlobalOnly)
+        assertEquals(setOf(DataScope.ALL_TENANT_DATA), GarmentModules.ORG_CHART.supportedScopes)
     }
 
     @Test
     fun rbacAndFactoryFlow_shouldBeGlobalOnly() {
-        assertTrue(BusinessModule.DYNAMIC_RBAC.isGlobalOnly)
-        assertTrue(BusinessModule.FACTORY_FLOW.isGlobalOnly)
+        assertTrue(GarmentModules.DYNAMIC_RBAC.isGlobalOnly)
+        assertTrue(GarmentModules.FACTORY_FLOW.isGlobalOnly)
     }
 }

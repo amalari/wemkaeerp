@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.TestAuth
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -68,8 +100,8 @@ class FinancialGateTest {
         val roles = InMemoryRoleRepository()
         runBlocking {
             tenants.save(Tenant(tenantId, TenantSlug(slug), TenantName("Gate Fin"), TenantStatus.ACTIVE, SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON))
-            roles.save(role("role-sampler", BusinessModule.SAMPLING_ORDER, AccessLevel.VIEW))
-            roles.save(role("role-coster", BusinessModule.COSTING_HPP, AccessLevel.OPERATE))
+            roles.save(role("role-sampler", GarmentModules.SAMPLING_ORDER, AccessLevel.VIEW))
+            roles.save(role("role-coster", GarmentModules.COSTING_HPP, AccessLevel.OPERATE))
         }
         application {
             module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),

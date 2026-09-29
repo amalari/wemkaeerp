@@ -1,5 +1,37 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
@@ -63,7 +95,7 @@ class PostgresTenantEntitlementRepositoryIntegrationTest {
     fun saveAndFind_shouldRoundTripNarrowedBuiltInCatalogue() = runBlocking<Unit> {
         val tenant = createTenant()
         val grants = TenantEntitlementGrants(
-            grantedModules = setOf(BusinessModule.CRM_SALES, BusinessModule.OPERATOR_EXEC),
+            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC),
             grantedCustomModuleIds = emptySet()
         )
 

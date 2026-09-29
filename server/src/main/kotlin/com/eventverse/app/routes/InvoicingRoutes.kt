@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.RoleRepository
 
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
@@ -54,9 +86,9 @@ fun Route.invoicingRoutes(
 
     route("/api/tenant/invoicing") {
         // B5: transaksi invoice = OPERATE; template & profil penerbit (identitas hukum di dokumen) = MANAGE.
-        moduleGate(BusinessModule.INVOICING, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
+        moduleGate(GarmentModules.INVOICING, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE) { method, path ->
             val isConfig = path.contains("/templates") || path.endsWith("/issuer-profile")
-            if (method != io.ktor.http.HttpMethod.Get && isConfig) GateRule(AccessLevel.MANAGE, listOf(BusinessModule.INVOICING)) else null
+            if (method != io.ktor.http.HttpMethod.Get && isConfig) GateRule(AccessLevel.MANAGE, listOf(GarmentModules.INVOICING)) else null
         }
 
         // ── INVOICES API ──────────────────────────────────────────────────────────

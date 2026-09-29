@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -23,7 +55,7 @@ class PipelinePresetFactoryTest {
         assertTrue(snapshot.overallHealthScore in 40..100)
 
         // Verify key nodes exist
-        val inventoryNode = snapshot.nodes.firstOrNull { it.module == BusinessModule.INVENTORY }
+        val inventoryNode = snapshot.nodes.firstOrNull { it.module == GarmentModules.INVENTORY }
         assertNotNull(inventoryNode)
         assertFalse(inventoryNode.isBypassed)
         assertEquals(FlowHealthStatus.HEALTHY, inventoryNode.healthStatus)
@@ -39,12 +71,12 @@ class PipelinePresetFactoryTest {
         assertEquals(7, snapshot.activeModulesCount)
 
         // Inventory & Tech Pack must be bypassed because buyer supplies them
-        val inventoryNode = snapshot.nodes.first { it.module == BusinessModule.INVENTORY }
+        val inventoryNode = snapshot.nodes.first { it.module == GarmentModules.INVENTORY }
         assertTrue(inventoryNode.isBypassed)
         assertEquals(FlowHealthStatus.BYPASSED, inventoryNode.healthStatus)
         assertEquals(0, inventoryNode.wipPieces)
 
-        val techPackNode = snapshot.nodes.first { it.module == BusinessModule.TECH_PACK_BOM }
+        val techPackNode = snapshot.nodes.first { it.module == GarmentModules.TECH_PACK_BOM }
         assertTrue(techPackNode.isBypassed)
         assertEquals(FlowHealthStatus.BYPASSED, techPackNode.healthStatus)
     }
@@ -59,7 +91,7 @@ class PipelinePresetFactoryTest {
         assertEquals(9, snapshot.activeModulesCount)
 
         // Operator sewing must have active WIP
-        val operatorNode = snapshot.nodes.first { it.module == BusinessModule.OPERATOR_EXEC }
+        val operatorNode = snapshot.nodes.first { it.module == GarmentModules.OPERATOR_EXEC }
         assertFalse(operatorNode.isBypassed)
         assertTrue(operatorNode.wipPieces > 0)
     }

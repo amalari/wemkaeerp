@@ -1,5 +1,37 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
@@ -27,7 +59,7 @@ class TenantEntitlementGrantsCodecTest {
     @Test
     fun encodeThenDecode_withNarrowedModuleSet_shouldRoundTrip() {
         val grants = TenantEntitlementGrants(
-            grantedModules = setOf(BusinessModule.CRM_SALES, BusinessModule.OPERATOR_EXEC),
+            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC),
             grantedCustomModuleIds = emptySet()
         )
 
@@ -64,6 +96,6 @@ class TenantEntitlementGrantsCodecTest {
             """{"grantedModules":["CRM_SALES","NOT_A_REAL_MODULE"],"grantedCustomModuleIds":[]}"""
         )
 
-        assertEquals(setOf(BusinessModule.CRM_SALES), decoded.grantedModules)
+        assertEquals(setOf(GarmentModules.CRM_SALES), decoded.grantedModules)
     }
 }

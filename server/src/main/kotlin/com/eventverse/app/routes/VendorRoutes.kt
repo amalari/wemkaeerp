@@ -1,5 +1,37 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
@@ -44,7 +76,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 
 /**
- * REST Kontak Vendor & penugasan vendor (`BusinessModule.VENDOR_CONTACTS`).
+ * REST Kontak Vendor & penugasan vendor (`GarmentModules.VENDOR_CONTACTS`).
  *
  * Membaca (daftar vendor, antrean) cukup `VIEW` — staf sampling perlu tahu vendornya siapa.
  * Semua penulisan butuh `MANAGE`: menambah vendor, mengubah harga, dan menunjuk vendor adalah
@@ -69,7 +101,7 @@ fun Route.vendorRoutes(
             respond(HttpStatusCode.NotFound, "No tenant context found")
             return null
         }
-        val module = BusinessModule.VENDOR_CONTACTS
+        val module = GarmentModules.VENDOR_CONTACTS
         val decision = moduleDecision(module, tenant, roleRepository, moduleAssignmentRepository)
         return tenant.takeIf { requireModuleAccess(module, decision, required) }
     }

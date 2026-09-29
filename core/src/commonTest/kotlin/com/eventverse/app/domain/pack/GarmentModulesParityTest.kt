@@ -1,5 +1,37 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -58,7 +90,7 @@ class GarmentModulesParityTest {
     /** Dasar "nol migrasi" (TRD FR-1): kunci NAME tersimpan = code.uppercase() untuk setiap modul. */
     @Test
     fun storedName_isCodeUppercased_forEveryModule() {
-        BusinessModule.entries.forEach { assertEquals(it.name, ModuleId(it.code).storedName, it.code) }
-        assertEquals(BusinessModule.entries.map { it.code }, pack.modules.map { it.id.value })
+        BusinessModules.entries.forEach { assertEquals(it.name, ModuleId(it.code).storedName, it.code) }
+        assertEquals(BusinessModules.entries.map { it.code }, pack.modules.map { it.id.value })
     }
 }

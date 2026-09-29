@@ -1,5 +1,37 @@
 package com.eventverse.app.presentation.tenant
 
+import com.eventverse.app.domain.rbac.isScopeSupported
+
+import com.eventverse.app.domain.rbac.isFoundation
+
+import com.eventverse.app.domain.rbac.isOperational
+
+import com.eventverse.app.domain.rbac.isGovernance
+
+import com.eventverse.app.domain.rbac.isHierarchical
+
+import com.eventverse.app.domain.rbac.isGlobalOnly
+
+import com.eventverse.app.domain.rbac.category
+
+import com.eventverse.app.domain.rbac.supportedScopes
+
+import com.eventverse.app.domain.rbac.kind
+
+import com.eventverse.app.domain.rbac.scopeCapability
+
+import com.eventverse.app.domain.rbac.iconKey
+
+import com.eventverse.app.domain.rbac.description
+
+import com.eventverse.app.domain.rbac.displayName
+
+import com.eventverse.app.domain.rbac.name
+
+import com.eventverse.app.domain.rbac.code
+
+import com.eventverse.app.domain.rbac.BusinessModules
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -187,7 +219,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Sistem & Tata Kelola",
                                     subtitle = "Tidak memakan kuota modul produksi.",
-                                    modules = BusinessModule.governance,
+                                    modules = BusinessModules.governance,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -197,7 +229,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Data Induk & Referensi",
                                     subtitle = "Master data, vendor, penagihan. Tidak memakan kuota modul produksi.",
-                                    modules = BusinessModule.foundation,
+                                    modules = BusinessModules.foundation,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -207,7 +239,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Operasional Pabrik",
                                     subtitle = "Terhitung terhadap batas paket langganan.",
-                                    modules = BusinessModule.operational,
+                                    modules = BusinessModules.operational,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentModules
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.jvm.JvmInline
 
@@ -53,7 +55,7 @@ data class CustomRole(
      * matriksnya turun ke `NONE`, tidak tersisa satu pun layar untuk menaikkannya kembali.
      */
     private fun enforce(module: BusinessModule, config: ModuleAccessConfig): ModuleAccessConfig {
-        val locked = isSystemOwnerRole && module == BusinessModule.DYNAMIC_RBAC
+        val locked = isSystemOwnerRole && module == GarmentModules.DYNAMIC_RBAC
         return if (locked) {
             ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
         } else {
@@ -86,7 +88,7 @@ data class CustomRole(
         // Modul yang tidak disebut pemanggil tetap harus tunduk: matriks tanpa kunci DYNAMIC_RBAC
         // sama saja dengan menyetelnya ke NONE bagi Owner.
         val withOwnerLock = if (isSystemOwnerRole) {
-            enforced + (BusinessModule.DYNAMIC_RBAC to
+            enforced + (GarmentModules.DYNAMIC_RBAC to
                 ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA))
         } else {
             enforced
@@ -119,7 +121,7 @@ data class CustomRole(
                     description = "Pemilik usaha dengan akses penuh ke seluruh modul, keuangan rahasia, dan manajemen staf.",
                     isSystemDefault = true,
                     userCount = 1,
-                    modulePermissions = BusinessModule.entries.associateWith {
+                    modulePermissions = BusinessModules.entries.associateWith {
                         ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
                     }
                 ),
@@ -134,21 +136,21 @@ data class CustomRole(
                     modulePermissions = mapOf(
                         // Kepala produksi memiliki kanvas alur, melihat bagan divisinya, dan tidak
                         // menyentuh matriks wewenang.
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA),
-                        BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
-                        BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
+                        GarmentModules.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.SUBORDINATE_DATA),
+                        GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
+                        GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.INVOICING to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA)
                     )
                 ),
                 CustomRole(
@@ -160,21 +162,21 @@ data class CustomRole(
                     userCount = 1,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
-                        BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
-                        BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
-                        BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA)
+                        GarmentModules.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
+                        GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA),
+                        GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.SUBORDINATE_DATA),
+                        GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.INVOICING to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.SUBORDINATE_DATA)
                     )
                 ),
                 CustomRole(
@@ -186,21 +188,21 @@ data class CustomRole(
                     userCount = 4,
                     departmentId = "dept-${prefix}sales",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
-                        BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
-                        BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY),
-                        BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY)
+                        GarmentModules.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
+                        GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
+                        GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY),
+                        GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.INVOICING to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY)
                     )
                 ),
                 CustomRole(
@@ -212,21 +214,21 @@ data class CustomRole(
                     userCount = 3,
                     departmentId = "dept-${prefix}warehouse",
                     modulePermissions = mapOf(
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
+                        GarmentModules.ORG_CHART to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
                     )
                 ),
                 CustomRole(
@@ -239,21 +241,21 @@ data class CustomRole(
                     departmentId = "dept-${prefix}ppic",
                     modulePermissions = mapOf(
                         // Operator bekerja di satu layar input; seluruh layar tata kelola tertutup.
-                        BusinessModule.ORG_CHART to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.INVENTORY to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.COSTING_HPP to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
-                        BusinessModule.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
-                        BusinessModule.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.FULFILLMENT to ModuleAccessConfig(AccessLevel.NONE),
-                        BusinessModule.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
+                        GarmentModules.ORG_CHART to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.DYNAMIC_RBAC to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FACTORY_FLOW to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.MASTER_DATA to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.VENDOR_CONTACTS to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.CRM_SALES to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.INVENTORY to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.TECH_PACK_BOM to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.COSTING_HPP to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.PRODUCTION_MRP to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA),
+                        GarmentModules.OPERATOR_EXEC to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.OWN_DATA_ONLY),
+                        GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.FULFILLMENT to ModuleAccessConfig(AccessLevel.NONE),
+                        GarmentModules.INVOICING to ModuleAccessConfig(AccessLevel.NONE)
                     )
                 )
             )
