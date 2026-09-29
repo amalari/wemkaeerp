@@ -119,7 +119,9 @@ class PipelineModuleApiTest {
 
         assertEquals(HttpStatusCode.Forbidden, activation.status)
         assertEquals(HttpStatusCode.Forbidden, reset.status)
-        assertEquals(HttpStatusCode.OK, read.status, "membaca kanvas tetap boleh")
+        // B5 (2026-09-29): dulu membaca kanvas terbuka untuk semua anggota tenant (fail-open). Kini butuh
+        // Factory Flow VIEW — operator tanpa jabatan/divisi tidak punya wewenang apa pun, sama seperti menunya.
+        assertEquals(HttpStatusCode.Forbidden, read.status, "membaca kanvas butuh Factory Flow VIEW")
         val stored = runBlocking { pipeRepo.findByTenantId(proTenantId) }
         assertTrue(stored?.nodes?.none { it.moduleId == "operator_exec" && it.isBypassed } ?: true, "tulis yang ditolak tidak boleh tersimpan")
     }

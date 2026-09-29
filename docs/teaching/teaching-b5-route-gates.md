@@ -50,6 +50,11 @@ Pembaca diturunkan dari **pemakai nyata di klien**, bukan dari nama modul:
 | Katalog bahan | Master Data · Sampling · Tech Pack (dropdown) | Master Data OPERATE |
 | Harga bahan | Master Data · Costing | kebijakan harga = MANAGE |
 | HPP / Invoice | modulnya | OPERATE; rate card/template/profil penerbit = MANAGE |
+| Tech pack | Tech Pack · Costing | Tech Pack OPERATE |
+| Work order produksi | Produksi · CRM (detail deal) | Produksi OPERATE; `launch-from-deal` = Produksi/CRM |
+| Surat jalan & fulfillment | Fulfillment | Fulfillment OPERATE |
+| Kanvas Factory Flow | Factory Flow | (guard lama, fail-closed) |
+| `billing-preview`, `customization-requests` | admin tata kelola (RBAC MANAGE) — tidak dipanggil klien | idem |
 | Jabatan, penugasan, divisi | **belum digerbang** — klien menghitung menu dari sini | MANAGE |
 
 ## ⚠️ 4. Jebakan
@@ -67,8 +72,9 @@ Pembaca diturunkan dari **pemakai nyata di klien**, bukan dari nama modul:
 
 ## 🧪 5. Pembuktian
 
-- Ledger: **151 → 39** (11 RBAC/Org Chart tulis + 48 keuangan + 52 SPK/lantai; `stage-templates` dipindah ke
-  "sengaja terbuka" karena berisi katalog platform).
+- Ledger: **151 → 5** (11 RBAC/Org Chart tulis + 48 keuangan + 52 SPK/lantai + 34 Tech Pack/Produksi/Surat
+  jalan/Fulfillment/Pipeline/Platform; `stage-templates` dipindah ke "sengaja terbuka" karena berisi katalog
+  platform). Sisa 5 = baca jabatan/penugasan/divisi, menunggu endpoint "wewenang saya".
 - `RbacWriteGateTest`, `FinancialGateTest`, `FloorGateTest`, `TenantRouteGatePolicyTest`; server 240 hijau.
 - Server nyata `bordir-uji`: owner 200, operator tanpa jabatan 403. Satu-satunya pengguna tanpa jabatan di kedua DB
   adalah persona uji; semua pengguna nyata adalah owner.
@@ -76,5 +82,8 @@ Pembaca diturunkan dari **pemakai nyata di klien**, bukan dari nama modul:
 ## 🧭 6. Sisa
 
 - Endpoint **"wewenang saya"** dihitung di server, lalu tutup baca RBAC/Org Chart.
-- Sisa ledger: Tech Pack, Production, Fulfillment, Factory Flow, Platform.
+- Baca kanvas Factory Flow **tidak lagi fail-open**: dulu terbuka untuk semua anggota tenant, kini butuh
+  Factory Flow VIEW (`PipelineModuleApiTest` diperbarui dengan alasan eksplisit).
+- `moduleDecision` juga melewati query penugasan untuk pengguna **tanpa divisi** (`resolveDepartmentAccess`
+  tidak pernah mencocokkannya).
 - `PUT /sampling/orders/{id}` untuk SPK yang tidak ada menjawab 500, bukan 404 (utang handler, bukan gerbang).
