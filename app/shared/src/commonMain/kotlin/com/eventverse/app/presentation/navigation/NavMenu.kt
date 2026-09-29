@@ -35,7 +35,7 @@ import com.eventverse.app.domain.rbac.BusinessModules
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
-import com.eventverse.app.domain.rbac.ModuleCategory
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.presentation.workspace.badgeLabel
 
 /**
@@ -49,7 +49,12 @@ data class NavMenuEntry(
     val accessLevel: AccessLevel? = null,
     val badge: String? = null,
     /** True berarti baris ditampilkan teredam dengan ikon gembok dan tidak dapat diklik. */
-    val locked: Boolean = false
+    val locked: Boolean = false,
+    /** Modul yang menggerbangi baris ini (ikon, wewenang). */
+    val module: BusinessModule? = screen.businessModule,
+    /** Path tujuan. Modul tanpa layar khusus memakai rute generik `/m/{code}` (B6f). */
+    val route: String = screen.route,
+    val title: String = screen.title
 )
 
 /** Satu kelompok menu di bawah satu section header. Tidak pernah kosong — lihat [buildNavMenu]. */
@@ -69,7 +74,7 @@ data class NavMenuSection(
  * 2. **Seksi kategori yang seluruh modulnya tersaring ikut hilang.** Header tanpa isi lebih buruk
  *    daripada tidak ada header — ia menjanjikan sesuatu yang tidak ada.
  *
- * Kategori dan urutan modul dibaca dari [BusinessModule.category] — bukan didaftar ulang di sini,
+ * Seksi dan urutan modul dibaca dari Domain Pack (`pack.sections`, `pack.modules`) — bukan didaftar ulang di sini,
  * supaya modul berikutnya tidak diam-diam tertelan. Seksi "Sistem & Struktur" pun lahir dari
  * [ModuleCategory.GOVERNANCE] seperti seksi lainnya; sebelumnya ia berupa daftar layar yang ditulis
  * tangan di file ini dan karenanya tidak pernah tunduk pada wewenang siapa pun.
@@ -90,25 +95,30 @@ fun buildNavMenu(
         .filter { it.isNavMenuItem && it.businessModule != null }
         .groupBy { requireNotNull(it.businessModule) }
 
-    ModuleCategory.entries.forEach { category ->
-        val entries = BusinessModules.entries
-            .filter { it.category == category }
+    // B6f: seksi & urutan dari Domain Pack, bukan enum. Modul tanpa layar khusus tetap muncul lewat `/m/{code}`.
+    val pack = DomainPackRegistry.soleActivePack
+    pack.sections.sortedBy { it.order }.forEach { section ->
+        val entries = pack.modules
+            .filter { it.section == section.code }
+            .map { it.id }
             .flatMap { module ->
                 val access = permissions[module] ?: ModuleAccessConfig()
                 if (!access.isAccessible && !auditView) return@flatMap emptyList()
-
-                screensByModule[module].orEmpty().map { screen ->
-                    NavMenuEntry(
-                        screen = screen,
-                        accessLevel = access.level,
-                        badge = access.level.badgeLabel(),
-                        locked = !access.isAccessible
-                    )
-                }
+                val base = NavMenuEntry(
+                    screen = AppNavScreen.MODULE,
+                    accessLevel = access.level,
+                    badge = access.level.badgeLabel(),
+                    locked = !access.isAccessible,
+                    module = module,
+                    route = "${AppNavScreen.MODULE.route}/${module.code}",
+                    title = module.displayName
+                )
+                screensByModule[module]?.map { screen -> base.copy(screen = screen, route = screen.route, title = screen.title) }
+                    ?: listOf(base)
             }
 
         if (entries.isNotEmpty()) {
-            sections += NavMenuSection(title = category.displayName, entries = entries)
+            sections += NavMenuSection(title = section.displayName, entries = entries)
         }
     }
 
@@ -126,7 +136,8 @@ fun buildNavMenu(
  * Mengembalikan null bila tidak ada satu pun menu terbuka — keadaan yang sah (misalnya seluruh modul
  * dicabut dari tenant) dan harus ditangani pemanggil, bukan disamarkan dengan tujuan asal-asalan.
  */
-fun firstAccessibleScreen(sections: List<NavMenuSection>): AppNavScreen? =
-    sections.firstNotNullOfOrNull { section ->
-        section.entries.firstOrNull { !it.locked }?.screen
-    }
+fun firstAccessibleScreen(sections: List<NavMenuSection>): AppNavScreen? = firstAccessibleEntry(sections)?.screen
+
+/** Baris pertama yang terbuka — membawa `route`, sehingga modul tanpa layar khusus pun bisa jadi pendaratan. */
+fun firstAccessibleEntry(sections: List<NavMenuSection>): NavMenuEntry? =
+    sections.firstNotNullOfOrNull { section -> section.entries.firstOrNull { !it.locked } }

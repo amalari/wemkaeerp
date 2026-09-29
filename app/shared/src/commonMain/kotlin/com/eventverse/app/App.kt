@@ -76,6 +76,7 @@ import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.navigation.AppTopBar
 import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
+import com.eventverse.app.presentation.navigation.GenericModuleRoute
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
 import com.eventverse.app.presentation.navigation.ProfileDropdown
@@ -118,6 +119,7 @@ fun App() {
     }
 
     var currentScreen by remember { mutableStateOf(initialScreen) }
+    var modulePath by remember { mutableStateOf(initialPath) } // B6f: path `/m/{code}` untuk AppNavScreen.MODULE
     var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
 
     /**
@@ -151,6 +153,7 @@ fun App() {
 
         PlatformNavigation.listenToPathChanges { newPath ->
             val matched = AppNavScreen.fromPath(newPath)
+            if (matched == AppNavScreen.MODULE) modulePath = newPath
             if (matched != null && matched != currentScreen) {
                 currentScreen = matched
             }
@@ -214,12 +217,16 @@ fun App() {
         ClayNavSection(
             title = section.title,
             items = section.entries.map { entry ->
-                val module = entry.screen.businessModule
+                val module = entry.module
+                val isGeneric = entry.screen == AppNavScreen.MODULE
                 ClayNavItem(
-                    key = entry.screen.route,
-                    label = entry.screen.title,
-                    selected = currentScreen == entry.screen,
-                    onClick = { openScreen(entry.screen) },
+                    key = entry.route,
+                    label = entry.title,
+                    selected = currentScreen == entry.screen && (!isGeneric || modulePath == entry.route),
+                    onClick = {
+                        if (isGeneric) { modulePath = entry.route; currentScreen = entry.screen; PlatformNavigation.pushPath(entry.route); drawerOpen = false }
+                        else openScreen(entry.screen)
+                    },
                     icon = { tint ->
                         when {
                             entry.locked || !isAuthenticated ->
@@ -418,6 +425,9 @@ fun App() {
                                 }
                             ) { com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen() }
                         }
+                        AppNavScreen.MODULE -> if (isAuthenticated) {
+                            GenericModuleRoute(path = modulePath, accessDecisions = accessDecisions, persona = activePersona)
+                        } else AuthGuardCard(targetModuleName = screen.title, onLoginClick = { navigateTo(AppNavScreen.LOGIN) })
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,
                         AppNavScreen.MASTER_DATA,

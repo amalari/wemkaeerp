@@ -179,6 +179,16 @@ enum class AppNavScreen(
         route = "/login",
         title = "Login Akun",
         aliases = listOf("/masuk")
+    ),
+
+    /**
+     * Rute generik `/m/{code}` (B6f) untuk modul pack yang belum punya layar khusus. Gerbangnya modul dari path,
+     * bukan field ini — satu entri melayani semua modul data-only.
+     */
+    MODULE(
+        route = "/m",
+        title = "Modul",
+        isNavMenuItem = false
     );
 
     val isProtected: Boolean
