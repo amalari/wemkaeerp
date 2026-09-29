@@ -2,27 +2,154 @@
   "code": "klinik",
   "displayName": "Klinik & Layanan Kesehatan (uji B7)",
   "phases": [
-    {"code": "PENDAFTARAN", "order": 1, "displayName": "1. Pendaftaran", "subtitle": "Pasien datang & antre", "color": "#FF2563EB"},
-    {"code": "PELAYANAN", "order": 2, "displayName": "2. Pelayanan", "subtitle": "Pemeriksaan & tindakan", "color": "#FF16A34A"},
-    {"code": "PEMBAYARAN", "order": 3, "displayName": "3. Pembayaran", "subtitle": "Kasir & klaim", "color": "#FFEA580C"}
+    {
+      "code": "PENDAFTARAN",
+      "order": 1,
+      "displayName": "1. Pendaftaran",
+      "subtitle": "Pasien datang & antre",
+      "color": "#FF2563EB"
+    },
+    {
+      "code": "PELAYANAN",
+      "order": 2,
+      "displayName": "2. Pelayanan",
+      "subtitle": "Pemeriksaan & tindakan",
+      "color": "#FF16A34A"
+    },
+    {
+      "code": "PEMBAYARAN",
+      "order": 3,
+      "displayName": "3. Pembayaran",
+      "subtitle": "Kasir & klaim",
+      "color": "#FFEA580C"
+    }
   ],
   "slots": [
-    {"code": "klinik_registrasi", "displayName": "Registrasi Pasien", "phase": "PENDAFTARAN", "defaultInput": "Kunjungan", "defaultOutput": "Antrean"},
-    {"code": "klinik_pemeriksaan", "displayName": "Pemeriksaan", "phase": "PELAYANAN", "defaultInput": "Antrean", "defaultOutput": "RekamMedis"},
-    {"code": "klinik_kasir", "displayName": "Kasir", "phase": "PEMBAYARAN", "defaultInput": "RekamMedis", "defaultOutput": "Tagihan"}
+    {
+      "code": "klinik_registrasi",
+      "displayName": "Registrasi Pasien",
+      "phase": "PENDAFTARAN",
+      "defaultInput": "Kunjungan",
+      "defaultOutput": "Antrean"
+    },
+    {
+      "code": "klinik_pemeriksaan",
+      "displayName": "Pemeriksaan",
+      "phase": "PELAYANAN",
+      "defaultInput": "Antrean",
+      "defaultOutput": "RekamMedis"
+    },
+    {
+      "code": "klinik_kasir",
+      "displayName": "Kasir",
+      "phase": "PEMBAYARAN",
+      "defaultInput": "RekamMedis",
+      "defaultOutput": "Tagihan"
+    }
   ],
-  "portTypes": ["Antrean", "Kunjungan", "RekamMedis", "Tagihan"],
-  "wiredPortTypes": ["Antrean", "RekamMedis", "Tagihan"],
+  "portTypes": [
+    "Antrean",
+    "Kunjungan",
+    "RekamMedis",
+    "Tagihan"
+  ],
+  "wiredPortTypes": [
+    "Antrean",
+    "RekamMedis",
+    "Tagihan"
+  ],
   "sections": [
-    {"code": "GOVERNANCE", "displayName": "__GOVERNANCE__", "order": 0, "color": "#FF000000", "tint": "#FF000000"},
-    {"code": "LAYANAN", "displayName": "Layanan Pasien", "order": 2, "color": "#FF16A34A", "tint": "#FFF0FDF4"},
-    {"code": "KEUANGAN", "displayName": "Keuangan Klinik", "order": 3, "color": "#FFEA580C", "tint": "#FFFFF7ED"}
+    {
+      "code": "GOVERNANCE",
+      "displayName": "Sistem & Struktur",
+      "order": 1,
+      "color": "#FF7C3AED",
+      "tint": "#FFF5F3FF"
+    },
+    {
+      "code": "LAYANAN",
+      "displayName": "Layanan Pasien",
+      "order": 2,
+      "color": "#FF16A34A",
+      "tint": "#FFF0FDF4"
+    },
+    {
+      "code": "KEUANGAN",
+      "displayName": "Keuangan Klinik",
+      "order": 3,
+      "color": "#FFEA580C",
+      "tint": "#FFFFF7ED"
+    }
   ],
   "modules": [
-    "__ORG_CHART__",
-    "__DYNAMIC_RBAC__",
-    {"id": "klinik_antrean", "displayName": "Antrean Pasien", "description": "Registrasi dan antrean per poli.", "section": "LAYANAN", "kind": "OPERATIONAL", "iconKey": "clipboard", "scopeCapability": "HIERARCHICAL", "supportedScopes": ["OWN_DATA_ONLY", "SUBORDINATE_DATA", "ALL_TENANT_DATA"], "slot": "klinik_registrasi"},
-    {"id": "klinik_rekam_medis", "displayName": "Rekam Medis", "description": "Catatan pemeriksaan dokter.", "section": "LAYANAN", "kind": "OPERATIONAL", "iconKey": "check_circle", "scopeCapability": "HIERARCHICAL", "supportedScopes": ["OWN_DATA_ONLY", "SUBORDINATE_DATA", "ALL_TENANT_DATA"], "slot": "klinik_pemeriksaan"},
-    {"id": "klinik_kasir", "displayName": "Kasir & Klaim", "description": "Tagihan pasien dan klaim asuransi.", "section": "KEUANGAN", "kind": "OPERATIONAL", "iconKey": "clipboard", "scopeCapability": "GLOBAL_ONLY", "supportedScopes": ["ALL_TENANT_DATA"], "slot": "klinik_kasir"}
+    {
+      "id": "org_chart",
+      "displayName": "Bagan Struktur Organisasi & Karyawan",
+      "description": "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
+      "section": "GOVERNANCE",
+      "kind": "GOVERNANCE",
+      "iconKey": "users",
+      "scopeCapability": "GLOBAL_ONLY",
+      "supportedScopes": [
+        "ALL_TENANT_DATA"
+      ],
+      "slot": null
+    },
+    {
+      "id": "dynamic_rbac",
+      "displayName": "Hak Akses & Jabatan (RBAC)",
+      "description": "Matriks wewenang per jabatan, penugasan modul ke divisi, dan pengujian persona.",
+      "section": "GOVERNANCE",
+      "kind": "GOVERNANCE",
+      "iconKey": "shield",
+      "scopeCapability": "GLOBAL_ONLY",
+      "supportedScopes": [
+        "ALL_TENANT_DATA"
+      ],
+      "slot": null
+    },
+    {
+      "id": "klinik_antrean",
+      "displayName": "Antrean Pasien",
+      "description": "Registrasi dan antrean per poli.",
+      "section": "LAYANAN",
+      "kind": "OPERATIONAL",
+      "iconKey": "clipboard",
+      "scopeCapability": "HIERARCHICAL",
+      "supportedScopes": [
+        "OWN_DATA_ONLY",
+        "SUBORDINATE_DATA",
+        "ALL_TENANT_DATA"
+      ],
+      "slot": "klinik_registrasi"
+    },
+    {
+      "id": "klinik_rekam_medis",
+      "displayName": "Rekam Medis",
+      "description": "Catatan pemeriksaan dokter.",
+      "section": "LAYANAN",
+      "kind": "OPERATIONAL",
+      "iconKey": "check_circle",
+      "scopeCapability": "HIERARCHICAL",
+      "supportedScopes": [
+        "OWN_DATA_ONLY",
+        "SUBORDINATE_DATA",
+        "ALL_TENANT_DATA"
+      ],
+      "slot": "klinik_pemeriksaan"
+    },
+    {
+      "id": "klinik_kasir",
+      "displayName": "Kasir & Klaim",
+      "description": "Tagihan pasien dan klaim asuransi.",
+      "section": "KEUANGAN",
+      "kind": "OPERATIONAL",
+      "iconKey": "clipboard",
+      "scopeCapability": "GLOBAL_ONLY",
+      "supportedScopes": [
+        "ALL_TENANT_DATA"
+      ],
+      "slot": "klinik_kasir"
+    }
   ]
 }

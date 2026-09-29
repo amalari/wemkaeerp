@@ -118,7 +118,7 @@ import com.eventverse.app.infrastructure.PostgresDealRepository
 import com.eventverse.app.infrastructure.storage.S3PoFileStorage
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", watchPaths = listOf("classes"), module = Application::module)
+    embeddedServer(Netty, port = System.getenv("PORT")?.toIntOrNull() ?: 8081, host = "0.0.0.0", watchPaths = listOf("classes"), module = Application::module)
         .start(wait = true)
 }
 
@@ -311,7 +311,7 @@ fun Application.module(
 
         route("/api/public/auth") {
             get("/google/url") {
-                val redirectUri = call.request.queryParameters["redirect_uri"] ?: "http://localhost:8080/api/auth/google/callback"
+                val redirectUri = call.request.queryParameters["redirect_uri"] ?: "http://localhost:8081/api/auth/google/callback"
                 val state = call.request.queryParameters["state"]
                 val url = googleAuthService.buildAuthorizationUrl(redirectUri, state)
                 call.respondText(

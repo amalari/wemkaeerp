@@ -332,7 +332,7 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
 - [ ] **Dijalankan dan dilihat dengan mata**, bukan hanya dikompilasi — bug layout seperti teks
       pecah per huruf tidak akan tertangkap test mana pun
 - [ ] **Belum login saat mengecek visual? Login dulu, jangan dilewati.** Kalau halaman yang dicek
-      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3000/login`, klik
+      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3001/login` (repo B; repo A: `3000`), klik
       **"Demo Mode: Masuk Cepat (Superadmin Apps)"** (`superadmin_apps` / `PLATFORM_SUPERADMIN`),
       lalu kembali ke halaman tujuan dan lakukan pengecekannya. "Belum login" **bukan** alasan sah
       untuk melaporkan UI tanpa melihatnya.

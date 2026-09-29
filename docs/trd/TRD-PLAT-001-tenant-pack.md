@@ -8,6 +8,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Draf dari discovery B7 |
+| 0.2 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | **B7a–f selesai.** Resolusi lazy (registry = cache) menggantikan loader startup; bukti `klinik-uji` di server nyata. Sisa: kosakata aksi layar generik, generator AI. |
 
 ### Summary & Business Context
 
