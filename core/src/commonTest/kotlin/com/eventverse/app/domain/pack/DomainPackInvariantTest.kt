@@ -60,4 +60,30 @@ class DomainPackInvariantTest {
         assertFailsWith<IllegalArgumentException> { SlotCode("order ingestion") }
         assertFailsWith<IllegalArgumentException> { PortType("1Bundle") }
     }
+
+    private val learning = ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1)
+
+    private fun module(id: String, section: String = "LEARNING", kind: com.eventverse.app.domain.rbac.ModuleKind = com.eventverse.app.domain.rbac.ModuleKind.OPERATIONAL, slot: String? = "grading") =
+        ModuleDefinition(ModuleId(id), id, "uji", ModuleSectionCode(section), kind, "clipboard",
+            com.eventverse.app.domain.rbac.ScopeCapability.HIERARCHICAL, setOf(com.eventverse.app.domain.rbac.DataScope.OWN_DATA_ONLY), slot?.let(::SlotCode))
+
+    private fun withModules(vararg m: ModuleDefinition) =
+        elearning().copy(sections = listOf(learning), modules = m.toList()).let {
+            DomainPack(it.code, it.displayName, it.phases, it.slots, it.portTypes, it.wiredPortTypes, it.sections, it.modules)
+        }
+
+    @Test
+    fun elearningModule_isValid_andLookedUpById() {
+        val pack = withModules(module("grading_desk"))
+        assertEquals("GRADING_DESK", pack.module(ModuleId("grading_desk"))?.id?.storedName)
+    }
+
+    @Test
+    fun moduleInvariants_rejectUnknownSectionOrSlot_duplicates_andSlotOnNonOperational() {
+        assertFailsWith<IllegalArgumentException> { withModules(module("x", section = "SALES")) }
+        assertFailsWith<IllegalArgumentException> { withModules(module("x", slot = "sewing")) }
+        assertFailsWith<IllegalStateException> { withModules(module("x"), module("x")) }
+        assertFailsWith<IllegalArgumentException> { module("x", kind = com.eventverse.app.domain.rbac.ModuleKind.GOVERNANCE, slot = "grading") }
+        assertFailsWith<IllegalArgumentException> { ModuleId("Grading Desk") }
+    }
 }

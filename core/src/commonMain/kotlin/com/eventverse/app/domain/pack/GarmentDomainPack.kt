@@ -77,7 +77,9 @@ object GarmentDomainPack {
             phases = GarmentPhases.all,
             slots = slots,
             portTypes = wired + slots.flatMap { listOf(it.defaultInput, it.defaultOutput) },
-            wiredPortTypes = wired
+            wiredPortTypes = wired,
+            sections = GarmentModules.sections,
+            modules = GarmentModules.modules
         )
     }
 }

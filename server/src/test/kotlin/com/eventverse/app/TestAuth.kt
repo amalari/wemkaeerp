@@ -88,6 +88,16 @@ object TestAuth {
         email = email
     )
 
+    /** Token apa adanya: jabatan & divisi boleh `null` masing-masing (snapshot akses B6 meniru pengguna nyata). */
+    fun principalToken(tenantSlug: String, role: Role, customRoleId: String?, departmentId: String?): String = sign(
+        userId = "usr-test-principal-${customRoleId ?: "none"}-${departmentId ?: "none"}",
+        role = role,
+        tenantSlug = tenantSlug,
+        tenantId = null,
+        departmentId = departmentId,
+        customRoleId = customRoleId
+    )
+
     /** Token for a platform superadmin, which is bound to no single tenant. */
     fun superadminToken(): String = sign(
         userId = "usr-test-superadmin",

@@ -42,7 +42,10 @@ data class DomainPack(
     val phases: List<PhaseDefinition>,
     val slots: List<SlotDefinition>,
     val portTypes: Set<PortType>,
-    val wiredPortTypes: Set<PortType>
+    val wiredPortTypes: Set<PortType>,
+    /** Seksi menu & modul yang dikirim pack (B6). Urutan [modules] = urutan menu di dalam seksinya. */
+    val sections: List<ModuleSection> = emptyList(),
+    val modules: List<ModuleDefinition> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -57,7 +60,17 @@ data class DomainPack(
             }
         }
         (wiredPortTypes - portTypes).firstOrNull()?.let { error("Port wiring ${it.value} tidak ada di kosakata pack ${code.value}") }
+        requireUnique("seksi", sections.map { it.code.value })
+        requireUnique("modul", modules.map { it.id.value })
+        val sectionCodes = sections.map { it.code }.toSet()
+        val slotCodes = slots.map { it.code }.toSet()
+        modules.forEach { m ->
+            require(m.section in sectionCodes) { "Modul ${m.id.value} menunjuk seksi tak dikenal ${m.section.value}" }
+            m.slot?.let { require(it in slotCodes) { "Modul ${m.id.value} menunjuk slot tak dikenal ${it.value}" } }
+        }
     }
+
+    fun module(id: ModuleId): ModuleDefinition? = modules.firstOrNull { it.id == id }
 
     /** Label port mentah (dari spec/JSON) termasuk port yang menyambung modul di pack ini. */
     fun isWired(label: String): Boolean = wiredPortTypes.any { it.value == label }
