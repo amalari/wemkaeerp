@@ -1,5 +1,7 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.moduledev.BuildType
 import com.eventverse.app.domain.moduledev.EffortSource
 import com.eventverse.app.domain.moduledev.ModuleBuildId
@@ -118,7 +120,7 @@ class ProspectApiTest {
     fun aCmtNarrativeMustNotBeFiledAsFullPackage() = testApplication {
         installModule(Fixture())
         val body = submit(client).bodyAsText()
-        // GarmentBusinessPreset.fromCode() falls back to DEFAULT; if that helper were used here,
+        // GarmentBlueprints.fromCodeOrDefault() falls back to DEFAULT; if that helper were used here,
         // this workshop would be quoted for buying fabric it never buys.
         assertTrue(body.contains("CMT"), body)
         assertFalse(body.contains("FOB"), body)

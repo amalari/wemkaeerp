@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.tenant
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 
 /**
@@ -14,7 +17,7 @@ data class Tenant(
     val status: TenantStatus = TenantStatus.TRIAL,
     val tier: SubscriptionTier = SubscriptionTier.PRO,
     val activeMachineCount: Int = 0,
-    val businessPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+    val businessPreset: Blueprint = GarmentBlueprints.DEFAULT,
     /** Kerangka tahap industri tempat pabrik ini di-provision (TRD-FLOW-001). Sumbu terpisah dari model bisnis. */
     val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER
 ) {
@@ -43,7 +46,7 @@ data class Tenant(
 
     fun canAddMachine(): Boolean = activeMachineCount < tier.maxActiveMachines
 
-    fun updateBusinessPreset(newPreset: GarmentBusinessPreset): Tenant = copy(businessPreset = newPreset)
+    fun updateBusinessPreset(newPreset: Blueprint): Tenant = copy(businessPreset = newPreset)
 
     fun updateIndustryTemplate(template: IndustryTemplateCode): Tenant = copy(industryTemplate = template)
 }

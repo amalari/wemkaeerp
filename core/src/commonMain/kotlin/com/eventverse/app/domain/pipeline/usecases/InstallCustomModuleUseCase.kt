@@ -1,11 +1,14 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
@@ -37,7 +40,7 @@ class InstallCustomModuleUseCase(
         entitlement: TenantModuleEntitlement,
         attachAfterNodeId: String? = null,
         formulaParameters: Map<String, String> = emptyMap(),
-        fallbackPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+        fallbackPreset: Blueprint = GarmentBlueprints.DEFAULT
     ): Result<CustomTenantPipeline> = runCatching {
         require(descriptor.isCustomTenantPlugin) {
             "Descriptor \"${descriptor.moduleId}\" bukan plugin tenant; tandai isCustomTenantPlugin = true."

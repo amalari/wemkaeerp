@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 
 import com.eventverse.app.domain.pack.GarmentSlots
@@ -18,7 +20,7 @@ class TenantPipelineProjectorTest {
     private val tenantId = TenantId("ten-projector-test")
 
     private fun fobPipeline() =
-        CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
 
     @Test
     fun project_shouldRenderPersistedTopologyNotPresetDefaults() {
@@ -54,7 +56,7 @@ class TenantPipelineProjectorTest {
     fun project_moduleReEnabledByTenant_shouldNotStayGreyedOut() {
         // CMT bypasses raw material by default. A tenant that switches it back on must see it
         // as active, not permanently greyed out by the preset's own default.
-        val cmt = CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.CMT_MAKLOON)
+        val cmt = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
         val bypassedNode = cmt.nodes.first { it.isBypassed }
 
         val reEnabled = cmt.setNodeBypassed(bypassedNode.nodeId, false)
@@ -141,7 +143,7 @@ class TenantPipelineProjectorTest {
 
         val snapshot = TenantPipelineProjector.project(pipeline)
 
-        assertEquals(GarmentBusinessPreset.DEFAULT, snapshot.preset)
+        assertEquals(GarmentBlueprints.DEFAULT, snapshot.preset)
         assertEquals(pipeline.nodes.size, snapshot.nodes.size)
     }
 

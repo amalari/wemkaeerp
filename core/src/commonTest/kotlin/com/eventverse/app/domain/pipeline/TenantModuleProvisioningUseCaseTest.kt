@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.usecases.GetTenantModuleCatalogUseCase
@@ -59,9 +61,9 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun catalog_shouldMarkInstalledActiveAndPlanBlockedModules() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
 
-        val catalog = getCatalog(tenantId, proPlan, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        val catalog = getCatalog(tenantId, proPlan, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
 
         // Katalog kanvas memuat modul **operasional** saja, bukan seluruh BusinessModule.
         // Sejak modul tata kelola (Bagan Organisasi, RBAC, Alur Pabrik) masuk enum, dua jumlah itu
@@ -80,7 +82,7 @@ class TenantModuleProvisioningUseCaseTest {
             tier = SubscriptionTier.STARTER,
             grantedModules = setOf(BusinessModule.CRM_SALES, BusinessModule.OPERATOR_EXEC)
         )
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         val catalog = getCatalog(tenantId, starterPlan).getOrThrow()
 
@@ -90,7 +92,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun deactivateModule_shouldBypassItWithoutDeletingTheNode() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         val updated = setActivation(tenantId, "inventory", false, proPlan).getOrThrow()
         val node = updated.nodes.firstOrNull { it.moduleId == "inventory" }
@@ -104,7 +106,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun reactivateModule_shouldClearBypass() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
         val bypassedModuleId = repository.findByTenantId(tenantId)!!
             .nodes.first { it.isBypassed }.moduleId
 
@@ -116,7 +118,7 @@ class TenantModuleProvisioningUseCaseTest {
     @Test
     fun activateModule_beyondPlanLimit_shouldFail() = runTest {
         val starterPlan = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         // Nine active modules already exceeds STARTER's five, so any save must be refused.
         val result = setActivation(tenantId, "inventory", true, starterPlan)
@@ -130,7 +132,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun renameModule_shouldPersistPerTenantNameOnly() = runTest {
-        val pipeline = getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        val pipeline = getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
         val inventoryNode = pipeline.nodes.first { it.moduleId == "inventory" }
 
         val updated = renameModule(
@@ -153,7 +155,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun renameModule_withFormulaParameters_shouldPersistBoth() = runTest {
-        val pipeline = getPipeline(tenantId, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        val pipeline = getPipeline(tenantId, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
         val sewingNode = pipeline.nodes.first { it.moduleId == "operator_exec" }
         val parameters = mapOf("sewingTariffPerMinuteIdr" to "550")
 
@@ -173,7 +175,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun renameModule_withBlankName_shouldFail() = runTest {
-        val pipeline = getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        val pipeline = getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         val result = renameModule(
             tenantId = tenantId,
@@ -187,7 +189,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun installCustomModule_onEnterprisePlan_shouldPersistAndWireIt() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         val descriptor = customPlugin()
 
         val updated = installCustom(
@@ -210,7 +212,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun installCustomModule_onProPlan_shouldBeRejected() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
 
         val result = installCustom(tenantId, customPlugin(), proPlan)
 
@@ -223,7 +225,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun installCustomModule_twice_shouldBeRejected() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         installCustom(tenantId, customPlugin(), enterprisePlan).getOrThrow()
 
         val result = installCustom(tenantId, customPlugin(), enterprisePlan)
@@ -234,11 +236,11 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun catalog_shouldListInstalledCustomPlugin() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         installCustom(tenantId, customPlugin(), enterprisePlan).getOrThrow()
 
         val grantedPlan = enterprisePlan.grantCustomModule(customPlugin().moduleId)
-        val catalog = getCatalog(tenantId, grantedPlan, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        val catalog = getCatalog(tenantId, grantedPlan, GarmentBlueprints.BRAND_D2C).getOrThrow()
 
         val plugin = catalog.firstOrNull { it.isCustomPlugin }
         assertNotNull(plugin, "Katalog harus memuat modul kustom yang terpasang")
@@ -252,8 +254,8 @@ class TenantModuleProvisioningUseCaseTest {
         val fobTenant = TenantId("ten-fob")
         val cmtTenant = TenantId("ten-cmt")
 
-        getPipeline(fobTenant, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
-        getPipeline(cmtTenant, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        getPipeline(fobTenant, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(cmtTenant, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
 
         renameModule(fobTenant, "fob-inventory", "Gudang Kain Roll Impor", entitlement = proPlan)
             .getOrThrow()

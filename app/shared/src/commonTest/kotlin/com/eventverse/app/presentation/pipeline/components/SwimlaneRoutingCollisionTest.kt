@@ -1,9 +1,10 @@
 package com.eventverse.app.presentation.pipeline.components
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelineGraph
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import kotlin.test.Test
@@ -25,7 +26,7 @@ class SwimlaneRoutingCollisionTest {
 
     @Test
     fun corridorFeedbackEdges_haveDistinctExitAndCorridorTracks() {
-        val nodes = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.FOB_FULL_PACKAGE).nodes
+        val nodes = PipelinePresetFactory.createSnapshot(GarmentBlueprints.FOB_FULL_PACKAGE).nodes
         val graph = PipelineGraph.from(nodes)
 
         // Find feedback routes from QC
@@ -51,7 +52,7 @@ class SwimlaneRoutingCollisionTest {
 
     @Test
     fun allPresets_produceValidGraphEdgesWithoutSelfLoops() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { preset ->
             val snapshot = PipelinePresetFactory.createSnapshot(preset)
             val graph = PipelineGraph.from(snapshot.nodes)
 
@@ -120,7 +121,7 @@ class SwimlaneRoutingCollisionTest {
         val colRight = col5Width // 324f
         val endPadding = SWIMLANE_CORRIDOR_END_PADDING.value // 96f
 
-        val nodes = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.FOB_FULL_PACKAGE).nodes
+        val nodes = PipelinePresetFactory.createSnapshot(GarmentBlueprints.FOB_FULL_PACKAGE).nodes
         val graph = PipelineGraph.from(nodes)
         val qcNode = nodes.first { it.id == "fob-qc-defect" }
         val feedbackEdges = graph.edges.filter { it.fromNodeId == qcNode.id && it.isFeedback }

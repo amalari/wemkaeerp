@@ -1,7 +1,8 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.api.PipelineRemoteDataSource
@@ -45,9 +46,9 @@ class FakePipelineRemoteDataSource(
 
     override suspend fun resetPipeline(
         tenantSlug: String,
-        preset: GarmentBusinessPreset
+        preset: Blueprint
     ): Result<CustomTenantPipeline> {
-        calls += "reset:${preset.code}"
+        calls += "reset:${preset.code.value}"
         failure?.let { return Result.failure(it) }
         val fresh = CustomTenantPipeline.fromPreset(pipeline?.tenantId ?: tenantId, preset)
         pipeline = fresh

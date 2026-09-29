@@ -1,8 +1,9 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentPhases
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,7 +26,7 @@ class FactoryFlowViewModelTest {
         val viewModel = localOnlyViewModel()
         val state = viewModel.uiState.value
 
-        assertEquals(GarmentBusinessPreset.FOB_FULL_PACKAGE, state.selectedPreset)
+        assertEquals(GarmentBlueprints.FOB_FULL_PACKAGE, state.selectedPreset)
         assertEquals(9, state.snapshot.nodes.size)
         assertEquals(9, state.filteredNodes.size)
         assertNull(state.selectedNode)
@@ -43,10 +44,10 @@ class FactoryFlowViewModelTest {
         assertEquals(initialFirstNode.id, viewModel.uiState.value.selectedNode?.id)
 
         // Now switch preset to CMT
-        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBusinessPreset.CMT_MAKLOON))
+        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBlueprints.CMT_MAKLOON))
         val updatedState = viewModel.uiState.value
 
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, updatedState.selectedPreset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, updatedState.selectedPreset)
         assertEquals(2, updatedState.snapshot.bypassedModulesCount)
         assertNull(updatedState.selectedNode) // must be reset to prevent stale inspection
     }
@@ -99,7 +100,7 @@ class FactoryFlowViewModelTest {
     @Test
     fun toggleHideBypassed_shouldFilterOutBypassedNodesInCmt() {
         val viewModel = localOnlyViewModel()
-        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBusinessPreset.CMT_MAKLOON))
+        viewModel.onEvent(FactoryFlowUiEvent.SelectPreset(GarmentBlueprints.CMT_MAKLOON))
 
         // Initial default has hideBypassedNodes = true
         val initialCmtState = viewModel.uiState.value

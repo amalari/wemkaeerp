@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 /**
  * Projects a tenant's persisted [CustomTenantPipeline] onto a renderable
  * [FactoryPipelineSnapshot].
@@ -18,7 +22,7 @@ object TenantPipelineProjector {
         pipeline: CustomTenantPipeline,
         scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
     ): FactoryPipelineSnapshot {
-        val preset = pipeline.baseStarterPreset ?: GarmentBusinessPreset.DEFAULT
+        val preset = pipeline.baseStarterPreset ?: GarmentBlueprints.DEFAULT
         val template = PipelinePresetFactory.createSnapshot(preset, scenario)
         val templateByModuleCode = template.nodes.associateBy { it.module.code }
 
@@ -120,7 +124,7 @@ object TenantPipelineProjector {
 
     /** KPI agregat — rumus tunggal di [PipelinePresetFactory.snapshotOf]. */
     private fun buildSnapshot(
-        preset: GarmentBusinessPreset,
+        preset: Blueprint,
         nodes: List<PipelineNode>,
         scenario: PipelineSimulationScenario
     ): FactoryPipelineSnapshot = PipelinePresetFactory.snapshotOf(preset, nodes, scenario)

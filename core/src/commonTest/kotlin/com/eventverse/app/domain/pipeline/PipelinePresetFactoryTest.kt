@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,9 +13,9 @@ class PipelinePresetFactoryTest {
 
     @Test
     fun fobPreset_shouldActivateAllModulesWithoutBypass() {
-        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBlueprints.FOB_FULL_PACKAGE)
 
-        assertEquals(GarmentBusinessPreset.FOB_FULL_PACKAGE, snapshot.preset)
+        assertEquals(GarmentBlueprints.FOB_FULL_PACKAGE, snapshot.preset)
         assertEquals(9, snapshot.nodes.size)
         assertEquals(9, snapshot.activeModulesCount)
         assertEquals(0, snapshot.bypassedModulesCount)
@@ -29,9 +31,9 @@ class PipelinePresetFactoryTest {
 
     @Test
     fun cmtPreset_shouldBypassTechPackAndInventoryModules() {
-        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.CMT_MAKLOON)
+        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBlueprints.CMT_MAKLOON)
 
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, snapshot.preset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, snapshot.preset)
         assertEquals(9, snapshot.nodes.size)
         assertEquals(2, snapshot.bypassedModulesCount)
         assertEquals(7, snapshot.activeModulesCount)
@@ -49,9 +51,9 @@ class PipelinePresetFactoryTest {
 
     @Test
     fun brandD2cPreset_shouldHaveActiveInternalEndToEndChain() {
-        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.BRAND_D2C)
+        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBlueprints.BRAND_D2C)
 
-        assertEquals(GarmentBusinessPreset.BRAND_D2C, snapshot.preset)
+        assertEquals(GarmentBlueprints.BRAND_D2C, snapshot.preset)
         assertEquals(9, snapshot.nodes.size)
         assertEquals(0, snapshot.bypassedModulesCount)
         assertEquals(9, snapshot.activeModulesCount)
@@ -64,10 +66,10 @@ class PipelinePresetFactoryTest {
 
     @Test
     fun presetResolution_shouldFallbackToDefaultOnUnknownCode() {
-        val resolved = GarmentBusinessPreset.fromCode("unknown_or_null")
-        assertEquals(GarmentBusinessPreset.DEFAULT, resolved)
+        val resolved = GarmentBlueprints.fromCodeOrDefault("unknown_or_null")
+        assertEquals(GarmentBlueprints.DEFAULT, resolved)
 
-        val cmtResolved = GarmentBusinessPreset.fromCode("cmt_makloon")
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, cmtResolved)
+        val cmtResolved = GarmentBlueprints.fromCodeOrDefault("cmt_makloon")
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, cmtResolved)
     }
 }

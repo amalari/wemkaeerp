@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.tables.TenantsTable
@@ -39,7 +40,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[status] = tenant.status.name
                     it[tier] = tenant.tier.name
                     it[activeMachineCount] = tenant.activeMachineCount
-                    it[businessPreset] = tenant.businessPreset.code
+                    it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
                 }
             } else {
@@ -50,7 +51,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[status] = tenant.status.name
                     it[tier] = tenant.tier.name
                     it[activeMachineCount] = tenant.activeMachineCount
-                    it[businessPreset] = tenant.businessPreset.code
+                    it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
                 }
             }
@@ -75,7 +76,7 @@ class PostgresTenantRepository : TenantRepository {
         status = TenantStatus.valueOf(row[TenantsTable.status]),
         tier = SubscriptionTier.valueOf(row[TenantsTable.tier]),
         activeMachineCount = row[TenantsTable.activeMachineCount],
-        businessPreset = GarmentBusinessPreset.fromCode(row[TenantsTable.businessPreset]),
+        businessPreset = GarmentBlueprints.fromCodeOrDefault(row[TenantsTable.businessPreset]),
         // Nilai asing jatuh ke rajut: satu-satunya kerangka sebelum kolom ini ada (V74).
         industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER
     )

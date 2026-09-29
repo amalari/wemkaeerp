@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.pipeline.components.IconBuilding
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -28,7 +31,7 @@ data class CompanyTenantProfile(
     val id: String,
     val slug: String,
     val name: String,
-    val preset: GarmentBusinessPreset,
+    val preset: Blueprint,
     val iconColor: Color,
     val subtitle: String
 ) {
@@ -38,7 +41,7 @@ data class CompanyTenantProfile(
                 id = "ten-demo-001",
                 slug = "wemade-demo",
                 name = "PT WeMade Garmen Ekspor",
-                preset = GarmentBusinessPreset.FOB_FULL_PACKAGE,
+                preset = GarmentBlueprints.FOB_FULL_PACKAGE,
                 iconColor = Color(0xFF2563EB),
                 subtitle = "Pabrik Utama • 12 Line Produksi"
             ),
@@ -46,7 +49,7 @@ data class CompanyTenantProfile(
                 id = "ten-demo-cmt",
                 slug = "cv-berkah-makloon",
                 name = "CV Berkah Makloon Jahit",
-                preset = GarmentBusinessPreset.CMT_MAKLOON,
+                preset = GarmentBlueprints.CMT_MAKLOON,
                 iconColor = Color(0xFFD97706),
                 subtitle = "Unit Makloon Jahit • 8 Line Produksi"
             ),
@@ -54,7 +57,7 @@ data class CompanyTenantProfile(
                 id = "ten-demo-d2c",
                 slug = "urbanwear-d2c",
                 name = "UrbanWear Studio Apparel",
-                preset = GarmentBusinessPreset.BRAND_D2C,
+                preset = GarmentBlueprints.BRAND_D2C,
                 iconColor = Color(0xFF059669),
                 subtitle = "Workshop Studio • 4 Line Produksi"
             )
@@ -64,7 +67,7 @@ data class CompanyTenantProfile(
             return ALL.firstOrNull { it.slug.equals(slug, ignoreCase = true) } ?: ALL.first()
         }
 
-        fun findByPreset(preset: GarmentBusinessPreset): CompanyTenantProfile {
+        fun findByPreset(preset: Blueprint): CompanyTenantProfile {
             return ALL.firstOrNull { it.preset == preset } ?: ALL.first()
         }
     }

@@ -1,10 +1,13 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.pipeline.PipelineGraphCodec
@@ -40,7 +43,7 @@ class GenerateSeedTopologyTool {
                 )
                 appendLine("UPDATE tenant_pipelines")
                 appendLine("SET pipeline_name = '${sqlQuote(pipeline.pipelineName)}',")
-                appendLine("    base_preset = '${demo.preset.code}',")
+                appendLine("    base_preset = '${demo.preset.code.value}',")
                 appendLine("    graph_data = '${sqlQuote(graphJson)}'::jsonb,")
                 appendLine("    updated_at = CURRENT_TIMESTAMP")
                 appendLine("WHERE id = '${demo.pipelineId}';")
@@ -71,7 +74,7 @@ object DemoTenantTopologies {
         val tenantId: String,
         val pipelineId: String,
         val companyName: String,
-        val preset: GarmentBusinessPreset,
+        val preset: Blueprint,
         val customise: (CustomTenantPipeline) -> CustomTenantPipeline
     ) {
         fun build(): CustomTenantPipeline =
@@ -84,7 +87,7 @@ object DemoTenantTopologies {
         tenantId = "ten-demo-001",
         pipelineId = "pipe-ten-demo-001",
         companyName = "PT WeMade Garmen Ekspor",
-        preset = GarmentBusinessPreset.FOB_FULL_PACKAGE
+        preset = GarmentBlueprints.FOB_FULL_PACKAGE
     ) { pipeline ->
         pipeline
             .renameModuleByCode("inventory", "Gudang Kain Roll Impor & Aksesoris")
@@ -107,7 +110,7 @@ object DemoTenantTopologies {
         tenantId = "ten-demo-cmt",
         pipelineId = "pipe-ten-demo-cmt",
         companyName = "CV Berkah Makloon Jahit",
-        preset = GarmentBusinessPreset.CMT_MAKLOON
+        preset = GarmentBlueprints.CMT_MAKLOON
     ) { pipeline ->
         pipeline
             .renameModuleByCode("inventory", "Penerimaan Kain Titipan Buyer")
@@ -136,7 +139,7 @@ object DemoTenantTopologies {
         tenantId = "ten-demo-d2c",
         pipelineId = "pipe-ten-demo-d2c",
         companyName = "UrbanWear Studio Apparel",
-        preset = GarmentBusinessPreset.BRAND_D2C
+        preset = GarmentBlueprints.BRAND_D2C
     ) { pipeline ->
         val sablonPlugin = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
@@ -185,7 +188,7 @@ private fun CustomTenantPipeline.renameModuleByCode(
     displayName: String
 ): CustomTenantPipeline {
     val node = nodes.firstOrNull { it.moduleId == moduleCode }
-        ?: error("Preset ${baseStarterPreset?.code} has no module '$moduleCode' to rename")
+        ?: error("Preset ${baseStarterPreset?.code?.value} has no module '$moduleCode' to rename")
     return renameNode(node.nodeId, displayName)
 }
 
@@ -194,7 +197,7 @@ private fun CustomTenantPipeline.setFormulaParametersByCode(
     parameters: Map<String, String>
 ): CustomTenantPipeline {
     val node = nodes.firstOrNull { it.moduleId == moduleCode }
-        ?: error("Preset ${baseStarterPreset?.code} has no module '$moduleCode' to parameterise")
+        ?: error("Preset ${baseStarterPreset?.code?.value} has no module '$moduleCode' to parameterise")
     return updateNodeFormulaParameters(node.nodeId, parameters)
 }
 
@@ -204,7 +207,7 @@ private fun CustomTenantPipeline.wireAfterModule(
     expectedDataType: String
 ): CustomTenantPipeline {
     val upstream = nodes.firstOrNull { it.moduleId == upstreamModuleCode }
-        ?: error("Preset ${baseStarterPreset?.code} has no module '$upstreamModuleCode' to wire from")
+        ?: error("Preset ${baseStarterPreset?.code?.value} has no module '$upstreamModuleCode' to wire from")
     return connect(
         com.eventverse.app.domain.pipeline.CustomPipelineEdge(
             edgeId = "edge-${upstream.nodeId}-to-$targetNodeId",

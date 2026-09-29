@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -16,7 +18,7 @@ class TenantModuleEntitlementTest {
     private val tenantId = TenantId("ten-entitlement-test")
 
     private fun fobPipeline() =
-        CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
 
     private fun customPlugin(moduleId: String = "sablon_bordir_custom") = DynamicModuleDescriptor(
         moduleId = moduleId,
@@ -205,7 +207,7 @@ class GovernanceEntitlementTest {
         val starter = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
         val pipeline = CustomTenantPipeline.fromPreset(
             TenantId("ten-demo-001"),
-            GarmentBusinessPreset.CMT_MAKLOON
+            GarmentBlueprints.CMT_MAKLOON
         )
 
         val activeOperational = pipeline.activeNodes.count { it.standardModule?.isOperational == true }

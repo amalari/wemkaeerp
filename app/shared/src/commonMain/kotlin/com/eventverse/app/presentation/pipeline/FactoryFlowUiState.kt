@@ -1,8 +1,11 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.FactoryPipelineSnapshot
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
@@ -15,7 +18,7 @@ import com.eventverse.app.domain.pipeline.ModuleTelemetry
 import com.eventverse.app.domain.stageflow.StageDefinition
 
 data class FactoryFlowUiState(
-    val selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+    val selectedPreset: Blueprint = GarmentBlueprints.DEFAULT,
     val snapshot: FactoryPipelineSnapshot = PipelinePresetFactory.createSnapshot(selectedPreset),
     /**
      * The tenant's persisted topology. Null while loading, or when the server is unreachable
@@ -83,7 +86,7 @@ sealed interface FactoryFlowUiEvent {
     /** Resets the tenant's topology back to a standard starter preset. */
     data class ResetToPreset(
         val tenantSlug: String,
-        val preset: GarmentBusinessPreset
+        val preset: Blueprint
     ) : FactoryFlowUiEvent
 
     /** Switches one module on or off for this tenant. */
@@ -104,7 +107,7 @@ sealed interface FactoryFlowUiEvent {
     data object ToggleModulePanel : FactoryFlowUiEvent
     data object DismissStatusMessage : FactoryFlowUiEvent
 
-    data class SelectPreset(val preset: GarmentBusinessPreset) : FactoryFlowUiEvent
+    data class SelectPreset(val preset: Blueprint) : FactoryFlowUiEvent
     data class SelectScenario(val scenario: PipelineSimulationScenario) : FactoryFlowUiEvent
     data class SelectNode(val node: PipelineNode?) : FactoryFlowUiEvent
     data class InspectNodeInputs(val node: PipelineNode?) : FactoryFlowUiEvent

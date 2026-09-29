@@ -1,6 +1,7 @@
 package com.eventverse.app
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.InMemoryTenantEntitlementRepository
 import com.eventverse.app.infrastructure.InMemoryTenantPipelineRepository
@@ -40,7 +41,7 @@ class TenantEntitlementPersistenceTest {
                     name = TenantName("UrbanWear Studio Apparel"),
                     status = TenantStatus.ACTIVE,
                     tier = SubscriptionTier.ENTERPRISE,
-                    businessPreset = GarmentBusinessPreset.BRAND_D2C
+                    businessPreset = GarmentBlueprints.BRAND_D2C
                 )
             )
         }

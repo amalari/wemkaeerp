@@ -1,7 +1,8 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.pipeline.PipelineGraphCodec
 import io.ktor.client.*
@@ -41,7 +42,7 @@ class ApiClientAuthHeaderTest {
     }
 
     private fun samplePipelineJson(): String = PipelineGraphCodec.encodePipeline(
-        CustomTenantPipeline.fromPreset(TenantId("ten-demo-cmt"), GarmentBusinessPreset.CMT_MAKLOON)
+        CustomTenantPipeline.fromPreset(TenantId("ten-demo-cmt"), GarmentBlueprints.CMT_MAKLOON)
     )
 
     @Test
@@ -67,7 +68,7 @@ class ApiClientAuthHeaderTest {
             tokenProvider = FixedSessionTokenProvider(token)
         )
 
-        client.resetPipeline(tenantSlug, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        client.resetPipeline(tenantSlug, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
         client.setModuleActivation(tenantSlug, "inventory", false).getOrThrow()
         client.renameModule(tenantSlug, "node-x", "Gudang Kain").getOrThrow()
         client.getModuleCatalog(tenantSlug)
@@ -77,6 +78,21 @@ class ApiClientAuthHeaderTest {
             engine.requests.all { it.headers[HttpHeaders.Authorization] == "Bearer $token" },
             "Setiap endpoint harus mengirim token, bukan hanya endpoint baca"
         )
+    }
+
+    /**
+     * B4c: kode preset menjadi `BlueprintCode` (value class). Di string template ia akan tercetak
+     * `BlueprintCode(value=…)` — kompilator tidak menangkapnya, jadi body reset dikunci di sini.
+     */
+    @Test
+    fun resetPipeline_shouldSendRawBlueprintCodeInBody() = runTest {
+        val engine = CapturingEngine(samplePipelineJson())
+        val client = PipelineApiClient(httpClient = engine.client(), tokenProvider = FixedSessionTokenProvider(token))
+
+        client.resetPipeline(tenantSlug, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
+
+        val body = (engine.requests.single().body as io.ktor.http.content.TextContent).text
+        assertEquals("{\"preset\":\"cmt_makloon\"}", body)
     }
 
     @Test

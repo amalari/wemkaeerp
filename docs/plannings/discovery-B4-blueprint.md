@@ -27,6 +27,8 @@
 | Parser | `GarmentBusinessPreset.fromCode` | **fallback senyap ke FOB** (Kontrak 4) |
 | Tampilan | `exampleCompanyName` | **sumber bug header** "PT WeMade Garmen Ekspor" di tenant bordir |
 
+> **Koreksi (B4c, 2026-09-29):** `exampleCompanyName` ternyata **tidak dipakai di mana pun**. Badge header "PT WeMade Garmen Ekspor" berasal dari daftar perusahaan demo yang ditulis tangan di `CompanySwitcherDropdown` (`CompanyTenantProfile.ALL`), dan teks "FOB Full Package" jujur secara data: `bordir-uji` memang tersimpan `business_preset = fob_full_package`. Perbaikan tetap di Jalur A (A1).
+
 ## 3. Bentuk yang diusulkan
 
 ```kotlin

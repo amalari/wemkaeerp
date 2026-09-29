@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -12,7 +14,7 @@ import com.eventverse.app.domain.tenant.TenantId
 data class CustomTenantPipeline(
     val tenantId: TenantId,
     val pipelineName: String,
-    val baseStarterPreset: GarmentBusinessPreset? = null,
+    val baseStarterPreset: Blueprint? = null,
     val nodes: List<CustomPipelineNode>,
     val edges: List<CustomPipelineEdge>
 ) {
@@ -87,7 +89,7 @@ data class CustomTenantPipeline(
     }
 
     companion object {
-        fun fromPreset(tenantId: TenantId, preset: GarmentBusinessPreset): CustomTenantPipeline {
+        fun fromPreset(tenantId: TenantId, preset: Blueprint): CustomTenantPipeline {
             val snapshot = PipelinePresetFactory.createSnapshot(preset)
             val customNodes = snapshot.nodes.map { node ->
                 CustomPipelineNode(

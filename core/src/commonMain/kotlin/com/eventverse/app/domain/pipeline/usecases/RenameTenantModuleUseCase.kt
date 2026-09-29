@@ -1,7 +1,10 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 import com.eventverse.app.domain.tenant.TenantId
@@ -24,7 +27,7 @@ class RenameTenantModuleUseCase(
         newDisplayName: String,
         formulaParameters: Map<String, String>? = null,
         entitlement: TenantModuleEntitlement? = null,
-        fallbackPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+        fallbackPreset: Blueprint = GarmentBlueprints.DEFAULT
     ): Result<CustomTenantPipeline> = runCatching {
         val pipeline = getPipelineUseCase(tenantId, fallbackPreset).getOrThrow()
         val renamed = pipeline.renameNode(nodeId, newDisplayName.trim())

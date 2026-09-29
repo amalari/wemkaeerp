@@ -1,7 +1,8 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.tables.TenantPipelinesTable
@@ -40,7 +41,7 @@ class PostgresTenantPipelineRepository : TenantPipelineRepository {
                 { TenantPipelinesTable.tenantId eq pipeline.tenantId.value }
             ) {
                 it[pipelineName] = pipeline.pipelineName
-                it[basePreset] = pipeline.baseStarterPreset?.code
+                it[basePreset] = pipeline.baseStarterPreset?.code?.value
                 it[graphData] = graphDataJson
             }
 
@@ -52,7 +53,7 @@ class PostgresTenantPipelineRepository : TenantPipelineRepository {
                     it[id] = "pipe-${pipeline.tenantId.value}"
                     it[tenantId] = pipeline.tenantId.value
                     it[pipelineName] = pipeline.pipelineName
-                    it[basePreset] = pipeline.baseStarterPreset?.code
+                    it[basePreset] = pipeline.baseStarterPreset?.code?.value
                     it[graphData] = graphDataJson
                 }
             }
@@ -72,7 +73,7 @@ class PostgresTenantPipelineRepository : TenantPipelineRepository {
             tenantId = TenantId(row[TenantPipelinesTable.tenantId]),
             pipelineName = row[TenantPipelinesTable.pipelineName],
             baseStarterPreset = row[TenantPipelinesTable.basePreset]
-                ?.let { GarmentBusinessPreset.fromCode(it) },
+                ?.let { GarmentBlueprints.fromCodeOrDefault(it) },
             nodes = graph.nodes,
             edges = graph.edges
         )

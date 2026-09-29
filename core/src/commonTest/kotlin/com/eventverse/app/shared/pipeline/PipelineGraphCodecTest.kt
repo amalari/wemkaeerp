@@ -1,11 +1,12 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.Test
@@ -154,7 +155,7 @@ class PipelineGraphCodecTest {
 
     @Test
     fun encodeThenDecodePipeline_shouldPreserveNameAndPreset() {
-        val original = CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.CMT_MAKLOON)
+        val original = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
 
         val decoded = PipelineGraphCodec.decodePipeline(
             tenantId,
@@ -168,7 +169,7 @@ class PipelineGraphCodecTest {
     fun decodePipeline_shouldIgnoreTenantIdInBody() {
         // A client must not be able to write into another tenant's graph by editing the body.
         val payload = PipelineGraphCodec.encodePipeline(
-            CustomTenantPipeline.fromPreset(TenantId("ten-attacker"), GarmentBusinessPreset.FOB_FULL_PACKAGE)
+            CustomTenantPipeline.fromPreset(TenantId("ten-attacker"), GarmentBlueprints.FOB_FULL_PACKAGE)
         )
 
         val decoded = PipelineGraphCodec.decodePipeline(tenantId, payload)

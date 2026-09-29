@@ -1,11 +1,14 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.*
 import kotlinx.coroutines.runBlocking
@@ -43,7 +46,7 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
     }
 
     /** Pipelines reference tenants, so a tenant row has to exist first. */
-    private fun createTenant(preset: GarmentBusinessPreset): Tenant {
+    private fun createTenant(preset: Blueprint): Tenant {
         val suffix = kotlin.math.abs(System.nanoTime() % 1_000_000).toString()
         val tenant = Tenant(
             id = TenantId("ten-pipe-$suffix"),
@@ -59,7 +62,7 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
 
     @Test
     fun savePipeline_toRealJsonbColumn_shouldSucceedAndRoundTripEveryField() = runBlocking<Unit> {
-        val tenant = createTenant(GarmentBusinessPreset.CMT_MAKLOON)
+        val tenant = createTenant(GarmentBlueprints.CMT_MAKLOON)
         val plugin = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
             archetype = GarmentSlots.FINISHING,
@@ -71,7 +74,7 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
             customConfigSchemaJson = """{"screenColorsMax":6}"""
         )
 
-        val original = CustomTenantPipeline.fromPreset(tenant.id, GarmentBusinessPreset.CMT_MAKLOON)
+        val original = CustomTenantPipeline.fromPreset(tenant.id, GarmentBlueprints.CMT_MAKLOON)
             .let { pipeline ->
                 val sewing = pipeline.nodes.first { it.moduleId == "operator_exec" }
                 pipeline.updateNodeFormulaParameters(
@@ -81,7 +84,7 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
             }
             // A name containing a quote would break naive string assembly.
             .renameNode(
-                CustomTenantPipeline.fromPreset(tenant.id, GarmentBusinessPreset.CMT_MAKLOON)
+                CustomTenantPipeline.fromPreset(tenant.id, GarmentBlueprints.CMT_MAKLOON)
                     .nodes.first { it.moduleId == "inventory" }.nodeId,
                 "Penerimaan Kain \"Titipan\" Buyer"
             )
@@ -134,8 +137,8 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
 
     @Test
     fun savePipeline_calledTwice_shouldUpdateInPlaceNotDuplicate() = runBlocking<Unit> {
-        val tenant = createTenant(GarmentBusinessPreset.FOB_FULL_PACKAGE)
-        val initial = CustomTenantPipeline.fromPreset(tenant.id, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val tenant = createTenant(GarmentBlueprints.FOB_FULL_PACKAGE)
+        val initial = CustomTenantPipeline.fromPreset(tenant.id, GarmentBlueprints.FOB_FULL_PACKAGE)
 
         pipelineRepo.save(initial).getOrThrow()
         val renamedNodeId = initial.nodes.first { it.moduleId == "inventory" }.nodeId
@@ -154,11 +157,11 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
 
     @Test
     fun findByTenantId_shouldNeverReturnAnotherTenantsTopology() = runBlocking<Unit> {
-        val tenantA = createTenant(GarmentBusinessPreset.FOB_FULL_PACKAGE)
-        val tenantB = createTenant(GarmentBusinessPreset.CMT_MAKLOON)
+        val tenantA = createTenant(GarmentBlueprints.FOB_FULL_PACKAGE)
+        val tenantB = createTenant(GarmentBlueprints.CMT_MAKLOON)
 
         pipelineRepo.save(
-            CustomTenantPipeline.fromPreset(tenantA.id, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+            CustomTenantPipeline.fromPreset(tenantA.id, GarmentBlueprints.FOB_FULL_PACKAGE)
                 .renameNode("fob-inventory", "Gudang Rahasia Tenant A")
         ).getOrThrow()
 
@@ -171,14 +174,14 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
 
     @Test
     fun deleteByTenantId_shouldRemoveOnlyThatTenantsTopology() = runBlocking<Unit> {
-        val tenantA = createTenant(GarmentBusinessPreset.FOB_FULL_PACKAGE)
-        val tenantB = createTenant(GarmentBusinessPreset.BRAND_D2C)
+        val tenantA = createTenant(GarmentBlueprints.FOB_FULL_PACKAGE)
+        val tenantB = createTenant(GarmentBlueprints.BRAND_D2C)
 
         pipelineRepo.save(
-            CustomTenantPipeline.fromPreset(tenantA.id, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+            CustomTenantPipeline.fromPreset(tenantA.id, GarmentBlueprints.FOB_FULL_PACKAGE)
         ).getOrThrow()
         pipelineRepo.save(
-            CustomTenantPipeline.fromPreset(tenantB.id, GarmentBusinessPreset.BRAND_D2C)
+            CustomTenantPipeline.fromPreset(tenantB.id, GarmentBlueprints.BRAND_D2C)
         ).getOrThrow()
 
         pipelineRepo.deleteByTenantId(tenantA.id).getOrThrow()
@@ -197,9 +200,9 @@ class PostgresTenantPipelineRepositoryIntegrationTest {
         // Guards the migration defect directly: the demo tenants used to hold a row whose
         // graph_data carried no nodes, leaving the factory canvas blank.
         listOf(
-            TenantId("ten-demo-001") to GarmentBusinessPreset.FOB_FULL_PACKAGE,
-            TenantId("ten-demo-cmt") to GarmentBusinessPreset.CMT_MAKLOON,
-            TenantId("ten-demo-d2c") to GarmentBusinessPreset.BRAND_D2C
+            TenantId("ten-demo-001") to GarmentBlueprints.FOB_FULL_PACKAGE,
+            TenantId("ten-demo-cmt") to GarmentBlueprints.CMT_MAKLOON,
+            TenantId("ten-demo-d2c") to GarmentBlueprints.BRAND_D2C
         ).forEach { (tenantId, expectedPreset) ->
             val pipeline = pipelineRepo.findByTenantId(tenantId)
             assertNotNull(pipeline, "Tenant demo $tenantId harus punya pipeline hasil seed")

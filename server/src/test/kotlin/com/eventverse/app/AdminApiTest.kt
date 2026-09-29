@@ -1,8 +1,11 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.InMemoryAuditLogRepository
@@ -33,7 +36,7 @@ class AdminApiTest {
 
     private fun tenantRepoWith(
         tier: SubscriptionTier = SubscriptionTier.PRO,
-        preset: GarmentBusinessPreset = GarmentBusinessPreset.FOB_FULL_PACKAGE
+        preset: Blueprint = GarmentBlueprints.FOB_FULL_PACKAGE
     ): InMemoryTenantRepository {
         val repo = InMemoryTenantRepository()
         runBlocking {
@@ -162,7 +165,7 @@ class AdminApiTest {
         // Seed a pipeline with all nine FOB modules active.
         runBlocking {
             fixture.pipeRepo.save(
-                CustomTenantPipeline.fromPreset(targetTenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+                CustomTenantPipeline.fromPreset(targetTenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
             )
         }
 
@@ -234,7 +237,7 @@ class AdminApiTest {
     fun putTier_downgradeThatBreaksAnActiveCustomPlugin_shouldBeRejected() = testApplication {
         val fixture = Fixture(tenantRepoWith(
             tier = SubscriptionTier.ENTERPRISE,
-            preset = GarmentBusinessPreset.BRAND_D2C
+            preset = GarmentBlueprints.BRAND_D2C
         ))
         installModule(fixture)
 

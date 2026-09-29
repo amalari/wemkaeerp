@@ -1,7 +1,10 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelineCatalogReconciler
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -22,7 +25,7 @@ class SyncTenantPipelineWithCatalogUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         entitlement: TenantModuleEntitlement,
-        fallbackPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+        fallbackPreset: Blueprint = GarmentBlueprints.DEFAULT
     ): Result<CustomTenantPipeline> = runCatching {
         val pipeline = getPipelineUseCase(tenantId, fallbackPreset).getOrThrow()
         val reconciled = PipelineCatalogReconciler.reconcile(pipeline, entitlement.grantedModules)

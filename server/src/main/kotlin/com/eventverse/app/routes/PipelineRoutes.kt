@@ -1,5 +1,9 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.defaultProducedOutputType
 
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
@@ -7,7 +11,6 @@ import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
@@ -131,7 +134,7 @@ fun Route.pipelineRoutes(
             val tenant = call.manageTenant() ?: return@post
 
             val presetCode = PipelineDto.readPresetCode(call.receiveText())
-            val targetPreset = presetCode?.let { GarmentBusinessPreset.fromCode(it) }
+            val targetPreset = presetCode?.let { GarmentBlueprints.fromCodeOrDefault(it) }
                 ?: tenant.starterPreset
 
             resetPipelineUseCase(tenant.tenantId, targetPreset)
@@ -266,7 +269,7 @@ private suspend fun GetTenantEntitlementUseCase.forTenant(
     invoke(tenant.tenantId, tenant.tier).getOrDefault(tenant.moduleEntitlement)
 
 /** Preset used to provision a tenant that has no pipeline yet: its own business model. */
-private val TenantContext.starterPreset: GarmentBusinessPreset
+private val TenantContext.starterPreset: Blueprint
     get() = businessPreset
 
 private suspend fun ApplicationCall.requireTenant(): TenantContext? {

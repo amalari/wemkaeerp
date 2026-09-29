@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
@@ -18,7 +20,6 @@ import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.moduledev.SizePoints
 import com.eventverse.app.domain.moduledev.WorkHours
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.prospect.usecases.AnalyzeCoverageUseCase
 import com.eventverse.app.domain.prospect.usecases.PriceProspectFlowUseCase
@@ -113,7 +114,7 @@ class ProspectUseCaseTest {
 
     @Test
     fun an_unrecognised_business_model_must_not_silently_become_fob() = runTest {
-        // GarmentBusinessPreset.fromCode() falls back to DEFAULT. If this use case ever routed
+        // GarmentBlueprints.fromCodeOrDefault() falls back to DEFAULT. If this use case ever routed
         // through it, every unknown factory would be filed as a full-package exporter and quoted
         // for buying fabric it never buys.
         val translation = translateUseCase(
@@ -133,7 +134,7 @@ class ProspectUseCaseTest {
             ))
         )(FlowTranslationId("tr-3"), lead(), now).getOrThrow()
 
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, translation.detectedPreset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, translation.detectedPreset)
     }
 
     @Test

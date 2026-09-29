@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.shared.json.JsonParser
@@ -19,7 +21,7 @@ class PipelineTelemetryOverlayTest {
 
     @Test
     fun apply_withReading_shouldReplaceSeedNumbers_andMarkOthersEstimate() {
-        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBusinessPreset.DEFAULT)
+        val snapshot = PipelinePresetFactory.createSnapshot(GarmentBlueprints.DEFAULT)
 
         val result = PipelineTelemetryOverlay.applyTo(snapshot, listOf(sampling), PipelineSimulationScenario.NORMAL)
 

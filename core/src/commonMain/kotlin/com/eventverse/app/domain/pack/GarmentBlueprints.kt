@@ -3,7 +3,6 @@ package com.eventverse.app.domain.pack
 import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.blueprint.BlueprintModule
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 
 /** Kunci parameter modul garment (TRD-PLAT-001 FR-3). */
 object GarmentBlueprintParams {
@@ -91,7 +90,13 @@ object GarmentBlueprints {
     /** Kode tak dikenal → null. Pemanggil yang menolak (B4d). */
     fun find(code: BlueprintCode): Blueprint? = all.firstOrNull { it.code == code }
 
-    /** Jembatan B4b: tepi sistem (tenant, codec, route) masih memakai enum preset sampai B4c. */
-    fun of(preset: GarmentBusinessPreset): Blueprint =
-        requireNotNull(find(BlueprintCode(preset.code))) { "Preset ${preset.code} tanpa Blueprint" }
+    /** Starter untuk tenant baru tanpa pilihan eksplisit (kolom `tenants.business_preset` default). */
+    val DEFAULT: Blueprint get() = FOB_FULL_PACKAGE
+
+    /**
+     * **Fallback senyap lama** `Blueprint.fromCode`, dipertahankan persis di B4c (paritas).
+     * Dihapus di B4d: pemanggil beralih ke [find] dan menolak kode tak dikenal.
+     */
+    fun fromCodeOrDefault(code: String?): Blueprint =
+        all.firstOrNull { it.code.value.equals(code, ignoreCase = true) } ?: DEFAULT
 }

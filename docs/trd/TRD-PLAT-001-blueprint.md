@@ -8,6 +8,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Dari [`discovery-B4-blueprint.md`](../plannings/discovery-B4-blueprint.md); Q1–Q5 disetujui |
+| 0.2 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | B4a–B4c selesai. Koreksi sumber bug header. Risiko baru: `BlueprintCode` di string template (dikunci test klien) |
 
 ### Summary & Business Context
 
@@ -21,6 +22,8 @@ spec modul menyebut nama preset (`supportedPresets`, `costingBehaviorFor(preset)
 **Blueprint** membalik arahnya: satu objek data yang menyatakan modul mana yang aktif dan parameternya.
 Pack mengirim Blueprint starter, tenant menyalinnya (`CustomTenantPipeline`), dan AI agent menulis
 Blueprint baru dengan format yang sama.
+
+> **Koreksi (B4c, 2026-09-29):** `exampleCompanyName` ternyata **tidak dipakai di mana pun**. Badge header "PT WeMade Garmen Ekspor" berasal dari daftar perusahaan demo yang ditulis tangan di `CompanySwitcherDropdown` (`CompanyTenantProfile.ALL`), dan teks "FOB Full Package" jujur secara data: `bordir-uji` memang tersimpan `business_preset = fob_full_package`. Perbaikan tetap di Jalur A (A1).
 
 ### Stakeholders & Approvers
 

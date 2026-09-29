@@ -1,8 +1,11 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.InMemoryTenantEntitlementRepository
 import com.eventverse.app.infrastructure.InMemoryTenantPipelineRepository
@@ -32,7 +35,7 @@ class PipelineModuleApiTest {
 
     private fun tenantRepoWith(
         tier: SubscriptionTier = SubscriptionTier.PRO,
-        preset: GarmentBusinessPreset = GarmentBusinessPreset.CMT_MAKLOON,
+        preset: Blueprint = GarmentBlueprints.CMT_MAKLOON,
         slug: String = proSlug,
         tenantId: TenantId = proTenantId
     ): InMemoryTenantRepository {
@@ -220,7 +223,7 @@ class PipelineModuleApiTest {
             module(
                 tenantRepository = tenantRepoWith(
                     tier = SubscriptionTier.ENTERPRISE,
-                    preset = GarmentBusinessPreset.BRAND_D2C,
+                    preset = GarmentBlueprints.BRAND_D2C,
                     slug = enterpriseSlug,
                     tenantId = enterpriseTenantId
                 ),
@@ -281,7 +284,7 @@ class PipelineModuleApiTest {
 
         assertTrue(returned.nodes.isNotEmpty(), "Kanvas tidak boleh kosong")
         // Provisioned from the tenant's own business model, not the global default.
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, returned.baseStarterPreset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, returned.baseStarterPreset)
     }
 
     @Test

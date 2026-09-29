@@ -1,9 +1,10 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 import com.eventverse.app.domain.pipeline.TenantModuleAvailability
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
@@ -23,13 +24,13 @@ class GetTenantModuleCatalogUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         entitlement: TenantModuleEntitlement,
-        fallbackPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+        fallbackPreset: Blueprint = GarmentBlueprints.DEFAULT
     ): Result<List<TenantModuleAvailability>> = runCatching {
         val pipeline = pipelineRepository.findByTenantId(tenantId)
         val preset = pipeline?.baseStarterPreset ?: fallbackPreset
         val installedByModuleId: Map<String, CustomPipelineNode> =
             pipeline?.nodes?.associateBy { it.moduleId } ?: emptyMap()
-        val recommended = OperationalModuleCatalog.recommendedFor(GarmentBlueprints.of(preset)).map { it.module }.toSet()
+        val recommended = OperationalModuleCatalog.recommendedFor((preset)).map { it.module }.toSet()
 
         val builtIns = OperationalModuleCatalog.all.map { specification ->
             val installed = installedByModuleId[specification.module.code]

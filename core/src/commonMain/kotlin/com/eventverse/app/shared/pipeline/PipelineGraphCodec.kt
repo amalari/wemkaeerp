@@ -1,5 +1,7 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.displayName
 
 import com.eventverse.app.domain.pipeline.code
@@ -9,7 +11,6 @@ import com.eventverse.app.domain.pack.GarmentSlots
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonParser
@@ -86,7 +87,7 @@ object PipelineGraphCodec {
         KEY_VERSION to jsonOf(SCHEMA_VERSION),
         KEY_TENANT_ID to jsonOf(pipeline.tenantId.value),
         KEY_PIPELINE_NAME to jsonOf(pipeline.pipelineName),
-        KEY_BASE_PRESET to jsonOf(pipeline.baseStarterPreset?.code),
+        KEY_BASE_PRESET to jsonOf(pipeline.baseStarterPreset?.code?.value),
         KEY_NODES to jsonArrayOf(pipeline.nodes.map(::encodeNode)),
         KEY_EDGES to jsonArrayOf(pipeline.edges.map(::encodeEdge))
     ).encode()
@@ -105,7 +106,7 @@ object PipelineGraphCodec {
             tenantId = tenantId,
             pipelineName = root.string(KEY_PIPELINE_NAME)?.takeIf { it.isNotBlank() }
                 ?: "Alur Kerja Kustom",
-            baseStarterPreset = root.string(KEY_BASE_PRESET)?.let { GarmentBusinessPreset.fromCode(it) },
+            baseStarterPreset = root.string(KEY_BASE_PRESET)?.let { GarmentBlueprints.fromCodeOrDefault(it) },
             nodes = graph.nodes,
             edges = graph.edges
         )

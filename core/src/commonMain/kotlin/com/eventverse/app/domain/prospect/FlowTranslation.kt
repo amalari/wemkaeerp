@@ -1,8 +1,11 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import kotlinx.datetime.Instant
 
 /**
@@ -60,11 +63,11 @@ data class FlowTranslation(
     /**
      * Null when no preset matched, and it must stay null.
      *
-     * `GarmentBusinessPreset.fromCode()` falls back to `DEFAULT` instead of returning null, so
+     * `GarmentBlueprints.fromCodeOrDefault()` falls back to `DEFAULT` instead of returning null, so
      * anything routed through it would silently file every unrecognised factory as a full-package
      * exporter — and a CMT workshop quoted as FOB is quoted for work it will never do.
      */
-    val detectedPreset: GarmentBusinessPreset? = null,
+    val detectedPreset: Blueprint? = null,
     val openQuestions: List<String> = emptyList(),
     /**
      * What was wrong with the model's output: invented archetype codes, broken hand-offs, cycles,

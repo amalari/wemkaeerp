@@ -1,7 +1,8 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.moduledev.MoneyIdr
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.prospect.FlowTranslation
 import com.eventverse.app.domain.prospect.FlowTranslationId
 import com.eventverse.app.domain.prospect.FlowTranslationRepository
@@ -137,7 +138,7 @@ class PostgresFlowTranslationRepository : FlowTranslationRepository {
         translation: FlowTranslation
     ) {
         this[ProspectFlowTranslationsTable.translatorRef] = translation.translatorRef
-        this[ProspectFlowTranslationsTable.detectedPreset] = translation.detectedPreset?.code
+        this[ProspectFlowTranslationsTable.detectedPreset] = translation.detectedPreset?.code?.value
         this[ProspectFlowTranslationsTable.proposedGraph] =
             ProspectCodec.encodePipeline(translation.proposedPipeline)
         this[ProspectFlowTranslationsTable.capabilityRequirements] =
@@ -177,7 +178,7 @@ class PostgresFlowTranslationRepository : FlowTranslationRepository {
                 rawJson = row[ProspectFlowTranslationsTable.proposedGraph]
             ),
             detectedPreset = row[ProspectFlowTranslationsTable.detectedPreset]
-                ?.let { code -> GarmentBusinessPreset.entries.firstOrNull { it.code == code } },
+                ?.let { code -> GarmentBlueprints.all.firstOrNull { it.code.value == code } },
             openQuestions = ProspectCodec.decodeStrings(
                 row[ProspectFlowTranslationsTable.openQuestions]
             ),

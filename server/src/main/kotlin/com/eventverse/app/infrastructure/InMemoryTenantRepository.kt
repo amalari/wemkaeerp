@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.tenant.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -20,7 +21,7 @@ class InMemoryTenantRepository : TenantRepository {
             status = TenantStatus.ACTIVE,
             tier = SubscriptionTier.PRO,
             activeMachineCount = 12,
-            businessPreset = GarmentBusinessPreset.FOB_FULL_PACKAGE
+            businessPreset = GarmentBlueprints.FOB_FULL_PACKAGE
         )
         tenants[fobTenant.id] = fobTenant
 
@@ -32,7 +33,7 @@ class InMemoryTenantRepository : TenantRepository {
             status = TenantStatus.ACTIVE,
             tier = SubscriptionTier.PRO,
             activeMachineCount = 8,
-            businessPreset = GarmentBusinessPreset.CMT_MAKLOON
+            businessPreset = GarmentBlueprints.CMT_MAKLOON
         )
         tenants[cmtTenant.id] = cmtTenant
 
@@ -44,7 +45,7 @@ class InMemoryTenantRepository : TenantRepository {
             status = TenantStatus.ACTIVE,
             tier = SubscriptionTier.PRO,
             activeMachineCount = 15,
-            businessPreset = GarmentBusinessPreset.BRAND_D2C
+            businessPreset = GarmentBlueprints.BRAND_D2C
         )
         tenants[d2cTenant.id] = d2cTenant
     }

@@ -162,7 +162,7 @@ object ProspectDto {
         "translation" to jsonObjectOf(
             "id" to jsonOf(translation.id.value),
             "translatorRef" to jsonOf(translation.translatorRef),
-            "detectedPreset" to jsonOf(translation.detectedPreset?.code),
+            "detectedPreset" to jsonOf(translation.detectedPreset?.code?.value),
             "needsHumanReview" to jsonOf(translation.needsHumanReview),
             "validationWarnings" to jsonArrayOf(translation.validationWarnings.map { jsonOf(it) }),
             "openQuestions" to jsonArrayOf(translation.openQuestions.map { jsonOf(it) }),

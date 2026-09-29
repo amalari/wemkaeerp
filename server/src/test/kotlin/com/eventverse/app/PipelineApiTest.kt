@@ -1,6 +1,7 @@
 package com.eventverse.app
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.InMemoryTenantEntitlementRepository
 import com.eventverse.app.infrastructure.InMemoryTenantPipelineRepository
@@ -27,7 +28,7 @@ class PipelineApiTest {
                     name = TenantName("PT WeMade Demo"),
                     status = TenantStatus.ACTIVE,
                     tier = SubscriptionTier.PRO,
-                    businessPreset = GarmentBusinessPreset.FOB_FULL_PACKAGE
+                    businessPreset = GarmentBlueprints.FOB_FULL_PACKAGE
                 )
             )
         }

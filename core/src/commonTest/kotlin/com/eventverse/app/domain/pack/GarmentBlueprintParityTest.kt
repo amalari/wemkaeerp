@@ -1,7 +1,6 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.blueprint.BlueprintCode
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -58,14 +57,18 @@ class GarmentBlueprintParityTest {
         GarmentBlueprints.all.forEach { assertEquals(catalog, it.modules.map { m -> m.moduleCode }, it.code.value) }
     }
 
+    /** Teks tampilan `enum class GarmentBusinessPreset` terakhir (commit 0dcb848): code, nama, badge, deskripsi, profil. */
+    private val LEGACY_DISPLAY = listOf(
+        listOf("fob_full_package", "FOB (Full Order / Buy) — Paket Lengkap", "FOB Full Package", "Pengerjaan hulu-ke-hilir: Dari pengadaan bahan baku kain, aksesoris, pembuatan pola/sample, produksi massal, hingga ekspedisi ekspor/retail.", "Pabrik OEM, Ekspor Garmen, atau Konveksi Skala Menengah ke Atas"),
+        listOf("cmt_makloon", "CMT (Cut, Make, Trim) — Jasa Jahit Makloon", "CMT Jasa Jahit", "Pengerjaan jasa jahit murni. Pola potong & kain rol utama disediakan sepenuhnya oleh Buyer/Brand. Pengadaan bahan baku di-bypass.", "Vendor Makloon, Sub-kontraktor Jahit, Mitra Konveksi Rumahan/Sentra"),
+        listOf("brand_d2c", "Brand Konveksi Sendiri (Direct to Consumer)", "Brand D2C Internal", "Model bisnis terintegrasi brand sendiri. Menghubungkan peluncuran katalog baru, sample approval cepat, stok jadi, dan pesanan multichannel.", "Clothing Line Lokal, Distro Brand, Pabrik Seragam Custom Mandiri")
+    )
+
     @Test
-    fun starterDisplay_matchesLegacyPreset_withoutExampleCompany() {
-        GarmentBusinessPreset.entries.forEach { p ->
-            val b = requireNotNull(GarmentBlueprints.find(BlueprintCode(p.code)))
-            assertEquals(listOf(p.displayName, p.shortBadge, p.description, p.targetClientProfile),
-                listOf(b.displayName, b.shortBadge, b.description, b.targetClientProfile))
-            assertEquals(GarmentDomainPack.CODE, b.pack)
-        }
+    fun starterDisplay_equalsLegacyPreset_andUnknownCodeIsNull() {
+        assertEquals(LEGACY_DISPLAY, GarmentBlueprints.all.map { listOf(it.code.value, it.displayName, it.shortBadge, it.description, it.targetClientProfile) })
+        GarmentBlueprints.all.forEach { assertEquals(GarmentDomainPack.CODE, it.pack) }
         assertNull(GarmentBlueprints.find(BlueprintCode("sablon_manual")), "kode tak dikenal → null, bukan FOB")
+        assertEquals(GarmentBlueprints.FOB_FULL_PACKAGE, GarmentBlueprints.fromCodeOrDefault("sablon_manual"), "B4c: fallback lama dipertahankan persis (dihapus di B4d)")
     }
 }

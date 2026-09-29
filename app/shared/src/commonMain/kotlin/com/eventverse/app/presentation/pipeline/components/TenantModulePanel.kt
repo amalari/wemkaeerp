@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.pipeline.components
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.displayName
 
 import androidx.compose.foundation.BorderStroke
@@ -16,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -41,9 +44,9 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun TenantModulePanel(
     catalog: TenantModuleCatalogSnapshot,
     isSaving: Boolean,
-    activePreset: GarmentBusinessPreset,
+    activePreset: Blueprint,
     onSetModuleActive: (moduleId: String, isActive: Boolean) -> Unit,
-    onResetToPreset: (GarmentBusinessPreset) -> Unit,
+    onResetToPreset: (Blueprint) -> Unit,
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -204,9 +207,9 @@ private fun ModuleRow(
 
 @Composable
 private fun PresetResetRow(
-    activePreset: GarmentBusinessPreset,
+    activePreset: Blueprint,
     isSaving: Boolean,
-    onResetToPreset: (GarmentBusinessPreset) -> Unit
+    onResetToPreset: (Blueprint) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -221,7 +224,7 @@ private fun PresetResetRow(
             color = WeMadeColors.OnSurfaceMuted
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GarmentBusinessPreset.entries.forEach { preset ->
+            GarmentBlueprints.all.forEach { preset ->
                 ClayButton(
                     text = preset.shortBadge,
                     onClick = { onResetToPreset(preset) },

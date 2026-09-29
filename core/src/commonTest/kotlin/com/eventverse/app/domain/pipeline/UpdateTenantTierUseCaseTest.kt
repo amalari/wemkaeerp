@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.usecases.GetTenantPipelineUseCase
@@ -80,7 +82,7 @@ class UpdateTenantTierUseCaseTest {
         // ENTERPRISE allows. Downgrading to PRO would leave the tenant locked out of its
         // own flow on the very next save.
         seedTenant(tier = SubscriptionTier.ENTERPRISE)
-        val pipeline = getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        val pipeline = getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         val descriptor = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
             archetype = GarmentSlots.FINISHING,
@@ -110,7 +112,7 @@ class UpdateTenantTierUseCaseTest {
     @Test
     fun downgrade_afterDeactivatingTheOffendingModules_shouldSucceed() = runTest {
         seedTenant(tier = SubscriptionTier.ENTERPRISE)
-        val pipeline = getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        val pipeline = getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         val descriptor = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
             archetype = GarmentSlots.FINISHING,
@@ -132,7 +134,7 @@ class UpdateTenantTierUseCaseTest {
     @Test
     fun upgrade_shouldNeverBeRejectedByExistingPipeline() = runTest {
         seedTenant(tier = SubscriptionTier.STARTER)
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         // STARTER only grants five modules; the FOB preset activates all nine. That is
         // already a violation of the *current* tier, but an upgrade must never be blocked

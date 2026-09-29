@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentPhases
 
 import kotlin.test.Test
@@ -9,12 +13,12 @@ import kotlin.test.assertTrue
 
 class PipelineGraphTest {
 
-    private fun nodesOf(preset: GarmentBusinessPreset) =
+    private fun nodesOf(preset: Blueprint) =
         PipelinePresetFactory.createSnapshot(preset).nodes
 
     @Test
     fun buildGraph_allPresets_resolvesEveryAutomatedInputPort() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { preset ->
             val graph = PipelineGraph.from(nodesOf(preset))
             assertTrue(
                 graph.danglingInputPortIds.isEmpty(),
@@ -25,7 +29,7 @@ class PipelineGraphTest {
 
     @Test
     fun buildGraph_allPresets_producesNoSelfEdgeAndNoDuplicatePair() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { preset ->
             val graph = PipelineGraph.from(nodesOf(preset))
             assertTrue(
                 graph.edges.none { it.fromNodeId == it.toNodeId },
@@ -38,7 +42,7 @@ class PipelineGraphTest {
 
     @Test
     fun buildGraph_allPresets_edgeEndpointsExistInNodeSet() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { preset ->
             val graph = PipelineGraph.from(nodesOf(preset))
             val ids = graph.nodes.map { it.id }.toSet()
             graph.edges.forEach { edge ->
@@ -50,7 +54,7 @@ class PipelineGraphTest {
 
     @Test
     fun buildGraph_nodeWithFanOut_producesEdgePerDownstreamModule() {
-        val nodes = nodesOf(GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val nodes = nodesOf(GarmentBlueprints.FOB_FULL_PACKAGE)
         val graph = PipelineGraph.from(nodes)
 
         val fanOutNode = nodes.first { it.downstreamModuleCodes.size > 1 }
@@ -69,7 +73,7 @@ class PipelineGraphTest {
 
     @Test
     fun buildGraph_filteredNodeSet_marksMissingSourceAsDangling() {
-        val nodes = nodesOf(GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val nodes = nodesOf(GarmentBlueprints.FOB_FULL_PACKAGE)
         val fullGraph = PipelineGraph.from(nodes)
 
         // Drop a node that something downstream depends on.
@@ -107,7 +111,7 @@ class PipelineGraphTest {
 
     @Test
     fun layering_allPresets_producesNoEmptyLayer() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { preset ->
             val graph = PipelineGraph.from(nodesOf(preset))
             assertTrue(graph.layers.isNotEmpty(), "Preset $preset produced no layers")
             assertTrue(graph.layers.none { it.isEmpty() }, "Preset $preset produced an empty layer")
@@ -134,7 +138,7 @@ class PipelineGraphTest {
 
     @Test
     fun conditionalPaths_reworkLoop_isDrawnButNeverDistortsLayering() {
-        val nodes = nodesOf(GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val nodes = nodesOf(GarmentBlueprints.FOB_FULL_PACKAGE)
         val graph = PipelineGraph.from(nodes)
 
         val conditional = graph.edges.filter { it.kind == PipelineEdgeKind.CONDITIONAL }
@@ -156,7 +160,7 @@ class PipelineGraphTest {
 
     @Test
     fun conditionalPaths_areExcludedFromForwardOnlyLayering() {
-        val nodes = nodesOf(GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val nodes = nodesOf(GarmentBlueprints.FOB_FULL_PACKAGE)
         val graph = PipelineGraph.from(nodes)
 
         // Layering must match a graph built from the forward edges alone.
@@ -226,7 +230,7 @@ class PipelineGraphTest {
     @Test
     fun buildGraph_qcFabricDefectScenario_resolvesFeedbackEdgeToInventory() {
         val snapshot = PipelinePresetFactory.createSnapshot(
-            preset = GarmentBusinessPreset.FOB_FULL_PACKAGE,
+            preset = GarmentBlueprints.FOB_FULL_PACKAGE,
             scenario = PipelineSimulationScenario.QC_FABRIC_DEFECT
         )
         val graph = PipelineGraph.from(snapshot.nodes)
@@ -248,7 +252,7 @@ class PipelineGraphTest {
     @Test
     fun buildGraph_qcWorkmanshipScenario_resolvesFeedbackEdgeToOperator() {
         val snapshot = PipelinePresetFactory.createSnapshot(
-            preset = GarmentBusinessPreset.FOB_FULL_PACKAGE,
+            preset = GarmentBlueprints.FOB_FULL_PACKAGE,
             scenario = PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT
         )
         val graph = PipelineGraph.from(snapshot.nodes)
@@ -265,7 +269,7 @@ class PipelineGraphTest {
 
     /** Stable, distinct module per stub id, so ids and module codes stay in sync. */
     private val stubModules = PipelinePresetFactory
-        .createSnapshot(GarmentBusinessPreset.FOB_FULL_PACKAGE).nodes
+        .createSnapshot(GarmentBlueprints.FOB_FULL_PACKAGE).nodes
         .map { it.module }
 
     private fun moduleForStubId(id: String) = stubModules["abcdefgh".indexOf(id)]

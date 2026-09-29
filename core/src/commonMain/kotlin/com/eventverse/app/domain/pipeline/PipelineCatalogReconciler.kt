@@ -49,7 +49,7 @@ object PipelineCatalogReconciler {
      * masuk/rujukan B), supaya ia tampil tersambung di kanvas bahkan sebelum diaktifkan.
      */
     private fun portEdgesFor(pipeline: CustomTenantPipeline, inserted: Set<BusinessModule>): List<CustomPipelineEdge> {
-        val blueprint = GarmentBlueprints.of(pipeline.baseStarterPreset ?: GarmentBusinessPreset.DEFAULT)
+        val blueprint = (pipeline.baseStarterPreset ?: GarmentBlueprints.DEFAULT)
         val nodeByModule = pipeline.nodes.mapNotNull { node -> node.standardModule?.let { it to node } }.toMap()
         val existingPairs = pipeline.edges.map { it.fromNodeId to it.toNodeId }.toSet()
         return nodeByModule.keys.flatMap { from -> nodeByModule.keys.map { to -> from to to } }

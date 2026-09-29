@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.usecases.GetTenantEntitlementUseCase
@@ -78,7 +80,7 @@ class TenantEntitlementUseCaseTest {
 
     @Test
     fun installCustomModule_shouldPersistTheGrant() = runTest {
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE).getOrThrow()
 
         installCustom(tenantId, customPlugin(), enterprise).getOrThrow()
@@ -92,7 +94,7 @@ class TenantEntitlementUseCaseTest {
     fun afterInstall_laterEditsShouldPassEntitlementCheck() = runTest {
         // The regression: a resolved entitlement on a *later* request must still know about
         // the plugin, otherwise unrelated edits fail with a plan-limit error.
-        getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
         val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE).getOrThrow()
         installCustom(tenantId, customPlugin(), enterprise).getOrThrow()
 
@@ -128,7 +130,7 @@ class TenantEntitlementUseCaseTest {
     fun setEntitlement_thatWouldBreakARunningPipeline_shouldBeRejected() = runTest {
         // Revoking a module a factory is actively running would lock it out of editing its
         // own flow, and the failure would only appear on that tenant's next save.
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         val result = setEntitlement(
             tenantId,
@@ -148,7 +150,7 @@ class TenantEntitlementUseCaseTest {
     @Test
     fun setEntitlement_revokingAModuleTheTenantHasBypassed_shouldBeAllowed() = runTest {
         // A bypassed module consumes no licence, so revoking it is safe.
-        getPipeline(tenantId, GarmentBusinessPreset.CMT_MAKLOON).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
         val bypassedModule = pipelineRepository.findByTenantId(tenantId)!!
             .bypassedNodes.first().standardModule
         assertNotNull(bypassedModule)
@@ -181,7 +183,7 @@ class TenantEntitlementUseCaseTest {
     @Test
     fun setEntitlement_withAutoBypass_shouldBypassRunningPipelineNodesAndSucceed() = runTest {
         // Setup a running pipeline with all FOB modules active
-        getPipeline(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE).getOrThrow()
+        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
         val initialPipeline = pipelineRepository.findByTenantId(tenantId)!!
         val packingNode = initialPipeline.nodes.first { it.moduleId == BusinessModule.FULFILLMENT.code }
         assertFalse(packingNode.isBypassed)

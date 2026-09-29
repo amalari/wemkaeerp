@@ -1,7 +1,8 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 
 /**
@@ -21,7 +22,7 @@ interface PipelineRemoteDataSource {
 
     suspend fun resetPipeline(
         tenantSlug: String,
-        preset: GarmentBusinessPreset
+        preset: Blueprint
     ): Result<CustomTenantPipeline>
 
     suspend fun getModuleCatalog(tenantSlug: String): Result<TenantModuleCatalogSnapshot>

@@ -1,7 +1,8 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 import com.eventverse.app.shared.json.JsonWriter
 import com.eventverse.app.shared.pipeline.PipelineGraphCodec
@@ -67,12 +68,12 @@ class PipelineApiClient(
     /** POST /api/tenant/pipeline/reset */
     override suspend fun resetPipeline(
         tenantSlug: String,
-        preset: GarmentBusinessPreset
+        preset: Blueprint
     ): Result<CustomTenantPipeline> = runCatching {
         val response = httpClient.post(resolveUrl("$PIPELINE_PATH/reset")) {
             tenantRequest(tenantSlug, tokenProvider)
             contentType(ContentType.Application.Json)
-            setBody("{\"preset\":\"${preset.code}\"}")
+            setBody("{\"preset\":\"${preset.code.value}\"}")
         }
         PipelineGraphCodec.decodePipelineFromPayload(response.requireBody("mereset alur pabrik"))
     }

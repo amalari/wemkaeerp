@@ -44,7 +44,7 @@ object AdminDto {
             "slug" to jsonOf(tenant.slug.value),
             "name" to jsonOf(tenant.name.value),
             "status" to jsonOf(tenant.status.name),
-            "businessPreset" to jsonOf(tenant.businessPreset.code)
+            "businessPreset" to jsonOf(tenant.businessPreset.code.value)
         )
         val grantsValue = TenantEntitlementGrantsCodec.encode(grants)
 

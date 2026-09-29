@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
@@ -7,7 +9,6 @@ import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.prospect.CapabilityRequirement
 import com.eventverse.app.domain.prospect.FlowTranslation
@@ -85,14 +86,14 @@ class PostgresProspectRepositoryIntegrationTest {
         proposedPipeline = CustomTenantPipeline(
             tenantId = l.placeholderTenantId,
             pipelineName = "Usulan alur",
-            baseStarterPreset = GarmentBusinessPreset.CMT_MAKLOON,
+            baseStarterPreset = GarmentBlueprints.CMT_MAKLOON,
             nodes = listOf(
                 CustomPipelineNode("n1", "proposed_order_ingestion_1", "Terima SPK", GarmentSlots.ORDER_INGESTION, stepOrderIndex = 0),
                 CustomPipelineNode("n2", "proposed_sewing_2", "Jahit", GarmentSlots.SEWING, stepOrderIndex = 1)
             ),
             edges = listOf(CustomPipelineEdge("e1", "n1", "n2", "CutPiecesBundle"))
         ),
-        detectedPreset = GarmentBusinessPreset.CMT_MAKLOON,
+        detectedPreset = GarmentBlueprints.CMT_MAKLOON,
         openQuestions = listOf("Sablon dikerjakan sendiri?"),
         validationWarnings = listOf("Kebutuhan tanpa kutipan."),
         translatedAt = Clock.System.now()
@@ -139,7 +140,7 @@ class PostgresProspectRepositoryIntegrationTest {
         translationRepo.save(translation)
 
         val loaded = assertNotNull(translationRepo.findByLead(l.id).firstOrNull())
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, loaded.detectedPreset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, loaded.detectedPreset)
         assertEquals(2, loaded.requirements.size)
         assertEquals("kami cuma jahit", loaded.requirements.single { it.title == "Jahit jaket" }.sourceQuote)
         // Features must survive the JSONB round trip, or every restored gap would score zero points.

@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure
 
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.*
@@ -36,7 +37,7 @@ class PostgresTenantEntitlementRepositoryIntegrationTest {
             name = TenantName("PT Entitlement $suffix"),
             status = TenantStatus.ACTIVE,
             tier = SubscriptionTier.ENTERPRISE,
-            businessPreset = GarmentBusinessPreset.BRAND_D2C
+            businessPreset = GarmentBlueprints.BRAND_D2C
         )
         runBlocking { tenantRepo.save(tenant).getOrThrow() }
         return tenant

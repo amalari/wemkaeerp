@@ -1,11 +1,14 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -31,7 +34,7 @@ class SetTenantModuleActivationUseCase(
         moduleId: String,
         isActive: Boolean,
         entitlement: TenantModuleEntitlement,
-        fallbackPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT
+        fallbackPreset: Blueprint = GarmentBlueprints.DEFAULT
     ): Result<CustomTenantPipeline> = runCatching {
         require(moduleId.isNotBlank()) { "moduleId cannot be blank" }
 

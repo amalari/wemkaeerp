@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 /**
@@ -12,13 +14,13 @@ import com.eventverse.app.domain.pack.GarmentBlueprints
 object PipelinePresetFactory {
 
     fun createSnapshot(
-        preset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
+        preset: Blueprint = GarmentBlueprints.DEFAULT,
         scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
-    ): FactoryPipelineSnapshot = snapshotOf(preset, CatalogPipelineBuilder.build(GarmentBlueprints.of(preset), scenario), scenario)
+    ): FactoryPipelineSnapshot = snapshotOf(preset, CatalogPipelineBuilder.build((preset), scenario), scenario)
 
     /** KPI agregat atas sekumpulan node — dipakai juga oleh [TenantPipelineProjector]. */
     fun snapshotOf(
-        preset: GarmentBusinessPreset,
+        preset: Blueprint,
         nodes: List<PipelineNode>,
         scenario: PipelineSimulationScenario
     ): FactoryPipelineSnapshot {

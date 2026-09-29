@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.prospect.usecases
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 
 import com.eventverse.app.domain.pipeline.code
@@ -9,7 +13,6 @@ import com.eventverse.app.domain.pack.GarmentSlots
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.prospect.CapabilityRequirement
 import com.eventverse.app.domain.prospect.FlowTranslation
@@ -115,7 +118,7 @@ class TranslateProspectFlowUseCase(
     }
 
     /**
-     * Resolves the business preset **without** `GarmentBusinessPreset.fromCode()`.
+     * Resolves the business preset **without** `GarmentBlueprints.fromCodeOrDefault()`.
      *
      * That helper falls back to `DEFAULT` instead of returning null, so routing an unrecognised code
      * through it would silently file every unknown factory as a full-package exporter — and a CMT
@@ -124,12 +127,12 @@ class TranslateProspectFlowUseCase(
     private fun resolvePreset(
         code: String?,
         warnings: MutableList<String>
-    ): GarmentBusinessPreset? {
+    ): Blueprint? {
         if (code.isNullOrBlank()) {
             warnings += "Model bisnis pabrik tidak terdeteksi dari narasi."
             return null
         }
-        val match = GarmentBusinessPreset.entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
+        val match = GarmentBlueprints.all.firstOrNull { it.code.value.equals(code, ignoreCase = true) }
         if (match == null) {
             warnings += "Model bisnis \"$code\" tidak dikenal; tidak diasumsikan."
         }
@@ -151,7 +154,7 @@ class TranslateProspectFlowUseCase(
         lead: ProspectLead,
         ordered: List<CapabilityRequirement>,
         raws: List<RawCapabilityRequirement>,
-        preset: GarmentBusinessPreset?
+        preset: Blueprint?
     ): CustomTenantPipeline {
         val suggestedByTitle = raws.associate { it.title to it.suggestedModuleId }
 

@@ -4,7 +4,6 @@ import com.eventverse.app.domain.pipeline.FactoryPipelineSnapshot
 import com.eventverse.app.domain.pipeline.ModuleTelemetry
 import com.eventverse.app.domain.pipeline.PipelineTelemetryOverlay
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
 import com.eventverse.app.domain.pipeline.TenantPipelineProjector

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseCase
 import com.eventverse.app.domain.pipeline.usecases.SyncTenantPipelineWithCatalogUseCase
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -15,7 +17,7 @@ class PipelineCatalogSyncTest {
 
     /** A tenant provisioned before QC existed in the catalogue, and who renamed sewing. */
     private fun legacyPipelineWithoutQc(): CustomTenantPipeline {
-        val fresh = CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.FOB_FULL_PACKAGE)
+        val fresh = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
         val qc = fresh.nodes.first { it.moduleId == BusinessModule.QUALITY_CONTROL.code }
         val sewing = fresh.nodes.first { it.moduleId == BusinessModule.OPERATOR_EXEC.code }
         return fresh.removeNode(qc.nodeId).renameNode(sewing.nodeId, "Lini Jahit A")
@@ -23,7 +25,7 @@ class PipelineCatalogSyncTest {
 
     @Test
     fun reconcile_whenNothingMissing_shouldReturnSameInstance() {
-        val pipeline = CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.CMT_MAKLOON)
+        val pipeline = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
 
         assertSame(pipeline, PipelineCatalogReconciler.reconcile(pipeline, allModules))
     }

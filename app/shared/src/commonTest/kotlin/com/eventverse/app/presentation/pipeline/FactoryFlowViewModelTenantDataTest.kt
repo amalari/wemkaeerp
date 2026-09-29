@@ -1,7 +1,8 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,7 +27,7 @@ class FactoryFlowViewModelTenantDataTest {
     private val tenantId = TenantId("ten-demo-cmt")
 
     private fun cmtPipelineWithCustomNames(): CustomTenantPipeline {
-        val base = CustomTenantPipeline.fromPreset(tenantId, GarmentBusinessPreset.CMT_MAKLOON)
+        val base = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
         val inventoryNode = base.nodes.first { it.moduleId == "inventory" }
         return base
             .renameNode(inventoryNode.nodeId, "Penerimaan Kain Titipan Buyer")
@@ -53,7 +54,7 @@ class FactoryFlowViewModelTenantDataTest {
             state.snapshot.nodes.any { it.title == "Penerimaan Kain Titipan Buyer" },
             "Kanvas harus memakai nama modul milik tenant"
         )
-        assertEquals(GarmentBusinessPreset.CMT_MAKLOON, state.selectedPreset)
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, state.selectedPreset)
         assertTrue(remote.calls.contains("get"))
         assertTrue(remote.calls.contains("catalog"))
     }
@@ -222,12 +223,12 @@ class FactoryFlowViewModelTenantDataTest {
         advanceUntilIdle()
 
         viewModel.onEvent(
-            FactoryFlowUiEvent.ResetToPreset(tenantSlug, GarmentBusinessPreset.BRAND_D2C)
+            FactoryFlowUiEvent.ResetToPreset(tenantSlug, GarmentBlueprints.BRAND_D2C)
         )
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertEquals(GarmentBusinessPreset.BRAND_D2C, state.selectedPreset)
+        assertEquals(GarmentBlueprints.BRAND_D2C, state.selectedPreset)
         assertTrue(state.isTenantDataLoaded)
         assertFalse(
             state.snapshot.nodes.any { it.title == "Penerimaan Kain Titipan Buyer" },

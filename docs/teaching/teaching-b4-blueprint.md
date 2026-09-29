@@ -1,4 +1,4 @@
-# 🎓 Modul Pembelajaran: Blueprint — Membalik Arah Pengetahuan Preset (Jalur B, B4a–B4b)
+# 🎓 Modul Pembelajaran: Blueprint — Membalik Arah Pengetahuan Preset (Jalur B, B4a–B4c)
 
 > **Level Target**: Junior to Mid Developer
 > **Topik Utama**: Dari "modul tahu preset" ke "Blueprint menyatakan modul"
@@ -59,6 +59,15 @@ semuanya metadata deklaratif. Satu-satunya perilaku yang hidup: HPP membaca stok
    lulus. Pembanding paritas harus **seed tulis tangan** (`PresetNodeSeeds`), bukan hasil builder.
 2. **Regex dan angka di nama enum.** `[A-Z_]` tidak cocok dengan `BRAND_D2C`; skrip pembangkit berhenti
    di assert. Assert jumlah hasil ekstraksi menyelamatkan dari data yang diam-diam kurang satu.
+
+3. **Value class di string template (B4c).** `"${preset.code}"` dulu `fob_full_package`; setelah `code`
+   menjadi `BlueprintCode`, hasilnya `BlueprintCode(value=fob_full_package)`. Kompilator **tidak** menangkap ini.
+   Body `POST /pipeline/reset` sempat rusak begini, padahal semua test hijau. Penulisan DB (`it[kolom] = …`) justru
+   tertangkap kompilator karena tipenya berbeda. Pelajarannya: setelah mengganti `String` dengan value class,
+   sisir semua `${…code}` secara manual, lalu kunci format kabel dengan test yang **dibuktikan merah** saat bug
+   dikembalikan (`ApiClientAuthHeaderTest.resetPipeline_shouldSendRawBlueprintCodeInBody`).
+4. **Klaim tanpa grep.** Discovery B4 menyebut `exampleCompanyName` sebagai sumber bug header; grep saat B4c
+   membuktikan field itu tidak dipakai sama sekali. Sumber sebenarnya ada di daftar demo `CompanySwitcherDropdown`.
 
 ## 🧪 4. Pembuktian
 

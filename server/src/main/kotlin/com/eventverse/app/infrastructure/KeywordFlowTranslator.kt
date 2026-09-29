@@ -1,11 +1,12 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.pipeline.code
 
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
-import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.prospect.FlowTranslationDraft
 import com.eventverse.app.domain.prospect.FlowTranslator
@@ -79,9 +80,9 @@ class KeywordFlowTranslator(
      * never buy.
      */
     private fun detectPreset(text: String): String? = when {
-        PRESET_CMT_HINTS.any { it in text } -> GarmentBusinessPreset.CMT_MAKLOON.code
-        PRESET_D2C_HINTS.any { it in text } -> GarmentBusinessPreset.BRAND_D2C.code
-        PRESET_FOB_HINTS.any { it in text } -> GarmentBusinessPreset.FOB_FULL_PACKAGE.code
+        PRESET_CMT_HINTS.any { it in text } -> GarmentBlueprints.CMT_MAKLOON.code.value
+        PRESET_D2C_HINTS.any { it in text } -> GarmentBlueprints.BRAND_D2C.code.value
+        PRESET_FOB_HINTS.any { it in text } -> GarmentBlueprints.FOB_FULL_PACKAGE.code.value
         else -> null
     }
 
