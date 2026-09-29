@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.workqueue.WashingBatch
 import com.eventverse.app.domain.workqueue.WashingBatchId
 import com.eventverse.app.domain.workqueue.WashingBatchItem
@@ -10,27 +11,28 @@ import com.eventverse.app.domain.workqueue.WorkCardId
 import com.eventverse.app.infrastructure.tables.WashingBatchItemsTable
 import com.eventverse.app.infrastructure.tables.WashingBatchSortOutputsTable
 import com.eventverse.app.infrastructure.tables.WashingBatchesTable
-import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 /**
  * Implementasi Postgres Exposed untuk agregat [WashingBatch]. Cermin V70.
+ *
+ * Wajib lewat [DatabaseFactory.dbQuery] dengan tenant: transaksi mentah memakai pool tenant **tanpa**
+ * `app.current_tenant_id`, sehingga di bawah RLS baca kosong diam-diam dan tulis ditolak.
  */
 class PostgresWashingBatchRepository : WashingBatchRepository {
 
     override suspend fun findById(tenantId: String, batchId: WashingBatchId): WashingBatch? =
-        newSuspendedTransaction(Dispatchers.IO) {
+        DatabaseFactory.dbQuery(TenantId(tenantId)) {
             val batchRow = WashingBatchesTable.selectAll()
                 .where { (WashingBatchesTable.tenantId eq tenantId) and (WashingBatchesTable.id eq batchId.value) }
-                .singleOrNull() ?: return@newSuspendedTransaction null
+                .singleOrNull() ?: return@dbQuery null
 
             val itemRows = WashingBatchItemsTable.selectAll()
                 .where { (WashingBatchItemsTable.tenantId eq tenantId) and (WashingBatchItemsTable.batchId eq batchId.value) }
@@ -44,14 +46,14 @@ class PostgresWashingBatchRepository : WashingBatchRepository {
         }
 
     override suspend fun findByTenant(tenantId: String, limit: Int): List<WashingBatch> =
-        newSuspendedTransaction(Dispatchers.IO) {
+        DatabaseFactory.dbQuery(TenantId(tenantId)) {
             val batchRows = WashingBatchesTable.selectAll()
                 .where { WashingBatchesTable.tenantId eq tenantId }
                 .orderBy(WashingBatchesTable.createdAt, SortOrder.DESC)
                 .limit(limit)
                 .toList()
 
-            if (batchRows.isEmpty()) return@newSuspendedTransaction emptyList()
+            if (batchRows.isEmpty()) return@dbQuery emptyList()
 
             val batchIds = batchRows.map { it[WashingBatchesTable.id] }
 
@@ -70,7 +72,7 @@ class PostgresWashingBatchRepository : WashingBatchRepository {
         }
 
     override suspend fun save(batch: WashingBatch): Unit =
-        newSuspendedTransaction(Dispatchers.IO) {
+        DatabaseFactory.dbQuery(TenantId(batch.tenantId)) {
             val existing = WashingBatchesTable.selectAll()
                 .where { WashingBatchesTable.id eq batch.id.value }
                 .singleOrNull()

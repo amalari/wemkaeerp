@@ -20,11 +20,7 @@ class ModuleSchemaOwnershipTest {
          * Utang RLS yang **sudah ada sebelum B8** (baseline DB B 2026-09-29): tabel ber-`tenant_id` tanpa row level
          * security. Bukan akibat pemindahan schema; dicicil terpisah. Hanya boleh berkurang.
          */
-        val RLS_DEBT = setOf(
-            "rework_tickets", "sample_storage_records", "surat_jalan_manifests", "tenant_flow_node_locations",
-            "tenant_location_settings", "tenant_locations", "tenant_optional_processes", "trace_tenant_ordinals",
-            "work_cards", "work_deposits"
-        )
+        val RLS_DEBT: Set<String> = emptySet() // V77 melunasi 10 tabel baseline 2026-09-29
     }
 
     @BeforeTest

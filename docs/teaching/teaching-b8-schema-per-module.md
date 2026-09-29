@@ -64,7 +64,33 @@ tabel modul yang tertinggal di `public`.
 - Server nyata (8081): 13 endpoint wemade-demo 200. Di browser :3001, CRM leads, Order Sampling (11 SPK), dan Invoice
   tampil dengan 0 error console.
 
-## 🧭 6. Sisa
+## 🔒 6. Lanjutan: utang RLS dibayar (V77)
 
-- `RLS_DEBT` (10 tabel) → migrasi `apply_tenant_rls_in` terpisah, dengan uji isolasi lewat `DB_APP_USER`.
+- `apply_tenant_rls_in` menyalakan RLS di 10 tabel `RLS_DEBT`; ledger kini kosong.
+- **Isolasi diuji sebagai `wemade_app`**, bukan dengan melihat katalog policy saja. `TenantRlsIsolationTest` menjalankan
+  `SET LOCAL ROLE wemade_app` untuk setiap tabel ber-`tenant_id`. Syaratnya: tenant tidak melihat satu pun baris tenant
+  lain, tetap melihat **seluruh** barisnya sendiri, dan tanpa konteks tenant melihat 0 baris (fail-closed). Kemampuan
+  test mendeteksi kebocoran dibuktikan dengan mematikan RLS satu tabel di transaksi yang di-rollback: satu baris tenant
+  lain langsung terbaca.
+- **Suite penuh dijalankan dengan `DB_APP_USER`** (role dev `wemade_app_dev LOGIN IN ROLE wemade_app`, hanya di DB dev):
+  250 hijau, sama seperti mode owner. Test `whenAppUserConfigured_tenantQueriesReallyRunAsIt` memastikan
+  `current_user` benar-benar role itu. Gradle harus `--no-daemon`, karena JVM test mewarisi env daemon, bukan shell.
+
+**Bug nyata yang ditemukan**: `PostgresWashingBatchRepository` membuka `newSuspendedTransaction` sendiri. Di bawah
+`DB_APP_USER`, transaksi itu memakai pool tenant **tanpa** `app.current_tenant_id`, sehingga daftar batch washing kosong
+diam-diam dan penyimpanan ditolak. Selama ini tidak terlihat karena dev berjalan sebagai superuser. Diperbaiki lewat
+`DatabaseFactory.dbQuery(tenantId)` dan dijaga test `noRepository_opensItsOwnTransaction_bypassingDatabaseFactory`.
+
+**Superadmin di bawah RLS** (server 8081 dengan `DB_APP_USER`):
+
+| Jalur | Hasil |
+|---|---|
+| act-as `wemade-demo` | 1 lead, 11 SPK |
+| act-as `klinik-uji` | pack klinik, 0 lead (tidak ada kebocoran dari wemade-demo) |
+| login persona + jabatan `role-sales-head` | token untuk tenant persona; menu sesuai jabatan; lintas tenant 403 |
+| `/api/admin/tenants/{slug}` | 200 (pool owner, lintas tenant memang tugasnya) |
+
+## 🧭 7. Sisa
+
+- Produksi: `DB_APP_USER` **wajib** diisi saat cutover (role LOGIN turunan `wemade_app`); tanpanya RLS tidak berlaku.
 - Default DB snapshot (`wemade_erp` → `wemake_erp`) → tulis ulang snapshot dengan sadar.
