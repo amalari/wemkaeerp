@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+import com.eventverse.app.domain.pack.GarmentBlueprintParams
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -13,12 +16,10 @@ import com.eventverse.app.domain.rbac.BusinessModule
  */
 object OperationalModuleCatalog {
 
-    private val ALL_PRESETS = GarmentBusinessPreset.entries.toSet()
 
     /** Order intake: leads, negotiation, purchase orders. */
     object CrmSalesModule : OperationalModuleSpecification {
         override val module = BusinessModule.CRM_SALES
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = emptyList<String>()
@@ -28,7 +29,6 @@ object OperationalModuleCatalog {
     /** Prototype sampling and pattern approval before mass production. */
     object SamplingOrderModule : OperationalModuleSpecification {
         override val module = BusinessModule.SAMPLING_ORDER
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.SERVICE_FEE_ONLY
         override val upstreamPrerequisites = listOf("ProductionOrderDraft")
@@ -41,20 +41,10 @@ object OperationalModuleCatalog {
      */
     object InventoryModule : OperationalModuleSpecification {
         override val module = BusinessModule.INVENTORY
-        override val supportedPresets = setOf(
-            GarmentBusinessPreset.FOB_FULL_PACKAGE,
-            GarmentBusinessPreset.BRAND_D2C
-        )
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("MaterialRequisition")
         override val downstreamHandoffs = listOf("VerifiedMaterialStock")
-
-        override fun stockOwnershipFor(preset: GarmentBusinessPreset) = when (preset) {
-            GarmentBusinessPreset.CMT_MAKLOON -> StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL
-            GarmentBusinessPreset.BRAND_D2C -> StockOwnershipSemantics.OWNED_RAW_MATERIAL
-            GarmentBusinessPreset.FOB_FULL_PACKAGE -> StockOwnershipSemantics.OWNED_RAW_MATERIAL
-        }
     }
 
     /**
@@ -63,10 +53,6 @@ object OperationalModuleCatalog {
      */
     object TechPackBomModule : OperationalModuleSpecification {
         override val module = BusinessModule.TECH_PACK_BOM
-        override val supportedPresets = setOf(
-            GarmentBusinessPreset.FOB_FULL_PACKAGE,
-            GarmentBusinessPreset.BRAND_D2C
-        )
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("ApprovedSampleSpecification")
@@ -76,46 +62,38 @@ object OperationalModuleCatalog {
     /** Cost of goods calculation — the module whose rules differ most by business model. */
     object CostingHppModule : OperationalModuleSpecification {
         override val module = BusinessModule.COSTING_HPP
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("TechPackAndYieldData", "VerifiedMaterialStock")
         override val downstreamHandoffs = listOf("CostingCalculationResult")
 
-        override fun costingBehaviorFor(preset: GarmentBusinessPreset) = when (preset) {
-            GarmentBusinessPreset.FOB_FULL_PACKAGE -> CostingBehavior.FULL_PACKAGE_COGS
-            GarmentBusinessPreset.CMT_MAKLOON -> CostingBehavior.SERVICE_FEE_ONLY
-            GarmentBusinessPreset.BRAND_D2C -> CostingBehavior.RETAIL_VALUATION_WITH_FEES
-        }
-
         /**
          * Nilai stok kain hanya masuk HPP pada paket penuh. Makloon (jasa) dan D2C (valuasi retail)
          * tidak menjumlahkan stok ke HPP — module-integration-rules Kontrak 4.
          */
-        override fun inputsFor(preset: GarmentBusinessPreset) =
-            if (costingBehaviorFor(preset) == CostingBehavior.FULL_PACKAGE_COGS) upstreamPrerequisites
+        override fun inputsFor(parameters: Map<String, String>) =
+            if (behaviorOf(parameters) == CostingBehavior.FULL_PACKAGE_COGS) upstreamPrerequisites
             else upstreamPrerequisites - "VerifiedMaterialStock"
+
+        /** Parser ketat parameter Blueprint `costingBehavior`; kosong → perilaku bawaan spec. */
+        private fun behaviorOf(parameters: Map<String, String>): CostingBehavior =
+            parameters[GarmentBlueprintParams.COSTING_BEHAVIOR]
+                ?.let { v -> requireNotNull(CostingBehavior.entries.firstOrNull { it.name == v }) { "costingBehavior tak dikenal: $v" } }
+                ?: costingBehavior
     }
 
     /** Machine scheduling, cutting orders, mass production work orders. */
     object ProductionMrpModule : OperationalModuleSpecification {
         override val module = BusinessModule.PRODUCTION_MRP
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = listOf("CostingCalculationResult", "VerifiedMaterialStock")
         override val downstreamHandoffs = listOf("CutPiecesBundle")
-
-        override fun stockOwnershipFor(preset: GarmentBusinessPreset) = when (preset) {
-            GarmentBusinessPreset.CMT_MAKLOON -> StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL
-            else -> StockOwnershipSemantics.OWNED_RAW_MATERIAL
-        }
     }
 
     /** Sewing line execution and daily operator output. */
     object OperatorExecModule : OperationalModuleSpecification {
         override val module = BusinessModule.OPERATOR_EXEC
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.SERVICE_FEE_ONLY
         override val upstreamPrerequisites = listOf("CutPiecesBundle")
@@ -125,35 +103,21 @@ object OperationalModuleCatalog {
     /** Inspection and grading — the module that attributes defect liability. */
     object QualityControlModule : OperationalModuleSpecification {
         override val module = BusinessModule.QUALITY_CONTROL
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
         override val upstreamPrerequisites = listOf("AssembledGarmentBundle")
         override val referenceInputs = listOf("TechPackAndYieldData")
         override val downstreamHandoffs = listOf("InspectedAndGradedUnit")
         override val defectLiability = DefectLiability.FACTORY_WORKMANSHIP
-
-        override fun defectLiabilityFor(preset: GarmentBusinessPreset) = when (preset) {
-            // Fabric the buyer supplied is the buyer's risk, not the factory's.
-            GarmentBusinessPreset.CMT_MAKLOON -> DefectLiability.CLIENT_SUPPLIED_DEFECT
-            GarmentBusinessPreset.FOB_FULL_PACKAGE -> DefectLiability.SUPPLIER_VENDOR_DEFECT
-            GarmentBusinessPreset.BRAND_D2C -> DefectLiability.FACTORY_WORKMANSHIP
-        }
     }
 
     /** Packing, delivery notes, dispatch. */
     object FulfillmentModule : OperationalModuleSpecification {
         override val module = BusinessModule.FULFILLMENT
-        override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.INTERNAL_FINISHED_GOODS
         override val costingBehavior = CostingBehavior.RETAIL_VALUATION_WITH_FEES
         override val upstreamPrerequisites = listOf("InspectedAndGradedUnit")
         override val downstreamHandoffs = listOf("DispatchedShipmentManifest")
-
-        override fun stockOwnershipFor(preset: GarmentBusinessPreset) = when (preset) {
-            GarmentBusinessPreset.CMT_MAKLOON -> StockOwnershipSemantics.CONSIGNED_CLIENT_MATERIAL
-            else -> StockOwnershipSemantics.INTERNAL_FINISHED_GOODS
-        }
     }
 
     /**
@@ -182,8 +146,8 @@ object OperationalModuleCatalog {
         BusinessModule.entries.firstOrNull { it.code == moduleCode }?.let { byModule[it] }
 
     /** Modules recommended as the starting set for a business model. */
-    fun recommendedFor(preset: GarmentBusinessPreset): List<OperationalModuleSpecification> =
-        all.filter { it.supportedPresets.contains(preset) }
+    fun recommendedFor(blueprint: Blueprint): List<OperationalModuleSpecification> =
+        all.filter { blueprint.isActive(it.module.code) }
 
     /** Modules that fill the same capability slot and can therefore be swapped. */
     fun interchangeableWith(archetype: ModuleArchetype): List<OperationalModuleSpecification> =

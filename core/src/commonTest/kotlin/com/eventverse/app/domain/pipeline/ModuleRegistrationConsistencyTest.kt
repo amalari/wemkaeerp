@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
 import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,9 +30,9 @@ class ModuleRegistrationConsistencyTest {
 
     @Test
     fun everyPortType_isRegistered() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { blueprint ->
             OperationalModuleCatalog.all.forEach { spec ->
-                (spec.inputsFor(preset) + spec.outputsFor(preset)).forEach { type ->
+                (spec.inputsFor(blueprint.parametersOf(spec.module.code)) + spec.outputsFor(blueprint.parametersOf(spec.module.code))).forEach { type ->
                     assertTrue(DomainPackRegistry.soleActivePack.isWired(type), "Port '$type' (${spec.module.code}) belum terdaftar di port wiring pack")
                 }
             }
@@ -40,16 +41,16 @@ class ModuleRegistrationConsistencyTest {
 
     @Test
     fun everyActiveModule_isFedAndFeedsSomething_exceptChainEnds() {
-        GarmentBusinessPreset.entries.forEach { preset ->
-            val edges = CatalogPortWiring.edges(preset)
-            val active = CatalogPortWiring.activeModules(preset).map { it.module }
+        GarmentBlueprints.all.forEach { blueprint ->
+            val edges = CatalogPortWiring.edges(blueprint)
+            val active = CatalogPortWiring.activeModules(blueprint).map { it.module }
             active.forEach { module ->
                 val spec = OperationalModuleCatalog.specificationFor(module)
-                if (spec.inputsFor(preset).isNotEmpty()) {
-                    assertTrue(edges.any { it.to == module }, "$preset: ${module.code} punya port masuk tapi tak ada yang menyuplai")
+                if (spec.inputsFor(blueprint.parametersOf(spec.module.code)).isNotEmpty()) {
+                    assertTrue(edges.any { it.to == module }, "${blueprint.code.value}: ${module.code} punya port masuk tapi tak ada yang menyuplai")
                 }
-                if (spec.outputsFor(preset).isNotEmpty() && module != BusinessModule.FULFILLMENT) {
-                    assertTrue(edges.any { it.from == module }, "$preset: port keluar ${module.code} tidak dikonsumsi siapa pun")
+                if (spec.outputsFor(blueprint.parametersOf(spec.module.code)).isNotEmpty() && module != BusinessModule.FULFILLMENT) {
+                    assertTrue(edges.any { it.from == module }, "${blueprint.code.value}: port keluar ${module.code} tidak dikonsumsi siapa pun")
                 }
             }
         }
@@ -61,24 +62,24 @@ class ModuleRegistrationConsistencyTest {
      */
     @Test
     fun portWiring_shouldReproduceHandWrittenPresetEdges() {
-        GarmentBusinessPreset.entries.forEach { preset ->
-            val nodes = PipelinePresetFactory.createSnapshot(preset).nodes
+        GarmentBlueprints.all.forEach { blueprint ->
+            val nodes = PresetNodeSeeds.nodes(blueprint.code)
             val active = nodes.filterNot { it.isBypassed }
             val moduleOf = active.associate { it.id to it.module }
             val presetEdges = PipelineGraph.from(active).edges
                 .filterNot { it.isFeedback }
                 .mapNotNull { e -> moduleOf[e.fromNodeId]?.let { f -> moduleOf[e.toNodeId]?.let { t -> f to t } } }
                 .toSet()
-            val portEdges = CatalogPortWiring.edges(preset).map { it.from to it.to }.toSet()
+            val portEdges = CatalogPortWiring.edges(blueprint).map { it.from to it.to }.toSet()
             assertEquals(
                 presetEdges.map { "${it.first.code}→${it.second.code}" }.sorted(),
                 portEdges.map { "${it.first.code}→${it.second.code}" }.sorted(),
-                "$preset: sambungan port ≠ sambungan preset"
+                "${blueprint.code.value}: sambungan port ≠ sambungan preset"
             )
             assertEquals(
                 active.map { it.module }.toSet(),
-                CatalogPortWiring.activeModules(preset).map { it.module }.toSet(),
-                "$preset: supportedPresets katalog ≠ modul aktif di preset"
+                CatalogPortWiring.activeModules(blueprint).map { it.module }.toSet(),
+                "${blueprint.code.value}: modul aktif Blueprint ≠ modul aktif di preset"
             )
         }
     }

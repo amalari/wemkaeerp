@@ -1,6 +1,8 @@
 // FILE-SIZE-EXEMPT: seed preset template — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.BlueprintCode
+import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentPhases
 import com.eventverse.app.domain.rbac.BusinessModule
 
@@ -12,13 +14,23 @@ import com.eventverse.app.domain.rbac.BusinessModule
  */
 internal object PresetNodeSeeds {
 
+    /** Seed tampilan starter garment. Blueprint lain (buatan tenant/AI) tidak punya seed → node disintesis. */
     fun nodes(
-        preset: GarmentBusinessPreset,
+        blueprint: BlueprintCode,
         scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
-    ): List<PipelineNode> = when (preset) {
-        GarmentBusinessPreset.FOB_FULL_PACKAGE -> buildFobNodes(scenario)
-        GarmentBusinessPreset.CMT_MAKLOON -> buildCmtNodes(scenario)
-        GarmentBusinessPreset.BRAND_D2C -> buildBrandD2cNodes(scenario)
+    ): List<PipelineNode> = when (blueprint) {
+        GarmentBlueprints.FOB_FULL_PACKAGE.code -> buildFobNodes(scenario)
+        GarmentBlueprints.CMT_MAKLOON.code -> buildCmtNodes(scenario)
+        GarmentBlueprints.BRAND_D2C.code -> buildBrandD2cNodes(scenario)
+        else -> emptyList()
+    }
+
+    /** Awalan id node: skema lama `fob-*`/`cmt-*`/`d2c-*` dipertahankan (id tersimpan di pipeline tenant & seed V10). */
+    fun nodeIdPrefix(blueprint: BlueprintCode): String = when (blueprint) {
+        GarmentBlueprints.FOB_FULL_PACKAGE.code -> "fob"
+        GarmentBlueprints.CMT_MAKLOON.code -> "cmt"
+        GarmentBlueprints.BRAND_D2C.code -> "d2c"
+        else -> blueprint.value.replace('_', '-')
     }
 
     private fun buildFobNodes(scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL): List<PipelineNode> {

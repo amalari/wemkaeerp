@@ -4,7 +4,6 @@ import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.blueprint.BlueprintModule
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
-import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 
 /** Kunci parameter modul garment (TRD-PLAT-001 FR-3). */
 object GarmentBlueprintParams {
@@ -13,38 +12,86 @@ object GarmentBlueprintParams {
     const val DEFECT_LIABILITY = "defectLiability"
 }
 
+private const val STOCK = GarmentBlueprintParams.STOCK_OWNERSHIP
+private const val COSTING = GarmentBlueprintParams.COSTING_BEHAVIOR
+private const val DEFECT = GarmentBlueprintParams.DEFECT_LIABILITY
+
+private fun m(module: String, active: Boolean, vararg params: Pair<String, String>) =
+    BlueprintModule(module, active, params.toMap())
+
 /**
- * Tiga starter konveksi. **B4a**: dibangun dari perilaku preset lama (`supportedPresets`, `*For(preset)`) supaya
- * identik secara konstruksi; tabel emas di `GarmentBlueprintParityTest` membekukannya sebelum B4b memindah pembaca.
+ * Tiga starter konveksi — **data literal** sejak B4b (sumber kebenaran; spec modul tidak lagi menyebut
+ * preset). Memuat **semua** modul katalog, termasuk yang non-aktif beserta parameternya (TRD-PLAT-001 FR-2).
+ * Modul katalog baru wajib ditambahkan ke setiap starter — `GarmentBlueprintParityTest` gagal bila lupa.
  */
 object GarmentBlueprints {
 
-    private fun fromLegacy(preset: GarmentBusinessPreset) = Blueprint(
-        code = BlueprintCode(preset.code),
+    val FOB_FULL_PACKAGE = Blueprint(
+        code = BlueprintCode("fob_full_package"),
         pack = GarmentDomainPack.CODE,
-        displayName = preset.displayName,
-        shortBadge = preset.shortBadge,
-        description = preset.description,
-        targetClientProfile = preset.targetClientProfile,
-        modules = OperationalModuleCatalog.all.map { spec ->
-            BlueprintModule(
-                moduleCode = spec.module.code,
-                active = preset in spec.supportedPresets,
-                parameters = buildMap {
-                    put(GarmentBlueprintParams.STOCK_OWNERSHIP, spec.stockOwnershipFor(preset).name)
-                    put(GarmentBlueprintParams.COSTING_BEHAVIOR, spec.costingBehaviorFor(preset).name)
-                    spec.defectLiabilityFor(preset)?.let { put(GarmentBlueprintParams.DEFECT_LIABILITY, it.name) }
-                }
-            )
-        }
+        displayName = "FOB (Full Order / Buy) — Paket Lengkap",
+        shortBadge = "FOB Full Package",
+        description = "Pengerjaan hulu-ke-hilir: Dari pengadaan bahan baku kain, aksesoris, pembuatan pola/sample, produksi massal, hingga ekspedisi ekspor/retail.",
+        targetClientProfile = "Pabrik OEM, Ekspor Garmen, atau Konveksi Skala Menengah ke Atas",
+        modules = listOf(
+            m("crm_sales", true, STOCK to "NON_STOCK_SERVICE", COSTING to "INDIRECT_OVERHEAD"),
+            m("sampling_order", true, STOCK to "NON_STOCK_SERVICE", COSTING to "SERVICE_FEE_ONLY"),
+            m("tech_pack_bom", true, STOCK to "NON_STOCK_SERVICE", COSTING to "FULL_PACKAGE_COGS"),
+            m("inventory", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "FULL_PACKAGE_COGS"),
+            m("costing_hpp", true, STOCK to "NON_STOCK_SERVICE", COSTING to "FULL_PACKAGE_COGS"),
+            m("production_mrp", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "INDIRECT_OVERHEAD"),
+            m("operator_exec", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "SERVICE_FEE_ONLY"),
+            m("quality_control", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "INDIRECT_OVERHEAD", DEFECT to "SUPPLIER_VENDOR_DEFECT"),
+            m("fulfillment", true, STOCK to "INTERNAL_FINISHED_GOODS", COSTING to "RETAIL_VALUATION_WITH_FEES")
+        )
     )
 
-    val FOB_FULL_PACKAGE: Blueprint by lazy { fromLegacy(GarmentBusinessPreset.FOB_FULL_PACKAGE) }
-    val CMT_MAKLOON: Blueprint by lazy { fromLegacy(GarmentBusinessPreset.CMT_MAKLOON) }
-    val BRAND_D2C: Blueprint by lazy { fromLegacy(GarmentBusinessPreset.BRAND_D2C) }
+    val CMT_MAKLOON = Blueprint(
+        code = BlueprintCode("cmt_makloon"),
+        pack = GarmentDomainPack.CODE,
+        displayName = "CMT (Cut, Make, Trim) — Jasa Jahit Makloon",
+        shortBadge = "CMT Jasa Jahit",
+        description = "Pengerjaan jasa jahit murni. Pola potong & kain rol utama disediakan sepenuhnya oleh Buyer/Brand. Pengadaan bahan baku di-bypass.",
+        targetClientProfile = "Vendor Makloon, Sub-kontraktor Jahit, Mitra Konveksi Rumahan/Sentra",
+        modules = listOf(
+            m("crm_sales", true, STOCK to "NON_STOCK_SERVICE", COSTING to "INDIRECT_OVERHEAD"),
+            m("sampling_order", true, STOCK to "NON_STOCK_SERVICE", COSTING to "SERVICE_FEE_ONLY"),
+            m("tech_pack_bom", false, STOCK to "NON_STOCK_SERVICE", COSTING to "FULL_PACKAGE_COGS"),
+            m("inventory", false, STOCK to "CONSIGNED_CLIENT_MATERIAL", COSTING to "FULL_PACKAGE_COGS"),
+            m("costing_hpp", true, STOCK to "NON_STOCK_SERVICE", COSTING to "SERVICE_FEE_ONLY"),
+            m("production_mrp", true, STOCK to "CONSIGNED_CLIENT_MATERIAL", COSTING to "INDIRECT_OVERHEAD"),
+            m("operator_exec", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "SERVICE_FEE_ONLY"),
+            m("quality_control", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "INDIRECT_OVERHEAD", DEFECT to "CLIENT_SUPPLIED_DEFECT"),
+            m("fulfillment", true, STOCK to "CONSIGNED_CLIENT_MATERIAL", COSTING to "RETAIL_VALUATION_WITH_FEES")
+        )
+    )
 
-    val all: List<Blueprint> get() = listOf(FOB_FULL_PACKAGE, CMT_MAKLOON, BRAND_D2C)
+    val BRAND_D2C = Blueprint(
+        code = BlueprintCode("brand_d2c"),
+        pack = GarmentDomainPack.CODE,
+        displayName = "Brand Konveksi Sendiri (Direct to Consumer)",
+        shortBadge = "Brand D2C Internal",
+        description = "Model bisnis terintegrasi brand sendiri. Menghubungkan peluncuran katalog baru, sample approval cepat, stok jadi, dan pesanan multichannel.",
+        targetClientProfile = "Clothing Line Lokal, Distro Brand, Pabrik Seragam Custom Mandiri",
+        modules = listOf(
+            m("crm_sales", true, STOCK to "NON_STOCK_SERVICE", COSTING to "INDIRECT_OVERHEAD"),
+            m("sampling_order", true, STOCK to "NON_STOCK_SERVICE", COSTING to "SERVICE_FEE_ONLY"),
+            m("tech_pack_bom", true, STOCK to "NON_STOCK_SERVICE", COSTING to "FULL_PACKAGE_COGS"),
+            m("inventory", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "FULL_PACKAGE_COGS"),
+            m("costing_hpp", true, STOCK to "NON_STOCK_SERVICE", COSTING to "RETAIL_VALUATION_WITH_FEES"),
+            m("production_mrp", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "INDIRECT_OVERHEAD"),
+            m("operator_exec", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "SERVICE_FEE_ONLY"),
+            m("quality_control", true, STOCK to "OWNED_RAW_MATERIAL", COSTING to "INDIRECT_OVERHEAD", DEFECT to "FACTORY_WORKMANSHIP"),
+            m("fulfillment", true, STOCK to "INTERNAL_FINISHED_GOODS", COSTING to "RETAIL_VALUATION_WITH_FEES")
+        )
+    )
 
-    /** Kode tak dikenal → null. Pemanggil yang menolak; fallback ke FOB tetap milik `GarmentBusinessPreset.fromCode` sampai B4d. */
+    val all: List<Blueprint> = listOf(FOB_FULL_PACKAGE, CMT_MAKLOON, BRAND_D2C)
+
+    /** Kode tak dikenal → null. Pemanggil yang menolak (B4d). */
     fun find(code: BlueprintCode): Blueprint? = all.firstOrNull { it.code == code }
+
+    /** Jembatan B4b: tepi sistem (tenant, codec, route) masih memakai enum preset sampai B4c. */
+    fun of(preset: GarmentBusinessPreset): Blueprint =
+        requireNotNull(find(BlueprintCode(preset.code))) { "Preset ${preset.code} tanpa Blueprint" }
 }

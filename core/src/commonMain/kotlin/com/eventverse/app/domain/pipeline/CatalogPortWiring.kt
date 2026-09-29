@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /** Satu sambungan maju antarmodul yang diturunkan dari port, beserta tipe data yang mengalir. */
@@ -15,7 +17,7 @@ data class CatalogPortEdge(
  * Menurunkan sambungan kanvas Factory Flow dari **port katalog**, bukan dari daftar tulis tangan
  * (TRD-FLOW-002). Aturannya:
  *
- * 1. Modul aktif pada preset = spec yang `supportedPresets`-nya memuat preset itu.
+ * 1. Modul aktif = `blueprint.isActive(modul)`; port per modul dari parameternya di Blueprint.
  * 2. A → B bila `outputsFor(A) ∩ (inputsFor(B) ∪ referenceInputs(B))` tidak kosong.
  * 3. **Terusan bypass**: modul yang di-bypass meneruskan masukannya. Bila A → X (X bypass) dan
  *    X → B, maka A → B — sampel CMT langsung ke HPP karena tech pack dibawa buyer. Hanya satu
@@ -26,20 +28,20 @@ data class CatalogPortEdge(
 object CatalogPortWiring {
 
     fun activeModules(
-        preset: GarmentBusinessPreset,
+        blueprint: Blueprint,
         specs: List<OperationalModuleSpecification> = OperationalModuleCatalog.all
-    ): List<OperationalModuleSpecification> = specs.filter { preset in it.supportedPresets }
+    ): List<OperationalModuleSpecification> = specs.filter { blueprint.isActive(it.module.code) }
 
     fun edges(
-        preset: GarmentBusinessPreset,
+        blueprint: Blueprint,
         specs: List<OperationalModuleSpecification> = OperationalModuleCatalog.all
     ): List<CatalogPortEdge> {
         val all = specs
-        val active = activeModules(preset, specs).toSet()
+        val active = activeModules(blueprint, specs).toSet()
         fun flows(a: OperationalModuleSpecification, b: OperationalModuleSpecification) =
-            (a.outputsFor(preset).toSet() intersect b.inputsFor(preset).toSet())
+            (a.outputsFor(blueprint.parametersOf(a.module.code)).toSet() intersect b.inputsFor(blueprint.parametersOf(b.module.code)).toSet())
         fun reads(a: OperationalModuleSpecification, b: OperationalModuleSpecification) =
-            flows(a, b) + (a.outputsFor(preset).toSet() intersect b.referenceInputs.toSet())
+            flows(a, b) + (a.outputsFor(blueprint.parametersOf(a.module.code)).toSet() intersect b.referenceInputs.toSet())
 
         val direct = active.flatMap { a ->
             active.filter { b -> b != a }.mapNotNull { b ->

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.BlueprintCode
+import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,12 +13,12 @@ class CatalogPipelineBuilderTest {
     /** Strangler Fig: tiga preset bawaan harus identik dengan seed tulis tangan — node per node. */
     @Test
     fun builtPresets_shouldEqualHandWrittenSeedsExactly() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { blueprint ->
             PipelineSimulationScenario.entries.forEach { scenario ->
                 assertEquals(
-                    PresetNodeSeeds.nodes(preset, scenario),
-                    CatalogPipelineBuilder.build(preset, scenario),
-                    "$preset/$scenario berbeda dari seed"
+                    PresetNodeSeeds.nodes(blueprint.code, scenario),
+                    CatalogPipelineBuilder.build(blueprint, scenario),
+                    "${blueprint.code.value}/$scenario berbeda dari seed"
                 )
             }
         }
@@ -28,10 +30,10 @@ class CatalogPipelineBuilderTest {
      */
     @Test
     fun catalogModuleWithoutSeed_shouldAppearAndBeWiredFromPorts() {
-        val preset = GarmentBusinessPreset.FOB_FULL_PACKAGE
-        val seedsWithoutQc = PresetNodeSeeds.nodes(preset).filterNot { it.module == BusinessModule.QUALITY_CONTROL }
+        val blueprint = GarmentBlueprints.FOB_FULL_PACKAGE
+        val seedsWithoutQc = PresetNodeSeeds.nodes(blueprint.code).filterNot { it.module == BusinessModule.QUALITY_CONTROL }
 
-        val nodes = CatalogPipelineBuilder.build(preset, seeds = seedsWithoutQc)
+        val nodes = CatalogPipelineBuilder.build(blueprint, seeds = seedsWithoutQc)
         val qc = nodes.single { it.module == BusinessModule.QUALITY_CONTROL }
 
         assertEquals("fob-quality-control", qc.id)
@@ -45,11 +47,34 @@ class CatalogPipelineBuilderTest {
 
     @Test
     fun catalogOrder_shouldDriveStepNumbers() {
-        GarmentBusinessPreset.entries.forEach { preset ->
+        GarmentBlueprints.all.forEach { blueprint ->
             assertEquals(
                 OperationalModuleCatalog.all.map { it.module },
-                CatalogPipelineBuilder.build(preset).sortedBy { it.stepNumber }.map { it.module }
+                CatalogPipelineBuilder.build(blueprint).sortedBy { it.stepNumber }.map { it.module }
             )
         }
+    }
+
+    /**
+     * Blueprint baru (buatan tenant/AI) tanpa seed: node disintesis dengan awalan id dari kodenya, modul
+     * aktif/bypass dari Blueprint, dan sambungan dari port — tanpa satu pun kode yang menyebut preset.
+     * Contoh: makloon yang juga menerima kain titipan di gudang (Gudang aktif, Tech Pack tetap bypass).
+     */
+    @Test
+    fun blueprintWithoutSeeds_shouldBuildFromBlueprintAlone() {
+        val base = GarmentBlueprints.CMT_MAKLOON
+        val blueprint = base.copy(
+            code = BlueprintCode("makloon_titipan_gudang"),
+            modules = base.modules.map { if (it.moduleCode == BusinessModule.INVENTORY.code) it.copy(active = true) else it }
+        )
+
+        val nodes = CatalogPipelineBuilder.build(blueprint)
+
+        val inventory = nodes.single { it.module == BusinessModule.INVENTORY }
+        assertEquals("makloon-titipan-gudang-inventory", inventory.id)
+        assertTrue(!inventory.isBypassed)
+        assertTrue(nodes.single { it.module == BusinessModule.TECH_PACK_BOM }.isBypassed)
+        assertEquals(listOf(BusinessModule.PRODUCTION_MRP.code), inventory.downstreamModuleCodes,
+            "HPP CMT = SERVICE_FEE_ONLY → tidak membaca stok; hanya MRP yang menerima kain")
     }
 }

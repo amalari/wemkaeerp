@@ -100,13 +100,6 @@ interface OperationalModuleSpecification {
                 "mana pun; hanya modul operasional yang boleh punya OperationalModuleSpecification."
         }
 
-    /**
-     * Presets where this module is recommended as starter default.
-     * Presets are NOT hardcoded constraints; tenants may freely add or remove modules.
-     */
-    val supportedPresets: Set<GarmentBusinessPreset>
-    val recommendedStarterPresets: Set<GarmentBusinessPreset> get() = supportedPresets
-
     val stockOwnership: StockOwnershipSemantics
     val costingBehavior: CostingBehavior
     /** Port masuk: tipe data yang diterima (terdaftar di `DomainPack.wiredPortTypes`). */
@@ -114,10 +107,13 @@ interface OperationalModuleSpecification {
     /** Port keluar: tipe data yang dipancarkan. Kanvas menyambung A→B bila keluar A ∩ masuk B. */
     val downstreamHandoffs: List<String>
 
-    /** Port masuk yang berlaku pada [preset] — override bila perilaku bisnis mengubah kebutuhan data. */
-    fun inputsFor(preset: GarmentBusinessPreset): List<String> = upstreamPrerequisites
+    /**
+     * Port masuk yang berlaku untuk [parameters] modul ini di Blueprint tenant (TRD-PLAT-001 FR-4) —
+     * override bila perilaku bisnis mengubah kebutuhan data.
+     */
+    fun inputsFor(parameters: Map<String, String>): List<String> = upstreamPrerequisites
 
-    fun outputsFor(preset: GarmentBusinessPreset): List<String> = downstreamHandoffs
+    fun outputsFor(parameters: Map<String, String>): List<String> = downstreamHandoffs
 
     /**
      * Masukan **rujukan**: data yang dibaca tapi tidak mengalir sebagai barang (QC membaca tech pack
@@ -130,27 +126,6 @@ interface OperationalModuleSpecification {
      * make a quality judgement.
      */
     val defectLiability: DefectLiability? get() = null
-
-    fun getExecutionPolicy(preset: GarmentBusinessPreset): ModuleExecutionPolicy {
-        return if (supportedPresets.contains(preset)) {
-            ModuleExecutionPolicy.MANDATORY
-        } else {
-            ModuleExecutionPolicy.BYPASSED
-        }
-    }
-
-    /**
-     * Costing rules can legitimately differ per business model — the same HPP module bills a
-     * full package under FOB but only a service fee under CMT makloon. Modules that behave
-     * identically everywhere inherit [costingBehavior].
-     */
-    fun costingBehaviorFor(preset: GarmentBusinessPreset): CostingBehavior = costingBehavior
-
-    /** Likewise, stock semantics differ: owned fabric under FOB, consigned under CMT. */
-    fun stockOwnershipFor(preset: GarmentBusinessPreset): StockOwnershipSemantics = stockOwnership
-
-    /** Liability attribution can also depend on who supplied the material. */
-    fun defectLiabilityFor(preset: GarmentBusinessPreset): DefectLiability? = defectLiability
 }
 
 /**

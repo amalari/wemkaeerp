@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 /**
  * Snapshot kanvas Factory Flow untuk sebuah preset bisnis (FOB, CMT, Brand D2C).
  *
@@ -12,7 +14,7 @@ object PipelinePresetFactory {
     fun createSnapshot(
         preset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
         scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
-    ): FactoryPipelineSnapshot = snapshotOf(preset, CatalogPipelineBuilder.build(preset, scenario), scenario)
+    ): FactoryPipelineSnapshot = snapshotOf(preset, CatalogPipelineBuilder.build(GarmentBlueprints.of(preset), scenario), scenario)
 
     /** KPI agregat atas sekumpulan node — dipakai juga oleh [TenantPipelineProjector]. */
     fun snapshotOf(

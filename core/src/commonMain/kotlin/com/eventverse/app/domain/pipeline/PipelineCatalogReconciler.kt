@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentBlueprints
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -47,7 +49,7 @@ object PipelineCatalogReconciler {
      * masuk/rujukan B), supaya ia tampil tersambung di kanvas bahkan sebelum diaktifkan.
      */
     private fun portEdgesFor(pipeline: CustomTenantPipeline, inserted: Set<BusinessModule>): List<CustomPipelineEdge> {
-        val preset = pipeline.baseStarterPreset ?: GarmentBusinessPreset.DEFAULT
+        val blueprint = GarmentBlueprints.of(pipeline.baseStarterPreset ?: GarmentBusinessPreset.DEFAULT)
         val nodeByModule = pipeline.nodes.mapNotNull { node -> node.standardModule?.let { it to node } }.toMap()
         val existingPairs = pipeline.edges.map { it.fromNodeId to it.toNodeId }.toSet()
         return nodeByModule.keys.flatMap { from -> nodeByModule.keys.map { to -> from to to } }
@@ -55,7 +57,8 @@ object PipelineCatalogReconciler {
             .mapNotNull { (from, to) ->
                 val a = OperationalModuleCatalog.specificationFor(from)
                 val b = OperationalModuleCatalog.specificationFor(to)
-                val types = a.outputsFor(preset).toSet() intersect (b.inputsFor(preset) + b.referenceInputs).toSet()
+                val types = a.outputsFor(blueprint.parametersOf(from.code)).toSet() intersect
+                    (b.inputsFor(blueprint.parametersOf(to.code)) + b.referenceInputs).toSet()
                 val fromNode = nodeByModule.getValue(from)
                 val toNode = nodeByModule.getValue(to)
                 types.firstOrNull()

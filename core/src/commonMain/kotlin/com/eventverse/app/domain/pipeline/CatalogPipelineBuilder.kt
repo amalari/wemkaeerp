@@ -1,10 +1,12 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.blueprint.Blueprint
+
 /**
  * Merakit node kanvas Factory Flow **dari katalog modul** (TRD-FLOW-002 bagian A).
  *
  * - **Node mana & urutannya** = [OperationalModuleCatalog.all].
- * - **Bypass** = preset tidak ada di `supportedPresets` (seed boleh mengaktifkannya per skenario simulasi).
+ * - **Bypass** = modul non-aktif di [Blueprint] (seed boleh mengaktifkannya per skenario simulasi).
  * - **Sambungan** = port ([CatalogPortWiring]): aliran → `downstreamModuleCodes`, rujukan → port
  *   masuk otomatis di penerima.
  * - **Tampilan & telemetri contoh** = [PresetNodeSeeds]. Modul katalog tanpa seed mendapat node
@@ -16,22 +18,22 @@ package com.eventverse.app.domain.pipeline
 object CatalogPipelineBuilder {
 
     fun build(
-        preset: GarmentBusinessPreset,
+        blueprint: Blueprint,
         scenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL,
         specs: List<OperationalModuleSpecification> = OperationalModuleCatalog.all,
-        seeds: List<PipelineNode> = PresetNodeSeeds.nodes(preset, scenario)
+        seeds: List<PipelineNode> = PresetNodeSeeds.nodes(blueprint.code, scenario)
     ): List<PipelineNode> {
         val seedByModule = seeds.associateBy { it.module }
-        val wiring = CatalogPortWiring.edges(preset, specs)
+        val wiring = CatalogPortWiring.edges(blueprint, specs)
         return specs.mapIndexed { index, spec ->
-            val isActive = preset in spec.supportedPresets
+            val isActive = blueprint.isActive(spec.module.code)
             val seed = seedByModule[spec.module]
             when {
-                isActive -> (seed ?: synthesize(spec, preset)).wired(index + 1, wiring)
+                isActive -> (seed ?: synthesize(spec, blueprint)).wired(index + 1, wiring)
                 // Di luar preset: seed boleh mengaktifkannya untuk skenario simulasi (CMT cacat kain →
                 // gudang menerima kain pengganti buyer); tanpa seed, modul tampil ter-bypass.
                 seed != null -> seed.copy(stepNumber = index + 1)
-                else -> synthesize(spec, preset).asBypassed().copy(stepNumber = index + 1)
+                else -> synthesize(spec, blueprint).asBypassed().copy(stepNumber = index + 1)
             }
         }
     }
@@ -69,10 +71,10 @@ object CatalogPipelineBuilder {
         )
 
     /** Node untuk modul katalog yang belum punya seed tampilan: data dari spec & archetype. */
-    private fun synthesize(spec: OperationalModuleSpecification, preset: GarmentBusinessPreset): PipelineNode {
+    private fun synthesize(spec: OperationalModuleSpecification, blueprint: Blueprint): PipelineNode {
         val archetype = spec.archetype
         return PipelineNode(
-            id = "${preset.nodeIdPrefix}-${spec.module.code.replace('_', '-')}",
+            id = "${PresetNodeSeeds.nodeIdPrefix(blueprint.code)}-${spec.module.code.replace('_', '-')}",
             module = spec.module,
             stage = archetype.canvasPhase,
             stepNumber = 0,
@@ -80,8 +82,8 @@ object CatalogPipelineBuilder {
             description = spec.module.description,
             assignedDepartment = "Belum Ditugaskan",
             deptColorHex = archetype.canvasPhase.colorHex,
-            inputContract = spec.inputsFor(preset).joinToString(" + ").ifBlank { archetype.defaultExpectedInputType },
-            outputContract = spec.outputsFor(preset).joinToString(" + ").ifBlank { archetype.defaultProducedOutputType },
+            inputContract = spec.inputsFor(blueprint.parametersOf(spec.module.code)).joinToString(" + ").ifBlank { archetype.defaultExpectedInputType },
+            outputContract = spec.outputsFor(blueprint.parametersOf(spec.module.code)).joinToString(" + ").ifBlank { archetype.defaultProducedOutputType },
             wipPieces = 0,
             cycleTimeHours = 0.0,
             healthStatus = FlowHealthStatus.HEALTHY,
@@ -89,11 +91,5 @@ object CatalogPipelineBuilder {
         )
     }
 
-    private val GarmentBusinessPreset.nodeIdPrefix: String
-        get() = when (this) {
-            GarmentBusinessPreset.FOB_FULL_PACKAGE -> "fob"
-            GarmentBusinessPreset.CMT_MAKLOON -> "cmt"
-            GarmentBusinessPreset.BRAND_D2C -> "d2c"
-        }
 }
 
