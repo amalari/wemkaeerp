@@ -785,7 +785,7 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
 - [ ] **Dijalankan dan dilihat dengan mata**, bukan hanya dikompilasi — bug layout seperti teks
       pecah per huruf tidak akan tertangkap test mana pun
 - [ ] **Belum login saat mengecek visual? Login dulu, jangan dilewati.** Kalau halaman yang dicek
-      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3000/login`, klik
+      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3001/login` (repo B; repo A: `3000`), klik
       **"Demo Mode: Masuk Cepat (Superadmin Apps)"** (`superadmin_apps` / `PLATFORM_SUPERADMIN`),
       lalu kembali ke halaman tujuan dan lakukan pengecekannya. "Belum login" **bukan** alasan sah
       untuk melaporkan UI tanpa melihatnya.
@@ -1188,6 +1188,7 @@ baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
 3. `core/.../domain/pipeline/OperationalModuleCatalog.kt` — objek spec + **masukkan ke `all` di posisi yang benar** (posisi = urutan kanvas & sisipan reconciler). Port = `upstreamPrerequisites` / `downstreamHandoffs`.
 4. `core/.../domain/contracts/ModulePortPayload.kt` — daftarkan tipe port baru di `PortDataTypeRegistry`.
 5. Migrasi Flyway pola **V27/V64**: backfill entitlement (kunci **NAME** enum), baris `module_catalog_entries` (kunci **code**), backfill `custom_roles` per peran sistem.
+   **Tabel modul di schema bernama kode modulnya** (`CREATE SCHEMA <kode>`, `Table("<kode>.<nama>")`, grant + `ALTER DEFAULT PRIVILEGES` untuk `wemade_app`, RLS lewat `apply_tenant_rls_in('<kode>', '<tabel>')`). Daftarkan di `ModuleSchemaMap` (pola V76, B8).
 6. `core/.../domain/rbac/CustomRole.kt` `createFactoryPresets` — akses per peran preset (Owner otomatis).
 7. `AppNavScreen.kt` + cabang `App.kt` (dipaksa kompilator) + `ModuleWorkspaceScreen` (`sampleRowsFor` dipaksa kompilator) + `ModuleIcon`.
 8. Server: route + `requireModuleAccess`/`moduleDecision`, didaftarkan di `ServerRouteWiring`.
@@ -1212,7 +1213,7 @@ baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
 Fitur **tidak** membuat `BusinessModule` baru (lihat `tenant-variability-rules.md` Kontrak 2). Ia
 mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
 
-1. Core: paket domain + repository + migrasi tabel; bila tahap → `IndustryStageTemplates`/`TenantStageFlow`, bila proses → `TenantProcessCatalog`, bila stasiun → `WorkStationCatalog`.
+1. Core: paket domain + repository + migrasi tabel **di schema modul induk** (`<kode induk>.<tabel>`, daftarkan di `ModuleSchemaMap`); bila tahap → `IndustryStageTemplates`/`TenantStageFlow`, bila proses → `TenantProcessCatalog`, bila stasiun → `WorkStationCatalog`.
 2. Server: route didaftarkan di `ServerRouteWiring` dan **wajib** memakai gate modul induk (`requireModuleAccess(modulInduk, …)`). Menulis: fail-closed.
 3. Klien: di-host di workspace modul induk, atau `AppNavScreen` dengan `businessModule = modulInduk` — dan cabang `App.kt` **wajib** memeriksa `accessDecisions`, bukan hanya status login.
 4. Kanvas: daftarkan di registry fitur modul (TRD-FLOW-002, Fase 4) agar tampil di level 2 di bawah node induk.

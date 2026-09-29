@@ -9,7 +9,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * `tenantId` muncul juga di tabel tautan dan tally walau secara relasional berlebihan: tanpa kolom
  * itu, Row Level Security tidak punya apa pun untuk difilter dan isinya bocor lintas tenant.
  */
-object TraceWorkOrdersTable : Table("trace_work_orders") {
+object TraceWorkOrdersTable : Table("operator_exec.trace_work_orders") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val ordinal = integer("ordinal")
@@ -22,7 +22,7 @@ object TraceWorkOrdersTable : Table("trace_work_orders") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object TraceTenantOrdinalsTable : Table("trace_tenant_ordinals") {
+object TraceTenantOrdinalsTable : Table("operator_exec.trace_tenant_ordinals") {
     val tenantId = varchar("tenant_id", 64)
     val ordinal = integer("ordinal")
     val createdAt = timestamp("created_at")
@@ -30,7 +30,7 @@ object TraceTenantOrdinalsTable : Table("trace_tenant_ordinals") {
     override val primaryKey = PrimaryKey(tenantId)
 }
 
-object TraceContainersTable : Table("trace_containers") {
+object TraceContainersTable : Table("operator_exec.trace_containers") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val code = varchar("code", 32)
@@ -52,7 +52,7 @@ object TraceContainersTable : Table("trace_containers") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object TraceContainerPanelTalliesTable : Table("trace_container_panel_tallies") {
+object TraceContainerPanelTalliesTable : Table("operator_exec.trace_container_panel_tallies") {
     val containerId = varchar("container_id", 64).references(TraceContainersTable.id)
     val tenantId = varchar("tenant_id", 64)
     val panel = varchar("panel", 40)
@@ -61,7 +61,7 @@ object TraceContainerPanelTalliesTable : Table("trace_container_panel_tallies") 
     override val primaryKey = PrimaryKey(containerId, panel)
 }
 
-object TraceContainerLinksTable : Table("trace_container_links") {
+object TraceContainerLinksTable : Table("operator_exec.trace_container_links") {
     val parentId = varchar("parent_id", 64).references(TraceContainersTable.id)
     val childId = varchar("child_id", 64).references(TraceContainersTable.id)
     val tenantId = varchar("tenant_id", 64)
@@ -71,7 +71,7 @@ object TraceContainerLinksTable : Table("trace_container_links") {
     override val primaryKey = PrimaryKey(parentId, childId)
 }
 
-object TraceAllocationsTable : Table("trace_allocations") {
+object TraceAllocationsTable : Table("operator_exec.trace_allocations") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val workOrderKind = varchar("work_order_kind", 10)

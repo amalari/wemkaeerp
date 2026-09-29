@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.infrastructure.tables.InvoiceNumberSequencesTable
 import com.eventverse.app.domain.common.*
 import com.eventverse.app.domain.invoicing.*
 import com.eventverse.app.domain.invoicing.template.*
@@ -364,7 +365,7 @@ class PostgresInvoiceRepository : InvoiceRepository {
             }
             val prefix = "INV"
             val sql = """
-                INSERT INTO invoice_number_sequences (tenant_id, prefix, year, month, current_seq)
+                INSERT INTO ${InvoiceNumberSequencesTable.tableName} (tenant_id, prefix, year, month, current_seq)
                 VALUES ('${tenantId.value}', '$prefix', $year, $month, 1)
                 ON CONFLICT (tenant_id, prefix, year, month)
                 DO UPDATE SET current_seq = invoice_number_sequences.current_seq + 1

@@ -3,7 +3,7 @@ package com.eventverse.app.infrastructure.tables
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object MaterialCodeSequencesTable : Table("material_code_sequences") {
+object MaterialCodeSequencesTable : Table("master_data.material_code_sequences") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val categoryCode = varchar("category_code", 32)
     val currentSeq = long("current_seq").default(0L)
@@ -11,7 +11,7 @@ object MaterialCodeSequencesTable : Table("material_code_sequences") {
     override val primaryKey = PrimaryKey(tenantId, categoryCode)
 }
 
-object MaterialItemsTable : Table("material_items") {
+object MaterialItemsTable : Table("master_data.material_items") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val code = varchar("code", 32)
@@ -29,7 +29,7 @@ object MaterialItemsTable : Table("material_items") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object MaterialPricesTable : Table("material_prices") {
+object MaterialPricesTable : Table("master_data.material_prices") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val materialId = varchar("material_id", 64).references(MaterialItemsTable.id)
@@ -46,7 +46,7 @@ object MaterialPricesTable : Table("material_prices") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object MaterialPricePoliciesTable : Table("material_price_policies") {
+object MaterialPricePoliciesTable : Table("master_data.material_price_policies") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val preferenceOrder = jsonbText("preference_order")
     val fallbackToStandard = bool("fallback_to_standard").default(true)

@@ -41,7 +41,7 @@ class GenerateSeedTopologyTool {
                         "(${pipeline.activeNodes.size} aktif, ${pipeline.bypassedNodes.size} bypass, " +
                         "${pipeline.customPluginNodes.size} plugin kustom)"
                 )
-                appendLine("UPDATE tenant_pipelines")
+                appendLine("UPDATE factory_flow.tenant_pipelines")
                 appendLine("SET pipeline_name = '${sqlQuote(pipeline.pipelineName)}',")
                 appendLine("    base_preset = '${demo.preset.code.value}',")
                 appendLine("    graph_data = '${sqlQuote(graphJson)}'::jsonb,")

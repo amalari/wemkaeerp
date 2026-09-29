@@ -7,7 +7,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 /**
  * Pemetaan Exposed untuk lokasi fisik multi-site tenant. Cermin V55.
  */
-object TenantLocationsTable : Table("tenant_locations") {
+object TenantLocationsTable : Table("factory_flow.tenant_locations") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val name = varchar("name", 150)
@@ -22,7 +22,7 @@ object TenantLocationsTable : Table("tenant_locations") {
 /**
  * Pemetaan Exposed untuk manifes Surat Jalan. Cermin V55.
  */
-object SuratJalanManifestsTable : Table("surat_jalan_manifests") {
+object SuratJalanManifestsTable : Table("fulfillment.surat_jalan_manifests") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val sjNumber = varchar("sj_number", 100)
@@ -55,7 +55,7 @@ object SuratJalanManifestsTable : Table("surat_jalan_manifests") {
 /**
  * Pemetaan Exposed untuk baris rincian barang Surat Jalan. Cermin V55.
  */
-object SuratJalanItemsTable : Table("surat_jalan_items") {
+object SuratJalanItemsTable : Table("fulfillment.surat_jalan_items") {
     val id = varchar("id", 64)
     val manifestId = varchar("manifest_id", 64).references(SuratJalanManifestsTable.id)
     val workCardId = varchar("work_card_id", 64).nullable()
@@ -72,7 +72,7 @@ object SuratJalanItemsTable : Table("surat_jalan_items") {
 /**
  * Saklar lokasi per tenant. Cermin V59.
  */
-object TenantLocationSettingsTable : Table("tenant_location_settings") {
+object TenantLocationSettingsTable : Table("factory_flow.tenant_location_settings") {
     val tenantId = varchar("tenant_id", 64)
     val isMultiSiteEnabled = bool("is_multi_site_enabled").default(false)
     val requireCustomerDispatchSj = bool("require_customer_dispatch_sj").default(true)
@@ -87,7 +87,7 @@ object TenantLocationSettingsTable : Table("tenant_location_settings") {
  * Satu tabel untuk ketiga lapisan alur ([nodeKind] = STAGE / PROC / STATION), bukan satu tabel
  * per lapisan — lihat KDoc `FlowNodeRef` untuk alasannya.
  */
-object TenantFlowNodeLocationsTable : Table("tenant_flow_node_locations") {
+object TenantFlowNodeLocationsTable : Table("factory_flow.tenant_flow_node_locations") {
     val tenantId = varchar("tenant_id", 64)
     val nodeKind = varchar("node_kind", 16)
     val nodeKey = varchar("node_key", 64)

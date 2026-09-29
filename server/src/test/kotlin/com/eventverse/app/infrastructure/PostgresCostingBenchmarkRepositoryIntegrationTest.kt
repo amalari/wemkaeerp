@@ -35,7 +35,8 @@ class PostgresCostingBenchmarkRepositoryIntegrationTest {
     }
 
     private fun createTenant(): Tenant {
-        val suffix = kotlin.math.abs(System.nanoTime() % 1_000_000).toString()
+        // Acak, bukan nanoTime % 1e6: tenant uji menumpuk di DB dev dan id lama sempat bertabrakan (benchmark lama ikut terhitung).
+        val suffix = java.util.UUID.randomUUID().toString().take(8)
         val tenant = Tenant(
             id = TenantId("ten-bmk-$suffix"),
             slug = TenantSlug("bmk-$suffix"),

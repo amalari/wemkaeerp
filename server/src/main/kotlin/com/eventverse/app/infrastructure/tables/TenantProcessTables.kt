@@ -9,7 +9,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * Setiap baris = satu tahapan opsional (Bordir, Sablon, dst.) milik satu tenant,
  * beserta jangkar posisinya di flow sampling dan/atau line workqueue.
  */
-object TenantOptionalProcessesTable : Table("tenant_optional_processes") {
+object TenantOptionalProcessesTable : Table("sampling_order.tenant_optional_processes") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val processCode = varchar("process_code", 64)
@@ -31,7 +31,7 @@ object TenantOptionalProcessesTable : Table("tenant_optional_processes") {
  * Template tag fase per tenant (V71): fase mana yang menjalankan Cuci & Setrika untuk desain
  * baru. Satu baris per tenant; tidak ada baris = kedua fase (default).
  */
-object TenantStagePhaseTagsTable : Table("tenant_stage_phase_tags") {
+object TenantStagePhaseTagsTable : Table("sampling_order.tenant_stage_phase_tags") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val tags = jsonbText("tags")
     val updatedAt = timestamp("updated_at")

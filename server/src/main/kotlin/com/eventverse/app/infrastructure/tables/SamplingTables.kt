@@ -39,7 +39,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * Exposed table mappings for `GarmentModules.SAMPLING_ORDER`.
  * Maps 1-to-1 to V23 migration tables.
  */
-object SamplingOrdersTable : Table("sampling_orders") {
+object SamplingOrdersTable : Table("sampling_order.sampling_orders") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val spkNumber = varchar("spk_number", 50)
@@ -93,7 +93,7 @@ object SamplingOrdersTable : Table("sampling_orders") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingKnitSpecsTable : Table("sampling_knit_specs") {
+object SamplingKnitSpecsTable : Table("sampling_order.sampling_knit_specs") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -112,7 +112,7 @@ object SamplingKnitSpecsTable : Table("sampling_knit_specs") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingSizeChartsTable : Table("sampling_size_charts") {
+object SamplingSizeChartsTable : Table("sampling_order.sampling_size_charts") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -137,7 +137,7 @@ object SamplingSizeChartsTable : Table("sampling_size_charts") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingMachineProgramsTable : Table("sampling_machine_programs") {
+object SamplingMachineProgramsTable : Table("sampling_order.sampling_machine_programs") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -159,7 +159,7 @@ object SamplingMachineProgramsTable : Table("sampling_machine_programs") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingYieldTimingsTable : Table("sampling_yield_timings") {
+object SamplingYieldTimingsTable : Table("sampling_order.sampling_yield_timings") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -179,7 +179,7 @@ object SamplingYieldTimingsTable : Table("sampling_yield_timings") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingMilestonesTable : Table("sampling_milestones") {
+object SamplingMilestonesTable : Table("sampling_order.sampling_milestones") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -193,7 +193,7 @@ object SamplingMilestonesTable : Table("sampling_milestones") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingFinishingDepositsTable : Table("sampling_finishing_deposits") {
+object SamplingFinishingDepositsTable : Table("sampling_order.sampling_finishing_deposits") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)
@@ -210,7 +210,7 @@ object SamplingFinishingDepositsTable : Table("sampling_finishing_deposits") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object SamplingQcInspectionsTable : Table("sampling_qc_inspections") {
+object SamplingQcInspectionsTable : Table("sampling_order.sampling_qc_inspections") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64).references(SamplingOrdersTable.id)

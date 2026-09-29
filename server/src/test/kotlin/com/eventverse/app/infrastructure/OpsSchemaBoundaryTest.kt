@@ -59,7 +59,7 @@ class OpsSchemaBoundaryTest {
         assertEquals("public", schemaOf("module_catalog_entries"))
         assertEquals("public", schemaOf("module_customization_requests"))
         assertEquals("public", schemaOf("tenants"))
-        assertEquals("public", schemaOf("tenant_pipelines"))
+        assertEquals("factory_flow", schemaOf("tenant_pipelines"), "B8: kanvas pipeline tinggal di schema modul factory_flow")
     }
 
     @Test

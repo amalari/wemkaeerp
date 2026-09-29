@@ -4,7 +4,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.date
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object InvoiceNumberSequencesTable : Table("invoice_number_sequences") {
+object InvoiceNumberSequencesTable : Table("invoicing.invoice_number_sequences") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val prefix = varchar("prefix", 32).default("INV")
     val year = integer("year")
@@ -14,7 +14,7 @@ object InvoiceNumberSequencesTable : Table("invoice_number_sequences") {
     override val primaryKey = PrimaryKey(tenantId, prefix, year, month)
 }
 
-object InvoiceIssuerProfilesTable : Table("invoice_issuer_profiles") {
+object InvoiceIssuerProfilesTable : Table("invoicing.invoice_issuer_profiles") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val companyName = varchar("company_name", 150)
     val tagline = varchar("tagline", 200).default("")
@@ -34,7 +34,7 @@ object InvoiceIssuerProfilesTable : Table("invoice_issuer_profiles") {
     override val primaryKey = PrimaryKey(tenantId)
 }
 
-object InvoiceTemplatesTable : Table("invoice_templates") {
+object InvoiceTemplatesTable : Table("invoicing.invoice_templates") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val name = varchar("name", 150)
@@ -51,7 +51,7 @@ object InvoiceTemplatesTable : Table("invoice_templates") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object InvoicesTable : Table("invoices") {
+object InvoicesTable : Table("invoicing.invoices") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val invoiceNumber = varchar("invoice_number", 64)
@@ -91,7 +91,7 @@ object InvoicesTable : Table("invoices") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object InvoiceLinesTable : Table("invoice_lines") {
+object InvoiceLinesTable : Table("invoicing.invoice_lines") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val invoiceId = varchar("invoice_id", 64).references(InvoicesTable.id)
@@ -108,7 +108,7 @@ object InvoiceLinesTable : Table("invoice_lines") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object InvoicePaymentsTable : Table("invoice_payments") {
+object InvoicePaymentsTable : Table("invoicing.invoice_payments") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val invoiceId = varchar("invoice_id", 64).references(InvoicesTable.id)

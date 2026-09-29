@@ -4,7 +4,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 /** Kustodi penyimpanan sampel. Cermin V69. */
-object SampleStorageRecordsTable : Table("sample_storage_records") {
+object SampleStorageRecordsTable : Table("sampling_order.sample_storage_records") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val samplingOrderId = varchar("sampling_order_id", 64)

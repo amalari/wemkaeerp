@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.infrastructure.tables.TechPacksTable
+import com.eventverse.app.infrastructure.tables.TechPackStyleSequencesTable
 import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.Ratio
 import com.eventverse.app.domain.common.UnitOfMeasure
@@ -106,7 +108,7 @@ class PostgresTechPackRepository : TechPackRepository {
             if (query.latestVersionOnly) {
                 val latestVersionOp = object : Op<Boolean>() {
                     override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-                        queryBuilder.append("tech_packs.version = (SELECT MAX(tp_inner.version) FROM tech_packs tp_inner WHERE tp_inner.tenant_id = tech_packs.tenant_id AND tp_inner.style_code = tech_packs.style_code")
+                        queryBuilder.append("tech_packs.version = (SELECT MAX(tp_inner.version) FROM ${TechPacksTable.tableName} tp_inner WHERE tp_inner.tenant_id = tech_packs.tenant_id AND tp_inner.style_code = tech_packs.style_code")
                         if (!query.includeArchived) {
                             queryBuilder.append(" AND tp_inner.archived_at IS NULL")
                         }
@@ -260,7 +262,7 @@ class PostgresTechPackRepository : TechPackRepository {
         DatabaseFactory.dbQuery(tenantId) {
             val cleanPrefix = prefix.trim().ifBlank { "STY" }
             val sql = """
-                INSERT INTO tech_pack_style_sequences (tenant_id, prefix, current_seq)
+                INSERT INTO ${TechPackStyleSequencesTable.tableName} (tenant_id, prefix, current_seq)
                 VALUES ('${tenantId.value}', '$cleanPrefix', 1)
                 ON CONFLICT (tenant_id, prefix)
                 DO UPDATE SET current_seq = tech_pack_style_sequences.current_seq + 1

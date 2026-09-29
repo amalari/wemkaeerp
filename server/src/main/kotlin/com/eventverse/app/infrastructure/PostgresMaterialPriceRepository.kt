@@ -64,7 +64,7 @@ class PostgresMaterialPriceRepository : MaterialPriceRepository {
         val sql = """
             SELECT DISTINCT ON (material_id)
                 id, tenant_id, material_id, amount_minor, currency, per_quantity_micros, per_uom, source, effective_from, note, recorded_by_user_id, recorded_at
-            FROM material_prices
+            FROM ${MaterialPricesTable.tableName}
             WHERE tenant_id = '${tenantId.value}'
               AND material_id IN ($idList)
               AND source = '${source.name}'

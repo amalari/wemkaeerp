@@ -3,7 +3,7 @@ package com.eventverse.app.infrastructure.tables
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object TechPackStyleSequencesTable : Table("tech_pack_style_sequences") {
+object TechPackStyleSequencesTable : Table("tech_pack_bom.tech_pack_style_sequences") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val prefix = varchar("prefix", 32).default("STY")
     val currentSeq = long("current_seq").default(0L)
@@ -11,7 +11,7 @@ object TechPackStyleSequencesTable : Table("tech_pack_style_sequences") {
     override val primaryKey = PrimaryKey(tenantId, prefix)
 }
 
-object TechPacksTable : Table("tech_packs") {
+object TechPacksTable : Table("tech_pack_bom.tech_packs") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val styleCode = varchar("style_code", 32)
@@ -32,7 +32,7 @@ object TechPacksTable : Table("tech_packs") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object TechPackBomLinesTable : Table("tech_pack_bom_lines") {
+object TechPackBomLinesTable : Table("tech_pack_bom.tech_pack_bom_lines") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val techPackId = varchar("tech_pack_id", 64).references(TechPacksTable.id)
@@ -53,7 +53,7 @@ object TechPackBomLinesTable : Table("tech_pack_bom_lines") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object TechPackLaborOperationsTable : Table("tech_pack_labor_operations") {
+object TechPackLaborOperationsTable : Table("tech_pack_bom.tech_pack_labor_operations") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val techPackId = varchar("tech_pack_id", 64).references(TechPacksTable.id)
@@ -68,7 +68,7 @@ object TechPackLaborOperationsTable : Table("tech_pack_labor_operations") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object TechPackSizeYieldsTable : Table("tech_pack_size_yields") {
+object TechPackSizeYieldsTable : Table("tech_pack_bom.tech_pack_size_yields") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val techPackId = varchar("tech_pack_id", 64).references(TechPacksTable.id)

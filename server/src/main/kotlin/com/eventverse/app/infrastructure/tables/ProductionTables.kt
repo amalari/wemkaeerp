@@ -39,7 +39,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * Exposed mapping untuk `GarmentModules.PRODUCTION_MRP`.
  * Memetakan 1-ke-1 ke tabel migrasi V42.
  */
-object BulkWorkOrdersTable : Table("bulk_work_orders") {
+object BulkWorkOrdersTable : Table("production_mrp.bulk_work_orders") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val spkNumber = varchar("spk_number", 50)

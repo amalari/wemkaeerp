@@ -2,7 +2,7 @@ package com.eventverse.app.infrastructure.tables
 
 import org.jetbrains.exposed.sql.Table
 
-object TenantPipelinesTable : Table("tenant_pipelines") {
+object TenantPipelinesTable : Table("factory_flow.tenant_pipelines") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val pipelineName = varchar("pipeline_name", 100)

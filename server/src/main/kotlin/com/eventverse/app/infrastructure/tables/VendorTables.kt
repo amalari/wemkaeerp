@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.date
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 /** Pemetaan Exposed kontak vendor. Cermin V64. */
-object VendorsTable : Table("vendors") {
+object VendorsTable : Table("vendor_contacts.vendors") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val name = varchar("name", 150)
@@ -21,7 +21,7 @@ object VendorsTable : Table("vendors") {
 }
 
 /** Pemetaan Exposed penugasan vendor ke proses subkon. Cermin V64. */
-object VendorAssignmentsTable : Table("vendor_assignments") {
+object VendorAssignmentsTable : Table("vendor_contacts.vendor_assignments") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val subjectId = varchar("subject_id", 64)

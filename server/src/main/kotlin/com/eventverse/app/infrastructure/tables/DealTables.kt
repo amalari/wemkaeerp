@@ -40,7 +40,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * See V34 for the full design rationale (contacts as find-or-create customer master keyed by
  * phone; deals as the qualification output whose `source_lead_id` is the idempotency anchor).
  */
-object CrmContactsTable : Table("crm_contacts") {
+object CrmContactsTable : Table("crm_sales.crm_contacts") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
 
@@ -58,7 +58,7 @@ object CrmContactsTable : Table("crm_contacts") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object DealsTable : Table("deals") {
+object DealsTable : Table("crm_sales.deals") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val contactId = varchar("contact_id", 64).references(CrmContactsTable.id)
@@ -79,7 +79,7 @@ object DealsTable : Table("deals") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object DealPurchaseOrdersTable : Table("deal_purchase_orders") {
+object DealPurchaseOrdersTable : Table("crm_sales.deal_purchase_orders") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val dealId = varchar("deal_id", 64).references(DealsTable.id)

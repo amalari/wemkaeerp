@@ -2,7 +2,7 @@ package com.eventverse.app.infrastructure.tables
 
 import org.jetbrains.exposed.sql.Table
 
-object CustomRolesTable : Table("custom_roles") {
+object CustomRolesTable : Table("dynamic_rbac.custom_roles") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val name = varchar("name", 100)

@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.Table
  * [specificRoleIds] kosong (`[]`) berarti "seluruh jabatan di divisi ini" — padanan
  * `DepartmentModuleAssignment.appliesToAllRoles` di domain.
  */
-object DepartmentModuleAssignmentsTable : Table("department_module_assignments") {
+object DepartmentModuleAssignmentsTable : Table("dynamic_rbac.department_module_assignments") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val departmentId = varchar("department_id", 64).references(DepartmentsTable.id)

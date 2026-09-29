@@ -9,7 +9,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * `sack_code` tidak jadi foreign key ke `trace_containers(tenant_id, code)` karena kombinasi
  * uniknya dua kolom; kekakuan "karung harus sudah ditutup" dijaga use case, bukan FK.
  */
-object FulfillmentTransfersTable : Table("fulfillment_transfers") {
+object FulfillmentTransfersTable : Table("fulfillment.fulfillment_transfers") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val sackCode = varchar("sack_code", 32)
@@ -58,7 +58,7 @@ object FulfillmentTransfersTable : Table("fulfillment_transfers") {
  * Barisnya hanya ada untuk rute yang benar-benar disetel — ketiadaan baris adalah pernyataan
  * yang sah ("belum disentuh"), dan domain menafsirkannya sebagai `ADMIN_HUB`.
  */
-object FulfillmentRouteSettingsTable : Table("fulfillment_route_settings") {
+object FulfillmentRouteSettingsTable : Table("fulfillment.fulfillment_route_settings") {
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val route = varchar("route", 40)
     val handoverMode = varchar("handover_mode", 16)
@@ -67,7 +67,7 @@ object FulfillmentRouteSettingsTable : Table("fulfillment_route_settings") {
     override val primaryKey = PrimaryKey(tenantId, route)
 }
 
-object FulfillmentTransferEventsTable : Table("fulfillment_transfer_events") {
+object FulfillmentTransferEventsTable : Table("fulfillment.fulfillment_transfer_events") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64)
     val transferId = varchar("transfer_id", 64).references(FulfillmentTransfersTable.id)

@@ -6,7 +6,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 /**
  * Pemetaan Exposed untuk kartu antrean kerja stasiun (Work Cards). Cermin V55.
  */
-object WorkCardsTable : Table("work_cards") {
+object WorkCardsTable : Table("operator_exec.work_cards") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val subjectKind = varchar("subject_kind", 30)
@@ -33,7 +33,7 @@ object WorkCardsTable : Table("work_cards") {
 /**
  * Pemetaan Exposed untuk setoran borongan operator (Work Deposits). Cermin V55.
  */
-object WorkDepositsTable : Table("work_deposits") {
+object WorkDepositsTable : Table("operator_exec.work_deposits") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val workCardId = varchar("work_card_id", 64).references(WorkCardsTable.id)
@@ -52,7 +52,7 @@ object WorkDepositsTable : Table("work_deposits") {
 /**
  * Pemetaan Exposed untuk tiket perbaikan cacat (Rework Tickets). Cermin V55.
  */
-object ReworkTicketsTable : Table("rework_tickets") {
+object ReworkTicketsTable : Table("operator_exec.rework_tickets") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val workCardId = varchar("work_card_id", 64).references(WorkCardsTable.id)
@@ -83,7 +83,7 @@ object ReworkTicketsTable : Table("rework_tickets") {
 /**
  * Pemetaan Exposed untuk sesi drum cuci masal (Washing Batches). Cermin V70.
  */
-object WashingBatchesTable : Table("washing_batches") {
+object WashingBatchesTable : Table("operator_exec.washing_batches") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val batchCode = varchar("batch_code", 50)
@@ -105,7 +105,7 @@ object WashingBatchesTable : Table("washing_batches") {
 /**
  * Pemetaan Exposed untuk rincian bundle dalam batch cuci dengan foto bukti fisik. Cermin V70.
  */
-object WashingBatchItemsTable : Table("washing_batch_items") {
+object WashingBatchItemsTable : Table("operator_exec.washing_batch_items") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val batchId = varchar("batch_id", 64).references(WashingBatchesTable.id)
@@ -125,7 +125,7 @@ object WashingBatchItemsTable : Table("washing_batch_items") {
 /**
  * Pemetaan Exposed untuk hasil meja sortir pasca-dryer per PO & Ukuran. Cermin V70.
  */
-object WashingBatchSortOutputsTable : Table("washing_batch_sort_outputs") {
+object WashingBatchSortOutputsTable : Table("operator_exec.washing_batch_sort_outputs") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val batchId = varchar("batch_id", 64).references(WashingBatchesTable.id)

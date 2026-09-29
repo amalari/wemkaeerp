@@ -36,7 +36,7 @@ oldest=$(ls -tr $r/*.xml | head -1 | xargs stat -f %Sm -t %T)"; done
 ## Token uji lewat API
 
 ```bash
-tok(){ curl -s -X POST localhost:8080/api/public/auth/demo -d "tenantSlug=$1" -d "username=$2" ${3:+-d "role=$3"} \
+tok(){ curl -s -X POST localhost:8081/api/public/auth/demo -d "tenantSlug=$1" -d "username=$2" ${3:+-d "role=$3"} \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])'; }
 SA=$(tok wemade-demo superadmin_apps PLATFORM_SUPERADMIN)        # tambah -H "X-Tenant-Slug: <slug>" untuk act-as
 OWN=$(tok bordir-uji "Owner Bordir" role-ten-bordir-uji-owner)

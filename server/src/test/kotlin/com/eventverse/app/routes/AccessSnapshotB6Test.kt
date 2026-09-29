@@ -74,17 +74,22 @@ class AccessSnapshotB6Test {
                 val n = rs.metaData.columnCount
                 buildList { while (rs.next()) add((1..n).map { rs.getString(it) }) }
             }
+            // Daftar prinsipal dibaca dari DB_NAME (default: DB repo A, belum dimigrasi) — tabel RBAC bisa di schema
+            // modul (B8, V76) atau masih di public. Menemukannya di mana pun menjaga set prinsipal tetap sama.
+            fun table(name: String) = rows("select coalesce(to_regclass('dynamic_rbac.$name'), to_regclass('public.$name'))::text").single()[0]!!
+            val customRoles = table("custom_roles")
+            val assignments = table("department_module_assignments")
             val out = mutableListOf<Principal>()
             rows("select t.slug, u.username, u.role, u.custom_role_id, u.department_id from users u join tenants t on t.id = u.tenant_id where t.slug !~ '^factory-[0-9]+$' order by t.slug, u.username")
                 .forEach { (slug, user, role, roleId, dept) ->
                     val r = Role.valueOf(role!!)
                     out += Principal("user:$slug:$user", slug!!, TestAuth.principalToken(slug, r, roleId, dept))
                 }
-            val roles = rows("select t.slug, r.id from custom_roles r join tenants t on t.id = r.tenant_id where t.slug !~ '^factory-[0-9]+$' order by 1, 2")
+            val roles = rows("select t.slug, r.id from $customRoles r join tenants t on t.id = r.tenant_id where t.slug !~ '^factory-[0-9]+$' order by 1, 2")
             roles.forEach { (slug, roleId) ->
                 out += Principal("role:$slug:$roleId", slug!!, TestAuth.principalToken(slug, Role.SALES, roleId, null))
             }
-            rows("select distinct t.slug, a.department_id from department_module_assignments a join tenants t on t.id = a.tenant_id where t.slug !~ '^factory-[0-9]+$' order by 1, 2")
+            rows("select distinct t.slug, a.department_id from $assignments a join tenants t on t.id = a.tenant_id where t.slug !~ '^factory-[0-9]+$' order by 1, 2")
                 .forEach { (slug, dept) ->
                     (roles.filter { it[0] == slug }.map { it[1] } + null).forEach { roleId ->
                         out += Principal("dept:$slug:$dept:${roleId ?: "-"}", slug!!,

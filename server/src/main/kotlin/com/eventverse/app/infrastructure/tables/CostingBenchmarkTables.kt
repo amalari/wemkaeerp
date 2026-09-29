@@ -4,7 +4,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 /** Pemetaan Exposed untuk DDL `costing_product_benchmarks` (V36). */
-object CostingProductBenchmarksTable : Table("costing_product_benchmarks") {
+object CostingProductBenchmarksTable : Table("costing_hpp.costing_product_benchmarks") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val styleName = varchar("style_name", 255)

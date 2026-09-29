@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.infrastructure.tables.TraceTenantOrdinalsTable
+import com.eventverse.app.infrastructure.tables.TraceWorkOrdersTable
 import com.eventverse.app.domain.contracts.GarmentPanel
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.*
@@ -154,10 +156,10 @@ class PostgresTraceContainerRepository : TraceContainerRepository {
             // pendek dan ekornya dipangkas dari depan — bagian belakang id-lah yang membedakannya.
             val rowId = "tw${ref.kind.symbol}_${ref.id}".takeLast(64).esc()
             val sql = """
-                INSERT INTO trace_work_orders (id, tenant_id, ordinal, work_order_kind, $column, created_at)
+                INSERT INTO ${TraceWorkOrdersTable.tableName} (id, tenant_id, ordinal, work_order_kind, $column, created_at)
                 SELECT '$rowId', '${tenantId.value}',
                        COALESCE(MAX(ordinal), 0) + 1, '${ref.kind.name}', '${ref.id.esc()}', NOW()
-                FROM trace_work_orders WHERE tenant_id = '${tenantId.value}'
+                FROM ${TraceWorkOrdersTable.tableName} WHERE tenant_id = '${tenantId.value}'
                 ON CONFLICT DO NOTHING
             """.trimIndent()
             TransactionManager.current().exec(sql)
@@ -203,8 +205,8 @@ class PostgresTraceContainerRepository : TraceContainerRepository {
         readTenantOrdinal(tenantId)?.let { return@dbQuery it }
 
         val sql = """
-            INSERT INTO trace_tenant_ordinals (tenant_id, ordinal, created_at)
-            SELECT '${tenantId.value}', COALESCE(MAX(ordinal), 0) + 1, NOW() FROM trace_tenant_ordinals
+            INSERT INTO ${TraceTenantOrdinalsTable.tableName} (tenant_id, ordinal, created_at)
+            SELECT '${tenantId.value}', COALESCE(MAX(ordinal), 0) + 1, NOW() FROM ${TraceTenantOrdinalsTable.tableName}
             ON CONFLICT (tenant_id) DO NOTHING
         """.trimIndent()
         TransactionManager.current().exec(sql)

@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.infrastructure.tables.MaterialCodeSequencesTable
 import com.eventverse.app.domain.common.UnitOfMeasure
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.masterdata.*
@@ -126,7 +127,7 @@ class PostgresMaterialItemRepository : MaterialItemRepository {
         DatabaseFactory.dbQuery(tenantId) {
             val prefix = category.codePrefix
             val sql = """
-                INSERT INTO material_code_sequences (tenant_id, category_code, current_seq)
+                INSERT INTO ${MaterialCodeSequencesTable.tableName} (tenant_id, category_code, current_seq)
                 VALUES ('${tenantId.value}', '$prefix', 1)
                 ON CONFLICT (tenant_id, category_code)
                 DO UPDATE SET current_seq = material_code_sequences.current_seq + 1

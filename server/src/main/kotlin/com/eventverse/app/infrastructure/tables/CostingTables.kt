@@ -3,7 +3,7 @@ package com.eventverse.app.infrastructure.tables
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object CostingRateCardsTable : Table("costing_rate_cards") {
+object CostingRateCardsTable : Table("costing_hpp.costing_rate_cards") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val behavior = varchar("behavior", 64)
@@ -30,7 +30,7 @@ object CostingRateCardsTable : Table("costing_rate_cards") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object CostingSheetsTable : Table("costing_sheets") {
+object CostingSheetsTable : Table("costing_hpp.costing_sheets") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val number = varchar("number", 64)
@@ -52,7 +52,7 @@ object CostingSheetsTable : Table("costing_sheets") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object CostingSheetBucketsTable : Table("costing_sheet_buckets") {
+object CostingSheetBucketsTable : Table("costing_hpp.costing_sheet_buckets") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val sheetId = varchar("sheet_id", 64).references(CostingSheetsTable.id)

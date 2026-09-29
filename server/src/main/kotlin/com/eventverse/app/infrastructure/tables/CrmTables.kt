@@ -40,7 +40,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * hybrid core-entity table rather than a fully generic board, and why this is NOT the same
  * "leads" as `ProspectLeadsTable`).
  */
-object CrmLeadsTable : Table("crm_leads") {
+object CrmLeadsTable : Table("crm_sales.crm_leads") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
 
@@ -71,7 +71,7 @@ object CrmLeadsTable : Table("crm_leads") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object CrmLeadActivitiesTable : Table("crm_lead_activities") {
+object CrmLeadActivitiesTable : Table("crm_sales.crm_lead_activities") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val leadId = varchar("lead_id", 64).references(CrmLeadsTable.id)

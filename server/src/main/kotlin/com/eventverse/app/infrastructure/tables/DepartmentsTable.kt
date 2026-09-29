@@ -2,7 +2,7 @@ package com.eventverse.app.infrastructure.tables
 
 import org.jetbrains.exposed.sql.Table
 
-object DepartmentsTable : Table("departments") {
+object DepartmentsTable : Table("org_chart.departments") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
     val code = varchar("code", 50)
