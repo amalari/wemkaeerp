@@ -113,3 +113,52 @@ Setiap modul baru **WAJIB** mendeklarasikan salah satu dari dua kapabilitas jang
   - Jika data transaksi perorangan/sales/operator ➔ set `ScopeCapability.HIERARCHICAL` (tersedia 3 opsi: Sendiri / Bawahan / Semua Data).
 - [ ] Apakah modul telah diuji berjalan pada alur bawaan (FOB/CMT/D2C) maupun alur custom hasil utak-atik (*puzzled*)?
 - [ ] Apakah modul menyertakan dokumentasi pengajaran (*teaching*) di `docs/teaching/`?
+
+---
+
+## 5. Anatomi Pendaftaran (apa yang wajib disentuh per jenis)
+
+Hasil scan kode 2026-09-29. Tentukan dulu **jenisnya** (skill `wemade-feature-discovery`), lalu ikuti
+baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
+
+### 5.1 Modul OPERASIONAL (tampil sebagai node kanvas Factory Flow)
+
+1. `core/.../domain/rbac/BusinessModule.kt` — entri baru (`code`, `category`, `scopeCapability`, `iconKey`; `kind` default OPERATIONAL).
+2. `core/.../domain/pipeline/OperationalModuleContract.kt` — cabang `ModuleArchetype.forModule` (dipaksa kompilator); slot baru → entri `ModuleArchetype` + `representativeModule`/`defaultStage`.
+3. `core/.../domain/pipeline/OperationalModuleCatalog.kt` — objek spec + **masukkan ke `all` di posisi yang benar** (posisi = urutan kanvas & sisipan reconciler). Port = `upstreamPrerequisites` / `downstreamHandoffs`.
+4. `core/.../domain/contracts/ModulePortPayload.kt` — daftarkan tipe port baru di `PortDataTypeRegistry`.
+5. Migrasi Flyway pola **V27/V64**: backfill entitlement (kunci **NAME** enum), baris `module_catalog_entries` (kunci **code**), backfill `custom_roles` per peran sistem.
+6. `core/.../domain/rbac/CustomRole.kt` `createFactoryPresets` — akses per peran preset (Owner otomatis).
+7. `AppNavScreen.kt` + cabang `App.kt` (dipaksa kompilator) + `ModuleWorkspaceScreen` (`sampleRowsFor` dipaksa kompilator) + `ModuleIcon`.
+8. Server: route + `requireModuleAccess`/`moduleDecision`, didaftarkan di `ServerRouteWiring`.
+9. **Otomatis**: seksi menu, matriks RBAC, dialog entitlement superadmin, kuota paket, reconciler pipeline tenant.
+
+### 5.2 Modul GOVERNANCE (layar tata kelola; tidak pernah di kanvas)
+
+1. Entri `BusinessModule` dengan `kind = GOVERNANCE`, `category = GOVERNANCE`.
+2. Cabang `null` di `ModuleArchetype.forModule`; **jangan** masuk `OperationalModuleCatalog`.
+3. `AppNavScreen` + cabang `App.kt` lewat `GovernanceModuleGate`; `sampleRowsFor`; ikon.
+4. Migrasi pola **V18/V19**: entitlement, katalog `archetype_code = 'governance'` harga 0, backfill peran + anti-lockout Owner.
+5. **Otomatis**: tidak dihitung kuota, tidak di kanvas.
+
+### 5.3 Modul FOUNDATION (data induk/referensi; tidak di kanvas)
+
+1. Entri `BusinessModule` dengan `kind = FOUNDATION`; cabang `null` di `forModule`.
+2. `FoundationModuleCatalog` (sediakan `providedReferenceTypes`).
+3. `AppNavScreen` + `App.kt` + `ModuleWorkspaceScreen`; migrasi pola **V27** (`archetype_code = 'foundation'`); preset peran; guard server.
+
+### 5.4 Fitur di dalam modul (washing, storage, traceability, surat jalan, …)
+
+Fitur **tidak** membuat `BusinessModule` baru (lihat `tenant-variability-rules.md` Kontrak 2). Ia
+mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
+
+1. Core: paket domain + repository + migrasi tabel; bila tahap → `IndustryStageTemplates`/`TenantStageFlow`, bila proses → `TenantProcessCatalog`, bila stasiun → `WorkStationCatalog`.
+2. Server: route didaftarkan di `ServerRouteWiring` dan **wajib** memakai gate modul induk (`requireModuleAccess(modulInduk, …)`). Menulis: fail-closed.
+3. Klien: di-host di workspace modul induk, atau `AppNavScreen` dengan `businessModule = modulInduk` — dan cabang `App.kt` **wajib** memeriksa `accessDecisions`, bukan hanya status login.
+4. Kanvas: daftarkan di registry fitur modul (TRD-FLOW-002, Fase 4) agar tampil di level 2 di bawah node induk.
+
+### 5.5 Kontrak Input/Output
+
+- Port keluar modul A **harus sama** dengan port masuk modul B yang disambung; tipe port wajib terdaftar di `PortDataTypeRegistry`.
+- Kanvas menyambung node **dari port**, bukan dari daftar tulis tangan (target TRD-FLOW-002). Port yang tidak menyambung = node yatim di kanvas.
+- Kunci: entitlement, `custom_roles`, `department_module_assignments` memakai **NAME** enum (`QUALITY_CONTROL`); node pipeline & `module_catalog_entries` memakai **code** (`quality_control`). Jangan tertukar.

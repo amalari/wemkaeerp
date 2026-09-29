@@ -72,7 +72,8 @@ object TenantPipelineProjector {
             // A bypassed module holds no work in progress.
             wipPieces = if (node.isBypassed) 0 else templateNode.wipPieces,
             downstreamModuleCodes = downstreamModuleCodes.ifEmpty { templateNode.downstreamModuleCodes },
-            formulaParameters = node.customFormulaParameters
+            formulaParameters = node.customFormulaParameters,
+            isNewFromCatalog = node.isBypassed && node.nodeId.startsWith(PipelineCatalogReconciler.NODE_ID_PREFIX)
         )
     }
 
@@ -117,39 +118,10 @@ object TenantPipelineProjector {
         )
     }
 
-    /**
-     * Recomputes aggregate KPIs over the projected nodes, mirroring
-     * [PipelinePresetFactory.createSnapshot] so both paths report metrics identically.
-     */
+    /** KPI agregat — rumus tunggal di [PipelinePresetFactory.snapshotOf]. */
     private fun buildSnapshot(
         preset: GarmentBusinessPreset,
         nodes: List<PipelineNode>,
         scenario: PipelineSimulationScenario
-    ): FactoryPipelineSnapshot {
-        val activeNodes = nodes.filterNot { it.isBypassed }
-        val totalHours = activeNodes.sumOf { it.cycleTimeHours }
-        val baseLeadDays = totalHours / 8.0
-        val avgLeadDays = ((baseLeadDays + scenario.leadTimeImpactDays) * 10.0)
-            .let { kotlin.math.round(it) / 10.0 }
-
-        val bottleneckPenalty = nodes.count { it.healthStatus == FlowHealthStatus.BOTTLENECK } * 7
-        val criticalPenalty = nodes.count { it.healthStatus == FlowHealthStatus.CRITICAL } * 15
-        val scenarioPenalty = when (scenario) {
-            PipelineSimulationScenario.NORMAL -> 0
-            PipelineSimulationScenario.QC_FABRIC_DEFECT -> 10
-            PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT -> 6
-        }
-
-        return FactoryPipelineSnapshot(
-            preset = preset,
-            nodes = nodes,
-            overallHealthScore = (100 - bottleneckPenalty - criticalPenalty - scenarioPenalty)
-                .coerceIn(40, 100),
-            totalWipPieces = activeNodes.sumOf { it.wipPieces },
-            activeBottlenecks = nodes.count { it.isBottleneck },
-            avgLeadTimeDays = avgLeadDays,
-            activeModulesCount = activeNodes.size,
-            bypassedModulesCount = nodes.count { it.isBypassed }
-        )
-    }
+    ): FactoryPipelineSnapshot = PipelinePresetFactory.snapshotOf(preset, nodes, scenario)
 }

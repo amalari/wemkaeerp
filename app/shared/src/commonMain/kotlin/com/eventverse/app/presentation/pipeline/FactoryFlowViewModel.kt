@@ -1,5 +1,8 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.pipeline.FactoryPipelineSnapshot
+import com.eventverse.app.domain.pipeline.ModuleTelemetry
+import com.eventverse.app.domain.pipeline.PipelineTelemetryOverlay
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
@@ -80,7 +83,9 @@ class FactoryFlowViewModel(
                     selectedPreset = event.preset,
                     pipeline = null,
                     isOfflineFallback = true,
-                    snapshot = PipelinePresetFactory.createSnapshot(event.preset, current.activeScenario),
+                    snapshot = PipelineTelemetryOverlay.applyTo(
+                        PipelinePresetFactory.createSnapshot(event.preset, current.activeScenario), emptyList(), current.activeScenario
+                    ),
                     selectedNode = null,
                     inspectingInputNode = null
                 )
@@ -89,7 +94,7 @@ class FactoryFlowViewModel(
             is FactoryFlowUiEvent.SelectScenario -> _uiState.update { current ->
                 current.copy(
                     activeScenario = event.scenario,
-                    snapshot = current.reproject(event.scenario),
+                    snapshot = current.copy(activeScenario = event.scenario).let { it.withTelemetry(it.reproject(event.scenario), it.telemetry) },
                     selectedNode = null,
                     inspectingInputNode = null
                 )
@@ -128,6 +133,11 @@ class FactoryFlowViewModel(
                 .onSuccess { pipeline ->
                     applyPipeline(pipeline)
                     loadModuleCatalog(tenantSlug)
+                    // Level 2 kanvas; gagal memuat → tetap kerangka rajut, tidak memblokir kanvas.
+                    apiClient.getStageFlow().onSuccess { stages -> _uiState.update { it.copy(stageFlow = stages) } }
+                    apiClient.getTelemetry(tenantSlug).onSuccess { readings ->
+                        _uiState.update { it.copy(telemetry = readings, snapshot = it.withTelemetry(it.snapshot, readings)) }
+                    }
                 }
                 .onFailure { cause -> fallBackToPreset(cause) }
         }
@@ -174,7 +184,7 @@ class FactoryFlowViewModel(
             current.copy(
                 pipeline = pipeline,
                 selectedPreset = pipeline.baseStarterPreset ?: current.selectedPreset,
-                snapshot = TenantPipelineProjector.project(pipeline, current.activeScenario),
+                snapshot = current.withTelemetry(TenantPipelineProjector.project(pipeline, current.activeScenario), current.telemetry),
                 isLoading = false,
                 isSaving = false,
                 isOfflineFallback = false,
@@ -190,8 +200,9 @@ class FactoryFlowViewModel(
         _uiState.update { current ->
             current.copy(
                 pipeline = null,
-                snapshot = PipelinePresetFactory.createSnapshot(
-                    current.selectedPreset,
+                snapshot = PipelineTelemetryOverlay.applyTo(
+                    PipelinePresetFactory.createSnapshot(current.selectedPreset, current.activeScenario),
+                    emptyList(),
                     current.activeScenario
                 ),
                 isLoading = false,
@@ -208,4 +219,15 @@ class FactoryFlowViewModel(
     ) = pipeline
         ?.let { TenantPipelineProjector.project(it, scenario) }
         ?: PipelinePresetFactory.createSnapshot(selectedPreset, scenario)
+
+    /**
+     * Angka nyata hanya untuk alur tenant tersimpan pada skenario Normal. Pratinjau preset dan
+     * simulasi cacat tetap angka contoh — dan karena itu seluruh node aktifnya bertag "estimasi".
+     */
+    private fun FactoryFlowUiState.withTelemetry(snapshot: FactoryPipelineSnapshot, readings: List<ModuleTelemetry>) =
+        PipelineTelemetryOverlay.applyTo(
+            snapshot,
+            readings.takeIf { pipeline != null && activeScenario == PipelineSimulationScenario.NORMAL }.orEmpty(),
+            activeScenario
+        )
 }

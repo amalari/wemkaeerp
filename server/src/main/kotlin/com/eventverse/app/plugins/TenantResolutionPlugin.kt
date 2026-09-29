@@ -1,6 +1,9 @@
 package com.eventverse.app.plugins
 
 import com.eventverse.app.domain.auth.Role
+import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
+import com.eventverse.app.domain.pipeline.usecases.GetTenantEntitlementUseCase
+import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 import com.eventverse.app.infrastructure.auth.PrintTicketService
@@ -31,7 +34,20 @@ class TenantResolutionConfig {
      * tenant is whatever the route itself looks up from the path, not from a header.
      */
     var platformRoutePrefixes: List<String> = listOf("/api/admin")
+
+    /**
+     * Sumber grant modul per tenant. Bila diisi, grant dimuat sekali per request dan dibaca guard
+     * modul lewat [grantedModulesOrNull] — entitlement paket ditegakkan di server, bukan hanya
+     * disembunyikan dari menu klien (TRD-FLOW-002 Fase 2).
+     */
+    var entitlementRepository: TenantEntitlementRepository? = null
 }
+
+/** Modul yang di-grant untuk tenant request ini; `null` = tidak dimuat (guard tidak membatasi paket). */
+val GrantedModulesAttributeKey = AttributeKey<Set<BusinessModule>>("GrantedModules")
+
+val ApplicationCall.grantedModulesOrNull: Set<BusinessModule>?
+    get() = attributes.getOrNull(GrantedModulesAttributeKey)
 
 /**
  * Authenticates the caller and resolves which tenant the request acts on.
@@ -53,6 +69,7 @@ val TenantResolutionPlugin = createApplicationPlugin(
     val publicPrefixes = pluginConfig.publicRoutePrefixes
     val platformPrefixes = pluginConfig.platformRoutePrefixes
     val printTickets = pluginConfig.printTicketService
+    val entitlements = pluginConfig.entitlementRepository?.let(::GetTenantEntitlementUseCase)
 
     onCall { call ->
         val path = call.request.path()
@@ -183,6 +200,8 @@ val TenantResolutionPlugin = createApplicationPlugin(
         }
 
         call.attributes.put(TenantContextAttributeKey, TenantContext.fromTenant(resolvedTenant))
+        entitlements?.invoke(resolvedTenant.id, resolvedTenant.tier)?.getOrNull()
+            ?.let { call.attributes.put(GrantedModulesAttributeKey, it.grantedModules) }
     }
 }
 

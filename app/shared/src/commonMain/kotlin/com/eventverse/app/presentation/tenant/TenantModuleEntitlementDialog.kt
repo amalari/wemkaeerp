@@ -195,6 +195,16 @@ fun TenantModuleEntitlementDialog(
                                     }
                                 )
                                 ModuleGroup(
+                                    title = "Modul Data Induk & Referensi",
+                                    subtitle = "Master data, vendor, penagihan. Tidak memakan kuota modul produksi.",
+                                    modules = BusinessModule.foundation,
+                                    granted = current,
+                                    activePipelineModules = activePipelineModules,
+                                    onToggle = { module, enabled ->
+                                        draft = if (enabled) current + module else current - module
+                                    }
+                                )
+                                ModuleGroup(
                                     title = "Modul Operasional Pabrik",
                                     subtitle = "Terhitung terhadap batas paket langganan.",
                                     modules = BusinessModule.operational,

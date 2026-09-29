@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Sinkronisasi konfigurasi AI: .claude/ (sumber kebenaran) → Cline & Gemini/Antigravity.
+#   scripts/sync-agent-config.sh          → tulis
+#   scripts/sync-agent-config.sh --check  → hanya periksa; exit 1 bila ada yang menyimpang
+set -euo pipefail
+cd "$(dirname "$0")/.."
+CHECK=${1:-}
+drift=0
+tmp=$(mktemp -d)
+
+# Skill milik proyek yang dibagikan ke .agents/ (Gemini). Skill lain di .agents/ sengaja TIDAK
+# disentuh: sebagian tercampur proyek lain (lihat docs/teaching/teaching-claude-config-skills-rules-sync.md).
+SHARED_SKILLS=(wemade-feature-discovery wemade-feature-workflow)
+
+generate_agents_md() {
+  {
+    echo "<!-- FILE HASIL GENERATE oleh scripts/sync-agent-config.sh — JANGAN disunting langsung."
+    echo "     Sunting .claude/CLAUDE.md atau .claude/rules/*.md, lalu jalankan skrip itu. -->"
+    echo
+    cat .claude/CLAUDE.md
+    for rule in .claude/rules/*.md; do
+      echo; echo "---"; echo; cat "$rule"
+    done
+  } > "$1"
+}
+
+put() { # $1 sumber, $2 tujuan
+  if [ -n "$CHECK" ]; then
+    if ! cmp -s "$1" "$2" 2>/dev/null; then echo "MENYIMPANG: $2"; drift=1; fi
+  else
+    mkdir -p "$(dirname "$2")"; cp "$1" "$2"
+  fi
+}
+
+# 1. AGENTS.md (root: Cline/Gemini CLI) & .agents/AGENTS.md (Antigravity)
+generate_agents_md "$tmp/AGENTS.md"
+put "$tmp/AGENTS.md" AGENTS.md
+put "$tmp/AGENTS.md" .agents/AGENTS.md
+
+# 2. GEMINI.md — Gemini CLI membaca GEMINI.md secara default
+cat > "$tmp/GEMINI.md" <<'MD'
+# WeMade ERP — Konteks untuk Gemini
+
+Seluruh aturan proyek ada di [`AGENTS.md`](AGENTS.md) (hasil generate dari `.claude/`).
+Baca itu dulu. Sebelum membuat fitur/modul: ikuti skill `wemade-feature-discovery` lalu
+`wemade-feature-workflow` (di `.agents/skills/` atau `.claude/skills/`).
+MD
+put "$tmp/GEMINI.md" GEMINI.md
+
+# 3. Rules → .agents/rules (Antigravity). .clinerules sudah symlink ke .claude/rules.
+for rule in .claude/rules/*.md; do put "$rule" ".agents/rules/$(basename "$rule")"; done
+
+# 4. Skill proyek → .agents/skills
+for skill in "${SHARED_SKILLS[@]}"; do
+  while IFS= read -r -d '' f; do
+    put "$f" ".agents/skills/${f#.claude/skills/}"
+  done < <(find ".claude/skills/$skill" -type f -print0)
+done
+
+# 5. Symlink Cline
+check_link() { # $1 path, $2 target
+  if [ "$(readlink "$1" 2>/dev/null)" != "$2" ]; then
+    if [ -n "$CHECK" ]; then echo "MENYIMPANG: $1 → $(readlink "$1" 2>/dev/null || echo '(tidak ada)') (harus $2)"; drift=1
+    else ln -sfn "$2" "$1"; fi
+  fi
+}
+check_link .clinerules .claude/rules
+mkdir -p .cline
+check_link .cline/skills ../.claude/skills
+
+if [ -n "$CHECK" ]; then
+  [ $drift -eq 0 ] && echo "Konfigurasi AI sinkron." || { echo "Jalankan: scripts/sync-agent-config.sh"; exit 1; }
+else
+  echo "Sinkron: AGENTS.md, .agents/{AGENTS.md,rules,skills/${SHARED_SKILLS[*]}}, GEMINI.md, .clinerules, .cline/skills"
+fi

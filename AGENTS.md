@@ -1,3 +1,6 @@
+<!-- FILE HASIL GENERATE oleh scripts/sync-agent-config.sh — JANGAN disunting langsung.
+     Sunting .claude/CLAUDE.md atau .claude/rules/*.md, lalu jalankan skrip itu. -->
+
 # EventVerse — Project Rules (Domain-Driven Design)
 
 ## Stack Overview
@@ -15,36 +18,30 @@
 Gunakan struktur modular berikut:
 
 ```
-EventVerse / AchmadPorto/
-├── core/                        # PURE KOTLIN DOMAIN LAYER (Zero external dependencies)
+EventVerse/
+├── core/                        # Shared primitives & types (no dependency ke app)
 │   └── src/commonMain/kotlin/com/eventverse/app/
-│       ├── domain/player/       # Player Entities, Enums, Value Objects & UseCases
-│       ├── domain/portfolio/    # Portfolio, Projects, Skills & UseCases
-│       ├── domain/interaction/  # Dialogue, Interaction Entities & UseCases
-│       └── domain/world/        # Farm Buildings, Props, Shipping & UseCases
+│       ├── domain/              # Domain types murni (Entity, ValueObject, DomainEvent)
+│       └── shared/              # Shared utilities (Result, Either, extensions)
 │
 ├── app/
-│   ├── shared/                  # Shared UI + application layer (Compose UI & Repositories)
+│   ├── shared/                  # Shared UI + application layer (Compose UI)
+│   │   └── src/commonMain/kotlin/com/eventverse/app/
+│   │       ├── presentation/    # ViewModel, UiState, UiEvent
+│   │       ├── navigation/      # Screen routing
+│   │       └── di/              # Dependency injection setup
+│   │
 │   ├── androidApp/              # Android entry point saja
 │   ├── iosApp/                  # iOS entry point saja
 │   ├── desktopApp/              # Desktop entry point saja
-│   └── webApp/                  # Kotlin/JS Web bridge entry point (PortfolioJsRuntimeBridge.kt)
-│
-├── src/                         # TYPESCRIPT & THREE.JS 3D PRESENTATION LAYER (DDD / Vertical Slices)
-│   ├── core/                    # Shared Kernel (engine, physics, audio, bridge, constants, styles)
-│   ├── features/                # Bounded Contexts / Domain Feature Slices
-│   │   ├── maps/                # Spatial Maps: outside/, farmhouse/ (inside), shared/
-│   │   ├── player/              # 3D Farmer rig, CharacterController, Joystick, PlayerSfx
-│   │   ├── portfolio/           # Rucksack Bag modal, project showcase data, MenuSfx, CSS
-│   │   ├── calendar/            # Calendar modal, festival data, calendar.css
-│   │   ├── television/          # CRT TV modal, broadcast data, tv.css
-│   │   ├── diary/               # Save Diary modal, slot logic, diary.css
-│   │   ├── dialogue/            # Dialogue window, Avatar portraits, DialogueSfx, CSS
-│   │   └── hud/                 # Top status bar, real-time clock, toast notifications
-│   ├── main.ts                  # Clean Composition Root & Scene Orchestrator
-│   └── style.css                # Master CSS barrel importing all domain stylesheets
+│   └── webApp/                  # Web entry point saja
 │
 └── server/                      # Ktor server (REST/GraphQL)
+    └── src/main/kotlin/com/eventverse/app/
+        ├── domain/              # Business logic (Use Cases, Repositories interfaces)
+        ├── application/         # Application services
+        ├── infrastructure/      # DB, external APIs, implementations
+        └── api/                 # Route handlers, request/response DTOs
 ```
 
 ---
@@ -194,13 +191,12 @@ sealed interface EventListUiEvent {
 
 ---
 
-### 8. File Organization (Domain & Vertical Slice Colocation)
+### 8. File Organization
 
 - Satu file = satu konsep utama
 - Boleh ada file gabungan untuk value objects kecil: `EventValueObjects.kt`
-- Kelompokkan berdasarkan **fitur/domain/peta**, bukan berdasarkan layer teknis di level file (Dilarang memisahkan folder `css/`, `audio/`, `ui/`, `world/` secara horizontal)
+- Kelompokkan berdasarkan **fitur/domain**, bukan berdasarkan layer di level file
 
-#### A. Kotlin Domain & Feature Organization:
 ```
 feature/event/
 ├── domain/
@@ -215,24 +211,6 @@ feature/event/
     ├── EventListViewModel.kt
     ├── EventListScreen.kt
     └── EventListUiModel.kt
-```
-
-#### B. TypeScript / Three.js Frontend Feature Organization:
-```
-src/features/maps/farmhouse/
-├── FarmhouseInterior.ts        # 3D Low-poly room diorama meshes & colliders
-└── audio/
-    └── FarmhouseSfx.ts         # Clock ticking, door creak, room synthesizers
-
-src/features/portfolio/
-├── domain/
-│   ├── portfolio.ts            # Project showcase item data
-│   └── profile.ts              # Farmer attributes & timeline data
-├── presentation/
-│   ├── RucksackMenu.ts         # 2D Rucksack Bag modal controller
-│   └── rucksack.css            # Scoped rucksack stylesheet
-└── audio/
-    └── MenuSfx.ts              # Bag open/close & item equip synthesizers
 ```
 
 ---
@@ -260,28 +238,63 @@ fun `publish event when already published should throw exception`() { ... }
 
 ---
 
-### 11. Post-Task Teaching Documentation (Wajib)
+### 11. Modul Operasional (Composable "Lego/Puzzle" Architecture)
 
-Setiap kali menyelesaikan pengerjaan sebuah task, issue, atau modul:
-- **Wajib men-generate modul dokumentasi pembelajaran (teaching)** menggunakan skill `teaching` ke dalam direktori `docs/teaching/teaching-[task/issue-id]-[slug].md`.
-- Konten ditulis dengan gaya **Senior Lead Developer membimbing Junior Developer**:
-  1. **Start dari mana?**: Urutan menulis (order of operations) dari nol.
-  2. **Bedah kode blok per blok**: Penjelasan baris per baris dan mental model di baliknya.
-  3. **Technology & Approach ("The Why")**: Mengapa teknologi ini yang dipilih dan risiko jika menggunakan cara lain.
-  4. **Jebakan Pemula (Common Pitfalls)**: Kesalahan fatal yang dihindari.
-  5. **Verifikasi & Tantangan Mandiri**: Cara menguji kebenaran kodenya.
+WeMade ERP **tidak dibatasi** oleh enum model bisnis yang kaku (FOB/CMT/Brand D2C).
+Preset itu hanya starter template — setiap tenant bebas menyusun, menukar, atau
+menghibridkan node modul dalam alur pipeline-nya sendiri (`CustomTenantPipeline`).
+
+Sebelum membuat, memperluas, atau merefaktor modul operasional apa pun (Procurement,
+Sampling, Cutting SPK, Sewing Kanban, QC Inspection, Costing Engine, dll.), baca dan
+patuhi **[`.claude/rules/module-integration-rules.md`](.claude/rules/module-integration-rules.md)**
+secara penuh. Ringkasan kontrak wajibnya:
+
+1. Deklarasikan `ModuleArchetype` yang tepat (slot kemampuan modul dapat saling ditukar).
+2. Nyatakan tipe data Input/Output Port agar kompatibel disambung modul lain.
+3. Jangan campur `StockOwnershipSemantics` (`OWNED_RAW_MATERIAL` vs
+   `CONSIGNED_CLIENT_MATERIAL` vs `INTERNAL_FINISHED_GOODS`).
+4. Pisahkan rumus `CostingBehavior` dari core engine (parameter dinamis per tenant,
+   bukan hardcode).
+5. Sediakan jalur `DefectLiability` & rework loop untuk modul lantai produksi.
+6. Sediakan telemetri (`wipPieces`, `cycleTimeHours`, `healthStatus`) agar node bisa
+   dipantau di kanvas.
+7. Isolasi konfigurasi pipeline per `TenantId` — modifikasi satu tenant tidak boleh
+   berdampak ke tenant lain.
+8. Deklarasikan `ScopeCapability` (`GLOBAL_ONLY` vs `HIERARCHICAL`) untuk kapabilitas
+   jangkauan data modul.
+
+Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap modul selesai.
 
 ---
 
-### 12. Design System & UI Styling (Clay)
+### 12. Dokumentasi Wajib Pasca-Fitur (Teaching Skill)
+
+**Setiap kali sebuah task, issue, modul, atau fitur baru selesai diimplementasikan**
+(termasuk perubahan signifikan pada fitur yang sudah ada), panggil skill `teaching`
+untuk menghasilkan dokumentasi mentoring teknis di `docs/teaching/teaching-[slug].md`,
+lalu tautkan file tersebut di respons akhir ke user. Ini berlaku otomatis — tidak perlu
+menunggu user memintanya secara eksplisit.
+
+Skill dokumentasi lain yang tersedia dan boleh dipakai sesuai konteks (tidak wajib
+otomatis seperti `teaching`):
+- `task-resolution-doc` — ringkasan penyelesaian task terhubung ke GitHub Issue, di
+  `docs/tasks/`. Pakai saat task punya issue GitHub yang jelas.
+- `trd-generator` — Technical Requirements Document 5-bagian untuk fitur/servis baru
+  yang cukup besar, di `docs/trd/`. Pakai di awal perencanaan fitur besar, bukan pasca-implementasi.
+- `task-to-github-projects` — mengonversi rencana/breakdown task menjadi GitHub
+  Issues & Project items via `gh` CLI.
+
+---
+
+### 13. Design System & UI Styling (Clay)
 
 Bahasa visual WeMade ERP adalah **Claymorphism + Neo-Brutalism**: outline tebal 3dp, hard
 shadow tanpa blur, sudut membulat besar, font Fredoka + Nunito — dengan **palet brand WeMade**
 (biru `#2563EB`, oranye `#EA580C`), bukan palet pastel.
 
 Sebelum menulis atau mengubah UI apa pun di `app/shared/**/presentation/`, baca dan patuhi
-**[`.agents/rules/design-system-rules.md`](rules/design-system-rules.md)** secara penuh, dan
-gunakan skill **`compose-design-system`** sebagai panduan kerjanya.
+**[`.claude/rules/design-system-rules.md`](.claude/rules/design-system-rules.md)** secara penuh,
+dan gunakan skill **`compose-design-system`** sebagai panduan kerjanya.
 
 Ringkasan kontrak wajibnya:
 
@@ -305,32 +318,12 @@ Ringkasan kontrak wajibnya:
 9. **Clay memakan ruang** (~18dp/kartu) dan Nunito ber-x-height besar; tinjau lebar kontainer
    dan tier ukuran font setiap kali mengkonversi layar padat.
 10. **Mode gelap lewat theme, bukan ternary.** Jangan menambah `if (isPresentationMode)` baru.
-11. **Nol literal emoji / Unicode glyph sebagai ikon di string UI.** Skiko/Wasm di browser tidak memiliki fallback font emoji OS dan akan merender kotak kosong/tofu (`▯`). Seluruh ikon wajib memakai vektor berbasis Canvas dari `ClayIcons.kt` (`IconChat`, `IconNote`, `IconPhone`, `IconMail`, `IconUser`, `IconChevronDown`, dll.) via slot `leading`/`trailing`.
 
----
-
-### 13. Full-Stack End-to-End Planning & Backend Integration (Wajib)
-
-Setiap kali menyusun rencana teknis (planning) untuk fitur, modul, atau perubahan arsitektur:
-- **Dilarang keras hanya merencanakan sisi UI / Client saja.**
-- **Setiap planning WAJIB mencakup arsitektur Full-Stack yang terintegrasi secara end-to-end**, yang terdiri dari 5 pilar:
-  1. **Database & Persistence Layer**:
-     - Skema migrasi Flyway baru (`V...__.sql`) di `server/src/main/resources/db/migration/`.
-     - Definisi tabel Exposed di `server/src/main/kotlin/.../infrastructure/persistence/` (termasuk tipe data spesifik seperti `jsonb`, indeks GIN, foreign key, dan `tenant_id` multi-tenancy).
-  2. **Pure Domain Layer (`core/`)**:
-     - Entities, Value Objects, Domain Events, dan Repository Interface yang bebas dari dependensi framework.
-     - Use Cases (`[Verb][Noun]UseCase`) dengan input Command/Query dan return `Result<T>`.
-  3. **Backend API & Routing (`server/`)**:
-     - Route path Ktor, HTTP methods (`GET`, `POST`, `PATCH`, `DELETE`).
-     - Kontrak DTO Request/Response (`@Serializable`).
-     - Proteksi RBAC / Wewenang (`tenant_id` context, checking `ModuleAccessConfig` & `AccessDecision`).
-  4. **Client-Server Integration (`app/shared/`)**:
-     - Implementasi HTTP Client repository menggunakan Ktor Client (`Ktor...Repository`).
-     - Mapping DTO jaringan ke Domain Entity.
-     - Penanganan status jaringan (Loading, Success, Error, Timeout, Offline fallback/Cache).
-     - Aliran data ke ViewModel via StateFlow (`UiState`, `UiEvent`).
-  5. **Shared Presentation Layer (`app/shared/presentation/`)**:
-     - Komponen Compose Multiplatform responsif (Web/Desktop & Mobile) mematuhi Claymorphism Design System.
+Jalankan checklist Definition of Done di file rules tersebut sebelum menganggap UI selesai —
+termasuk **menjalankan aplikasinya dan melihat dengan mata**, karena bug layout tidak tertangkap
+test mana pun.
+Kalau aplikasi meminta login saat pengecekan visual, **login dulu sebagai superadmin** lewat tombol
+"Demo Mode: Masuk Cepat (Superadmin Apps)" di `/login`, lalu lanjutkan pengecekannya — jangan dilewati.
 
 ---
 
@@ -384,22 +377,54 @@ git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
 
 ---
 
+### 15. Alur Wajib Fitur & Modul Baru (Discovery → Workflow)
+
+Sebelum menulis kode fitur atau modul apa pun, jalankan berurutan:
+
+1. **Skill `wemade-feature-discovery`** — kebutuhan bisnis, **fitur serupa sudah ada?**
+   (`scripts/find-similar-feature.sh <kata>`), jenis (modul operasional / governance / foundation /
+   fitur dalam modul), Uji Variabilitas, core & titik extend, input/output + posisi di kanvas
+   Factory Flow, governance. Hasil: Discovery Note.
+2. **Skill `wemade-feature-workflow`** — gerbang ukuran/TRD → domain (tenant kedua) → pendaftaran →
+   persistensi → API fail-closed → UI dari data → verifikasi → teaching doc.
+
+Baca dan patuhi **[`.claude/rules/tenant-variability-rules.md`](.claude/rules/tenant-variability-rules.md)**
+(kode vs data) dan **[`module-integration-rules.md` §5](.claude/rules/module-integration-rules.md)**
+(anatomi pendaftaran per jenis modul). Ringkasan kontraknya:
+
+1. Uji Variabilitas sebelum `enum class`/`when` domain — beda per tenant/industri/admin → **data**.
+2. Tangga keputusan: Modul → Tahap → Proses opsional → Stasiun → Konfigurasi. Proses **bukan** modul.
+3. Aturan domain memakai **peran** (`ModuleArchetype`, `StageTrait`), bukan kode khas satu industri.
+4. Kunci tersimpan = value object string; parser tunggal; **tidak** fallback senyap.
+5. Template disalin ke tenant; dokumen **membeku** saat mulai dikerjakan.
+6. Test wajib memakai **template non-default**; cek visual di tenant uji non-rajut (`bordir-uji`).
+7. Endpoint tulis **fail-closed**; test wajib mencakup peran tak berwenang (403).
+8. Konsep yang terlanjur enum dimigrasi dengan Strangler Fig + test paritas.
+
+Sebelum merge: `scripts/audit-variability.sh` (melapor, tidak memblokir).
+
+**Konfigurasi AI lintas tool**: `.claude/` adalah satu-satunya sumber kebenaran. Setelah mengubah
+`CLAUDE.md`, rules, atau skill `wemade-*`, jalankan `scripts/sync-agent-config.sh` agar Cline
+(`.clinerules`, `.cline/skills`) dan Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`) ikut
+terbarui. `AGENTS.md` adalah **file hasil generate** — jangan disunting langsung.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
-- **Frontend-Only Planning** — Merencanakan atau membuat modul sebatas mockup UI tanpa merancang skema database, migrasi Flyway, API endpoint Ktor, dan integrasi data backend
-- **Unicode Emojis / Glyphs sebagai Ikon** — Menanam emoji (`💬`, `📝`, `📱`, `👤`, `✉️`, `▾`) ke dalam `Text(...)` atau label komponen yang menyebabkan rendering tofu (`▯`) di Compose Wasm. Selalu pakai `ClayIcons.kt`!
-- **Horizontal Technical Layer Slicing di Frontend** — Mengumpulkan semua audio di `audio/`, semua CSS di `styles/`, semua modal di `ui/`, atau semua 3D di `world/`. Selalu gunakan Vertical Slices di `src/features/`!
-- **Anemic Domain Model** — Entity hanya data tanpa behavior, logika tersebar di service
-- **God UseCase / God Orchestrator** — Satu use case / satu file `main.ts` menangani seluruh operasi tanpa delegasi modul
-- **Repository sebagai DAO generik** — Hindari findAll(), deleteById() tanpa konteks domain
-- **Domain bergantung pada framework** — Tidak ada import Ktor/Android/Compose/Three.js di pure Kotlin domain
-- **Business logic di ViewModel atau Composable**
-- **String primitives untuk domain concepts** — Gunakan Value Objects
-- **Literal warna/radius/border di dalam Composable fitur** — Gunakan token (lihat §12)
+- Anemic Domain Model — Entity hanya data, logika di service
+- God UseCase — satu use case menangani banyak operasi
+- Repository sebagai DAO generik — hindari findAll(), deleteById() tanpa konteks domain
+- Domain bergantung pada framework — tidak ada Ktor/Android/Compose import di domain
+- Business logic di ViewModel atau Composable
+- String primitives untuk domain concepts — gunakan Value Objects
+- **Literal warna/radius/border di dalam Composable fitur** — gunakan token (lihat §13)
 - **Menyalin blok styling** alih-alih mengangkatnya jadi komponen bersama
-- **`Modifier.shadow()` di `presentation/`** — Bayangannya selalu blur, berlawanan dengan bahasa visual
+- **`Modifier.shadow()` di `presentation/`** — bayangannya selalu blur, berlawanan dengan bahasa visual
 - **God File** — satu file melewati hard limit lapisannya (lihat §14) tanpa alasan pengecualian yang sah
 - **Memecah file per baris, bukan per tanggung jawab** — `FooScreenPart2.kt`, `FooExtra.kt`, `FooHelpers.kt` tanpa tema
+
+---
 
 # WeMade ERP — Aturan Standar Design System & UI Styling (Compose Multiplatform)
 
@@ -734,6 +759,11 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
       ```
 - [ ] **Dijalankan dan dilihat dengan mata**, bukan hanya dikompilasi — bug layout seperti teks
       pecah per huruf tidak akan tertangkap test mana pun
+- [ ] **Belum login saat mengecek visual? Login dulu, jangan dilewati.** Kalau halaman yang dicek
+      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3000/login`, klik
+      **"Demo Mode: Masuk Cepat (Superadmin Apps)"** (`superadmin_apps` / `PLATFORM_SUPERADMIN`),
+      lalu kembali ke halaman tujuan dan lakukan pengecekannya. "Belum login" **bukan** alasan sah
+      untuk melaporkan UI tanpa melihatnya.
 - [ ] **Layar lain yang tidak dikonversi ikut diperiksa** jika `WeMadeTheme.kt` disentuh —
       `shapes` dan `colorScheme` berdampak ke seluruh aplikasi, jadi "pilot satu layar" tidak
       pernah benar-benar terisolasi
@@ -754,6 +784,254 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
 
 Setiap kali menyentuh file di daftar ini untuk alasan apa pun, **cicil** bagiannya — jangan menambah
 barisnya.
+
+---
+
+# WeMade ERP — Aturan Standar Batas Ukuran File (File Size & Decomposition)
+
+Dokumen ini adalah **aturan baku ukuran file** yang wajib ditaati setiap kali membuat atau
+mengubah file Kotlin di repo ini. Statusnya sejajar dengan
+[`module-integration-rules.md`](module-integration-rules.md) dan
+[`design-system-rules.md`](design-system-rules.md): kalau yang pertama mengatur *apa yang
+dikerjakan* dan yang kedua *bagaimana rupanya*, dokumen ini mengatur **seberapa besar satu file
+boleh tumbuh sebelum ia berhenti bisa dibaca**.
+
+**Ruang lingkup**: seluruh `*.kt` di `core/`, `app/`, dan `server/`.
+
+---
+
+## 1. Paradigma: Batas Baris Adalah Alarm, Bukan Target
+
+Batas ini **bukan** soal estetika atau menghitung baris demi menghitung baris. Panjang file adalah
+*proxy* paling murah untuk tiga penyakit yang sebenarnya:
+
+1. **File melanggar Single Responsibility** — satu file mengerjakan lima hal, jadi tidak ada nama
+   yang jujur untuk isinya.
+2. **Pola visual/logika disalin, bukan diangkat** — gejala yang sama dengan pelanggaran
+   [Aturan Tiga Kali](design-system-rules.md#kontrak-4--aturan-tiga-kali-rule-of-three).
+3. **File tidak lagi bisa direview** — satu file yang melebihi batas tidak bisa dibaca sekali duduk
+   maupun dinilai utuh dalam satu review, sehingga bug lolos di bagian yang tidak sempat dibaca.
+
+> **Konsekuensinya**: melewati batas **tidak** boleh diselesaikan dengan memotong file di tengah
+> secara sembarang (`FooScreenPart2.kt`). Memecah file wajib mengikuti **batas tanggung jawab**,
+> bukan batas baris. Kalau tidak ada garis pisah yang jujur, itu tandanya masalahnya bukan panjang
+> file — melainkan desainnya.
+
+---
+
+## 2. Ambang Baris per Lapisan
+
+Satu angka global tidak masuk akal: Compose secara struktural lebih panjang dari domain murni
+(median `presentation/` di repo ini 3,4× median `core/`). Karena itu ambangnya per lapisan.
+
+| Lingkup | Soft (peringatan) | Hard (tolak merge) | Alasan ambang |
+|---|---|---|---|
+| `core/**` (domain murni) | **250** | **400** | p90 lapisan ini 196 baris. Entity/VO >250 hampir pasti God Entity |
+| `app/shared/**/presentation/**` | **400** | **600** | median 203; Compose butuh ruang, tapi 600 adalah batas satu kali duduk |
+| `server/src/main/**` | **300** | **500** | p90 lapisan ini 374; routes & repository Postgres |
+| `**/commonTest/**`, `**/jvmTest/**` | **500** | **800** | test memang repetitif; memecahnya merugikan keterbacaan kasus |
+
+**Kalau ragu atau lingkupnya tidak terdaftar: soft 400 / hard 600.**
+
+Cara membacanya:
+
+- **Di bawah soft** — tidak perlu berpikir, lanjut.
+- **Melewati soft** — boleh lanjut, tapi wajib berhenti sebentar dan bertanya: *apakah file ini
+  masih punya satu nama yang jujur?* Kalau jawabannya tidak, pecah sekarang selagi murah.
+- **Melewati hard** — **berhenti**. Dilarang menambah baris ke file itu tanpa memecahnya lebih
+  dulu, kecuali masuk pengecualian §3.
+
+### Kontrak 1 — Hard limit berlaku ke *file setelah diubah*, bukan ke diff-nya
+
+Menambah 10 baris ke file 700 baris tetap pelanggaran. Aturan ini tentang hasil akhir, bukan
+ukuran perubahan.
+
+### Kontrak 2 — Aturan Ratchet: file yang sudah melanggar tidak boleh membesar
+
+Untuk file yang **sudah** di atas hard limit sebelum aturan ini ada (lihat §5), berlaku aturan
+searah: **setiap perubahan pada file itu wajib membuatnya lebih pendek, atau minimal tidak lebih
+panjang.** Tidak ada kewajiban menormalkannya dalam satu PR — tapi tidak boleh bertambah.
+
+```
+# sebelum menyentuh file yang sudah besar
+wc -l <file>          # catat angkanya
+# ... kerjakan perubahan ...
+wc -l <file>          # wajib ≤ angka sebelumnya
+```
+
+---
+
+## 3. Pengecualian yang Sah (dan Hanya Ini)
+
+Ambang baris **tidak berlaku** untuk file yang isinya **data terurut, bukan logika bercabang** —
+karena memecahnya tidak menambah keterbacaan sedikit pun, hanya menyebarkan satu tabel ke lima
+tempat.
+
+Pengecualian wajib **dideklarasikan eksplisit** dengan komentar di baris pertama file:
+
+```kotlin
+// FILE-SIZE-EXEMPT: katalog aset — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
+```
+
+Yang memenuhi syarat:
+
+| Kategori | Contoh di repo ini | Kenapa sah |
+|---|---|---|
+| Katalog ikon / vector path | `ClayIcons.kt` (1354), `PipelineIcons.kt` (679) | Deretan `Path` deklaratif; nol percabangan |
+| Seed / preset template | `PipelinePresetFactory.kt` (1224) | Tabel data onboarding per archetype |
+| Codec / mapper eksplisit | `SamplingOrderCodec.kt` (510) | Satu baris per field, lurus, tanpa logika |
+| Kode ter-generate | — | Bukan kita yang menulis |
+
+Yang **tidak** memenuhi syarat, betapa pun besarnya:
+
+- Screen / Dialog / Pane Compose — panjangnya selalu gejala styling yang disalin atau komponen yang
+  belum diangkat, bukan gejala data.
+- ViewModel — panjangnya selalu gejala terlalu banyak tanggung jawab dalam satu state holder.
+- Route handler & repository — pecah per agregat/resource.
+
+---
+
+## 4. Pola Pemecahan yang Disarankan
+
+Jangan mengarang struktur baru; ikuti pola yang sudah dipakai repo ini.
+
+### Compose Screen / Dialog yang membengkak
+
+```
+presentation/deal/components/
+├── DealDetailDialog.kt          # hanya shell: state hoisting, scaffold, wiring event
+├── DealDetailHeader.kt          # satu section = satu file
+├── DealDetailSpecForm.kt
+├── DealDetailTimelinePane.kt
+└── DealDetailUiModel.kt         # mapping domain → UI model
+```
+
+Aturannya: **file shell hanya merakit, section yang merender.** Kalau setelah dipecah shell-nya
+masih >400 baris, berarti dialog itu sebenarnya beberapa layar yang dipaksa jadi satu.
+
+Sebelum memecah, cek dulu apakah bagian yang berulang seharusnya naik ke
+`presentation/designsystem/` — sering kali separuh panjangnya adalah styling yang melanggar
+[Kontrak 4 design system](design-system-rules.md#kontrak-4--aturan-tiga-kali-rule-of-three).
+
+### ViewModel yang membengkak
+
+Pindahkan logika ke Use Case di `core/` (memang tempatnya menurut
+[CLAUDE.md §4](../CLAUDE.md)), lalu pisahkan per sumbu:
+
+```
+presentation/orgchart/
+├── OrgChartViewModel.kt         # state holder + dispatch event
+├── OrgChartUiState.kt           # state & event model
+└── OrgChartLayoutCalculator.kt  # perhitungan murni, bisa diuji tanpa ViewModel
+```
+
+### Route / Repository server yang membengkak
+
+Pecah per agregat, bukan per HTTP method:
+
+```
+routes/
+├── CostingRoutes.kt             # composisi: route("/costing") { … }
+├── CostingEstimateRoutes.kt
+└── CostingRateCardRoutes.kt
+```
+
+### Domain file yang membengkak
+
+Satu file = satu konsep, sesuai [CLAUDE.md §8](../CLAUDE.md). Value object kecil boleh digabung
+(`EventValueObjects.kt`), tapi begitu file itu >250 baris, kelompokkan per sub-konsep.
+
+---
+
+## 5. Checklist Verifikasi Sebelum Merge (Definition of Done)
+
+- [ ] Tidak ada file yang **melewati hard limit** lapisannya tanpa komentar
+      `FILE-SIZE-EXEMPT` yang beralasan menurut §3:
+      ```bash
+      # semua file Kotlin yang disentuh, diurutkan dari terpanjang
+      git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
+        | xargs wc -l 2>/dev/null | sort -rn | head -20
+      ```
+- [ ] Untuk file yang **sudah** di atas hard limit (§5 tabel utang): jumlah barisnya **tidak
+      bertambah** (Kontrak 2 / Ratchet)
+- [ ] File yang melewati soft limit sudah ditinjau: masih punya satu nama yang jujur
+- [ ] Pemecahan mengikuti **batas tanggung jawab**, bukan potongan baris —
+      tidak ada `…Part2.kt` / `…Extra.kt` / `…Helpers.kt` tanpa tema
+- [ ] Kalau yang dipecah adalah UI: bagian yang berulang sudah diperiksa apakah seharusnya naik ke
+      `presentation/designsystem/` alih-alih hanya dipindah file
+- [ ] Setelah pemecahan, **kompilasi 5 target** (bukan satu) masih hijau:
+      ```bash
+      ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs \
+                :app:shared:compileKotlinJs :app:shared:assembleAndroidMain \
+                :app:shared:jvmTest
+      ```
+- [ ] Kalau yang dipecah adalah UI: **dijalankan dan dilihat dengan mata** — pemecahan Compose
+      mudah menggeser `Modifier` chain dan merusak layout tanpa memecahkan kompilasi
+
+Skrip audit seluruh repo (untuk mengukur kemajuan, bukan gate per-PR):
+
+```bash
+find . -name "*.kt" -not -path "*/build/*" -not -path "*/bin/*" \
+  | xargs wc -l | grep -v total | awk '$1>600' | sort -rn
+```
+
+---
+
+## 6. Utang Teknis Terdaftar (jangan ditambah, boleh dicicil)
+
+Kondisi awal saat aturan ini ditetapkan (2026-09-18): **954 file Kotlin, median 101 baris,
+p90 353 baris**. Yang di atas hard limit: **21 file** — 4 di antaranya sah sebagai pengecualian §3,
+menyisakan **17 file** untuk dicicil.
+
+| File | Baris | Status |
+|---|---|---|
+| `presentation/deal/components/DealDetailDialog.kt` | 3006 | **Prioritas 1.** Juga terdaftar di utang design system |
+| `presentation/orgchart/OrgChartScreen.kt` | 2420 | **Prioritas 2.** Juga 108 literal warna belum disapu |
+| `presentation/designsystem/ClayIcons.kt` | 1354 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
+| `core/domain/pipeline/PipelinePresetFactory.kt` | 1224 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
+| `presentation/orgchart/OrgChartViewModel.kt` | 1196 | Pecah: logika layout → kalkulator murni |
+| `presentation/rbac/components/AssignDepartmentModal.kt` | 1057 | Juga 19 literal warna |
+| `presentation/invoicing/template/TemplateCanvas.kt` | 983 | |
+| `presentation/invoicing/template/DesignerPropertyInspector.kt` | 892 | |
+| `presentation/deal/components/DealsPane.kt` | 861 | |
+| `presentation/costing/CostingWorkspaceScreen.kt` | 825 | |
+| `presentation/pipeline/components/NodeInputInspectorModal.kt` | 809 | |
+| `server/routes/CostingRoutes.kt` | 754 | Pecah per agregat |
+| `presentation/crm/components/LeadInspectorPane.kt` | 733 | |
+| `presentation/auth/LoginScreen.kt` | 716 | Juga terdaftar di utang design system |
+| `server/infrastructure/PostgresSamplingOrderRepository.kt` | 698 | |
+| `server/Application.kt` | 697 | Pecah: konfigurasi plugin → file terpisah |
+| `presentation/pipeline/components/PipelineIcons.kt` | 679 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
+| `server/routes/DealRoutes.kt` | 677 | Pecah per agregat |
+| `presentation/navigation/PersonaSwitcherDropdown.kt` | 676 | |
+| `server/infrastructure/PostgresModuleDevRepositories.kt` | 628 | Nama jamak = tanda sudah waktunya dipecah |
+| `presentation/deal/components/ContactsPane.kt` | 625 | |
+
+Setiap kali menyentuh file di daftar ini untuk alasan apa pun, **cicil** bagiannya (Kontrak 2) —
+jangan menambah barisnya.
+
+---
+
+## 7. Catatan Penegakan Otomatis
+
+Saat ini **belum ada gate otomatis**: Detekt belum terpasang di Gradle (hook
+`.claude/hooks/validate-detekt.sh` ada tapi belum ada plugin maupun `detekt.yml`), jadi aturan ini
+ditegakkan lewat review dan skrip di §5.
+
+Kalau nanti Detekt dipasang, ambang di §2 dipetakan ke:
+
+```yaml
+complexity:
+  LongMethod:
+    threshold: 60
+style:
+  MaxLineLength:
+    maxLineLength: 120
+# batas panjang FILE tidak punya rule bawaan detekt —
+# gunakan custom rule atau skrip CI di §5
+```
+
+---
 
 # WeMade ERP — Aturan Standar Pembuatan & Integrasi Modul (Composable & Puzzling Architecture)
 
@@ -871,246 +1149,164 @@ Setiap modul baru **WAJIB** mendeklarasikan salah satu dari dua kapabilitas jang
 - [ ] Apakah modul telah diuji berjalan pada alur bawaan (FOB/CMT/D2C) maupun alur custom hasil utak-atik (*puzzled*)?
 - [ ] Apakah modul menyertakan dokumentasi pengajaran (*teaching*) di `docs/teaching/`?
 
-# WeMade ERP — Aturan Standar Batas Ukuran File (File Size & Decomposition)
+---
 
-Dokumen ini adalah **aturan baku ukuran file** yang wajib ditaati setiap kali membuat atau
-mengubah file Kotlin di repo ini. Statusnya sejajar dengan
-[`module-integration-rules.md`](.claude/rules/module-integration-rules.md) dan
-[`design-system-rules.md`](.claude/rules/design-system-rules.md): kalau yang pertama mengatur *apa yang
-dikerjakan* dan yang kedua *bagaimana rupanya*, dokumen ini mengatur **seberapa besar satu file
-boleh tumbuh sebelum ia berhenti bisa dibaca**.
+## 5. Anatomi Pendaftaran (apa yang wajib disentuh per jenis)
 
-**Ruang lingkup**: seluruh `*.kt` di `core/`, `app/`, dan `server/`.
+Hasil scan kode 2026-09-29. Tentukan dulu **jenisnya** (skill `wemade-feature-discovery`), lalu ikuti
+baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
+
+### 5.1 Modul OPERASIONAL (tampil sebagai node kanvas Factory Flow)
+
+1. `core/.../domain/rbac/BusinessModule.kt` — entri baru (`code`, `category`, `scopeCapability`, `iconKey`; `kind` default OPERATIONAL).
+2. `core/.../domain/pipeline/OperationalModuleContract.kt` — cabang `ModuleArchetype.forModule` (dipaksa kompilator); slot baru → entri `ModuleArchetype` + `representativeModule`/`defaultStage`.
+3. `core/.../domain/pipeline/OperationalModuleCatalog.kt` — objek spec + **masukkan ke `all` di posisi yang benar** (posisi = urutan kanvas & sisipan reconciler). Port = `upstreamPrerequisites` / `downstreamHandoffs`.
+4. `core/.../domain/contracts/ModulePortPayload.kt` — daftarkan tipe port baru di `PortDataTypeRegistry`.
+5. Migrasi Flyway pola **V27/V64**: backfill entitlement (kunci **NAME** enum), baris `module_catalog_entries` (kunci **code**), backfill `custom_roles` per peran sistem.
+6. `core/.../domain/rbac/CustomRole.kt` `createFactoryPresets` — akses per peran preset (Owner otomatis).
+7. `AppNavScreen.kt` + cabang `App.kt` (dipaksa kompilator) + `ModuleWorkspaceScreen` (`sampleRowsFor` dipaksa kompilator) + `ModuleIcon`.
+8. Server: route + `requireModuleAccess`/`moduleDecision`, didaftarkan di `ServerRouteWiring`.
+9. **Otomatis**: seksi menu, matriks RBAC, dialog entitlement superadmin, kuota paket, reconciler pipeline tenant.
+
+### 5.2 Modul GOVERNANCE (layar tata kelola; tidak pernah di kanvas)
+
+1. Entri `BusinessModule` dengan `kind = GOVERNANCE`, `category = GOVERNANCE`.
+2. Cabang `null` di `ModuleArchetype.forModule`; **jangan** masuk `OperationalModuleCatalog`.
+3. `AppNavScreen` + cabang `App.kt` lewat `GovernanceModuleGate`; `sampleRowsFor`; ikon.
+4. Migrasi pola **V18/V19**: entitlement, katalog `archetype_code = 'governance'` harga 0, backfill peran + anti-lockout Owner.
+5. **Otomatis**: tidak dihitung kuota, tidak di kanvas.
+
+### 5.3 Modul FOUNDATION (data induk/referensi; tidak di kanvas)
+
+1. Entri `BusinessModule` dengan `kind = FOUNDATION`; cabang `null` di `forModule`.
+2. `FoundationModuleCatalog` (sediakan `providedReferenceTypes`).
+3. `AppNavScreen` + `App.kt` + `ModuleWorkspaceScreen`; migrasi pola **V27** (`archetype_code = 'foundation'`); preset peran; guard server.
+
+### 5.4 Fitur di dalam modul (washing, storage, traceability, surat jalan, …)
+
+Fitur **tidak** membuat `BusinessModule` baru (lihat `tenant-variability-rules.md` Kontrak 2). Ia
+mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
+
+1. Core: paket domain + repository + migrasi tabel; bila tahap → `IndustryStageTemplates`/`TenantStageFlow`, bila proses → `TenantProcessCatalog`, bila stasiun → `WorkStationCatalog`.
+2. Server: route didaftarkan di `ServerRouteWiring` dan **wajib** memakai gate modul induk (`requireModuleAccess(modulInduk, …)`). Menulis: fail-closed.
+3. Klien: di-host di workspace modul induk, atau `AppNavScreen` dengan `businessModule = modulInduk` — dan cabang `App.kt` **wajib** memeriksa `accessDecisions`, bukan hanya status login.
+4. Kanvas: daftarkan di registry fitur modul (TRD-FLOW-002, Fase 4) agar tampil di level 2 di bawah node induk.
+
+### 5.5 Kontrak Input/Output
+
+- Port keluar modul A **harus sama** dengan port masuk modul B yang disambung; tipe port wajib terdaftar di `PortDataTypeRegistry`.
+- Kanvas menyambung node **dari port**, bukan dari daftar tulis tangan (target TRD-FLOW-002). Port yang tidak menyambung = node yatim di kanvas.
+- Kunci: entitlement, `custom_roles`, `department_module_assignments` memakai **NAME** enum (`QUALITY_CONTROL`); node pipeline & `module_catalog_entries` memakai **code** (`quality_control`). Jangan tertukar.
 
 ---
 
-## 1. Paradigma: Batas Baris Adalah Alarm, Bukan Target
+# WeMade ERP — Aturan Variabilitas Tenant (Kode vs Data)
 
-Batas ini **bukan** soal estetika atau menghitung baris demi menghitung baris. Panjang file adalah
-*proxy* paling murah untuk tiga penyakit yang sebenarnya:
+Status sejajar dengan [`module-integration-rules.md`](module-integration-rules.md),
+[`design-system-rules.md`](design-system-rules.md), dan [`file-size-rules.md`](file-size-rules.md).
+Aturan ini menjawab satu pertanyaan: **sebuah konsep boleh tinggal di kode (enum/`when`), atau wajib
+menjadi data per tenant?**
 
-1. **File melanggar Single Responsibility** — satu file mengerjakan lima hal, jadi tidak ada nama
-   yang jujur untuk isinya.
-2. **Pola visual/logika disalin, bukan diangkat** — gejala yang sama dengan pelanggaran
-   [Aturan Tiga Kali](.claude/rules/design-system-rules.md#kontrak-4--aturan-tiga-kali-rule-of-three).
-3. **File tidak lagi bisa direview** — satu file yang melebihi batas tidak bisa dibaca sekali duduk
-   maupun dinilai utuh dalam satu review, sehingga bug lolos di bagian yang tidak sempat dibaca.
-
-> **Konsekuensinya**: melewati batas **tidak** boleh diselesaikan dengan memotong file di tengah
-> secara sembarang (`FooScreenPart2.kt`). Memecah file wajib mengikuti **batas tanggung jawab**,
-> bukan batas baris. Kalau tidak ada garis pisah yang jujur, itu tandanya masalahnya bukan panjang
-> file — melainkan desainnya.
+Lahir dari TRD-FLOW-001: kerangka tahap sampling ditulis sebagai enum rajut, lalu harus dibongkar
+lewat ±70 file dan 7 PR ketika tenant bordir/potong-jahit/sablon masuk. Semua itu bisa dihindari
+dengan satu pertanyaan di hari pertama.
 
 ---
 
-## 2. Ambang Baris per Lapisan
+## Kontrak 1 — Uji Variabilitas sebelum `enum class` / `when`
 
-Satu angka global tidak masuk akal: Compose secara struktural lebih panjang dari domain murni
-(median `presentation/` di repo ini 3,4× median `core/`). Karena itu ambangnya per lapisan.
+Sebelum menulis `enum class` atau `when` untuk **konsep domain**, jawab:
 
-| Lingkup | Soft (peringatan) | Hard (tolak merge) | Alasan ambang |
-|---|---|---|---|
-| `core/**` (domain murni) | **250** | **400** | p90 lapisan ini 196 baris. Entity/VO >250 hampir pasti God Entity |
-| `app/shared/**/presentation/**` | **400** | **600** | median 203; Compose butuh ruang, tapi 600 adalah batas satu kali duduk |
-| `server/src/main/**` | **300** | **500** | p90 lapisan ini 374; routes & repository Postgres |
-| `**/commonTest/**`, `**/jvmTest/**` | **500** | **800** | test memang repetitif; memecahnya merugikan keterbacaan kasus |
+1. Apakah nilainya bisa **berbeda antar tenant**?
+2. Apakah bisa **berbeda antar industri** (rajut, potong-jahit, bordir, sablon)?
+3. Apakah admin pabrik **mungkin ingin mengubahnya** (nama, urutan, menambah)?
 
-**Kalau ragu atau lingkupnya tidak terdaftar: soft 400 / hard 600.**
-
-Cara membacanya:
-
-- **Di bawah soft** — tidak perlu berpikir, lanjut.
-- **Melewati soft** — boleh lanjut, tapi wajib berhenti sebentar dan bertanya: *apakah file ini
-  masih punya satu nama yang jujur?* Kalau jawabannya tidak, pecah sekarang selagi murah.
-- **Melewati hard** — **berhenti**. Dilarang menambah baris ke file itu tanpa memecahnya lebih
-  dulu, kecuali masuk pengecualian §3.
-
-### Kontrak 1 — Hard limit berlaku ke *file setelah diubah*, bukan ke diff-nya
-
-Menambah 10 baris ke file 700 baris tetap pelanggaran. Aturan ini tentang hasil akhir, bukan
-ukuran perubahan.
-
-### Kontrak 2 — Aturan Ratchet: file yang sudah melanggar tidak boleh membesar
-
-Untuk file yang **sudah** di atas hard limit sebelum aturan ini ada (lihat §5), berlaku aturan
-searah: **setiap perubahan pada file itu wajib membuatnya lebih pendek, atau minimal tidak lebih
-panjang.** Tidak ada kewajiban menormalkannya dalam satu PR — tapi tidak boleh bertambah.
-
-```
-# sebelum menyentuh file yang sudah besar
-wc -l <file>          # catat angkanya
-# ... kerjakan perubahan ...
-wc -l <file>          # wajib ≤ angka sebelumnya
-```
-
----
-
-## 3. Pengecualian yang Sah (dan Hanya Ini)
-
-Ambang baris **tidak berlaku** untuk file yang isinya **data terurut, bukan logika bercabang** —
-karena memecahnya tidak menambah keterbacaan sedikit pun, hanya menyebarkan satu tabel ke lima
-tempat.
-
-Pengecualian wajib **dideklarasikan eksplisit** dengan komentar di baris pertama file:
+Satu jawaban "ya" → konsep itu **data**: template bawaan + salinan per tenant.
+Enum hanya untuk konsep yang dimiliki **sistem**: status teknis, jenis leg transfer, peran platform,
+`StageKind`, `StageTrait`.
 
 ```kotlin
-// FILE-SIZE-EXEMPT: katalog aset — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
+// ❌ Kerangka tahap sebagai enum — tenant bordir dipaksa lewat "Rajut Turun Mesin"
+enum class SamplingPipelineStage { NEW_INTAKE, CAM_PROGRAMMING, MACHINE_KNITTING, … }
+
+// ✅ Kerangka tahap sebagai data per tenant
+data class TenantStageFlow(val tenantId: TenantId, val template: IndustryTemplateCode, val stages: List<StageDefinition>)
 ```
 
-Yang memenuhi syarat:
+## Kontrak 2 — Tangga keputusan: taruh di anak tangga yang tepat
 
-| Kategori | Contoh di repo ini | Kenapa sah |
-|---|---|---|
-| Katalog ikon / vector path | `ClayIcons.kt` (1354), `PipelineIcons.kt` (679) | Deretan `Path` deklaratif; nol percabangan |
-| Seed / preset template | `PipelinePresetFactory.kt` (1224) | Tabel data onboarding per archetype |
-| Codec / mapper eksplisit | `SamplingOrderCodec.kt` (510) | Satu baris per field, lurus, tanpa logika |
-| Kode ter-generate | — | Bukan kita yang menulis |
+| Anak tangga | Artinya | Contoh | Tempat |
+|---|---|---|---|
+| Modul | Dijual, di-RBAC, dihitung kuota | QC, Fulfillment | `BusinessModule` + `OperationalModuleCatalog` |
+| Tahap | Urutan kerja satu dokumen | Digitizing, Hooping | `TenantStageFlow` / `IndustryStageTemplates` |
+| Proses opsional | Sisipan per desain | Bordir di SPK rajut | `TenantProcessCatalog` |
+| Stasiun | Meja di lini produksi massal | Obras, Steam | `WorkStationCatalog` |
+| Konfigurasi | Pilihan per tenant | Tag fase Cuci/Setrika | tabel JSONB per tenant (pola V71) |
 
-Yang **tidak** memenuhi syarat, betapa pun besarnya:
+Proses **bukan** modul (keputusan 2026-09-28): menjadikan setiap proses modul memecah kuota & RBAC.
 
-- Screen / Dialog / Pane Compose — panjangnya selalu gejala styling yang disalin atau komponen yang
-  belum diangkat, bukan gejala data.
-- ViewModel — panjangnya selalu gejala terlalu banyak tanggung jawab dalam satu state holder.
-- Route handler & repository — pecah per agregat/resource.
+## Kontrak 3 — Peran, bukan nama
+
+Aturan domain mencari **peran** (`ModuleArchetype`, `StageTrait`), bukan kode khas satu industri.
+
+```kotlin
+// ❌ hanya benar untuk rajut
+if (stageCode == LINKING_ASSEMBLY) …
+// ✅ benar untuk semua template
+if (stageCode == firstStageWith(ModuleArchetype.SEWING)?.code) …
+```
+
+Peran boleh **tidak ada** (sablon tidak punya `SEWING`). Kode yang mencari peran wajib aman bila
+hasilnya `null` — itu bug nyata yang ditemukan di TRD-FLOW-001 Tahap 3a.
+
+## Kontrak 4 — Kunci tersimpan = value object string, parser tunggal, tolak bukan fallback
+
+Kolom DB dan key JSON memakai value object (`StageCode`), bukan `enum.name`. Satu parser, dan nilai
+tak dikenal **ditolak** (atau dicocokkan ke kerangka dokumen), **tidak** jatuh diam-diam ke default.
+
+> Fallback senyap = data berubah. Contoh nyata: SPK bordir dibaca ulang sebagai `NEW_INTAKE`.
+
+## Kontrak 5 — Template disalin, dokumen membeku
+
+- Template bawaan (`IndustryStageTemplates`) → **disalin** ke tenant saat pertama dibutuhkan.
+- Dokumen (SPK) **membekukan** salinan saat mulai dikerjakan (`frozenStageFlow`, V73).
+- Konsekuensinya wajib ditulis di KDoc: mengubah template bawaan **tidak** sampai ke tenant lama;
+  mengubah kerangka tenant **tidak** mengubah dokumen yang sudah beku.
+
+## Kontrak 6 — Tenant kedua wajib di test
+
+Setiap fitur yang membaca konsep variabel punya test dengan **template non-default** (fixture
+bordir/sablon), dan bila menyentuh UI, dicek mata di tenant uji non-rajut (`bordir-uji`).
+Test yang hanya memakai data rajut tidak membuktikan apa pun tentang tenant lain.
+
+## Kontrak 7 — Menulis wajib fail-closed
+
+Endpoint mutasi menolak bila keputusan RBAC tidak bisa dihitung (`mayEditWithoutDecision` di
+`TenantStageFlowRoutes.kt`). Test wajib mencakup **peran yang tidak berwenang** (harus 403), bukan
+hanya pengguna yang berwenang.
+
+## Kontrak 8 — Konsep yang terlanjur enum: Strangler Fig
+
+1. Bangun struktur data baru di samping enum; template bawaan **identik** dengan enum.
+2. Test paritas yang **mengiterasi enum** (entri baru tanpa padanan → test gagal).
+3. Jembatan (`toStageCode()`, konstruktor sekunder), pindahkan pembaca satu paket per PR.
+4. Kriteria selesai: pemindai "pembacaan jembatan yang bisa melempar" kosong di semua lapisan.
+5. Baru setelah itu aktifkan variasi kedua (template lain).
 
 ---
 
-## 4. Pola Pemecahan yang Disarankan
+## Checklist Definition of Done
 
-Jangan mengarang struktur baru; ikuti pola yang sudah dipakai repo ini.
+- [ ] Setiap `enum class` domain baru lolos Uji Variabilitas (tulis alasannya di KDoc)
+- [ ] Tidak ada `when (enumDomain)` baru di `presentation/**` untuk konsep variabel
+- [ ] Aturan domain memakai peran/trait, aman bila peran tidak ada
+- [ ] Kunci tersimpan berupa value object; parser tidak fallback senyap
+- [ ] Template vs salinan vs beku dijelaskan di KDoc
+- [ ] Ada test dengan template non-default; cek visual di tenant uji non-rajut
+- [ ] Endpoint tulis fail-closed + test peran tidak berwenang
+- [ ] `scripts/audit-variability.sh` tidak menambah temuan baru
 
-### Compose Screen / Dialog yang membengkak
+## Pelajaran TRD-FLOW-001 (bacaan)
 
-```
-presentation/deal/components/
-├── DealDetailDialog.kt          # hanya shell: state hoisting, scaffold, wiring event
-├── DealDetailHeader.kt          # satu section = satu file
-├── DealDetailSpecForm.kt
-├── DealDetailTimelinePane.kt
-└── DealDetailUiModel.kt         # mapping domain → UI model
-```
-
-Aturannya: **file shell hanya merakit, section yang merender.** Kalau setelah dipecah shell-nya
-masih >400 baris, berarti dialog itu sebenarnya beberapa layar yang dipaksa jadi satu.
-
-Sebelum memecah, cek dulu apakah bagian yang berulang seharusnya naik ke
-`presentation/designsystem/` — sering kali separuh panjangnya adalah styling yang melanggar
-[Kontrak 4 design system](.claude/rules/design-system-rules.md#kontrak-4--aturan-tiga-kali-rule-of-three).
-
-### ViewModel yang membengkak
-
-Pindahkan logika ke Use Case di `core/` (memang tempatnya menurut
-[CLAUDE.md §4](.claude/CLAUDE.md)), lalu pisahkan per sumbu:
-
-```
-presentation/orgchart/
-├── OrgChartViewModel.kt         # state holder + dispatch event
-├── OrgChartUiState.kt           # state & event model
-└── OrgChartLayoutCalculator.kt  # perhitungan murni, bisa diuji tanpa ViewModel
-```
-
-### Route / Repository server yang membengkak
-
-Pecah per agregat, bukan per HTTP method:
-
-```
-routes/
-├── CostingRoutes.kt             # composisi: route("/costing") { … }
-├── CostingEstimateRoutes.kt
-└── CostingRateCardRoutes.kt
-```
-
-### Domain file yang membengkak
-
-Satu file = satu konsep, sesuai [CLAUDE.md §8](.claude/CLAUDE.md). Value object kecil boleh digabung
-(`EventValueObjects.kt`), tapi begitu file itu >250 baris, kelompokkan per sub-konsep.
-
----
-
-## 5. Checklist Verifikasi Sebelum Merge (Definition of Done)
-
-- [ ] Tidak ada file yang **melewati hard limit** lapisannya tanpa komentar
-      `FILE-SIZE-EXEMPT` yang beralasan menurut §3:
-      ```bash
-      # semua file Kotlin yang disentuh, diurutkan dari terpanjang
-      git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
-        | xargs wc -l 2>/dev/null | sort -rn | head -20
-      ```
-- [ ] Untuk file yang **sudah** di atas hard limit (§5 tabel utang): jumlah barisnya **tidak
-      bertambah** (Kontrak 2 / Ratchet)
-- [ ] File yang melewati soft limit sudah ditinjau: masih punya satu nama yang jujur
-- [ ] Pemecahan mengikuti **batas tanggung jawab**, bukan potongan baris —
-      tidak ada `…Part2.kt` / `…Extra.kt` / `…Helpers.kt` tanpa tema
-- [ ] Kalau yang dipecah adalah UI: bagian yang berulang sudah diperiksa apakah seharusnya naik ke
-      `presentation/designsystem/` alih-alih hanya dipindah file
-- [ ] Setelah pemecahan, **kompilasi 5 target** (bukan satu) masih hijau:
-      ```bash
-      ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs \
-                :app:shared:compileKotlinJs :app:shared:assembleAndroidMain \
-                :app:shared:jvmTest
-      ```
-- [ ] Kalau yang dipecah adalah UI: **dijalankan dan dilihat dengan mata** — pemecahan Compose
-      mudah menggeser `Modifier` chain dan merusak layout tanpa memecahkan kompilasi
-
-Skrip audit seluruh repo (untuk mengukur kemajuan, bukan gate per-PR):
-
-```bash
-find . -name "*.kt" -not -path "*/build/*" -not -path "*/bin/*" \
-  | xargs wc -l | grep -v total | awk '$1>600' | sort -rn
-```
-
----
-
-## 6. Utang Teknis Terdaftar (jangan ditambah, boleh dicicil)
-
-Kondisi awal saat aturan ini ditetapkan (2026-09-18): **954 file Kotlin, median 101 baris,
-p90 353 baris**. Yang di atas hard limit: **21 file** — 4 di antaranya sah sebagai pengecualian §3,
-menyisakan **17 file** untuk dicicil.
-
-| File | Baris | Status |
-|---|---|---|
-| `presentation/deal/components/DealDetailDialog.kt` | 3006 | **Prioritas 1.** Juga terdaftar di utang design system |
-| `presentation/orgchart/OrgChartScreen.kt` | 2420 | **Prioritas 2.** Juga 108 literal warna belum disapu |
-| `presentation/designsystem/ClayIcons.kt` | 1354 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
-| `core/domain/pipeline/PipelinePresetFactory.kt` | 1224 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
-| `presentation/orgchart/OrgChartViewModel.kt` | 1196 | Pecah: logika layout → kalkulator murni |
-| `presentation/rbac/components/AssignDepartmentModal.kt` | 1057 | Juga 19 literal warna |
-| `presentation/invoicing/template/TemplateCanvas.kt` | 983 | |
-| `presentation/invoicing/template/DesignerPropertyInspector.kt` | 892 | |
-| `presentation/deal/components/DealsPane.kt` | 861 | |
-| `presentation/costing/CostingWorkspaceScreen.kt` | 825 | |
-| `presentation/pipeline/components/NodeInputInspectorModal.kt` | 809 | |
-| `server/routes/CostingRoutes.kt` | 754 | Pecah per agregat |
-| `presentation/crm/components/LeadInspectorPane.kt` | 733 | |
-| `presentation/auth/LoginScreen.kt` | 716 | Juga terdaftar di utang design system |
-| `server/infrastructure/PostgresSamplingOrderRepository.kt` | 698 | |
-| `server/Application.kt` | 697 | Pecah: konfigurasi plugin → file terpisah |
-| `presentation/pipeline/components/PipelineIcons.kt` | 679 | Pengecualian §3 — tandai `FILE-SIZE-EXEMPT` |
-| `server/routes/DealRoutes.kt` | 677 | Pecah per agregat |
-| `presentation/navigation/PersonaSwitcherDropdown.kt` | 676 | |
-| `server/infrastructure/PostgresModuleDevRepositories.kt` | 628 | Nama jamak = tanda sudah waktunya dipecah |
-| `presentation/deal/components/ContactsPane.kt` | 625 | |
-
-Setiap kali menyentuh file di daftar ini untuk alasan apa pun, **cicil** bagiannya (Kontrak 2) —
-jangan menambah barisnya.
-
----
-
-## 7. Catatan Penegakan Otomatis
-
-Saat ini **belum ada gate otomatis**: Detekt belum terpasang di Gradle (hook
-`.claude/hooks/validate-detekt.sh` ada tapi belum ada plugin maupun `detekt.yml`), jadi aturan ini
-ditegakkan lewat review dan skrip di §5.
-
-Kalau nanti Detekt dipasang, ambang di §2 dipetakan ke:
-
-```yaml
-complexity:
-  LongMethod:
-    threshold: 60
-style:
-  MaxLineLength:
-    maxLineLength: 120
-# batas panjang FILE tidak punya rule bawaan detekt —
-# gunakan custom rule atau skrip CI di §5
-```
+`docs/teaching/teaching-flow-001-*.md` (Tahap 1 s.d. 3c) dan
+[`docs/trd/TRD-FLOW-001-industry-stage-templates.md`](../../docs/trd/TRD-FLOW-001-industry-stage-templates.md).

@@ -16,7 +16,11 @@ import com.eventverse.app.domain.pipeline.usecases.ResetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.SaveTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.SetTenantModuleActivationUseCase
 import com.eventverse.app.domain.pipeline.usecases.SyncTenantPipelineWithCatalogUseCase
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
+import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.tenant.TenantContext
+import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.routes.dto.PipelineDto
 import com.eventverse.app.shared.json.JsonWriter
@@ -29,8 +33,21 @@ import io.ktor.server.routing.*
 
 fun Route.pipelineRoutes(
     pipelineRepository: TenantPipelineRepository,
-    entitlementRepository: TenantEntitlementRepository
+    entitlementRepository: TenantEntitlementRepository,
+    roleRepository: RoleRepository? = null,
+    moduleAssignmentRepository: ModuleAssignmentRepository? = null
 ) {
+    // Menulis topologi = MANAGE atas Alur Pabrik, fail-closed (tenant-variability-rules Kontrak 7).
+    suspend fun ApplicationCall.manageTenant(): TenantContext? {
+        val tenant = requireTenant() ?: return null
+        val decision = factoryFlowDecision(tenant, roleRepository, moduleAssignmentRepository)
+        if (!mayEditWithoutDecision(decision, callerPrincipalOrNull?.role)) {
+            respond(HttpStatusCode.Forbidden, "Butuh wewenang Kelola atas Alur Pabrik untuk mengubah alur tenant")
+            return null
+        }
+        return tenant.takeIf { requireFactoryFlowAccess(decision, AccessLevel.MANAGE) }
+    }
+
     val getEntitlementUseCase = GetTenantEntitlementUseCase(entitlementRepository)
     val getPipelineUseCase = GetTenantPipelineUseCase(pipelineRepository)
     val syncPipelineUseCase = SyncTenantPipelineWithCatalogUseCase(pipelineRepository, getPipelineUseCase)
@@ -84,7 +101,7 @@ fun Route.pipelineRoutes(
 
         // 2. PUT update / save customized pipeline topology
         put {
-            val tenant = call.requireTenant() ?: return@put
+            val tenant = call.manageTenant() ?: return@put
 
             val body = call.receiveText()
             if (body.isBlank()) {
@@ -105,7 +122,7 @@ fun Route.pipelineRoutes(
 
         // 3. POST reset pipeline back to a standard starter preset
         post("/reset") {
-            val tenant = call.requireTenant() ?: return@post
+            val tenant = call.manageTenant() ?: return@post
 
             val presetCode = PipelineDto.readPresetCode(call.receiveText())
             val targetPreset = presetCode?.let { GarmentBusinessPreset.fromCode(it) }
@@ -133,7 +150,7 @@ fun Route.pipelineRoutes(
 
         // 5. POST switch one module on or off for this tenant.
         post("/modules/activation") {
-            val tenant = call.requireTenant() ?: return@post
+            val tenant = call.manageTenant() ?: return@post
 
             val request = PipelineDto.readModuleActivation(call.receiveText())
             if (request == null) {
@@ -157,7 +174,7 @@ fun Route.pipelineRoutes(
 
         // 6. PUT rename a module (and optionally its tenant-specific formula parameters).
         put("/modules/{nodeId}") {
-            val tenant = call.requireTenant() ?: return@put
+            val tenant = call.manageTenant() ?: return@put
             val nodeId = call.parameters["nodeId"]
             if (nodeId.isNullOrBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "Parameter nodeId wajib diisi")
@@ -184,7 +201,7 @@ fun Route.pipelineRoutes(
 
         // 7. POST install a custom / third-party plugin module (Enterprise plans only).
         post("/modules/custom") {
-            val tenant = call.requireTenant() ?: return@post
+            val tenant = call.manageTenant() ?: return@post
 
             val request = PipelineDto.readCustomModule(call.receiveText())
             if (request == null) {

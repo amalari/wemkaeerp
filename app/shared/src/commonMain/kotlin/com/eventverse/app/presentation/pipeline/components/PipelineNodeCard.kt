@@ -208,6 +208,9 @@ fun PipelineNodeCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            if (node.isNewFromCatalog) {
+                                ClayTag(text = "Baru — belum aktif", tint = WeMadeColors.Info)
+                            }
                             if (node.automatedInputCount > 0) {
                                 ClayTag(
                                     text = "${node.automatedInputCount}",
@@ -403,14 +406,25 @@ fun PipelineNodeCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Metrik boleh mengalah; "Detail" tidak (design-system-rules Kontrak 13).
                 Row(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // WIP Badge
-                    val wipTint = if (isBottleneck) WeMadeColors.Warning else WeMadeColors.Primary
+                    // Angka seed (belum ada provider telemetri) tampil redup & berlabel (TRD-FLOW-002 Fase 5).
+                    val wipTint = when {
+                        isBottleneck -> WeMadeColors.Warning
+                        node.isTelemetryEstimate -> WeMadeColors.OnSurfaceMuted
+                        else -> WeMadeColors.Primary
+                    }
                     ClayTag(
-                        text = if (isBypassed) "0 Pcs" else "${node.wipPieces} Pcs WIP",
+                        text = when {
+                            isBypassed -> "0 Pcs"
+                            node.isTelemetryEstimate -> "±${node.wipPieces} Pcs estimasi"
+                            else -> "${node.wipPieces} Pcs WIP"
+                        },
                         tint = wipTint,
                         fontSize = 12.sp,
                         leading = { IconWip(modifier = Modifier.size(10.dp), color = wipTint) }
@@ -441,6 +455,8 @@ fun PipelineNodeCard(
                             Text(
                                 text = if (isBypassed) "Bypassed" else "${node.cycleTimeHours}h",
                                 fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
                                 fontWeight = FontWeight.Medium,
                                 color = if (isPresentationMode) WeMadeColors.OnSurfaceInverse else WeMadeColors.OnSurfaceMuted
                             )
@@ -456,6 +472,8 @@ fun PipelineNodeCard(
                     Text(
                         text = "Detail",
                         fontSize = 12.sp,
+                        maxLines = 1,
+                        softWrap = false,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.Primary
                     )

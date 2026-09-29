@@ -38,4 +38,12 @@ interface PipelineRemoteDataSource {
         displayName: String,
         formulaParameters: Map<String, String>? = null
     ): Result<CustomTenantPipeline>
+
+    /** Kerangka tahap tenant untuk kanvas level 2. Default gagal → kanvas memakai kerangka rajut. */
+    suspend fun getStageFlow(): Result<List<com.eventverse.app.domain.stageflow.StageDefinition>> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Telemetri nyata per modul. Default gagal → semua node aktif ditandai "estimasi". */
+    suspend fun getTelemetry(tenantSlug: String): Result<List<com.eventverse.app.domain.pipeline.ModuleTelemetry>> =
+        Result.failure(UnsupportedOperationException())
 }

@@ -16,7 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.pipeline.ModuleFeatureRegistry
 import com.eventverse.app.domain.pipeline.PipelineNode
+import com.eventverse.app.domain.stageflow.StageCode
+import com.eventverse.app.domain.stageflow.StageDefinition
+import com.eventverse.app.domain.workqueue.WorkStationCatalog
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayIconButton
@@ -38,7 +42,11 @@ fun NodeInspectorDrawer(
      * Opens per-tenant renaming for this module. Null when the screen is showing preset
      * template data, where there is no persisted node to rename.
      */
-    onRenameRequest: (() -> Unit)? = null
+    onRenameRequest: (() -> Unit)? = null,
+    /** Kerangka tahap tenant — isi level 2 node Sampling. */
+    stageFlow: List<StageDefinition> = emptyList(),
+    /** Jumlah SPK per tahap dari telemetri nyata; kosong → tahap tanpa angka. */
+    stageWip: Map<StageCode, Int> = emptyMap()
 ) {
     if (node == null) return
 
@@ -208,6 +216,13 @@ fun NodeInspectorDrawer(
                 explanation = "Hasil keluaran tervalidasi yang secara otomatis ditransfer dan membuka kunci proses di tahapan berikutnya.",
                 isPresentationMode = isPresentationMode,
                 icon = { IconOutlet(modifier = Modifier.size(13.dp), color = WeMadeColors.Success) }
+            )
+
+            ModuleFeaturesSection(
+                features = ModuleFeatureRegistry.forHost(node.module),
+                stageFlow = stageFlow,
+                stageWip = stageWip,
+                stations = WorkStationCatalog.line()
             )
 
             HorizontalDivider(

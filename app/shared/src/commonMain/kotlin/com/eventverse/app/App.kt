@@ -329,19 +329,21 @@ fun App() {
                         // ModuleWorkspaceScreen) — belum login dan tidak berwenang adalah dua
                         // keadaan berbeda dan pantas memberi pesan yang berbeda.
                         AppNavScreen.TRACEABILITY -> {
-                            if (isAuthenticated) {
-                                com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(
-                                    tenantSlug = session?.tenantSlug ?: "wemade-demo"
-                                )
-                            } else {
-                                AuthGuardCard(
-                                    targetModuleName = screen.title,
-                                    onLoginClick = {
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                // Fitur menumpang modul induk: wewenang & entitlement modul itu yang berlaku
+                                // (module-integration-rules §5.4), bukan sekadar status login.
+                                decision = screen.businessModule?.let { accessDecisions[it] },
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(targetModuleName = screen.title, onLoginClick = {
                                         pendingRedirectScreen = screen
                                         navigateTo(AppNavScreen.LOGIN)
-                                    }
-                                )
-                            }
+                                    })
+                                }
+                            ) { com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo") }
                         }
                         // FULFILLMENT punya layar kerjanya sendiri (kurir antar karung),
                         // tapi gerbangnya tetap ganda seperti modul lain: sesi dulu, baru wewenang.
@@ -368,17 +370,21 @@ fun App() {
                             }
                         }
                         AppNavScreen.SURAT_JALAN -> {
-                            if (isAuthenticated) {
-                                com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen()
-                            } else {
-                                AuthGuardCard(
-                                    targetModuleName = screen.title,
-                                    onLoginClick = {
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                // Fitur menumpang modul induk: wewenang & entitlement modul itu yang berlaku
+                                // (module-integration-rules §5.4), bukan sekadar status login.
+                                decision = screen.businessModule?.let { accessDecisions[it] },
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(targetModuleName = screen.title, onLoginClick = {
                                         pendingRedirectScreen = screen
                                         navigateTo(AppNavScreen.LOGIN)
-                                    }
-                                )
-                            }
+                                    })
+                                }
+                            ) { com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen() }
                         }
                         AppNavScreen.CRM_SALES,
                         AppNavScreen.SAMPLING_ORDER,

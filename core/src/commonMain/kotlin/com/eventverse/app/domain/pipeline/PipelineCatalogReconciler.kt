@@ -15,6 +15,9 @@ import com.eventverse.app.domain.rbac.BusinessModule
  */
 object PipelineCatalogReconciler {
 
+    /** Awalan id node sisipan katalog/aktivasi — pembeda dari node preset (`fob-…`). */
+    const val NODE_ID_PREFIX = "node-"
+
     /**
      * Returns [pipeline] itself (same instance) when nothing is missing, so callers can skip a
      * write with a plain identity check.
@@ -33,9 +36,32 @@ object PipelineCatalogReconciler {
             ordered.add(insertionIndex(ordered, module, catalogOrder), missingNode(module))
         }
 
-        return pipeline.copy(
+        val withNodes = pipeline.copy(
             nodes = ordered.mapIndexed { index, node -> node.copy(stepOrderIndex = index + 1) }
         )
+        return withNodes.copy(edges = withNodes.edges + portEdgesFor(withNodes, missing.toSet()))
+    }
+
+    /**
+     * Menyambung modul yang baru disisipkan ke node yang sudah ada **berdasarkan port** (keluar A ∩
+     * masuk/rujukan B), supaya ia tampil tersambung di kanvas bahkan sebelum diaktifkan.
+     */
+    private fun portEdgesFor(pipeline: CustomTenantPipeline, inserted: Set<BusinessModule>): List<CustomPipelineEdge> {
+        val preset = pipeline.baseStarterPreset ?: GarmentBusinessPreset.DEFAULT
+        val nodeByModule = pipeline.nodes.mapNotNull { node -> node.standardModule?.let { it to node } }.toMap()
+        val existingPairs = pipeline.edges.map { it.fromNodeId to it.toNodeId }.toSet()
+        return nodeByModule.keys.flatMap { from -> nodeByModule.keys.map { to -> from to to } }
+            .filter { (from, to) -> from != to && (from in inserted || to in inserted) }
+            .mapNotNull { (from, to) ->
+                val a = OperationalModuleCatalog.specificationFor(from)
+                val b = OperationalModuleCatalog.specificationFor(to)
+                val types = a.outputsFor(preset).toSet() intersect (b.inputsFor(preset) + b.referenceInputs).toSet()
+                val fromNode = nodeByModule.getValue(from)
+                val toNode = nodeByModule.getValue(to)
+                types.firstOrNull()
+                    ?.takeIf { (fromNode.nodeId to toNode.nodeId) !in existingPairs }
+                    ?.let { type -> CustomPipelineEdge("edge-${fromNode.nodeId}-to-${toNode.nodeId}", fromNode.nodeId, toNode.nodeId, type) }
+            }
     }
 
     /**
@@ -59,7 +85,7 @@ object PipelineCatalogReconciler {
     private fun missingNode(module: BusinessModule): CustomPipelineNode {
         val specification = OperationalModuleCatalog.specificationFor(module)
         return CustomPipelineNode(
-            nodeId = "node-${module.code}",
+            nodeId = "$NODE_ID_PREFIX${module.code}",
             moduleId = module.code,
             customDisplayName = module.displayName,
             archetype = specification.archetype,

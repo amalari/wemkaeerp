@@ -207,6 +207,8 @@ fun FactoryFlowScreen(
                 node = state.selectedNode,
                 isPresentationMode = isPresentationMode,
                 onClose = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(null)) },
+                stageFlow = state.stageFlow,
+                stageWip = state.telemetry.firstOrNull { it.module == state.selectedNode?.module }?.stageWip.orEmpty(),
                 // Renaming writes to persisted tenant data, so it is only offered when the
                 // canvas is showing that data rather than the preset template.
                 // Mengganti nama menulis ke data tenant, jadi ditawarkan hanya bila kanvas memang

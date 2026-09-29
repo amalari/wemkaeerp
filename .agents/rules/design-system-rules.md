@@ -309,49 +309,10 @@ mengerjakan `darkColorScheme` + `WeMadeTheme(darkTheme: Boolean)`.
 
 ---
 
-## 7. Standar Implementasi Ikon (Zero-Emoji & Canvas Vector Policy)
-
-Di Compose Multiplatform Web (WasmJs), rendering dijalankan oleh **Skiko / Skia engine** langsung ke
-HTML5 Canvas. Font aplikasi (Fredoka & Nunito) **tidak memuat glyph emoji OS** (Apple Color Emoji,
-Noto Emoji, Segoe UI). Menuliskan emoji atau glyph Unicode khusus ke dalam string `Text(...)`
-akan gagal dirender dan menghasilkan **kotak kosong / tofu (`▯`)**.
-
-### Kontrak Wajib Ikon:
-
-1. **Zero-Emoji Policy di Komponen UI**:
-   - ❌ **DILARANG KERAS**: `Text("💬 Aktivitas")`, `Text("📝 Belum Ada Data")`, `Text("👤 $name")`,
-     `ClayTag("📱 $phone")`, `ClayBadge("$stage ▾")`.
-   - Huruf teks dan ikon grafis **wajib dipisahkan secara struktural**.
-2. **Single Source of Truth Ikon**:
-   - Seluruh ikon antarmuka wajib memanggil fungsi vector `@Composable` dari
-     [`ClayIcons.kt`](file:///Volumes/amalari/Projects/wemade/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/designsystem/ClayIcons.kt)
-     (`com.eventverse.app.presentation.designsystem.*`).
-   - Contoh: `IconChat`, `IconNote`, `IconPhone`, `IconMail`, `IconUser`, `IconChevronDown`,
-     `IconSearch`, `IconEdit`, `IconPlus`, `IconCheckCircle`, dll.
-3. **Pemasangan Lewat Slot Resmi Komponen Clay**:
-   - Di `ClayBadge`: gunakan slot `leading = { Icon... }` atau `trailing = { Icon... }`.
-   - Di `ClayTag`: gunakan slot `leading = { Icon... }`.
-   - Di `ClayButton`: gunakan slot `leading = { Icon... }` atau `trailing = { Icon... }`.
-   - Di Baris Kustom: gunakan `Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(...)) { IconXxx(...); Text(...) }`.
-4. **Menambah Ikon Baru yang Belum Ada**:
-   - Jika butuh ikon baru, buat di `ClayIcons.kt` sebagai fungsi vector berbasis Skia `Canvas`:
-     ```kotlin
-     @Composable
-     fun IconBaru(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
-         Canvas(modifier = modifier) {
-             // Gambar via drawPath / drawLine / drawCircle
-         }
-     }
-     ```
-   - Dilarang mengambil jalan pintas dengan menyalin karakter Unicode atau gambar PNG raster.
-
----
-
-## 8. Checklist Verifikasi Sebelum Merge (Definition of Done)
+## 7. Checklist Verifikasi Sebelum Merge (Definition of Done)
 
 - [ ] Nol literal `Color(0xFF……)` baru di luar `WeMadeTheme.kt`
       (`grep -rn "Color(0xFF" <file-yang-disentuh>` — kecuali `*.colorHex` dari domain)
-- [ ] Nol literal emoji / Unicode glyph (`💬`, `📝`, `📱`, `👤`, `✉️`, `▾`) di dalam string UI; semua ikon memakai `ClayIcons.kt`
 - [ ] Nol `RoundedCornerShape(N.dp)` telanjang; semua lewat `ClayShapes.*`
 - [ ] Nol `Modifier.shadow()`; kedalaman lewat `claySurface(offset = …)`
 - [ ] Nol `Card` / `Button` / `OutlinedButton` Material; pakai `ClayCard` / `ClayButton`
@@ -370,6 +331,11 @@ akan gagal dirender dan menghasilkan **kotak kosong / tofu (`▯`)**.
       ```
 - [ ] **Dijalankan dan dilihat dengan mata**, bukan hanya dikompilasi — bug layout seperti teks
       pecah per huruf tidak akan tertangkap test mana pun
+- [ ] **Belum login saat mengecek visual? Login dulu, jangan dilewati.** Kalau halaman yang dicek
+      menampilkan "Akses Terbatas: Autentikasi Diperlukan", buka `http://localhost:3000/login`, klik
+      **"Demo Mode: Masuk Cepat (Superadmin Apps)"** (`superadmin_apps` / `PLATFORM_SUPERADMIN`),
+      lalu kembali ke halaman tujuan dan lakukan pengecekannya. "Belum login" **bukan** alasan sah
+      untuk melaporkan UI tanpa melihatnya.
 - [ ] **Layar lain yang tidak dikonversi ikut diperiksa** jika `WeMadeTheme.kt` disentuh —
       `shapes` dan `colorScheme` berdampak ke seluruh aplikasi, jadi "pilot satu layar" tidak
       pernah benar-benar terisolasi

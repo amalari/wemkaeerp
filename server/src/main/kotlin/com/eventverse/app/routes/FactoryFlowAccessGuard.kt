@@ -10,6 +10,7 @@ import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.callerPrincipalOrNull
+import com.eventverse.app.plugins.grantedModulesOrNull
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -71,7 +72,8 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
         persona = persona,
         module = BusinessModule.FACTORY_FLOW,
         role = role,
-        assignments = assignments[BusinessModule.FACTORY_FLOW].orEmpty()
+        assignments = assignments[BusinessModule.FACTORY_FLOW].orEmpty(),
+        grantedModules = grantedModulesOrNull
     )
 }
 

@@ -57,14 +57,20 @@ object OperationalModuleCatalog {
         }
     }
 
-    /** Technical specification and bill of materials. */
+    /**
+     * Technical specification and bill of materials. Di CMT tech pack dibawa buyer, jadi modul ini
+     * di-bypass di preset makloon (paritas dengan PipelinePresetFactory).
+     */
     object TechPackBomModule : OperationalModuleSpecification {
         override val module = BusinessModule.TECH_PACK_BOM
-        override val supportedPresets = ALL_PRESETS
+        override val supportedPresets = setOf(
+            GarmentBusinessPreset.FOB_FULL_PACKAGE,
+            GarmentBusinessPreset.BRAND_D2C
+        )
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
         override val upstreamPrerequisites = listOf("ApprovedSampleSpecification")
-        override val downstreamHandoffs = listOf("TechPackAndYieldData")
+        override val downstreamHandoffs = listOf("TechPackAndYieldData", "MaterialRequisition")
     }
 
     /** Cost of goods calculation — the module whose rules differ most by business model. */
@@ -73,7 +79,7 @@ object OperationalModuleCatalog {
         override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.NON_STOCK_SERVICE
         override val costingBehavior = CostingBehavior.FULL_PACKAGE_COGS
-        override val upstreamPrerequisites = listOf("TechPackAndYieldData")
+        override val upstreamPrerequisites = listOf("TechPackAndYieldData", "VerifiedMaterialStock")
         override val downstreamHandoffs = listOf("CostingCalculationResult")
 
         override fun costingBehaviorFor(preset: GarmentBusinessPreset) = when (preset) {
@@ -81,6 +87,14 @@ object OperationalModuleCatalog {
             GarmentBusinessPreset.CMT_MAKLOON -> CostingBehavior.SERVICE_FEE_ONLY
             GarmentBusinessPreset.BRAND_D2C -> CostingBehavior.RETAIL_VALUATION_WITH_FEES
         }
+
+        /**
+         * Nilai stok kain hanya masuk HPP pada paket penuh. Makloon (jasa) dan D2C (valuasi retail)
+         * tidak menjumlahkan stok ke HPP — module-integration-rules Kontrak 4.
+         */
+        override fun inputsFor(preset: GarmentBusinessPreset) =
+            if (costingBehaviorFor(preset) == CostingBehavior.FULL_PACKAGE_COGS) upstreamPrerequisites
+            else upstreamPrerequisites - "VerifiedMaterialStock"
     }
 
     /** Machine scheduling, cutting orders, mass production work orders. */
@@ -89,7 +103,7 @@ object OperationalModuleCatalog {
         override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
-        override val upstreamPrerequisites = listOf("CuttingOrderWithFabric")
+        override val upstreamPrerequisites = listOf("CostingCalculationResult", "VerifiedMaterialStock")
         override val downstreamHandoffs = listOf("CutPiecesBundle")
 
         override fun stockOwnershipFor(preset: GarmentBusinessPreset) = when (preset) {
@@ -114,7 +128,8 @@ object OperationalModuleCatalog {
         override val supportedPresets = ALL_PRESETS
         override val stockOwnership = StockOwnershipSemantics.OWNED_RAW_MATERIAL
         override val costingBehavior = CostingBehavior.INDIRECT_OVERHEAD
-        override val upstreamPrerequisites = listOf("FinishedGarmentUnit")
+        override val upstreamPrerequisites = listOf("AssembledGarmentBundle")
+        override val referenceInputs = listOf("TechPackAndYieldData")
         override val downstreamHandoffs = listOf("InspectedAndGradedUnit")
         override val defectLiability = DefectLiability.FACTORY_WORKMANSHIP
 
@@ -141,11 +156,15 @@ object OperationalModuleCatalog {
         }
     }
 
+    /**
+     * Urutan = urutan node di kanvas Factory Flow dan posisi sisipan reconciler. Ikuti arah aliran
+     * data (tech pack → gudang), bukan urutan penulisan. Modul baru: sisipkan di posisi alirannya.
+     */
     val all: List<OperationalModuleSpecification> = listOf(
         CrmSalesModule,
         SamplingOrderModule,
-        InventoryModule,
         TechPackBomModule,
+        InventoryModule,
         CostingHppModule,
         ProductionMrpModule,
         OperatorExecModule,

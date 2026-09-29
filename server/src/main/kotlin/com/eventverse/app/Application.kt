@@ -243,11 +243,11 @@ fun Application.module(
 
     val googleAuthService = GoogleAuthService()
     val jwtTokenService = JwtTokenService()
-
     install(TenantResolutionPlugin) {
         this.tenantRepository = repository
         this.jwtTokenService = jwtTokenService
         this.publicRoutePrefixes = listOf("/api/public", "/health")
+        this.entitlementRepository = entitlementRepo
     }
 
     routing {
@@ -520,7 +520,7 @@ fun Application.module(
         // roleRepo + assignmentRepo dipakai untuk menghitung jangkauan data Bagan Organisasi
         // (ScopeCapability.HIERARCHICAL), bukan untuk CRUD karyawan.
         employeeRoutes(empRepo, deptRepo, roleRepo, assignmentRepo)
-        pipelineRoutes(pipeRepo, entitlementRepo)
+        pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
         moduleDevRoutes(
             catalogRepository = catalogRepo,

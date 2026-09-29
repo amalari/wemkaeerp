@@ -45,7 +45,14 @@ data class PipelineNode(
      * Tenant-specific calculation overrides projected from the persisted graph
      * (sewing tariff per minute, secret margin, …).
      */
-    val formulaParameters: Map<String, String> = emptyMap()
+    val formulaParameters: Map<String, String> = emptyMap(),
+    /**
+     * Modul yang disisipkan otomatis dari katalog dan belum pernah diaktifkan tenant. Kanvas tetap
+     * menampilkannya (dengan badge) walau node bypass disembunyikan — kalau tidak, modul baru tak terlihat.
+     */
+    val isNewFromCatalog: Boolean = false,
+    /** Angka WIP/cycle time masih seed, bukan telemetri nyata — kartu menampilkan tag "estimasi". */
+    val isTelemetryEstimate: Boolean = false
 ) {
     val isCustomPlugin: Boolean get() = customModuleCode != null
     val isBypassed: Boolean get() = healthStatus == FlowHealthStatus.BYPASSED

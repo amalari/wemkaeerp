@@ -374,6 +374,39 @@ git diff --name-only --diff-filter=ACM main...HEAD -- '*.kt' \
 
 ---
 
+### 15. Alur Wajib Fitur & Modul Baru (Discovery → Workflow)
+
+Sebelum menulis kode fitur atau modul apa pun, jalankan berurutan:
+
+1. **Skill `wemade-feature-discovery`** — kebutuhan bisnis, **fitur serupa sudah ada?**
+   (`scripts/find-similar-feature.sh <kata>`), jenis (modul operasional / governance / foundation /
+   fitur dalam modul), Uji Variabilitas, core & titik extend, input/output + posisi di kanvas
+   Factory Flow, governance. Hasil: Discovery Note.
+2. **Skill `wemade-feature-workflow`** — gerbang ukuran/TRD → domain (tenant kedua) → pendaftaran →
+   persistensi → API fail-closed → UI dari data → verifikasi → teaching doc.
+
+Baca dan patuhi **[`.claude/rules/tenant-variability-rules.md`](.claude/rules/tenant-variability-rules.md)**
+(kode vs data) dan **[`module-integration-rules.md` §5](.claude/rules/module-integration-rules.md)**
+(anatomi pendaftaran per jenis modul). Ringkasan kontraknya:
+
+1. Uji Variabilitas sebelum `enum class`/`when` domain — beda per tenant/industri/admin → **data**.
+2. Tangga keputusan: Modul → Tahap → Proses opsional → Stasiun → Konfigurasi. Proses **bukan** modul.
+3. Aturan domain memakai **peran** (`ModuleArchetype`, `StageTrait`), bukan kode khas satu industri.
+4. Kunci tersimpan = value object string; parser tunggal; **tidak** fallback senyap.
+5. Template disalin ke tenant; dokumen **membeku** saat mulai dikerjakan.
+6. Test wajib memakai **template non-default**; cek visual di tenant uji non-rajut (`bordir-uji`).
+7. Endpoint tulis **fail-closed**; test wajib mencakup peran tak berwenang (403).
+8. Konsep yang terlanjur enum dimigrasi dengan Strangler Fig + test paritas.
+
+Sebelum merge: `scripts/audit-variability.sh` (melapor, tidak memblokir).
+
+**Konfigurasi AI lintas tool**: `.claude/` adalah satu-satunya sumber kebenaran. Setelah mengubah
+`CLAUDE.md`, rules, atau skill `wemade-*`, jalankan `scripts/sync-agent-config.sh` agar Cline
+(`.clinerules`, `.cline/skills`) dan Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`) ikut
+terbarui. `AGENTS.md` adalah **file hasil generate** — jangan disunting langsung.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - Anemic Domain Model — Entity hanya data, logika di service

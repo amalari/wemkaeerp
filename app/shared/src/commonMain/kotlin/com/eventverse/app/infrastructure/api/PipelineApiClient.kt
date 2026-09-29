@@ -27,6 +27,21 @@ class PipelineApiClient(
     private fun resolveUrl(path: String): String =
         if (baseUrl.isNotBlank()) "${baseUrl.trimEnd('/')}$path" else path
 
+    private val stageFlow by lazy { StageFlowApiClient(httpClient, baseUrl, tokenProvider) }
+
+    override suspend fun getStageFlow() = stageFlow.fetchTenantStages()
+
+    /** GET /api/tenant/pipeline/telemetry */
+    override suspend fun getTelemetry(tenantSlug: String) = runCatching {
+        val response = httpClient.get(resolveUrl("$PIPELINE_PATH/telemetry")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        com.eventverse.app.shared.pipeline.ModuleTelemetryCodec.decode(
+            com.eventverse.app.shared.json.JsonParser.parseObject(response.requireBody("memuat telemetri alur"))
+        )
+    }
+
     /** GET /api/tenant/pipeline */
     override suspend fun getPipeline(tenantSlug: String): Result<CustomTenantPipeline> = runCatching {
         val response = httpClient.get(resolveUrl(PIPELINE_PATH)) {

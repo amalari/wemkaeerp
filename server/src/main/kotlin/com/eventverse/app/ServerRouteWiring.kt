@@ -96,6 +96,19 @@ fun Route.operationalModuleRoutes(
         stageFlowRepository = stageFlowRepository
     )
     samplingStageWorkRoutes(samplingOrderRepo)
+    pipelineTelemetryRoutes(
+        providers = listOf(
+            com.eventverse.app.domain.sampling.SamplingTelemetryProvider(samplingOrderRepo),
+            com.eventverse.app.domain.pipeline.CostingTelemetryProvider(
+                com.eventverse.app.domain.costing.usecases.GetCostingNodeTelemetryUseCase(costingSheetRepo)
+            ),
+            com.eventverse.app.domain.pipeline.ProductionTelemetryProvider(
+                com.eventverse.app.domain.production.usecases.GetProductionTelemetryUseCase(bulkWorkOrderRepo)
+            )
+        ),
+        roleRepository = roleRepo,
+        moduleAssignmentRepository = assignmentRepo
+    )
             productionRoutes(
                 workOrderRepository = bulkWorkOrderRepo,
                 dealRepository = crmDealRepo,

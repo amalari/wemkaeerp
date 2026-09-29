@@ -1,5 +1,6 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.tenant.*
@@ -92,6 +93,32 @@ class PipelineModuleApiTest {
         val stored = runBlocking { pipeRepo.findByTenantId(proTenantId) }
         assertNotNull(stored)
         assertTrue(stored.nodes.first { it.moduleId == "operator_exec" }.isBypassed)
+    }
+
+    @Test
+    fun pipelineWrites_asOperatorWithoutFactoryFlowAccess_shouldBeRefused() = testApplication {
+        // TRD-FLOW-002 Fase 2: sebelumnya setiap pengguna tenant bisa mengubah topologi alur.
+        val pipeRepo = InMemoryTenantPipelineRepository()
+        application { module(tenantRepository = tenantRepoWith(), pipelineRepository = pipeRepo,
+                entitlementRepository = InMemoryTenantEntitlementRepository()) }
+
+        val activation = client.post("/api/tenant/pipeline/modules/activation") {
+            asTenant(proSlug, role = Role.OPERATOR)
+            contentType(ContentType.Application.Json)
+            setBody("""{"moduleId":"operator_exec","isActive":false}""")
+        }
+        val reset = client.post("/api/tenant/pipeline/reset") {
+            asTenant(proSlug, role = Role.OPERATOR)
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }
+        val read = client.get("/api/tenant/pipeline") { asTenant(proSlug, role = Role.OPERATOR) }
+
+        assertEquals(HttpStatusCode.Forbidden, activation.status)
+        assertEquals(HttpStatusCode.Forbidden, reset.status)
+        assertEquals(HttpStatusCode.OK, read.status, "membaca kanvas tetap boleh")
+        val stored = runBlocking { pipeRepo.findByTenantId(proTenantId) }
+        assertTrue(stored?.nodes?.none { it.moduleId == "operator_exec" && it.isBypassed } ?: true, "tulis yang ditolak tidak boleh tersimpan")
     }
 
     @Test

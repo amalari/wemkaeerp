@@ -12,6 +12,7 @@ import com.eventverse.app.domain.rbac.RoleId
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.callerPrincipalOrNull
+import com.eventverse.app.plugins.grantedModulesOrNull
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -60,7 +61,8 @@ internal suspend fun ApplicationCall.moduleDecision(
         persona = persona,
         module = module,
         role = role,
-        assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)[module].orEmpty()
+        assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)[module].orEmpty(),
+        grantedModules = grantedModulesOrNull
     )
 }
 

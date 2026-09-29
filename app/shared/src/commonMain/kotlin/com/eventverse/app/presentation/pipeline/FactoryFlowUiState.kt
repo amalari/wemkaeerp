@@ -8,6 +8,9 @@ import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
 import com.eventverse.app.domain.pipeline.PipelineStage
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
+import com.eventverse.app.domain.sampling.SamplingRoute
+import com.eventverse.app.domain.pipeline.ModuleTelemetry
+import com.eventverse.app.domain.stageflow.StageDefinition
 
 data class FactoryFlowUiState(
     val selectedPreset: GarmentBusinessPreset = GarmentBusinessPreset.DEFAULT,
@@ -33,7 +36,11 @@ data class FactoryFlowUiState(
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
     val hideBypassedNodes: Boolean = true,
-    val activeScenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL
+    val activeScenario: PipelineSimulationScenario = PipelineSimulationScenario.NORMAL,
+    /** Kerangka tahap tenant untuk kanvas level 2 (rajut sampai berhasil dimuat). */
+    val stageFlow: List<StageDefinition> = SamplingRoute.DEFAULT_STAGES,
+    /** Telemetri nyata terakhir; kosong → node aktif ditandai "estimasi" (TRD-FLOW-002 Fase 5). */
+    val telemetry: List<ModuleTelemetry> = emptyList()
 ) {
     val bypassedCount: Int get() = snapshot.nodes.count { it.isBypassed }
 
@@ -47,7 +54,8 @@ data class FactoryFlowUiState(
     val filteredNodes: List<PipelineNode>
         get() = snapshot.nodes
             .filter { node ->
-                if (hideBypassedNodes) !node.isBypassed else true
+                // Modul baru dari katalog selalu tampil, supaya tidak tersembunyi sebelum sempat diaktifkan.
+                if (hideBypassedNodes) !node.isBypassed || node.isNewFromCatalog else true
             }
             .filter { node ->
                 selectedStageFilter == null || node.stage == selectedStageFilter

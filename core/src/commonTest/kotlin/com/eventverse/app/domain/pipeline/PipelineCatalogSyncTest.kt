@@ -46,7 +46,12 @@ class PipelineCatalogSyncTest {
 
         assertTrue(synced.nodes.any { it.customDisplayName == "Lini Jahit A" })
         assertEquals(legacy.activeNodes.size, synced.activeNodes.size)
-        assertEquals(legacy.edges, synced.edges)
+        // TRD-FLOW-002 Fase 3: edge tenant tetap utuh; edge baru hanya menyentuh modul sisipan, dari port.
+        assertTrue(synced.edges.containsAll(legacy.edges))
+        val qcNodeId = synced.nodes.single { it.moduleId == BusinessModule.QUALITY_CONTROL.code }.nodeId
+        val added = synced.edges - legacy.edges.toSet()
+        assertTrue(added.isNotEmpty() && added.all { it.fromNodeId == qcNodeId || it.toNodeId == qcNodeId })
+        assertTrue(added.any { it.toNodeId == qcNodeId && it.expectedDataType == "AssembledGarmentBundle" })
     }
 
     @Test
