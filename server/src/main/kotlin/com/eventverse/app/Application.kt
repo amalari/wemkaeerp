@@ -292,7 +292,7 @@ fun Application.module(
                 val tierName = params["tier"] ?: "PRO"
                 val tier = runCatching { SubscriptionTier.valueOf(tierName.uppercase()) }.getOrDefault(SubscriptionTier.PRO)
 
-                val result = registerTenantUseCase(RegisterTenantCommand(id, slug, name, tier))
+                val result = registerTenantUseCase(RegisterTenantCommand(id, slug, name, tier, com.eventverse.app.domain.stageflow.IndustryTemplateCode.parseOrNull(params["industryTemplate"])))
                 if (result.isSuccess) {
                     val tenant = result.getOrThrow()
                     call.respondText(

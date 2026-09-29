@@ -1,10 +1,14 @@
 package com.eventverse.app.domain.tenant
 
+import com.eventverse.app.domain.stageflow.IndustryTemplateCode
+
 data class RegisterTenantCommand(
     val id: String,
     val slug: String,
     val name: String,
-    val tier: SubscriptionTier = SubscriptionTier.PRO
+    val tier: SubscriptionTier = SubscriptionTier.PRO,
+    /** Kerangka tahap industri yang di-provision (TRD-FLOW-001); `null`/tak dikenal = rajut. */
+    val industryTemplate: IndustryTemplateCode? = null
 )
 
 class RegisterTenantUseCase(
@@ -30,7 +34,8 @@ class RegisterTenantUseCase(
             name = tenantName,
             status = TenantStatus.TRIAL,
             tier = command.tier,
-            activeMachineCount = 0
+            activeMachineCount = 0,
+            industryTemplate = command.industryTemplate ?: IndustryTemplateCode.KNIT_SWEATER
         )
 
         tenantRepository.save(newTenant).getOrThrow()

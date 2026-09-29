@@ -78,7 +78,11 @@ fun SamplingWorkspaceScreen(
     }
     val processFlowViewModel = remember(tenantSlug) { ProcessFlowViewModel() }
     var showFlowTemplate by remember { mutableStateOf(false) }
-    if (showFlowTemplate) TenantFlowTemplateDialog(onDismiss = { showFlowTemplate = false }, stageFlow = state.stageFlow)
+    if (showFlowTemplate) TenantFlowTemplateDialog(
+        onDismiss = { showFlowTemplate = false },
+        stageFlow = state.stageFlow,
+        onStageFlowChanged = { viewModel.onEvent(SamplingUiEvent.StageFlowUpdated(it)) }
+    )
 
     LaunchedEffect(state.orders) {
         val scopeItems = state.orders.map {
@@ -130,7 +134,7 @@ fun SamplingWorkspaceScreen(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "Pipeline Kanban SPK — Program CAM, Rajut, Finishing & ACC Buyer",
+                            text = "Pipeline Kanban SPK — dari SPK masuk sampai ACC buyer",
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )

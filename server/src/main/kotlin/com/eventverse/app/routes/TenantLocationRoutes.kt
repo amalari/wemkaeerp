@@ -6,6 +6,7 @@ import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.domain.transfer.TenantLocationConfig
 import com.eventverse.app.domain.transfer.TenantLocationConfigRepository
+import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -48,6 +49,11 @@ fun Route.tenantLocationRoutes(
         put {
             val tenant = call.requireLocationTenant() ?: return@put
             val decision = call.factoryFlowDecision(tenant, roleRepository, moduleAssignmentRepository)
+            // Fail-closed untuk menulis: gerbang bersama meloloskan pemanggil yang wewenangnya tak
+            // terhitung, padahal topologi lokasi inilah yang menggerakkan gerbang Surat Jalan.
+            if (!mayEditWithoutDecision(decision, call.callerPrincipalOrNull?.role)) {
+                return@put call.respond(HttpStatusCode.Forbidden, "Butuh wewenang Kelola atas Alur Pabrik untuk mengubah pemetaan lokasi")
+            }
             if (!call.requireFactoryFlowAccess(decision, AccessLevel.MANAGE)) return@put
 
             val json = JsonParser.parse(call.receiveText()) as? JsonValue.Obj

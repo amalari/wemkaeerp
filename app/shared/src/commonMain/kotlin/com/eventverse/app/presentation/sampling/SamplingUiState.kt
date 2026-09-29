@@ -154,4 +154,6 @@ sealed interface SamplingUiEvent {
     data object CloseStorageDialog : SamplingUiEvent
 
     data object DismissStatusMessage : SamplingUiEvent
+    /** Kerangka pabrik disunting di editor — papan langsung memakai kolom barunya. */
+    data class StageFlowUpdated(val stages: List<StageDefinition>) : SamplingUiEvent
 }

@@ -14,6 +14,8 @@
 | 0.5 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R3a: papan sampling dari kerangka tenant (`GET /api/tenant/stage-flow`), kolom dari peran tahap, warna = `colorHex`. Keputusan: label timeline disamakan ke nama tahap. V72/V73 teraplikasi di dev. |
 | 0.6 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | R3b: meja operator, dialog, deal, QC, panel alur dari kerangka; label ringkas rajut = istilah lantai (Linking, QC). **Tahap 2 selesai**: nol pembacaan jembatan enum yang bisa melempar. Sisa sengaja: `FlowNodeRef.parse` ketat, lembar CAM/turun mesin khas rajut, picker RBAC memakai meja rajut default. |
 | 0.7 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Tahap 3a: template CUT_AND_SEW/EMBROIDERY/SCREEN_PRINT (**draf**, belum divalidasi lantai; kode dipakai ulang untuk pekerjaan sama), `tenants.industry_template` (V74), `FlowNodeRef.parse` menerima kode template mana pun. Sablon = `CUSTOM_EXTENSION` (tanpa peran SEWING). |
+| 0.8 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Tahap 3b. **Koreksi FR-3**: `STAGE_OCCUPIED` tidak pernah terpicu di bawah FR-5b (SPK beku tak terdampak; SPK belum beku hanya di tahap masuk yang tak bisa disunting) → diganti `STAGE_HAS_PROCESSES` (proses katalog berjangkar) + wajib tetap ada tahap QC & pengemasan. Tulis bergerbang `FACTORY_FLOW MANAGE`, **fail-closed** bila keputusan RBAC tak terhitung. Onboarding menerima `industryTemplate`. |
+| 0.9 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Tahap 3c: editor kerangka di dialog *Template Alur Pabrik* (ganti nama, naik/turun, tambah, hapus, ganti template dengan konfirmasi); kode tahap diturunkan dari nama; papan & panel alur memakai kerangka baru tanpa muat ulang. Belum: lebur `TenantOptionalProcess`, hapus enum. |
 
 ### Summary & Business Context
 
@@ -120,7 +122,7 @@ Operasi (masing-masing satu use case, `Result<TenantStageFlow>`):
 | Use case | Aturan |
 |---|---|
 | `AddStageUseCase` | Kode unik per tenant; disisipkan setelah tahap jangkar; tidak boleh sebelum `FLOW_REVIEW` atau sesudah `PENGEMASAN`-equivalen terakhir |
-| `RemoveStageUseCase` | Ditolak bila ada SPK aktif yang `currentStage`-nya tahap itu, atau leg custody belum `DITERIMA` menuju tahap itu |
+| `RemoveStageUseCase` | ~~Ditolak bila ada SPK aktif di tahap itu~~ (tidak pernah terpicu di bawah FR-5b, lihat v0.8). Ditolak bila proses opsional katalog berjangkar pada tahap itu (`409 STAGE_HAS_PROCESSES`), atau bila menghapus satu-satunya tahap QC/pengemasan (`400`) |
 | `ReorderStageUseCase` | Anchor tidak bisa dipindah; hanya tahap kerja |
 | `RenameStageUseCase` | Mengubah `displayName` saja; `StageCode` immutable (dipakai sebagai key tersimpan) |
 | `ResetStageFlowToTemplateUseCase` | Hanya jika tidak ada SPK aktif di tahap yang akan hilang |
@@ -368,7 +370,7 @@ string yang sama; `FlowNodeRef.key` tetap `STAGE:<code>`.
 |---|---|---|---|
 | **1** ✅ | `stageflow` domain + template `KNIT_SWEATER` + tabel V72 + API GET; adapter `SamplingPipelineStage.toStageCode()` | **Tidak ada** | Ya, drop tabel |
 | **2** ✅ (data, domain, server, papan R3a, meja operator & dialog R3b) | Pindahkan pembaca per paket: `transfer` → `process` → `sampling` use case → `operator`/`sampling` presentation → codec/repository. Enum jadi `@Deprecated` | Tidak ada (tenant tetap KNIT) | Ya, per PR |
-| **3** 🟡 (3a ✅: 3 template draf, `tenants.industry_template` V74, `FlowNodeRef.parse` longgar; 3b ⏳ use case edit & API; 3c ⏳ editor) | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
+| **3** 🟡 (3a ✅ template & V74; 3b ✅ use case + API sunting + onboarding; 3c ✅ editor di Template Alur Pabrik) | Template `CUT_AND_SEW`, `EMBROIDERY`, `SCREEN_PRINT`; use case edit; editor di Penentuan Alur; lebur `TenantOptionalProcess`; hapus enum | Tenant baru bisa pilih industri | Ya, sebelum enum dihapus |
 | **4** | Kanvas dua level + telemetri per tahap | Visual Factory Flow | Ya |
 
 ---

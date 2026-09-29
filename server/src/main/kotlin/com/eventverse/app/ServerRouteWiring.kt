@@ -187,7 +187,12 @@ fun Route.operationalModuleRoutes(
 
     tenantProcessRoutes(repository = tenantProcessCatalogRepository)
     tenantPhaseTagRoutes(repository = phaseTagsRepository)
-    tenantStageFlowRoutes(repository = stageFlowRepository)
+    tenantStageFlowRoutes(
+        repository = stageFlowRepository,
+        processCatalogRepository = tenantProcessCatalogRepository,
+        roleRepository = roleRepo,
+        moduleAssignmentRepository = assignmentRepo
+    )
 
     tenantLocationRoutes(
         repository = tenantLocationRepository,

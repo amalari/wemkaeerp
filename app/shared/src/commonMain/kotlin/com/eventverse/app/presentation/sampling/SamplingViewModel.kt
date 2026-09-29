@@ -102,6 +102,7 @@ class SamplingViewModel(
             SamplingUiEvent.CloseStorageDialog -> storage.close()
 
             is SamplingUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null) }
+            is SamplingUiEvent.StageFlowUpdated -> _uiState.update { it.copy(stageFlow = event.stages) }
         }
     }
 
