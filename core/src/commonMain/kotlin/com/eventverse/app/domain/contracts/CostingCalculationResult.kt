@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.common.CurrencyCode
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.common.Ratio
@@ -90,7 +92,7 @@ data class CostingCalculationResult(
     /** Mata uang yang dipakai di seluruh bucket dan perhitungan. Default IDR. */
     val currency: CurrencyCode = CurrencyCode.IDR,
 ) : ModulePortPayload {
-    override val portDataType: String = PortDataTypeRegistry.COSTING_CALCULATION_RESULT
+    override val portDataType: String = GarmentPortTypes.COSTING_CALCULATION_RESULT.value
 
     val cogsPerUnit: Money
         get() {

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.Ratio
 import com.eventverse.app.domain.common.UnitOfMeasure
@@ -9,8 +11,8 @@ import kotlinx.datetime.Instant
 
 object SampleSpecToTechPackAdapter {
     val descriptor = PortAdapterDescriptor(
-        from = PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION,
-        to = PortDataTypeRegistry.TECH_PACK_AND_YIELD_DATA,
+        from = GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value,
+        to = GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value,
         isLossy = true,
         explanation = "Tech Pack diturunkan otomatis dari spesifikasi sampel karena modul BOM di-bypass."
     )

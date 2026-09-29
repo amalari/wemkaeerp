@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.Ratio
 import com.eventverse.app.domain.masterdata.MaterialCategory
@@ -48,5 +50,5 @@ data class TechPackAndYieldData(
     val sizeYieldFactors: List<SizeYieldFactor> = emptyList(),
     val preparedAt: Instant
 ) : ModulePortPayload {
-    override val portDataType: String = PortDataTypeRegistry.TECH_PACK_AND_YIELD_DATA
+    override val portDataType: String = GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value
 }

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.DomainPackRegistry
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 
 enum class PortMismatchSeverity {
@@ -54,7 +56,8 @@ object PortCompatibility {
                 continue
             }
 
-            if (!PortDataTypeRegistry.isTyped(producedType) || !PortDataTypeRegistry.isTyped(toNode.archetype.defaultExpectedInputType)) {
+            val pack = DomainPackRegistry.soleActivePack
+            if (!pack.isWired(producedType) || !pack.isWired(toNode.archetype.defaultExpectedInputType)) {
                 mismatches += PortMismatch(
                     edgeId = edge.edgeId,
                     fromNodeId = fromNode.nodeId,

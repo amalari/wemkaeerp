@@ -235,7 +235,7 @@ interface OperationalModuleSpecification {
 
     val stockOwnership: StockOwnershipSemantics
     val costingBehavior: CostingBehavior
-    /** Port masuk: tipe data yang diterima (terdaftar di `PortDataTypeRegistry`). */
+    /** Port masuk: tipe data yang diterima (terdaftar di `DomainPack.wiredPortTypes`). */
     val upstreamPrerequisites: List<String>
     /** Port keluar: tipe data yang dipancarkan. Kanvas menyambung A→B bila keluar A ∩ masuk B. */
     val downstreamHandoffs: List<String>

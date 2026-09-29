@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
@@ -17,15 +19,15 @@ class PortCompatibilityTest {
     fun `module archetype slot for tech pack is PRODUCT_ENGINEERING`() {
         val archetype = ModuleArchetype.forModule(BusinessModule.TECH_PACK_BOM)
         assertEquals(ModuleArchetype.PRODUCT_ENGINEERING, archetype)
-        assertEquals(PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION, archetype?.defaultExpectedInputType)
-        assertEquals(PortDataTypeRegistry.TECH_PACK_AND_YIELD_DATA, archetype?.defaultProducedOutputType)
+        assertEquals(GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value, archetype?.defaultExpectedInputType)
+        assertEquals(GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value, archetype?.defaultProducedOutputType)
     }
 
     @Test
     fun `direct port match is compatible`() {
         val isCompat = PortCompatibility.isCompatible(
-            producedType = PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION,
-            acceptedTypes = listOf(PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION)
+            producedType = GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value,
+            acceptedTypes = listOf(GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value)
         )
         assertTrue(isCompat)
     }
@@ -33,14 +35,14 @@ class PortCompatibilityTest {
     @Test
     fun `bypass adapter connects sample spec to tech pack and yield data`() {
         val isConnectable = PortCompatibility.isConnectable(
-            producedType = PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION,
-            acceptedTypes = listOf(PortDataTypeRegistry.TECH_PACK_AND_YIELD_DATA)
+            producedType = GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value,
+            acceptedTypes = listOf(GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value)
         )
         assertTrue(isConnectable)
 
         val adapter = PortCompatibility.adapterPathFor(
-            from = PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION,
-            to = PortDataTypeRegistry.TECH_PACK_AND_YIELD_DATA
+            from = GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value,
+            to = GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value
         )
         assertEquals(SampleSpecToTechPackAdapter.descriptor, adapter)
     }

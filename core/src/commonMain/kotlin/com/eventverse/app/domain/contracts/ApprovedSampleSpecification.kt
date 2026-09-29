@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.common.Money
 import com.eventverse.app.domain.common.Quantity
 import com.eventverse.app.domain.common.UnitOfMeasure
@@ -61,7 +63,7 @@ data class ApprovedSampleSpecification(
     val additionalProcesses: List<AdditionalProcess> = emptyList(),
     val legacyEstimatedHpp: Money? = null
 ) : ModulePortPayload {
-    override val portDataType: String = PortDataTypeRegistry.APPROVED_SAMPLE_SPECIFICATION
+    override val portDataType: String = GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value
 
     val totalPanelWeight: Quantity
         get() {

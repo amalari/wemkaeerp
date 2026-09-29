@@ -1,6 +1,5 @@
 package com.eventverse.app.domain.pack
 
-import com.eventverse.app.domain.contracts.PortDataTypeRegistry
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.pipeline.canvasPhase
 import kotlin.test.Test
@@ -68,11 +67,18 @@ class GarmentDomainPackParityTest {
         }
     }
 
+    /** Salinan persis `PortDataTypeRegistry.KNOWN_TYPED_LABELS` terakhir (commit 1982a3b). */
+    private val LEGACY_WIRED_PORTS = setOf(
+        "ProductionOrderDraft", "ApprovedSampleSpecification", "TechPackAndYieldData", "MaterialRequisition",
+        "VerifiedMaterialStock", "CostingCalculationResult", "CutPiecesBundle", "AssembledGarmentBundle",
+        "InspectedAndGradedUnit", "DispatchedShipmentManifest", "IssuedInvoiceDocument"
+    )
+
     @Test
-    fun wiredPortTypes_equalPortRegistry_andVocabularyAddsOnlyArchetypeDefaults() {
-        assertEquals(PortDataTypeRegistry.KNOWN_TYPED_LABELS, pack.wiredPortTypes.map { it.value }.toSet())
+    fun wiredPortTypes_equalLegacyRegistry_andVocabularyAddsOnlyArchetypeDefaults() {
+        assertEquals(LEGACY_WIRED_PORTS, pack.wiredPortTypes.map { it.value }.toSet())
         val defaults = ModuleArchetype.entries.flatMap { listOf(it.defaultExpectedInputType, it.defaultProducedOutputType) }
-        assertEquals(PortDataTypeRegistry.KNOWN_TYPED_LABELS + defaults, pack.portTypes.map { it.value }.toSet())
+        assertEquals(LEGACY_WIRED_PORTS + defaults, pack.portTypes.map { it.value }.toSet())
     }
 
     @Test

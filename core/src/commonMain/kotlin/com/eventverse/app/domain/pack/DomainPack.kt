@@ -59,6 +59,9 @@ data class DomainPack(
         (wiredPortTypes - portTypes).firstOrNull()?.let { error("Port wiring ${it.value} tidak ada di kosakata pack ${code.value}") }
     }
 
+    /** Label port mentah (dari spec/JSON) termasuk port yang menyambung modul di pack ini. */
+    fun isWired(label: String): Boolean = wiredPortTypes.any { it.value == label }
+
     val orderedPhases: List<PhaseDefinition> get() = phases.sortedBy { it.order }
 
     fun phase(code: PhaseCode): PhaseDefinition? = phases.firstOrNull { it.code == code }

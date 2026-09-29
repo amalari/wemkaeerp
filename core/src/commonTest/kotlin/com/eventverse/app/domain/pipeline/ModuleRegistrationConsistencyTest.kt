@@ -1,6 +1,6 @@
 package com.eventverse.app.domain.pipeline
 
-import com.eventverse.app.domain.contracts.PortDataTypeRegistry
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.rbac.BusinessModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +32,7 @@ class ModuleRegistrationConsistencyTest {
         GarmentBusinessPreset.entries.forEach { preset ->
             OperationalModuleCatalog.all.forEach { spec ->
                 (spec.inputsFor(preset) + spec.outputsFor(preset)).forEach { type ->
-                    assertTrue(PortDataTypeRegistry.isTyped(type), "Port '$type' (${spec.module.code}) belum terdaftar di PortDataTypeRegistry")
+                    assertTrue(DomainPackRegistry.soleActivePack.isWired(type), "Port '$type' (${spec.module.code}) belum terdaftar di port wiring pack")
                 }
             }
         }

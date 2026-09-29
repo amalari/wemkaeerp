@@ -1,6 +1,5 @@
 package com.eventverse.app.domain.pack
 
-import com.eventverse.app.domain.contracts.PortDataTypeRegistry
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 
 /**
@@ -32,8 +31,33 @@ object GarmentPhases {
 }
 
 /**
- * Pack konveksi. Fase = data literal ([GarmentPhases], B1). Slot & port masih diturunkan dari
- * `ModuleArchetype` / `PortDataTypeRegistry` sampai B2–B3 memindahkan pembacanya.
+ * Tipe dokumen konveksi yang mengalir antarmodul. Sejak B2 ini **sumber kebenaran** — objek
+ * `PortDataTypeRegistry` sudah dihapus; daftar dikunci oleh `GarmentDomainPackParityTest`.
+ */
+object GarmentPortTypes {
+    val PRODUCTION_ORDER_DRAFT = PortType("ProductionOrderDraft")
+    val APPROVED_SAMPLE_SPECIFICATION = PortType("ApprovedSampleSpecification")
+    val TECH_PACK_AND_YIELD_DATA = PortType("TechPackAndYieldData")
+    val MATERIAL_REQUISITION = PortType("MaterialRequisition")
+    val VERIFIED_MATERIAL_STOCK = PortType("VerifiedMaterialStock")
+    val COSTING_CALCULATION_RESULT = PortType("CostingCalculationResult")
+    val CUT_PIECES_BUNDLE = PortType("CutPiecesBundle")
+    val ASSEMBLED_GARMENT_BUNDLE = PortType("AssembledGarmentBundle")
+    val INSPECTED_AND_GRADED_UNIT = PortType("InspectedAndGradedUnit")
+    val DISPATCHED_SHIPMENT_MANIFEST = PortType("DispatchedShipmentManifest")
+    val ISSUED_INVOICE_DOCUMENT = PortType("IssuedInvoiceDocument")
+
+    /** Port yang dipakai kanvas menyambung modul. Tipe baru di spec katalog wajib masuk sini. */
+    val wired: Set<PortType> = setOf(
+        PRODUCTION_ORDER_DRAFT, APPROVED_SAMPLE_SPECIFICATION, TECH_PACK_AND_YIELD_DATA,
+        MATERIAL_REQUISITION, VERIFIED_MATERIAL_STOCK, COSTING_CALCULATION_RESULT, CUT_PIECES_BUNDLE,
+        ASSEMBLED_GARMENT_BUNDLE, INSPECTED_AND_GRADED_UNIT, DISPATCHED_SHIPMENT_MANIFEST, ISSUED_INVOICE_DOCUMENT
+    )
+}
+
+/**
+ * Pack konveksi. Fase ([GarmentPhases], B1) dan port ([GarmentPortTypes], B2) = data literal.
+ * Slot masih diturunkan dari `ModuleArchetype` sampai B3.
  */
 object GarmentDomainPack {
 
@@ -50,7 +74,7 @@ object GarmentDomainPack {
                 defaultOutput = PortType(a.defaultProducedOutputType)
             )
         }
-        val wired = PortDataTypeRegistry.KNOWN_TYPED_LABELS.map(::PortType).toSet()
+        val wired = GarmentPortTypes.wired
         DomainPack(
             code = CODE,
             displayName = "Konveksi & Garmen",
