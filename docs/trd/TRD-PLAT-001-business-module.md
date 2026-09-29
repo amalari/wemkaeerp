@@ -8,6 +8,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Draf dari pemetaan kode & persistensi (2 agen riset). Prasyarat B5 terpenuhi (ledger gerbang kosong). |
+| 0.2 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | **B6a–B6g selesai.** Snapshot akses 690 keputusan identik di setiap tahap; parser 14→1; enum dihapus; menu & rute generik dari pack; bukti e-learning. Sisa: `ModuleCategory` di layar RBAC, breadcrumb generik, B7. |
 
 ### Summary & Business Context
 

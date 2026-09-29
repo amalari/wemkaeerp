@@ -13,7 +13,20 @@ object DomainPackRegistry {
      * sengaja bukan `default`: ia bukan fallback kunci tersimpan, melainkan satu-satunya vertikal
      * yang dijalankan. B7 mengganti setiap pemakaiannya dengan resolusi pack tenant.
      */
-    val soleActivePack: DomainPack get() = GarmentDomainPack.pack
+    val soleActivePack: DomainPack get() = testOverride ?: GarmentDomainPack.pack
+
+    private var testOverride: DomainPack? = null
+
+    /**
+     * **Hanya untuk test** (B6g): menjalankan [block] seolah [pack] adalah vertikal yang aktif — bukti bahwa modul pack
+     * lain muncul di menu & tergerbang tanpa menyentuh kode inti. Dihapus saat B7 memberi resolusi pack per tenant.
+     * Tidak aman dipakai paralel; test JVM di repo ini berjalan berurutan.
+     */
+    fun <T> withSoleActivePackForTest(pack: DomainPack, block: () -> T): T {
+        val previous = testOverride
+        testOverride = pack
+        try { return block() } finally { testOverride = previous }
+    }
 
     /** Kode tak dikenal → null. Pemanggil wajib menolak, bukan jatuh ke garment (Kontrak 4). */
     fun find(code: DomainPackCode): DomainPack? = all.firstOrNull { it.code == code }
