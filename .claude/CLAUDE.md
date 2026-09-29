@@ -1,4 +1,29 @@
-# EventVerse — Project Rules (Domain-Driven Design)
+# WeMade Flow Platform (Jalur B) — Project Rules (Domain-Driven Design)
+
+## Status Repo: Jalur B — Platform Alur General (BACA DULU)
+
+Repo ini adalah **fork** dari `wemade-erp` (ERP konveksi) pada tag `fork-point/general-2026-09`.
+Tujuannya berbeda: menjadi **platform alur lintas industri**. Konveksi hanyalah **Domain Pack pertama**.
+Rencana lengkap: [`docs/plannings/PLAN-dual-track-garment-and-general-platform.md`](../docs/plannings/PLAN-dual-track-garment-and-general-platform.md) §4.
+
+Konsekuensinya, aturan di bawah dibaca dengan penyesuaian ini:
+
+1. Enum konveksi `PipelineStage`, `ModuleArchetype`, tipe port, `GarmentBusinessPreset`, dan
+   `BusinessModule` **sedang dimigrasi** menjadi data per Domain Pack (`PhaseCode`, `SlotCode`,
+   `PortType`, Blueprint, `ModuleId`). Menyentuh atau menggantinya **bukan** pelanggaran; menambah
+   entri enum konveksi baru **adalah** pelanggaran — tambahkan ke pack.
+2. Migrasi wajib Strangler Fig (`tenant-variability-rules.md` Kontrak 8), satu enum per tahap, urutan
+   B0 → B6. Setiap tahap lulus **test paritas**: tenant konveksi berperilaku identik dengan `wemade-erp`.
+3. **B5 (test gerbang keamanan) wajib hijau sebelum B6 (`BusinessModule`) dimulai.** Modul data yang
+   terdaftar tanpa gerbang RBAC harus menggagalkan test.
+4. Contoh "konveksi" di rules (FOB/CMT/D2C, rajut, bordir) berlaku untuk **pack `garment`**, bukan untuk
+   platform. Kode mesin (`domain/pipeline` mesin kanvas, RBAC, entitlement) tidak boleh menyebut konsep
+   satu industri.
+5. Aliran kode **satu arah**: perbaikan mesin dari `wemade-erp` di-cherry-pick ke sini (remote
+   `upstream-garment`) dan dicatat di `docs/plannings/sync-log.md`. Repo ini **tidak pernah** di-merge
+   balik ke `wemade-erp`. Fitur konveksi baru tidak ditulis pertama kali di sini.
+
+---
 
 ## Stack Overview
 
