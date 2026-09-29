@@ -90,6 +90,23 @@ class RbacApiClient(
     }
 
     /**
+     * GET /api/tenant/me/access — wewenang pengguna yang sedang login, dihitung server (B5). Pengganti
+     * menghitung menu dari daftar jabatan & penugasan semua orang, yang kini hanya terbuka untuk admin.
+     */
+    suspend fun getMyAccess(tenantSlug: String): Result<Map<BusinessModule, AccessDecision>> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/tenant/me/access")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal memuat wewenang (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        com.eventverse.app.shared.rbac.AccessDecisionCodec.decode(
+            com.eventverse.app.shared.json.JsonParser.parseObject(response.bodyAsText())
+        )
+    }
+
+    /**
      * POST /api/tenant/roles
      */
     suspend fun createRole(

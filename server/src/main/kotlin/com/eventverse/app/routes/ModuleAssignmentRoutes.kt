@@ -21,9 +21,9 @@ import io.ktor.server.routing.*
 fun Route.moduleAssignmentRoutes(assignmentRepository: ModuleAssignmentRepository, roleRepository: com.eventverse.app.domain.rbac.RoleRepository) {
 
     route("/api/tenant/module-assignments") {
-        // B5: tulis = MANAGE fail-closed. Baca belum digerbang: klien menghitung menu setiap pengguna dari daftar ini
-        // (RbacAccessPolicyRepository). Tutup setelah endpoint "wewenang saya" dihitung di server.
-        moduleGate(BusinessModule.DYNAMIC_RBAC, roleRepository, assignmentRepository, read = com.eventverse.app.domain.rbac.AccessLevel.NONE)
+        // B5: baca = VIEW, tulis = MANAGE (fail-closed). Menu pengguna kini dari GET /api/tenant/me/access, jadi daftar
+        // wewenang semua orang hanya untuk admin.
+        moduleGate(BusinessModule.DYNAMIC_RBAC, roleRepository, assignmentRepository)
 
         get {
             val tenant = call.tenantContextOrNull ?: run {

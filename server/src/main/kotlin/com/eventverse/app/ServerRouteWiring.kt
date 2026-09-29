@@ -70,6 +70,7 @@ fun Route.operationalModuleRoutes(
 ) {
     // B5: satu gerbang untuk grup route yang tersebar di banyak file (lihat TenantRouteGatePolicy).
     route("/api/tenant") { tenantRouteGate(roleRepo, assignmentRepo) }
+    myAccessRoutes(roleRepo, assignmentRepo)
 
     val tenantProcessCatalogRepository: com.eventverse.app.domain.process.TenantProcessCatalogRepository =
         com.eventverse.app.infrastructure.PostgresTenantProcessRepository()

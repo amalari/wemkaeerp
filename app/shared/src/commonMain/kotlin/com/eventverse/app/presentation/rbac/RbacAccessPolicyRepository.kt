@@ -74,6 +74,14 @@ class RbacAccessPolicyRepository(
      * dicabut — kegagalan jaringan tidak boleh terlihat seperti keputusan billing.
      */
     private val _grantedModules = MutableStateFlow<Set<BusinessModule>?>(null)
+
+    /**
+     * Keputusan dari server untuk persona aktif (`GET /me/access`, B5). Persona aktif **selalu** pemilik token —
+     * switcher persona benar-benar login ulang — jadi keputusan server berlaku untuknya. `null` = belum/tidak
+     * didapat; saat itu menu jatuh ke perhitungan lokal (daftar jabatan & penugasan, yang hanya terbaca admin).
+     */
+    private val _serverDecisions = MutableStateFlow<Map<BusinessModule, AccessDecision>?>(null)
+    private var lastTenantSlug: String? = null
     val grantedModules: StateFlow<Set<BusinessModule>?> = _grantedModules.asStateFlow()
 
     private val _isAuditViewEnabled = MutableStateFlow(false)
@@ -93,12 +101,13 @@ class RbacAccessPolicyRepository(
             _activePersona,
             _roles,
             _departmentAssignments,
-            _grantedModules
-        ) { persona, roles, assignments, granted ->
-            if (persona == null) {
-                emptyMap()
-            } else {
-                AccessDecisionEngine.explainAll(persona, roles, assignments, granted)
+            _grantedModules,
+            _serverDecisions
+        ) { persona, roles, assignments, granted, server ->
+            when {
+                persona == null -> emptyMap()
+                server != null -> server
+                else -> AccessDecisionEngine.explainAll(persona, roles, assignments, granted)
             }
         }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
@@ -117,12 +126,22 @@ class RbacAccessPolicyRepository(
     fun load(tenantId: TenantId, tenantSlug: String) {
         val client = runCatching { apiClient }.getOrNull() ?: return
         _isLoading.value = true
+        lastTenantSlug = tenantSlug
 
         scope.launch {
-            client.getRoles(tenantSlug).onSuccess { remote ->
-                if (remote.isNotEmpty()) _roles.value = remote
-            }.onFailure {
-                if (_roles.value.isEmpty()) _roles.value = CustomRole.createFactoryPresets(tenantId)
+            // Sumber menu pengguna yang login. Daftar jabatan/penugasan di bawah kini hanya terbuka untuk admin
+            // RBAC/Org Chart; bagi pengguna lain permintaannya ditolak dan fallback lokal tidak menentukan menu.
+            val server = client.getMyAccess(tenantSlug).getOrNull()?.also { _serverDecisions.value = it }
+            // Daftar wewenang semua orang hanya untuk admin RBAC. Tanpa keputusan server (offline/server lama) tetap
+            // dicoba seperti dulu, termasuk fallback preset; dengan keputusan server yang menolak, tidak diminta sama
+            // sekali — tidak ada 403 sia-sia dan tidak ada jabatan contoh yang tampil seolah milik pabrik.
+            val readsRbac = server?.get(BusinessModule.DYNAMIC_RBAC)?.config?.isAccessible ?: true
+            if (readsRbac) {
+                client.getRoles(tenantSlug).onSuccess { remote ->
+                    if (remote.isNotEmpty()) _roles.value = remote
+                }.onFailure {
+                    if (_roles.value.isEmpty() && server == null) _roles.value = CustomRole.createFactoryPresets(tenantId)
+                }
             }
 
             client.getDepartments(tenantSlug).onSuccess { remote ->
@@ -137,8 +156,10 @@ class RbacAccessPolicyRepository(
                 if (_employees.value.isEmpty()) _employees.value = OrgNode.createSampleEmployees(tenantId)
             }
 
-            client.getModuleAssignments(tenantSlug).onSuccess { remote ->
-                if (remote.isNotEmpty()) _departmentAssignments.value = remote
+            if (readsRbac) {
+                client.getModuleAssignments(tenantSlug).onSuccess { remote ->
+                    if (remote.isNotEmpty()) _departmentAssignments.value = remote
+                }
             }
 
             // Sengaja tanpa onFailure: entitlement yang gagal dimuat harus tetap null (= belum
@@ -154,6 +175,8 @@ class RbacAccessPolicyRepository(
     }
 
     fun setPersona(persona: TestingPersona?) {
+        // Keputusan server milik persona sebelumnya; menunggu `load` untuk persona baru.
+        if (persona?.userId != _activePersona.value?.userId) _serverDecisions.value = null
         _activePersona.value = persona
     }
 
@@ -164,11 +187,20 @@ class RbacAccessPolicyRepository(
     /** Dipanggil layar RBAC setelah jabatan tersimpan, agar menu ikut berubah tanpa memuat ulang. */
     fun syncRoles(updated: List<CustomRole>) {
         if (updated.isNotEmpty()) _roles.value = updated
+        refreshServerDecisions()
     }
 
     /** Idem untuk penugasan divisi. */
     fun syncAssignments(updated: Map<BusinessModule, List<DepartmentModuleAssignment>>) {
         _departmentAssignments.value = updated
+        refreshServerDecisions()
+    }
+
+    /** Wewenang di server berubah (jabatan/penugasan disunting) → ambil ulang supaya menu ikut berubah. */
+    private fun refreshServerDecisions() {
+        val slug = lastTenantSlug ?: return
+        val client = runCatching { apiClient }.getOrNull() ?: return
+        scope.launch { client.getMyAccess(slug).onSuccess { _serverDecisions.value = it } }
     }
 
     /** Wewenang efektif satu modul saat ini — untuk gerbang di layar kerja. */

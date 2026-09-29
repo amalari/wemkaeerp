@@ -16,15 +16,11 @@ internal object RouteGateLedger {
     val openByDesign: Set<String> = setOf(
         "GET /api/tenant/info",
         "GET /api/tenant/entitlement",
+        // Wewenang pemanggil sendiri — setiap anggota tenant butuh ini untuk menyusun menunya.
+        "GET /api/tenant/me/access",
         // Katalog template kerangka tahap bawaan platform (IndustryStageTemplates) — bukan data tenant.
         "GET /api/tenant/stage-templates"
     )
 
-    val ungated: Set<String> = setOf(
-        "GET /api/tenant/departments/archived",
-        "GET /api/tenant/departments/{id}",
-        "GET /api/tenant/module-assignments",
-        "GET /api/tenant/roles",
-        "GET /api/tenant/roles/{id}",
-    )
+    val ungated: Set<String> = emptySet()
 }

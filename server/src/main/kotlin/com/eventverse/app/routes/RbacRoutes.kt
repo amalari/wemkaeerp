@@ -21,9 +21,9 @@ fun Route.rbacRoutes(roleRepository: RoleRepository, moduleAssignmentRepository:
     val restoreDefaultRolesUseCase = RestoreDefaultRolesUseCase(roleRepository)
 
     route("/api/tenant/roles") {
-        // B5: tulis = MANAGE fail-closed. Baca belum digerbang: klien menghitung menu setiap pengguna dari daftar ini
-        // (RbacAccessPolicyRepository). Tutup setelah endpoint "wewenang saya" dihitung di server.
-        moduleGate(com.eventverse.app.domain.rbac.BusinessModule.DYNAMIC_RBAC, roleRepository, moduleAssignmentRepository, read = com.eventverse.app.domain.rbac.AccessLevel.NONE)
+        // B5: baca = VIEW, tulis = MANAGE (fail-closed). Menu pengguna kini dari GET /api/tenant/me/access, jadi daftar
+        // wewenang semua orang hanya untuk admin.
+        moduleGate(com.eventverse.app.domain.rbac.BusinessModule.DYNAMIC_RBAC, roleRepository, moduleAssignmentRepository)
 
         get {
             val tenant = call.tenantContextOrNull ?: run {

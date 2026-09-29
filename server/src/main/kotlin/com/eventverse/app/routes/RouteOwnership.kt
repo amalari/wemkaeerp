@@ -37,6 +37,7 @@ object RouteOwnership {
         "/api/tenant/master-data" to RouteOwner.Module(BusinessModule.MASTER_DATA),
         "/api/tenant/vendor" to RouteOwner.Module(BusinessModule.VENDOR_CONTACTS),
         "/api/tenant/info" to RouteOwner.Platform("info tenant aktif"),
+        "/api/tenant/me" to RouteOwner.Platform("wewenang pemanggil sendiri (menu)"),
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
         "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform")

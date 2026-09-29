@@ -33,10 +33,12 @@ fun Route.departmentRoutes(
     val restoreDefaultDepartmentsUseCase = RestoreDefaultDepartmentsUseCase(departmentRepository)
 
     route("/api/tenant/departments") {
-        // B5: tulis = MANAGE fail-closed. Baca belum digerbang: klien menghitung menu setiap pengguna dari daftar divisi
-        // (RbacAccessPolicyRepository). Tutup setelah endpoint "wewenang saya" dihitung di server.
+        // B5: baca = VIEW, tulis = MANAGE (fail-closed). Daftar divisi (GET persis /departments) memakai guard
+        // orgChartDecision miliknya sendiri di handler — tidak digerbang dua kali.
         if (roleRepository != null && moduleAssignmentRepository != null) {
-            moduleGate(com.eventverse.app.domain.rbac.BusinessModule.ORG_CHART, roleRepository, moduleAssignmentRepository, read = AccessLevel.NONE)
+            moduleGate(com.eventverse.app.domain.rbac.BusinessModule.ORG_CHART, roleRepository, moduleAssignmentRepository) { method, path ->
+                if (method == io.ktor.http.HttpMethod.Get && path == "/api/tenant/departments") GateRule(AccessLevel.NONE, emptyList()) else null
+            }
         }
         get {
             val tenant = call.tenantContextOrNull ?: run {

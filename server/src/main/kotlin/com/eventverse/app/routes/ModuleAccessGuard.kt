@@ -32,11 +32,23 @@ internal suspend fun ApplicationCall.moduleDecision(
     tenant: TenantContext,
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository
-): AccessDecision {
+): AccessDecision = callerDecisions(tenant, roleRepository, moduleAssignmentRepository, listOf(module)).getValue(module)
+
+/**
+ * Keputusan wewenang pemanggil untuk [modules] — satu kali membangun persona & jabatan, dipakai gerbang (satu modul)
+ * maupun `GET /api/tenant/me/access` (semua modul). Satu jalur perhitungan: menu klien dan gerbang server mustahil
+ * berbeda pendapat.
+ */
+internal suspend fun ApplicationCall.callerDecisions(
+    tenant: TenantContext,
+    roleRepository: RoleRepository,
+    moduleAssignmentRepository: ModuleAssignmentRepository,
+    modules: List<BusinessModule> = BusinessModule.entries
+): Map<BusinessModule, AccessDecision> {
     val principal = callerPrincipalOrNull
     if (principal == null) {
         val none = ModuleAccessConfig()
-        return AccessDecision(config = none, source = AccessSource.NONE, fromRole = none, fromDepartment = none)
+        return modules.associateWith { AccessDecision(config = none, source = AccessSource.NONE, fromRole = none, fromDepartment = none) }
     }
 
     val role = principal.customRoleId
@@ -57,17 +69,21 @@ internal suspend fun ApplicationCall.moduleDecision(
         isPlatformSuperAdmin = principal.isPlatformSuperadmin && role == null
     )
 
-    return AccessDecisionEngine.explain(
-        persona = persona,
-        module = module,
-        role = role,
-        // Query penugasan dilewati bila hasilnya pasti tidak dipakai (keputusan identik, satu query lebih sedikit):
-        // - owner/superadmin selalu MANAGE (penugasan hanya mengisi penjelasan `fromDepartment`, tak dibaca server);
-        // - tanpa divisi, `resolveDepartmentAccess` tidak pernah mencocokkan penugasan apa pun.
-        assignments = if (persona.isOwnerOrSuperAdmin || persona.departmentId == null) emptyList()
-            else moduleAssignmentRepository.findAllByTenant(tenant.tenantId)[module].orEmpty(),
-        grantedModules = grantedModulesOrNull
-    )
+    // Query penugasan dilewati bila hasilnya pasti tidak dipakai (keputusan identik, satu query lebih sedikit):
+    // - owner/superadmin selalu MANAGE (penugasan hanya mengisi penjelasan `fromDepartment`, tak dibaca server);
+    // - tanpa divisi, `resolveDepartmentAccess` tidak pernah mencocokkan penugasan apa pun.
+    val assignments = if (persona.isOwnerOrSuperAdmin || persona.departmentId == null) emptyMap()
+        else moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
+
+    return modules.associateWith { module ->
+        AccessDecisionEngine.explain(
+            persona = persona,
+            module = module,
+            role = role,
+            assignments = assignments[module].orEmpty(),
+            grantedModules = grantedModulesOrNull
+        )
+    }
 }
 
 /** `false` berarti 403 sudah dikirim; handler cukup `return@…`. */
