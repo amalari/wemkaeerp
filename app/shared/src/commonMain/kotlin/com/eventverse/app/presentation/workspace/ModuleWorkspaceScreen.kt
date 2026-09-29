@@ -58,10 +58,6 @@ import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.crm.CrmWorkspaceScreen
-import com.eventverse.app.presentation.masterdata.MasterDataWorkspaceScreen
-import com.eventverse.app.presentation.vendor.VendorContactsWorkspaceScreen
-import com.eventverse.app.presentation.sampling.SamplingWorkspaceScreen
-import com.eventverse.app.presentation.techpack.TechPackWorkspaceScreen
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -105,96 +101,11 @@ fun ModuleWorkspaceScreen(
 
     val resolvedSlug = persona?.tenantSlug?.takeIf { it.isNotBlank() } ?: "wemade-demo"
 
-    if (module == GarmentModules.CRM_SALES) {
-        CrmWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            access = access,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.SAMPLING_ORDER) {
-        SamplingWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.MASTER_DATA) {
-        MasterDataWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.VENDOR_CONTACTS) {
-        VendorContactsWorkspaceScreen(tenantSlug = resolvedSlug, decision = decision, modifier = modifier.fillMaxSize())
-        return
-    }
-
-    if (module == GarmentModules.TECH_PACK_BOM) {
-        TechPackWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.INVOICING) {
-        com.eventverse.app.presentation.invoicing.InvoiceWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            access = access,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.COSTING_HPP) {
-        com.eventverse.app.presentation.costing.CostingWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.OPERATOR_EXEC) {
-        com.eventverse.app.presentation.operator.OperatorFloorWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.QUALITY_CONTROL) {
-        com.eventverse.app.presentation.qc.QcInspectorWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    if (module == GarmentModules.PRODUCTION_MRP) {
-        com.eventverse.app.presentation.production.ProductionWorkspaceScreen(
-            tenantSlug = resolvedSlug,
-            decision = decision,
-            persona = persona,
-            modifier = modifier.fillMaxSize()
-        )
+    // B6e: layar khusus per modul dari registry (data), bukan rantai `if (module == X)`. Modul tanpa entri —
+    // termasuk modul pack lain — memakai layar generik di bawah.
+    val screen = ModuleScreenRegistry.screens[module]
+    if (screen != null) {
+        screen(ModuleScreenContext(resolvedSlug, decision, persona, modifier.fillMaxSize()))
         return
     }
 
@@ -486,7 +397,7 @@ private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig) {
             modifier = Modifier.padding(top = ClaySpacing.Lg).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            sampleRowsFor(module).forEach { row ->
+            ModuleSampleRows.rowsFor(module).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -505,59 +416,4 @@ private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig) {
             }
         }
     }
-}
-
-/** Baris contoh per modul — cukup untuk membuat layar terasa nyata saat wewenang diuji. */
-private fun sampleRowsFor(module: BusinessModule): List<Pair<String, String>> = when (module) {
-    GarmentModules.CRM_SALES -> listOf(
-        "PT Sinar Jaya — 1.200 pcs kemeja" to "Prospek",
-        "CV Amanah — 500 pcs seragam" to "Nego"
-    )
-    GarmentModules.SAMPLING_ORDER -> listOf(
-        "Sample #SP-1043 — Polo Cotton" to "Jahit",
-        "Sample #SP-1044 — Kemeja PDH" to "Review"
-    )
-    GarmentModules.MASTER_DATA -> listOf(
-        "Benang Cotton Combed 30s — YRN-0001" to "Aktif",
-        "Kain Fleece Katun 280 gsm — FAB-0002" to "Aktif"
-    )
-    GarmentModules.INVENTORY -> listOf(
-        "Cotton Combed 30s — 420 kg" to "Tersedia",
-        "Kain titipan buyer — 180 kg" to "Konsinyasi"
-    )
-    GarmentModules.TECH_PACK_BOM -> listOf(
-        "Tech Pack PDH-2024 rev.3" to "Final",
-        "BOM Polo Combed" to "Draft"
-    )
-    GarmentModules.PRODUCTION_MRP -> listOf(
-        "SPK-8891 — Line 2, 3 hari" to "Berjalan",
-        "SPK-8892 — Line 4" to "Antre"
-    )
-    GarmentModules.OPERATOR_EXEC -> listOf(
-        "Rian — 320 pcs hari ini" to "Tercatat",
-        "Agus — 280 pcs hari ini" to "Tercatat"
-    )
-    GarmentModules.QUALITY_CONTROL -> listOf(
-        "Inspeksi AQL 2.5 — lot 8891" to "Lolos",
-        "Temuan jahitan loncat — 12 pcs" to "Rework"
-    )
-    GarmentModules.FULFILLMENT -> listOf(
-        "Surat Jalan SJ-2201 — 40 karton" to "Dikirim",
-        "Packing list PO-5512" to "Disiapkan"
-    )
-    GarmentModules.INVOICING -> listOf(
-        "INV/2026/03/0001 — PT Sinar Jaya (DP 50%)" to "Issued",
-        "INV/2026/03/0002 — CV Amanah (Sampling)" to "Paid"
-    )
-    // Modul tata kelola punya layar sungguhannya sendiri (Bagan Organisasi, RBAC, Alur Pabrik, Costing) dan
-    // tidak pernah dirutekan ke layar kerja generik ini. Cabang ini ada semata agar `when` tetap
-    // ekshaustif — dan sengaja kosong, bukan diisi baris contoh yang akan menyesatkan bila suatu
-    // saat benar-benar terlihat.
-    GarmentModules.COSTING_HPP,
-    GarmentModules.VENDOR_CONTACTS,
-    GarmentModules.ORG_CHART,
-    GarmentModules.DYNAMIC_RBAC,
-    GarmentModules.FACTORY_FLOW -> emptyList()
-    // B6d: modul kini data pack — modul pack lain tidak punya baris contoh (layar generik tanpa contoh).
-    else -> emptyList()
 }
