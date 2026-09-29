@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentPhases
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -119,8 +121,8 @@ class PipelineGraphTest {
 
     @Test
     fun layering_cyclicGraph_fallsBackToStageOrderWithoutHanging() {
-        val a = stubNode(id = "a", stepNumber = 1, stage = PipelineStage.COMMERCIAL, downstream = listOf("b"))
-        val b = stubNode(id = "b", stepNumber = 2, stage = PipelineStage.ENGINEERING, downstream = listOf("a"))
+        val a = stubNode(id = "a", stepNumber = 1, stage = GarmentPhases.COMMERCIAL, downstream = listOf("b"))
+        val b = stubNode(id = "b", stepNumber = 2, stage = GarmentPhases.ENGINEERING, downstream = listOf("a"))
 
         val graph = PipelineGraph.from(listOf(a, b))
 
@@ -275,7 +277,7 @@ class PipelineGraphTest {
     private fun stubNode(
         id: String,
         stepNumber: Int,
-        stage: PipelineStage = PipelineStage.COMMERCIAL,
+        stage: com.eventverse.app.domain.pack.PhaseDefinition = GarmentPhases.COMMERCIAL,
         downstream: List<String> = emptyList(),
         feedbackRoutes: List<PipelineFeedbackRoute> = emptyList()
     ): PipelineNode {

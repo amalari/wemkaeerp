@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineGraph
 import com.eventverse.app.domain.pipeline.PipelineNode
-import com.eventverse.app.domain.pipeline.PipelineStage
+import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -39,12 +39,13 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun PipelineFlowCanvas(
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
-    selectedStageFilter: PipelineStage?,
+    phases: List<PhaseDefinition>,
+    selectedStageFilter: PhaseDefinition?,
     isPresentationMode: Boolean,
     hideBypassedNodes: Boolean = true,
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit = {},
-    onFilterStage: (PipelineStage?) -> Unit,
+    onFilterStage: (PhaseDefinition?) -> Unit,
     onResetFilters: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -54,6 +55,7 @@ fun PipelineFlowCanvas(
     ) {
         // Macro Process Flow Ribbon (Left-to-Right Progress Stepper)
         MacroProcessStepper(
+            phases = phases,
             nodes = nodes,
             selectedStageFilter = selectedStageFilter,
             isPresentationMode = isPresentationMode,
@@ -95,6 +97,7 @@ fun PipelineFlowCanvas(
         } else {
             // Multi-Column Swimlane Layout (Horizontal Left-to-Right Stages)
             HorizontalSwimlaneLayout(
+                phases = phases,
                 nodes = nodes,
                 selectedNode = selectedNode,
                 isPresentationMode = isPresentationMode,
@@ -111,10 +114,11 @@ fun PipelineFlowCanvas(
  */
 @Composable
 private fun MacroProcessStepper(
+    phases: List<PhaseDefinition>,
     nodes: List<PipelineNode>,
-    selectedStageFilter: PipelineStage?,
+    selectedStageFilter: PhaseDefinition?,
     isPresentationMode: Boolean,
-    onStageClick: (PipelineStage) -> Unit,
+    onStageClick: (PhaseDefinition) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -131,7 +135,7 @@ private fun MacroProcessStepper(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        PipelineStage.entries.forEachIndexed { index, stage ->
+        phases.forEachIndexed { index, stage ->
             val stageNodes = nodes.filter { it.stage == stage }
             val totalWipInStage = stageNodes.sumOf { it.wipPieces }
             val hasBottleneck = stageNodes.any { it.isBottleneck }
@@ -172,7 +176,7 @@ private fun MacroProcessStepper(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "${stage.stepOrder}",
+                        text = "${stage.order}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isSelected) Color(stage.colorHex) else Color.White
@@ -227,7 +231,7 @@ private fun MacroProcessStepper(
             }
 
             // Directional Chevron Arrow between Stages
-            if (index < PipelineStage.entries.size - 1) {
+            if (index < phases.size - 1) {
                 IconChevronRight(
                     modifier = Modifier.size(14.dp),
                     color = if (isPresentationMode) WeMadeColors.OnSurfaceMuted else WeMadeColors.Primary.copy(alpha = 0.6f)
@@ -242,6 +246,7 @@ private fun MacroProcessStepper(
  */
 @Composable
 private fun HorizontalSwimlaneLayout(
+    phases: List<PhaseDefinition>,
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
@@ -252,9 +257,9 @@ private fun HorizontalSwimlaneLayout(
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
     val visibleStages = if (hideBypassedNodes) {
-        PipelineStage.entries.filter { stage -> (groupedByStage[stage] ?: emptyList()).isNotEmpty() }
+        phases.filter { stage -> (groupedByStage[stage] ?: emptyList()).isNotEmpty() }
     } else {
-        PipelineStage.entries
+        phases
     }
 
     val scrollState = rememberScrollState()
@@ -315,7 +320,7 @@ private fun HorizontalSwimlaneLayout(
 
 @Composable
 private fun StageSwimlaneColumn(
-    stage: PipelineStage,
+    stage: PhaseDefinition,
     nodes: List<PipelineNode>,
     selectedNode: PipelineNode?,
     isPresentationMode: Boolean,
@@ -370,7 +375,7 @@ private fun StageSwimlaneColumn(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "${stage.stepOrder}",
+                                text = "${stage.order}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

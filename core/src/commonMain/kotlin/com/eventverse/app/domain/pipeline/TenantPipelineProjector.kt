@@ -88,7 +88,7 @@ object TenantPipelineProjector {
         downstreamModuleCodes: List<String>
     ): PipelineNode {
         val archetype = node.archetype
-        val stage = archetype.defaultStage
+        val stage = archetype.canvasPhase
         return PipelineNode(
             id = node.nodeId,
             module = node.standardModule ?: archetype.representativeModule,

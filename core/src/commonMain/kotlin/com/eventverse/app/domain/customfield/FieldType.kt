@@ -97,7 +97,7 @@ sealed interface NumberFormat {
  *
  * [colorHex] is domain data supplied by the tenant admin who created the option — the
  * sanctioned exception to "no color literals outside WeMadeTheme.kt", exactly like
- * `PipelineStage.colorHex`. Deleting an option soft-archives it ([archivedAt]) rather than
+ * `PhaseDefinition.colorHex`. Deleting an option soft-archives it ([archivedAt]) rather than
  * removing it: a cell already holding this option must keep rendering (greyed) rather than
  * silently losing data.
  */

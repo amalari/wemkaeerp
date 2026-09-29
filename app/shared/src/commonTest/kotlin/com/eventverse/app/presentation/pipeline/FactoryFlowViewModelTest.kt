@@ -1,7 +1,8 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.domain.pack.GarmentPhases
+
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
-import com.eventverse.app.domain.pipeline.PipelineStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -67,12 +68,12 @@ class FactoryFlowViewModelTest {
         val viewModel = localOnlyViewModel()
 
         // Filter to COMMERCIAL stage (CRM + Sampling = 2 nodes)
-        viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(PipelineStage.COMMERCIAL))
+        viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(GarmentPhases.COMMERCIAL))
         val state = viewModel.uiState.value
 
-        assertEquals(PipelineStage.COMMERCIAL, state.selectedStageFilter)
+        assertEquals(GarmentPhases.COMMERCIAL, state.selectedStageFilter)
         assertEquals(2, state.filteredNodes.size)
-        assertTrue(state.filteredNodes.all { it.stage == PipelineStage.COMMERCIAL })
+        assertTrue(state.filteredNodes.all { it.stage == GarmentPhases.COMMERCIAL })
 
         // Clear filter
         viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(null))

@@ -2,40 +2,67 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.contracts.PortDataTypeRegistry
 import com.eventverse.app.domain.pipeline.ModuleArchetype
-import com.eventverse.app.domain.pipeline.PipelineStage
+import com.eventverse.app.domain.pipeline.canvasPhase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
 /**
- * Paritas Strangler Fig B0: pack garment identik dengan enum lama. Test ini **mengiterasi enum**,
- * jadi entri enum baru tanpa padanan di pack langsung merah.
+ * Paritas pack garment. Sejak B1 enum `PipelineStage` sudah dihapus; nilai-nilainya dibekukan di
+ * [LEGACY_PIPELINE_STAGES] dan [LEGACY_DEFAULT_STAGE] — **salinan persis** enum & `defaultStage` terakhir
+ * (commit ec74e26). Mengubah fase konveksi berarti mengubah tabel ini dengan sengaja, bukan diam-diam.
  */
 class GarmentDomainPackParityTest {
 
     private val pack = GarmentDomainPack.pack
 
+    private data class LegacyStage(val name: String, val order: Int, val displayName: String, val subtitle: String, val colorHex: Long)
+
+    private val LEGACY_PIPELINE_STAGES = listOf(
+        LegacyStage("COMMERCIAL", 1, "1. Komersial & Sampling", "Negosiasi Order & Prototipe Sample", 0xFF2563EB),
+        LegacyStage("ENGINEERING", 2, "2. Spesifikasi & HPP", "Tech Pack, BOM & Kalkulasi Biaya", 0xFF7C3AED),
+        LegacyStage("SUPPLY_CHAIN", 3, "3. Rantai Pasok & Bahan Baku", "Penerimaan Kain Rol & Aksesoris", 0xFF0D9488),
+        LegacyStage("MANUFACTURING", 4, "4. Lantai Produksi", "Jadwal Mesin, Potong & Jahit", 0xFFEA580C),
+        LegacyStage("ASSURANCE_DELIVERY", 5, "5. Mutu & Pengiriman", "Inspeksi QC, Packing & Surat Jalan", 0xFF16A34A)
+    )
+
+    private val LEGACY_DEFAULT_STAGE = mapOf(
+        ModuleArchetype.ORDER_INGESTION to "COMMERCIAL",
+        ModuleArchetype.PRODUCT_ENGINEERING to "ENGINEERING",
+        ModuleArchetype.COSTING_HPP to "ENGINEERING",
+        ModuleArchetype.RAW_MATERIAL to "SUPPLY_CHAIN",
+        ModuleArchetype.CUTTING to "MANUFACTURING",
+        ModuleArchetype.SEWING to "MANUFACTURING",
+        ModuleArchetype.FINISHING to "MANUFACTURING",
+        ModuleArchetype.CUSTOM_EXTENSION to "MANUFACTURING",
+        ModuleArchetype.QUALITY_CONTROL to "ASSURANCE_DELIVERY",
+        ModuleArchetype.FULFILLMENT to "ASSURANCE_DELIVERY"
+    )
+
     @Test
-    fun everyPipelineStage_hasIdenticalPhase() {
-        assertEquals(PipelineStage.entries.size, pack.phases.size)
-        PipelineStage.entries.forEach { s ->
-            val phase = assertNotNull(pack.phase(PhaseCode(s.name)), "Fase ${s.name} tidak ada di pack")
-            assertEquals(s.stepOrder, phase.order)
-            assertEquals(s.displayName, phase.displayName)
-            assertEquals(s.subtitle, phase.subtitle)
-            assertEquals(s.colorHex, phase.colorHex)
-        }
-        assertEquals(PipelineStage.entries.sortedBy { it.stepOrder }.map { it.name }, pack.orderedPhases.map { it.code.value })
+    fun phases_equalLegacyPipelineStageExactly() {
+        assertEquals(
+            LEGACY_PIPELINE_STAGES,
+            pack.orderedPhases.map { LegacyStage(it.code.value, it.order, it.displayName, it.subtitle, it.colorHex) }
+        )
     }
 
     @Test
-    fun everyModuleArchetype_hasIdenticalSlot_inItsDefaultStage() {
+    fun everyArchetype_isDrawnInItsLegacyStage() {
+        // Iterasi enum ModuleArchetype: slot baru tanpa fase = merah.
+        assertEquals(ModuleArchetype.entries.toSet(), LEGACY_DEFAULT_STAGE.keys, "archetype baru: tentukan fasenya di GarmentPhases & tabel ini")
+        ModuleArchetype.entries.forEach { a ->
+            assertEquals(LEGACY_DEFAULT_STAGE.getValue(a), a.canvasPhase.code.value, "fase kanvas ${a.code}")
+        }
+    }
+
+    @Test
+    fun everyModuleArchetype_hasIdenticalSlot() {
         assertEquals(ModuleArchetype.entries.size, pack.slots.size)
         ModuleArchetype.entries.forEach { a ->
             val slot = assertNotNull(pack.slot(SlotCode(a.code)), "Slot ${a.code} tidak ada di pack")
             assertEquals(a.displayName, slot.displayName)
-            assertEquals(PhaseCode(a.defaultStage.name), slot.phase)
             assertEquals(a.defaultExpectedInputType, slot.defaultInput.value)
             assertEquals(a.defaultProducedOutputType, slot.defaultOutput.value)
         }
@@ -51,6 +78,7 @@ class GarmentDomainPackParityTest {
     @Test
     fun registry_findsGarmentByCode_andUnknownIsNull() {
         assertSame(pack, DomainPackRegistry.find(DomainPackCode("garment")))
+        assertSame(pack, DomainPackRegistry.soleActivePack)
         assertEquals(null, DomainPackRegistry.find(DomainPackCode("elearning")), "belum didaftarkan — tidak boleh fallback ke garment")
     }
 }

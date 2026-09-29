@@ -31,7 +31,7 @@ data class PipelineEdge(
 /**
  * A directed graph view over a set of [PipelineNode]s, built by resolving the module-code
  * references that the nodes carry into real node-to-node edges, plus a column assignment
- * derived from actual dependencies rather than from [PipelineStage] ordering.
+ * derived from actual dependencies rather than from phase ordering.
  *
  * Build it with [from]; nodes are never mutated.
  */
@@ -206,7 +206,7 @@ data class PipelineGraph(
             // Still moving after a full pass per node means there is a cycle; fall back to stages.
             val hasCycle = changed
             if (hasCycle) {
-                nodes.forEach { rank[it.id] = it.stage.stepOrder - 1 }
+                nodes.forEach { rank[it.id] = it.stage.order - 1 }
             }
 
             val layers = nodes

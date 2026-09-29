@@ -182,6 +182,7 @@ fun FactoryFlowScreen(
 
             // Main Interactive Flow Canvas
             PipelineFlowCanvas(
+                phases = state.pack.orderedPhases,
                 nodes = state.filteredNodes,
                 selectedNode = state.selectedNode,
                 selectedStageFilter = state.selectedStageFilter,

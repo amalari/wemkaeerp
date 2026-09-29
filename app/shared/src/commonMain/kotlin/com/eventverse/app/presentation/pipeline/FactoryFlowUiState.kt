@@ -6,7 +6,9 @@ import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.pipeline.PipelineSimulationScenario
-import com.eventverse.app.domain.pipeline.PipelineStage
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
 import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.pipeline.ModuleTelemetry
@@ -32,7 +34,9 @@ data class FactoryFlowUiState(
     val selectedNode: PipelineNode? = null,
     val inspectingInputNode: PipelineNode? = null,
     val isPresentationMode: Boolean = false,
-    val selectedStageFilter: PipelineStage? = null,
+    val selectedStageFilter: PhaseDefinition? = null,
+    /** Kosakata vertikal: kolom kanvas dibaca dari sini (Jalur B, B1). */
+    val pack: DomainPack = DomainPackRegistry.soleActivePack,
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
     val hideBypassedNodes: Boolean = true,
@@ -105,7 +109,7 @@ sealed interface FactoryFlowUiEvent {
     data class SelectNode(val node: PipelineNode?) : FactoryFlowUiEvent
     data class InspectNodeInputs(val node: PipelineNode?) : FactoryFlowUiEvent
     data object TogglePresentationMode : FactoryFlowUiEvent
-    data class FilterByStage(val stage: PipelineStage?) : FactoryFlowUiEvent
+    data class FilterByStage(val stage: PhaseDefinition?) : FactoryFlowUiEvent
     data class UpdateSearchQuery(val query: String) : FactoryFlowUiEvent
     data object ToggleSimulation : FactoryFlowUiEvent
     data object ToggleHideBypassed : FactoryFlowUiEvent

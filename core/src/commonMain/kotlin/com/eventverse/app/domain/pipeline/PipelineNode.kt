@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.PhaseDefinition
+
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -9,7 +11,7 @@ import com.eventverse.app.domain.rbac.BusinessModule
 data class PipelineNode(
     val id: String,
     val module: BusinessModule,
-    val stage: PipelineStage,
+    val stage: PhaseDefinition,
     val stepNumber: Int,
     val title: String,
     val description: String,

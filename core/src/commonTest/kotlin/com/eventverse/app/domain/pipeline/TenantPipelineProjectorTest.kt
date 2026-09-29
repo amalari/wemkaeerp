@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentPhases
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -78,7 +80,7 @@ class TenantPipelineProjectorTest {
             .first { it.id == "custom-sablon" }
 
         assertEquals("Sablon Manual & Bordir Komputer", projected.title)
-        assertEquals(PipelineStage.MANUFACTURING, projected.stage)
+        assertEquals(GarmentPhases.MANUFACTURING, projected.stage)
         assertEquals("sablon_bordir_custom", projected.customModuleCode)
         assertTrue(projected.isCustomPlugin)
         assertEquals(ModuleArchetype.FINISHING.defaultExpectedInputType, projected.inputContract)

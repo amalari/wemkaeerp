@@ -2,12 +2,38 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.contracts.PortDataTypeRegistry
 import com.eventverse.app.domain.pipeline.ModuleArchetype
-import com.eventverse.app.domain.pipeline.PipelineStage
 
 /**
- * Pack konveksi — **dibangun dari enum lama**, bukan disalin tangan, sehingga identik secara
- * konstruksi selama Strangler Fig berjalan (tenant-variability-rules Kontrak 8). Saat pembaca enum
- * sudah dipindah (B1–B3), isi objek ini menjadi data literal dan enum dihapus.
+ * Fase kanvas pack konveksi. Sejak B1 ini **sumber kebenaran** — enum `PipelineStage` sudah dihapus;
+ * nilainya disalin persis dari enum itu dan dikunci oleh `GarmentDomainPackParityTest`.
+ */
+object GarmentPhases {
+    val COMMERCIAL = PhaseDefinition(PhaseCode("COMMERCIAL"), 1, "1. Komersial & Sampling", "Negosiasi Order & Prototipe Sample", 0xFF2563EB)
+    val ENGINEERING = PhaseDefinition(PhaseCode("ENGINEERING"), 2, "2. Spesifikasi & HPP", "Tech Pack, BOM & Kalkulasi Biaya", 0xFF7C3AED)
+    val SUPPLY_CHAIN = PhaseDefinition(PhaseCode("SUPPLY_CHAIN"), 3, "3. Rantai Pasok & Bahan Baku", "Penerimaan Kain Rol & Aksesoris", 0xFF0D9488)
+    val MANUFACTURING = PhaseDefinition(PhaseCode("MANUFACTURING"), 4, "4. Lantai Produksi", "Jadwal Mesin, Potong & Jahit", 0xFFEA580C)
+    val ASSURANCE_DELIVERY = PhaseDefinition(PhaseCode("ASSURANCE_DELIVERY"), 5, "5. Mutu & Pengiriman", "Inspeksi QC, Packing & Surat Jalan", 0xFF16A34A)
+
+    val all: List<PhaseDefinition> = listOf(COMMERCIAL, ENGINEERING, SUPPLY_CHAIN, MANUFACTURING, ASSURANCE_DELIVERY)
+
+    /** Fase tiap slot — dulu `ModuleArchetype.defaultStage`. Slot yang lupa dipetakan membuat pack gagal dibangun. */
+    internal val phaseOfSlot: Map<String, PhaseDefinition> = mapOf(
+        "order_ingestion" to COMMERCIAL,
+        "product_engineering" to ENGINEERING,
+        "costing_hpp" to ENGINEERING,
+        "raw_material" to SUPPLY_CHAIN,
+        "cutting" to MANUFACTURING,
+        "sewing" to MANUFACTURING,
+        "finishing" to MANUFACTURING,
+        "custom_extension" to MANUFACTURING,
+        "quality_control" to ASSURANCE_DELIVERY,
+        "fulfillment" to ASSURANCE_DELIVERY
+    )
+}
+
+/**
+ * Pack konveksi. Fase = data literal ([GarmentPhases], B1). Slot & port masih diturunkan dari
+ * `ModuleArchetype` / `PortDataTypeRegistry` sampai B2–B3 memindahkan pembacanya.
  */
 object GarmentDomainPack {
 
@@ -15,10 +41,11 @@ object GarmentDomainPack {
 
     val pack: DomainPack by lazy {
         val slots = ModuleArchetype.entries.map { a ->
+            val phase = requireNotNull(GarmentPhases.phaseOfSlot[a.code]) { "Slot ${a.code} belum dipetakan ke fase garment" }
             SlotDefinition(
                 code = SlotCode(a.code),
                 displayName = a.displayName,
-                phase = PhaseCode(a.defaultStage.name),
+                phase = phase.code,
                 defaultInput = PortType(a.defaultExpectedInputType),
                 defaultOutput = PortType(a.defaultProducedOutputType)
             )
@@ -27,9 +54,7 @@ object GarmentDomainPack {
         DomainPack(
             code = CODE,
             displayName = "Konveksi & Garmen",
-            phases = PipelineStage.entries.map { s ->
-                PhaseDefinition(PhaseCode(s.name), s.stepOrder, s.displayName, s.subtitle, s.colorHex)
-            },
+            phases = GarmentPhases.all,
             slots = slots,
             portTypes = wired + slots.flatMap { listOf(it.defaultInput, it.defaultOutput) },
             wiredPortTypes = wired

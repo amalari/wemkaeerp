@@ -169,16 +169,6 @@ enum class ModuleArchetype(
             CUSTOM_EXTENSION -> BusinessModule.PRODUCTION_MRP
         }
 
-    /** Macro stage a node of this archetype belongs to on the factory canvas. */
-    val defaultStage: PipelineStage
-        get() = when (this) {
-            ORDER_INGESTION -> PipelineStage.COMMERCIAL
-            PRODUCT_ENGINEERING, COSTING_HPP -> PipelineStage.ENGINEERING
-            RAW_MATERIAL -> PipelineStage.SUPPLY_CHAIN
-            CUTTING, SEWING, FINISHING, CUSTOM_EXTENSION -> PipelineStage.MANUFACTURING
-            QUALITY_CONTROL, FULFILLMENT -> PipelineStage.ASSURANCE_DELIVERY
-        }
-
     companion object {
         fun fromCode(code: String?): ModuleArchetype? =
             entries.firstOrNull { it.code.equals(code, ignoreCase = true) }

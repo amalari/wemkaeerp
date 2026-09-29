@@ -1,6 +1,7 @@
 // FILE-SIZE-EXEMPT: seed preset template — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentPhases
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -27,7 +28,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-crm-sales",
                 module = BusinessModule.CRM_SALES,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
                 title = BusinessModule.CRM_SALES.displayName,
                 description = "Negosiasi pesanan produksi, penentuan kuota minimum order (MOQ), dan kesepakatan lead time pengiriman.",
@@ -63,7 +64,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-sampling",
                 module = BusinessModule.SAMPLING_ORDER,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
                 title = BusinessModule.SAMPLING_ORDER.displayName,
                 description = "Pembuatan 1 pcs prototipe baju (Golden Sample) untuk fitting, uji bahan susut, dan approval buyer.",
@@ -99,7 +100,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-tech-pack",
                 module = BusinessModule.TECH_PACK_BOM,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
                 title = BusinessModule.TECH_PACK_BOM.displayName,
                 description = "Penyusunan Bill of Materials (BOM) lengkap: konsumsi kain per yard, spesifikasi jarum jahit, dan grade ukuran.",
@@ -135,7 +136,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-inventory",
                 module = BusinessModule.INVENTORY,
-                stage = PipelineStage.SUPPLY_CHAIN,
+                stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
                 title = BusinessModule.INVENTORY.displayName,
                 description = "Pengadaan dan penerimaan kain rol dari pabrik tenun, pengecekan lot warna (shading), zipper, kancing, dan benang.",
@@ -176,7 +177,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-costing-hpp",
                 module = BusinessModule.COSTING_HPP,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
                 title = BusinessModule.COSTING_HPP.displayName,
                 description = "Perhitungan HPP akurat: biaya kain per kg + ongkos potong + SAM (Standard Allowed Minute) jahit + margin rahasia.",
@@ -221,7 +222,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-mrp-spk",
                 module = BusinessModule.PRODUCTION_MRP,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
                 title = BusinessModule.PRODUCTION_MRP.displayName,
                 description = "Penjadwalan 10 mesin jahit, penetapan kapasitas harian per line, dan penerbitan SPK Potong & Jahit massal.",
@@ -266,7 +267,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-operator-exec",
                 module = BusinessModule.OPERATOR_EXEC,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
                 title = BusinessModule.OPERATOR_EXEC.displayName,
                 description = "Gelar kain, pemotongan massal, pembagian bundel jahit (bundling), dan perakitan garmen di mesin jahit jarum 1 & obras.",
@@ -307,7 +308,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-qc-defect",
                 module = BusinessModule.QUALITY_CONTROL,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
                 title = BusinessModule.QUALITY_CONTROL.displayName,
                 description = "Inspeksi jahitan loncat, noda minyak, pengukuran toleransi dimensi baju, dan pemisahan reject/cacat produksi.",
@@ -395,7 +396,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "fob-fulfillment",
                 module = BusinessModule.FULFILLMENT,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
                 title = BusinessModule.FULFILLMENT.displayName,
                 description = "Setrika uap (finishing iron), pasang hangtag merk, pemilahan ukuran per karton ekspor, dan penerbitan Surat Jalan.",
@@ -438,7 +439,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-crm-sales",
                 module = BusinessModule.CRM_SALES,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
                 title = BusinessModule.CRM_SALES.displayName,
                 description = "Penerimaan PO jasa jahit makloon dari Brand Klien dengan kuantiti dan tanggal kirim target.",
@@ -473,7 +474,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-sampling",
                 module = BusinessModule.SAMPLING_ORDER,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
                 title = BusinessModule.SAMPLING_ORDER.displayName,
                 description = "Uji jahit 1 sample fitting dengan kain yang dikirim oleh brand untuk memastikan kerapihan jarum.",
@@ -509,7 +510,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-tech-pack",
                 module = BusinessModule.TECH_PACK_BOM,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
                 title = BusinessModule.TECH_PACK_BOM.displayName,
                 description = "Modul Tech Pack di-bypass karena pola potong dan spesifikasi jahitan disediakan 100% oleh Buyer.",
@@ -536,7 +537,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-inventory",
                 module = BusinessModule.INVENTORY,
-                stage = PipelineStage.SUPPLY_CHAIN,
+                stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
                 title = BusinessModule.INVENTORY.displayName,
                 description = "Modul pengadaan kain di-bypass. Pabrik hanya menerima kain drop dari buyer tanpa membeli bahan baku sendiri.",
@@ -568,7 +569,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-costing-hpp",
                 module = BusinessModule.COSTING_HPP,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
                 title = BusinessModule.COSTING_HPP.displayName,
                 description = "Penetapan tarif ongkos jahit makloon per pcs (hanya biaya tenaga kerja operator potong + jahit + listrik).",
@@ -604,7 +605,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-mrp-spk",
                 module = BusinessModule.PRODUCTION_MRP,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
                 title = BusinessModule.PRODUCTION_MRP.displayName,
                 description = "Alokasi meja potong dan giliran mesin jahit untuk pesanan makloon brand.",
@@ -648,7 +649,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-operator-exec",
                 module = BusinessModule.OPERATOR_EXEC,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
                 title = BusinessModule.OPERATOR_EXEC.displayName,
                 description = "Penjahitan massal oleh para penjahit sesuai instruksi pola buyer.",
@@ -689,7 +690,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-qc-defect",
                 module = BusinessModule.QUALITY_CONTROL,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
                 title = BusinessModule.QUALITY_CONTROL.displayName,
                 description = "Pemeriksaan mutu jahitan sesuai standar toleransi yang disepakati dengan brand.",
@@ -762,7 +763,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "cmt-fulfillment",
                 module = BusinessModule.FULFILLMENT,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
                 title = BusinessModule.FULFILLMENT.displayName,
                 description = "Packing plastik bening sederhana per lusin dan pengembalian ke gudang brand buyer.",
@@ -805,7 +806,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-crm-sales",
                 module = BusinessModule.CRM_SALES,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 1,
                 title = BusinessModule.CRM_SALES.displayName,
                 description = "Analisis tren penjualan toko online, reseller, dan proyeksi dropship untuk koleksi baru.",
@@ -840,7 +841,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-sampling",
                 module = BusinessModule.SAMPLING_ORDER,
-                stage = PipelineStage.COMMERCIAL,
+                stage = GarmentPhases.COMMERCIAL,
                 stepNumber = 2,
                 title = BusinessModule.SAMPLING_ORDER.displayName,
                 description = "Desain prototipe in-house, fotoshoot sample untuk pre-order konten media sosial.",
@@ -876,7 +877,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-tech-pack",
                 module = BusinessModule.TECH_PACK_BOM,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 3,
                 title = BusinessModule.TECH_PACK_BOM.displayName,
                 description = "Standarisasi fitting brand sendiri (misal: Oversized Streetwear Fit) dan konsumsi kain.",
@@ -912,7 +913,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-inventory",
                 module = BusinessModule.INVENTORY,
-                stage = PipelineStage.SUPPLY_CHAIN,
+                stage = GarmentPhases.SUPPLY_CHAIN,
                 stepNumber = 4,
                 title = BusinessModule.INVENTORY.displayName,
                 description = "Penyimpanan stok kain custom wash, label woven brand, polybag bermerk, dan hangtag eksklusif.",
@@ -953,7 +954,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-costing-hpp",
                 module = BusinessModule.COSTING_HPP,
-                stage = PipelineStage.ENGINEERING,
+                stage = GarmentPhases.ENGINEERING,
                 stepNumber = 5,
                 title = BusinessModule.COSTING_HPP.displayName,
                 description = "Penetapan harga jual ritel (MSRP) berdasarkan modal produksi agar margin toko dan diskon promosi tetap untung.",
@@ -989,7 +990,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-mrp-spk",
                 module = BusinessModule.PRODUCTION_MRP,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 6,
                 title = BusinessModule.PRODUCTION_MRP.displayName,
                 description = "Pengaturan jadwal jahit mingguan untuk restock varian ukuran terlaris (fast moving SKU).",
@@ -1034,7 +1035,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-operator-exec",
                 module = BusinessModule.OPERATOR_EXEC,
-                stage = PipelineStage.MANUFACTURING,
+                stage = GarmentPhases.MANUFACTURING,
                 stepNumber = 7,
                 title = BusinessModule.OPERATOR_EXEC.displayName,
                 description = "Penjahitan oleh konveksi in-house dengan penekanan detail sablon discharge / bordir komputer.",
@@ -1075,7 +1076,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-qc-defect",
                 module = BusinessModule.QUALITY_CONTROL,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 8,
                 title = BusinessModule.QUALITY_CONTROL.displayName,
                 description = "Pengecekan super ketat untuk menghindari ulasan bintang 1 dari pembeli online (Zero defect customer policy).",
@@ -1158,7 +1159,7 @@ internal object PresetNodeSeeds {
             PipelineNode(
                 id = "d2c-fulfillment",
                 module = BusinessModule.FULFILLMENT,
-                stage = PipelineStage.ASSURANCE_DELIVERY,
+                stage = GarmentPhases.ASSURANCE_DELIVERY,
                 stepNumber = 9,
                 title = BusinessModule.FULFILLMENT.displayName,
                 description = "Finishing wangi, kemas ziplock bag bermerk, stiker merchandise, dan serah terima ke kurir marketplace.",

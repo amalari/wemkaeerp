@@ -65,6 +65,12 @@ data class DomainPack(
 
     fun slot(code: SlotCode): SlotDefinition? = slots.firstOrNull { it.code == code }
 
+    /** Fase tempat modul ber-slot [code] digambar. Slot tak dikenal = pack tidak lengkap → gagal keras. */
+    fun phaseOfSlot(code: SlotCode): PhaseDefinition {
+        val slot = requireNotNull(slot(code)) { "Slot ${code.value} tidak ada di pack ${this.code.value}" }
+        return requireNotNull(phase(slot.phase)) { "Fase ${slot.phase.value} hilang dari pack ${this.code.value}" }
+    }
+
     private fun requireUnique(kind: String, values: List<String>) {
         values.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()
             ?.let { error("Pack ${code.value}: $kind ganda '$it'") }
