@@ -28,6 +28,7 @@ import com.eventverse.app.routes.*
 import com.eventverse.app.services.DesignVisionAnalyzer
 import com.eventverse.app.services.HistoricalCostingParser
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.route
 
 /**
  * Pemasangan rute modul operasional & keuangan.
@@ -67,6 +68,9 @@ fun Route.operationalModuleRoutes(
     traceScanHost: String,
     poFileStorage: PoFileStorage? = null
 ) {
+    // B5: satu gerbang untuk grup route yang tersebar di banyak file (lihat TenantRouteGatePolicy).
+    route("/api/tenant") { tenantRouteGate(roleRepo, assignmentRepo) }
+
     val tenantProcessCatalogRepository: com.eventverse.app.domain.process.TenantProcessCatalogRepository =
         com.eventverse.app.infrastructure.PostgresTenantProcessRepository()
     val phaseTagsRepository: com.eventverse.app.domain.process.TenantStagePhaseTagsRepository =

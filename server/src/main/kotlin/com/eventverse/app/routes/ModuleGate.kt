@@ -38,14 +38,32 @@ internal fun Route.moduleGate(
     alsoAllowed: List<BusinessModule> = emptyList(),
     ruleFor: (method: HttpMethod, path: String) -> GateRule? = { _, _ -> null }
 ) {
+    installGate("ModuleGate-${module.code}-${hashCode()}", roleRepository, moduleAssignmentRepository) { method, path ->
+        val isRead = method == HttpMethod.Get || method == HttpMethod.Head
+        ruleFor(method, path) ?: GateRule(if (isRead) read else write, listOf(module) + alsoAllowed)
+    }
+}
+
+/**
+ * Gerbang **terpusat** untuk seluruh `/api/tenant` dengan [TenantRouteGatePolicy]. Dipakai untuk grup route yang
+ * tersebar di banyak file (mis. `/api/tenant/sampling/orders` didefinisikan di lima file): Ktor menggabungkannya
+ * menjadi satu node, jadi gerbang per file akan terpasang ganda. Path yang tidak diatur kebijakan (`null`) lolos
+ * ke gerbang per grup atau ke [RouteGateLedger].
+ */
+internal fun Route.tenantRouteGate(roleRepository: RoleRepository, moduleAssignmentRepository: ModuleAssignmentRepository) =
+    installGate("TenantRouteGate", roleRepository, moduleAssignmentRepository, TenantRouteGatePolicy::ruleFor)
+
+private fun Route.installGate(
+    name: String,
+    roleRepository: RoleRepository,
+    moduleAssignmentRepository: ModuleAssignmentRepository,
+    ruleFor: (HttpMethod, String) -> GateRule?
+) {
     install(
-        createRouteScopedPlugin("ModuleGate-${module.code}-${hashCode()}") {
+        createRouteScopedPlugin(name) {
             onCall { call ->
                 val tenant = call.tenantContextOrNull ?: return@onCall // handler menjawab 404 seperti biasa
-                val method = call.request.httpMethod
-                val isRead = method == HttpMethod.Get || method == HttpMethod.Head
-                val rule = ruleFor(method, call.request.local.uri.substringBefore('?'))
-                    ?: GateRule(if (isRead) read else write, listOf(module) + alsoAllowed)
+                val rule = ruleFor(call.request.httpMethod, call.request.local.uri.substringBefore('?')) ?: return@onCall
                 if (rule.level == AccessLevel.NONE) return@onCall // sengaja tidak digerbang (lihat pemanggil)
                 val allowed = rule.modules.any { m ->
                     call.moduleDecision(m, tenant, roleRepository, moduleAssignmentRepository).config.level.isAtLeast(rule.level)
