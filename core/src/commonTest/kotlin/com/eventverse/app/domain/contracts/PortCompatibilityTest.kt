@@ -1,5 +1,11 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
+
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pack.GarmentPortTypes
 
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
@@ -17,8 +23,8 @@ class PortCompatibilityTest {
 
     @Test
     fun `module archetype slot for tech pack is PRODUCT_ENGINEERING`() {
-        val archetype = ModuleArchetype.forModule(BusinessModule.TECH_PACK_BOM)
-        assertEquals(ModuleArchetype.PRODUCT_ENGINEERING, archetype)
+        val archetype = GarmentSlots.forModule(BusinessModule.TECH_PACK_BOM)
+        assertEquals(GarmentSlots.PRODUCT_ENGINEERING, archetype)
         assertEquals(GarmentPortTypes.APPROVED_SAMPLE_SPECIFICATION.value, archetype?.defaultExpectedInputType)
         assertEquals(GarmentPortTypes.TECH_PACK_AND_YIELD_DATA.value, archetype?.defaultProducedOutputType)
     }
@@ -53,13 +59,13 @@ class PortCompatibilityTest {
             nodeId = "node-costing",
             moduleId = "costing_hpp",
             customDisplayName = "Costing",
-            archetype = ModuleArchetype.COSTING_HPP
+            archetype = GarmentSlots.COSTING_HPP
         )
         val node2 = CustomPipelineNode(
             nodeId = "node-engineering",
             moduleId = "tech_pack_bom",
             customDisplayName = "Tech Pack",
-            archetype = ModuleArchetype.PRODUCT_ENGINEERING
+            archetype = GarmentSlots.PRODUCT_ENGINEERING
         )
         val edge = CustomPipelineEdge(
             edgeId = "edge-1",

@@ -1,5 +1,9 @@
 package com.eventverse.app.shared.stageflow
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
 import com.eventverse.app.domain.stageflow.StageCode
@@ -60,7 +64,7 @@ object TenantStageFlowCodec {
             code = requireNotNull(StageCode.parseOrNull(obj.string("code"))) { "Kode tahap tidak valid: ${obj.string("code")}" },
             displayName = displayName,
             kind = enumOf<StageKind>(obj.string("kind"), "kind"),
-            archetype = requireNotNull(ModuleArchetype.fromCode(obj.string("archetype"))) {
+            archetype = requireNotNull(GarmentSlots.fromCode(obj.string("archetype"))) {
                 "Archetype tidak dikenal: ${obj.string("archetype")}"
             },
             traits = obj.stringArray("traits").map { enumOf<StageTrait>(it, "trait") }.toSet(),

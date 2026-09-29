@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -170,7 +172,7 @@ class GovernanceModuleAccessTest {
         BusinessModule.governance.forEach { module ->
             assertEquals(
                 null,
-                com.eventverse.app.domain.pipeline.ModuleArchetype.forModule(module),
+                GarmentSlots.forModule(module),
                 "${module.code} tidak berdiri di lini produksi dan tidak boleh mengisi slot kapabilitas"
             )
         }
@@ -179,7 +181,7 @@ class GovernanceModuleAccessTest {
     @Test
     fun operationalModules_shouldAllStillFillACapabilitySlot() {
         BusinessModule.operational.forEach { module ->
-            assertNotNull(com.eventverse.app.domain.pipeline.ModuleArchetype.forModule(module))
+            assertNotNull(GarmentSlots.forModule(module))
         }
     }
 

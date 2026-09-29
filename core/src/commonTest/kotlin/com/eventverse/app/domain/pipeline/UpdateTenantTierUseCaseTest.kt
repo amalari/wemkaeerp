@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.usecases.GetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.UpdateTenantTierUseCase
 import com.eventverse.app.domain.tenant.FakeTenantRepository
@@ -81,7 +83,7 @@ class UpdateTenantTierUseCaseTest {
         val pipeline = getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
         val descriptor = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
-            archetype = ModuleArchetype.FINISHING,
+            archetype = GarmentSlots.FINISHING,
             name = "Sablon & Bordir",
             description = "Stasiun dekorasi kustom.",
             acceptedInputDataTypes = setOf("CutPiecesBundle"),
@@ -111,7 +113,7 @@ class UpdateTenantTierUseCaseTest {
         val pipeline = getPipeline(tenantId, GarmentBusinessPreset.BRAND_D2C).getOrThrow()
         val descriptor = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
-            archetype = ModuleArchetype.FINISHING,
+            archetype = GarmentSlots.FINISHING,
             name = "Sablon & Bordir",
             description = "Stasiun dekorasi kustom.",
             acceptedInputDataTypes = setOf("CutPiecesBundle"),

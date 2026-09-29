@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.operator
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +37,7 @@ fun OperatorDeskDetails(order: SamplingOrder, stage: StageCode) {
     when {
         // Program CAM khas rajut; meja perakitan dikenali dari perannya (SEWING), bukan namanya.
         stage == SamplingPipelineStage.MACHINE_KNITTING.toStageCode() -> CamProgramReadOnly(order)
-        order.stageFrame.firstOrNull { it.code == stage }?.archetype == ModuleArchetype.SEWING -> LinkingDepositSummary(order)
+        order.stageFrame.firstOrNull { it.code == stage }?.archetype == GarmentSlots.SEWING -> LinkingDepositSummary(order)
         else -> Unit
     }
 }

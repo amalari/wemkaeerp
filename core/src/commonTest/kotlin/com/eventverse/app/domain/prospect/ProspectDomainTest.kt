@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import kotlin.test.Test
@@ -136,10 +140,10 @@ class ProposedFlowValidatorTest {
     @Test
     fun the_declared_archetype_chain_does_not_line_up_end_to_end() {
         val chain = listOf(
-            ModuleArchetype.ORDER_INGESTION,
-            ModuleArchetype.RAW_MATERIAL,
-            ModuleArchetype.COSTING_HPP,
-            ModuleArchetype.CUTTING
+            GarmentSlots.ORDER_INGESTION,
+            GarmentSlots.RAW_MATERIAL,
+            GarmentSlots.COSTING_HPP,
+            GarmentSlots.CUTTING
         )
         val mismatches = chain.zipWithNext().count { (a, b) -> !ProposedFlowValidator.payloadMatches(a, b) }
         assertEquals(3, mismatches, "port chain changed; revisit why validation avoids equality")
@@ -148,10 +152,10 @@ class ProposedFlowValidatorTest {
     @Test
     fun the_manufacturing_half_does_pass_the_same_payload() {
         listOf(
-            ModuleArchetype.CUTTING to ModuleArchetype.SEWING,
-            ModuleArchetype.SEWING to ModuleArchetype.FINISHING,
-            ModuleArchetype.FINISHING to ModuleArchetype.QUALITY_CONTROL,
-            ModuleArchetype.QUALITY_CONTROL to ModuleArchetype.FULFILLMENT
+            GarmentSlots.CUTTING to GarmentSlots.SEWING,
+            GarmentSlots.SEWING to GarmentSlots.FINISHING,
+            GarmentSlots.FINISHING to GarmentSlots.QUALITY_CONTROL,
+            GarmentSlots.QUALITY_CONTROL to GarmentSlots.FULFILLMENT
         ).forEach { (a, b) ->
             assertTrue(ProposedFlowValidator.payloadMatches(a, b), "$a -> $b should pass the same payload")
         }
@@ -159,8 +163,8 @@ class ProposedFlowValidatorTest {
 
     @Test
     fun custom_extension_should_connect_to_anything() {
-        assertTrue(ProposedFlowValidator.payloadMatches(ModuleArchetype.FULFILLMENT, ModuleArchetype.CUSTOM_EXTENSION))
-        assertTrue(ProposedFlowValidator.payloadMatches(ModuleArchetype.CUSTOM_EXTENSION, ModuleArchetype.ORDER_INGESTION))
+        assertTrue(ProposedFlowValidator.payloadMatches(GarmentSlots.FULFILLMENT, GarmentSlots.CUSTOM_EXTENSION))
+        assertTrue(ProposedFlowValidator.payloadMatches(GarmentSlots.CUSTOM_EXTENSION, GarmentSlots.ORDER_INGESTION))
     }
 
     @Test
@@ -169,9 +173,9 @@ class ProposedFlowValidatorTest {
         // would have rejected this perfectly ordinary factory.
         val warnings = ProposedFlowValidator.warningsFor(
             listOf(
-                requirement(ModuleArchetype.ORDER_INGESTION),
-                requirement(ModuleArchetype.SEWING),
-                requirement(ModuleArchetype.QUALITY_CONTROL)
+                requirement(GarmentSlots.ORDER_INGESTION),
+                requirement(GarmentSlots.SEWING),
+                requirement(GarmentSlots.QUALITY_CONTROL)
             )
         )
         assertEquals(emptyList(), warnings)
@@ -181,9 +185,9 @@ class ProposedFlowValidatorTest {
     fun two_requirements_in_one_slot_should_warn_about_double_counting() {
         val warnings = ProposedFlowValidator.warningsFor(
             listOf(
-                requirement(ModuleArchetype.ORDER_INGESTION),
-                requirement(ModuleArchetype.QUALITY_CONTROL, "QC AQL"),
-                requirement(ModuleArchetype.QUALITY_CONTROL, "QC end-line")
+                requirement(GarmentSlots.ORDER_INGESTION),
+                requirement(GarmentSlots.QUALITY_CONTROL, "QC AQL"),
+                requirement(GarmentSlots.QUALITY_CONTROL, "QC end-line")
             )
         )
         assertEquals(1, warnings.size)
@@ -195,9 +199,9 @@ class ProposedFlowValidatorTest {
         // "sablon" and "laundry kimia" legitimately share the wildcard slot.
         val warnings = ProposedFlowValidator.warningsFor(
             listOf(
-                requirement(ModuleArchetype.ORDER_INGESTION),
-                requirement(ModuleArchetype.CUSTOM_EXTENSION, "Sablon manual"),
-                requirement(ModuleArchetype.CUSTOM_EXTENSION, "Laundry kimia")
+                requirement(GarmentSlots.ORDER_INGESTION),
+                requirement(GarmentSlots.CUSTOM_EXTENSION, "Sablon manual"),
+                requirement(GarmentSlots.CUSTOM_EXTENSION, "Laundry kimia")
             )
         )
         assertTrue(warnings.none { it.contains("terpecah dua") }, warnings.toString())
@@ -206,7 +210,7 @@ class ProposedFlowValidatorTest {
     @Test
     fun a_flow_with_no_order_intake_should_warn() {
         val warnings = ProposedFlowValidator.warningsFor(
-            listOf(requirement(ModuleArchetype.SEWING), requirement(ModuleArchetype.QUALITY_CONTROL))
+            listOf(requirement(GarmentSlots.SEWING), requirement(GarmentSlots.QUALITY_CONTROL))
         )
         assertTrue(warnings.any { it.contains("penerimaan pesanan") }, warnings.toString())
     }
@@ -253,7 +257,7 @@ class ProspectLeadTest {
 
 class CoverageAnalysisTest {
 
-    private val requirement = CapabilityRequirement(ModuleArchetype.SEWING, "Jahit")
+    private val requirement = CapabilityRequirement(GarmentSlots.SEWING, "Jahit")
 
     @Test
     fun a_flow_with_no_gaps_should_report_fully_covered() {

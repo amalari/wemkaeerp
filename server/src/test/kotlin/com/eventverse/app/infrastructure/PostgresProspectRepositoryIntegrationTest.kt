@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
@@ -70,12 +72,12 @@ class PostgresProspectRepositoryIntegrationTest {
         translatorRef = "keyword/v1",
         requirements = listOf(
             CapabilityRequirement(
-                ModuleArchetype.ORDER_INGESTION, "Terima SPK buyer",
+                GarmentSlots.ORDER_INGESTION, "Terima SPK buyer",
                 sourceQuote = "Kami makloon jaket",
                 features = BuildFeatureVector(entityCount = 2, screenCount = 2)
             ),
             CapabilityRequirement(
-                ModuleArchetype.SEWING, "Jahit jaket",
+                GarmentSlots.SEWING, "Jahit jaket",
                 sourceQuote = "kami cuma jahit",
                 features = BuildFeatureVector(entityCount = 3, screenCount = 3)
             )
@@ -85,8 +87,8 @@ class PostgresProspectRepositoryIntegrationTest {
             pipelineName = "Usulan alur",
             baseStarterPreset = GarmentBusinessPreset.CMT_MAKLOON,
             nodes = listOf(
-                CustomPipelineNode("n1", "proposed_order_ingestion_1", "Terima SPK", ModuleArchetype.ORDER_INGESTION, stepOrderIndex = 0),
-                CustomPipelineNode("n2", "proposed_sewing_2", "Jahit", ModuleArchetype.SEWING, stepOrderIndex = 1)
+                CustomPipelineNode("n1", "proposed_order_ingestion_1", "Terima SPK", GarmentSlots.ORDER_INGESTION, stepOrderIndex = 0),
+                CustomPipelineNode("n2", "proposed_sewing_2", "Jahit", GarmentSlots.SEWING, stepOrderIndex = 1)
             ),
             edges = listOf(CustomPipelineEdge("e1", "n1", "n2", "CutPiecesBundle"))
         ),

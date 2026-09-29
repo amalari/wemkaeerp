@@ -1,5 +1,9 @@
 package com.eventverse.app.routes.dto
 
+import com.eventverse.app.domain.pipeline.displayName
+
+import com.eventverse.app.domain.pipeline.code
+
 import com.eventverse.app.domain.prospect.CoverageAnalysis
 import com.eventverse.app.domain.prospect.CoverageDecision
 import com.eventverse.app.domain.prospect.FlowTranslation

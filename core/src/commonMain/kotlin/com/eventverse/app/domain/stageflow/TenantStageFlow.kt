@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.stageflow
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.TenantId
 
@@ -86,8 +90,8 @@ data class TenantStageFlow(
      */
     private fun requireEssentialRoles() {
         val work = stages.filter { it.kind == StageKind.WORK }
-        require(work.any { it.archetype == ModuleArchetype.QUALITY_CONTROL }) { "Kerangka wajib punya satu tahap QC" }
-        require(work.any { it.archetype == ModuleArchetype.FULFILLMENT }) { "Kerangka wajib punya satu tahap pengemasan" }
+        require(work.any { it.archetype == GarmentSlots.QUALITY_CONTROL }) { "Kerangka wajib punya satu tahap QC" }
+        require(work.any { it.archetype == GarmentSlots.FULFILLMENT }) { "Kerangka wajib punya satu tahap pengemasan" }
     }
 
     /** ENTRY… lalu WORK… lalu EXIT… — urutan enum [StageKind] tidak pernah mundur. */

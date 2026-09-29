@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.operator
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.FinishingPath
 import com.eventverse.app.domain.sampling.OperatorDeskColumn
@@ -96,7 +98,7 @@ fun buildOperatorDeskBoard(
  * perakitan (rajut: Linking) — peran `SEWING`, bukan nama tahap.
  */
 fun SamplingOrder.isPhysicallyAt(stage: StageDefinition): Boolean =
-    !(stage.archetype == ModuleArchetype.SEWING && finishingPath == FinishingPath.MAKLOON_VENDOR)
+    !(stage.archetype == GarmentSlots.SEWING && finishingPath == FinishingPath.MAKLOON_VENDOR)
 
 /** Jumlah kartu di kolom Antrian meja [stage] — sama persis dengan yang dirender papan. */
 fun List<SamplingOrder>.queueCountAt(stage: StageDefinition): Int =

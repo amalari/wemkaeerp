@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.moduledev
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.usecases.CompleteModuleBuildUseCase
 import com.eventverse.app.domain.moduledev.usecases.EstimateModuleBuildUseCase
 import com.eventverse.app.domain.moduledev.usecases.GetTenantBillingPreviewUseCase
@@ -339,7 +341,7 @@ class ModuleDevUseCaseTest {
                 nodeId = "node-$moduleId",
                 moduleId = moduleId,
                 customDisplayName = moduleId,
-                archetype = ModuleArchetype.forModuleCode(moduleId),
+                archetype = GarmentSlots.forModuleCode(moduleId),
                 isBypassed = isBypassed,
                 stepOrderIndex = index
             )

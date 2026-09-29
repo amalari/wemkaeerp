@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.sampling.components
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.SamplingRoute
 import com.eventverse.app.domain.stageflow.StageCode
@@ -35,7 +37,7 @@ class SamplingStageZonesTest {
     @Test
     fun frameWithoutPrepStage_shouldDropZoneAndRenumber() {
         fun stage(c: String, kind: StageKind, vararg t: StageTrait) =
-            StageDefinition(StageCode(c), c, kind, ModuleArchetype.CUSTOM_EXTENSION, t.toSet(), shortLabel = c.take(4))
+            StageDefinition(StageCode(c), c, kind, GarmentSlots.CUSTOM_EXTENSION, t.toSet(), shortLabel = c.take(4))
         val frame = listOf(
             stage("NEW_INTAKE", StageKind.ENTRY_ANCHOR),
             stage("FLOW_REVIEW", StageKind.ENTRY_ANCHOR),

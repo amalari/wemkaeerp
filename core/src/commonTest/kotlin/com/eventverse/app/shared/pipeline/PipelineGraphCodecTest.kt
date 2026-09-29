@@ -1,5 +1,7 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
@@ -26,7 +28,7 @@ class PipelineGraphCodecTest {
         nodeId = nodeId,
         moduleId = moduleId,
         customDisplayName = "Kalkulasi HPP Rahasia",
-        archetype = ModuleArchetype.COSTING_HPP,
+        archetype = GarmentSlots.COSTING_HPP,
         isBypassed = false,
         stepOrderIndex = 5,
         customFormulaParameters = parameters,

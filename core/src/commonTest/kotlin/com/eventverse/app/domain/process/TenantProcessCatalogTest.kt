@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.process
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
 import com.eventverse.app.domain.sampling.toStageCode
@@ -24,7 +26,7 @@ class TenantProcessCatalogTest {
         tenantId = tenantId,
         code = "BORDIR",
         displayName = "Bordir Komputer",
-        archetype = ModuleArchetype.CUSTOM_EXTENSION,
+        archetype = GarmentSlots.CUSTOM_EXTENSION,
         samplingAnchorAfter = samplingAnchor?.toStageCode(),
         stationAnchorAfter = stationAnchor,
         executionMode = WorkExecutionMode.IN_HOUSE,
@@ -144,6 +146,6 @@ class TenantProcessCatalogTest {
         assertEquals(WorkStationCode("BORDIR"), spec.code)
         assertEquals(WorkStationCode("QC_FINAL"), spec.insertAfterCode)
         assertEquals(1500L, spec.piecerateTariffIdr)
-        assertEquals(ModuleArchetype.CUSTOM_EXTENSION, spec.archetype)
+        assertEquals(GarmentSlots.CUSTOM_EXTENSION, spec.archetype)
     }
 }

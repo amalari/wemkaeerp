@@ -1,5 +1,11 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.pipeline.displayName
+
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
@@ -140,8 +146,8 @@ object PipelineGraphCodec {
 
         // Trust the persisted archetype, but fall back to the module's canonical slot so a
         // payload written before archetypes existed still resolves to the right one.
-        val archetype = ModuleArchetype.fromCode(node.string("archetype"))
-            ?: ModuleArchetype.forModuleCode(moduleId)
+        val archetype = GarmentSlots.fromCode(node.string("archetype"))
+            ?: GarmentSlots.forModuleCode(moduleId)
 
         return CustomPipelineNode(
             nodeId = nodeId,
@@ -153,7 +159,7 @@ object PipelineGraphCodec {
             stepOrderIndex = node.int("stepOrderIndex") ?: 0,
             customFormulaParameters = node.stringMap("customFormulaParameters"),
             isCustomPlugin = node.boolean("isCustomPlugin")
-                ?: (archetype == ModuleArchetype.CUSTOM_EXTENSION),
+                ?: (archetype == GarmentSlots.CUSTOM_EXTENSION),
             configSchemaJson = decodeOpaqueJson(node, "configSchemaJson")
         )
     }

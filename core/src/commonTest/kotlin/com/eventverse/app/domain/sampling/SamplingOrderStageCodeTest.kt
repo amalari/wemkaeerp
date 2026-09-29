@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.stageflow.IndustryStageTemplates
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
@@ -87,10 +91,10 @@ class SamplingOrderStageCodeTest {
         TenantId("ten-code"),
         IndustryTemplateCode.KNIT_SWEATER,
         listOf(
-            StageDefinition(StageCode("NEW_INTAKE"), "SPK Masuk", StageKind.ENTRY_ANCHOR, ModuleArchetype.ORDER_INGESTION),
-            StageDefinition(StageCode("DIGITIZING"), "Digitizing", StageKind.WORK, ModuleArchetype.PRODUCT_ENGINEERING),
-            StageDefinition(StageCode("MACHINE_EMBROIDERY"), "Bordir Mesin", StageKind.WORK, ModuleArchetype.SEWING, setOf(StageTrait.OPERATOR_DESK)),
-            StageDefinition(StageCode("ACC_APPROVED"), "ACC", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT)
+            StageDefinition(StageCode("NEW_INTAKE"), "SPK Masuk", StageKind.ENTRY_ANCHOR, GarmentSlots.ORDER_INGESTION),
+            StageDefinition(StageCode("DIGITIZING"), "Digitizing", StageKind.WORK, GarmentSlots.PRODUCT_ENGINEERING),
+            StageDefinition(StageCode("MACHINE_EMBROIDERY"), "Bordir Mesin", StageKind.WORK, GarmentSlots.SEWING, setOf(StageTrait.OPERATOR_DESK)),
+            StageDefinition(StageCode("ACC_APPROVED"), "ACC", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT)
         )
     )
 
@@ -105,7 +109,7 @@ class SamplingOrderStageCodeTest {
         val frozen = order().freezeStageFlow(embroideryFlow)
 
         assertSame(frozen, frozen.freezeStageFlow(IndustryStageTemplates.instantiate(TenantId("ten-code"), IndustryTemplateCode.KNIT_SWEATER)))
-        assertEquals(StageCode("MACHINE_EMBROIDERY"), frozen.firstStageWith(ModuleArchetype.SEWING)?.code)
+        assertEquals(StageCode("MACHINE_EMBROIDERY"), frozen.firstStageWith(GarmentSlots.SEWING)?.code)
         assertEquals(listOf(StageCode("MACHINE_EMBROIDERY")), frozen.stagesWith(StageTrait.OPERATOR_DESK).map { it.code })
         assertEquals(StageCode("MACHINE_EMBROIDERY"), frozen.samplingRoute.nextAfter(StageCode("DIGITIZING")))
     }

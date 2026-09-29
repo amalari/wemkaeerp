@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.pipeline.code
+
 import kotlin.jvm.JvmInline
 
 private val CODE_PATTERN = Regex("^[A-Za-z][A-Za-z0-9_]{0,63}$")

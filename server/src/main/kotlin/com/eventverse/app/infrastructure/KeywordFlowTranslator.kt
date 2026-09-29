@@ -1,5 +1,9 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
@@ -49,9 +53,9 @@ class KeywordFlowTranslator(
         // Every factory takes work from somewhere, even when the narrative only describes the
         // production floor. Adding it is more useful than reporting a gap the prospect never has —
         // but it is added without a source quote, which flags it for review on its own.
-        if (requirements.none { it.archetypeCode == ModuleArchetype.ORDER_INGESTION.code }) {
+        if (requirements.none { it.archetypeCode == GarmentSlots.ORDER_INGESTION.code }) {
             requirements += RawCapabilityRequirement(
-                archetypeCode = ModuleArchetype.ORDER_INGESTION.code,
+                archetypeCode = GarmentSlots.ORDER_INGESTION.code,
                 title = "Penerimaan pesanan",
                 description = "Diasumsikan; tidak disebut eksplisit dalam narasi.",
                 sourceQuote = "",
@@ -94,13 +98,13 @@ class KeywordFlowTranslator(
         if (PRESET_CMT_HINTS.none { it in text } && PRESET_FOB_HINTS.none { it in text }) {
             add("Kain dibeli sendiri atau dikirim oleh buyer?")
         }
-        if (requirements.none { it.archetypeCode == ModuleArchetype.QUALITY_CONTROL.code }) {
+        if (requirements.none { it.archetypeCode == GarmentSlots.QUALITY_CONTROL.code }) {
             add("Bagaimana proses pemeriksaan kualitas sebelum barang dikirim?")
         }
         if ("sablon" in text || "bordir" in text) {
             add("Sablon/bordir dikerjakan sendiri atau disubkontrakkan?")
         }
-        if (requirements.none { it.archetypeCode == ModuleArchetype.FULFILLMENT.code }) {
+        if (requirements.none { it.archetypeCode == GarmentSlots.FULFILLMENT.code }) {
             add("Barang jadi dikirim per karton, per lusin, atau langsung ke pembeli akhir?")
         }
     }
@@ -146,55 +150,55 @@ class KeywordFlowTranslator(
          */
         private val SLOT_RULES = listOf(
             SlotRule(
-                ModuleArchetype.ORDER_INGESTION, "Penerimaan pesanan & SPK",
+                GarmentSlots.ORDER_INGESTION, "Penerimaan pesanan & SPK",
                 "Pencatatan order masuk dari buyer atau pelanggan.",
                 listOf("order", "pesanan", "spk", "po ", "buyer", "pelanggan", "klien"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 4)
             ),
             SlotRule(
-                ModuleArchetype.RAW_MATERIAL, "Bahan baku & stok kain",
+                GarmentSlots.RAW_MATERIAL, "Bahan baku & stok kain",
                 "Penerimaan dan pencatatan kain, benang, dan aksesoris.",
                 listOf("gudang", "stok", "beli kain", "bahan baku", "roll", "benang", "kancing"),
                 BuildFeatureVector(entityCount = 3, useCaseCount = 4, screenCount = 2, apiEndpointCount = 5, dbTableCount = 2)
             ),
             SlotRule(
-                ModuleArchetype.COSTING_HPP, "Perhitungan HPP",
+                GarmentSlots.COSTING_HPP, "Perhitungan HPP",
                 "Kalkulasi biaya produksi dan penetapan harga.",
                 listOf("hpp", "harga pokok", "biaya produksi", "ongkos", "costing", "margin"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 3, requiresCustomFormula = true)
             ),
             SlotRule(
-                ModuleArchetype.CUTTING, "Pemotongan & SPK potong",
+                GarmentSlots.CUTTING, "Pemotongan & SPK potong",
                 "Penjadwalan dan pencatatan proses potong.",
                 listOf("potong", "cutting", "marker", "spreading", "pola"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 4)
             ),
             SlotRule(
-                ModuleArchetype.SEWING, "Penjahitan",
+                GarmentSlots.SEWING, "Penjahitan",
                 "Pencatatan output jahit per operator atau per lini.",
                 listOf("jahit", "sewing", "operator", "lini", "borongan"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 4, screenCount = 3, apiEndpointCount = 5, targetPlatformCount = 3)
             ),
             SlotRule(
-                ModuleArchetype.FINISHING, "Finishing",
+                GarmentSlots.FINISHING, "Finishing",
                 "Setrika, cuci, trimming, dan pelabelan.",
                 listOf("finishing", "setrika", "gosok", "cuci", "washing", "trimming", "label"),
                 BuildFeatureVector(entityCount = 1, useCaseCount = 2, screenCount = 1, apiEndpointCount = 3)
             ),
             SlotRule(
-                ModuleArchetype.QUALITY_CONTROL, "Inspeksi QC",
+                GarmentSlots.QUALITY_CONTROL, "Inspeksi QC",
                 "Pemeriksaan mutu, pencatatan cacat, dan grading.",
                 listOf("qc", "aql", "inspeksi", "cacat", "reject", "kualitas", "mutu"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 4, reportCount = 1)
             ),
             SlotRule(
-                ModuleArchetype.FULFILLMENT, "Packing & pengiriman",
+                GarmentSlots.FULFILLMENT, "Packing & pengiriman",
                 "Pengepakan, surat jalan, dan serah terima ekspedisi.",
                 listOf("packing", "surat jalan", "kirim", "ekspedisi", "karton", "pengiriman"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 4, reportCount = 1)
             ),
             SlotRule(
-                ModuleArchetype.CUSTOM_EXTENSION, "Sablon / bordir",
+                GarmentSlots.CUSTOM_EXTENSION, "Sablon / bordir",
                 "Proses dekorasi yang tidak tercakup slot bawaan.",
                 listOf("sablon", "bordir", "print", "dtf", "embroidery"),
                 BuildFeatureVector(entityCount = 2, useCaseCount = 3, screenCount = 2, apiEndpointCount = 4, requiresCustomFormula = true)

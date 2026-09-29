@@ -1,5 +1,9 @@
 package com.eventverse.app.shared.pipeline
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.pipeline.TenantModuleAvailability
 import com.eventverse.app.domain.pipeline.TenantModuleCatalogSnapshot
@@ -66,8 +70,8 @@ object TenantModuleCatalogCodec {
 
     private fun decodeModule(module: JsonValue.Obj): TenantModuleAvailability? {
         val moduleId = module.string("moduleId")?.takeIf { it.isNotBlank() } ?: return null
-        val archetype = ModuleArchetype.fromCode(module.string("archetype"))
-            ?: ModuleArchetype.forModuleCode(moduleId)
+        val archetype = GarmentSlots.fromCode(module.string("archetype"))
+            ?: GarmentSlots.forModuleCode(moduleId)
         return TenantModuleAvailability(
             moduleId = moduleId,
             displayName = module.string("displayName") ?: moduleId,

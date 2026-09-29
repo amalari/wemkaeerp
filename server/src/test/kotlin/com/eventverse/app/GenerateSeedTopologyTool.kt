@@ -1,5 +1,7 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
@@ -138,7 +140,7 @@ object DemoTenantTopologies {
     ) { pipeline ->
         val sablonPlugin = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
-            archetype = ModuleArchetype.FINISHING,
+            archetype = GarmentSlots.FINISHING,
             name = "Sablon Manual & Bordir Komputer",
             description = "Stasiun sablon plastisol dan bordir komputer khusus brand sendiri.",
             acceptedInputDataTypes = setOf("CutPiecesBundle"),

@@ -1,5 +1,7 @@
 package com.eventverse.app.shared.process
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.process.TenantProcessCatalog
@@ -22,7 +24,7 @@ object ProcessCatalogCodec {
         "tenantId" to jsonOf(process.tenantId.value),
         "code" to jsonOf(process.code),
         "displayName" to jsonOf(process.displayName),
-        "archetype" to jsonOf(process.archetype.name),
+        "archetype" to jsonOf(process.archetype.let(GarmentSlots::legacyNameOf)),
         "samplingAnchorAfter" to jsonOf(process.samplingAnchorAfter?.value),
         "stationAnchorAfter" to jsonOf(process.stationAnchorAfter?.value),
         "executionMode" to jsonOf(process.executionMode.name),
@@ -47,8 +49,8 @@ object ProcessCatalogCodec {
             code = code,
             displayName = obj.string("displayName") ?: code,
             archetype = obj.string("archetype")
-                ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
-                ?: ModuleArchetype.CUSTOM_EXTENSION,
+                ?.let { runCatching { GarmentSlots.fromLegacyName(it) }.getOrNull() }
+                ?: GarmentSlots.CUSTOM_EXTENSION,
             samplingAnchorAfter = obj.string("samplingAnchorAfter")
                 ?.let { parseLegacyStageCodeOrNull(it) },
             stationAnchorAfter = obj.string("stationAnchorAfter")

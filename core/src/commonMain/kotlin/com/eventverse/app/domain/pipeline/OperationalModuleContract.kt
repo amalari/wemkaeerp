@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.TenantId
 
@@ -79,134 +81,6 @@ enum class ModuleExecutionPolicy {
 }
 
 
-/**
- * Functional Archetype / Capability Slot in the factory workflow.
- * Modules fulfilling the same archetype are "sepadan" (equivalent slots)
- * and can be interchanged or customized per tenant without breaking adjacent nodes.
- */
-enum class ModuleArchetype(
-    val code: String,
-    val displayName: String,
-    val defaultExpectedInputType: String,
-    val defaultProducedOutputType: String
-) {
-    ORDER_INGESTION(
-        code = "order_ingestion",
-        displayName = "Penerimaan Pesanan / PO / Sales Ingestion",
-        defaultExpectedInputType = "CommercialInquiry",
-        defaultProducedOutputType = "ProductionOrderDraft"
-    ),
-    RAW_MATERIAL(
-        code = "raw_material",
-        displayName = "Bahan Baku & Persediaan Gudang",
-        defaultExpectedInputType = "MaterialRequisition",
-        defaultProducedOutputType = "VerifiedMaterialStock"
-    ),
-    PRODUCT_ENGINEERING(
-        code = "product_engineering",
-        displayName = "Rekayasa Produk: Tech Pack, BOM & Yield",
-        defaultExpectedInputType = "ApprovedSampleSpecification",
-        defaultProducedOutputType = "TechPackAndYieldData"
-    ),
-    COSTING_HPP(
-        code = "costing_hpp",
-        displayName = "Perhitungan Biaya & HPP (Costing Engine)",
-        defaultExpectedInputType = "TechPackAndYieldData",
-        defaultProducedOutputType = "CostingCalculationResult"
-    ),
-    CUTTING(
-        code = "cutting",
-        displayName = "Pemotongan Pola Kain (Spreading & Cutting)",
-        defaultExpectedInputType = "CuttingOrderWithFabric",
-        defaultProducedOutputType = "CutPiecesBundle"
-    ),
-    SEWING(
-        code = "sewing",
-        displayName = "Penjahitan & Perakitan (Sewing Line)",
-        defaultExpectedInputType = "CutPiecesBundle",
-        defaultProducedOutputType = "AssembledGarmentBundle"
-    ),
-    FINISHING(
-        code = "finishing",
-        displayName = "Finishing, Cuci, Setrika & Trimming",
-        defaultExpectedInputType = "AssembledGarmentBundle",
-        defaultProducedOutputType = "FinishedGarmentUnit"
-    ),
-    QUALITY_CONTROL(
-        code = "quality_control",
-        displayName = "Pengawasan Mutu, Grading & Inspeksi",
-        defaultExpectedInputType = "FinishedGarmentUnit",
-        defaultProducedOutputType = "InspectedAndGradedUnit"
-    ),
-    FULFILLMENT(
-        code = "fulfillment",
-        displayName = "Pengemasan, Surat Jalan & Ekspedisi",
-        defaultExpectedInputType = "InspectedAndGradedUnit",
-        defaultProducedOutputType = "DispatchedShipmentManifest"
-    ),
-    CUSTOM_EXTENSION(
-        code = "custom_extension",
-        displayName = "Modul Khusus Tambahan (Custom Plugin / Extension)",
-        defaultExpectedInputType = "AnyOperationalPayload",
-        defaultProducedOutputType = "AnyOperationalPayload"
-    );
-
-    /**
-     * Built-in module that best represents this capability slot. Custom plugin nodes borrow
-     * it for icon selection and access scoping, since they have no [BusinessModule] of their own.
-     */
-    val representativeModule: BusinessModule
-        get() = when (this) {
-            ORDER_INGESTION -> BusinessModule.CRM_SALES
-            RAW_MATERIAL -> BusinessModule.INVENTORY
-            PRODUCT_ENGINEERING -> BusinessModule.TECH_PACK_BOM
-            COSTING_HPP -> BusinessModule.COSTING_HPP
-            CUTTING -> BusinessModule.PRODUCTION_MRP
-            SEWING -> BusinessModule.OPERATOR_EXEC
-            FINISHING -> BusinessModule.OPERATOR_EXEC
-            QUALITY_CONTROL -> BusinessModule.QUALITY_CONTROL
-            FULFILLMENT -> BusinessModule.FULFILLMENT
-            CUSTOM_EXTENSION -> BusinessModule.PRODUCTION_MRP
-        }
-
-    companion object {
-        fun fromCode(code: String?): ModuleArchetype? =
-            entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
-
-        /**
-         * Single source of truth mapping a standard [BusinessModule] to the capability
-         * slot it fills. Previously duplicated in two places that could drift apart.
-         *
-         * Returns null for governance modules (`ModuleKind.GOVERNANCE`). That is not a missing
-         * case: a capability slot describes a station on the production line, and the org chart,
-         * the permission matrix and the flow canvas are not stations — nothing hands work to them
-         * and they hand work to nothing. Forcing them into a slot would make them eligible for the
-         * pipeline canvas and for `interchangeableWith`, which is exactly what must not happen.
-         */
-        fun forModule(module: BusinessModule): ModuleArchetype? = when (module) {
-            BusinessModule.CRM_SALES -> ORDER_INGESTION
-            BusinessModule.SAMPLING_ORDER -> ORDER_INGESTION
-            BusinessModule.INVENTORY -> RAW_MATERIAL
-            BusinessModule.TECH_PACK_BOM -> PRODUCT_ENGINEERING
-            BusinessModule.COSTING_HPP -> COSTING_HPP
-            BusinessModule.PRODUCTION_MRP -> CUTTING
-            BusinessModule.OPERATOR_EXEC -> SEWING
-            BusinessModule.QUALITY_CONTROL -> QUALITY_CONTROL
-            BusinessModule.FULFILLMENT -> FULFILLMENT
-            BusinessModule.ORG_CHART,
-            BusinessModule.DYNAMIC_RBAC,
-            BusinessModule.FACTORY_FLOW,
-            BusinessModule.MASTER_DATA, BusinessModule.VENDOR_CONTACTS,
-            BusinessModule.INVOICING -> null
-        }
-
-        /** Resolves the archetype for a persisted module code, standard or custom. */
-        fun forModuleCode(moduleCode: String): ModuleArchetype {
-            val standard = BusinessModule.entries.firstOrNull { it.code == moduleCode }
-            return standard?.let { forModule(it) } ?: CUSTOM_EXTENSION
-        }
-    }
-}
 
 /**
  * Universal Contract for any Operational Module in WeMade ERP.
@@ -221,7 +95,7 @@ interface OperationalModuleSpecification {
      * would be a wiring mistake, and failing loudly beats silently synthesizing a station.
      */
     val archetype: ModuleArchetype
-        get() = requireNotNull(ModuleArchetype.forModule(module)) {
+        get() = requireNotNull(GarmentSlots.forModule(module)) {
             "Modul '${module.code}' bertipe ${module.kind} sehingga tidak mengisi slot kapabilitas " +
                 "mana pun; hanya modul operasional yang boleh punya OperationalModuleSpecification."
         }

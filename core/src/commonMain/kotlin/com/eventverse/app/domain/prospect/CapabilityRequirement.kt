@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 
@@ -40,7 +42,7 @@ data class CapabilityRequirement(
     }
 
     /** Whether the model could not map this to a known slot and fell back to the wildcard. */
-    val isUnclassified: Boolean get() = archetype == ModuleArchetype.CUSTOM_EXTENSION
+    val isUnclassified: Boolean get() = archetype == GarmentSlots.CUSTOM_EXTENSION
 
     /** Weak requirements are the ones a reviewer should read first. */
     val lacksEvidence: Boolean get() = sourceQuote.isBlank()

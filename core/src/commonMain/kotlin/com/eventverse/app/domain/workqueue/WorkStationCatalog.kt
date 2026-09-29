@@ -1,6 +1,10 @@
 // FILE-SIZE-EXEMPT: katalog aset — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.domain.workqueue
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 
 /**
@@ -12,7 +16,7 @@ object WorkStationCatalog {
     val CUTTING = WorkStationSpec(
         code = WorkStationCode("CUTTING"),
         displayName = "Meja Potong / Cutting",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 500L,
@@ -23,7 +27,7 @@ object WorkStationCatalog {
     val KNITTING = WorkStationSpec(
         code = WorkStationCode("KNITTING"),
         displayName = "Mesin Rajut / Turun Mesin",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1500L,
@@ -34,7 +38,7 @@ object WorkStationCatalog {
     val JAHIT_LURUS = WorkStationSpec(
         code = WorkStationCode("JAHIT_LURUS"),
         displayName = "Jahit Lurus / Perakitan Badan",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 2000L,
@@ -45,7 +49,7 @@ object WorkStationCatalog {
     val OBRAS = WorkStationSpec(
         code = WorkStationCode("OBRAS"),
         displayName = "Obras / Overlock",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1000L,
@@ -56,7 +60,7 @@ object WorkStationCatalog {
     val SUNTEK = WorkStationSpec(
         code = WorkStationCode("SUNTEK"),
         displayName = "Suntek / Linking Rajut",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 2500L,
@@ -67,7 +71,7 @@ object WorkStationCatalog {
     val LUBANG_KANCING = WorkStationSpec(
         code = WorkStationCode("LUBANG_KANCING"),
         displayName = "Lubang Kancing (Buttonhole)",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 300L,
@@ -78,7 +82,7 @@ object WorkStationCatalog {
     val PASANG_KANCING = WorkStationSpec(
         code = WorkStationCode("PASANG_KANCING"),
         displayName = "Pasang Kancing (Button Attach)",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 300L,
@@ -89,7 +93,7 @@ object WorkStationCatalog {
     val PASANG_ZIPER = WorkStationSpec(
         code = WorkStationCode("PASANG_ZIPER"),
         displayName = "Pasang Ziper (Zipper Attach)",
-        archetype = ModuleArchetype.SEWING,
+        archetype = GarmentSlots.SEWING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1000L,
@@ -100,7 +104,7 @@ object WorkStationCatalog {
     val PASANG_LABEL = WorkStationSpec(
         code = WorkStationCode("PASANG_LABEL"),
         displayName = "Pasang Label & Trims",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 300L,
@@ -111,7 +115,7 @@ object WorkStationCatalog {
     val WASHING = WorkStationSpec(
         code = WorkStationCode("WASHING"),
         displayName = "Washing & Softener (Peleburan Lot)",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         piecerateTariffIdr = 800L,
@@ -124,7 +128,7 @@ object WorkStationCatalog {
     val STEAM = WorkStationSpec(
         code = WorkStationCode("STEAM"),
         displayName = "Steam & Setrika Uap",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         inputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         outputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         piecerateTariffIdr = 500L,
@@ -135,7 +139,7 @@ object WorkStationCatalog {
     val QC_FINAL = WorkStationSpec(
         code = WorkStationCode("QC_FINAL"),
         displayName = "Pemeriksaan Mutu (QC Final)",
-        archetype = ModuleArchetype.QUALITY_CONTROL,
+        archetype = GarmentSlots.QUALITY_CONTROL,
         inputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         outputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         piecerateTariffIdr = 400L,
@@ -146,7 +150,7 @@ object WorkStationCatalog {
     val PACKAGING = WorkStationSpec(
         code = WorkStationCode("PACKAGING"),
         displayName = "Packaging & Karton/Karung",
-        archetype = ModuleArchetype.FULFILLMENT,
+        archetype = GarmentSlots.FULFILLMENT,
         inputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         outputTrackingUnit = WorkTrackingUnit.LOT_ACCUMULATION,
         piecerateTariffIdr = 350L,
@@ -163,7 +167,7 @@ object WorkStationCatalog {
     val BORDIR = WorkStationSpec(
         code = WorkStationCode("BORDIR"),
         displayName = "Bordir Komputer",
-        archetype = ModuleArchetype.CUSTOM_EXTENSION,
+        archetype = GarmentSlots.CUSTOM_EXTENSION,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1500L,
@@ -174,7 +178,7 @@ object WorkStationCatalog {
     val SABLON = WorkStationSpec(
         code = WorkStationCode("SABLON"),
         displayName = "Sablon / Print",
-        archetype = ModuleArchetype.CUSTOM_EXTENSION,
+        archetype = GarmentSlots.CUSTOM_EXTENSION,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1200L,
@@ -185,7 +189,7 @@ object WorkStationCatalog {
     val LAUNDRY = WorkStationSpec(
         code = WorkStationCode("LAUNDRY"),
         displayName = "Laundry / Garment Dyeing",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 2000L,

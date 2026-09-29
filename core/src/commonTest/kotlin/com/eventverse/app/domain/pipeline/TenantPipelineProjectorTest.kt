@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pack.GarmentPhases
 
 import com.eventverse.app.domain.tenant.TenantId
@@ -66,7 +70,7 @@ class TenantPipelineProjectorTest {
     fun project_customPluginNode_shouldBeSynthesizedFromArchetype() {
         val descriptor = DynamicModuleDescriptor(
             moduleId = "sablon_bordir_custom",
-            archetype = ModuleArchetype.FINISHING,
+            archetype = GarmentSlots.FINISHING,
             name = "Sablon Manual & Bordir Komputer",
             description = "Stasiun sablon dan bordir khusus.",
             acceptedInputDataTypes = setOf("CutPiecesBundle"),
@@ -83,7 +87,7 @@ class TenantPipelineProjectorTest {
         assertEquals(GarmentPhases.MANUFACTURING, projected.stage)
         assertEquals("sablon_bordir_custom", projected.customModuleCode)
         assertTrue(projected.isCustomPlugin)
-        assertEquals(ModuleArchetype.FINISHING.defaultExpectedInputType, projected.inputContract)
+        assertEquals(GarmentSlots.FINISHING.defaultExpectedInputType, projected.inputContract)
     }
 
     @Test

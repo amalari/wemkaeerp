@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.FlowPhase
 import com.eventverse.app.domain.process.PhaseTaggableStage
@@ -196,7 +198,7 @@ class SamplingPhaseRouteTest {
             tenantId = tenant,
             code = "LAUNDRY",
             displayName = "Laundry",
-            archetype = ModuleArchetype.FINISHING,
+            archetype = GarmentSlots.FINISHING,
             samplingAnchorAfter = SamplingPipelineStage.CUCI_SOFTENER.toStageCode()
         )
         val nodes = FlowLegDerivation.resolveNodes(

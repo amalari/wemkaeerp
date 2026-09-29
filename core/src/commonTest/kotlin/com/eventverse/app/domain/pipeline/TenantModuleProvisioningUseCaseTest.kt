@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.usecases.GetTenantModuleCatalogUseCase
 import com.eventverse.app.domain.pipeline.usecases.GetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.InstallCustomModuleUseCase
@@ -46,7 +48,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     private fun customPlugin() = DynamicModuleDescriptor(
         moduleId = "sablon_bordir_custom",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         name = "Sablon Manual & Bordir Komputer",
         description = "Stasiun sablon plastisol dan bordir komputer.",
         acceptedInputDataTypes = setOf("CutPiecesBundle"),

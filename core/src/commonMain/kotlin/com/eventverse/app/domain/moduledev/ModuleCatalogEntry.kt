@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.moduledev
 
+import com.eventverse.app.domain.pipeline.code
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant

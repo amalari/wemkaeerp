@@ -1,5 +1,11 @@
 package com.eventverse.app.domain.prospect.usecases
 
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomPipelineNode
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
@@ -48,7 +54,7 @@ class TranslateProspectFlowUseCase(
         // People do not describe their factory in production order — "QC-nya pakai AQL" often comes
         // before "kainnya dari buyer". The archetype enum is declared in production order, so
         // sorting by it turns a rambling narrative into a sequence a reviewer can read top to bottom.
-        val ordered = requirements.sortedBy { it.archetype.ordinal }
+        val ordered = requirements.sortedBy { GarmentSlots.all.indexOf(it.archetype) }
 
         warnings += ProposedFlowValidator.warningsFor(ordered)
 
@@ -89,7 +95,7 @@ class TranslateProspectFlowUseCase(
             return null
         }
 
-        val archetype = ModuleArchetype.fromCode(raw.archetypeCode)
+        val archetype = GarmentSlots.fromCode(raw.archetypeCode)
         if (archetype == null) {
             warnings += "Kode archetype \"${raw.archetypeCode}\" tidak dikenal " +
                 "(kebutuhan \"${raw.title}\"); diperlakukan sebagai modul kustom."
@@ -100,7 +106,7 @@ class TranslateProspectFlowUseCase(
         }
 
         return CapabilityRequirement(
-            archetype = archetype ?: ModuleArchetype.CUSTOM_EXTENSION,
+            archetype = archetype ?: GarmentSlots.CUSTOM_EXTENSION,
             title = raw.title,
             description = raw.description,
             sourceQuote = raw.sourceQuote,
@@ -158,7 +164,7 @@ class TranslateProspectFlowUseCase(
                 customDisplayName = requirement.title,
                 archetype = requirement.archetype,
                 stepOrderIndex = index,
-                isCustomPlugin = requirement.archetype == ModuleArchetype.CUSTOM_EXTENSION
+                isCustomPlugin = requirement.archetype == GarmentSlots.CUSTOM_EXTENSION
             )
         }
 

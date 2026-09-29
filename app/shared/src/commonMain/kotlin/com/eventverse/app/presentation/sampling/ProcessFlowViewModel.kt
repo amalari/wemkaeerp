@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.sampling
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.FlowPhase
 import com.eventverse.app.domain.process.PhaseTaggableStage
@@ -213,7 +217,7 @@ class ProcessFlowViewModel(
                         // Archetype asli templat, bukan CUSTOM_EXTENSION untuk semuanya:
                         // Laundry misalnya ber-archetype FINISHING, dan menyeragamkannya
                         // membuat proses itu tidak lagi sepadan dengan slot finishing.
-                        archetype = template?.archetype ?: ModuleArchetype.CUSTOM_EXTENSION,
+                        archetype = template?.archetype ?: GarmentSlots.CUSTOM_EXTENSION,
                         samplingAnchorAfter = event.anchorAfter,
                         executionMode = event.executionMode,
                         vendorRef = event.vendorRef,

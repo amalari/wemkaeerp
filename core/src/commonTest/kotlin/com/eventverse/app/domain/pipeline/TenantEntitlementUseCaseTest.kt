@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.usecases.GetTenantEntitlementUseCase
 import com.eventverse.app.domain.pipeline.usecases.GetTenantPipelineUseCase
 import com.eventverse.app.domain.pipeline.usecases.InstallCustomModuleUseCase
@@ -56,7 +58,7 @@ class TenantEntitlementUseCaseTest {
 
     private fun customPlugin() = DynamicModuleDescriptor(
         moduleId = "sablon_bordir_custom",
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         name = "Sablon Manual & Bordir Komputer",
         description = "Stasiun dekorasi kustom.",
         acceptedInputDataTypes = setOf("CutPiecesBundle"),

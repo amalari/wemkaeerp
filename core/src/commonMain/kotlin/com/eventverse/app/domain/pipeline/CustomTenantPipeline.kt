@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.TenantId
 
@@ -95,7 +97,7 @@ data class CustomTenantPipeline(
                     // forModuleCode, bukan forModule: ia total dan jatuh ke CUSTOM_EXTENSION.
                     // Node preset selalu operasional, jadi hasilnya identik — yang berubah hanya
                     // bahwa penambahan modul non-operasional tidak lagi memaksa perubahan di sini.
-                    archetype = ModuleArchetype.forModuleCode(node.module.code),
+                    archetype = GarmentSlots.forModuleCode(node.module.code),
                     isBypassed = node.isBypassed,
                     stepOrderIndex = node.stepNumber,
                     customFormulaParameters = emptyMap()

@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.stageflow
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.process.TenantProcessCatalog
@@ -31,7 +35,7 @@ class EditTenantStageFlowTest {
 
     private fun process(anchor: String) = TenantOptionalProcess(
         processId = "proc-applique", tenantId = tenant, code = "APPLIQUE", displayName = "Aplikasi Kain",
-        archetype = ModuleArchetype.CUSTOM_EXTENSION, samplingAnchorAfter = code(anchor)
+        archetype = GarmentSlots.CUSTOM_EXTENSION, samplingAnchorAfter = code(anchor)
     )
 
     // ── Aturan agregat ───────────────────────────────────────────────────────────────────────
@@ -40,7 +44,7 @@ class EditTenantStageFlowTest {
 
     @Test
     fun insertAfterEntryAnchor_shouldLandAfterLastEntryAnchor() {
-        val stage = StageDefinition(code("APPLIQUE"), "Aplikasi", StageKind.WORK, ModuleArchetype.CUSTOM_EXTENSION)
+        val stage = StageDefinition(code("APPLIQUE"), "Aplikasi", StageKind.WORK, GarmentSlots.CUSTOM_EXTENSION)
         val edited = flow.insertAfter(code("NEW_INTAKE"), stage)
 
         assertEquals(listOf("NEW_INTAKE", "FLOW_REVIEW", "APPLIQUE", "DIGITIZING"), codes(edited).take(4))
@@ -48,7 +52,7 @@ class EditTenantStageFlowTest {
 
     @Test
     fun editsOnAnchorsOrAfterExit_shouldBeRejected() {
-        val stage = StageDefinition(code("APPLIQUE"), "Aplikasi", StageKind.WORK, ModuleArchetype.CUSTOM_EXTENSION)
+        val stage = StageDefinition(code("APPLIQUE"), "Aplikasi", StageKind.WORK, GarmentSlots.CUSTOM_EXTENSION)
         assertFailsWith<IllegalArgumentException> { flow.insertAfter(code("STORAGE_HOLDING"), stage) }
         assertFailsWith<IllegalArgumentException> { flow.remove(code("FLOW_REVIEW")) }
         assertFailsWith<IllegalArgumentException> { flow.move(code("ACC_APPROVED"), code("HOOPING")) }
@@ -74,7 +78,7 @@ class EditTenantStageFlowTest {
     fun add_shouldProvisionThenInsertAsOptionalDeskWithInheritedUrgency() = runTest {
         val repo = FakeTenantStageFlowRepository()
         val added = AddStageUseCase(repo)(
-            AddStageCommand(tenant, code("APPLIQUE"), "Aplikasi Kain", "Aplikasi", ModuleArchetype.CUSTOM_EXTENSION,
+            AddStageCommand(tenant, code("APPLIQUE"), "Aplikasi Kain", "Aplikasi", GarmentSlots.CUSTOM_EXTENSION,
                 afterCode = code("MACHINE_EMBROIDERY"), fallbackTemplate = embroidery)
         ).getOrThrow()
 

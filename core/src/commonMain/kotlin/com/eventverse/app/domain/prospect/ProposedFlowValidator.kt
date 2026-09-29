@@ -1,5 +1,13 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
+
+import com.eventverse.app.domain.pipeline.displayName
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 
 /**
@@ -75,7 +83,7 @@ object ProposedFlowValidator {
      */
     private fun duplicateSlotWarnings(requirements: List<CapabilityRequirement>): List<String> =
         requirements
-            .filterNot { it.archetype == ModuleArchetype.CUSTOM_EXTENSION }
+            .filterNot { it.archetype == GarmentSlots.CUSTOM_EXTENSION }
             .groupBy { it.archetype }
             .filterValues { it.size > 1 }
             .map { (archetype, duplicates) ->
@@ -92,7 +100,7 @@ object ProposedFlowValidator {
      * day one.
      */
     private fun missingOrderIntakeWarning(requirements: List<CapabilityRequirement>): String? =
-        if (requirements.none { it.archetype == ModuleArchetype.ORDER_INGESTION }) {
+        if (requirements.none { it.archetype == GarmentSlots.ORDER_INGESTION }) {
             "Tidak ada tahap penerimaan pesanan di alur yang diusulkan. " +
                 "Narasi mungkin hanya menjelaskan lantai produksi."
         } else {

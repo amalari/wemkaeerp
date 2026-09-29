@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.operator
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
@@ -26,17 +30,17 @@ class OperatorNonKnitDeskTest {
     private fun stage(c: String, kind: StageKind, archetype: ModuleArchetype, short: String, vararg t: StageTrait) =
         StageDefinition(StageCode(c), c.lowercase(), kind, archetype, t.toSet(), shortLabel = short)
 
-    private val hooping = stage("HOOPING", StageKind.WORK, ModuleArchetype.CUTTING, "Hoop", StageTrait.OPERATOR_DESK)
-    private val embroidery = stage("MACHINE_EMBROIDERY", StageKind.WORK, ModuleArchetype.SEWING, "Bordir", StageTrait.OPERATOR_DESK)
-    private val trimming = stage("THREAD_TRIMMING", StageKind.WORK, ModuleArchetype.FINISHING, "Trim", StageTrait.OPERATOR_DESK)
-    private val qc = stage("BORDIR_QC", StageKind.WORK, ModuleArchetype.QUALITY_CONTROL, "QC", StageTrait.OPERATOR_DESK)
-    private val packing = stage("PACKING", StageKind.WORK, ModuleArchetype.FULFILLMENT, "Kemas", StageTrait.OPERATOR_DESK)
+    private val hooping = stage("HOOPING", StageKind.WORK, GarmentSlots.CUTTING, "Hoop", StageTrait.OPERATOR_DESK)
+    private val embroidery = stage("MACHINE_EMBROIDERY", StageKind.WORK, GarmentSlots.SEWING, "Bordir", StageTrait.OPERATOR_DESK)
+    private val trimming = stage("THREAD_TRIMMING", StageKind.WORK, GarmentSlots.FINISHING, "Trim", StageTrait.OPERATOR_DESK)
+    private val qc = stage("BORDIR_QC", StageKind.WORK, GarmentSlots.QUALITY_CONTROL, "QC", StageTrait.OPERATOR_DESK)
+    private val packing = stage("PACKING", StageKind.WORK, GarmentSlots.FULFILLMENT, "Kemas", StageTrait.OPERATOR_DESK)
     private val frame = listOf(
-        stage("NEW_INTAKE", StageKind.ENTRY_ANCHOR, ModuleArchetype.ORDER_INGESTION, "Draft"),
-        stage("DIGITIZING", StageKind.WORK, ModuleArchetype.PRODUCT_ENGINEERING, "Digit"),
+        stage("NEW_INTAKE", StageKind.ENTRY_ANCHOR, GarmentSlots.ORDER_INGESTION, "Draft"),
+        stage("DIGITIZING", StageKind.WORK, GarmentSlots.PRODUCT_ENGINEERING, "Digit"),
         hooping, embroidery, trimming, qc, packing,
-        stage("STORAGE_HOLDING", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, "Disimpan"),
-        stage("ACC_APPROVED", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT, "Selesai")
+        stage("STORAGE_HOLDING", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT, "Disimpan"),
+        stage("ACC_APPROVED", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT, "Selesai")
     )
     private val route = SamplingRoute(frame = frame.map { it.code })
 

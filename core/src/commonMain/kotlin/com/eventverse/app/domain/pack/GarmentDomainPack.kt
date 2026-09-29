@@ -1,6 +1,8 @@
 package com.eventverse.app.domain.pack
 
-import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.pack.GarmentSlots
+
+
 
 /**
  * Fase kanvas pack konveksi. Sejak B1 ini **sumber kebenaran** — enum `PipelineStage` sudah dihapus;
@@ -57,22 +59,16 @@ object GarmentPortTypes {
 
 /**
  * Pack konveksi. Fase ([GarmentPhases], B1) dan port ([GarmentPortTypes], B2) = data literal.
- * Slot masih diturunkan dari `ModuleArchetype` sampai B3.
+, slot ([GarmentSlots], B3) = data literal.
  */
 object GarmentDomainPack {
 
     val CODE = DomainPackCode("garment")
 
     val pack: DomainPack by lazy {
-        val slots = ModuleArchetype.entries.map { a ->
-            val phase = requireNotNull(GarmentPhases.phaseOfSlot[a.code]) { "Slot ${a.code} belum dipetakan ke fase garment" }
-            SlotDefinition(
-                code = SlotCode(a.code),
-                displayName = a.displayName,
-                phase = phase.code,
-                defaultInput = PortType(a.defaultExpectedInputType),
-                defaultOutput = PortType(a.defaultProducedOutputType)
-            )
+        val slots = GarmentSlots.meta.map { m ->
+            val phase = requireNotNull(GarmentPhases.phaseOfSlot[m.slot.value]) { "Slot ${m.slot.value} belum dipetakan ke fase garment" }
+            SlotDefinition(m.slot, m.displayName, phase.code, PortType(m.input), PortType(m.output))
         }
         val wired = GarmentPortTypes.wired
         DomainPack(

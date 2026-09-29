@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pipeline.code
+
 /**
  * Business modules for WeMade Garment ERP.
  * Designed with human-friendly terminology for factory owners & management.

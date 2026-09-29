@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.operator
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.SamplingOrder
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
@@ -61,9 +65,9 @@ fun StageDefinition.finishAction(
     fun next() = route.nextAfter(code)?.let { c -> frame.firstOrNull { it.code == c } }
     return when {
         code == KNITTING -> route.nextAfter(code)?.let(DeskFinishAction::Worksheet)
-        code == frame.firstWorkWith(ModuleArchetype.SEWING)?.code -> DeskFinishAction.Deposit
-        code == frame.firstWorkWith(ModuleArchetype.QUALITY_CONTROL)?.code -> DeskFinishAction.QcInspection
-        code == frame.firstWorkWith(ModuleArchetype.FULFILLMENT)?.code -> DeskFinishAction.Store
+        code == frame.firstWorkWith(GarmentSlots.SEWING)?.code -> DeskFinishAction.Deposit
+        code == frame.firstWorkWith(GarmentSlots.QUALITY_CONTROL)?.code -> DeskFinishAction.QcInspection
+        code == frame.firstWorkWith(GarmentSlots.FULFILLMENT)?.code -> DeskFinishAction.Store
         has(StageTrait.OPERATOR_DESK) -> next()?.let(DeskFinishAction::Handoff)
         else -> null
     }

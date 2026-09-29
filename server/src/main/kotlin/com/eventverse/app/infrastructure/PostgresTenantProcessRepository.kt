@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.process.TenantProcessCatalog
@@ -63,7 +65,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
                         it[tenantId] = process.tenantId.value
                         it[processCode] = process.code
                         it[displayName] = process.displayName
-                        it[archetype] = process.archetype.name
+                        it[archetype] = process.archetype.let(GarmentSlots::legacyNameOf)
                         it[samplingAnchorAfter] = process.samplingAnchorAfter?.value
                         it[stationAnchorAfter] = process.stationAnchorAfter?.value
                         it[executionMode] = process.executionMode.name
@@ -76,7 +78,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
                 } else {
                     TenantOptionalProcessesTable.update({ TenantOptionalProcessesTable.id eq process.processId }) {
                         it[displayName] = process.displayName
-                        it[archetype] = process.archetype.name
+                        it[archetype] = process.archetype.let(GarmentSlots::legacyNameOf)
                         it[samplingAnchorAfter] = process.samplingAnchorAfter?.value
                         it[stationAnchorAfter] = process.stationAnchorAfter?.value
                         it[executionMode] = process.executionMode.name
@@ -111,7 +113,7 @@ class PostgresTenantProcessRepository : TenantProcessCatalogRepository {
             tenantId = TenantId(row[TenantOptionalProcessesTable.tenantId]),
             code = row[TenantOptionalProcessesTable.processCode],
             displayName = row[TenantOptionalProcessesTable.displayName],
-            archetype = ModuleArchetype.valueOf(row[TenantOptionalProcessesTable.archetype]),
+            archetype = GarmentSlots.fromLegacyName(row[TenantOptionalProcessesTable.archetype]),
             samplingAnchorAfter = row[TenantOptionalProcessesTable.samplingAnchorAfter]
                 ?.let { parseLegacyStageCodeOrNull(it) },
             stationAnchorAfter = row[TenantOptionalProcessesTable.stationAnchorAfter]

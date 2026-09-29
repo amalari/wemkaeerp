@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.transfer
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
@@ -44,7 +46,7 @@ class FlowNodeRefStageCodeTest {
             tenantId = TenantId("ten-x"),
             code = "SABLON",
             displayName = "Sablon",
-            archetype = ModuleArchetype.CUSTOM_EXTENSION,
+            archetype = GarmentSlots.CUSTOM_EXTENSION,
             samplingAnchorAfter = SamplingPipelineStage.CAM_PROGRAMMING.toStageCode()
         )
         val stages = listOf("CAM_PROGRAMMING", "DIGITIZING", "MACHINE_EMBROIDERY").map(::StageCode)

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.transfer
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantOptionalProcess
 import com.eventverse.app.domain.sampling.SamplingPipelineStage
@@ -65,7 +67,7 @@ class FlowLegDerivationTest {
         tenantId = tenant,
         code = code,
         displayName = code,
-        archetype = ModuleArchetype.CUSTOM_EXTENSION,
+        archetype = GarmentSlots.CUSTOM_EXTENSION,
         samplingAnchorAfter = anchor?.toStageCode(),
         executionMode = mode,
         vendorRef = vendor

@@ -1,5 +1,7 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.auth.Permission
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.pipeline.ModuleArchetype
@@ -108,7 +110,7 @@ fun Route.tenantStageFlowRoutes(
                     code = requireNotNull(StageCode.parseOrNull(body.string("code"))) { "Kode tahap wajib huruf besar/angka/_ (2–48)" },
                     displayName = requireNotNull(body.string("displayName")?.takeIf { it.isNotBlank() }) { "Nama tahap wajib diisi" },
                     shortLabel = body.string("shortLabel").orEmpty(),
-                    archetype = ModuleArchetype.fromCode(body.string("archetype")) ?: ModuleArchetype.CUSTOM_EXTENSION,
+                    archetype = GarmentSlots.fromCode(body.string("archetype")) ?: GarmentSlots.CUSTOM_EXTENSION,
                     afterCode = requireNotNull(StageCode.parseOrNull(body.string("afterCode"))) { "afterCode wajib diisi" },
                     isOperatorDesk = body.boolean("isOperatorDesk") ?: true,
                     fallbackTemplate = tenant.industryTemplate

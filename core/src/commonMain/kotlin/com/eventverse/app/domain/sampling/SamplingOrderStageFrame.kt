@@ -1,5 +1,11 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pipeline.displayName
+
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.stageflow.StageCode
 import com.eventverse.app.domain.stageflow.StageDefinition
@@ -51,13 +57,13 @@ fun SamplingOrder.freezeStageFlow(tenantFlow: TenantStageFlow): SamplingOrder =
 // dijaga `SamplingOrderStageCodeTest`. Kerangka tanpa peran itu gagal keras, bukan menebak.
 
 /** Meja perakitan — tempat vendor makloon mengembalikan barang dan setoran finishing dihitung. */
-internal val SamplingOrder.assemblyStage: StageCode get() = requireRole(ModuleArchetype.SEWING)
+internal val SamplingOrder.assemblyStage: StageCode get() = requireRole(GarmentSlots.SEWING)
 
 /** Meja pemeriksaan akhir yang boleh meloloskan SPK ke pengemasan. */
-internal val SamplingOrder.finalQcStage: StageCode get() = requireRole(ModuleArchetype.QUALITY_CONTROL)
+internal val SamplingOrder.finalQcStage: StageCode get() = requireRole(GarmentSlots.QUALITY_CONTROL)
 
 /** Meja pengemasan — tujuan SPK yang lolos QC akhir. */
-internal val SamplingOrder.packingStage: StageCode get() = requireRole(ModuleArchetype.FULFILLMENT)
+internal val SamplingOrder.packingStage: StageCode get() = requireRole(GarmentSlots.FULFILLMENT)
 
 private fun SamplingOrder.requireRole(archetype: ModuleArchetype): StageCode =
     checkNotNull(firstStageWith(archetype)?.code) {

@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.pipeline.components
 
+import com.eventverse.app.domain.pipeline.displayName
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

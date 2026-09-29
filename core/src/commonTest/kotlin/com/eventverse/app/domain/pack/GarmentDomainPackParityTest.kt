@@ -1,7 +1,19 @@
 package com.eventverse.app.domain.pack
 
-import com.eventverse.app.domain.pipeline.ModuleArchetype
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
+
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pipeline.displayName
+
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
+import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.pipeline.canvasPhase
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -27,16 +39,16 @@ class GarmentDomainPackParityTest {
     )
 
     private val LEGACY_DEFAULT_STAGE = mapOf(
-        ModuleArchetype.ORDER_INGESTION to "COMMERCIAL",
-        ModuleArchetype.PRODUCT_ENGINEERING to "ENGINEERING",
-        ModuleArchetype.COSTING_HPP to "ENGINEERING",
-        ModuleArchetype.RAW_MATERIAL to "SUPPLY_CHAIN",
-        ModuleArchetype.CUTTING to "MANUFACTURING",
-        ModuleArchetype.SEWING to "MANUFACTURING",
-        ModuleArchetype.FINISHING to "MANUFACTURING",
-        ModuleArchetype.CUSTOM_EXTENSION to "MANUFACTURING",
-        ModuleArchetype.QUALITY_CONTROL to "ASSURANCE_DELIVERY",
-        ModuleArchetype.FULFILLMENT to "ASSURANCE_DELIVERY"
+        GarmentSlots.ORDER_INGESTION to "COMMERCIAL",
+        GarmentSlots.PRODUCT_ENGINEERING to "ENGINEERING",
+        GarmentSlots.COSTING_HPP to "ENGINEERING",
+        GarmentSlots.RAW_MATERIAL to "SUPPLY_CHAIN",
+        GarmentSlots.CUTTING to "MANUFACTURING",
+        GarmentSlots.SEWING to "MANUFACTURING",
+        GarmentSlots.FINISHING to "MANUFACTURING",
+        GarmentSlots.CUSTOM_EXTENSION to "MANUFACTURING",
+        GarmentSlots.QUALITY_CONTROL to "ASSURANCE_DELIVERY",
+        GarmentSlots.FULFILLMENT to "ASSURANCE_DELIVERY"
     )
 
     @Test
@@ -49,22 +61,47 @@ class GarmentDomainPackParityTest {
 
     @Test
     fun everyArchetype_isDrawnInItsLegacyStage() {
-        // Iterasi enum ModuleArchetype: slot baru tanpa fase = merah.
-        assertEquals(ModuleArchetype.entries.toSet(), LEGACY_DEFAULT_STAGE.keys, "archetype baru: tentukan fasenya di GarmentPhases & tabel ini")
-        ModuleArchetype.entries.forEach { a ->
+        // Iterasi GarmentSlots.all: slot baru tanpa fase = merah.
+        assertEquals(GarmentSlots.all.toSet(), LEGACY_DEFAULT_STAGE.keys, "archetype baru: tentukan fasenya di GarmentPhases & tabel ini")
+        GarmentSlots.all.forEach { a ->
             assertEquals(LEGACY_DEFAULT_STAGE.getValue(a), a.canvasPhase.code.value, "fase kanvas ${a.code}")
         }
     }
 
+    private data class LegacySlot(val code: String, val displayName: String, val input: String, val output: String, val representative: BusinessModule)
+
+    /** Salinan persis `enum class ModuleArchetype` terakhir (commit 171038e), urutan deklarasi dipertahankan. */
+    private val LEGACY_ARCHETYPES = listOf(
+        LegacySlot("order_ingestion", "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", BusinessModule.CRM_SALES),
+        LegacySlot("raw_material", "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", BusinessModule.INVENTORY),
+        LegacySlot("product_engineering", "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", BusinessModule.TECH_PACK_BOM),
+        LegacySlot("costing_hpp", "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", BusinessModule.COSTING_HPP),
+        LegacySlot("cutting", "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", BusinessModule.PRODUCTION_MRP),
+        LegacySlot("sewing", "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", BusinessModule.OPERATOR_EXEC),
+        LegacySlot("finishing", "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", BusinessModule.OPERATOR_EXEC),
+        LegacySlot("quality_control", "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", BusinessModule.QUALITY_CONTROL),
+        LegacySlot("fulfillment", "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", BusinessModule.FULFILLMENT),
+        LegacySlot("custom_extension", "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", BusinessModule.PRODUCTION_MRP)
+    )
+
     @Test
-    fun everyModuleArchetype_hasIdenticalSlot() {
-        assertEquals(ModuleArchetype.entries.size, pack.slots.size)
-        ModuleArchetype.entries.forEach { a ->
-            val slot = assertNotNull(pack.slot(SlotCode(a.code)), "Slot ${a.code} tidak ada di pack")
-            assertEquals(a.displayName, slot.displayName)
-            assertEquals(a.defaultExpectedInputType, slot.defaultInput.value)
-            assertEquals(a.defaultProducedOutputType, slot.defaultOutput.value)
-        }
+    fun slots_equalLegacyArchetypeEnumExactly_inDeclarationOrder() {
+        assertEquals(LEGACY_ARCHETYPES.map { it.code }, GarmentSlots.all.map { it.value })
+        assertEquals(
+            LEGACY_ARCHETYPES,
+            GarmentSlots.all.map { s ->
+                val def = assertNotNull(pack.slot(s))
+                LegacySlot(s.value, def.displayName, def.defaultInput.value, def.defaultOutput.value, GarmentSlots.representativeModule(s))
+            }
+        )
+    }
+
+    @Test
+    fun legacyCodeLookup_isCaseInsensitive_andLegacyNameRoundTrips() {
+        assertEquals(GarmentSlots.SEWING, GarmentSlots.fromCode("SEWING"))
+        assertEquals(null, GarmentSlots.fromCode("bordir"))
+        GarmentSlots.all.forEach { assertEquals(it, GarmentSlots.fromLegacyName(GarmentSlots.legacyNameOf(it))) }
+        assertEquals("QUALITY_CONTROL", GarmentSlots.legacyNameOf(GarmentSlots.QUALITY_CONTROL))
     }
 
     /** Salinan persis `PortDataTypeRegistry.KNOWN_TYPED_LABELS` terakhir (commit 1982a3b). */
@@ -77,7 +114,7 @@ class GarmentDomainPackParityTest {
     @Test
     fun wiredPortTypes_equalLegacyRegistry_andVocabularyAddsOnlyArchetypeDefaults() {
         assertEquals(LEGACY_WIRED_PORTS, pack.wiredPortTypes.map { it.value }.toSet())
-        val defaults = ModuleArchetype.entries.flatMap { listOf(it.defaultExpectedInputType, it.defaultProducedOutputType) }
+        val defaults = GarmentSlots.all.flatMap { listOf(it.defaultExpectedInputType, it.defaultProducedOutputType) }
         assertEquals(LEGACY_WIRED_PORTS + defaults, pack.portTypes.map { it.value }.toSet())
     }
 

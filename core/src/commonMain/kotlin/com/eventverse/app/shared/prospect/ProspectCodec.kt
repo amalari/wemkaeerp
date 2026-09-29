@@ -1,5 +1,9 @@
 package com.eventverse.app.shared.prospect
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.prospect.CapabilityRequirement
@@ -73,8 +77,8 @@ object ProspectCodec {
                     // An unrecognised code falls back to the wildcard rather than dropping the
                     // requirement — the same rule the translator applies, so a stored row and a
                     // fresh translation behave identically.
-                    archetype = ModuleArchetype.fromCode(obj.string("archetypeCode"))
-                        ?: ModuleArchetype.CUSTOM_EXTENSION,
+                    archetype = GarmentSlots.fromCode(obj.string("archetypeCode"))
+                        ?: GarmentSlots.CUSTOM_EXTENSION,
                     title = title,
                     description = obj.string("description").orEmpty(),
                     sourceQuote = obj.string("sourceQuote").orEmpty(),

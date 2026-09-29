@@ -1,5 +1,7 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildType
 import com.eventverse.app.domain.moduledev.EffortSource
 import com.eventverse.app.domain.moduledev.ModuleBuildId
@@ -119,7 +121,7 @@ class ModuleDevApiTest {
                                 nodeId = "node-$moduleId",
                                 moduleId = moduleId,
                                 customDisplayName = moduleId,
-                                archetype = ModuleArchetype.forModuleCode(moduleId),
+                                archetype = GarmentSlots.forModuleCode(moduleId),
                                 isBypassed = bypassed,
                                 stepOrderIndex = index
                             )

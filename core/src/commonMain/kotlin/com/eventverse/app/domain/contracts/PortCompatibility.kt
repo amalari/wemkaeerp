@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
+
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
 import com.eventverse.app.domain.pack.DomainPackRegistry
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline

@@ -55,7 +55,7 @@ object DatabaseFactory {
                     "DB_PORT",
                     "5432"
                 )
-            }/${getEnvOrDefault("DB_NAME", "wemade_erp")}"
+            }/${getEnvOrDefault("DB_NAME", "wemake_erp")}"
         ),
         user: String = getEnvOrDefault("DB_USER", "postgres"),
         password: String = getEnvOrDefault("DB_PASSWORD", "postgres"),
@@ -100,9 +100,9 @@ object DatabaseFactory {
         if (appUser.isNullOrBlank() || appPassword.isNullOrBlank()) {
             println(
                 "[DatabaseFactory] DB_APP_USER is not set; tenant-scoped queries will run as the " +
-                    "owner role. PostgreSQL bypasses Row-Level Security for superusers, so tenant " +
-                    "isolation currently depends on application code alone. Set DB_APP_USER / " +
-                    "DB_APP_PASSWORD to wemade_app (created in V16) to enforce it in the database."
+                        "owner role. PostgreSQL bypasses Row-Level Security for superusers, so tenant " +
+                        "isolation currently depends on application code alone. Set DB_APP_USER / " +
+                        "DB_APP_PASSWORD to wemade_app (created in V16) to enforce it in the database."
             )
             return
         }

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prospect
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.moduledev.BuildType
 import com.eventverse.app.domain.moduledev.EffortSource
@@ -104,7 +106,7 @@ class ProspectUseCaseTest {
         )(FlowTranslationId("tr-1"), lead(), now).getOrThrow()
 
         assertEquals(
-            listOf(ModuleArchetype.ORDER_INGESTION, ModuleArchetype.SEWING, ModuleArchetype.QUALITY_CONTROL),
+            listOf(GarmentSlots.ORDER_INGESTION, GarmentSlots.SEWING, GarmentSlots.QUALITY_CONTROL),
             translation.requirements.map { it.archetype }
         )
     }
@@ -144,7 +146,7 @@ class ProspectUseCaseTest {
         )(FlowTranslationId("tr-4"), lead(), now).getOrThrow()
 
         val laundry = translation.requirements.single { it.title == "Cuci kimia" }
-        assertEquals(ModuleArchetype.CUSTOM_EXTENSION, laundry.archetype)
+        assertEquals(GarmentSlots.CUSTOM_EXTENSION, laundry.archetype)
         assertTrue(translation.validationWarnings.any { it.contains("laundry_kimia") })
     }
 
@@ -241,7 +243,7 @@ class ProspectUseCaseTest {
             listOf(sewingEntry)
         )
         assertTrue(analysis.covered.any { it.entry.moduleId == "operator_exec" })
-        assertTrue(analysis.gaps.any { it.requirement.archetype == ModuleArchetype.ORDER_INGESTION })
+        assertTrue(analysis.gaps.any { it.requirement.archetype == GarmentSlots.ORDER_INGESTION })
     }
 
     @Test
@@ -261,7 +263,7 @@ class ProspectUseCaseTest {
             listOf(raw("order_ingestion", "SPK"), raw("sewing", "Jahit")),
             listOf(sewingEntry.copy(lifecycleStatus = ModuleLifecycleStatus.IN_DEVELOPMENT))
         )
-        assertTrue(analysis.gaps.any { it.requirement.archetype == ModuleArchetype.SEWING })
+        assertTrue(analysis.gaps.any { it.requirement.archetype == GarmentSlots.SEWING })
     }
 
     // ---- Pricing -------------------------------------------------------------

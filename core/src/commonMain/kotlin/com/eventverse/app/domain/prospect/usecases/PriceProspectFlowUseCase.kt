@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prospect.usecases
 
+import com.eventverse.app.domain.pipeline.code
+
 import com.eventverse.app.domain.moduledev.AmortizedBuildCostFormula
 import com.eventverse.app.domain.moduledev.BuildEstimator
 import com.eventverse.app.domain.moduledev.EmbeddingProvider

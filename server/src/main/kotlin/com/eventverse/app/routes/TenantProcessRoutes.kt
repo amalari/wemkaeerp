@@ -1,5 +1,7 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.TenantProcessCatalogRepository
 import com.eventverse.app.domain.sampling.parseLegacyStageCodeOrNull
@@ -72,8 +74,8 @@ fun Route.tenantProcessRoutes(repository: TenantProcessCatalogRepository) {
                 code = body.string("code")?.trim()?.uppercase() ?: "",
                 displayName = body.string("displayName") ?: "",
                 archetype = body.string("archetype")
-                    ?.let { runCatching { ModuleArchetype.valueOf(it) }.getOrNull() }
-                    ?: ModuleArchetype.CUSTOM_EXTENSION,
+                    ?.let { runCatching { GarmentSlots.fromLegacyName(it) }.getOrNull() }
+                    ?: GarmentSlots.CUSTOM_EXTENSION,
                 samplingAnchorAfter = body.string("samplingAnchorAfter")
                     ?.let { parseLegacyStageCodeOrNull(it) },
                 stationAnchorAfter = body.string("stationAnchorAfter")

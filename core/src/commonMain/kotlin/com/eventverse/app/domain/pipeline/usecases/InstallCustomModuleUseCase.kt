@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
 import com.eventverse.app.domain.pipeline.CustomPipelineEdge
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor

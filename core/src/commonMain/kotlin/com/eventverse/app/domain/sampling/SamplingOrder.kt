@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.process.StagePhaseTags
 import com.eventverse.app.domain.process.TenantOptionalProcess
@@ -284,7 +288,7 @@ data class SamplingOrder(
         // disetrika padahal tidak ada satu pun catatan yang mengatakan begitu — kesalahan yang
         // sama persis dengan memetakan baris lama ke QC saat migrasi. Dua tahap di antaranya
         // dimajukan oleh orang yang benar-benar mengerjakannya, lewat tombol di meja finishing.
-        val newStage = if (newFinishedQty >= sampleQuantity && stageCode == firstStageWith(ModuleArchetype.SEWING)?.code) {
+        val newStage = if (newFinishedQty >= sampleQuantity && stageCode == firstStageWith(GarmentSlots.SEWING)?.code) {
             afterAssembly
         } else {
             stageCode

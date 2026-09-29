@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.workqueue
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +14,7 @@ class WorkStationCatalogInsertAfterTest {
     private val bordir = WorkStationSpec(
         code = WorkStationCode("BORDIR"),
         displayName = "Bordir Komputer",
-        archetype = ModuleArchetype.CUSTOM_EXTENSION,
+        archetype = GarmentSlots.CUSTOM_EXTENSION,
         inputTrackingUnit = WorkTrackingUnit.BUNDLE,
         outputTrackingUnit = WorkTrackingUnit.BUNDLE,
         piecerateTariffIdr = 1500L,
@@ -62,7 +66,7 @@ class WorkStationCatalogInsertAfterTest {
         val custom = WorkStationSpec(
             code = WorkStationCode("CUSTOM_EXTRA"),
             displayName = "Proses Ekstra Tanpa Jangkar",
-            archetype = ModuleArchetype.CUSTOM_EXTENSION,
+            archetype = GarmentSlots.CUSTOM_EXTENSION,
             inputTrackingUnit = WorkTrackingUnit.BUNDLE,
             outputTrackingUnit = WorkTrackingUnit.BUNDLE
         )
@@ -87,7 +91,7 @@ class WorkStationCatalogInsertAfterTest {
         val sablon = WorkStationSpec(
             code = WorkStationCode("SABLON"),
             displayName = "Sablon / Print",
-            archetype = ModuleArchetype.CUSTOM_EXTENSION,
+            archetype = GarmentSlots.CUSTOM_EXTENSION,
             inputTrackingUnit = WorkTrackingUnit.BUNDLE,
             outputTrackingUnit = WorkTrackingUnit.BUNDLE,
             insertAfterCode = WorkStationCode("BORDIR")

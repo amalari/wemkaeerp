@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.stageflow
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.sampling.ExitStages
 import com.eventverse.app.domain.sampling.FinishingDeposit
@@ -45,8 +49,8 @@ class IndustryTemplateWalkTest {
             val codes = stages.map { it.code.value }
             assertEquals(listOf("NEW_INTAKE", "FLOW_REVIEW"), codes.take(2), "$template masuk")
             assertEquals(listOf("STORAGE_HOLDING", "IN_DELIVERY", "ACC_APPROVED"), codes.takeLast(3), "$template keluar")
-            assertNotNull(stages.firstWorkWith(ModuleArchetype.QUALITY_CONTROL), "$template QC")
-            assertNotNull(stages.firstWorkWith(ModuleArchetype.FULFILLMENT), "$template kemas")
+            assertNotNull(stages.firstWorkWith(GarmentSlots.QUALITY_CONTROL), "$template QC")
+            assertNotNull(stages.firstWorkWith(GarmentSlots.FULFILLMENT), "$template kemas")
             assertTrue(stages.any { it.has(StageTrait.OPERATOR_DESK) }, "$template meja")
             val factors = stages.map { it.remainingWorkFactor }
             assertEquals(factors.sortedDescending(), factors, "$template sisa kerja harus menurun")
@@ -60,7 +64,7 @@ class IndustryTemplateWalkTest {
         (IndustryTemplateCode.entries - IndustryTemplateCode.KNIT_SWEATER).forEach { template ->
             var order = orderOn(template)
             // Maju tahap demi tahap lewat rute, sampai meja pemeriksaan akhir.
-            val qc = order.firstWorkWithRole(ModuleArchetype.QUALITY_CONTROL)
+            val qc = order.firstWorkWithRole(GarmentSlots.QUALITY_CONTROL)
             while (order.stageCode != qc) {
                 val next = assertNotNull(order.samplingRoute.nextAfter(order.stageCode), "$template buntu di ${order.stageCode}")
                 order = order.advancePipelineStage(next, now)
@@ -72,7 +76,7 @@ class IndustryTemplateWalkTest {
             order.addFinishingDeposit(FinishingDeposit(depositDate = LocalDate(2026, 9, 29), qtyPcs = 2, operatorName = "Operator"), now)
 
             val passed = order.completeQcInspection(QcInspectionReport(inspectorName = "QC", inspectedAt = now), now)
-            assertEquals(order.firstWorkWithRole(ModuleArchetype.FULFILLMENT), passed.stageCode, "$template QC lolos → kemas")
+            assertEquals(order.firstWorkWithRole(GarmentSlots.FULFILLMENT), passed.stageCode, "$template QC lolos → kemas")
             assertTrue(passed.rdProgress(emptyList()).isNotEmpty(), "$template jejak R&D")
             assertNotEquals(ExitStages.STORAGE, passed.stageCode)
         }

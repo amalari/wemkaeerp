@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.prospect.usecases
 
+import com.eventverse.app.domain.pipeline.code
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.moduledev.BuildFeatureVector
 import com.eventverse.app.domain.moduledev.ModuleCatalogEntry
 import com.eventverse.app.domain.moduledev.ModuleCatalogRepository
@@ -56,7 +60,7 @@ class AnalyzeCoverageUseCase(
         requirement: CapabilityRequirement,
         billable: List<ModuleCatalogEntry>
     ): ModuleCatalogEntry? = when (requirement.archetype) {
-        ModuleArchetype.CUSTOM_EXTENSION -> null
+        GarmentSlots.CUSTOM_EXTENSION -> null
         else -> billable.firstOrNull { it.archetypeCode == requirement.archetype.code }
     }
 

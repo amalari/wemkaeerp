@@ -1,5 +1,11 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pipeline.defaultProducedOutputType
+
+import com.eventverse.app.domain.pipeline.defaultExpectedInputType
+
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.GarmentBusinessPreset
 import com.eventverse.app.domain.pipeline.ModuleArchetype
@@ -212,8 +218,8 @@ fun Route.pipelineRoutes(
                 return@post
             }
 
-            val archetype = ModuleArchetype.fromCode(request.archetypeCode)
-                ?: ModuleArchetype.CUSTOM_EXTENSION
+            val archetype = GarmentSlots.fromCode(request.archetypeCode)
+                ?: GarmentSlots.CUSTOM_EXTENSION
 
             val descriptor = runCatching {
                 DynamicModuleDescriptor(

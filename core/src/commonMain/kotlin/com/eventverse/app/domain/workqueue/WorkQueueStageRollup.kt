@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.workqueue
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.production.ProductionStage
 
@@ -19,7 +21,7 @@ object WorkQueueStageRollup {
         if (spec != null) {
             return when {
                 spec.code == WorkStationCatalog.CUTTING.code -> ProductionStage.CUTTING
-                spec.archetype == ModuleArchetype.SEWING -> ProductionStage.SEWING
+                spec.archetype == GarmentSlots.SEWING -> ProductionStage.SEWING
                 else -> ProductionStage.FINISHING
             }
         }

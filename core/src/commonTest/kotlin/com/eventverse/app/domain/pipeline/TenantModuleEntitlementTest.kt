@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.TenantId
@@ -18,7 +20,7 @@ class TenantModuleEntitlementTest {
 
     private fun customPlugin(moduleId: String = "sablon_bordir_custom") = DynamicModuleDescriptor(
         moduleId = moduleId,
-        archetype = ModuleArchetype.FINISHING,
+        archetype = GarmentSlots.FINISHING,
         name = "Sablon & Bordir",
         description = "Stasiun dekorasi kustom.",
         acceptedInputDataTypes = setOf("CutPiecesBundle"),
@@ -133,7 +135,7 @@ class TenantModuleEntitlementTest {
             nodeId = "node-ghost",
             moduleId = "module_that_does_not_exist",
             customDisplayName = "Modul Hantu",
-            archetype = ModuleArchetype.CUSTOM_EXTENSION,
+            archetype = GarmentSlots.CUSTOM_EXTENSION,
             isCustomPlugin = false
         )
 

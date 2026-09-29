@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.sampling
 
+import com.eventverse.app.domain.pack.GarmentSlots
+
 import com.eventverse.app.domain.pipeline.DefectLiability
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
@@ -33,17 +35,17 @@ class NonKnitStageFlowWalkTest {
     private val embroidery = TenantStageFlow(
         tenant, IndustryTemplateCode.KNIT_SWEATER,
         listOf(
-            stage("NEW_INTAKE", StageKind.ENTRY_ANCHOR, ModuleArchetype.ORDER_INGESTION),
-            stage("FLOW_REVIEW", StageKind.ENTRY_ANCHOR, ModuleArchetype.PRODUCT_ENGINEERING),
-            stage("DIGITIZING", StageKind.WORK, ModuleArchetype.PRODUCT_ENGINEERING),
-            stage("HOOPING", StageKind.WORK, ModuleArchetype.CUTTING, StageTrait.OPERATOR_DESK),
-            stage("MACHINE_EMBROIDERY", StageKind.WORK, ModuleArchetype.SEWING, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
-            stage("THREAD_TRIMMING", StageKind.WORK, ModuleArchetype.FINISHING, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
-            stage("BORDIR_QC", StageKind.WORK, ModuleArchetype.QUALITY_CONTROL, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
-            stage("PACKING", StageKind.WORK, ModuleArchetype.FULFILLMENT, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
-            stage("STORAGE_HOLDING", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT),
-            stage("IN_DELIVERY", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT),
-            stage("ACC_APPROVED", StageKind.EXIT_ANCHOR, ModuleArchetype.FULFILLMENT)
+            stage("NEW_INTAKE", StageKind.ENTRY_ANCHOR, GarmentSlots.ORDER_INGESTION),
+            stage("FLOW_REVIEW", StageKind.ENTRY_ANCHOR, GarmentSlots.PRODUCT_ENGINEERING),
+            stage("DIGITIZING", StageKind.WORK, GarmentSlots.PRODUCT_ENGINEERING),
+            stage("HOOPING", StageKind.WORK, GarmentSlots.CUTTING, StageTrait.OPERATOR_DESK),
+            stage("MACHINE_EMBROIDERY", StageKind.WORK, GarmentSlots.SEWING, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
+            stage("THREAD_TRIMMING", StageKind.WORK, GarmentSlots.FINISHING, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
+            stage("BORDIR_QC", StageKind.WORK, GarmentSlots.QUALITY_CONTROL, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
+            stage("PACKING", StageKind.WORK, GarmentSlots.FULFILLMENT, StageTrait.OPERATOR_DESK, StageTrait.FINISHING_FLOOR),
+            stage("STORAGE_HOLDING", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT),
+            stage("IN_DELIVERY", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT),
+            stage("ACC_APPROVED", StageKind.EXIT_ANCHOR, GarmentSlots.FULFILLMENT)
         )
     )
 
