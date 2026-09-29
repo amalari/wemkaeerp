@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -77,6 +76,19 @@ class GarmentModulesParityTest {
     @Test
     fun sections_equalLegacyModuleCategory_inOrder() {
         assertEquals(LEGACY_SECTIONS, pack.sections.map { "${it.code.value}|${it.displayName}|${it.order}" })
+    }
+
+    /** Aksen & latar seksi = token yang dulu dipetakan `when (ModuleCategory)` di ModuleCardView/dialog entitlement. */
+    private val LEGACY_SECTION_COLORS = listOf(
+        "GOVERNANCE|FF7C3AED|FFF5F3FF", "FOUNDATION|FF0D9488|FFF0FDFA", "SALES|FF2563EB|FFEFF6FF", "LOGISTICS|FFD97706|FFFFFBEB",
+        "TECHNICAL|FF0284C7|FFF0FDFA", "PRODUCTION|FFEA580C|FFFFF7ED", "QUALITY|FF16A34A|FFF0FDF4", "FINANCE|FF16A34A|FFF0FDF4"
+    )
+
+    @Test
+    fun sectionColors_equalLegacyTokenMapping() {
+        assertEquals(LEGACY_SECTION_COLORS, pack.sections.map {
+            "${it.code.value}|${it.colorHex.toString(16).uppercase()}|${it.tintHex.toString(16).uppercase()}"
+        })
     }
 
     @Test

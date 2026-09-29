@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -76,7 +75,9 @@ import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.navigation.AppTopBar
 import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
+import com.eventverse.app.presentation.navigation.AuthGuardCard
 import com.eventverse.app.presentation.navigation.GenericModuleRoute
+import com.eventverse.app.presentation.navigation.moduleFromGenericPath
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
 import com.eventverse.app.presentation.navigation.ProfileDropdown
@@ -261,6 +262,7 @@ fun App() {
             Column(modifier = Modifier.fillMaxSize()) {
                 AppTopBar(
                     currentScreen = currentScreen,
+                    title = if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
                     onOpenDrawer = { drawerOpen = true },
                     isAuthenticated = isAuthenticated,
                     session = session,
@@ -520,78 +522,3 @@ fun App() {
     }
 }
 }
-
-/**
- * Visual barrier presented by the Auth Guard whenever an unauthenticated
- * user tries to access protected factory ERP modules.
- */
-@Composable
-private fun AuthGuardCard(
-    targetModuleName: String,
-    onLoginClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(WeMadeColors.Background),
-        contentAlignment = Alignment.Center
-    ) {
-        // Dicicil dari daftar utang §8 sekalian menyentuh file ini: Card/Button Material mentah
-        // dan dua literal amber diganti katalog clay + turunan token.
-        ClayCard(
-            modifier = Modifier
-                .widthIn(max = 480.dp)
-                .fillMaxWidth()
-                .padding(ClaySpacing.Xxl),
-            contentPadding = PaddingValues(ClaySpacing.Xxl)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(WeMadeColors.Warning.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconLock(modifier = Modifier.size(32.dp), color = WeMadeColors.Warning)
-                }
-
-                Spacer(modifier = Modifier.height(ClaySpacing.Xl))
-
-                Text(
-                    text = "Akses Terbatas: Autentikasi Diperlukan",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(ClaySpacing.Md))
-
-                Text(
-                    text = "Modul \"$targetModuleName\" dilindungi oleh sistem keamanan multi-tenant pabrik. Silakan masuk menggunakan akun perusahaan Anda untuk melanjutkan.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(ClaySpacing.Xxl))
-
-                ClayButton(
-                    // Tanpa panah "→": Fredoka/Nunito yang dibundel tidak punya glyph U+2192,
-                    // jadi ia ter-render sebagai kotak tofu begitu tombolnya memakai font clay.
-                    text = "Masuk ke Akun Sekarang",
-                    onClick = onLoginClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = ClayButtonStyle.Primary,
-                    contentPadding = PaddingValues(horizontal = ClaySpacing.Xl, vertical = ClaySpacing.Lg)
-                )
-            }
-        }
-    }
-}
-

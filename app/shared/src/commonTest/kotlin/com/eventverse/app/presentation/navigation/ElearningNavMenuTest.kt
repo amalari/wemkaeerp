@@ -36,7 +36,7 @@ class ElearningNavMenuTest {
         phases = listOf(PhaseDefinition(PhaseCode("ASSESSMENT"), 1, "Penilaian", "", 0xFF16A34A)),
         slots = listOf(SlotDefinition(SlotCode("grading"), "Penilaian", PhaseCode("ASSESSMENT"), PortType("Submission"), PortType("GradedResult"))),
         portTypes = ports, wiredPortTypes = ports,
-        sections = listOf(ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1)),
+        sections = listOf(ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1, 0xFF2563EB, 0xFFEFF6FF)),
         modules = listOf(
             ModuleDefinition(enrollment, "Pendaftaran Peserta", "", ModuleSectionCode("LEARNING"), ModuleKind.FOUNDATION,
                 "clipboard", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), null),

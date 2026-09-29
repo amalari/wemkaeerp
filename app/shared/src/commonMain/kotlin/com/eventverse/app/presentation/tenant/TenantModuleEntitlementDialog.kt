@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.tenant
 
+import com.eventverse.app.domain.rbac.section
+
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -12,7 +14,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -64,7 +65,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.BusinessModule
-import com.eventverse.app.domain.rbac.ModuleCategory
 import com.eventverse.app.infrastructure.api.AdminApiClient
 import com.eventverse.app.infrastructure.api.TenantAdminView
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -350,7 +350,7 @@ private fun ImpactConfirmationView(
                             ModuleIcon(
                                 iconKey = module.iconKey,
                                 modifier = Modifier.fillMaxSize(),
-                                color = categoryTint(module.category)
+                                color = categoryTint(module)
                             )
                         }
                         Text(
@@ -521,7 +521,7 @@ private fun ModuleToggleRow(
                 ModuleIcon(
                     iconKey = module.iconKey,
                     modifier = Modifier.fillMaxSize(),
-                    color = if (isGranted) categoryTint(module.category) else WeMadeColors.OnSurfaceDisabled
+                    color = if (isGranted) categoryTint(module) else WeMadeColors.OnSurfaceDisabled
                 )
             }
             Text(
@@ -555,13 +555,5 @@ private fun ModuleToggleRow(
     }
 }
 
-private fun categoryTint(category: ModuleCategory) = when (category) {
-    ModuleCategory.GOVERNANCE -> WeMadeColors.Purple
-    ModuleCategory.FOUNDATION -> WeMadeColors.Teal
-    ModuleCategory.SALES -> WeMadeColors.Primary
-    ModuleCategory.LOGISTICS -> WeMadeColors.Warning
-    ModuleCategory.TECHNICAL -> WeMadeColors.Info
-    ModuleCategory.PRODUCTION -> WeMadeColors.Accent
-    ModuleCategory.QUALITY -> WeMadeColors.Success
-    ModuleCategory.FINANCE -> WeMadeColors.Success
-}
+/** Aksen seksi modul = data vertikal di pack (dulu `when` atas enum ModuleCategory). */
+private fun categoryTint(module: com.eventverse.app.domain.rbac.BusinessModule) = androidx.compose.ui.graphics.Color(module.section.colorHex)

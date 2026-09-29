@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -251,7 +250,7 @@ fun AssignDepartmentModal(
                     }
 
                     ClayTag(
-                        text = module.category.displayName,
+                        text = module.section.displayName,
                         tint = WeMadeColors.Primary,
                         fontSize = 11.sp
                     )

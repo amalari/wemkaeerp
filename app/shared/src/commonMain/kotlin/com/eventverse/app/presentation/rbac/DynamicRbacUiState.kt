@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -51,7 +50,7 @@ data class DynamicRbacUiState(
     val isDirty: Boolean = false,
     val isSaving: Boolean = false,
     val searchQuery: String = "",
-    val selectedCategoryFilter: ModuleCategory? = null,
+    val selectedCategoryFilter: com.eventverse.app.domain.pack.ModuleSectionCode? = null,
     val isCreateModalOpen: Boolean = false,
     val isAssignModalOpen: Boolean = false,
     val activeAssignModule: BusinessModule? = null,
@@ -93,7 +92,7 @@ sealed interface DynamicRbacUiEvent {
         val level: AccessLevel,
         val scope: DataScope = DataScope.ALL_TENANT_DATA
     ) : DynamicRbacUiEvent
-    data class SetModuleCategoryFilter(val category: ModuleCategory?) : DynamicRbacUiEvent
+    data class SetModuleCategoryFilter(val category: com.eventverse.app.domain.pack.ModuleSectionCode?) : DynamicRbacUiEvent
     data class UpdateSearchQuery(val query: String) : DynamicRbacUiEvent
     data object ResetChanges : DynamicRbacUiEvent
     data object SaveChanges : DynamicRbacUiEvent

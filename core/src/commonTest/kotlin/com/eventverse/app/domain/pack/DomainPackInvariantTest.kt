@@ -61,7 +61,7 @@ class DomainPackInvariantTest {
         assertFailsWith<IllegalArgumentException> { PortType("1Bundle") }
     }
 
-    private val learning = ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1)
+    private val learning = ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1, 0xFF2563EB, 0xFFEFF6FF)
 
     private fun module(id: String, section: String = "LEARNING", kind: com.eventverse.app.domain.rbac.ModuleKind = com.eventverse.app.domain.rbac.ModuleKind.OPERATIONAL, slot: String? = "grading") =
         ModuleDefinition(ModuleId(id), id, "uji", ModuleSectionCode(section), kind, "clipboard",

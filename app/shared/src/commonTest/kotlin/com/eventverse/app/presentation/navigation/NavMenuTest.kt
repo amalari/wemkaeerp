@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -35,7 +34,6 @@ import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
-import com.eventverse.app.domain.rbac.ModuleCategory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -77,7 +75,7 @@ class NavMenuTest {
         )
 
         // Seksi tata kelola harus berada di puncak drawer, seperti sebelum ketiganya jadi modul.
-        assertEquals(ModuleCategory.GOVERNANCE.displayName, sections.first().title)
+        assertEquals("Sistem & Struktur", sections.first().title)
         assertEquals(
             listOf(AppNavScreen.ORG_CHART, AppNavScreen.DYNAMIC_RBAC),
             sections.first().entries.map { it.screen }
@@ -111,7 +109,7 @@ class NavMenuTest {
             auditView = false
         )
 
-        val logistics = sections.single { it.title == ModuleCategory.LOGISTICS.displayName }
+        val logistics = sections.single { it.title == "Gudang, Bahan Baku & Logistik" }
         assertEquals(AppNavScreen.INVENTORY, logistics.entries.single().screen)
         assertEquals(AccessLevel.OPERATE, logistics.entries.single().accessLevel)
         assertFalse(logistics.entries.single().locked)
@@ -128,7 +126,7 @@ class NavMenuTest {
         )
 
         assertTrue(
-            sections.none { it.title == ModuleCategory.TECHNICAL.displayName },
+            sections.none { it.title == "Desain, Pola & Biaya HPP" },
             "Header tanpa isi menjanjikan sesuatu yang tidak ada"
         )
     }

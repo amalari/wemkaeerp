@@ -51,10 +51,18 @@ alarm sebelum ada satu baris pun yang dipindah.
   `ModuleIdCodecTest`, `ElearningPackTest` (core), `ElearningNavMenuTest` (klien).
 - core 961, app 162, server 242; JVM/Wasm/JS; visual menu Sales, layar RBAC, kanvas, `/m/crm_sales`, `/m/tidak_ada`.
 
-## 🧭 6. Sisa
+## 🧹 6. Pembersihan pasca-B6
 
-- `enum ModuleCategory` masih dipakai layar RBAC (±40 referensi). Sumber kebenaran sudah pack, dan menu tidak lagi
-  memakainya.
-- Breadcrumb rute generik menampilkan "Modul". Perbaikannya menunggu `App.kt` dipecah.
-- `DomainPackRegistry.withSoleActivePackForTest` dan `soleActivePack` digantikan resolusi pack per tenant (**B7**).
-- `AccessSnapshotB6Test` bergantung pada isi DB; hapus setelah B6 diterima, atau pertahankan sampai cutover.
+| Sisa | Penyelesaian |
+|---|---|
+| `enum ModuleCategory` (layar RBAC & dialog entitlement) | Dihapus. `ModuleSection` kini membawa `colorHex`/`tintHex` = token yang dulu dipetakan `when (ModuleCategory)`; tabel emas warna menjaganya. Tampilan kartu identik. |
+| Breadcrumb `/m/{code}` menampilkan "Modul" | `AppTopBar(title = …)` = nama modul. Ruangnya didapat dengan memindah `AuthGuardCard` ke file sendiri: `App.kt` **597 → 524** baris. |
+| `AccessSnapshotB6Test` | Dipertahankan sampai cutover sebagai alarm RBAC/entitlement. |
+
+**Jebakan**: server dev yang tidak di-restart setelah `core` dibangun ulang memuat kelas dari jar yang sudah berubah,
+dan hasilnya 500 `NoClassDefFoundError` yang menyesatkan. Restart server setiap kali `core` berubah.
+
+## 🧭 7. Berikutnya
+
+- **B7**: pack per tenant (`tenants.domain_pack`), pengganti `soleActivePack` & `withSoleActivePackForTest`, plus
+  vertikal kedua yang **nyata**.

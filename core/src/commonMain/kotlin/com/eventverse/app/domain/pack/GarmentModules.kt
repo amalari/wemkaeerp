@@ -30,14 +30,14 @@ object GarmentModules {
     val INVOICING = ModuleId("invoicing")
 
     val sections: List<ModuleSection> = listOf(
-        ModuleSection(ModuleSectionCode("GOVERNANCE"), "Sistem & Struktur", 1),
-        ModuleSection(ModuleSectionCode("FOUNDATION"), "Data Induk & Referensi", 2),
-        ModuleSection(ModuleSectionCode("SALES"), "Penjualan & Relasi Pelanggan", 3),
-        ModuleSection(ModuleSectionCode("LOGISTICS"), "Gudang, Bahan Baku & Logistik", 4),
-        ModuleSection(ModuleSectionCode("TECHNICAL"), "Desain, Pola & Biaya HPP", 5),
-        ModuleSection(ModuleSectionCode("PRODUCTION"), "Lantai Produksi & Operator", 6),
-        ModuleSection(ModuleSectionCode("QUALITY"), "Kualitas & Pengawasan", 7),
-        ModuleSection(ModuleSectionCode("FINANCE"), "Keuangan & Penagihan", 8)
+        ModuleSection(ModuleSectionCode("GOVERNANCE"), "Sistem & Struktur", 1, 0xFF7C3AED, 0xFFF5F3FF),
+        ModuleSection(ModuleSectionCode("FOUNDATION"), "Data Induk & Referensi", 2, 0xFF0D9488, 0xFFF0FDFA),
+        ModuleSection(ModuleSectionCode("SALES"), "Penjualan & Relasi Pelanggan", 3, 0xFF2563EB, 0xFFEFF6FF),
+        ModuleSection(ModuleSectionCode("LOGISTICS"), "Gudang, Bahan Baku & Logistik", 4, 0xFFD97706, 0xFFFFFBEB),
+        ModuleSection(ModuleSectionCode("TECHNICAL"), "Desain, Pola & Biaya HPP", 5, 0xFF0284C7, 0xFFF0FDFA),
+        ModuleSection(ModuleSectionCode("PRODUCTION"), "Lantai Produksi & Operator", 6, 0xFFEA580C, 0xFFFFF7ED),
+        ModuleSection(ModuleSectionCode("QUALITY"), "Kualitas & Pengawasan", 7, 0xFF16A34A, 0xFFF0FDF4),
+        ModuleSection(ModuleSectionCode("FINANCE"), "Keuangan & Penagihan", 8, 0xFF16A34A, 0xFFF0FDF4)
     )
 
     val modules: List<ModuleDefinition> by lazy {

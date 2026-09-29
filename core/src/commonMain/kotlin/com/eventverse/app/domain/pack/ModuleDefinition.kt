@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -48,13 +47,16 @@ value class ModuleId(val value: String) {
     val storedName: String get() = value.uppercase()
 }
 
-/** Seksi menu (dulu `enum ModuleCategory`). Urutan tampil = [order]. */
 @JvmInline
 value class ModuleSectionCode(val value: String) {
     init { require(value.isNotBlank()) { "ModuleSectionCode kosong" } }
 }
 
-data class ModuleSection(val code: ModuleSectionCode, val displayName: String, val order: Int)
+/**
+ * Seksi menu (dulu `enum ModuleCategory`). Urutan tampil = [order]. [colorHex]/[tintHex] = aksen & latar seksi di kartu
+ * modul — warna **data vertikal** (design-system-rules Kontrak 1, pengecualian 1), sama seperti `PhaseDefinition.colorHex`.
+ */
+data class ModuleSection(val code: ModuleSectionCode, val displayName: String, val order: Int, val colorHex: Long, val tintHex: Long)
 
 /**
  * Satu modul yang dikirim pack (dulu satu entri `enum BusinessModule`).

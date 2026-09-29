@@ -68,8 +68,8 @@ internal object ElearningPack {
         portTypes = ports,
         wiredPortTypes = ports,
         sections = listOf(
-            ModuleSection(ModuleSectionCode("SYSTEM"), "Sistem", 1),
-            ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 2)
+            ModuleSection(ModuleSectionCode("SYSTEM"), "Sistem", 1, 0xFF2563EB, 0xFFEFF6FF),
+            ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 2, 0xFF2563EB, 0xFFEFF6FF)
         ),
         modules = listOf(
             ModuleDefinition(ENROLLMENT, "Pendaftaran Peserta", "Pendaftaran kelas", ModuleSectionCode("LEARNING"),

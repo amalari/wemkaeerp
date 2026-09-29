@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -236,7 +235,7 @@ fun AssignModuleModal(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 ClayTag(
-                                    text = mod.category.displayName,
+                                    text = mod.section.displayName,
                                     tint = WeMadeColors.Primary,
                                     fontSize = 9.sp
                                 )

@@ -12,7 +12,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -59,7 +58,8 @@ import kotlin.test.assertEquals
  * Tenant `factory-NNNNN` dikecualikan: dibuat test integrasi lain di DB dev dan jumlahnya bertambah setiap run.
  *
  * Tulis ulang snapshot **hanya** saat data DB sengaja berubah: `WRITE_ACCESS_SNAPSHOT=1 ./gradlew :server:test --tests '*AccessSnapshotB6Test*'`.
- * Dihapus setelah B6 selesai.
+ * **Dipertahankan sampai cutover** repo B menggantikan produksi: alarm tambahan untuk setiap perubahan RBAC/entitlement.
+ * Bila data DB sengaja diubah, tulis ulang snapshot dengan sadar (lihat di atas), jangan menonaktifkan test.
  */
 class AccessSnapshotB6Test {
 

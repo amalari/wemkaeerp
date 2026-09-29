@@ -44,6 +44,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 fun AppTopBar(
     currentScreen: AppNavScreen,
+    /** Judul pengganti — nama modul untuk rute generik `/m/{code}` (B6f). */
+    title: String? = null,
     onOpenDrawer: () -> Unit,
     isAuthenticated: Boolean,
     session: UserSession?,
@@ -110,7 +112,7 @@ fun AppTopBar(
                 }
 
                 Text(
-                    text = currentScreen.title,
+                    text = title ?: currentScreen.title,
                     fontSize = if (isCompact) 14.sp else 12.sp,
                     fontWeight = if (isCompact) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,

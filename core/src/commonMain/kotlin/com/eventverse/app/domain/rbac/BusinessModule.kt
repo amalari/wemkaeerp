@@ -17,18 +17,6 @@ import com.eventverse.app.domain.pack.ModuleId
  */
 enum class ModuleKind { OPERATIONAL, GOVERNANCE, FOUNDATION }
 
-enum class ModuleCategory(val displayName: String) {
-    // Wajib entri pertama: NavMenu menyusun urutan seksi drawer dari ModuleCategory.entries, dan
-    // seksi tata kelola selalu berada di puncak seperti sebelum ketiga layar ini menjadi modul.
-    GOVERNANCE("Sistem & Struktur"),
-    FOUNDATION("Data Induk & Referensi"),
-    SALES("Penjualan & Relasi Pelanggan"),
-    LOGISTICS("Gudang, Bahan Baku & Logistik"),
-    TECHNICAL("Desain, Pola & Biaya HPP"),
-    PRODUCTION("Lantai Produksi & Operator"),
-    QUALITY("Kualitas & Pengawasan"),
-    FINANCE("Keuangan & Penagihan");
-}
 
 /**
  * Modul bisnis (B6d, TRD-PLAT-001). Dulu `enum class` konveksi; kini [ModuleId] dari Domain Pack, sehingga pack lain
@@ -59,8 +47,11 @@ val ModuleId.scopeCapability: ScopeCapability get() = definition.scopeCapability
 val ModuleId.kind: ModuleKind get() = definition.kind
 val ModuleId.supportedScopes: Set<DataScope> get() = definition.supportedScopes
 
-/** Seksi menu lama — tetap `ModuleCategory` sampai klien membaca `ModuleSection` pack (B6f). */
-val ModuleId.category: ModuleCategory get() = ModuleCategory.valueOf(definition.section.value)
+/** Seksi menu modul ini (dulu `enum ModuleCategory`), dari pack aktif. */
+val ModuleId.section: com.eventverse.app.domain.pack.ModuleSection
+    get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.soleActivePack.sections.firstOrNull { it.code == definition.section }) {
+        "Seksi ${definition.section.value} modul $value tidak ada di pack"
+    }
 
 val ModuleId.isGlobalOnly: Boolean get() = scopeCapability == ScopeCapability.GLOBAL_ONLY
 val ModuleId.isHierarchical: Boolean get() = scopeCapability == ScopeCapability.HIERARCHICAL

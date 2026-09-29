@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.section
+
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -12,7 +14,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -53,7 +54,6 @@ import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.domain.rbac.DepartmentModuleAssignment
-import com.eventverse.app.domain.rbac.ModuleCategory
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -158,26 +158,9 @@ fun SingleModuleCard(
             verticalAlignment = Alignment.Top
         ) {
             // Icon Tile (category-tinted clay tile)
-            val categoryColor = when (module.category) {
-                ModuleCategory.GOVERNANCE -> WeMadeColors.Purple
-                ModuleCategory.FOUNDATION -> WeMadeColors.Teal
-                ModuleCategory.SALES      -> WeMadeColors.Primary
-                ModuleCategory.LOGISTICS  -> WeMadeColors.Warning
-                ModuleCategory.TECHNICAL  -> WeMadeColors.Info
-                ModuleCategory.PRODUCTION -> WeMadeColors.Accent
-                ModuleCategory.QUALITY    -> WeMadeColors.Success
-                ModuleCategory.FINANCE    -> WeMadeColors.Success
-            }
-            val categoryBg = when (module.category) {
-                ModuleCategory.GOVERNANCE -> WeMadeColors.PurpleBg
-                ModuleCategory.FOUNDATION -> WeMadeColors.TealBg
-                ModuleCategory.SALES      -> WeMadeColors.PrimaryContainer
-                ModuleCategory.LOGISTICS  -> WeMadeColors.WarningBg
-                ModuleCategory.TECHNICAL  -> WeMadeColors.TealBg
-                ModuleCategory.PRODUCTION -> WeMadeColors.AccentLight
-                ModuleCategory.QUALITY    -> WeMadeColors.SuccessBg
-                ModuleCategory.FINANCE    -> WeMadeColors.SuccessBg
-            }
+            // Aksen & latar seksi = data vertikal di pack (dulu `when` atas enum ModuleCategory).
+            val categoryColor = Color(module.section.colorHex)
+            val categoryBg = Color(module.section.tintHex)
 
             Box(
                 modifier = Modifier

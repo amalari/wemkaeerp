@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.section
+
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -12,7 +14,6 @@ import com.eventverse.app.domain.rbac.isHierarchical
 
 import com.eventverse.app.domain.rbac.isGlobalOnly
 
-import com.eventverse.app.domain.rbac.category
 
 import com.eventverse.app.domain.rbac.supportedScopes
 
@@ -77,7 +78,7 @@ fun ModuleMatrixRow(
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
                 ClayTag(
-                    text = module.category.displayName.take(3).uppercase(),
+                    text = module.section.displayName.take(3).uppercase(),
                     tint = WeMadeColors.Primary,
                     fontSize = 10.sp
                 )
