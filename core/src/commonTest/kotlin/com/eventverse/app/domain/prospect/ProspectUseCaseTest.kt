@@ -114,7 +114,7 @@ class ProspectUseCaseTest {
 
     @Test
     fun an_unrecognised_business_model_must_not_silently_become_fob() = runTest {
-        // GarmentBlueprints.fromCodeOrDefault() falls back to DEFAULT. If this use case ever routed
+        // the legacy `GarmentBusinessPreset.fromCode()` (removed in B4d) falls back to DEFAULT. If this use case ever routed
         // through it, every unknown factory would be filed as a full-package exporter and quoted
         // for buying fabric it never buys.
         val translation = translateUseCase(

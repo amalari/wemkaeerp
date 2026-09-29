@@ -94,9 +94,13 @@ object GarmentBlueprints {
     val DEFAULT: Blueprint get() = FOB_FULL_PACKAGE
 
     /**
-     * **Fallback senyap lama** `Blueprint.fromCode`, dipertahankan persis di B4c (paritas).
-     * Dihapus di B4d: pemanggil beralih ke [find] dan menolak kode tak dikenal.
+     * Parser **ketat** kode Blueprint tersimpan (B4d, tenant-variability-rules Kontrak 4). Menggantikan
+     * `GarmentBusinessPreset.fromCode` lama yang diam-diam jatuh ke FOB: kode tak dikenal kini gagal keras,
+     * karena menebaknya berarti mengubah model bisnis tenant tanpa jejak. Tidak peka huruf besar (perilaku lama).
      */
-    fun fromCodeOrDefault(code: String?): Blueprint =
-        all.firstOrNull { it.code.value.equals(code, ignoreCase = true) } ?: DEFAULT
+    fun parse(code: String): Blueprint =
+        requireNotNull(findByCode(code)) { "Blueprint tidak dikenal: '$code'" }
+
+    /** Versi lunak untuk masukan pengguna: null bila tak dikenal, pemanggil yang menjawab 400. */
+    fun findByCode(code: String): Blueprint? = all.firstOrNull { it.code.value.equals(code, ignoreCase = true) }
 }

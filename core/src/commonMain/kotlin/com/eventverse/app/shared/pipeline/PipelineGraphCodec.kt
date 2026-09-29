@@ -106,7 +106,7 @@ object PipelineGraphCodec {
             tenantId = tenantId,
             pipelineName = root.string(KEY_PIPELINE_NAME)?.takeIf { it.isNotBlank() }
                 ?: "Alur Kerja Kustom",
-            baseStarterPreset = root.string(KEY_BASE_PRESET)?.let { GarmentBlueprints.fromCodeOrDefault(it) },
+            baseStarterPreset = root.string(KEY_BASE_PRESET)?.let { GarmentBlueprints.parse(it) },
             nodes = graph.nodes,
             edges = graph.edges
         )

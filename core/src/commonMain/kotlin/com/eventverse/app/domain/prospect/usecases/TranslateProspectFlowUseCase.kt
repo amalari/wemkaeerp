@@ -118,7 +118,7 @@ class TranslateProspectFlowUseCase(
     }
 
     /**
-     * Resolves the business preset **without** `GarmentBlueprints.fromCodeOrDefault()`.
+     * Resolves the business preset **without** `the legacy `GarmentBusinessPreset.fromCode()` (removed in B4d)`.
      *
      * That helper falls back to `DEFAULT` instead of returning null, so routing an unrecognised code
      * through it would silently file every unknown factory as a full-package exporter — and a CMT

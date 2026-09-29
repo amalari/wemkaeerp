@@ -1,4 +1,4 @@
-# 🎓 Modul Pembelajaran: Blueprint — Membalik Arah Pengetahuan Preset (Jalur B, B4a–B4c)
+# 🎓 Modul Pembelajaran: Blueprint — Membalik Arah Pengetahuan Preset (Jalur B, B4a–B4d)
 
 > **Level Target**: Junior to Mid Developer
 > **Topik Utama**: Dari "modul tahu preset" ke "Blueprint menyatakan modul"
@@ -78,8 +78,21 @@ semuanya metadata deklaratif. Satu-satunya perilaku yang hidup: HPP membaca stok
   hanya ke MRP, karena HPP `SERVICE_FEE_ONLY` tidak membaca stok.
 - core 950, app 158, server 231 hijau; JVM, Wasm, JS terkompilasi; visual `wemade-demo` & `bordir-uji` identik.
 
-## 🧭 5. Berikutnya
+## 🛑 5. B4d — Menghapus fallback senyap (perubahan perilaku pertama)
 
-- **B4c**: hapus `GarmentBusinessPreset`; `tenants.business_preset`, `baseStarterPreset`, codec, dan route
-  memakai `BlueprintCode` (nilai tersimpan tetap).
-- **B4d**: kode Blueprint tak dikenal ditolak (400 / gagal keras), bukan jatuh ke FOB.
+B4a–B4c sengaja **tidak** mengubah perilaku apa pun, termasuk fallback yang salah. B4d adalah satu-satunya
+commit yang mengubah perilaku, dan ia punya test perilakunya sendiri:
+
+| Tempat | Dulu | Sekarang |
+|---|---|---|
+| `POST /pipeline/reset {"preset":"sablon_manual"}` | diam-diam reset ke FOB | **400**, pipeline tidak tersentuh |
+| Baca `tenants.business_preset` / `base_preset` / JSON | kode aneh → FOB | **gagal keras** (`GarmentBlueprints.parse`) |
+
+Sebelum memperketat pembacaan DB, data A dan B **diaudit dulu**: hanya tiga kode yang dikenal, jadi tidak ada
+tenant yang tiba-tiba gagal dimuat. Tanpa audit itu, "fail loud" bisa berarti "produksi mati".
+
+## 🧭 6. Berikutnya
+
+- **B5**: test gerbang keamanan (setiap modul terdaftar wajib punya gerbang; route tanpa gerbang = merah),
+  prasyarat wajib sebelum B6.
+- **B6**: `BusinessModule` → data pack (RBAC, entitlement, 20 migrasi) — TRD-PLAT-001 bagian B6 dulu.

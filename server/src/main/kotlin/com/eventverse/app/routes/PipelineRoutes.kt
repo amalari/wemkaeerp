@@ -134,8 +134,10 @@ fun Route.pipelineRoutes(
             val tenant = call.manageTenant() ?: return@post
 
             val presetCode = PipelineDto.readPresetCode(call.receiveText())
-            val targetPreset = presetCode?.let { GarmentBlueprints.fromCodeOrDefault(it) }
-                ?: tenant.starterPreset
+            // B4d: kode tak dikenal = 400, bukan diam-diam reset ke FOB (Kontrak 4).
+            val targetPreset = if (presetCode == null) tenant.starterPreset else
+                GarmentBlueprints.findByCode(presetCode)
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Starter alur tidak dikenal: '$presetCode'")
 
             resetPipelineUseCase(tenant.tenantId, targetPreset)
                 .onSuccess { call.respondPipeline(it) }

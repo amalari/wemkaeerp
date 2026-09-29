@@ -64,12 +64,12 @@ class PipelinePresetFactoryTest {
         assertTrue(operatorNode.wipPieces > 0)
     }
 
+    /** B4d: perilaku lama (kode tak dikenal → FOB) sengaja diganti — menebak model bisnis tenant mengubah datanya. */
     @Test
-    fun presetResolution_shouldFallbackToDefaultOnUnknownCode() {
-        val resolved = GarmentBlueprints.fromCodeOrDefault("unknown_or_null")
-        assertEquals(GarmentBlueprints.DEFAULT, resolved)
-
-        val cmtResolved = GarmentBlueprints.fromCodeOrDefault("cmt_makloon")
-        assertEquals(GarmentBlueprints.CMT_MAKLOON, cmtResolved)
+    fun presetResolution_shouldRejectUnknownCode_notFallBackToFob() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> { GarmentBlueprints.parse("unknown_or_null") }
+        assertEquals(null, GarmentBlueprints.findByCode("unknown_or_null"))
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, GarmentBlueprints.parse("cmt_makloon"))
+        assertEquals(GarmentBlueprints.CMT_MAKLOON, GarmentBlueprints.parse("CMT_MAKLOON"), "tidak peka huruf besar, seperti sebelumnya")
     }
 }

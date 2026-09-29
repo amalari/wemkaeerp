@@ -73,7 +73,7 @@ class PostgresTenantPipelineRepository : TenantPipelineRepository {
             tenantId = TenantId(row[TenantPipelinesTable.tenantId]),
             pipelineName = row[TenantPipelinesTable.pipelineName],
             baseStarterPreset = row[TenantPipelinesTable.basePreset]
-                ?.let { GarmentBlueprints.fromCodeOrDefault(it) },
+                ?.let { GarmentBlueprints.parse(it) },
             nodes = graph.nodes,
             edges = graph.edges
         )

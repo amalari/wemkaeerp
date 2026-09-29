@@ -63,7 +63,7 @@ data class FlowTranslation(
     /**
      * Null when no preset matched, and it must stay null.
      *
-     * `GarmentBlueprints.fromCodeOrDefault()` falls back to `DEFAULT` instead of returning null, so
+     * `the legacy `GarmentBusinessPreset.fromCode()` (removed in B4d)` falls back to `DEFAULT` instead of returning null, so
      * anything routed through it would silently file every unrecognised factory as a full-package
      * exporter — and a CMT workshop quoted as FOB is quoted for work it will never do.
      */

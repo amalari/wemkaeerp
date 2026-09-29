@@ -76,7 +76,7 @@ class PostgresTenantRepository : TenantRepository {
         status = TenantStatus.valueOf(row[TenantsTable.status]),
         tier = SubscriptionTier.valueOf(row[TenantsTable.tier]),
         activeMachineCount = row[TenantsTable.activeMachineCount],
-        businessPreset = GarmentBlueprints.fromCodeOrDefault(row[TenantsTable.businessPreset]),
+        businessPreset = GarmentBlueprints.parse(row[TenantsTable.businessPreset]),
         // Nilai asing jatuh ke rajut: satu-satunya kerangka sebelum kolom ini ada (V74).
         industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER
     )

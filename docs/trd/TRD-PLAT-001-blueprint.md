@@ -9,6 +9,7 @@
 |---|---|---|---|
 | 0.1 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | Dari [`discovery-B4-blueprint.md`](../plannings/discovery-B4-blueprint.md); Q1–Q5 disetujui |
 | 0.2 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | B4a–B4c selesai. Koreksi sumber bug header. Risiko baru: `BlueprintCode` di string template (dikunci test klien) |
+| 0.3 | 2026-09-29 | Achmad Jamaludin (dibantu Claude) | **B4 selesai.** B4d: `GarmentBlueprints.parse` ketat untuk data tersimpan, `findByCode` + 400 untuk route reset. Data A & B diaudit: hanya 3 kode dikenal, tak ada yang mengandalkan fallback |
 
 ### Summary & Business Context
 

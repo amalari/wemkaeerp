@@ -120,4 +120,26 @@ class PipelineApiTest {
         val body = resetRes.bodyAsText()
         assertTrue(body.contains("brand_d2c"))
     }
+
+    /** B4d: dulu kode tak dikenal diam-diam me-reset tenant ke FOB. Sekarang 400 dan pipeline tidak tersentuh. */
+    @Test
+    fun resetPipeline_withUnknownPreset_shouldReturn400_andLeavePipelineUntouched() = testApplication {
+        val tenantRepo = setupTestTenantRepo()
+        val pipeRepo = InMemoryTenantPipelineRepository()
+        application {
+            module(tenantRepository = tenantRepo, pipelineRepository = pipeRepo, entitlementRepository = InMemoryTenantEntitlementRepository())
+        }
+        client.post("/api/tenant/pipeline/reset") { asTenant(tenantSlug); contentType(ContentType.Application.Json); setBody("{\"preset\":\"brand_d2c\"}") }
+
+        val res = client.post("/api/tenant/pipeline/reset") {
+            asTenant(tenantSlug)
+            contentType(ContentType.Application.Json)
+            setBody("{\"preset\":\"sablon_manual\"}")
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertTrue(res.bodyAsText().contains("sablon_manual"))
+        val after = client.get("/api/tenant/pipeline") { asTenant(tenantSlug) }.bodyAsText()
+        assertTrue(after.contains("brand_d2c"), "pipeline tetap D2C, tidak jatuh ke FOB")
+    }
 }

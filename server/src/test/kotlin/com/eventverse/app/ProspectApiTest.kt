@@ -120,7 +120,7 @@ class ProspectApiTest {
     fun aCmtNarrativeMustNotBeFiledAsFullPackage() = testApplication {
         installModule(Fixture())
         val body = submit(client).bodyAsText()
-        // GarmentBlueprints.fromCodeOrDefault() falls back to DEFAULT; if that helper were used here,
+        // the legacy `GarmentBusinessPreset.fromCode()` (removed in B4d) falls back to DEFAULT; if that helper were used here,
         // this workshop would be quoted for buying fabric it never buys.
         assertTrue(body.contains("CMT"), body)
         assertFalse(body.contains("FOB"), body)

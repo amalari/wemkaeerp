@@ -69,6 +69,5 @@ class GarmentBlueprintParityTest {
         assertEquals(LEGACY_DISPLAY, GarmentBlueprints.all.map { listOf(it.code.value, it.displayName, it.shortBadge, it.description, it.targetClientProfile) })
         GarmentBlueprints.all.forEach { assertEquals(GarmentDomainPack.CODE, it.pack) }
         assertNull(GarmentBlueprints.find(BlueprintCode("sablon_manual")), "kode tak dikenal → null, bukan FOB")
-        assertEquals(GarmentBlueprints.FOB_FULL_PACKAGE, GarmentBlueprints.fromCodeOrDefault("sablon_manual"), "B4c: fallback lama dipertahankan persis (dihapus di B4d)")
     }
 }
