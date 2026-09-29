@@ -53,17 +53,20 @@ object ModuleIdCodec {
 
     fun fromStoredName(raw: String?, location: String): BusinessModule? {
         if (raw == null) return null
-        return BusinessModules.entries.firstOrNull { it.storedName == raw } ?: run { unknownSink.report(location, raw); null }
+        return known().firstOrNull { it.storedName == raw } ?: run { unknownSink.report(location, raw); null }
     }
 
     fun fromCode(raw: String?, location: String): BusinessModule? {
         if (raw == null) return null
-        return BusinessModules.entries.firstOrNull { it.value.equals(raw, ignoreCase = true) } ?: run { unknownSink.report(location, raw); null }
+        return known().firstOrNull { it.value.equals(raw, ignoreCase = true) } ?: run { unknownSink.report(location, raw); null }
     }
 
     /** Pencarian code yang **boleh** gagal (mis. node plugin kustom): tanpa laporan, karena tidak dikenal = wajar. */
     fun standardOrNull(code: String?): BusinessModule? =
-        code?.let { c -> BusinessModules.entries.firstOrNull { it.value.equals(c, ignoreCase = true) } }
+        code?.let { c -> known().firstOrNull { it.value.equals(c, ignoreCase = true) } }
 
     fun storedName(module: BusinessModule): String = module.storedName
+
+    /** Modul semua pack yang dikenal proses ini (id unik lintas platform, B7 FR-1) — kunci tersimpan tidak butuh tenant. */
+    private fun known(): List<BusinessModule> = DomainPackRegistry.all.flatMap { p -> p.modules.map { it.id } }.distinct()
 }

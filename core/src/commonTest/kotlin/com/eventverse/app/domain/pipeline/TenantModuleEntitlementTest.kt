@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.governanceModules
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -65,7 +68,7 @@ class TenantModuleEntitlementTest {
 
     @Test
     fun starterPlan_shouldRejectNinePipelineModules() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
 
         val violations = entitlement.validate(fobPipeline())
 
@@ -78,7 +81,7 @@ class TenantModuleEntitlementTest {
 
     @Test
     fun proPlan_shouldAllowAllNineBuiltInModules() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO, GarmentDomainPack.pack)
 
         assertTrue(entitlement.isSatisfiedBy(fobPipeline()))
     }
@@ -87,7 +90,7 @@ class TenantModuleEntitlementTest {
     fun bypassedModules_shouldNotConsumeAPlanSlot() {
         // A five-module plan must still be able to hold a nine-node graph as long as only
         // five are switched on — otherwise switching a module off would be impossible.
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
         val pipeline = fobPipeline().let { original ->
             original.orderedNodes.drop(5).fold(original) { acc, node ->
                 acc.setNodeBypassed(node.nodeId, true)
@@ -100,7 +103,7 @@ class TenantModuleEntitlementTest {
 
     @Test
     fun proPlan_shouldRejectCustomPluginModules() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO, GarmentDomainPack.pack)
         val pipeline = fobPipeline().addNode(customPlugin().toPipelineNode())
 
         val violations = entitlement.validate(pipeline)
@@ -115,7 +118,7 @@ class TenantModuleEntitlementTest {
     fun enterprisePlan_shouldAllowGrantedCustomPlugin() {
         val descriptor = customPlugin()
         val entitlement = TenantModuleEntitlement
-            .forTier(SubscriptionTier.ENTERPRISE)
+            .forTier(SubscriptionTier.ENTERPRISE, GarmentDomainPack.pack)
             .grantCustomModule(descriptor.moduleId)
         val pipeline = fobPipeline().addNode(descriptor.toPipelineNode())
 
@@ -124,7 +127,7 @@ class TenantModuleEntitlementTest {
 
     @Test
     fun enterprisePlan_shouldRejectUngrantedCustomPlugin() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE, GarmentDomainPack.pack)
         val pipeline = fobPipeline().addNode(customPlugin().toPipelineNode())
 
         val violations = entitlement.validate(pipeline)
@@ -139,7 +142,7 @@ class TenantModuleEntitlementTest {
     fun narrowedCatalogue_shouldRejectModuleOutsidePlan() {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.ENTERPRISE,
-            grantedModules = BusinessModules.entries.toSet() - GarmentModules.COSTING_HPP
+            grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.COSTING_HPP, catalog = GarmentDomainPack.pack.moduleIds.toSet()
         )
 
         val violations = entitlement.validate(fobPipeline())
@@ -154,7 +157,7 @@ class TenantModuleEntitlementTest {
     fun validate_shouldReportEveryViolationNotJustTheFirst() {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.STARTER,
-            grantedModules = setOf(GarmentModules.CRM_SALES)
+            grantedModules = setOf(GarmentModules.CRM_SALES), catalog = GarmentDomainPack.pack.moduleIds.toSet()
         )
 
         val violations = entitlement.validate(fobPipeline())
@@ -165,7 +168,7 @@ class TenantModuleEntitlementTest {
 
     @Test
     fun permits_unknownModuleId_shouldBeRejected() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE, GarmentDomainPack.pack)
         val ghostNode = CustomPipelineNode(
             nodeId = "node-ghost",
             moduleId = "module_that_does_not_exist",
@@ -186,9 +189,9 @@ class GovernanceEntitlementTest {
 
     @Test
     fun defaultGrant_shouldIncludeGovernanceModules() {
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
 
-        BusinessModules.governance.forEach { module ->
+        GarmentDomainPack.pack.governanceModules.forEach { module ->
             assertTrue(
                 entitlement.permitsModule(module),
                 "${module.code} harus aktif secara bawaan; paket membatasi jumlah modul produksi, " +
@@ -202,8 +205,8 @@ class GovernanceEntitlementTest {
         val entitlement = TenantModuleEntitlement.resolve(
             tier = SubscriptionTier.PRO,
             grants = TenantEntitlementGrants(
-                grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
-            )
+                grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.FACTORY_FLOW
+            ), pack = GarmentDomainPack.pack
         )
 
         assertFalse(entitlement.permitsModule(GarmentModules.FACTORY_FLOW))
@@ -214,12 +217,12 @@ class GovernanceEntitlementTest {
     fun withModule_fromAllGranted_shouldRemoveOnlyTheNamedModule() {
         // Jebakan utamanya: grantedModules == null berarti "semua", bukan "kosong". Pengurangan
         // himpunan tanpa memadatkannya lebih dulu akan mencabut seluruh modul lain sekaligus.
-        val grants = TenantEntitlementGrants().withModule(GarmentModules.FACTORY_FLOW, enabled = false)
+        val grants = TenantEntitlementGrants().withModule(GarmentModules.FACTORY_FLOW, enabled = false, catalog = GarmentDomainPack.pack.moduleIds.toSet())
 
         val modules = grants.grantedModules
         assertNotNull(modules)
         assertFalse(GarmentModules.FACTORY_FLOW in modules)
-        assertEquals(BusinessModules.entries.size - 1, modules.size)
+        assertEquals(GarmentDomainPack.pack.moduleIds.size - 1, modules.size)
     }
 
     @Test
@@ -227,8 +230,8 @@ class GovernanceEntitlementTest {
         // null disimpan kembali supaya tenant ikut mewarisi modul yang dirilis kemudian, tanpa
         // perlu migrasi data lagi seperti V18.
         val grants = TenantEntitlementGrants()
-            .withModule(GarmentModules.ORG_CHART, enabled = false)
-            .withModule(GarmentModules.ORG_CHART, enabled = true)
+            .withModule(GarmentModules.ORG_CHART, enabled = false, catalog = GarmentDomainPack.pack.moduleIds.toSet())
+            .withModule(GarmentModules.ORG_CHART, enabled = true, catalog = GarmentDomainPack.pack.moduleIds.toSet())
 
         assertEquals(null, grants.grantedModules)
     }
@@ -237,7 +240,7 @@ class GovernanceEntitlementTest {
     fun planQuota_shouldCountOperationalModulesOnly() {
         // STARTER hanya mengizinkan 5 modul aktif. Alur preset CMT harus dinilai dengan angka yang
         // sama seperti sebelum modul tata kelola ada.
-        val starter = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
+        val starter = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
         val pipeline = CustomTenantPipeline.fromPreset(
             TenantId("ten-demo-001"),
             GarmentBlueprints.CMT_MAKLOON

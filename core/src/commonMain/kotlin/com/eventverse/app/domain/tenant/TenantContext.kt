@@ -2,7 +2,11 @@ package com.eventverse.app.domain.tenant
 
 import com.eventverse.app.domain.blueprint.Blueprint
 
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.DomainPackCode
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.pack.GarmentDomainPack
 
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
@@ -21,10 +25,18 @@ data class TenantContext(
      */
     val businessPreset: Blueprint = GarmentBlueprints.DEFAULT,
     /** Template industri — kerangka yang di-provision untuk tenant tanpa kerangka (TRD-FLOW-001). */
-    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER
+    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER,
+    /** Vertikal tenant (B7). */
+    val domainPack: DomainPackCode = GarmentDomainPack.CODE
 ) {
+    /**
+     * Pack tenant. Kode yang tidak dikenal proses ini = konfigurasi rusak → gagal keras, **tidak** jatuh ke garment
+     * (Kontrak 4). Plugin tenant server menolak request sebelum sampai sini (`TenantPackResolver`).
+     */
+    val pack: DomainPack get() = requireNotNull(DomainPackRegistry.find(domainPack)) { "Pack ${domainPack.value} tenant ${slug.value} tidak dikenal" }
+
     /** Which operational modules this tenant's subscription plan grants. */
-    val moduleEntitlement: TenantModuleEntitlement get() = TenantModuleEntitlement.forTier(tier)
+    val moduleEntitlement: TenantModuleEntitlement get() = TenantModuleEntitlement.forTier(tier, pack)
 
     companion object {
         fun fromTenant(tenant: Tenant): TenantContext = TenantContext(
@@ -33,7 +45,8 @@ data class TenantContext(
             tier = tenant.tier,
             isAccessible = tenant.isAccessible,
             businessPreset = tenant.businessPreset,
-            industryTemplate = tenant.industryTemplate
+            industryTemplate = tenant.industryTemplate,
+            domainPack = tenant.domainPack
         )
     }
 }

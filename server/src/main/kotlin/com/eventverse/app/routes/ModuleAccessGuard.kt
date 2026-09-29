@@ -29,7 +29,7 @@ import com.eventverse.app.domain.rbac.name
 
 import com.eventverse.app.domain.rbac.code
 
-import com.eventverse.app.domain.rbac.BusinessModules
+import com.eventverse.app.domain.rbac.moduleIds
 
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.rbac.AccessDecision
@@ -74,7 +74,7 @@ internal suspend fun ApplicationCall.callerDecisions(
     tenant: TenantContext,
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
-    modules: List<BusinessModule> = BusinessModules.entries
+    modules: List<BusinessModule> = tenant.pack.moduleIds
 ): Map<BusinessModule, AccessDecision> {
     val principal = callerPrincipalOrNull
     if (principal == null) {

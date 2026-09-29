@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -46,7 +48,7 @@ import kotlin.test.*
 class PipelineCatalogSyncTest {
 
     private val tenantId = TenantId("ten-catalog-sync")
-    private val allModules = BusinessModules.entries.toSet()
+    private val allModules = GarmentDomainPack.pack.moduleIds.toSet()
 
     /** A tenant provisioned before QC existed in the catalogue, and who renamed sewing. */
     private fun legacyPipelineWithoutQc(): CustomTenantPipeline {
@@ -102,7 +104,7 @@ class PipelineCatalogSyncTest {
         val repository = FakeTenantPipelineRepository()
         repository.save(legacyPipelineWithoutQc())
         val sync = SyncTenantPipelineWithCatalogUseCase(repository)
-        val entitlement = TenantModuleEntitlement(SubscriptionTier.ENTERPRISE)
+        val entitlement = TenantModuleEntitlement(SubscriptionTier.ENTERPRISE, catalog = GarmentDomainPack.pack.moduleIds.toSet())
 
         val first = sync(tenantId, entitlement).getOrThrow()
         val second = sync(tenantId, entitlement).getOrThrow()
@@ -122,7 +124,7 @@ class PipelineCatalogSyncTest {
             tenantId = tenantId,
             moduleId = GarmentModules.QUALITY_CONTROL.code,
             isActive = true,
-            entitlement = TenantModuleEntitlement(SubscriptionTier.ENTERPRISE)
+            entitlement = TenantModuleEntitlement(SubscriptionTier.ENTERPRISE, catalog = GarmentDomainPack.pack.moduleIds.toSet())
         ).getOrThrow()
 
         val qc = updated.nodes.first { it.moduleId == GarmentModules.QUALITY_CONTROL.code }

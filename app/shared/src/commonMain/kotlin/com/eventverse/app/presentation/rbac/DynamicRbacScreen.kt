@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -216,7 +218,7 @@ fun DynamicRbacScreen(
 
                 when (state.viewMode) {
                     RbacViewMode.PER_MODULE -> {
-                        val filteredModules = BusinessModules.entries.filter { module ->
+                        val filteredModules = ActiveTenantPack.current.moduleIds.filter { module ->
                             state.searchQuery.isBlank() ||
                                     module.displayName.contains(state.searchQuery, ignoreCase = true) ||
                                     module.description.contains(state.searchQuery, ignoreCase = true)

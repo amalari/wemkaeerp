@@ -44,8 +44,8 @@ import com.eventverse.app.domain.rbac.BusinessModule
 typealias ModuleArchetype = SlotCode
 
 private val SlotCode.definition: SlotDefinition
-    get() = requireNotNull(DomainPackRegistry.soleActivePack.slot(this)) {
-        "Slot $value tidak ada di pack ${DomainPackRegistry.soleActivePack.code.value}"
+    get() = requireNotNull(DomainPackRegistry.slotDefinition(this)) {
+        "Slot $value tidak ada di pack mana pun"
     }
 
 /** Kode tersimpan (`sewing`) — dulu `ModuleArchetype.code`. */
@@ -59,7 +59,7 @@ val SlotCode.defaultProducedOutputType: String get() = definition.defaultOutput.
 
 /** Kolom kanvas tempat modul ber-slot ini digambar (B1). */
 val SlotCode.canvasPhase: PhaseDefinition
-    get() = DomainPackRegistry.soleActivePack.phaseOfSlot(this)
+    get() = requireNotNull(DomainPackRegistry.ownerOf(this)) { "Slot $value tidak ada di pack mana pun" }.phaseOfSlot(this)
 
 /** Modul bawaan pewakil slot (ikon & cakupan akses node plugin kustom). */
 val SlotCode.representativeModule: BusinessModule get() = GarmentSlots.representativeModule(this)

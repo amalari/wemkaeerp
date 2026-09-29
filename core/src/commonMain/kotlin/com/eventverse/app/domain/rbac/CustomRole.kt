@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.GarmentDomainPack
+
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.tenant.TenantId
@@ -111,8 +114,14 @@ data class CustomRole(
          * Factory presets out-of-the-box for garment factories.
          * Scoped by tenantId to prevent primary key collision across multi-tenant database.
          */
-        fun createFactoryPresets(tenantId: TenantId?): List<CustomRole> {
+        fun createFactoryPresets(tenantId: TenantId?, pack: DomainPack): List<CustomRole> {
             val prefix = if (tenantId == null || tenantId.value == "ten-demo-001") "" else "${tenantId.value}-"
+            val presets = garmentPresets(tenantId, prefix, pack)
+            // Jabatan contoh selain Owner menyebut modul konveksi; vertikal lain hanya mendapat Owner (B7).
+            return if (pack.code == GarmentDomainPack.CODE) presets else presets.take(1)
+        }
+
+        private fun garmentPresets(tenantId: TenantId?, prefix: String, pack: DomainPack): List<CustomRole> {
             return listOf(
                 CustomRole(
                     id = RoleId("role-${prefix}owner"),
@@ -121,7 +130,7 @@ data class CustomRole(
                     description = "Pemilik usaha dengan akses penuh ke seluruh modul, keuangan rahasia, dan manajemen staf.",
                     isSystemDefault = true,
                     userCount = 1,
-                    modulePermissions = BusinessModules.entries.associateWith {
+                    modulePermissions = pack.moduleIds.associateWith {
                         ModuleAccessConfig(AccessLevel.MANAGE, DataScope.ALL_TENANT_DATA)
                     }
                 ),

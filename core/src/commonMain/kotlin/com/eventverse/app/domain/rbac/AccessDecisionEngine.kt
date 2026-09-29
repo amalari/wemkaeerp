@@ -183,10 +183,12 @@ object AccessDecisionEngine {
         persona: TestingPersona,
         roles: List<CustomRole>,
         assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>,
-        grantedModules: Set<BusinessModule>? = null
+        grantedModules: Set<BusinessModule>? = null,
+        /** Modul pack tenant, berurutan (B7). */
+        modules: List<BusinessModule>
     ): Map<BusinessModule, AccessDecision> {
         val role = persona.roleId?.let { id -> roles.firstOrNull { it.id == id } }
-        return BusinessModules.entries.associateWith { module ->
+        return modules.associateWith { module ->
             explain(persona, module, role, assignments[module].orEmpty(), grantedModules)
         }
     }
@@ -196,9 +198,10 @@ object AccessDecisionEngine {
         persona: TestingPersona,
         roles: List<CustomRole>,
         assignments: Map<BusinessModule, List<DepartmentModuleAssignment>>,
-        grantedModules: Set<BusinessModule>? = null
+        grantedModules: Set<BusinessModule>? = null,
+        modules: List<BusinessModule>
     ): Map<BusinessModule, ModuleAccessConfig> =
-        explainAll(persona, roles, assignments, grantedModules).mapValues { it.value.config }
+        explainAll(persona, roles, assignments, grantedModules, modules).mapValues { it.value.config }
 
     /**
      * Assignment divisi yang benar-benar berlaku untuk persona ini.

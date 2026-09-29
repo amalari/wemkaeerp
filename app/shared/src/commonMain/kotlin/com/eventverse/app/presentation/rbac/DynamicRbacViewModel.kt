@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -93,7 +94,7 @@ class DynamicRbacViewModel(
     }
 
     private fun loadInitialRoles() {
-        val presets = CustomRole.createFactoryPresets(tenantId)
+        val presets = CustomRole.createFactoryPresets(tenantId, ActiveTenantPack.current)
         val defaultDepts = Department.defaultPresets()
         val initialAssignments = createDefaultModuleAssignments(defaultDepts)
         val initialSelected = presets.firstOrNull()

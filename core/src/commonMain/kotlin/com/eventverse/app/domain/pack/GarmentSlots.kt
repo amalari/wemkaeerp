@@ -88,7 +88,7 @@ object GarmentSlots {
      * Slot yang diisi modul bawaan. Null untuk modul governance/foundation: mereka bukan stasiun,
      * dan memaksanya ke slot membuatnya layak tampil di kanvas — justru yang tidak boleh.
      */
-    fun forModule(module: BusinessModule): SlotCode? = DomainPackRegistry.soleActivePack.module(module)?.slot
+    fun forModule(module: BusinessModule): SlotCode? = DomainPackRegistry.moduleDefinition(module)?.slot
 
     /** Slot untuk code modul tersimpan, bawaan atau kustom (kustom → [CUSTOM_EXTENSION]). */
     fun forModuleCode(moduleCode: String): SlotCode {

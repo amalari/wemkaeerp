@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -119,7 +121,7 @@ class RbacApiClient(
             error("Gagal memuat entitlement modul (HTTP ${response.status.value}): ${response.bodyAsText()}")
         }
         TenantEntitlementGrantsCodec.decode(response.bodyAsText()).grantedModules
-            ?: BusinessModules.entries.toSet()
+            ?: ActiveTenantPack.current.moduleIds.toSet()
     }
 
     /**
@@ -288,7 +290,7 @@ class RbacApiClient(
         fun parseAssignments(json: String): Map<BusinessModule, List<DepartmentModuleAssignment>> {
             if (json.isBlank() || json == "{}") return emptyMap()
 
-            return BusinessModules.entries.mapNotNull { module ->
+            return ActiveTenantPack.current.moduleIds.mapNotNull { module ->
                 val array = extractJsonArray(json, ModuleIdCodec.storedName(module)) ?: return@mapNotNull null
                 val items = OrgChartApiClient.parseJsonArray(array).map { parseAssignment(it) }
                 if (items.isEmpty()) null else module to items

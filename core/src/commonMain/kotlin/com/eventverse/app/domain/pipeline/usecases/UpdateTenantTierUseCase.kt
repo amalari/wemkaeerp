@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -30,7 +31,8 @@ class UpdateTenantTierUseCase(
             ?: error("Tenant tidak ditemukan: ${tenantId.value}")
 
         val grants = entitlementRepository.findByTenantId(tenantId)
-        val resolvedEntitlement = TenantModuleEntitlement.resolve(newTier, grants)
+        val pack = requireNotNull(DomainPackRegistry.find(tenant.domainPack)) { "Pack ${tenant.domainPack.value} tidak dikenal" }
+        val resolvedEntitlement = TenantModuleEntitlement.resolve(newTier, grants, pack)
 
         pipelineRepository.findByTenantId(tenantId)?.let { pipeline ->
             if (!pipeline.isEmpty) {

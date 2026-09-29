@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.tenant.TenantId
@@ -203,7 +205,7 @@ class AccessDecisionEngineTest {
 
     @Test
     fun `evaluateAll should cover every business module`() {
-        val roles = CustomRole.createFactoryPresets(tenantId)
+        val roles = CustomRole.createFactoryPresets(tenantId, GarmentDomainPack.pack)
         val salesHead = roles.first { it.id.value.endsWith("sales-head") }
 
         val result = AccessDecisionEngine.evaluateAll(
@@ -211,10 +213,10 @@ class AccessDecisionEngineTest {
             roles = roles,
             assignments = mapOf(
                 GarmentModules.CRM_SALES to listOf(assignment(salesDept, AccessLevel.VIEW))
-            )
+            ), modules = GarmentDomainPack.pack.moduleIds
         )
 
-        assertEquals(BusinessModules.entries.size, result.size)
+        assertEquals(GarmentDomainPack.pack.moduleIds.size, result.size)
         assertEquals(AccessLevel.MANAGE, result.getValue(GarmentModules.CRM_SALES).level)
         assertEquals(AccessLevel.NONE, result.getValue(GarmentModules.OPERATOR_EXEC).level)
     }
@@ -270,7 +272,7 @@ class AccessDecisionEngineTest {
         )
         val kepalaBordir = role(
             "role-bordir-kepala",
-            BusinessModules.entries.associateWith { ModuleAccessConfig(AccessLevel.MANAGE) }
+            GarmentDomainPack.pack.moduleIds.associateWith { ModuleAccessConfig(AccessLevel.MANAGE) }
         ).copy(departmentId = bordirDept.id.value)
         val stafBordir = role(
             "role-bordir-staf",
@@ -325,13 +327,13 @@ class AccessDecisionEngineTest {
 
         // Divisi sengaja dikosongkan agar yang diuji murni jalur jabatan.
         val asA = AccessDecisionEngine.evaluateAll(
-            persona(departmentId = null, roleId = "role-a"), roles, emptyMap()
+            persona(departmentId = null, roleId = "role-a"), roles, emptyMap(), modules = GarmentDomainPack.pack.moduleIds
         )
         val asB = AccessDecisionEngine.evaluateAll(
-            persona(departmentId = null, roleId = "role-b"), roles, emptyMap()
+            persona(departmentId = null, roleId = "role-b"), roles, emptyMap(), modules = GarmentDomainPack.pack.moduleIds
         )
 
-        BusinessModules.entries.forEach { module ->
+        GarmentDomainPack.pack.moduleIds.forEach { module ->
             assertEquals(
                 jabatanA.getAccess(module).sanitizeFor(module).level,
                 asA.getValue(module).level,
@@ -397,7 +399,7 @@ class AccessDecisionEngineTest {
             roles = emptyList(),
             assignments = mapOf(
                 GarmentModules.CRM_SALES to listOf(assignment(salesDept, AccessLevel.OPERATE))
-            )
+            ), modules = GarmentDomainPack.pack.moduleIds
         )
 
         assertEquals(AccessLevel.OPERATE, result.getValue(GarmentModules.CRM_SALES).level)

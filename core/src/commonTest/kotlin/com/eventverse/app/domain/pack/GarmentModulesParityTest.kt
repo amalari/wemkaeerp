@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -102,7 +104,7 @@ class GarmentModulesParityTest {
     /** Dasar "nol migrasi" (TRD FR-1): kunci NAME tersimpan = code.uppercase() untuk setiap modul. */
     @Test
     fun storedName_isCodeUppercased_forEveryModule() {
-        BusinessModules.entries.forEach { assertEquals(it.name, ModuleId(it.code).storedName, it.code) }
-        assertEquals(BusinessModules.entries.map { it.code }, pack.modules.map { it.id.value })
+        GarmentDomainPack.pack.moduleIds.forEach { assertEquals(it.name, ModuleId(it.code).storedName, it.code) }
+        assertEquals(GarmentDomainPack.pack.moduleIds.map { it.code }, pack.modules.map { it.id.value })
     }
 }

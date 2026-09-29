@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -17,8 +19,11 @@ import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.workspace.ModuleWorkspaceScreen
 
 /** Modul yang dituju path `/m/{code}`; null bila code bukan modul pack aktif. */
-internal fun moduleFromGenericPath(path: String): BusinessModule? =
-    BusinessModules.fromCode(path.substringAfter("${AppNavScreen.MODULE.route}/", "").substringBefore('/').substringBefore('?'))
+internal fun moduleFromGenericPath(path: String, pack: DomainPack = ActiveTenantPack.current): BusinessModule? {
+    val code = path.substringAfter("${AppNavScreen.MODULE.route}/", "").substringBefore('/').substringBefore('?')
+    // Hanya modul pack tenant (B7): modul vertikal lain yang kebetulan dikenal registry tidak boleh terbuka di sini.
+    return pack.modules.firstOrNull { it.id.value.equals(code, ignoreCase = true) }?.id
+}
 
 /**
  * Layar `/m/{code}` (B6f): modul pack yang belum punya layar khusus dibuka di layar kerja generik, tergerbang

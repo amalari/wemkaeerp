@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.contracts
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -112,7 +113,7 @@ class PortCompatibilityTest {
             edges = listOf(edge)
         )
 
-        val mismatches = PortCompatibility.validate(pipeline)
+        val mismatches = PortCompatibility.validate(pipeline, GarmentDomainPack.pack)
         assertEquals(1, mismatches.size)
         assertEquals(PortMismatchSeverity.BLOCKING, mismatches.first().severity)
     }

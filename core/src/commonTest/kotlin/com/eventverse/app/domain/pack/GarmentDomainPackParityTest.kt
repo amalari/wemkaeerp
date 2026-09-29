@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -150,7 +151,7 @@ class GarmentDomainPackParityTest {
     @Test
     fun registry_findsGarmentByCode_andUnknownIsNull() {
         assertSame(pack, DomainPackRegistry.find(DomainPackCode("garment")))
-        assertSame(pack, DomainPackRegistry.soleActivePack)
+        assertSame(pack, GarmentDomainPack.pack)
         assertEquals(null, DomainPackRegistry.find(DomainPackCode("elearning")), "belum didaftarkan — tidak boleh fallback ke garment")
     }
 }

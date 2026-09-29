@@ -28,48 +28,54 @@ import kotlin.test.assertTrue
  */
 class ElearningNavMenuTest {
 
-    private val grading = ModuleId("grading")
-    private val enrollment = ModuleId("enrollment")
+    private val grading = ModuleId("elearning_grading")
+    private val enrollment = ModuleId("elearning_enrollment")
     private val ports = setOf("Enrollment", "Submission", "GradedResult").map(::PortType).toSet()
     private val pack = DomainPack(
         code = DomainPackCode("elearning"), displayName = "Kursus & Pelatihan",
         phases = listOf(PhaseDefinition(PhaseCode("ASSESSMENT"), 1, "Penilaian", "", 0xFF16A34A)),
-        slots = listOf(SlotDefinition(SlotCode("grading"), "Penilaian", PhaseCode("ASSESSMENT"), PortType("Submission"), PortType("GradedResult"))),
+        slots = listOf(SlotDefinition(SlotCode("elearning_grading"), "Penilaian", PhaseCode("ASSESSMENT"), PortType("Submission"), PortType("GradedResult"))),
         portTypes = ports, wiredPortTypes = ports,
         sections = listOf(ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 1, 0xFF2563EB, 0xFFEFF6FF)),
         modules = listOf(
             ModuleDefinition(enrollment, "Pendaftaran Peserta", "", ModuleSectionCode("LEARNING"), ModuleKind.FOUNDATION,
                 "clipboard", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), null),
             ModuleDefinition(grading, "Penilaian Tugas", "", ModuleSectionCode("LEARNING"), ModuleKind.OPERATIONAL,
-                "check_circle", ScopeCapability.HIERARCHICAL, setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("grading"))
+                "check_circle", ScopeCapability.HIERARCHICAL, setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("elearning_grading"))
         )
     )
 
+    /** B7: pack data didaftarkan (definisi modulnya dicari lintas pack), lalu dilepas. */
+    private fun registered(block: () -> Unit) {
+        DomainPackRegistry.register(pack)
+        try { block() } finally { DomainPackRegistry.unregister(pack.code) }
+    }
+
     @Test
-    fun tutorWithGradingView_seesGradingViaGenericRoute_andNothingElse() = DomainPackRegistry.withSoleActivePackForTest(pack) {
-        val menu = buildNavMenu(mapOf(grading to ModuleAccessConfig(level = AccessLevel.VIEW)), auditView = false)
+    fun tutorWithGradingView_seesGradingViaGenericRoute_andNothingElse() = registered {
+        val menu = buildNavMenu(mapOf(grading to ModuleAccessConfig(level = AccessLevel.VIEW)), auditView = false, pack = pack)
 
         assertEquals(listOf("Pembelajaran"), menu.map { it.title })
         val entry = menu.single().entries.single()
         assertEquals(AppNavScreen.MODULE, entry.screen)
-        assertEquals("/m/grading", entry.route)
+        assertEquals("/m/elearning_grading", entry.route)
         assertEquals("Penilaian Tugas", entry.title)
         assertEquals(grading, entry.module)
-        assertEquals("/m/grading", firstAccessibleEntry(menu)?.route, "pendaratan pun bisa ke modul tanpa layar khusus")
+        assertEquals("/m/elearning_grading", firstAccessibleEntry(menu)?.route, "pendaratan pun bisa ke modul tanpa layar khusus")
     }
 
     @Test
-    fun withoutAccess_moduleIsHidden_butAuditViewShowsItLocked() = DomainPackRegistry.withSoleActivePackForTest(pack) {
-        assertTrue(buildNavMenu(emptyMap(), auditView = false).isEmpty(), "tanpa wewenang: tidak ada menu sama sekali")
-        val audit = buildNavMenu(emptyMap(), auditView = true).single().entries
-        assertEquals(listOf("/m/enrollment", "/m/grading"), audit.map { it.route })
+    fun withoutAccess_moduleIsHidden_butAuditViewShowsItLocked() = registered {
+        assertTrue(buildNavMenu(emptyMap(), auditView = false, pack = pack).isEmpty(), "tanpa wewenang: tidak ada menu sama sekali")
+        val audit = buildNavMenu(emptyMap(), auditView = true, pack = pack).single().entries
+        assertEquals(listOf("/m/elearning_enrollment", "/m/elearning_grading"), audit.map { it.route })
         assertTrue(audit.all { it.locked })
     }
 
     @Test
-    fun genericPath_resolvesOnlyModulesOfTheActivePack() = DomainPackRegistry.withSoleActivePackForTest(pack) {
-        assertEquals(grading, moduleFromGenericPath("/m/grading"))
-        assertEquals(grading, moduleFromGenericPath("/m/grading?tab=1"))
-        assertNull(moduleFromGenericPath("/m/crm_sales"), "modul konveksi tidak ada di pack e-learning")
+    fun genericPath_resolvesOnlyModulesOfTheTenantPack() = registered {
+        assertEquals(grading, moduleFromGenericPath("/m/elearning_grading", pack))
+        assertEquals(grading, moduleFromGenericPath("/m/elearning_grading?tab=1", pack))
+        assertNull(moduleFromGenericPath("/m/crm_sales", pack), "modul konveksi tidak ada di pack e-learning")
     }
 }

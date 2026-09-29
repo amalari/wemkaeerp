@@ -52,7 +52,7 @@ class RbacApiTest {
     fun getRoles_withValidTenant_shouldReturnEmptyOrPresetRoles() = testApplication {
         val tenantRepo = setupTestTenantRepo()
         val roleRepo = InMemoryRoleRepository()
-        roleRepo.restoreDefaultPresets(tenantId)
+        roleRepo.restoreDefaultPresets(tenantId, com.eventverse.app.domain.pack.GarmentDomainPack.pack)
 
         application {
             module(

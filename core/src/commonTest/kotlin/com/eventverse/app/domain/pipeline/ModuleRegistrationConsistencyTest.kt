@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.foundationModules
+import com.eventverse.app.domain.rbac.governanceModules
+import com.eventverse.app.domain.rbac.operationalModules
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -50,15 +54,15 @@ class ModuleRegistrationConsistencyTest {
     @Test
     fun everyOperationalModule_hasExactlyOneCatalogSpec_andNoOtherKindDoes() {
         val specModules = OperationalModuleCatalog.all.map { it.module }
-        assertEquals(BusinessModules.operational.toSet(), specModules.toSet(), "Spec katalog ≠ BusinessModules.operational")
+        assertEquals(GarmentDomainPack.pack.operationalModules.toSet(), specModules.toSet(), "Spec katalog ≠ GarmentDomainPack.pack.operationalModules")
         assertEquals(specModules.size, specModules.toSet().size, "Spec ganda di OperationalModuleCatalog.all")
     }
 
     @Test
     fun everyFoundationModule_hasFoundationSpec_andGovernanceHasNoSpecAtAll() {
-        assertEquals(BusinessModules.foundation.toSet(), FoundationModuleCatalog.all.map { it.module }.toSet())
+        assertEquals(GarmentDomainPack.pack.foundationModules.toSet(), FoundationModuleCatalog.all.map { it.module }.toSet())
         val specced = OperationalModuleCatalog.all.map { it.module } + FoundationModuleCatalog.all.map { it.module }
-        BusinessModules.governance.forEach { assertTrue(it !in specced, "Modul governance ${it.code} tidak boleh punya spec katalog") }
+        GarmentDomainPack.pack.governanceModules.forEach { assertTrue(it !in specced, "Modul governance ${it.code} tidak boleh punya spec katalog") }
     }
 
     @Test
@@ -66,7 +70,7 @@ class ModuleRegistrationConsistencyTest {
         GarmentBlueprints.all.forEach { blueprint ->
             OperationalModuleCatalog.all.forEach { spec ->
                 (spec.inputsFor(blueprint.parametersOf(spec.module.code)) + spec.outputsFor(blueprint.parametersOf(spec.module.code))).forEach { type ->
-                    assertTrue(DomainPackRegistry.soleActivePack.isWired(type), "Port '$type' (${spec.module.code}) belum terdaftar di port wiring pack")
+                    assertTrue(GarmentDomainPack.pack.isWired(type), "Port '$type' (${spec.module.code}) belum terdaftar di port wiring pack")
                 }
             }
         }

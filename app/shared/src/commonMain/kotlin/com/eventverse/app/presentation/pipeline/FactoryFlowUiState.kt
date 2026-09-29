@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.pipeline
 
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.blueprint.Blueprint
 
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -39,7 +40,7 @@ data class FactoryFlowUiState(
     val isPresentationMode: Boolean = false,
     val selectedStageFilter: PhaseDefinition? = null,
     /** Kosakata vertikal: kolom kanvas dibaca dari sini (Jalur B, B1). */
-    val pack: DomainPack = DomainPackRegistry.soleActivePack,
+    val pack: DomainPack = ActiveTenantPack.current,
     val searchQuery: String = "",
     val isSimulatingRealtime: Boolean = true,
     val hideBypassedNodes: Boolean = true,

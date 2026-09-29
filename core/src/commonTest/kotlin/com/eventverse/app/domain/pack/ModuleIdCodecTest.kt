@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -48,7 +50,7 @@ class ModuleIdCodecTest {
 
     @Test
     fun storedName_isExact_likeValueOf_andEveryModuleRoundTrips() {
-        BusinessModules.entries.forEach { assertEquals(it, ModuleIdCodec.fromStoredName(ModuleIdCodec.storedName(it), "t")) }
+        GarmentDomainPack.pack.moduleIds.forEach { assertEquals(it, ModuleIdCodec.fromStoredName(ModuleIdCodec.storedName(it), "t")) }
         assertEquals(GarmentModules.QUALITY_CONTROL, ModuleIdCodec.fromStoredName("QUALITY_CONTROL", "t"))
         assertNull(ModuleIdCodec.fromStoredName("quality_control", "custom_roles"), "NAME peka huruf besar, seperti valueOf")
         assertEquals(listOf("custom_roles" to "quality_control"), reported)

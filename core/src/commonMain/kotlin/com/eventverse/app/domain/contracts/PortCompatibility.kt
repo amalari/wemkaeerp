@@ -4,7 +4,7 @@ import com.eventverse.app.domain.pipeline.defaultProducedOutputType
 
 import com.eventverse.app.domain.pipeline.defaultExpectedInputType
 
-import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.DomainPack
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 
@@ -45,7 +45,8 @@ object PortCompatibility {
         return acceptedTypes.any { target -> adapterPathFor(producedType, target) != null }
     }
 
-    fun validate(pipeline: CustomTenantPipeline): List<PortMismatch> {
+    /** [pack] = pack tenant pemilik [pipeline] (B7): kosakata port yang sah berbeda per vertikal. */
+    fun validate(pipeline: CustomTenantPipeline, pack: DomainPack): List<PortMismatch> {
         val mismatches = mutableListOf<PortMismatch>()
         val nodeMap = pipeline.nodes.associateBy { it.nodeId }
 
@@ -60,7 +61,6 @@ object PortCompatibility {
                 continue
             }
 
-            val pack = DomainPackRegistry.soleActivePack
             if (!pack.isWired(producedType) || !pack.isWired(toNode.archetype.defaultExpectedInputType)) {
                 mismatches += PortMismatch(
                     edgeId = edge.edgeId,

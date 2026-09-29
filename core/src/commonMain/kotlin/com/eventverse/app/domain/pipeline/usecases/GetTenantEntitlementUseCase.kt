@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
 import com.eventverse.app.domain.tenant.SubscriptionTier
@@ -18,8 +19,9 @@ class GetTenantEntitlementUseCase(
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
-        tier: SubscriptionTier
+        tier: SubscriptionTier,
+        pack: DomainPack
     ): Result<TenantModuleEntitlement> = runCatching {
-        TenantModuleEntitlement.resolve(tier, entitlementRepository.findByTenantId(tenantId))
+        TenantModuleEntitlement.resolve(tier, entitlementRepository.findByTenantId(tenantId), pack)
     }
 }

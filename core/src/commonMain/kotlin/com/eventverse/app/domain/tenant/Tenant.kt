@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.tenant
 
+import com.eventverse.app.domain.pack.DomainPackCode
+import com.eventverse.app.domain.pack.GarmentDomainPack
+
 import com.eventverse.app.domain.blueprint.Blueprint
 
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -19,10 +22,16 @@ data class Tenant(
     val activeMachineCount: Int = 0,
     val businessPreset: Blueprint = GarmentBlueprints.DEFAULT,
     /** Kerangka tahap industri tempat pabrik ini di-provision (TRD-FLOW-001). Sumbu terpisah dari model bisnis. */
-    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER
+    val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER,
+    /** Vertikal tenant (B7). Default = nilai setiap baris lama (`tenants.domain_pack DEFAULT 'garment'`), bukan fallback baca. */
+    val domainPack: DomainPackCode = GarmentDomainPack.CODE
 ) {
     val isAccessible: Boolean
         get() = status.isAccessible
+
+    /** Pack tenant; kode tak dikenal = konfigurasi rusak → gagal keras, tidak jatuh ke garment (Kontrak 4). */
+    val pack: com.eventverse.app.domain.pack.DomainPack
+        get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.find(domainPack)) { "Pack ${domainPack.value} tenant ${slug.value} tidak dikenal" }
 
     fun canAccessPlatform(): Boolean = isAccessible
 

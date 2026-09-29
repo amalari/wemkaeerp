@@ -1,5 +1,9 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.governanceModules
+import com.eventverse.app.domain.rbac.operationalModules
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.pack.GarmentSlots
@@ -19,10 +23,10 @@ class GovernanceModuleAccessTest {
 
     private val tenantId = TenantId("ten-demo-001")
 
-    private val ownerRole = CustomRole.createFactoryPresets(tenantId)
+    private val ownerRole = CustomRole.createFactoryPresets(tenantId, GarmentDomainPack.pack)
         .single { it.id.value.endsWith("owner") }
 
-    private val salesRole = CustomRole.createFactoryPresets(tenantId)
+    private val salesRole = CustomRole.createFactoryPresets(tenantId, GarmentDomainPack.pack)
         .single { it.id.value.endsWith("sales") && !it.id.value.contains("head") }
 
     private fun persona(
@@ -51,7 +55,7 @@ class GovernanceModuleAccessTest {
             module = GarmentModules.FACTORY_FLOW,
             role = salesRole,
             assignments = emptyList(),
-            grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
+            grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.FACTORY_FLOW
         )
 
         assertEquals(AccessSource.NOT_ENTITLED, decision.source)
@@ -68,7 +72,7 @@ class GovernanceModuleAccessTest {
             module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
-            grantedModules = BusinessModules.entries.toSet() - GarmentModules.DYNAMIC_RBAC
+            grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.DYNAMIC_RBAC
         )
 
         assertEquals(AccessSource.NOT_ENTITLED, decision.source)
@@ -84,7 +88,7 @@ class GovernanceModuleAccessTest {
             module = GarmentModules.DYNAMIC_RBAC,
             role = null,
             assignments = emptyList(),
-            grantedModules = BusinessModules.entries.toSet() - GarmentModules.DYNAMIC_RBAC
+            grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.DYNAMIC_RBAC
         )
 
         assertEquals(AccessSource.SUPERADMIN_BYPASS, decision.source)
@@ -118,7 +122,7 @@ class GovernanceModuleAccessTest {
             module = GarmentModules.DYNAMIC_RBAC,
             role = salesRole,
             assignments = emptyList(),
-            grantedModules = BusinessModules.entries.toSet()
+            grantedModules = GarmentDomainPack.pack.moduleIds.toSet()
         )
 
         assertEquals(AccessSource.NONE, decision.source)
@@ -171,7 +175,7 @@ class GovernanceModuleAccessTest {
 
     @Test
     fun governanceModules_shouldFillNoCapabilitySlot() {
-        BusinessModules.governance.forEach { module ->
+        GarmentDomainPack.pack.governanceModules.forEach { module ->
             assertEquals(
                 null,
                 GarmentSlots.forModule(module),
@@ -182,7 +186,7 @@ class GovernanceModuleAccessTest {
 
     @Test
     fun operationalModules_shouldAllStillFillACapabilitySlot() {
-        BusinessModules.operational.forEach { module ->
+        GarmentDomainPack.pack.operationalModules.forEach { module ->
             assertNotNull(GarmentSlots.forModule(module))
         }
     }

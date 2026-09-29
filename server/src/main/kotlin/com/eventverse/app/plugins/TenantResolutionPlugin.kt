@@ -1,5 +1,6 @@
 package com.eventverse.app.plugins
 
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -228,8 +229,18 @@ val TenantResolutionPlugin = createApplicationPlugin(
             return@onCall
         }
 
+        // Pack tak dikenal = konfigurasi tenant rusak: tolak, jangan jalankan tenant dengan kosakata garment (B7 FR-4).
+        val pack = DomainPackRegistry.find(resolvedTenant.domainPack)
+        if (pack == null) {
+            call.respond(
+                HttpStatusCode.Conflict,
+                "Vertikal '${resolvedTenant.domainPack.value}' untuk tenant '${resolvedTenant.slug.value}' tidak dikenal. Hubungi admin platform."
+            )
+            return@onCall
+        }
+
         call.attributes.put(TenantContextAttributeKey, TenantContext.fromTenant(resolvedTenant))
-        entitlements?.invoke(resolvedTenant.id, resolvedTenant.tier)?.getOrNull()
+        entitlements?.invoke(resolvedTenant.id, resolvedTenant.tier, pack)?.getOrNull()
             ?.let { call.attributes.put(GrantedModulesAttributeKey, it.grantedModules) }
     }
 }

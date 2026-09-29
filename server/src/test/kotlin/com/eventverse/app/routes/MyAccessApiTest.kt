@@ -1,5 +1,7 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -107,7 +109,7 @@ class MyAccessApiTest {
         val qc = access(TestAuth.staffToken(slug, customRoleId = "role-qc", role = Role.OPERATOR))
         assertEquals(AccessLevel.OPERATE, qc.getValue(GarmentModules.QUALITY_CONTROL).config.level)
         assertEquals(AccessLevel.NONE, qc.getValue(GarmentModules.DYNAMIC_RBAC).config.level)
-        assertEquals(BusinessModules.entries.toSet(), qc.keys, "semua modul dikirim — modul tanpa entri tidak ditebak klien")
+        assertEquals(GarmentDomainPack.pack.moduleIds.toSet(), qc.keys, "semua modul dikirim — modul tanpa entri tidak ditebak klien")
 
         // Gerbang setuju dengan menu: QC boleh inspeksi, tidak boleh membaca daftar jabatan.
         val qcToken = TestAuth.staffToken(slug, customRoleId = "role-qc", role = Role.OPERATOR)

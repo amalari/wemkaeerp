@@ -75,7 +75,7 @@ fun Route.pipelineRoutes(
     get("/api/tenant/entitlement") {
         val tenant = call.requireTenant() ?: return@get
 
-        getEntitlementUseCase(tenant.tenantId, tenant.tier)
+        getEntitlementUseCase(tenant.tenantId, tenant.tier, tenant.pack)
             .onSuccess { entitlement ->
                 call.respondText(
                     // Selalu daftar eksplisit, bukan `toGrants()` yang memadatkan "semua" menjadi
@@ -268,7 +268,7 @@ fun Route.pipelineRoutes(
 private suspend fun GetTenantEntitlementUseCase.forTenant(
     tenant: TenantContext
 ): TenantModuleEntitlement =
-    invoke(tenant.tenantId, tenant.tier).getOrDefault(tenant.moduleEntitlement)
+    invoke(tenant.tenantId, tenant.tier, tenant.pack).getOrDefault(tenant.moduleEntitlement)
 
 /** Preset used to provision a tenant that has no pipeline yet: its own business model. */
 private val TenantContext.starterPreset: Blueprint

@@ -196,7 +196,7 @@ fun Route.rbacRoutes(roleRepository: RoleRepository, moduleAssignmentRepository:
                 return@post
             }
 
-            val result = restoreDefaultRolesUseCase(tenant.tenantId)
+            val result = restoreDefaultRolesUseCase(tenant.tenantId, tenant.pack)
             if (result.isSuccess) {
                 call.respondText(RoleDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)
             } else {

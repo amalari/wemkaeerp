@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.rbac.usecases.*
@@ -28,8 +29,8 @@ class FakeRoleRepository : RoleRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun restoreDefaultPresets(tenantId: TenantId): Result<List<CustomRole>> {
-        val presets = CustomRole.createFactoryPresets(tenantId)
+    override suspend fun restoreDefaultPresets(tenantId: TenantId, pack: com.eventverse.app.domain.pack.DomainPack): Result<List<CustomRole>> {
+        val presets = CustomRole.createFactoryPresets(tenantId, pack)
         presets.forEach { save(it) }
         return Result.success(presets)
     }
@@ -114,7 +115,7 @@ class RoleUseCaseTest {
 
     @Test
     fun deleteRole_systemDefaultRole_shouldFail() = runTest {
-        restoreDefaultRolesUseCase(tenantId)
+        restoreDefaultRolesUseCase(tenantId, GarmentDomainPack.pack)
         val ownerRole = repo.findAllByTenant(tenantId).find { it.isSystemDefault }
         assertNotNull(ownerRole)
 

@@ -27,8 +27,8 @@ class InMemoryRoleRepository : RoleRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun restoreDefaultPresets(tenantId: TenantId): Result<List<CustomRole>> {
-        val presets = CustomRole.createFactoryPresets(tenantId)
+    override suspend fun restoreDefaultPresets(tenantId: TenantId, pack: com.eventverse.app.domain.pack.DomainPack): Result<List<CustomRole>> {
+        val presets = CustomRole.createFactoryPresets(tenantId, pack)
         presets.forEach { save(it) }
         return Result.success(presets)
     }

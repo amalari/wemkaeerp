@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -121,12 +122,12 @@ fun PersonaTestingModal(
     var customName by remember { mutableStateOf("") }
 
     val effectiveRoles = remember(roles, tenantId) {
-        if (roles.isEmpty()) CustomRole.createFactoryPresets(tenantId) else roles
+        if (roles.isEmpty()) CustomRole.createFactoryPresets(tenantId, ActiveTenantPack.current) else roles
     }
 
     val personas = remember(employees, roles, tenantId, tenantSlug) {
         if (employees.isEmpty()) {
-            TestingPersona.factoryPresets(tenantId, tenantSlug)
+            TestingPersona.factoryPresets(tenantId, tenantSlug, ActiveTenantPack.current)
         } else {
             TestingPersona.fromDirectory(employees, roles, tenantId, tenantSlug)
         }

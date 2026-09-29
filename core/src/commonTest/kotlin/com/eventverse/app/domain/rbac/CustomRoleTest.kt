@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.rbac
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.tenant.TenantId
@@ -11,7 +13,7 @@ class CustomRoleTest {
 
     @Test
     fun presets_should_provide_expected_roles() {
-        val presets = CustomRole.createFactoryPresets(sampleTenantId)
+        val presets = CustomRole.createFactoryPresets(sampleTenantId, GarmentDomainPack.pack)
         assertEquals(6, presets.size)
 
         val roleNames = presets.map { it.name }
@@ -25,7 +27,7 @@ class CustomRoleTest {
 
     @Test
     fun head_of_sales_preset_should_have_subordinate_data_scope() {
-        val headSales = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("sales-head") }
+        val headSales = CustomRole.createFactoryPresets(sampleTenantId, GarmentDomainPack.pack).first { it.id.value.endsWith("sales-head") }
 
         val crmAccess = headSales.getAccess(GarmentModules.CRM_SALES)
         assertEquals(AccessLevel.MANAGE, crmAccess.level)
@@ -38,9 +40,9 @@ class CustomRoleTest {
 
     @Test
     fun owner_preset_should_have_manage_access_to_all_modules() {
-        val owner = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("owner") }
+        val owner = CustomRole.createFactoryPresets(sampleTenantId, GarmentDomainPack.pack).first { it.id.value.endsWith("owner") }
 
-        for (module in BusinessModules.entries) {
+        for (module in GarmentDomainPack.pack.moduleIds) {
             assertTrue(
                 owner.hasAccess(module, AccessLevel.MANAGE),
                 "Owner must have MANAGE access to ${module.displayName}"
@@ -51,7 +53,7 @@ class CustomRoleTest {
 
     @Test
     fun operator_preset_should_have_restricted_access() {
-        val operator = CustomRole.createFactoryPresets(sampleTenantId).first { it.id.value.endsWith("operator") }
+        val operator = CustomRole.createFactoryPresets(sampleTenantId, GarmentDomainPack.pack).first { it.id.value.endsWith("operator") }
 
         // Operator has OPERATE access on OPERATOR_EXEC with OWN_DATA_ONLY
         val execAccess = operator.getAccess(GarmentModules.OPERATOR_EXEC)

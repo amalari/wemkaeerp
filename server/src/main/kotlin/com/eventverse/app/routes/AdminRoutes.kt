@@ -78,7 +78,7 @@ fun Route.adminRoutes(
 
             val autoBypass = call.request.queryParameters["autoBypass"]?.toBooleanStrictOrNull() ?: false
 
-            setEntitlementUseCase(tenant.id, tenant.tier, grants, autoBypassPipelineModules = autoBypass)
+            setEntitlementUseCase(tenant.id, tenant.tier, grants, tenant.pack, autoBypassPipelineModules = autoBypass)
                 .onSuccess {
                     val bypassNote = if (autoBypass) " (auto-bypass alur aktif)" else ""
                     call.recordAudit(
@@ -172,7 +172,7 @@ private suspend fun respondAdminView(
     getEntitlementUseCase: GetTenantEntitlementUseCase,
     getModuleCatalogUseCase: GetTenantModuleCatalogUseCase
 ): Result<Unit> = runCatching {
-    val entitlement = getEntitlementUseCase(tenant.id, tenant.tier).getOrThrow()
+    val entitlement = getEntitlementUseCase(tenant.id, tenant.tier, tenant.pack).getOrThrow()
     val modules = getModuleCatalogUseCase(tenant.id, entitlement, tenant.businessPreset).getOrThrow()
     val grants = entitlement.toGrants()
 

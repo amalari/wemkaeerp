@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -80,7 +82,7 @@ data class DynamicRbacUiState(
         get() = roles.sumOf { it.userCount }
 
     val totalActiveModules: Int
-        get() = BusinessModules.entries.size
+        get() = ActiveTenantPack.current.moduleIds.size
 }
 
 sealed interface DynamicRbacUiEvent {

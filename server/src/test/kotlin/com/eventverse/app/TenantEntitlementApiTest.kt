@@ -1,5 +1,8 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.governanceModules
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -105,7 +108,7 @@ class TenantEntitlementApiTest {
             "Server harus selalu mengirim daftar eksplisit; klien tidak boleh perlu tahu aturan tier " +
                 "untuk memuluskan null menjadi 'semua'"
         )
-        assertEquals(BusinessModules.entries.toSet(), granted)
+        assertEquals(GarmentDomainPack.pack.moduleIds.toSet(), granted)
     }
 
     @Test
@@ -123,7 +126,7 @@ class TenantEntitlementApiTest {
             .grantedModules
             .orEmpty()
 
-        BusinessModules.governance.forEach { module ->
+        GarmentDomainPack.pack.governanceModules.forEach { module ->
             assertTrue(module in granted, "${module.code} harus terbawa di entitlement")
         }
     }
@@ -135,7 +138,7 @@ class TenantEntitlementApiTest {
             entitlementRepo.save(
                 tenantId,
                 TenantEntitlementGrants(
-                    grantedModules = BusinessModules.entries.toSet() - GarmentModules.FACTORY_FLOW
+                    grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.FACTORY_FLOW
                 )
             )
         }

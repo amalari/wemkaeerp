@@ -185,10 +185,10 @@ data class TestingPersona(
          * Memakai [fromDirectory] dengan data contoh, jadi aturan pencocokannya persis sama
          * dengan jalur sungguhan — tidak ada logika kedua yang bisa menyimpang.
          */
-        fun factoryPresets(tenantId: TenantId, tenantSlug: String): List<TestingPersona> =
+        fun factoryPresets(tenantId: TenantId, tenantSlug: String, pack: com.eventverse.app.domain.pack.DomainPack): List<TestingPersona> =
             fromDirectory(
                 employees = OrgNode.createSampleEmployees(tenantId),
-                roles = CustomRole.createFactoryPresets(tenantId),
+                roles = CustomRole.createFactoryPresets(tenantId, pack),
                 tenantId = tenantId,
                 tenantSlug = tenantSlug
             )

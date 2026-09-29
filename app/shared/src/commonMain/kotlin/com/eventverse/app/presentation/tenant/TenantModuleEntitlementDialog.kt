@@ -1,5 +1,9 @@
 package com.eventverse.app.presentation.tenant
 
+import com.eventverse.app.domain.rbac.operationalModules
+import com.eventverse.app.domain.rbac.foundationModules
+import com.eventverse.app.domain.rbac.governanceModules
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.section
 
 import com.eventverse.app.domain.rbac.isScopeSupported
@@ -219,7 +223,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Sistem & Tata Kelola",
                                     subtitle = "Tidak memakan kuota modul produksi.",
-                                    modules = BusinessModules.governance,
+                                    modules = ActiveTenantPack.current.governanceModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -229,7 +233,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Data Induk & Referensi",
                                     subtitle = "Master data, vendor, penagihan. Tidak memakan kuota modul produksi.",
-                                    modules = BusinessModules.foundation,
+                                    modules = ActiveTenantPack.current.foundationModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->
@@ -239,7 +243,7 @@ fun TenantModuleEntitlementDialog(
                                 ModuleGroup(
                                     title = "Modul Operasional Pabrik",
                                     subtitle = "Terhitung terhadap batas paket langganan.",
-                                    modules = BusinessModules.operational,
+                                    modules = ActiveTenantPack.current.operationalModules,
                                     granted = current,
                                     activePipelineModules = activePipelineModules,
                                     onToggle = { module, enabled ->

@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -84,7 +86,9 @@ data class NavMenuSection(
  */
 fun buildNavMenu(
     permissions: Map<BusinessModule, ModuleAccessConfig>,
-    auditView: Boolean
+    auditView: Boolean,
+    /** Pack tenant (B7): seksi & urutan menu. */
+    pack: DomainPack = ActiveTenantPack.current
 ): List<NavMenuSection> {
     val sections = mutableListOf<NavMenuSection>()
 
@@ -95,7 +99,6 @@ fun buildNavMenu(
         .groupBy { requireNotNull(it.businessModule) }
 
     // B6f: seksi & urutan dari Domain Pack, bukan enum. Modul tanpa layar khusus tetap muncul lewat `/m/{code}`.
-    val pack = DomainPackRegistry.soleActivePack
     pack.sections.sortedBy { it.order }.forEach { section ->
         val entries = pack.modules
             .filter { it.section == section.code }

@@ -2,7 +2,8 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.rbac.AccessDecisionEngine
 import com.eventverse.app.domain.rbac.AccessLevel
-import com.eventverse.app.domain.rbac.BusinessModules
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.domain.rbac.operationalModules
 import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
@@ -26,39 +27,45 @@ class ElearningPackTest {
     private val tenant = TenantId("ten-kursus")
 
     @Test
-    fun elearningModules_areCatalogued_parsed_andGated_withoutCoreChanges() = DomainPackRegistry.withSoleActivePackForTest(ElearningPack.pack) {
-        assertEquals(listOf("enrollment", "grading", "org_chart"), BusinessModules.entries.map { it.value })
-        assertEquals(listOf("grading"), BusinessModules.operational.map { it.value })
+    fun elearningModules_areCatalogued_parsed_andGated_withoutCoreChanges() = ElearningPack.registered {
+        val pack = ElearningPack.pack
+        assertEquals(listOf("elearning_enrollment", "elearning_grading", "org_chart"), pack.moduleIds.map { it.value })
+        assertEquals(listOf("elearning_grading"), pack.operationalModules.map { it.value })
         assertEquals("Penilaian Tugas", ElearningPack.GRADING.displayName)
 
         // Kunci tersimpan RBAC (NAME) & katalog (code) untuk modul pack baru, lewat parser yang sama.
-        assertEquals(ElearningPack.GRADING, ModuleIdCodec.fromStoredName("GRADING", "t"))
-        assertEquals(ElearningPack.ENROLLMENT, ModuleIdCodec.fromCode("enrollment", "t"))
-        assertNull(ModuleIdCodec.standardOrNull("crm_sales"), "modul konveksi tidak ada di pack e-learning")
+        assertEquals(ElearningPack.GRADING, ModuleIdCodec.fromStoredName("ELEARNING_GRADING", "t"))
+        assertEquals(ElearningPack.ENROLLMENT, ModuleIdCodec.fromCode("elearning_enrollment", "t"))
+        assertNull(pack.module(GarmentModules.CRM_SALES), "modul konveksi tidak ada di pack e-learning")
 
         // Mesin wewenang: jabatan "Tutor" VIEW penilaian, tanpa akses pendaftaran.
         val tutor = CustomRole(RoleId("role-tutor"), tenant, "Tutor", "menilai tugas",
             modulePermissions = mapOf(ElearningPack.GRADING to ModuleAccessConfig(level = AccessLevel.VIEW)))
         val persona = TestingPersona("u1", "Tutor A", tenant, "kursus", null, "", tutor.id, tutor.name)
-        val decisions = AccessDecisionEngine.explainAll(persona, listOf(tutor), emptyMap())
+        val decisions = AccessDecisionEngine.explainAll(persona, listOf(tutor), emptyMap(), modules = pack.moduleIds)
         assertEquals(AccessLevel.VIEW, decisions.getValue(ElearningPack.GRADING).config.level)
         assertEquals(AccessLevel.NONE, decisions.getValue(ElearningPack.ENROLLMENT).config.level)
-        assertEquals(setOf("enrollment", "grading", "org_chart"), decisions.keys.map { it.value }.toSet())
+        assertEquals(setOf("elearning_enrollment", "elearning_grading", "org_chart"), decisions.keys.map { it.value }.toSet())
     }
 }
 
 /** Pack e-learning fiktif — hanya data. */
 internal object ElearningPack {
-    val ENROLLMENT = ModuleId("enrollment")
-    val GRADING = ModuleId("grading")
-    private val ORG_CHART = ModuleId("org_chart")
+    val ENROLLMENT = ModuleId("elearning_enrollment")
+    val GRADING = ModuleId("elearning_grading")
+
+    /** Pack data didaftarkan selama [block] (B7: definisi modul dicari lintas pack terdaftar). */
+    fun <T> registered(block: () -> T): T {
+        DomainPackRegistry.register(pack)
+        try { return block() } finally { DomainPackRegistry.unregister(pack.code) }
+    }
 
     private val phases = listOf(
         PhaseDefinition(PhaseCode("ACQUISITION"), 1, "1. Akuisisi", "Pendaftaran peserta", 0xFF2563EB),
         PhaseDefinition(PhaseCode("ASSESSMENT"), 2, "2. Penilaian", "Tugas & ujian", 0xFF16A34A)
     )
     private val ports = setOf("Enrollment", "Submission", "GradedResult").map(::PortType).toSet()
-    private val gradingSlot = SlotDefinition(SlotCode("grading"), "Penilaian", PhaseCode("ASSESSMENT"), PortType("Submission"), PortType("GradedResult"))
+    private val gradingSlot = SlotDefinition(SlotCode("elearning_grading"), "Penilaian", PhaseCode("ASSESSMENT"), PortType("Submission"), PortType("GradedResult"))
 
     val pack = DomainPack(
         code = DomainPackCode("elearning"),
@@ -68,7 +75,7 @@ internal object ElearningPack {
         portTypes = ports,
         wiredPortTypes = ports,
         sections = listOf(
-            ModuleSection(ModuleSectionCode("SYSTEM"), "Sistem", 1, 0xFF2563EB, 0xFFEFF6FF),
+            GarmentDomainPack.pack.sections.first { it.code.value == "GOVERNANCE" },
             ModuleSection(ModuleSectionCode("LEARNING"), "Pembelajaran", 2, 0xFF2563EB, 0xFFEFF6FF)
         ),
         modules = listOf(
@@ -76,9 +83,9 @@ internal object ElearningPack {
                 ModuleKind.FOUNDATION, "clipboard", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), null),
             ModuleDefinition(GRADING, "Penilaian Tugas", "Menilai tugas peserta", ModuleSectionCode("LEARNING"),
                 ModuleKind.OPERATIONAL, "check_circle", ScopeCapability.HIERARCHICAL,
-                setOf(DataScope.OWN_DATA_ONLY, DataScope.SUBORDINATE_DATA, DataScope.ALL_TENANT_DATA), SlotCode("grading")),
-            ModuleDefinition(ORG_CHART, "Struktur Lembaga", "Struktur organisasi", ModuleSectionCode("SYSTEM"),
-                ModuleKind.GOVERNANCE, "users", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), null)
+                setOf(DataScope.OWN_DATA_ONLY, DataScope.SUBORDINATE_DATA, DataScope.ALL_TENANT_DATA), SlotCode("elearning_grading")),
+            // Modul platform dipakai bersama: definisinya wajib identik dengan pack lain (B7 FR-1).
+            requireNotNull(GarmentDomainPack.pack.module(GarmentModules.ORG_CHART))
         )
     )
 }

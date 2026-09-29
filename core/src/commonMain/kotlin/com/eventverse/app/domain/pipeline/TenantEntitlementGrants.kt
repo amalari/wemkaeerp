@@ -69,14 +69,16 @@ data class TenantEntitlementGrants(
      * pengurangan himpunan; daftarnya harus dipadatkan dulu menjadi seluruh katalog, baru satu modul
      * dikeluarkan. Tanpa langkah itu, toggle pertama pada tenant mana pun akan diam-diam mencabut
      * delapan modul lain sekaligus.
+     *
+     * [catalog] = seluruh modul pack tenant (B7): "semua" berarti semua modul **vertikal tenant itu**.
      */
-    fun withModule(module: BusinessModule, enabled: Boolean): TenantEntitlementGrants {
-        val current = grantedModules ?: BusinessModules.entries.toSet()
+    fun withModule(module: BusinessModule, enabled: Boolean, catalog: Set<BusinessModule>): TenantEntitlementGrants {
+        val current = grantedModules ?: catalog
         val updated = if (enabled) current + module else current - module
         return copy(
             // Kembali ke null bila hasilnya utuh: menyimpan "semua" sebagai null membuat tenant
             // ikut mewarisi modul baru yang dirilis kemudian, tanpa perlu migrasi data lagi.
-            grantedModules = updated.takeIf { it != BusinessModules.entries.toSet() }
+            grantedModules = updated.takeIf { it != catalog }
         )
     }
 

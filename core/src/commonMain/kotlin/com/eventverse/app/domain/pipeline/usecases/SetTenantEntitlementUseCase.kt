@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pipeline.usecases
 
+import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pipeline.TenantEntitlementGrants
 import com.eventverse.app.domain.pipeline.TenantEntitlementRepository
 import com.eventverse.app.domain.pipeline.TenantModuleEntitlement
@@ -22,9 +23,10 @@ class SetTenantEntitlementUseCase(
         tenantId: TenantId,
         tier: SubscriptionTier,
         grants: TenantEntitlementGrants,
+        pack: DomainPack,
         autoBypassPipelineModules: Boolean = false
     ): Result<TenantModuleEntitlement> = runCatching {
-        val resolved = TenantModuleEntitlement.resolve(tier, grants)
+        val resolved = TenantModuleEntitlement.resolve(tier, grants, pack)
 
         pipelineRepository.findByTenantId(tenantId)?.let { pipeline ->
             if (!pipeline.isEmpty) {

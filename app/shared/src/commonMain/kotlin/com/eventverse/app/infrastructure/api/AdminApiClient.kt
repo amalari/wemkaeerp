@@ -1,5 +1,7 @@
 package com.eventverse.app.infrastructure.api
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -64,7 +66,7 @@ data class TenantAdminView(
     val maxActiveModules: Int get() = catalog.maxActiveModules
 
     fun toGrants(): TenantEntitlementGrants = TenantEntitlementGrants(
-        grantedModules = grantedModules.takeIf { it != BusinessModules.entries.toSet() },
+        grantedModules = grantedModules.takeIf { it != ActiveTenantPack.current.moduleIds.toSet() },
         grantedCustomModuleIds = grantedCustomModuleIds
     )
 }
@@ -126,7 +128,7 @@ class AdminApiClient(
         return TenantAdminView(
             slug = root.string("slug") ?: "",
             name = root.string("name") ?: "",
-            grantedModules = grants.grantedModules ?: BusinessModules.entries.toSet(),
+            grantedModules = grants.grantedModules ?: ActiveTenantPack.current.moduleIds.toSet(),
             grantedCustomModuleIds = grants.grantedCustomModuleIds,
             catalog = TenantModuleCatalogCodec.decode(rawJson)
         )

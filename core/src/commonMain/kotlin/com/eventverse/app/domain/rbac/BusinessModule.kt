@@ -24,14 +24,14 @@ enum class ModuleKind { OPERATIONAL, GOVERNANCE, FOUNDATION }
  * terkompilasi; anggota enum lama menjadi extension di bawah yang membaca definisi pack.
  *
  * - Konstanta konveksi: `GarmentModules.CRM_SALES` dsb.
- * - "Semua modul": [BusinessModules.entries] — modul pack aktif, **berurutan** (urutan menu).
+ * - "Semua modul" milik **tenant**: `pack.moduleIds` (B7) — berurutan (urutan menu). Tidak ada daftar global.
  * - Kunci tersimpan: `name` = NAME lama (`CRM_SALES`), `code` = code (`crm_sales`); parser tunggal di `ModuleIdCodec`.
  */
 typealias BusinessModule = ModuleId
 
 private val ModuleId.definition: com.eventverse.app.domain.pack.ModuleDefinition
-    get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.soleActivePack.module(this)) {
-        "Modul $value tidak ada di pack ${com.eventverse.app.domain.pack.DomainPackRegistry.soleActivePack.code.value}"
+    get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.moduleDefinition(this)) {
+        "Modul $value tidak ada di pack mana pun"
     }
 
 /** Kunci code tersimpan (`crm_sales`) — katalog modul, node pipeline. */
@@ -49,7 +49,7 @@ val ModuleId.supportedScopes: Set<DataScope> get() = definition.supportedScopes
 
 /** Seksi menu modul ini (dulu `enum ModuleCategory`), dari pack aktif. */
 val ModuleId.section: com.eventverse.app.domain.pack.ModuleSection
-    get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.soleActivePack.sections.firstOrNull { it.code == definition.section }) {
+    get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.ownerOf(this)?.sections?.firstOrNull { it.code == definition.section }) {
         "Seksi ${definition.section.value} modul $value tidak ada di pack"
     }
 
@@ -61,20 +61,18 @@ val ModuleId.isFoundation: Boolean get() = kind == ModuleKind.FOUNDATION
 
 fun ModuleId.isScopeSupported(scope: DataScope): Boolean = supportedScopes.contains(scope)
 
-/** Pengganti companion enum lama: modul **pack aktif** (bukan konstanta konveksi). */
+/** Semua modul pack, berurutan (urutan menu) — dulu `BusinessModule.entries`. Milik tenant: pack diresolusi per tenant (B7). */
+val com.eventverse.app.domain.pack.DomainPack.moduleIds: List<BusinessModule> get() = modules.map { it.id }
+
+/** Modul yang boleh berdiri sebagai node kanvas & dihitung kuota paket. */
+val com.eventverse.app.domain.pack.DomainPack.operationalModules: List<BusinessModule> get() = moduleIds.filter { it.isOperational }
+
+/** Modul pengatur sistem: bagan organisasi, matriks wewenang, dan kanvas alur. */
+val com.eventverse.app.domain.pack.DomainPack.governanceModules: List<BusinessModule> get() = moduleIds.filter { it.isGovernance }
+
+/** Modul fondasi non-bypassable: data induk bahan dan harga acuan. */
+val com.eventverse.app.domain.pack.DomainPack.foundationModules: List<BusinessModule> get() = moduleIds.filter { it.isFoundation }
+
 object BusinessModules {
-    /** Semua modul, berurutan — dulu `BusinessModule.entries`. */
-    val entries: List<BusinessModule>
-        get() = com.eventverse.app.domain.pack.DomainPackRegistry.soleActivePack.modules.map { it.id }
-
-    /** Modul yang boleh berdiri sebagai node kanvas & dihitung kuota paket. */
-    val operational: List<BusinessModule> get() = entries.filter { it.isOperational }
-
-    /** Modul pengatur sistem: bagan organisasi, matriks wewenang, dan kanvas alur. */
-    val governance: List<BusinessModule> get() = entries.filter { it.isGovernance }
-
-    /** Modul fondasi non-bypassable: data induk bahan dan harga acuan. */
-    val foundation: List<BusinessModule> get() = entries.filter { it.isFoundation }
-
     fun fromCode(code: String?): BusinessModule? = com.eventverse.app.domain.pack.ModuleIdCodec.standardOrNull(code)
 }

@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -208,7 +210,7 @@ class RbacAccessPolicyRepositoryTest {
         repository.setPersona(null)
 
         assertTrue(
-            BusinessModules.entries.none { repository.accessFor(it).isAccessible },
+            GarmentDomainPack.pack.moduleIds.none { repository.accessFor(it).isAccessible },
             "Tanpa persona tidak ada modul yang boleh terbuka"
         )
     }

@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -138,7 +140,7 @@ class RbacAccessPolicyRepository(
             when {
                 persona == null -> emptyMap()
                 server != null -> server
-                else -> AccessDecisionEngine.explainAll(persona, roles, assignments, granted)
+                else -> AccessDecisionEngine.explainAll(persona, roles, assignments, granted, modules = ActiveTenantPack.current.moduleIds)
             }
         }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
@@ -171,7 +173,7 @@ class RbacAccessPolicyRepository(
                 client.getRoles(tenantSlug).onSuccess { remote ->
                     if (remote.isNotEmpty()) _roles.value = remote
                 }.onFailure {
-                    if (_roles.value.isEmpty() && server == null) _roles.value = CustomRole.createFactoryPresets(tenantId)
+                    if (_roles.value.isEmpty() && server == null) _roles.value = CustomRole.createFactoryPresets(tenantId, ActiveTenantPack.current)
                 }
             }
 

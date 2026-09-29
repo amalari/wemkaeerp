@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -66,8 +68,8 @@ class TenantModuleProvisioningUseCaseTest {
     private lateinit var installCustom: InstallCustomModuleUseCase
 
     private val tenantId = TenantId("ten-provisioning-test")
-    private val proPlan = TenantModuleEntitlement.forTier(SubscriptionTier.PRO)
-    private val enterprisePlan = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE)
+    private val proPlan = TenantModuleEntitlement.forTier(SubscriptionTier.PRO, GarmentDomainPack.pack)
+    private val enterprisePlan = TenantModuleEntitlement.forTier(SubscriptionTier.ENTERPRISE, GarmentDomainPack.pack)
 
     @BeforeTest
     fun setUp() {
@@ -111,7 +113,7 @@ class TenantModuleProvisioningUseCaseTest {
     fun catalog_onStarterPlan_shouldFlagUngrantedModules() = runTest {
         val starterPlan = TenantModuleEntitlement(
             tier = SubscriptionTier.STARTER,
-            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC)
+            grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC), catalog = GarmentDomainPack.pack.moduleIds.toSet()
         )
         getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
@@ -148,7 +150,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun activateModule_beyondPlanLimit_shouldFail() = runTest {
-        val starterPlan = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER)
+        val starterPlan = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
         getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
 
         // Nine active modules already exceeds STARTER's five, so any save must be refused.

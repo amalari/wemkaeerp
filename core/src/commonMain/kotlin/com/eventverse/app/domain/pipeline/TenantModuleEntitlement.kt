@@ -32,6 +32,8 @@ import com.eventverse.app.domain.rbac.code
 import com.eventverse.app.domain.rbac.BusinessModules
 
 import com.eventverse.app.domain.rbac.BusinessModule
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.tenant.SubscriptionTier
 
 /**
@@ -44,11 +46,13 @@ import com.eventverse.app.domain.tenant.SubscriptionTier
  */
 data class TenantModuleEntitlement(
     val tier: SubscriptionTier,
+    /** Seluruh modul pack tenant (B7) — makna "semua modul" untuk sentinel `null` di [toGrants]. */
+    val catalog: Set<BusinessModule>,
     /**
-     * Built-in modules the plan grants. Defaults to every module, so a plan restricts by
-     * *count* unless a narrower catalogue is explicitly configured for it.
+     * Built-in modules the plan grants. Defaults to every module of the tenant's pack, so a plan
+     * restricts by *count* unless a narrower catalogue is explicitly configured for it.
      */
-    val grantedModules: Set<BusinessModule> = BusinessModules.entries.toSet(),
+    val grantedModules: Set<BusinessModule> = catalog,
     /** Custom plugin module ids explicitly provisioned for this tenant. */
     val grantedCustomModuleIds: Set<String> = emptySet()
 ) {
@@ -127,13 +131,14 @@ data class TenantModuleEntitlement(
 
     /** The durable part of this entitlement, for persistence. */
     fun toGrants(): TenantEntitlementGrants = TenantEntitlementGrants(
-        grantedModules = grantedModules.takeIf { it != BusinessModules.entries.toSet() },
+        grantedModules = grantedModules.takeIf { it != catalog },
         grantedCustomModuleIds = grantedCustomModuleIds
     )
 
     companion object {
         /** Plan defaults with the full built-in catalogue available. */
-        fun forTier(tier: SubscriptionTier): TenantModuleEntitlement = TenantModuleEntitlement(tier = tier)
+        fun forTier(tier: SubscriptionTier, pack: DomainPack): TenantModuleEntitlement =
+            TenantModuleEntitlement(tier = tier, catalog = pack.moduleIds.toSet())
 
         /**
          * Combines plan defaults with a tenant's persisted grants.
@@ -143,10 +148,12 @@ data class TenantModuleEntitlement(
          */
         fun resolve(
             tier: SubscriptionTier,
-            grants: TenantEntitlementGrants?
+            grants: TenantEntitlementGrants?,
+            pack: DomainPack
         ): TenantModuleEntitlement = TenantModuleEntitlement(
             tier = tier,
-            grantedModules = grants?.grantedModules ?: BusinessModules.entries.toSet(),
+            catalog = pack.moduleIds.toSet(),
+            grantedModules = grants?.grantedModules ?: pack.moduleIds.toSet(),
             grantedCustomModuleIds = grants?.grantedCustomModuleIds ?: emptySet()
         )
     }

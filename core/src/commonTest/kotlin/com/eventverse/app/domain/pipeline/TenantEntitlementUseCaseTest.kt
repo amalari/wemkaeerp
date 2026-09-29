@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.rbac.moduleIds
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -103,10 +105,10 @@ class TenantEntitlementUseCaseTest {
 
     @Test
     fun getEntitlement_withNoStoredGrants_shouldFallBackToPlanDefaults() = runTest {
-        val entitlement = getEntitlement(tenantId, SubscriptionTier.PRO).getOrThrow()
+        val entitlement = getEntitlement(tenantId, SubscriptionTier.PRO, pack = GarmentDomainPack.pack).getOrThrow()
 
         assertEquals(SubscriptionTier.PRO, entitlement.tier)
-        assertEquals(BusinessModules.entries.toSet(), entitlement.grantedModules)
+        assertEquals(GarmentDomainPack.pack.moduleIds.toSet(), entitlement.grantedModules)
         assertTrue(entitlement.grantedCustomModuleIds.isEmpty())
         assertFalse(entitlement.allowsCustomPlugins)
     }
@@ -114,7 +116,7 @@ class TenantEntitlementUseCaseTest {
     @Test
     fun installCustomModule_shouldPersistTheGrant() = runTest {
         getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
-        val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE).getOrThrow()
+        val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE, pack = GarmentDomainPack.pack).getOrThrow()
 
         installCustom(tenantId, customPlugin(), enterprise).getOrThrow()
 
@@ -128,10 +130,10 @@ class TenantEntitlementUseCaseTest {
         // The regression: a resolved entitlement on a *later* request must still know about
         // the plugin, otherwise unrelated edits fail with a plan-limit error.
         getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
-        val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE).getOrThrow()
+        val enterprise = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE, pack = GarmentDomainPack.pack).getOrThrow()
         installCustom(tenantId, customPlugin(), enterprise).getOrThrow()
 
-        val laterEntitlement = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE).getOrThrow()
+        val laterEntitlement = getEntitlement(tenantId, SubscriptionTier.ENTERPRISE, pack = GarmentDomainPack.pack).getOrThrow()
         assertTrue(laterEntitlement.grantedCustomModuleIds.contains("sablon_bordir_custom"))
 
         val inventoryNodeId = pipelineRepository.findByTenantId(tenantId)!!
@@ -153,7 +155,7 @@ class TenantEntitlementUseCaseTest {
             grantedModules = setOf(GarmentModules.CRM_SALES, GarmentModules.OPERATOR_EXEC)
         )
 
-        val resolved = setEntitlement(tenantId, SubscriptionTier.PRO, grants).getOrThrow()
+        val resolved = setEntitlement(tenantId, SubscriptionTier.PRO, grants, pack = GarmentDomainPack.pack).getOrThrow()
 
         assertEquals(2, resolved.grantedModules.size)
         assertEquals(grants, entitlementRepository.findByTenantId(tenantId))
@@ -168,7 +170,7 @@ class TenantEntitlementUseCaseTest {
         val result = setEntitlement(
             tenantId,
             SubscriptionTier.PRO,
-            TenantEntitlementGrants(grantedModules = setOf(GarmentModules.CRM_SALES))
+            TenantEntitlementGrants(grantedModules = setOf(GarmentModules.CRM_SALES)), pack = GarmentDomainPack.pack
         )
 
         assertTrue(result.isFailure)
@@ -191,7 +193,7 @@ class TenantEntitlementUseCaseTest {
         val result = setEntitlement(
             tenantId,
             SubscriptionTier.PRO,
-            TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet() - bypassedModule)
+            TenantEntitlementGrants(grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - bypassedModule), pack = GarmentDomainPack.pack
         )
 
         assertTrue(result.isSuccess, "Pesan: ${result.exceptionOrNull()?.message}")
@@ -202,12 +204,12 @@ class TenantEntitlementUseCaseTest {
         val entitlement = TenantModuleEntitlement(
             tier = SubscriptionTier.ENTERPRISE,
             grantedModules = setOf(GarmentModules.CRM_SALES),
-            grantedCustomModuleIds = setOf("plugin_a", "plugin_b")
+            grantedCustomModuleIds = setOf("plugin_a", "plugin_b"), catalog = GarmentDomainPack.pack.moduleIds.toSet()
         )
 
         val restored = TenantModuleEntitlement.resolve(
             SubscriptionTier.ENTERPRISE,
-            entitlement.toGrants()
+            entitlement.toGrants(), pack = GarmentDomainPack.pack
         )
 
         assertEquals(entitlement, restored)
@@ -225,8 +227,8 @@ class TenantEntitlementUseCaseTest {
         val result = setEntitlement(
             tenantId = tenantId,
             tier = SubscriptionTier.PRO,
-            grants = TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet() - GarmentModules.FULFILLMENT),
-            autoBypassPipelineModules = true
+            grants = TenantEntitlementGrants(grantedModules = GarmentDomainPack.pack.moduleIds.toSet() - GarmentModules.FULFILLMENT),
+            autoBypassPipelineModules = true, pack = GarmentDomainPack.pack
         )
 
         assertTrue(result.isSuccess, "Pesan: ${result.exceptionOrNull()?.message}")
@@ -239,7 +241,7 @@ class TenantEntitlementUseCaseTest {
         val reGrantResult = setEntitlement(
             tenantId = tenantId,
             tier = SubscriptionTier.PRO,
-            grants = TenantEntitlementGrants(grantedModules = BusinessModules.entries.toSet())
+            grants = TenantEntitlementGrants(grantedModules = GarmentDomainPack.pack.moduleIds.toSet()), pack = GarmentDomainPack.pack
         )
 
         assertTrue(reGrantResult.isSuccess, "Pesan: ${reGrantResult.exceptionOrNull()?.message}")
@@ -252,7 +254,7 @@ class TenantEntitlementUseCaseTest {
     fun toGrants_withFullCatalogue_shouldNotPinTheModuleList() = runTest {
         // Storing "all modules" as an explicit list would freeze the catalogue: a module
         // added to the codebase later would not reach existing tenants.
-        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO)
+        val entitlement = TenantModuleEntitlement.forTier(SubscriptionTier.PRO, GarmentDomainPack.pack)
 
         assertEquals(null, entitlement.toGrants().grantedModules)
     }

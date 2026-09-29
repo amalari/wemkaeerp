@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.rbac.components
 
+import com.eventverse.app.domain.rbac.moduleIds
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -200,7 +202,7 @@ fun AssignModuleModal(
                         .verticalScroll(modulesScrollState),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    BusinessModules.entries.forEach { mod ->
+                    ActiveTenantPack.current.moduleIds.forEach { mod ->
                         val isSelected = mod == selectedModule
                         Row(
                             modifier = Modifier
