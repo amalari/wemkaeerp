@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.help.HelpAction
 import com.eventverse.app.domain.help.usecases.HelpSuggestion
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -27,7 +28,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * dua alternatif — tombol, bukan tautan, karena menjalankan tutorial bisa memindahkan layar.
  */
 @Composable
-internal fun HelpMessageBubble(message: HelpChatMessage, onStart: (HelpSuggestion) -> Unit) {
+internal fun HelpMessageBubble(message: HelpChatMessage, onStart: (HelpSuggestion) -> Unit, onAction: (HelpAction) -> Unit = {}) {
     val mine = message.role == HelpChatRole.USER
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(
@@ -43,6 +44,9 @@ internal fun HelpMessageBubble(message: HelpChatMessage, onStart: (HelpSuggestio
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
             Text(message.text, fontSize = 13.sp, color = WeMadeColors.OnSurface)
+            message.action?.let { a ->
+                ClayButton(text = actionLabel(a), onClick = { onAction(a) }, style = ClayButtonStyle.Accent, fontSize = 12.sp)
+            }
             message.suggestion?.let { s ->
                 ClayButton(text = "Mulai tutorial: ${s.title}", onClick = { onStart(s) }, fontSize = 12.sp)
             }
@@ -54,4 +58,8 @@ internal fun HelpMessageBubble(message: HelpChatMessage, onStart: (HelpSuggestio
             }
         }
     }
+}
+
+private fun actionLabel(action: HelpAction): String = when (action) {
+    is HelpAction.PrefillLead -> "Isi form lead dari pesan ini"
 }

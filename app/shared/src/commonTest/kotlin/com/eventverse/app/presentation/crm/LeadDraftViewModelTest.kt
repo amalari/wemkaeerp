@@ -74,6 +74,24 @@ class LeadDraftViewModelTest {
     }
 
     @Test
+    fun extractWhenReady_waitsForSettings_thenExtractsOnlyIfEnabled() = testScope.runTest {
+        val on = FakeGateway(enabled = true, canManage = false, reply = Result.success(draft))
+        val vm = LeadDraftViewModel(on, testScope)
+        vm.onEvent(LeadDraftUiEvent.Load)
+        vm.onEvent(LeadDraftUiEvent.UpdateText("catat lead dari chat"))
+        vm.onEvent(LeadDraftUiEvent.ExtractWhenReady)   // pengaturan belum termuat
+        advanceUntilIdle()
+        assertEquals(1, on.drafted)
+
+        val off = FakeGateway(enabled = false, canManage = true, reply = Result.success(draft))
+        val vm2 = LeadDraftViewModel(off, testScope)
+        vm2.onEvent(LeadDraftUiEvent.Load); vm2.onEvent(LeadDraftUiEvent.UpdateText("x")); vm2.onEvent(LeadDraftUiEvent.ExtractWhenReady)
+        advanceUntilIdle()
+        assertEquals(0, off.drafted, "tenant belum opt-in: teks tertempel, tidak dikirim")
+        assertEquals("x", vm2.uiState.value.text)
+    }
+
+    @Test
     fun manualForm_isManual_andRequiredCustomFieldBlocksSubmit() {
         val form = LeadFormState(LeadStage.NEW_LEAD).apply { update(LeadDraftFields.CONTACT_PERSON, "Rina") }
         assertEquals(LeadCreationChannel.MANUAL, form.createdVia)

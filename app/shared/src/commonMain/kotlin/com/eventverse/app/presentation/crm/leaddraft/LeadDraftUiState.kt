@@ -21,6 +21,8 @@ sealed interface LeadDraftUiEvent {
     data object Load : LeadDraftUiEvent
     data class UpdateText(val text: String) : LeadDraftUiEvent
     data object Extract : LeadDraftUiEvent
+    /** Ekstrak begitu pengaturan termuat dan fitur aktif; tidak melakukan apa pun bila fitur mati. */
+    data object ExtractWhenReady : LeadDraftUiEvent
     data object Enable : LeadDraftUiEvent
 }
 

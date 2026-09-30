@@ -28,6 +28,7 @@ class LeadDraftViewModel(
     val uiState: StateFlow<LeadDraftUiState> = _uiState.asStateFlow()
 
     private val _effects = Channel<LeadDraftUiEffect>(Channel.BUFFERED)
+    private var extractWhenReady = false
     val effects: Flow<LeadDraftUiEffect> = _effects.receiveAsFlow()
 
     fun onEvent(event: LeadDraftUiEvent) {
@@ -35,7 +36,9 @@ class LeadDraftViewModel(
             LeadDraftUiEvent.Load -> scope.launch {
                 // Gagal memuat = bagian AI tetap tersembunyi (enabled null). Form manual tidak terganggu.
                 gateway.settings().onSuccess { s -> _uiState.update { it.copy(enabled = s.leadDraftEnabled, canManage = s.canManage) } }
+                if (extractWhenReady) { extractWhenReady = false; extract() }
             }
+            LeadDraftUiEvent.ExtractWhenReady -> if (_uiState.value.enabled != null) extract() else extractWhenReady = true
             is LeadDraftUiEvent.UpdateText -> _uiState.update { it.copy(text = event.text.take(ExtractLeadDraftUseCase.MAX_TEXT_LENGTH)) }
             LeadDraftUiEvent.Extract -> extract()
             LeadDraftUiEvent.Enable -> scope.launch {

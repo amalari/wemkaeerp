@@ -23,6 +23,15 @@ class HelpCodecTest {
     }
 
     @Test
+    fun action_roundTrips_andUnknownKindIsSkipped() {
+        val result = HelpResult("a", null, emptyList(), "intent/help-action-v1",
+            com.eventverse.app.domain.help.HelpAction.PrefillLead(GarmentModules.CRM_SALES, "catat lead X"))
+        assertEquals(result, HelpCodec.decodeResult(JsonParser.parseObject(HelpCodec.encodeResult(result).encode())))
+        val future = HelpCodec.decodeResult(JsonParser.parseObject("""{"answer":"a","alternatives":[],"agentRef":"r","action":{"kind":"hapus_semua","module":"crm_sales"}}"""))
+        assertNull(future.action)
+    }
+
+    @Test
     fun request_withInvalidModule_keepsQuestion_dropsModule() {
         val decoded = HelpCodec.decodeRequest(JsonParser.parseObject("""{"question":"halo","currentModule":"BUKAN MODUL"}"""))
         assertEquals("halo", decoded?.question)

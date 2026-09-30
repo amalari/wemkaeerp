@@ -149,3 +149,46 @@ Artefak uji (lead dan baris opt-in) sudah dihapus lagi.
 - [ ] Tampilkan "Dibuat dari draf AI oleh X" di detail lead (`LeadInspectorDetailTab`) dari `createdVia`.
 - [ ] Hitung metrik mutu: berapa persen lead `AI_DRAFT` yang field-nya dikoreksi sebelum disimpan. Apa yang perlu dikirim klien agar ini bisa diukur tanpa menyimpan teks aslinya?
 - [ ] Fase 5b: dari chat Tanya AI ("catat lead PT Maju…") buka dialog ini dengan teks sudah tertempel. Klasifikasi niat bertanya vs meminta input sebaiknya diletakkan di mana?
+
+---
+
+# Bagian 2 — Fase 5b: Dari Chat ke Form
+
+## Alur
+
+1. Di chat Tanya AI (dari layar mana pun), user menulis "catat lead Batik Sekar Solo, kontak Rina 0812…, polo bordir 2 lusin".
+2. Server mengenali **perintah input** dan menjawab dengan aksi `PrefillLead`, tanpa memanggil LLM helper.
+3. Tombol "Isi form lead dari pesan ini" menaruh aksi di `HelpActionRequests`, lalu membuka modul CRM.
+4. `CrmWorkspaceScreen` mengambil aksi itu dan membuka dialog Tambah Lead dengan teks tertempel. Dialog meminta draf begitu pengaturan tenant termuat.
+5. User memeriksa, lalu menyimpan sendiri.
+
+## Keputusan desain
+
+| Keputusan | Kenapa |
+|---|---|
+| Niat dideteksi **deterministik** (`LeadEntryIntent`), bukan oleh LLM | Pesan itu berisi data pelanggan. Mengirimnya ke LLM hanya untuk bertanya "ini perintah atau pertanyaan?" sama dengan membocorkan data demi klasifikasi. Aturannya ketat: kata perintah + kata benda lead + ada data, dan kalimat tanya tidak pernah lolos |
+| Aksi ditawarkan dengan gerbang **yang sama** dengan `POST /crm/leads/draft` (CRM OPERATE + opt-in) | Tombol di chat tidak boleh membuka jalan yang endpoint-nya akan menolak. Peran VIEW tetap mendapat jawaban tutorial |
+| `HelpActionResolver` dirakit di wiring (`leadPrefillActions`) | `HelpRoutes` dan `AskHelpUseCase` tetap buta modul. Aksi baru (misalnya kontak vendor) cukup menambah resolver |
+| Kotak surat `HelpActionRequests`, bukan callback ke layar CRM | Arah ketergantungan satu jalan: modul → help. Layar CRM **mengamati** kotak surat, jadi aksi tetap jalan walau user sudah berada di CRM (navigasi tanpa perubahan layar) |
+| `ExtractWhenReady` | Dialog baru dibuka dan pengaturan belum termuat. Ekstraksi ditunda sampai jelas; bila tenant belum opt-in, teks hanya tertempel dan tidak pernah dikirim |
+
+## Celah yang ikut ditutup
+
+Sebelum 5b, pertanyaan ke AI helper (`HELP_AGENT=koog`) dikirim **apa adanya**, jadi "cara bikin lead untuk budi@maju.co.id 0812…" sampai ke LLM dengan nomor aslinya. Sekarang `AskHelpUseCase` selalu menyamarkan pertanyaan dengan `PiiMasker` sebelum sampai ke agent (dikunci `agentSeesMaskedQuestion_noPhoneOrEmail`).
+
+## Bukti
+
+| Test | Isi |
+|---|---|
+| `LeadEntryIntentTest` (3) | Perintah + data terdeteksi. "gimana cara bikin lead", "buat lead baru di mana", "buat HPP…", dan "ada buyer baru chat WA…" (tanpa kata perintah) **tidak** terdeteksi |
+| `AskHelpUseCaseTest` (+2) | Aksi melewati pencocok dan agent (agent tidak melihat pesan); agent hanya melihat pertanyaan tersamar |
+| `LeadPrefillActionsTest` (1) | Belum opt-in, VIEW, atau tanpa keputusan = tanpa aksi; pertanyaan tetap tutorial |
+| `HelpCodecTest` (+1) | Aksi bolak-balik; jenis aksi yang tidak dikenal dilewati |
+| `HelpChatViewModelTest` (+1), `LeadDraftViewModelTest` (+1) | Aksi tersimpan di pesan dan dipancarkan sebagai efek; ekstraksi menunggu pengaturan dan tidak jalan bila fitur mati |
+
+**Cek visual** (`wemade-demo`, 2026-10-01): dari layar Order Sampling, chat "catat lead Batik Sekar Solo, kontak Rina 0812…, pesan polo bordir 2 lusin" memunculkan tombol aksi. Setelah ditekan, CRM terbuka, dialog terisi (brand, kontak, nomor, "polo bordir", 24 pcs), dan email tetap kosong karena tidak ada di pesan. Log server mencatat `agent=intent/help-action-v1`, dan nomor maupun nama pelanggan muncul 0 kali di log.
+
+## Tantangan
+
+- [ ] Tambahkan resolver kedua (kontak vendor) tanpa menyentuh `HelpRoutes` maupun `AskHelpUseCase`.
+- [ ] Apa yang terjadi bila user menekan tombol aksi di pesan lama setelah admin mematikan opt-in? Telusuri sampai ke `LeadDraftDisabledException`.

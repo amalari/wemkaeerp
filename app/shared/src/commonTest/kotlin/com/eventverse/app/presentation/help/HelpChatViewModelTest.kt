@@ -94,6 +94,16 @@ class HelpChatViewModelTest {
     }
 
     @Test
+    fun actionReply_isKeptOnMessage_andRunActionEmitsEffect() = testScope.runTest {
+        val action = com.eventverse.app.domain.help.HelpAction.PrefillLead(grading, "catat lead X 0812 3456 7890")
+        val vm = HelpChatViewModel(FakeGateway(Result.success(HelpResult("Bisa diisikan.", null, emptyList(), "intent/help-action-v1", action))), testScope)
+        vm.onEvent(HelpChatUiEvent.UpdateDraft(action.text)); vm.onEvent(HelpChatUiEvent.Send(null)); advanceUntilIdle()
+        assertEquals(action, vm.uiState.value.messages.last().action)
+        vm.onEvent(HelpChatUiEvent.RunAction(action))
+        assertEquals(HelpChatUiEffect.RunAction(action), vm.effects.first())
+    }
+
+    @Test
     fun draft_isCappedAtServerLimit() = testScope.runTest {
         val vm = HelpChatViewModel(FakeGateway(ok()), testScope)
         vm.onEvent(HelpChatUiEvent.UpdateDraft("a".repeat(900)))

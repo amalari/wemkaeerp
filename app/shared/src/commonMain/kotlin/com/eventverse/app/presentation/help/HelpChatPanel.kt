@@ -48,7 +48,7 @@ fun HelpChatPanel(viewModel: HelpChatViewModel, currentModule: ModuleId?, modifi
                 )
             }
             items(state.messages, key = { it.id }) { m ->
-                HelpMessageBubble(m, onStart = { viewModel.onEvent(HelpChatUiEvent.StartSuggestion(it)) })
+                HelpMessageBubble(m, onStart = { viewModel.onEvent(HelpChatUiEvent.StartSuggestion(it)) }, onAction = { viewModel.onEvent(HelpChatUiEvent.RunAction(it)) })
             }
             if (state.isSending) item { Text("Asisten sedang mencari panduan…", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted) }
         }

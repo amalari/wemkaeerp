@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.help.usecases
 
 import com.eventverse.app.domain.help.DeterministicHelpAgent
+import com.eventverse.app.domain.crm.prefill.PiiMasker
+import com.eventverse.app.domain.help.HelpAction
+import com.eventverse.app.domain.help.HelpActionResolver
 import com.eventverse.app.domain.help.HelpAgent
 import com.eventverse.app.domain.help.HelpAnswer
 import com.eventverse.app.domain.help.HelpQuestion
@@ -20,11 +23,19 @@ data class AskHelpCommand(
     val pack: DomainPack,
     val decisions: Map<ModuleId, AccessDecision>,
     val allowedSurfaces: Set<SurfaceCode> = emptySet(),
+    /** Aksi yang boleh ditawarkan ke pemanggil ini (sudah lolos wewenang & opt-in di route). */
+    val actionResolver: HelpActionResolver? = null,
 )
 
 data class HelpSuggestion(val tutorialId: TutorialId, val title: String, val moduleId: ModuleId?, val stepIndex: Int)
 
-data class HelpResult(val answer: String, val suggestion: HelpSuggestion?, val alternatives: List<HelpSuggestion>, val agentRef: String)
+data class HelpResult(
+    val answer: String,
+    val suggestion: HelpSuggestion?,
+    val alternatives: List<HelpSuggestion>,
+    val agentRef: String,
+    val action: HelpAction? = null,
+)
 
 /**
  * Menjawab pertanyaan bantuan (TRD-HELP-001 FR-6): wewenang → pencocok → agent → validasi.
@@ -44,9 +55,15 @@ class AskHelpUseCase(
         require(question.isNotEmpty()) { "Pertanyaan kosong" }
         require(question.length <= MAX_QUESTION_LENGTH) { "Pertanyaan melebihi $MAX_QUESTION_LENGTH karakter" }
 
+        // Permintaan input (Fase 5b): jawab dengan aksi tanpa agent — pesan berisi data pelanggan tidak dikirim ke LLM helper.
+        command.actionResolver?.resolve(question)?.let { action ->
+            return@runCatching HelpResult(ACTION_ANSWER, suggestion = null, alternatives = emptyList(), agentRef = ACTION_REF, action = action)
+        }
+
         val visible = TutorialAccess.accessible(catalog.forPack(command.pack), command.decisions, command.allowedSurfaces)
         val candidates = matcher.rank(question, visible, command.currentModule)
-        val helpQuestion = HelpQuestion(question, command.currentModule, candidates)
+        // Nomor telepon & email disamarkan sebelum sampai ke agent (bisa LLM); pencocok memakai teks asli di memori.
+        val helpQuestion = HelpQuestion(PiiMasker.mask(question).text, command.currentModule, candidates)
 
         val answer = agent.answer(helpQuestion).getOrNull()?.takeIf { it.isGroundedIn(candidates) }
             ?: fallback.answer(helpQuestion).getOrThrow()
@@ -70,5 +87,7 @@ class AskHelpUseCase(
 
     companion object {
         const val MAX_QUESTION_LENGTH = 500
+        const val ACTION_REF = "intent/help-action-v1"
+        const val ACTION_ANSWER = "Saya bisa mengisikan form dari pesan ini. Tekan tombol di bawah, periksa isiannya, lalu simpan sendiri."
     }
 }

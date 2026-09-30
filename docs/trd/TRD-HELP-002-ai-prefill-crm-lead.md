@@ -94,6 +94,7 @@ Apa pun pilihannya: fitur ini **mati secara default per tenant** (opt-in admin p
 |---|---|---|---|
 | 0.1 | 2026-09-30 | Achmad Jamaludin / Claude | Draf + Discovery; menunggu K1–K4 |
 | 0.2 | 2026-09-30 | Achmad Jamaludin / Claude | Diimplementasi sesuai rekomendasi K1–K4; V84; log pustaka LLM/HTTP diturunkan ke INFO (temuan cek visual) |
+| 0.3 | 2026-10-01 | Achmad Jamaludin / Claude | Fase 5b: chat "catat lead …" → aksi `PrefillLead` (deteksi niat deterministik, tanpa LLM helper), gerbang = CRM OPERATE + opt-in; pertanyaan ke AI helper kini selalu disamarkan |
 
 - **Goals**:
   1. Dari teks bebas, hasilkan draf form lead (field bawaan + field kustom yang didukung) dalam < 6 detik.

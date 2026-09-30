@@ -15,6 +15,7 @@ import com.eventverse.app.domain.pack.ShippedTutorialSource
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.tutorial.TutorialAccess
 import com.eventverse.app.domain.tutorial.TutorialCatalog
+import com.eventverse.app.presentation.help.HelpActionRequests
 import com.eventverse.app.presentation.help.HelpChatPanel
 import com.eventverse.app.presentation.help.HelpChatUiEffect
 import com.eventverse.app.presentation.help.HelpChatViewModel
@@ -70,14 +71,22 @@ fun TutorialLayer(
     }
 
     val latestAccessible by rememberUpdatedState(accessible)
+    val latestNavigate by rememberUpdatedState(onNavigateToModule)
     LaunchedEffect(state) {
         // Saran AI → tutorial lokal. Katalog klien sudah disaring wewenang yang sama; id yang tidak dikenal
         // (klien lebih lama dari server) diabaikan, bukan ditebak.
         state.chat.effects.collect { effect ->
-            if (effect !is HelpChatUiEffect.StartTutorial) return@collect
-            latestAccessible.firstOrNull { it.id == effect.suggestion.tutorialId }?.let {
-                state.isListOpen = false
-                state.controller.start(it, effect.suggestion.stepIndex)
+            when (effect) {
+                is HelpChatUiEffect.StartTutorial -> latestAccessible.firstOrNull { it.id == effect.suggestion.tutorialId }?.let {
+                    state.isListOpen = false
+                    state.controller.start(it, effect.suggestion.stepIndex)
+                }
+                // Aksi (Fase 5b): taruh di kotak surat, lalu buka layar modulnya — layar itu yang mengambil & menjalankan.
+                is HelpChatUiEffect.RunAction -> {
+                    HelpActionRequests.post(effect.action)
+                    state.isListOpen = false
+                    latestNavigate(effect.action.module)
+                }
             }
         }
     }

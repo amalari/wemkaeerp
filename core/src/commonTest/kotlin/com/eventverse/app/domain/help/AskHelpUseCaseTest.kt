@@ -17,6 +17,7 @@ import com.eventverse.app.domain.tutorial.TutorialId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -83,6 +84,23 @@ class AskHelpUseCaseTest {
         val result = ask(cmd("cara bikin lead baru")).getOrThrow()
         assertEquals("scripted", result.agentRef)
         assertEquals(1, result.suggestion?.stepIndex)
+    }
+
+    @Test
+    fun resolvedAction_skipsMatcherAndAgent_entirely() = runTest {
+        val action = HelpAction.PrefillLead(GarmentModules.CRM_SALES, "catat lead PT Maju 0812 3456 7890")
+        val result = ask(cmd(action.text).copy(actionResolver = HelpActionResolver { action })).getOrThrow()
+        assertEquals(action, result.action)
+        assertNull(result.suggestion)
+        assertEquals(AskHelpUseCase.ACTION_REF, result.agentRef)
+        assertNull(agent.seen, "pesan berisi data pelanggan tidak dikirim ke agent")
+    }
+
+    @Test
+    fun agentSeesMaskedQuestion_noPhoneOrEmail() = runTest {
+        ask(cmd("cara bikin lead baru untuk budi@maju.co.id 0812 3456 7890")).getOrThrow()
+        val sent = requireNotNull(agent.seen).text
+        assertFalse("3456" in sent || "maju.co.id" in sent, sent)
     }
 
     @Test

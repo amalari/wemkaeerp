@@ -55,6 +55,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun CreateLeadDialog(
     initialStage: LeadStage = LeadStage.NEW_LEAD,
     customSchema: List<LeadFieldDescriptor> = emptyList(),
+    /** Teks dari chat AI helper (Fase 5b): ditempel lalu langsung dibuatkan draf bila tenant sudah opt-in. */
+    initialText: String? = null,
     onDismiss: () -> Unit,
     onCreate: (CrmUiEvent.CreateLead) -> Unit
 ) {
@@ -63,6 +65,7 @@ fun CreateLeadDialog(
     val draftState by draftViewModel.uiState.collectAsState()
     LaunchedEffect(draftViewModel) {
         draftViewModel.onEvent(LeadDraftUiEvent.Load)
+        initialText?.let { draftViewModel.onEvent(LeadDraftUiEvent.UpdateText(it)); draftViewModel.onEvent(LeadDraftUiEvent.ExtractWhenReady) }
         draftViewModel.effects.collect { if (it is LeadDraftUiEffect.Apply) form.applyDraft(it.draft) }
     }
     val canSubmit = form.canSubmit(customSchema)

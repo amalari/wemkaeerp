@@ -75,8 +75,10 @@ fun Route.operationalModuleRoutes(
     // B5: satu gerbang untuk grup route yang tersebar di banyak file (lihat TenantRouteGatePolicy).
     route("/api/tenant") { tenantRouteGate(roleRepo, assignmentRepo) }
     myAccessRoutes(roleRepo, assignmentRepo)
-    helpRoutes(roleRepo, assignmentRepo, com.eventverse.app.infrastructure.help.HelpAgents.fromEnv()) // TRD-HELP-001: gerbang per tutorial
-    crmLeadDraftRoutes(roleRepo, assignmentRepo, customFieldRepo, com.eventverse.app.infrastructure.PostgresCrmAiSettingsRepository(),
+    val crmAiSettings = com.eventverse.app.infrastructure.PostgresCrmAiSettingsRepository()
+    helpRoutes(roleRepo, assignmentRepo, com.eventverse.app.infrastructure.help.HelpAgents.fromEnv(),
+        actionsFor = com.eventverse.app.routes.leadPrefillActions(crmAiSettings)) // TRD-HELP-001 + 5b
+    crmLeadDraftRoutes(roleRepo, assignmentRepo, customFieldRepo, crmAiSettings,
         com.eventverse.app.infrastructure.crm.prefill.LeadDraftAgents.fromEnv()) // TRD-HELP-002
 
     val tenantProcessCatalogRepository: com.eventverse.app.domain.process.TenantProcessCatalogRepository =

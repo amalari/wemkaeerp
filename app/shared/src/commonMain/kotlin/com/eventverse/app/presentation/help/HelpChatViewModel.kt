@@ -39,6 +39,7 @@ class HelpChatViewModel(
             is HelpChatUiEvent.UpdateDraft -> _uiState.update { it.copy(draft = event.text.take(AskHelpUseCase.MAX_QUESTION_LENGTH)) }
             is HelpChatUiEvent.Send -> send(event)
             is HelpChatUiEvent.StartSuggestion -> _effects.trySend(HelpChatUiEffect.StartTutorial(event.suggestion))
+            is HelpChatUiEvent.RunAction -> _effects.trySend(HelpChatUiEffect.RunAction(event.action))
             HelpChatUiEvent.DismissError -> _uiState.update { it.copy(error = null) }
         }
     }
@@ -52,7 +53,7 @@ class HelpChatViewModel(
         scope.launch {
             gateway.ask(question, event.currentModule).fold(
                 onSuccess = { result ->
-                    val reply = HelpChatMessage(nextId++, HelpChatRole.ASSISTANT, result.answer, result.suggestion, result.alternatives.take(MAX_ALTERNATIVES))
+                    val reply = HelpChatMessage(nextId++, HelpChatRole.ASSISTANT, result.answer, result.suggestion, result.alternatives.take(MAX_ALTERNATIVES), result.action)
                     _uiState.update { it.copy(messages = it.messages + reply, isSending = false) }
                 },
                 onFailure = { e ->

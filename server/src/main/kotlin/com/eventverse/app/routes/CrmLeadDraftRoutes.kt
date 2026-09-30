@@ -90,3 +90,19 @@ fun Route.crmLeadDraftRoutes(
         call.respondText(LeadDraftCodec.encodeSettings(LeadDraftCodec.AiSettings(enabled, canManage = true)), ContentType.Application.Json)
     }
 }
+
+/**
+ * Aksi "isi form lead dari chat" (TRD-HELP-002 Fase 5b) untuk AI helper. Ditawarkan **hanya** bila pemanggil boleh
+ * membuat lead (CRM OPERATE, termasuk entitlement) **dan** tenant sudah opt-in — gerbang yang sama dengan
+ * `POST /crm/leads/draft`, sehingga tombol di chat tidak pernah membuka jalan yang endpoint-nya akan menolak.
+ */
+fun leadPrefillActions(settingsRepository: CrmAiSettingsRepository): suspend (com.eventverse.app.domain.tenant.TenantContext, Map<com.eventverse.app.domain.pack.ModuleId, com.eventverse.app.domain.rbac.AccessDecision>) -> com.eventverse.app.domain.help.HelpActionResolver? =
+    { tenant, decisions ->
+        val crm = GarmentModules.CRM_SALES
+        val canCreate = decisions[crm]?.config?.level?.isAtLeast(AccessLevel.OPERATE) == true
+        if (canCreate && settingsRepository.isLeadDraftEnabled(tenant.tenantId)) {
+            com.eventverse.app.domain.help.HelpActionResolver { q ->
+                if (com.eventverse.app.domain.crm.prefill.LeadEntryIntent.matches(q)) com.eventverse.app.domain.help.HelpAction.PrefillLead(crm, q) else null
+            }
+        } else null
+    }

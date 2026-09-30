@@ -22,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.help.HelpAction
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.presentation.help.HelpActionRequests
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.crm.components.AddCustomFieldDialog
 import com.eventverse.app.presentation.crm.components.CreateLeadDialog
@@ -82,6 +84,14 @@ fun CrmWorkspaceScreen(
     }
 
     LaunchedEffect(tenantSlug) { viewModel.onEvent(CrmUiEvent.Load) }
+
+    // TRD-HELP-002 Fase 5b: "Isi form lead dari pesan ini" di chat → dialog Tambah Lead dengan teks tertempel.
+    var prefillText by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        HelpActionRequests.pending.collect {
+            HelpActionRequests.take<HelpAction.PrefillLead>()?.let { a -> prefillText = a.text; viewModel.onEvent(CrmUiEvent.OpenCreateDialog()) }
+        }
+    }
 
     if (state.isLoading) {
         Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
@@ -232,7 +242,8 @@ fun CrmWorkspaceScreen(
         CreateLeadDialog(
             initialStage = state.createDialogInitialStage,
             customSchema = state.customFieldSchema,
-            onDismiss = { viewModel.onEvent(CrmUiEvent.CloseCreateDialog) },
+            initialText = prefillText,
+            onDismiss = { prefillText = null; viewModel.onEvent(CrmUiEvent.CloseCreateDialog) },
             onCreate = { viewModel.onEvent(it) }
         )
     }

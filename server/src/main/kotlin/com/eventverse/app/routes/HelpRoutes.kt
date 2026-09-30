@@ -1,7 +1,11 @@
 package com.eventverse.app.routes
 
 import com.eventverse.app.domain.help.DeterministicHelpAgent
+import com.eventverse.app.domain.help.HelpActionResolver
 import com.eventverse.app.domain.help.HelpAgent
+import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.rbac.AccessDecision
+import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.domain.help.usecases.AskHelpCommand
 import com.eventverse.app.domain.help.usecases.AskHelpUseCase
 import com.eventverse.app.domain.pack.ShippedTutorialSource
@@ -33,6 +37,11 @@ fun Route.helpRoutes(
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
     agent: HelpAgent = DeterministicHelpAgent(),
+    /**
+     * Aksi untuk pemanggil ini (TRD-HELP-002 Fase 5b), dihitung dari keputusan wewenang yang sama. `null` = hanya tutorial.
+     * Dirakit di wiring supaya route ini tidak menyebut modul pack tertentu.
+     */
+    actionsFor: suspend (TenantContext, Map<ModuleId, AccessDecision>) -> HelpActionResolver? = { _, _ -> null },
 ) {
     val log = LoggerFactory.getLogger("HelpRoutes")
     val askHelp = AskHelpUseCase(TutorialCatalog(ShippedTutorialSource), LexicalTutorialMatcher(), agent)
@@ -49,12 +58,13 @@ fun Route.helpRoutes(
             currentModule = request.currentModule?.takeIf { tenant.pack.module(it) != null },
             pack = tenant.pack,
             decisions = decisions,
+            actionResolver = actionsFor(tenant, decisions),
         )
         askHelp(command).fold(
             onSuccess = { result ->
                 // Isi pertanyaan tidak dicatat — bisa memuat data pelanggan.
-                log.info("help/ask tenant={} agent={} suggested={} alternatives={}",
-                    tenant.slug.value, result.agentRef, result.suggestion != null, result.alternatives.size)
+                log.info("help/ask tenant={} agent={} suggested={} alternatives={} action={}",
+                    tenant.slug.value, result.agentRef, result.suggestion != null, result.alternatives.size, result.action?.let { it::class.simpleName })
                 call.respondText(HelpCodec.encodeResult(result).encode(), ContentType.Application.Json)
             },
             onFailure = { e ->
