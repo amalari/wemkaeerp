@@ -20,5 +20,8 @@ object TenantsTable : Table("tenants") {
     /** Vertikal tenant (V75, B7). */
     val domainPack = varchar("domain_pack", 64).default("garment")
 
+    /** Versi pack data yang di-pin tenant (V81, PLAN-builder-console M0). NULL = pack effective (perilaku B7). */
+    val domainPackVersion = integer("domain_pack_version").nullable()
+
     override val primaryKey = PrimaryKey(id)
 }

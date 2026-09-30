@@ -64,6 +64,23 @@ class ResolveDomainPackUseCase(private val repository: DomainPackRepository) {
     }
 }
 
+/**
+ * Resolusi pack pada **versi yang di-pin tenant** (PLAN-builder-console M0). Berbeda dari [ResolveDomainPackUseCase]
+ * yang menjawab versi effective: di sini versi lain dari yang diminta **ditolak** — `null` berarti versi tak
+ * dikenal, dan pemanggil (plugin tenant / deploy M2) menolak request-nya, tidak jatuh ke versi lain
+ * (Kontrak 4 tenant-variability-rules: fallback senyap = data berubah).
+ */
+class ResolveDomainPackVersionUseCase(private val repository: DomainPackRepository) {
+    suspend operator fun invoke(code: DomainPackCode, version: Int): DomainPack? {
+        require(version > 0) { "Versi pack harus positif: $version" }
+        val stored = repository.findVersion(code, version) ?: return null
+        require(stored.status == DomainPackStatus.LOCKED) {
+            "Pack ${code.value} versi $version belum terkunci (status ${stored.status}) — tidak boleh dipin tenant"
+        }
+        return stored.pack.takeIf { runCatching { DomainPackRegistry.register(it) }.isSuccess }
+    }
+}
+
 /** Apakah tenant sudah punya data operasional (SPK, deal, …). Pindah vertikal di atas data itu = data yatim. */
 fun interface TenantOperationalDataProbe {
     suspend fun hasOperationalData(tenantId: TenantId): Boolean

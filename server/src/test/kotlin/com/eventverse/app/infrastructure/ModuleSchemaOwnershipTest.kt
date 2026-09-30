@@ -30,7 +30,7 @@ class ModuleSchemaOwnershipTest {
         exec(sql) { rs -> buildList { while (rs.next()) add(map(rs)) } }
     }.orEmpty()
 
-    private val moduleSchemas get() = ModuleSchemaMap.byModule.keys.map(ModuleSchemaMap::schemaOf)
+    private val moduleSchemas get() = (ModuleSchemaMap.byModule.keys.map(ModuleSchemaMap::schemaOf) + ModuleSchemaMap.platformSchemas.keys)
 
     @Test
     fun everyModuleTable_livesInItsModuleSchema_andPublicHoldsOnlyPlatformTables() {

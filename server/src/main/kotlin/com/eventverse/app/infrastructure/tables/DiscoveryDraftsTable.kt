@@ -13,6 +13,9 @@ object DiscoveryDraftsTable : Table("ops.discovery_drafts") {
     /** Pemilik draf (T12). Gerbang route: pemilik atau superadmin. */
     val ownerUserId = varchar("owner_user_id", 64).references(UsersTable.id)
     val prospectLeadId = varchar("prospect_lead_id", 64).references(ProspectLeadsTable.id).nullable()
+
+    /** Tenant pemilik draf Builder (V81). `null` = draf funnel lama, milik pribadi pemanggil (V78). */
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id).nullable()
     val status = varchar("status", 16)
     val document = jsonbText("document")
     val schemaVersion = integer("schema_version")

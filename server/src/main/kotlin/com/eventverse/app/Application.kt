@@ -23,6 +23,8 @@ import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.infrastructure.PostgresModuleAssignmentRepository
 import com.eventverse.app.routes.moduleAssignmentRoutes
+import com.eventverse.app.routes.builderRoutes
+import com.eventverse.app.routes.onboardingRoutes
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.infrastructure.PostgresRoleRepository
@@ -162,7 +164,8 @@ fun Application.module(
     costingSheetRepository: CostingSheetRepository? = null,
     costingRateCardRepository: CostingRateCardRepository? = null,
     costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null,
-    domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null
+    domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null,
+    builderDeploymentRepository: com.eventverse.app.domain.builder.BuilderDeploymentRepository? = null
 ) {
     val repository = tenantRepository ?: run {
         DatabaseFactory.init()
@@ -242,7 +245,7 @@ fun Application.module(
     val defaultMargin = Percentage(
         System.getenv("WEMADE_DEFAULT_MARGIN_PERCENT")?.toDoubleOrNull() ?: 35.0
     )
-    val registerTenantUseCase = RegisterTenantUseCase(repository)
+    val registerTenantUseCase = RegisterTenantUseCase(repository, userRepo)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
     val authenticateWithGoogleUseCase = AuthenticateWithGoogleUseCase(userRepo, repository)
     val googleAuthService = GoogleAuthService()
@@ -274,45 +277,7 @@ fun Application.module(
             )
         )
 
-        route("/api/public/onboarding") {
-            get("/check-subdomain") {
-                val slug = call.request.queryParameters["slug"] ?: ""
-                val result = checkSubdomainUseCase(CheckSubdomainQuery(slug))
-                if (result.isSuccess) {
-                    val availability = result.getOrThrow()
-                    call.respondText(
-                        text = "{\"slug\":\"${availability.slug}\",\"isAvailable\":${availability.isAvailable}}",
-                        contentType = ContentType.Application.Json
-                    )
-                } else {
-                    call.respond(HttpStatusCode.BadRequest, result.exceptionOrNull()?.message ?: "Invalid request")
-                }
-            }
-
-            post("/register") {
-                val params = call.receiveParameters()
-                val id = params["id"] ?: "ten-${System.currentTimeMillis()}"
-                val slug = params["slug"] ?: ""
-                val name = params["name"] ?: ""
-                val tierName = params["tier"] ?: "PRO"
-                val tier = runCatching { SubscriptionTier.valueOf(tierName.uppercase()) }.getOrDefault(SubscriptionTier.PRO)
-
-                val result = registerTenantUseCase(RegisterTenantCommand(id, slug, name, tier, com.eventverse.app.domain.stageflow.IndustryTemplateCode.parseOrNull(params["industryTemplate"])))
-                if (result.isSuccess) {
-                    val tenant = result.getOrThrow()
-                    call.respondText(
-                        text = "{\"id\":\"${tenant.id.value}\",\"slug\":\"${tenant.slug.value}\",\"name\":\"${tenant.name.value}\",\"tier\":\"${tenant.tier.name}\"}",
-                        status = HttpStatusCode.Created,
-                        contentType = ContentType.Application.Json
-                    )
-                } else {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        result.exceptionOrNull()?.message ?: "Registration failed"
-                    )
-                }
-            }
-        }
+        onboardingRoutes(registerTenantUseCase, checkSubdomainUseCase)
 
         route("/api/public/auth") {
             get("/google/url") {
@@ -520,6 +485,7 @@ fun Application.module(
         }
 
         rbacRoutes(roleRepo, assignmentRepo)
+        builderRoutes(repository, builderDeploymentRepository ?: com.eventverse.app.infrastructure.PostgresBuilderDeploymentRepository())
         moduleAssignmentRoutes(assignmentRepo, roleRepo)
         departmentRoutes(deptRepo, empRepo, roleRepo, assignmentRepo)
         // roleRepo + assignmentRepo: jangkauan data Bagan Organisasi (HIERARCHICAL), bukan CRUD karyawan.

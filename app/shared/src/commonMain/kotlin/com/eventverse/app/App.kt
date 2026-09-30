@@ -74,6 +74,7 @@ import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.module.ModuleIcon
+import com.eventverse.app.presentation.builder.BuilderShell
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.navigation.AppTopBar
@@ -126,6 +127,10 @@ fun App() {
 
     var currentScreen by remember { mutableStateOf(initialScreen) }
     var modulePath by remember { mutableStateOf(initialPath) } // B6f: path `/m/{code}` untuk AppNavScreen.MODULE
+
+    // WeMake Builder (PLAN-builder-console M0): `/builder` adalah konsol project dengan shell
+    // sendiri — satu cabang delegasi dari App, bukan layar AppNavScreen.
+    var builderRoute by remember { mutableStateOf(initialPath.startsWith("/builder")) }
     var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
 
     /**
@@ -153,12 +158,13 @@ fun App() {
     // Synchronize initial URL and listen to browser Back/Forward (popstate/hashchange)
     LaunchedEffect(Unit) {
         val current = PlatformNavigation.getCurrentPath()
-        if (AppNavScreen.fromPath(current) == null) {
+        if (AppNavScreen.fromPath(current) == null && !current.startsWith("/builder")) {
             PlatformNavigation.replacePath(currentScreen.route)
         }
 
         PlatformNavigation.listenToPathChanges { newPath ->
             val matched = AppNavScreen.fromPath(newPath)
+            builderRoute = newPath.startsWith("/builder")
             if (matched == AppNavScreen.MODULE) modulePath = newPath
             if (matched != null && matched != currentScreen) {
                 currentScreen = matched
@@ -276,7 +282,9 @@ fun App() {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isCompact = maxWidth < ClayBreakpoints.MasterDetail
 
-            Column(modifier = Modifier.fillMaxSize()) {
+            if (builderRoute && isAuthenticated) {
+                BuilderShell(modifier = Modifier.fillMaxSize())
+            } else Column(modifier = Modifier.fillMaxSize()) {
                 AppTopBar(
                     currentScreen = currentScreen,
                     title = if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,

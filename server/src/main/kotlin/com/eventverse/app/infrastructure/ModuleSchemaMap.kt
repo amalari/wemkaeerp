@@ -23,6 +23,15 @@ object ModuleSchemaMap {
         "flyway_schema_history"
     )
 
+    /**
+     * Schema platform di luar modul (PLAN-builder-console M0): `builder` milik konsol WeMake Builder.
+     * Bukan `BusinessModule` (governance-type), jadi tidak masuk [byModule] — tetapi tabel ber-`tenant_id`
+     * di sini wajib RLS & grant yang sama, dan ikut dijaga `ModuleSchemaOwnershipTest`.
+     */
+    val platformSchemas: Map<String, Set<String>> = mapOf(
+        "builder" to setOf("deployments")
+    )
+
     val byModule: Map<ModuleId, Set<String>> = mapOf(
         GarmentModules.ORG_CHART to setOf("departments", "employees"),
         GarmentModules.DYNAMIC_RBAC to setOf("custom_roles", "department_module_assignments"),
@@ -56,6 +65,8 @@ object ModuleSchemaMap {
     /** Nama schema modul = kode modulnya; tidak ada tabel pemetaan kedua. */
     fun schemaOf(module: ModuleId): String = module.value
 
-    /** `schema.tabel` yang diharapkan untuk setiap tabel modul. */
-    val expectedQualified: Set<String> get() = byModule.flatMap { (m, tables) -> tables.map { "${schemaOf(m)}.$it" } }.toSet()
+    /** `schema.tabel` yang diharapkan untuk setiap tabel modul + schema platform non-modul. */
+    val expectedQualified: Set<String> get() =
+        byModule.flatMap { (m, tables) -> tables.map { "${schemaOf(m)}.$it" } }.toSet() +
+            platformSchemas.flatMap { (schema, tables) -> tables.map { "$schema.$it" } }
 }

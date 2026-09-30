@@ -16,6 +16,9 @@ class InMemoryDomainPackRepository : DomainPackRepository {
     override suspend fun findLatest(code: DomainPackCode): StoredDomainPack? =
         rows.values.filter { it.pack.code == code }.maxByOrNull { it.version }
 
+    override suspend fun findVersion(code: DomainPackCode, version: Int): StoredDomainPack? =
+        rows[code to version]
+
     override suspend fun save(stored: StoredDomainPack): StoredDomainPack {
         rows[stored.pack.code to stored.version] = stored
         return stored

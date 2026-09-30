@@ -44,6 +44,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
                     it[domainPack] = tenant.domainPack.value
+                    it[domainPackVersion] = tenant.domainPackVersion
                 }
             } else {
                 TenantsTable.insert {
@@ -56,6 +57,7 @@ class PostgresTenantRepository : TenantRepository {
                     it[businessPreset] = tenant.businessPreset.code.value
                     it[industryTemplate] = tenant.industryTemplate.name
                     it[domainPack] = tenant.domainPack.value
+                    it[domainPackVersion] = tenant.domainPackVersion
                 }
             }
             tenant
@@ -83,6 +85,7 @@ class PostgresTenantRepository : TenantRepository {
         // Nilai asing jatuh ke rajut: satu-satunya kerangka sebelum kolom ini ada (V74).
         industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER,
         // Kode tak dikenal tetap dibaca apa adanya; plugin tenant menolaknya 409 (B7 FR-4), bukan jatuh ke garment.
-        domainPack = DomainPackCode(row[TenantsTable.domainPack])
+        domainPack = DomainPackCode(row[TenantsTable.domainPack]),
+        domainPackVersion = row[TenantsTable.domainPackVersion]
     )
 }

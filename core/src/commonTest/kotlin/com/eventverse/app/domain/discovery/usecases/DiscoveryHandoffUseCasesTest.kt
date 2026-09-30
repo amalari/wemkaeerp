@@ -61,6 +61,8 @@ class DiscoveryHandoffUseCasesTest {
         }
         override suspend fun findLatest(code: DomainPackCode) =
             rows.filter { it.pack.code == code }.maxByOrNull { it.version }
+        override suspend fun findVersion(code: DomainPackCode, version: Int) =
+            rows.find { it.pack.code == code && it.version == version }
         override suspend fun save(stored: StoredDomainPack): StoredDomainPack {
             rows.removeAll { it.pack.code == stored.pack.code && it.version == stored.version }
             rows.add(stored); return stored

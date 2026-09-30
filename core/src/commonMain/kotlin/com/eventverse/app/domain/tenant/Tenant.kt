@@ -24,7 +24,13 @@ data class Tenant(
     /** Kerangka tahap industri tempat pabrik ini di-provision (TRD-FLOW-001). Sumbu terpisah dari model bisnis. */
     val industryTemplate: IndustryTemplateCode = IndustryTemplateCode.KNIT_SWEATER,
     /** Vertikal tenant (B7). Default = nilai setiap baris lama (`tenants.domain_pack DEFAULT 'garment'`), bukan fallback baca. */
-    val domainPack: DomainPackCode = GarmentDomainPack.CODE
+    val domainPack: DomainPackCode = GarmentDomainPack.CODE,
+    /**
+     * Versi pack data yang di-pin untuk tenant ini (PLAN-builder-console §4, M0). `null` = tenant berjalan di
+     * atas pack effective (perilaku B7 pra-pin, dipertahankan untuk semua tenant lama — test paritas garment).
+     * Diisi saat deploy (M2) dan rollback, bukan saat baca.
+     */
+    val domainPackVersion: Int? = null
 ) {
     val isAccessible: Boolean
         get() = status.isAccessible

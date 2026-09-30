@@ -62,6 +62,7 @@ class DomainPackVersioningTest {
         override suspend fun findEffective(code: DomainPackCode) = effectiveOf(rows.values.filter { it.pack.code == code })
         override suspend fun findAllEffective() = rows.values.groupBy { it.pack.code }.values.mapNotNull(::effectiveOf)
         override suspend fun findLatest(code: DomainPackCode) = rows.values.filter { it.pack.code == code }.maxByOrNull { it.version }
+        override suspend fun findVersion(code: DomainPackCode, version: Int) = rows[code to version]
         override suspend fun save(stored: StoredDomainPack): StoredDomainPack { rows[stored.pack.code to stored.version] = stored; return stored }
     }
 }

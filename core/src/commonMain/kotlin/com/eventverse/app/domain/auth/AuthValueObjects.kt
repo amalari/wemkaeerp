@@ -79,6 +79,11 @@ enum class Permission {
     MANAGE_USERS,
     VIEW_BILLING,
 
+    // WeMake Builder (PLAN-builder-console): konsol project ala Vercel, 1 akun = 1 project.
+    // Permission sistem (lolos Uji Variabilitas): milik TENANT_ADMIN & superadmin secara default;
+    // bisa diberikan ke user tenant lain sebagai kolaborator builder.
+    MANAGE_BUILDER,
+
     // CRM & Sales
     VIEW_LEADS,
     MANAGE_LEADS,
@@ -131,6 +136,7 @@ enum class Role(val defaultPermissions: Set<Permission>) {
             Permission.MANAGE_TENANT,
             Permission.MANAGE_USERS,
             Permission.VIEW_BILLING,
+            Permission.MANAGE_BUILDER,
             Permission.VIEW_LEADS,
             Permission.MANAGE_LEADS,
             Permission.MANAGE_SAMPLING_ORDERS,

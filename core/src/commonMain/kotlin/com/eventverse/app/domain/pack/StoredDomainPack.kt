@@ -33,6 +33,9 @@ interface DomainPackRepository {
     /** Versi tertinggi apa pun statusnya — titik tulis draf berikutnya. */
     suspend fun findLatest(code: DomainPackCode): StoredDomainPack?
 
+    /** Satu baris versi persis (pin per tenant, PLAN-builder-console M0). `null` = versi tak dikenal — pemanggil menolak, bukan fallback. */
+    suspend fun findVersion(code: DomainPackCode, version: Int): StoredDomainPack?
+
     /** Menyisipkan atau mengganti **satu baris versi** apa adanya. Aturan versi milik use case, bukan repository. */
     suspend fun save(stored: StoredDomainPack): StoredDomainPack
 }

@@ -30,6 +30,13 @@ class PostgresDomainPackRepository : DomainPackRepository {
 
     override suspend fun findLatest(code: DomainPackCode): StoredDomainPack? = versions(code).maxByOrNull { it.version }
 
+    override suspend fun findVersion(code: DomainPackCode, version: Int): StoredDomainPack? = DatabaseFactory.dbQuery {
+        DomainPacksTable.selectAll()
+            .where { (DomainPacksTable.code eq code.value) and (DomainPacksTable.version eq version) }
+            .map(::toStored)
+            .singleOrNull()
+    }
+
     override suspend fun save(stored: StoredDomainPack): StoredDomainPack {
         val json = DomainPackCodec.encodeToString(stored.pack)
         DatabaseFactory.dbQuery {

@@ -196,6 +196,22 @@ val TenantResolutionPlugin = createApplicationPlugin(
                 )
                 return@onCall
             }
+
+            // PLAN-builder-console F2: subdomain host juga adalah penunjuk tenant. User tenant yang
+            // membuka <slug-lain>.wemakeerp.com ditolak — sama seperti header, karena host dan header
+            // adalah dua pintu yang sama. Carve-out: superadmin (isTenantBound == false) bebas,
+            // lewat jalur act-as di bawah; host tanpa subdomain (localhost:3000) tidak membatasi.
+            val hostSubdomain = extractSubdomain(call.request.host())
+            if (hostSubdomain != null && principal.tenantSlug != null &&
+                hostSubdomain != principal.tenantSlug.lowercase()
+            ) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    "Akun ini terikat pada tenant '${principal.tenantSlug}' dan tidak boleh membuka " +
+                        "subdomain '$hostSubdomain'."
+                )
+                return@onCall
+            }
         }
 
         val resolvedTenant = when {

@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.tables.DiscoveryDraftsTable
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import org.jetbrains.exposed.sql.ResultRow
@@ -42,6 +43,7 @@ class PostgresDiscoveryDraftRepository : DiscoveryDraftRepository {
                 it[status] = stored.status.name
                 it[document] = json
                 it[schemaVersion] = stored.schemaVersion
+                it[tenantId] = stored.tenantId?.value
                 it[updatedAt] = stored.updatedAt ?: kotlinx.datetime.Clock.System.now()
                 it[lockedAt] = stored.lockedAt
             }
@@ -53,6 +55,7 @@ class PostgresDiscoveryDraftRepository : DiscoveryDraftRepository {
                     it[status] = stored.status.name
                     it[document] = json
                     it[schemaVersion] = stored.schemaVersion
+                    it[tenantId] = stored.tenantId?.value
                     it[createdAt] = stored.createdAt ?: kotlinx.datetime.Clock.System.now()
                     it[updatedAt] = stored.updatedAt ?: kotlinx.datetime.Clock.System.now()
                     it[lockedAt] = stored.lockedAt
@@ -69,6 +72,7 @@ class PostgresDiscoveryDraftRepository : DiscoveryDraftRepository {
         status = DiscoveryDraftStatus.valueOf(row[DiscoveryDraftsTable.status]),
         schemaVersion = row[DiscoveryDraftsTable.schemaVersion],
         prospectLeadId = row[DiscoveryDraftsTable.prospectLeadId],
+        tenantId = row[DiscoveryDraftsTable.tenantId]?.let(::TenantId),
         createdAt = row[DiscoveryDraftsTable.createdAt],
         updatedAt = row[DiscoveryDraftsTable.updatedAt],
         lockedAt = row[DiscoveryDraftsTable.lockedAt]

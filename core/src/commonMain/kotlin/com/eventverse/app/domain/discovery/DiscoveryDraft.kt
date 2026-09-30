@@ -4,6 +4,7 @@ import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlin.jvm.JvmInline
 
@@ -76,6 +77,11 @@ data class StoredDiscoveryDraft(
     val status: DiscoveryDraftStatus = DiscoveryDraftStatus.DRAFT,
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val prospectLeadId: String? = null,
+    /**
+     * Tenant pemilik draf (PLAN-builder-console §4, V81). `null` untuk draf funnel lama yang milik pribadi
+     * pemanggil — tidak di-backfill, sejarah kepemilikannya tidak berubah.
+     */
+    val tenantId: TenantId? = null,
     val createdAt: Instant? = null,
     val updatedAt: Instant? = null,
     val lockedAt: Instant? = null
