@@ -250,14 +250,31 @@ Keputusan Fase E, beserta alasannya:
 | Layar buku demand di drawer Studio (bukan modul/governance), barisnya disembunyikan untuk non-superadmin | Buku demand tetap bukan `BusinessModule` (platform, bukan tenant) — pola yang sama dengan dua layar Studio lain. Menyembunyikan baris mencegah pengguna menabrak layar yang pasti 403; layarnya tetap menjelaskan gerbang jika diakses langsung lewat URL |
 | Narasi dipulihkan lewat ringkasan draf (`findByDraftId`), bukan endpoint "my demands" baru | Demand milik pemilik draf yang sama — membuangnya ke ringkasan yang sudah tergerbang kepemilikan menambah nol permukaan serangan baru; klien tidak perlu fetch kedua saat resume |
 | Non-superadmin tidak menembak `GET /demands` sama sekali | Server pasti 403; request yang pasti gagal hanya menambah bising console dan jejak audit palsu |
+| Kartu gerbang **informasional**, bukan toggle: menambah `WidgetKind` tetap keputusan kode | Kosakata widget tertutup (Uji Variabilitas lolos sebagai kode — renderer harus menggambar semua kind); kandidat demand adalah bukti untuk keputusan itu, bukan pemicu otomatis. Kandidat juga bukan nama widget: "gigi" tidak memberi tahu kind apa yang layak |
+| Kartu gerbang di kolom desainer Studio, bukan digabung ke kartu pilihan widget | Menghindari ClayCard bersarang; tetap satu aliran pandangan dari pilihan widget → gerbang → panen kerangka |
+| Parsing + kartu kandidat diangkat ke `DemandSignals.kt` sejak pemakaian kedua | Markup + parsing identik di dua layar Studio — menyalinnya berarti ulang penyakit Aturan Tiga Kali yang sama; keduanya satu package sehingga `internal` cukup |
 
 Irisan kedua Fase E (2026-09-30, sore) — selesai:
 - **Layar Buku Demand** `DemandLedgerScreen` di rute `/discovery/demands` (drawer Studio, baris hanya untuk superadmin): kandidat Rule of Three di atas (kartu outline Primary + badge jumlah demand + kutipan narasi), lalu semua demand (narasi verbatim, ClayTag istilah tak terwakili, footer agent + tanggal). Non-superadmin melihat kartu penjelasan gerbang (dan tidak menembak endpoint sama sekali).
 - **Pemulihan narasi saat resume**: `DiscoveryDemandRepository.findByDraftId` → narasi masuk ringkasan draf (`summaryWithNarrative`), wizard mengisi ulang textarea saat "Ubah Narasi" — draf pra-V80 tetap `null` dan mulai kosong.
 
+Irisan ketiga Fase E (2026-09-30) — selesai:
+- **Gerbang Rule of Three di titik keputusan widget**: `WidgetDemandGateCard` (DemandSignals.kt) dipasang di Studio Pola tepat setelah kartu pilihan widget — kandidat (istilah + jumlah demand + kutipan) tampil persis di tempat superadmin memutuskan pola/kind. Non-superadmin tidak menembak endpoint; kartunya menjelaskan gerbang. Parsing & kartu kandidat diangkat ke `DemandSignals.kt` yang dipakai bersama Buku Demand (test: `DemandSignalsTest`, 3). Sinyal tetap **informasional** — keputusan menambah kind tetap keputusan kode platform (kosakata `WidgetKind` tertutup), bukan toggle di layar.
+
+Irisan keempat Fase E (2026-09-30) — selesai:
+- **Autosave narasi**: cerita + industri yang sedang diketik disimpan per perangkat (`PlatformLocalStorage`,
+  kunci `discovery_narrative_draft`/`discovery_hint_draft`) pada tiap ketikan, dipulihkan saat layar dibuka —
+  tab yang tertutup sebelum "Susun Draf" tidak lagi memakan cerita. Simpanan dihapus saat draf berhasil
+  dibuat (narasi kini hidup di buku demand — dua salinan hidup = resep data bertentangan) dan mengikuti
+  isi textarea saat sesi lama di-resume. Desktop/JVM in-memory: hanya melindungi ganti layar, jujur pada
+  kemampuan platformnya.
+- **Kartu gerbang dibatasi puncak antrean**: `WidgetDemandGateCard` menampilkan 3 kandidat teratas saja;
+  sisanya dirujuk ke Buku Demand ("…dan N kandidat lagi") — kartu di tengah perancang tidak ikut menumpuk
+  seluruh daftar.
+
 Sisa Fase E (belum ditutup):
-- Autosave narasi saat mengetik (resume kini sudah memulihkan teks, tapi masih ada jendela kehilangan jika tab tertutup sebelum "Susun Draf").
-- Gerbang Rule of Three belum terhubung ke keputusan widget Studio (saat ini hanya melapor di layar Buku Demand).
+- (kosong — item narasi & daftar kandidat telah ditutup di irisan keempat; tersisa utang kosakata
+  "pabrik" di Org Chart/RBAC dan nasib `CreateSamplingOrderDialog`, keduanya di luar lingkup plan ini)
 
 ## 7. Risiko
 

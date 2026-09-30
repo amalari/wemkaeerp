@@ -4,7 +4,8 @@
 > Kode: `core/.../domain/discovery/DiscoveryDemand.kt`, `server/.../routes/DiscoveryRoutes.kt`,
 > `server/src/main/resources/db/migration/V80__discovery_demands.sql`,
 > `app/shared/.../presentation/discovery/DiscoveryWizardScreen.kt` (+`DiscoveryWizardSteps.kt`),
-> `app/shared/.../presentation/discovery/studio/DemandLedgerScreen.kt` (irisan kedua)
+> `app/shared/.../presentation/discovery/studio/DemandLedgerScreen.kt` (irisan kedua),
+> `app/shared/.../presentation/discovery/studio/DemandSignals.kt` (irisan ketiga)
 
 ## Apa yang diselesaikan
 
@@ -85,12 +86,54 @@ Verifikasi tambahan: browser superadmin (1440 & 1280 — kandidat, demand, tag m
 asersi test baru: `GET /drafts/{id}` mengembalikan `narrative` verbatim. Suite `--rerun`:
 1487 test, 0 gagal; `audit-variability.sh` 0 temuan.
 
+## Irisan ketiga (2026-09-30): gerbang di titik keputusan widget
+
+Tantangan #3 daftar sisa dikerjakan: kandidat Rule of Three kini tampil **di Studio Pola**,
+tepat setelah kartu berisi pilihan widget — bukan hanya di layar Buku Demand. Pelajarannya:
+
+1. **Titik keputusan menentukan tempat sinyal.** `GET /demands` sudah ada, kandidatnya sudah
+   dihitung — yang kurang bukan data, melainkan *jarak*: superadmin memutuskan pola/kind di
+   Studio tanpa pernah melewati layar lain. `WidgetDemandGateCard` menutup jarak itu.
+2. **Informatif, bukan toggle.** Godaan berikutnya adalah "klik kandidat → widget baru dibuat".
+   Salah: kosakata `WidgetKind` tertutup karena renderer harus bisa menggambar setiap kind di
+   semua vertikal (Uji Variabilitas) — menambah kind = mengubah kode, dan kandidat ("gigi")
+   tidak memberi tahu kind apa. Kartu memberi **bukti** untuk keputusan kode, bukan penggantinya.
+3. **Angkat sejak pemakaian kedua.** Parsing kandidat + kartunya langsung dipindah ke
+   `DemandSignals.kt` (`internal`, satu package) yang dipakai Buku Demand dan kartu gerbang —
+   menyalin markup identik ke layar kedua adalah ulang penyakit Aturan Tiga Kali yang sama.
+   `DemandSignalsTest` (3) mengunci parsingnya: fail-loud untuk respons bukan objek, fallback
+   ambang ke `DemandLedger.RULE_OF_THREE`, urutan kandidat dari server tidak diacak ulang.
+
+**Pelajaran proses**: menyambung composable dengan `insert_line` di atas 6000 karakter memecah
+file bertahap dan sekali membuat kurung penutup bergeser — kompilasi menangkapnya, tapi tiga
+putaran perbaikan bisa dihindari bila file baru ditulis utuh sejak awal, bukan dirakit dari
+tiga sisipan.
+
+## Irisan keempat (2026-09-30): autosave narasi & antrean kandidat terbatas
+
+Dua sisa Fase E ditutup sekaligus:
+
+1. **Autosave di tepi klien, bukan endpoint baru.** Cerita yang belum dikirim tidak punya rumah di
+   server (draf baru ada setelah `POST /drafts`), dan menambah endpoint "narasi sementara" berarti
+   menambah state server untuk data yang pemiliknya belum punya akun pun. `PlatformLocalStorage`
+   (sudah multiplatform: localStorage / NSUserDefaults / in-memory) cukup: disimpan per ketikan,
+   dipulihkan saat layar dibuka. Kebijakan pembersihannya yang penting: simpanan dihapus saat draf
+   **berhasil dibuat** — narasi kini hidup di buku demand, dan dua salinan hidup adalah resep data
+   bertentangan. Saat resume sesi lama, autosave ikut isi textarea (sesi yang dilanjutkan kini
+   pemilik ceritanya). Kejujuran platform: di Desktop/JVM penyimpanannya in-memory, jadi autosave
+   di sana hanya melindungi ganti layar — itu kemampuan platformnya, ditulis di KDoc.
+2. **Antrean kandidat dibatasi puncaknya.** Kartu gerbang di tengah perancang menampilkan 3
+   kandidat teratas; sisanya satu baris rujukan "…dan N kandidat lagi — antrean penuhnya di Buku
+   Demand". Layar penuh tetap jadi tugas Buku Demand; perancang tidak ikut menumpuk.
+
+Verifikasi dengan mata (superadmin, :3001): narasi+hint diketik → localStorage terisi per ketikan →
+reload → teks kembali utuh di textarea → "Susun Draf Sistem" → draf terbentuk, kedua kunci lokal
+`null`. Kartu gerbang tetap normal (1 kandidat, di bawah batas). Compilasi JVM/WasmJs/JS hijau,
+`jvmTest` hijau; Android tetap gagal pra-ada (SDK location), bukan karena perubahan ini.
+
 ## Tantangan mandiri (sisa)
 
 1. Turunkan ambang Rule of Three menjadi per-vertikal? Uji dulu dengan Uji Variabilitas — ambang
    adalah konsep platform atau data tenant?
 2. Demand dari agent LLM vs deterministik: apakah `agent_ref` cukup untuk membandingkan kualitas
    keduanya, atau perlu skor cakupan per demand?
-3. Hubungkan kandidat Rule of Three ke keputusan widget Studio (saat ini hanya melapor di layar).
-4. Autosave narasi saat mengetik — resume sudah memulihkan teks, tapi tab yang tertutup sebelum
-   "Susun Draf" masih kehilangan cerita.

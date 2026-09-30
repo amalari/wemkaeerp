@@ -26,9 +26,6 @@ import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 
-/** Satu kandidat Rule of Three yang sudah dibongkar dari JSON respons. */
-private data class DemandCandidateUi(val term: String, val demandCount: Int, val samples: List<String>)
-
 /** Satu baris buku demand. */
 private data class DemandRowUi(
     val id: String,
@@ -59,15 +56,10 @@ fun DemandLedgerScreen(isSuperadmin: Boolean, modifier: Modifier = Modifier) {
         if (!isSuperadmin) { loaded = true; return@LaunchedEffect }
         client.listDemands().mapCatching { raw ->
             val obj = raw as? JsonValue.Obj ?: error("Respons buku demand tidak dikenali")
+            val signals = parseDemandSignals(obj)
             DemandLedgerUi(
-                minimum = obj.int("minimum") ?: 3,
-                candidates = obj.array("candidates").filterIsInstance<JsonValue.Obj>().map { c ->
-                    DemandCandidateUi(
-                        term = c.string("term").orEmpty(),
-                        demandCount = c.int("demandCount") ?: 0,
-                        samples = c.array("samples").filterIsInstance<JsonValue.Str>().map { it.value }
-                    )
-                },
+                minimum = signals.minimum,
+                candidates = signals.candidates,
                 demands = obj.array("demands").filterIsInstance<JsonValue.Obj>().map { d ->
                     DemandRowUi(
                         id = d.string("id").orEmpty(),
@@ -137,24 +129,7 @@ fun DemandLedgerScreen(isSuperadmin: Boolean, modifier: Modifier = Modifier) {
             )
         } else {
             data.candidates.forEach { c ->
-                ClayCard(
-                    modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
-                    outlineColor = WeMadeColors.Primary
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-                        Text(c.term, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
-                        ClayBadge(text = "${c.demandCount} demand", tint = WeMadeColors.Primary)
-                    }
-                    c.samples.forEach { sample ->
-                        Text(
-                            "\u201C$sample\u201D",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontStyle = FontStyle.Italic,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            modifier = Modifier.padding(top = ClaySpacing.Xs)
-                        )
-                    }
-                }
+                DemandCandidateCard(c)
             }
         }
 

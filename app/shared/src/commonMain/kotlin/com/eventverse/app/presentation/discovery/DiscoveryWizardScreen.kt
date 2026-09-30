@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.eventverse.app.infrastructure.api.DiscoveryApiClient
+import com.eventverse.app.infrastructure.storage.PlatformLocalStorage
 import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -49,8 +50,11 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
     val client = remember { DiscoveryApiClient() }
 
     var step by remember { mutableStateOf(1) }
-    var narrative by remember { mutableStateOf("") }
-    var industryHint by remember { mutableStateOf("") }
+    // Autosave narasi (plan §6 Fase E): cerita yang belum dikirim dipulihkan dari perangkat ini,
+    // jadi tab yang tertutup tidak lagi memakan cerita prospek. Simpanannya dihapus saat draf
+    // berhasil dibuat (lihat onSubmit) — narasi kini hidup di server, buku demand.
+    var narrative by remember { mutableStateOf(PlatformLocalStorage.getItem(NARRATIVE_DRAFT_KEY) ?: "") }
+    var industryHint by remember { mutableStateOf(PlatformLocalStorage.getItem(HINT_DRAFT_KEY) ?: "") }
     var draftId by remember { mutableStateOf<String?>(null) }
     var draft by remember { mutableStateOf<DiscoveryDraftUi?>(null) }
     var price by remember { mutableStateOf<JsonValue.Obj?>(null) }
@@ -122,7 +126,11 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 onResume = { d ->
                     busy = true; error = null
                     // E1/E2: pulihkan cerita aslinya — "Ubah Narasi" tidak boleh kosong.
-                    d.narrative?.let { narrative = it }
+                    // Autosave mengikuti isi textarea: sesi yang dilanjutkan kini pemilik ceritanya.
+                    d.narrative?.let {
+                        narrative = it
+                        PlatformLocalStorage.setItem(NARRATIVE_DRAFT_KEY, it)
+                    }
                     draft = d; draftId = d.id; step = 2
                     busy = false
                 }
@@ -137,8 +145,15 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 narrative = narrative,
                 industryHint = industryHint,
                 busy = busy,
-                onNarrativeChange = { narrative = it },
-                onHintChange = { industryHint = it },
+                onNarrativeChange = {
+                    narrative = it
+                    // Autosave di tiap ketikan: localStorage murah, cerita prospek tidak.
+                    PlatformLocalStorage.setItem(NARRATIVE_DRAFT_KEY, it)
+                },
+                onHintChange = {
+                    industryHint = it
+                    PlatformLocalStorage.setItem(HINT_DRAFT_KEY, it)
+                },
                 onSubmit = {
                     if (narrative.isBlank()) {
                         error = "Ceritakan dulu kebutuhan bisnis Anda."
@@ -152,7 +167,13 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                                             ?: throw IllegalStateException("Respons draf tidak dikenali")
                                     )
                                 }
-                                .onSuccess { d -> draft = d; draftId = d.id; step = 2 }
+                                .onSuccess { d ->
+                                    // Narasi kini hidup di server (buku demand) — simpanan lokal
+                                    // pensiun; dua salinan hidup = resep data bertentangan.
+                                    PlatformLocalStorage.removeItem(NARRATIVE_DRAFT_KEY)
+                                    PlatformLocalStorage.removeItem(HINT_DRAFT_KEY)
+                                    draft = d; draftId = d.id; step = 2
+                                }
                                 .onFailure { error = it.message ?: "Gagal menyusun draf" }
                             busy = false
                         }
@@ -233,6 +254,17 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
         }
     }
 }
+/**
+ * Kunci autosave narasi wizard (plan §6 Fase E — sisa item "jendela kehilangan"): cerita yang
+ * sedang diketik disimpan per perangkat lewat [PlatformLocalStorage] pada tiap ketikan dan
+ * dipulihkan saat layar dibuka. Simpanannya dihapus saat draf berhasil dibuat — narasi kini
+ * hidup di server (buku demand), dan dua salinan hidup adalah resep data bertentangan.
+ * Desktop/JVM memakai penyimpanan in-memory: di sana autosave hanya melindungi ganti layar,
+ * bukan tutup aplikasi — jujur pada kemampuan platformnya.
+ */
+private const val NARRATIVE_DRAFT_KEY = "discovery_narrative_draft"
+private const val HINT_DRAFT_KEY = "discovery_hint_draft"
+
 @Composable
 private fun ResumeDraftsCard(
     candidates: List<DiscoveryDraftUi>,

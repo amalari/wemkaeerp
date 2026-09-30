@@ -247,6 +247,9 @@ fun PrototypeStudioScreen(
                     )
                 }
 
+                // Gerbang Rule of Three (plan D5) di titik keputusan widget — lihat DemandSignals.kt.
+                WidgetDemandGateCard(canWrite = canWrite, modifier = Modifier.fillMaxWidth())
+
                 ClayCard(modifier = Modifier.fillMaxWidth()) {
                     Text("Panen kerangka baris", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
