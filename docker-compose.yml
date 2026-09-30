@@ -7,10 +7,16 @@ services:
       POSTGRES_DB: ${DB_NAME:-wemade_erp}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      # Role aplikasi tenant-scoped (RLS, plan A0). Server memakainya via DB_APP_USER/DB_APP_PASSWORD.
+      APP_USER: ${DB_APP_USER:-wemade_app}
+      APP_USER_PASSWORD: ${DB_APP_PASSWORD:-wemade-app-dev}
     ports:
       - "${DB_PORT:-5435}:5432"
     volumes:
       - wemade_pgdata:/var/lib/postgresql
+      # Skrip init hanya jalan pada volume BARU (first initdb). Untuk volume lama, jalankan
+      # ALTER ROLE ... LOGIN PASSWORD secara manual (lihat .env.example).
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [

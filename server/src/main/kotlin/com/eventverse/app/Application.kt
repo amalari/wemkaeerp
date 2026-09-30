@@ -30,6 +30,7 @@ import com.eventverse.app.infrastructure.PostgresDepartmentRepository
 import com.eventverse.app.infrastructure.PostgresEmployeeRepository
 import com.eventverse.app.routes.rbacRoutes
 import com.eventverse.app.routes.departmentRoutes
+import com.eventverse.app.routes.discoveryRoutes
 import com.eventverse.app.routes.employeeRoutes
 import com.eventverse.app.routes.pipelineRoutes
 import com.eventverse.app.routes.adminRoutes
@@ -142,6 +143,7 @@ fun Application.module(
     flowTranslationRepository: FlowTranslationRepository? = null,
     prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
     flowTranslator: FlowTranslator? = null,
+    discoveryDraftRepository: com.eventverse.app.domain.discovery.DiscoveryDraftRepository? = null,
     crmLeadRepository: CrmLeadRepository? = null,
     contactRepository: com.eventverse.app.domain.crm.ContactRepository? = null,
     dealRepository: com.eventverse.app.domain.deal.DealRepository? = null,
@@ -228,6 +230,9 @@ fun Application.module(
 
     // Keyword matching, not comprehension (KeywordFlowTranslator): free, so safe on a public endpoint; a real model needs rate limiting.
     val flowTranslatorImpl = flowTranslator ?: KeywordFlowTranslator()
+
+    // Funnel discovery (plan Fase A): kill-switch env — deterministik selama Koog belum dipasang (A8).
+    val discoveryDraftRepo = discoveryDraftRepository ?: com.eventverse.app.infrastructure.PostgresDiscoveryDraftRepository()
 
     // Derived from REAL productive hours (~4/day), not a nominal 160-hour month. Using a nominal
     // rate while logging honest hours recovers only half the cost on every quote.
@@ -523,32 +528,25 @@ fun Application.module(
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
         domainPackRoutes(repository, domainPackRepo, com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), auditLogRepo)
         moduleDevRoutes(
-            catalogRepository = catalogRepo,
-            buildRepository = buildRepo,
-            quoteRepository = quoteRepo,
-            requestRepository = customizationRequestRepo,
-            sizingWeightsRepository = sizingWeightsRepo,
-            pipelineRepository = pipeRepo,
-            embeddingProvider = embeddingProviderImpl,
+            catalogRepository = catalogRepo, buildRepository = buildRepo, quoteRepository = quoteRepo,
+            requestRepository = customizationRequestRepo, sizingWeightsRepository = sizingWeightsRepo,
+            pipelineRepository = pipeRepo, embeddingProvider = embeddingProviderImpl,
             auditLogRepository = auditLogRepo
         )
         prospectRoutes(
-            leadRepository = leadRepo,
-            translationRepository = translationRepo,
+            leadRepository = leadRepo, translationRepository = translationRepo,
             priceEstimateRepository = prospectEstimateRepo,
             submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo),
-            translateUseCase = TranslateProspectFlowUseCase(
-                flowTranslatorImpl, translationRepo, leadRepo
-            ),
+            translateUseCase = TranslateProspectFlowUseCase(flowTranslatorImpl, translationRepo, leadRepo),
             analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo),
             priceUseCase = PriceProspectFlowUseCase(
-                buildRepository = buildRepo,
-                sizingWeightsRepository = sizingWeightsRepo,
+                buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
                 embeddingProvider = embeddingProviderImpl,
                 defaultBlendedHourlyRate = blendedHourlyRate
             ),
             defaultMarginPercent = defaultMargin
         )
+        discoveryRoutes(repository = discoveryDraftRepo, agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo,
             contactRepository = crmContactRepo,
