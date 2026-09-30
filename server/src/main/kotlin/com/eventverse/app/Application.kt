@@ -167,7 +167,10 @@ fun Application.module(
     domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null,
     builderDeploymentRepository: com.eventverse.app.domain.builder.BuilderDeploymentRepository? = null,
     builderChatRepository: com.eventverse.app.domain.builder.BuilderChatRepository? = null,
-    builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null
+    builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null,
+    builderBuildRequests: com.eventverse.app.domain.builder.BuilderBuildRequestRepository? = null,
+    builderProbe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe? = null,
+    builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null
 ) {
     val repository = tenantRepository ?: run { DatabaseFactory.init(); PostgresTenantRepository() }
     val userRepo = userRepository ?: PostgresUserRepository()
@@ -191,9 +194,7 @@ fun Application.module(
     val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
-    val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository()
-    val traceContainerRepo = PostgresTraceContainerRepository()
-    val internalTransferRepo = PostgresInternalTransferRepository()
+    val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository(); val traceContainerRepo = PostgresTraceContainerRepository(); val internalTransferRepo = PostgresInternalTransferRepository()
     val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
         sampling = SamplingTraceWorkOrderProvider(samplingOrderRepo, traceContainerRepo),
         bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
@@ -491,7 +492,9 @@ fun Application.module(
             agent = builderAgent ?: com.eventverse.app.infrastructure.builder.DiscoveryBackedBuilderAgent(
                 com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv()
             ),
-            drafts = discoveryDraftRepo
+            drafts = discoveryDraftRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
+            probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
+            auditLog = builderAuditLog ?: com.eventverse.app.infrastructure.PostgresAuditLogRepository()
         )
         moduleAssignmentRoutes(assignmentRepo, roleRepo)
         departmentRoutes(deptRepo, empRepo, roleRepo, assignmentRepo)
@@ -507,10 +510,8 @@ fun Application.module(
         )
         prospectRoutes(
             leadRepository = leadRepo, translationRepository = translationRepo, priceEstimateRepository = prospectEstimateRepo,
-            submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo),
-            translateUseCase = TranslateProspectFlowUseCase(flowTranslatorImpl, translationRepo, leadRepo),
-            analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo),
-            priceUseCase = PriceProspectFlowUseCase(buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
+            submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo), translateUseCase = TranslateProspectFlowUseCase(flowTranslatorImpl, translationRepo, leadRepo),
+            analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo), priceUseCase = PriceProspectFlowUseCase(buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
                 embeddingProvider = embeddingProviderImpl, defaultBlendedHourlyRate = blendedHourlyRate),
             defaultMarginPercent = defaultMargin
         )
@@ -518,8 +519,7 @@ fun Application.module(
             draftRepository = discoveryDraftRepo, tenantRepository = repository, domainPackRepository = domainPackRepo,
             probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
-            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo,
-            discoveryDemands = discoveryDemandRepository,
+            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepository,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo, contactRepository = crmContactRepo,

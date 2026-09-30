@@ -24,7 +24,13 @@ enum class AuditAction(val code: String) {
     MODULE_BUILD_RECORDED("module_build_recorded"),
 
     /** A monthly price was issued for a module. Same reason: money, and it outlives the session. */
-    MODULE_PRICE_QUOTED("module_price_quoted");
+    MODULE_PRICE_QUOTED("module_price_quoted"),
+
+    /** Builder (M2): deploy mengunci versi pack tenant — aksi berisiko, wajib tercatat (TRD NFR). */
+    BUILDER_DEPLOYMENT_ACTIVATED("builder_deployment_activated"),
+
+    /** Builder (M2): rollback menurunkan versi — terlebih wajib tercatat, termasuk aksi `force`. */
+    BUILDER_DEPLOYMENT_ROLLED_BACK("builder_deployment_rolled_back");
 
     companion object {
         fun fromCode(code: String?): AuditAction? = entries.firstOrNull { it.code == code }

@@ -212,6 +212,14 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 > `docs/teaching/teaching-plat-002-m0-builder-foundation.md`).
 | **M2 Deploy** | `DeployTenantUseCase`, Deployments + rollback, Antrian Pembuatan tipis (dikelola superadmin), billing manual (invoice PDF dari harga terkunci + konfirmasi bayar oleh superadmin), **`ServerRouteWiring` (pemecahan F1)**, flag daftar publik, Docker + Caddy wildcard | `bordir.wemakeerp.com` hidup dari tombol Deploy; rollback teruji; invoice pertama terkirim |
 
+> Status implementasi (2026-09-30): **M2 sebagian** — `DeployTenantUseCase` + rollback dengan
+> gerbang data (append-only, ter-audit), `BuildRequest` + V83, route agregat deployment, pane
+> Deployments: selesai dan teruji (domain + HTTP gate + live fail-closed). Sisa M2: billing manual
+> (FR-M2-5), penuntasan F1 ≤600 (FR-M2-6), flag daftar publik (FR-M2-7), route/pane Antrian
+> superadmin, Docker + Caddy (prasyarat DNS wildcard). Detail:
+> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2. (Lampiran M1 di dokumen
+> yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.)
+
 ### Gerbang sebelum ekspansi
 
 Diukur pada 3–5 design partner yang membayar:

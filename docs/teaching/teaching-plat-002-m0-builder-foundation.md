@@ -190,3 +190,48 @@ Discovery: [`docs/plannings/discovery-M1-builder-chat.md`](../plannings/discover
   409 double-apply, 403 tanpa izin), `app jvmTest` hijau.
 - Live: V82 ter-apply Flyway di DB dev (`builder.conversations`/`chat_messages` terbentuk);
   `curl` tanpa token → 401 fail-closed; visual shell + pane Chat dicek dengan mata (lihat pitfall 10).
+
+---
+
+# Lampiran M2 (2026-09-30) — Deploy, rollback + gerbang data, Antrian Pembuatan (domain)
+
+Discovery: [`docs/plannings/discovery-M2-builder-deploy.md`](../plannings/discovery-M2-builder-deploy.md).
+
+## Arsitektur yang terbentuk
+- **Domain**: `BuildRequest.kt` (FR-M2-4: status QUEUED→SHIPPED, taut quoteId/deployment) +
+  `DeploymentUseCases.kt` — `DeployTenantUseCase` (validasi → pack kustom = BLOCKED_ON_BUILD +
+  BuildRequest QUEUED per modul aktif; pack shipped = ACTIVE + pin versi + kunci draf + TRIAL→ACTIVE)
+  dan `RollbackDeploymentUseCase` (append-only: aktif → ROLLED_BACK, versi N−1 diaktifkan ulang;
+  gerbang data v1 = rollback penurunan `blueprintRevision` ditolak bila tenant punya data, `force`
+  = arsip eksplisit yang tetap ter-audit).
+- **Persistensi**: V83 `builder.build_requests` (RLS + grant) + `Postgres/InMemory` repo; terdaftar
+  di `ModuleSchemaMap.platformSchemas` (uji kepemilikan schema menuntutnya).
+- **API**: `BuilderDeploymentRoutes.kt` — agregat terpisah dari chat (plan §6); activate/rollback
+  ter-audit (`AuditAction.BUILDER_DEPLOYMENT_*`). Dipasang **di dalam** `builderRoutes(...)` dengan
+  default Postgres — `Application.kt` tetap 663 baris (ratchet, nol baris baru).
+- **UI**: `BuilderDeploymentsPane` + menu Deployments terbuka; Deploy/Rollback dengan badge status.
+
+## Pitfall baru (lanjutan daftar M0–M1)
+11. **`copy()` data class menjalankan `init` pada nilai antara.** `imported.supersede().copy(packVersion = v)`
+    meledak: `supersede()` membuat objek SUPERSEDED-tanpa-versi dulu, dan `init` invarian berjalan di
+    situ. Gabungkan semua perubahan dalam **satu** `copy(status = …, packVersion = …)`.
+12. **`server/build.gradle.kts` menautkan `core-jvm.jar` lama via `compileOnly(files(...))`** — jar
+    membayangi source `:core` terbaru di classpath test. Saat domain `:core` berubah dan test server
+    berperilaku "masih kode lama", jalankan `./gradlew :core:jvmJar` dulu sebelum menyimpulkan apa pun.
+13. **Snapshot IMPORTED pra-Builder tidak punya versi** — saat di-supersede ia mewarisi nomor versi
+    yang baru dikunci (keadaan yang sama, kini resmi terkunci); invarian "SUPERSEDED wajib bawa versi"
+    tetap terpenuhi dua lapis (domain + SQL CHECK).
+14. **Route agregat baru = komposisi, bukan baris baru di `Application.kt`** — pasang route anak di
+    dalam fungsi agregat induk (`builderRoutes` memasang `builderDeploymentRoutes`) dengan default
+    Postgres agar produksi aman dan test menyuntik in-memory.
+
+## Verifikasi M2 (lingkup turn ini)
+- Kompilasi JVM/WasmJs/JS ✓ (Android: SDK tetap tidak tersedia di mesin ini).
+- Test: core hijau penuh (7 test deploy/rollback termasuk skenario atas snapshot IMPORTED), server
+  310 test — satu-satunya kegagalan adalah route `/api/tenant/help/ask` milik **pekerjaan paralel**
+  (fitur help/tutorial yang belum selesai di tree, bukan lingkup Builder).
+- Live: V83 ter-apply (`builder.build_requests` terbentuk); `POST /deployments` & `/rollback` tanpa
+  token → 401 fail-closed.
+- **Belum selesai dari M2** (turn berikutnya): FR-M2-5 billing manual, FR-M2-6 penuntasan F1
+  (`Application.kt` ≤600), FR-M2-7 flag daftar publik, route Antrian superadmin + pane-nya,
+  Docker/Caddy (prasyarat DNS wildcard `*.wemakeerp.com`).

@@ -279,3 +279,66 @@ Ini bukan pertahanan sempurna. Pertahanan sebenarnya ada di arsitektur: LLM hany
 
 - [ ] Tambah kasus eval "resep nasi goreng" yang harus menghasilkan `suggestion = null` **dan** 0 panggilan LLM.
 - [ ] Ukur latensi p95 live evals dan bandingkan dengan target NFR (< 6 detik).
+
+---
+
+# Bagian 4 — Fase 4: Panel Chat & "Mulai tutorial"
+
+## 💡 Masalahnya
+
+Jawaban AI yang hanya berupa teks masih membuat user mencari tombolnya sendiri. Fase ini menutup lingkarannya: satu klik "Mulai tutorial" di gelembung chat langsung menjalankan coach mark **di langkah yang dipilih AI**, termasuk berpindah layar bila perlu.
+
+## 🧭 Urutan penulisan
+
+1. **Kontrak klien**: `HelpGateway` (antarmuka) di atas `HelpApiClient`, supaya ViewModel bisa diuji dengan gateway palsu.
+2. **MVI**: `HelpChatUiState`, `HelpChatUiEvent`, `HelpChatUiEffect`.
+3. **`HelpChatViewModel`**: kirim, simpan riwayat sesi, dan pancarkan efek `StartTutorial`.
+4. **UI**: `HelpMessageBubble`, lalu `HelpChatPanel`, lalu shell `HelpSheet` dengan tab Panduan / Tanya AI.
+5. **Sambungan** di `TutorialLayer`: efek diterjemahkan ke `TutorialController.start(tutorial, step)`.
+
+## 🧱 Blok penting
+
+### ViewModel chat tidak tahu apa-apa soal coach mark
+
+```kotlin
+is HelpChatUiEvent.StartSuggestion -> _effects.trySend(HelpChatUiEffect.StartTutorial(event.suggestion))
+```
+
+Efek (sekali jalan) dipakai, bukan state, karena "mulai tutorial" adalah perintah, bukan kondisi layar. `TutorialLayer` yang menerjemahkannya:
+
+```kotlin
+latestAccessible.firstOrNull { it.id == effect.suggestion.tutorialId }?.let { state.controller.start(it, effect.suggestion.stepIndex) }
+```
+
+Id dicari di katalog klien yang **sudah disaring wewenang yang sama**. Id yang tidak dikenal (klien lebih lama dari server) diabaikan, bukan ditebak.
+
+### Gagal kirim tidak menggandakan riwayat
+
+Saat gagal, pesan pengguna dihapus dari riwayat dan dikembalikan ke kotak input. Tanpa ini, tombol Kirim ulang akan menampilkan pertanyaan yang sama dua kali.
+
+### Riwayat bertahan selama sesi
+
+`HelpChatViewModel` dibuat sekali di `rememberTutorialUiState()`, jadi menutup lalu membuka jendela Bantuan tidak menghapus percakapan. Riwayat persisten sengaja di luar cakupan (Non-Goal).
+
+## 🔎 Temuan dari cek visual (dan kenapa cek mata itu wajib)
+
+Pertanyaan "ada buyer baru chat WA, dicatat di mana?" menampilkan alternatif **"Menyusun struktur organisasi"**. Penyebabnya: satu kata "baru" cocok dengan contoh pertanyaan "cara bikin divisi baru". Semua test hijau, tapi hasilnya jelas derau bagi user.
+
+Perbaikannya ada di `LexicalTutorialMatcher`: kandidat dengan skor kurang dari **separuh skor teratas** dibuang. Perbaikan ini dikunci test `weakSingleWordMatches_areNotOfferedAsAlternatives`.
+
+## ⚠️ Jebakan
+
+1. **Mengumpulkan efek dengan lambda yang menangkap `accessible` lama.** Gunakan `rememberUpdatedState`, karena `LaunchedEffect(state)` hidup lebih lama dari satu rekomposisi.
+2. **Menjalankan dev server di port yang sudah dipakai sesi lain.** Pengecekan "server siap" bisa lolos karena mengenai server **orang lain** dengan kode lama. Repo ini punya `WEMADE_WEB_PORT` / `WEMADE_API_PORT` dan `PORT` untuk menjalankan instance kedua (misalnya 3011 → 8091).
+
+## 🧪 Bukti
+
+| Bukti | Isi |
+|---|---|
+| `HelpChatViewModelTest` (5, fixture modul e-learning) | Kirim menyertakan modul aktif; alternatif dibatasi 2; draf kosong tidak dikirim; gagal mengembalikan draf tanpa menggandakan riwayat; saran menjadi efek; draf dibatasi 500 karakter |
+| Cek visual `wemade-demo` dengan `HELP_AGENT=koog` (2026-09-30) | Tanya "ada buyer baru chat WA, dicatat di mana?" → DeepSeek menjawab dari isi tutorial → "Mulai tutorial: Mencatat lead baru" → coach mark langsung di langkah 2/4 menyorot "+ Tambah Lead" |
+
+## 🏆 Tantangan
+
+- [ ] Tekan Enter untuk mengirim (`KeyboardActions`). Pastikan jalan di Wasm dan Desktop.
+- [ ] Tampilkan "Tutorial ini tidak tersedia di versi aplikasi Anda" bila id saran tidak ditemukan di katalog klien.

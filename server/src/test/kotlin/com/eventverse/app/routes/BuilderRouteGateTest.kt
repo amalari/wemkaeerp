@@ -101,6 +101,9 @@ class BuilderRouteGateTest {
                 builderDeploymentRepository = seedDeployments(),
                 builderChatRepository = com.eventverse.app.infrastructure.InMemoryBuilderChatRepository(),
                 builderAgent = StubBuilderAgent(),
+                builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
+                builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
+                builderAuditLog = com.eventverse.app.infrastructure.InMemoryAuditLogRepository(),
                 discoveryDraftRepository = com.eventverse.app.infrastructure.InMemoryDiscoveryDraftRepository()
             )
         }
@@ -178,6 +181,67 @@ class BuilderRouteGateTest {
         }
 
         assertEquals(403, response.status.value)
+    }
+
+
+    // ------------------------------------------------------- M2: deploy & rollback
+
+    @Test
+    fun deployments_deploy_shippedPack_activates() = testApplication {
+        installModule()
+
+        // Deploy butuh draf kerja tenant: bangun lewat chat lalu terapkan patch stub.
+        val sent = client.post("/api/builder/chat") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"text":"Susun draf"}""")
+        }
+        val messageId = Regex("\"id\":\"(msg-[^\"]+)\"").findAll(sent.bodyAsText())
+            .map { it.groupValues[1] }.last()
+        client.post("/api/builder/chat/apply") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"messageId":"$messageId"}""")
+        }
+
+        val deployed = client.post("/api/builder/deployments") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+
+        assertEquals(200, deployed.status.value, "pack shipped → ACTIVE: ${deployed.bodyAsText()}")
+        assertTrue(deployed.bodyAsText().contains("\"status\":\"ACTIVE\""))
+
+        val list = client.get("/api/builder/deployments") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+        assertEquals(200, list.status.value)
+        assertTrue(list.bodyAsText().contains("\"deployments\""))
+    }
+
+    @Test
+    fun deployments_deploy_withoutPermission_returns403() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/deployments") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo", role = Role.OPERATOR)}")
+        }
+
+        assertEquals(403, response.status.value)
+    }
+
+    @Test
+    fun deployments_deploy_withoutDraft_returns409() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/deployments") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+
+        assertEquals(409, response.status.value, "tanpa draf kerja, deploy ditolak — bukan diam-diam")
     }
 
     @Test

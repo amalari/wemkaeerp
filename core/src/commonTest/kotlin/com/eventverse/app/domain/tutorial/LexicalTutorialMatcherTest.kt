@@ -26,6 +26,13 @@ class LexicalTutorialMatcherTest {
     }
 
     @Test
+    fun weakSingleWordMatches_areNotOfferedAsAlternatives() {
+        val ids = matcher.rank("ada buyer baru chat WA, dicatat di mana?", all, null).map { it.tutorial.id.value }
+        assertEquals("crm_new_lead", ids.first())
+        assertTrue("platform_org_chart_basics" !in ids, "cocok hanya lewat kata 'baru' bukan alternatif yang berguna: " + ids)
+    }
+
+    @Test
     fun unrelatedOrStopwordOnlyQuestion_returnsNothing() {
         assertTrue(matcher.rank("gimana ya caranya dong", all, null).isEmpty())
         assertTrue(matcher.rank("resep nasi goreng", all, null).isEmpty())

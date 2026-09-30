@@ -3,6 +3,7 @@ package com.eventverse.app.routes
 import com.eventverse.app.domain.auth.Permission
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.builder.ApplyDraftPatchUseCase
+import com.eventverse.app.domain.builder.BuilderBuildRequestRepository
 import com.eventverse.app.domain.builder.BuilderAgent
 import com.eventverse.app.domain.builder.BuilderChatRepository
 import com.eventverse.app.domain.builder.BuilderDeploymentRepository
@@ -46,10 +47,18 @@ fun Route.builderRoutes(
     deployments: BuilderDeploymentRepository,
     chats: BuilderChatRepository,
     agent: BuilderAgent,
-    drafts: DiscoveryDraftRepository
+    drafts: DiscoveryDraftRepository,
+    buildRequests: BuilderBuildRequestRepository =
+        com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
+    probe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe =
+        com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
+    auditLog: com.eventverse.app.domain.audit.AuditLogRepository =
+        com.eventverse.app.infrastructure.PostgresAuditLogRepository()
 ) {
     val send = SendBuilderMessageUseCase(chats, agent, drafts)
     val apply = ApplyDraftPatchUseCase(chats, drafts)
+    // Agregat deployment terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
+    builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
     route("/api/builder") {
         get("/overview") {
             call.gate() ?: return@get
@@ -152,7 +161,7 @@ private fun messageJson(m: ChatMessage): com.eventverse.app.shared.json.JsonValu
     )
 }
 
-private fun deploymentJson(d: com.eventverse.app.domain.builder.Deployment): String = buildString {
+internal fun deploymentJson(d: com.eventverse.app.domain.builder.Deployment): String = buildString {
     append("{\"number\":${d.number.value}")
     append(",\"status\":\"${d.status.name}\"")
     append(",\"packCode\":\"${d.packCode.value}\"")

@@ -45,6 +45,16 @@ class BuilderApiClient(
     suspend fun applyPatch(messageId: String): Result<JsonValue> =
         call(HttpMethod.Post, "/api/builder/chat/apply", """{"messageId":${JsonValue.Str(messageId).encode()}}""")
 
+    /** GET /api/builder/deployments — riwayat deployment + antrian build tenant. */
+    suspend fun deployments(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/deployments")
+
+    /** POST /api/builder/deployments — deploy: kunci draf + pin versi + aktifkan. */
+    suspend fun deploy(): Result<JsonValue> = call(HttpMethod.Post, "/api/builder/deployments")
+
+    /** POST /api/builder/deployments/rollback — pin versi sebelumnya; `force` = arsip modul eksplisit. */
+    suspend fun rollback(force: Boolean = false): Result<JsonValue> =
+        call(HttpMethod.Post, "/api/builder/deployments/rollback${if (force) "?force=true" else ""}")
+
     private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {

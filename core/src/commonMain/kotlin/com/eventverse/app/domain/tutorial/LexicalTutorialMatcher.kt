@@ -21,7 +21,11 @@ class LexicalTutorialMatcher(private val limit: Int = 5) : TutorialMatcher {
             if (base == 0) return@mapNotNull null
             val bonus = if (currentModule != null && t.moduleId == currentModule) 1 else 0
             TutorialMatch(t, bestStep(asked, t), base + bonus)
-        }.sortedByDescending { it.score }.take(limit)
+        }.sortedByDescending { it.score }.let { ranked ->
+            // Kandidat yang skornya < separuh skor teratas hanyalah kebetulan satu kata ("baru") — derau, bukan alternatif.
+            val floor = (ranked.firstOrNull()?.score ?: 0) / 2.0
+            ranked.filter { it.score >= floor }.take(limit)
+        }
     }
 
     private fun bestStep(asked: Set<String>, t: ModuleTutorial): Int {

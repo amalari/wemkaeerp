@@ -29,7 +29,7 @@ object ModuleSchemaMap {
      * di sini wajib RLS & grant yang sama, dan ikut dijaga `ModuleSchemaOwnershipTest`.
      */
     val platformSchemas: Map<String, Set<String>> = mapOf(
-        "builder" to setOf("deployments", "conversations", "chat_messages")
+        "builder" to setOf("deployments", "conversations", "chat_messages", "build_requests")
     )
 
     val byModule: Map<ModuleId, Set<String>> = mapOf(

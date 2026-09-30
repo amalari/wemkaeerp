@@ -15,6 +15,9 @@ import com.eventverse.app.domain.pack.ShippedTutorialSource
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.tutorial.TutorialAccess
 import com.eventverse.app.domain.tutorial.TutorialCatalog
+import com.eventverse.app.presentation.help.HelpChatPanel
+import com.eventverse.app.presentation.help.HelpChatUiEffect
+import com.eventverse.app.presentation.help.HelpChatViewModel
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.pack.ActiveTenantPack
 import kotlinx.coroutines.flow.first
@@ -30,12 +33,16 @@ private val catalog = TutorialCatalog(ShippedTutorialSource)
 class TutorialUiState internal constructor(
     val controller: TutorialController,
     val anchors: TutorialAnchorRegistry,
+    val chat: HelpChatViewModel,
 ) {
     var isListOpen by mutableStateOf(false)
+    var tab by mutableStateOf(HelpTab.TUTORIALS)
 }
 
+/** Satu per aplikasi: riwayat chat bertahan selama sesi walau jendela bantuan ditutup-buka. */
 @Composable
-fun rememberTutorialUiState(): TutorialUiState = remember { TutorialUiState(TutorialController(), TutorialAnchorRegistry()) }
+fun rememberTutorialUiState(): TutorialUiState =
+    remember { TutorialUiState(TutorialController(), TutorialAnchorRegistry(), HelpChatViewModel()) }
 
 /** Layar tujuan langkah untuk modul [id]: layar khusus bila ada, selain itu `null` (pemanggil memakai `/m/{code}`). */
 fun tutorialScreenFor(id: ModuleId): AppNavScreen? =
@@ -62,14 +69,27 @@ fun TutorialLayer(
         if (run != null && accessible.none { it.id == run?.tutorial?.id }) state.controller.dismiss()
     }
 
+    val latestAccessible by rememberUpdatedState(accessible)
+    LaunchedEffect(state) {
+        // Saran AI → tutorial lokal. Katalog klien sudah disaring wewenang yang sama; id yang tidak dikenal
+        // (klien lebih lama dari server) diabaikan, bukan ditebak.
+        state.chat.effects.collect { effect ->
+            if (effect !is HelpChatUiEffect.StartTutorial) return@collect
+            latestAccessible.firstOrNull { it.id == effect.suggestion.tutorialId }?.let {
+                state.isListOpen = false
+                state.controller.start(it, effect.suggestion.stepIndex)
+            }
+        }
+    }
+
     if (state.isListOpen) {
         val (forScreen, others) = accessible.partition { it.moduleId != null && it.moduleId == currentModule }
-        TutorialListSheet(
-            forScreen = forScreen,
-            others = others,
-            onStart = { state.isListOpen = false; state.controller.start(it) },
-            onDismiss = { state.isListOpen = false }
-        )
+        HelpSheet(tab = state.tab, onTabChange = { state.tab = it }, onDismiss = { state.isListOpen = false }) { tab ->
+            when (tab) {
+                HelpTab.TUTORIALS -> TutorialListContent(forScreen, others, onStart = { state.isListOpen = false; state.controller.start(it) })
+                HelpTab.ASK_AI -> HelpChatPanel(state.chat, currentModule)
+            }
+        }
     }
 
     val active = run ?: return

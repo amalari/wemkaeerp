@@ -78,6 +78,7 @@ Agregat baru: `ModuleTutorial`. Tidak ada migrasi. Karena ada 4 fase dan 3 lapis
 | 0.1 | 2026-09-30 | Achmad Jamaludin / Claude | Draf awal dari rencana dan Discovery Note |
 | 0.2 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 1 (katalog + coach mark, pilot CRM) dan Fase 2 (pencocok leksikal, `POST /api/tenant/help/ask`, `HelpApiClient`) selesai |
 | 0.3 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 3: `KoogHelpAgent` (DeepSeek), `HELP_AGENT`/`HELP_AGENT_MODEL`, live evals 3/3 PASS |
+| 0.4 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 4: jendela Bantuan (tab Panduan / Tanya AI), `HelpChatViewModel`, saran AI → coach mark; pencocok membuang kandidat < ½ skor teratas |
 
 - **Summary & Business Context**:
   - Pengguna baru kesulitan memakai modul (CRM, Sampling, Costing, dan lainnya), dan saat ini tidak ada panduan di dalam aplikasi sama sekali.
