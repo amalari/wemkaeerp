@@ -223,9 +223,8 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 > Sisa M2 yang **belum**: PDF invoice (FR-M2-5b — renderer invoice tenant tidak bisa dipakai langsung
 > untuk dokumen platform; JSON lengkap sudah tersedia untuk UI), dan Docker + Caddy wildcard
 > `*.wemakeerp.com` yang menunggu prasyarat non-kode (akses DNS wildcard). Detail:
-> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2 + M2b.
-> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2. (Lampiran M1 di dokumen
-> yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.)
+> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2 + M2b. (Lampiran M1 di
+> dokumen yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.)
 
 ### Gerbang sebelum ekspansi
 
