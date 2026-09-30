@@ -62,6 +62,12 @@ class BuilderApiClient(
      */
     suspend fun invoices(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/billing/invoices")
 
+    /**
+     * GET /api/builder/build-queue — antrean permintaan kode modul **lintas tenant** (FR-M2-4).
+     * Hanya superadmin; untuk peran lain server menjawab 403 dan pesannya ditampilkan apa adanya.
+     */
+    suspend fun buildQueue(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/build-queue")
+
     private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {

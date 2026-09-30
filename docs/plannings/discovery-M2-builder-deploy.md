@@ -4,9 +4,11 @@
 **Rencana induk**: [`PLAN-builder-console.md`](PLAN-builder-console.md) fase M2 · TRD:
 [`TRD-PLAT-002-builder.md`](../trd/TRD-PLAT-002-builder.md) FR-M2-1 s.d. FR-M2-7.
 **Lingkup turns ini**: FR-M2-1/2/3 (deploy, status, gerbang data + rollback), FR-M2-4 domain
-(`BuildRequest` + migrasi V83), pecah route per agregat, audit activate/rollback, pane Deployments.
-FR-M2-5 (billing manual), FR-M2-6 (F1 penuh ≤600), FR-M2-7 (flag daftar publik), Docker/Caddy
-(prasyarat non-kode: akses DNS wildcard) menyusul turn berikutnya.
+(`BuildRequest` + migrasi V83), pecah route per agregat, audit activate/rollback, pane Deployments + Antrian + Billing.
+FR-M2-5 (billing manual: domain + V85 + route + pane tenant; **PDF ditunda** sebagai FR-M2-5b),
+FR-M2-6 (**F1 tuntas: `Application.kt` 663 → 379** lewat `PublicAuthRoutes.kt`), FR-M2-7 (**flag
+`WEMADE_PUBLIC_SIGNUP`**, bawaan tertutup) **selesai di turn yang sama**. Docker/Caddy tetap
+menunggu prasyarat non-kode (akses DNS wildcard `*.wemakeerp.com`).
 
 ## 1. Kebutuhan
 - **Siapa**: pemilik project menekan Deploy; superadmin mengelola Antrian Pembuatan & rollback paksa.

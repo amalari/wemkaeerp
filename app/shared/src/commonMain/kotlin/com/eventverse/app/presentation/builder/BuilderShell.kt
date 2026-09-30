@@ -45,7 +45,7 @@ private fun builderMenu() = listOf(
     BuilderMenuItem("modules", "Modules"),
     BuilderMenuItem("dataflow", "Data Flow"),
     BuilderMenuItem("prototype", "Prototype"),
-    BuilderMenuItem("buildqueue", "Antrian Pembuatan", enabled = false, badge = "M2"),
+    BuilderMenuItem("buildqueue", "Antrian Pembuatan"),
     BuilderMenuItem("deployments", "Deployments"),
     BuilderMenuItem("billing", "Billing"),
     BuilderMenuItem("settings", "Pengaturan")
@@ -83,6 +83,7 @@ fun BuilderShell(modifier: Modifier = Modifier) {
                 "modules" -> BuilderModulesPane()
                 "dataflow" -> BuilderDataFlowPane()
                 "prototype" -> BuilderPrototypePane()
+                "buildqueue" -> BuilderBuildQueuePane()
                 "deployments" -> BuilderDeploymentsPane()
                 "billing" -> BuilderBillingPane()
                 "settings" -> BuilderSettingsPane()

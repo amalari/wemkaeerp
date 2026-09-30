@@ -235,3 +235,91 @@ Discovery: [`docs/plannings/discovery-M2-builder-deploy.md`](../plannings/discov
 - **Belum selesai dari M2** (turn berikutnya): FR-M2-5 billing manual, FR-M2-6 penuntasan F1
   (`Application.kt` ≤600), FR-M2-7 flag daftar publik, route Antrian superadmin + pane-nya,
   Docker/Caddy (prasyarat DNS wildcard `*.wemakeerp.com`).
+
+---
+
+# Lampiran M2b (2026-09-30) — F1 selesai, daftar publik bergerbang, tagihan harga-terkunci
+
+Menutup tiga sisa M2 yang bisa dikerjakan tanpa prasyarat non-kode.
+
+## FR-M2-6 — F1 tuntas: `Application.kt` 663 → 379 baris
+- Blok auth publik (`/api/public/auth` — Google, demo/persona, `/me`) **dipindah utuh** ke
+  `routes/PublicAuthRoutes.kt` (321 baris), bersama tiga helper privatnya (`authSessionJson`,
+  `resolvePersonaUser`, `platformRoleFor`). Pemindahan sengaja baris-per-baris: perilaku route tidak
+  berubah, hanya tempatnya.
+- Hasilnya jauh di bawah target plan (≤600), tetapi masih di atas soft limit `server/**` (300) — jadi
+  langkah berikutnya, bila file itu disentuh lagi, adalah memindahkan blok route tersisa ke
+  `ServerRouteWiring`.
+- Pelajaran import: `call.request.header(...)` butuh `io.ktor.server.request.*`, dan `TenantId`/
+  `TenantSlug` ada di `domain.tenant.*` — file hasil pemindahan wajib memuat keduanya.
+
+## FR-M2-7 — daftar publik bergerbang, bawaan tertutup
+- `WEMADE_PUBLIC_SIGNUP` (kosong = tertutup) menggerbangi `POST /api/public/onboarding/register`.
+- `GET /api/public/onboarding/config` mengabarkan keadaan gerbang supaya klien tidak merender form
+  yang akan ditolak server. Pemeriksaan slug (`/check-subdomain`) tetap hidup: flag hanya menggerbangi
+  **pendaftaran**, bukan seluruh alur onboarding.
+- 4 test (`OnboardingSignupFlagTest`): tertutup → config `false`, register 403, slug check tetap 200;
+  terbuka → 201. Arah gagal diuji lebih dulu, karena yang berbahaya bukan form yang tidak muncul,
+  melainkan tenant anonim yang tercipta diam-diam.
+
+## FR-M2-5 — tagihan langganan dari harga yang **dibekukan** (v1, tanpa PDF)
+KDoc `GetTenantBillingPreviewUseCase` sudah menyatakan syaratnya sendiri: *"This is a preview, not an
+invoice… Real billing requires the price to be locked per subscription"*. Karena itu yang dibangun
+lebih dulu adalah **pembekuannya**, bukan renderernya:
+
+- `SubscriptionInvoice` menolak ada tanpa baris, tanpa periode `YYYY-MM`, atau berstatus `PAID` tanpa
+  `paidAt`. `IssueSubscriptionInvoiceUseCase` **menyalin** baris preview ke invoice (snapshot),
+  menolak periode ganda yang belum VOID, dan menolak invoice kosong — tagihan Rp 0 yang tidak
+  dijelaskan lebih membingungkan daripada kegagalan yang terlihat.
+- `ConfirmSubscriptionPaymentUseCase` idempoten untuk invoice yang sudah PAID (klik dua kali bukan
+  error), tetapi menolak invoice VOID (keputusan yang sudah dibatalkan).
+- Port `TenantBillingPreviewSource` berupa **fun interface**, bukan tipe konkret preview use case:
+  yang harus dibuktikan adalah "harga naik setelah terbit tidak mengubah invoice", dan itu hanya bisa
+  diuji bila sumber harga dapat berubah di tengah test — kelas preview bersifat `final`.
+- Persistensi V85 `builder.subscription_invoices` (RLS + grant, `lines_json` TEXT berisi snapshot,
+  CHECK `PAID ⇒ paid_at`). Repo Postgres **hanya** meng-update kolom status/bayar saat `save()`:
+  menimpa baris & total akan mengubah arti dokumen yang sudah dikirim ke tenant.
+- Route `BuilderBillingRoutes`: superadmin menerbitkan & mengonfirmasi (ter-audit
+  `builder_invoice_issued` / `builder_invoice_paid`), tenant membaca miliknya sendiri dari
+  `tenantContext` — bukan dari parameter query yang bisa dipalsukan.
+- **Ditunda sadar**: PDF (FR-M2-5b). Renderer invoice yang ada terikat dokumen penjualan tenant,
+  sedangkan ini dokumen platform; memaksakannya berarti mengarang pemetaan domain. JSON lengkap sudah
+  keluar dari endpoint, jadi UI dapat mencetak/mengunduh tanpa menunggu keputusan itu.
+
+## FR-M2-4 (UI) — pane Antrian Pembuatan
+`BuilderBuildQueuePane` membuka antrean lintas tenant dan **menampilkan penolakan server apa adanya**:
+tenant yang membukanya menerima `403 Hanya superadmin platform`, bukan daftar kosong yang menyiratkan
+"tidak ada pekerjaan".
+
+## Pitfall baru (lanjutan)
+15. **`LazyColumn` ber-`Modifier.weight(1f)` di dalam induk `verticalScroll` berukuran nol.** Shell
+    Builder membungkus pane dengan `verticalScroll`, sehingga tinggi maksimum tak terbatas dan bobot
+    `weight` jatuh ke 0 — kartu ada di pohon komposisi, tidak pernah terlihat, dan **kompilasi hijau**.
+    Tertangkap hanya karena diperiksa dengan mata: pane Deployments tampak "kosong tanpa error".
+    Perbaikan: `Column` biasa (induknya toh sudah bisa di-scroll), bukan daftar bersarang.
+16. **`copy()` data class menjalankan `init` pada nilai antara** — kembali menggigit saat menyusun
+    `SubscriptionInvoiceLine`.
+17. **`call.request.header()` butuh `io.ktor.server.request.*`**, bukan `io.ktor.server.application.*`.
+    Gejalanya "Unresolved reference 'header'" yang tampak seperti salah versi Ktor.
+18. **Perancah verifikasi statis harus threading + mengirim isi berkas.** `TCPServer` single-thread
+    tersangkut keep-alive browser (halaman menggantung tanpa error), dan `send_head()` tanpa menulis
+    body membuat browser menunggu selamanya. Keduanya menghabiskan waktu lebih lama daripada bug
+    aplikasinya — periksa perancah dulu sebelum menuduh aplikasi.
+19. **Server dev lama memegang port = instance baru gagal bind sambil tetap mencetak "started".**
+    `curl` lalu dilayani kode lama (route baru tampak 404). Sebelum menyimpulkan "route saya tidak
+    terpasang", pastikan dulu proses mana yang memegang port (`lsof -nP -iTCP:8081 -sTCP:LISTEN`).
+
+## Bukti verifikasi M2b
+- Test: `SubscriptionBillingUseCaseTest` (7), `SubscriptionInvoiceLinesCodecTest` (2),
+  `OnboardingSignupFlagTest` (4), `BuilderRouteGateTest` 21 (deploy 3 + antrean 3 + tagihan 4).
+- Live (server lokal, JWT asli dari `POST /api/public/auth/demo`):
+  - `GET /api/public/onboarding/config` → `{"publicSignupEnabled":false}`; `register` → **403**.
+  - `POST /api/builder/billing/invoices?tenantId=ten-bordir-uji&period=2026-09` → **200**,
+    `INV-2026-09-001`, 9 baris beku, total **Rp 3.400.000**; periode yang sama diulang → **409**.
+  - `…/confirm?note=transfer BCA 30 Sep` → **200 PAID**; baris V85 menunjukkan `paid_at` + `paid_note`;
+    `audit_logs` mencatat kedua aksi sebagai `PLATFORM_SUPERADMIN`.
+  - Deploy & rollback tanpa token → **401**.
+- Visual (Playwright; sesi JWT asli disuntik ke `localStorage`, bundle Wasm segar): pane **Billing**
+  menampilkan `INV-2026-09-001 · PAID · 9 modul · Rp 3.400.000`; pane **Deployments** menampilkan
+  `#1 IMPORTED · build pre-builder` dengan Deploy aktif dan Rollback nonaktif (memang belum ada
+  deployment ACTIVE); pane **Antrian** kosong untuk superadmin dan menampilkan pesan 403 untuk tenant.
