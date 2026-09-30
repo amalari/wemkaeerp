@@ -7,6 +7,8 @@ import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.ModuleAction
+import com.eventverse.app.domain.pack.ModuleActionCode
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
@@ -16,6 +18,7 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
@@ -59,6 +62,9 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
         val section = ModuleSection(ModuleSectionCode("UTAMA"), "Operasional", 1, 0xFF2563EB, 0xFFEFF6FF)
         val phase = PhaseDefinition(PhaseCode("OPERASI"), 1, "1. Operasi", "Alur kerja harian", 0xFF2563EB)
         val capabilities = resolveCapabilities(request.narrative)
+        // A4: pack yang lahir dari narasi langsung berbicara bahasa vertikalnya ("klinik", "Kunjungan"),
+        // bukan kata netral — dan tidak pernah kata konveksi.
+        val terms = INDUSTRY_TERMS[industryWord(request).orEmpty()].orEmpty()
 
         val slots = capabilities.map { cap ->
             SlotDefinition(
@@ -87,7 +93,9 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
             portTypes = setOf(PortType("Permintaan"), PortType("Catatan")),
             wiredPortTypes = setOf(PortType("Permintaan"), PortType("Catatan")),
             sections = listOf(section),
-            modules = modules
+            modules = modules,
+            actions = actionsFor(terms[VocabularyKey.DOCUMENT]),
+            vocabulary = terms
         )
         val blueprint = Blueprint(
             code = BlueprintCode("${code}_starter"),
@@ -103,9 +111,7 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
 
     /** Kode pack dari hint, atau kata kunci vertikal pertama di narasi; slug ketat, tanpa jatuh ke 'garment'. */
     private fun packCode(request: DiscoveryRequest): String {
-        val source = request.industryHint?.takeIf { it.isNotBlank() }
-            ?: INDUSTRY_WORDS.firstOrNull { request.narrative.lowercase().contains(it.first) }?.second
-            ?: "kustom"
+        val source = industryWord(request) ?: "kustom"
         val slug = source.lowercase()
             .map { if (it.isLetterOrDigit()) it else '_' }
             .joinToString("")
@@ -123,6 +129,22 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
             .ifEmpty { listOf(Capability("operasional", "Operasional Harian", listOf(""))) }
     }
 
+    /** Vertikal yang disebut narasi/hint; `null` = tak dikenali → chrome memakai kata netral platform. */
+    private fun industryWord(request: DiscoveryRequest): String? =
+        request.industryHint?.takeIf { it.isNotBlank() }
+            ?: INDUSTRY_WORDS.firstOrNull { request.narrative.lowercase().contains(it.first) }?.second
+
+    /** Aksi generik bernama dokumen vertikal ("Tambah Kunjungan"), bukan "Tambah Pesanan" milik konveksi. */
+    private fun actionsFor(document: String?): List<ModuleAction> {
+        val doc = document?.takeIf { it.isNotBlank() } ?: return ModuleActionCode.neutral
+        return listOf(
+            ModuleAction(ModuleActionCode.ADD, "Tambah $doc"),
+            ModuleAction(ModuleActionCode.EDIT, "Ubah $doc"),
+            ModuleAction(ModuleActionCode.APPROVE, "Setujui $doc"),
+            ModuleAction(ModuleActionCode.DELETE, "Hapus $doc")
+        )
+    }
+
     private data class Capability(val suffix: String, val name: String, val keywords: List<String>)
 
     companion object {
@@ -138,6 +160,20 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
             "katering" to "katering", "restoran" to "katering", "kulin" to "katering",
             "sekolah" to "sekolah", "kursus" to "sekolah", "siswa" to "sekolah",
             "toko" to "retail", "kasir" to "retail", "gudang" to "gudang", "logistik" to "logistik"
+        )
+
+        /**
+         * Istilah chrome per vertikal (A4). Hanya kata yang **benar-benar diucapkan** pemilik usaha,
+         * dan tidak satu pun boleh berupa kosakata konveksi — pack garment punya tabelnya sendiri.
+         */
+        private val INDUSTRY_TERMS: Map<String, Map<VocabularyKey, String>> = mapOf(
+            "klinik" to mapOf(VocabularyKey.WORKPLACE to "klinik", VocabularyKey.DOCUMENT to "Kunjungan"),
+            "bengkel" to mapOf(VocabularyKey.WORKPLACE to "bengkel", VocabularyKey.DOCUMENT to "Servis"),
+            "katering" to mapOf(VocabularyKey.WORKPLACE to "dapur produksi", VocabularyKey.DOCUMENT to "Pesanan"),
+            "sekolah" to mapOf(VocabularyKey.WORKPLACE to "sekolah", VocabularyKey.DOCUMENT to "Pendaftaran"),
+            "retail" to mapOf(VocabularyKey.WORKPLACE to "toko", VocabularyKey.DOCUMENT to "Transaksi"),
+            "gudang" to mapOf(VocabularyKey.WORKPLACE to "gudang", VocabularyKey.DOCUMENT to "Barang masuk"),
+            "logistik" to mapOf(VocabularyKey.WORKPLACE to "gudang", VocabularyKey.DOCUMENT to "Pengiriman")
         )
 
         private val CATALOG = listOf(

@@ -9,7 +9,8 @@ import com.eventverse.app.domain.pack.DomainPack
  *
  * Sample TIDAK berusaha realistis: ia penanda struktur (kolom apa, urutan apa) supaya prospek
  * menilai *bentuk* layar, bukan datanya. Label memakai kosakata pack (nama modul/seksi), bukan
- * istilah garment.
+ * istilah garment. Untuk `CUSTOM_SCREEN` penanda strukturnya berupa kerangka blok + lebarnya,
+ * karena layar rancangan bebas tidak punya kolom baku.
  */
 object WidgetRegistry {
 
@@ -38,7 +39,16 @@ object WidgetRegistry {
             WidgetKind.PRINT -> listOf(
                 mapOf("Dokumen" to "Cetakan ${module.displayName}", "Nomor" to "0001/${seksi.take(3).uppercase()}/2026")
             )
-            WidgetKind.CUSTOM_SCREEN, null -> emptyList()
+            // Layar rancangan bebas tidak punya bentuk baku, jadi samplenya adalah **kerangka
+            // tata letak**: blok mana yang ada dan selebar apa. Prospek menilai susunannya; isi
+            // nyatanya menyusul setelah modul dibangun. Sebelum ini kind ini mengembalikan
+            // `emptyList()`, dan renderer menggambar kartu kosong tanpa penjelasan apa pun.
+            WidgetKind.CUSTOM_SCREEN -> listOf(
+                mapOf("Blok" to "Ringkasan ${module.displayName}", "Lebar" to "penuh"),
+                mapOf("Blok" to "Daftar ${module.displayName}", "Lebar" to "separuh"),
+                mapOf("Blok" to "Panel aksi", "Lebar" to "separuh")
+            )
+            null -> emptyList()
         }
     }
 

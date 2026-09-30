@@ -45,7 +45,22 @@ data class DomainPack(
     val wiredPortTypes: Set<PortType>,
     /** Seksi menu & modul yang dikirim pack (B6). Urutan [modules] = urutan menu di dalam seksinya. */
     val sections: List<ModuleSection> = emptyList(),
-    val modules: List<ModuleDefinition> = emptyList()
+    val modules: List<ModuleDefinition> = emptyList(),
+    /**
+     * Tombol aksi layar kerja generik (A4): urutan = urutan tombol, label = kalimat pack.
+     *
+     * **Kenapa di pack, bukan di [ModuleDefinition]** (rencana menulisnya di sana):
+     * [DomainPackRegistry.violations] mewajibkan definisi modul bersama platform (`org_chart`,
+     * `dynamic_rbac`) **identik** lintas pack — sementara label aksi justru yang paling wajar berbeda
+     * antar vertikal. Menaruhnya di `ModuleDefinition` membuat pack klinik yang memakai `org_chart`
+     * ditolak saat didaftarkan (`DomainPackApiTest` memakai susunan itu).
+     */
+    val actions: List<ModuleAction> = ModuleActionCode.neutral,
+    /**
+     * Istilah yang diucapkan pack (A4). **Tidak ada** = chrome memakai kata netral
+     * ([VocabularyKey.neutral]) — bukan jatuh ke kosakata vertikal mana pun.
+     */
+    val vocabulary: Map<VocabularyKey, String> = emptyMap()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -68,7 +83,21 @@ data class DomainPack(
             require(m.section in sectionCodes) { "Modul ${m.id.value} menunjuk seksi tak dikenal ${m.section.value}" }
             m.slot?.let { require(it in slotCodes) { "Modul ${m.id.value} menunjuk slot tak dikenal ${it.value}" } }
         }
+        requireUnique("aksi", actions.map { it.code.name })
+        vocabulary.forEach { (key, word) ->
+            require(word.isNotBlank()) { "Istilah ${key.name} pack ${code.value} kosong" }
+        }
     }
+
+    /**
+     * Label tombol aksi [code] menurut pack ini. Pack yang tidak menyebut aksinya memakai label netral
+     * platform (`"Tambah"`), bukan label vertikal mana pun.
+     */
+    fun actionLabel(code: ModuleActionCode): String =
+        actions.firstOrNull { it.code == code }?.label ?: code.neutralLabel
+
+    /** Istilah [key] menurut pack ini; pack yang tidak mendeklarasikannya memakai kata netral. */
+    fun term(key: VocabularyKey): String = vocabulary[key] ?: key.neutral
 
     fun module(id: ModuleId): ModuleDefinition? = modules.firstOrNull { it.id == id }
 

@@ -68,7 +68,10 @@ class TenantRlsIsolationTest {
     fun whenAppUserConfigured_tenantQueriesReallyRunAsIt() {
         // Suite yang dijalankan dengan DB_APP_USER harus benar-benar memakai pool tenant; tanpa ini run "RLS aktif"
         // bisa lulus diam-diam lewat pool owner (daemon Gradle yang tidak mewarisi env, misalnya).
-        val appUser = System.getenv("DB_APP_USER") ?: return
+        // Dibaca lewat EnvLoader karena `DB_APP_USER` di `.env` **bukan** environment variable proses: selama
+        // guard ini memakai `System.getenv`, ia `return` lebih awal — dan assertion yang justru
+        // membuktikan pool tenant aktif tidak pernah dijalankan.
+        val appUser = EnvLoader.get("DB_APP_USER").takeIf { it.isNotBlank() } ?: return
         val user = kotlinx.coroutines.runBlocking {
             DatabaseFactory.dbQuery(com.eventverse.app.domain.tenant.TenantId("ten-demo-001")) {
                 org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec("SELECT current_user") { rs -> rs.next(); rs.getString(1) }

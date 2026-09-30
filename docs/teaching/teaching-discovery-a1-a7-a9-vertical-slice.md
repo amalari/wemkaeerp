@@ -1,6 +1,6 @@
 # Teaching — Discovery Fase A: narasi → draf pack + blueprint (A1–A7, A9)
 
-> Plan: [`docs/plannings/PLAN-discovery-blueprint-prototype-studio.md`](../plannings/PLAN-discovery-blueprint-prototype-studio.md) §2 · Status: A0 (config), A1–A7 + A9 selesai (A8 Koog menyusul di branch terpisah) · 2026-09-30
+> Plan: [`docs/plannings/PLAN-discovery-blueprint-prototype-studio.md`](../plannings/PLAN-discovery-blueprint-prototype-studio.md) §2 · Status: A0 (config), A1–A7 + A9 selesai; **A8 (Koog) selesai 2026-09-30 — lihat `teaching-discovery-a8-koog-agent.md`** · 2026-09-30
 
 ## Apa yang dibangun
 
@@ -207,7 +207,9 @@ membawa `DiscoveryWizardScreen` sebagai hostnya).
 
 ## Utang & langkah berikutnya (diperbarui)
 
-- A8 (Koog) tetap branch terpisah; kill-switch tidak berubah.
+- A8 (Koog) **selesai**: `KoogDiscoveryAgent` + alat `platform_modules`/`validate_draft` + loop koreksi
+  maks. 3 putaran + kill-switch `DISCOVERY_AGENT`. Evals LLM hidup 4/4 (`KoogDiscoveryLiveEvalsTest`,
+  opt-in `DISCOVERY_LIVE_EVALS=1`). Jalur deterministik tetap jadi fallback & baseline.
 - Fase C (renderer/Studio), D (wizard/PDF), E (operasi produk). Verifikasi rutin Fase B:
   `:core:jvmTest --rerun-tasks` (**1001 tes, 0 gagal** setelah B4), `:server:test` hijau,
   kompilasi Jvm/WasmJs/Js core & app:shared (Android butuh mesin ber-SDK), dan `audit-variability.sh`

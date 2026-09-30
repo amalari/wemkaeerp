@@ -61,10 +61,12 @@ import com.eventverse.app.presentation.designsystem.ClayNavItem
 import com.eventverse.app.presentation.designsystem.ClayNavSection
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.IconEdit
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
 import com.eventverse.app.presentation.discovery.DiscoveryWizardScreen
+import com.eventverse.app.presentation.discovery.studio.PrototypeStudioScreen
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -79,6 +81,7 @@ import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
 import com.eventverse.app.presentation.navigation.AuthGuardCard
 import com.eventverse.app.presentation.navigation.GenericModuleRoute
 import com.eventverse.app.presentation.navigation.moduleFromGenericPath
+import com.eventverse.app.presentation.navigation.studioDrawerSection
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
 import com.eventverse.app.presentation.navigation.ProfileDropdown
@@ -253,21 +256,11 @@ fun App() {
         )
     }
 
-    // Studio Discovery (R16/Fase D) bukan modul, jadi tidak lewat buildNavMenu; barisnya
-    // ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
+    // Studio Discovery (R16/Fase D) dan Studio Pola Prototipe (Fase C) bukan modul, jadi tidak lewat
+    // buildNavMenu; barisnya ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
+    // Lambda, bukan `::openScreen`: referensi fungsi lokal belum didukung backend KMP ini.
     val drawerSections = if (isAuthenticated && accessDecisions.isNotEmpty()) {
-        navSections + ClayNavSection(
-            title = "Studio",
-            items = listOf(
-                ClayNavItem(
-                    key = AppNavScreen.DISCOVERY.route,
-                    label = AppNavScreen.DISCOVERY.title,
-                    selected = currentScreen == AppNavScreen.DISCOVERY,
-                    onClick = { openScreen(AppNavScreen.DISCOVERY) },
-                    icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
-                )
-            )
-        )
+        navSections + studioDrawerSection(currentScreen) { openScreen(it) }
     } else navSections
 
     CompositionLocalProvider(
@@ -363,12 +356,21 @@ fun App() {
                         // R16/Fase D: funnel discovery. Gerbangnya ganda tapi beda bentuk dari modul:
                         // sesi dulu (AuthGuardCard), lalu kehadiran keputusan wewenang — draf prospek
                         // bukan aset tenant, jadi tidak dijabatkan ke satu AccessDecision modul.
-                        AppNavScreen.DISCOVERY -> {
+                        //
+                        // Fase C menumpang gerbang yang sama: Studio pola prototype juga platform,
+                        // bukan modul. Yang membedakan keduanya hanya layarnya; wewenang menulis pola
+                        // diputus server, dan `canWrite` di sini sekadar menyembunyikan tombol.
+                        AppNavScreen.DISCOVERY, AppNavScreen.DISCOVERY_STUDIO -> {
                             if (isAuthenticated && accessDecisions.isNotEmpty()) {
-                                DiscoveryWizardScreen()
+                                if (screen == AppNavScreen.DISCOVERY_STUDIO) {
+                                    // `session` & `user` sudah non-null di cabang ini — tanpa `?.`.
+                                    PrototypeStudioScreen(canWrite = session.user.role == Role.PLATFORM_SUPERADMIN)
+                                } else {
+                                    DiscoveryWizardScreen()
+                                }
                             } else {
                                 AuthGuardCard(
-                                    targetModuleName = "Studio Discovery",
+                                    targetModuleName = screen.title,
                                     onLoginClick = {
                                         pendingRedirectScreen = screen
                                         navigateTo(AppNavScreen.LOGIN)

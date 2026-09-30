@@ -2,6 +2,8 @@ package com.eventverse.app.shared.pack
 
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
+import com.eventverse.app.domain.pack.ModuleAction
+import com.eventverse.app.domain.pack.ModuleActionCode
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
@@ -11,6 +13,7 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
@@ -19,6 +22,7 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.jsonStringMapOf
 
 /** Dokumen pack tidak sah. [path] menunjuk field yang salah (`modules[2].kind`), supaya pesan bisa dikembalikan ke AI/penyunting. */
 class DomainPackDecodeException(val path: String, message: String) : IllegalArgumentException("$path: $message")
@@ -66,7 +70,9 @@ object DomainPackCodec {
                 "supportedScopes" to jsonArrayOf(DataScope.entries.filter { it in m.supportedScopes }.map { jsonOf(it.name) }),
                 "slot" to jsonOf(m.slot?.value)
             )
-        })
+        }),
+        "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to jsonOf(a.label)) }),
+        "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value })
     )
 
     fun encodeToString(pack: DomainPack): String = encode(pack).encode()
@@ -105,6 +111,13 @@ object DomainPackCodec {
                 slot = m.optional("slot")?.let { m.value("slot", ::SlotCode) }
             ) }
         }
+        // A4: dua field ini boleh tidak ada — artinya pack "belum mendeklarasikan", dan chrome memakai
+        // kata netral platform. Itu **bukan** fallback senyap ke kosakata vertikal: kata netral bukan data
+        // vertikal mana pun, dan test mengunci bahwa ia tak pernah memuat kata vertikal.
+        val actions = r.objectsOrNull("actions")
+            ?.map { a -> a.build { ModuleAction(a.enum("code", ModuleActionCode.entries), a.string("label")) } }
+            ?: ModuleActionCode.neutral
+        val vocabulary = r.enumKeyedStrings("vocabulary", VocabularyKey.entries)
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -114,7 +127,9 @@ object DomainPackCodec {
                 portTypes = r.values("portTypes", ::PortType).toSet(),
                 wiredPortTypes = r.values("wiredPortTypes", ::PortType).toSet(),
                 sections = sections,
-                modules = modules
+                modules = modules,
+                actions = actions,
+                vocabulary = vocabulary
             )
         }
     }
@@ -170,6 +185,33 @@ object DomainPackCodec {
         }.toSet()
 
         private fun array(key: String): List<JsonValue> = (obj[key] as? JsonValue.Arr)?.items ?: fail(key, "wajib array")
+
+        /** Array objek yang **boleh tidak ada**; `null` = field belum ada, bukan "array kosong". */
+        fun objectsOrNull(key: String): List<Reader>? = when (obj[key]) {
+            null, JsonValue.Null -> null
+            else -> objects(key)
+        }
+
+        /**
+         * Peta berkunci enum (`{"WORKPLACE":"klinik"}`). Field yang tidak ada = pack tidak
+         * mendeklarasikan istilah apa pun; kunci **tak dikenal ditolak** (Kontrak 4: nilai tak dikenal
+         * tidak boleh hilang diam-diam).
+         */
+        fun enumKeyedStrings(key: String, entries: List<VocabularyKey>): Map<VocabularyKey, String> {
+            val node: JsonValue.Obj = when (val v = obj[key]) {
+                null, JsonValue.Null -> return emptyMap()
+                is JsonValue.Obj -> v
+                else -> fail(key, "harus objek")
+            }
+            val out = mutableMapOf<VocabularyKey, String>()
+            for (entry in node.entries) {
+                val rawKey: String = entry.key
+                val known: VocabularyKey = entries.firstOrNull { known -> known.name == rawKey }
+                    ?: fail("$key.$rawKey", "'$rawKey' bukan istilah yang dikenal (${entries.map { it.name }})")
+                out[known] = (entry.value as? JsonValue.Str)?.value ?: fail("$key.$rawKey", "harus string")
+            }
+            return out
+        }
 
         fun objects(key: String): List<Reader> = array(key).mapIndexed { i, v ->
             Reader(v as? JsonValue.Obj ?: fail("$key[$i]", "harus objek"), "$path.$key[$i]")

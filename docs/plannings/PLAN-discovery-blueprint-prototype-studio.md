@@ -98,11 +98,11 @@ Tujuannya satu hal: calon klien menulis cerita, lalu **dalam hitungan detik meli
 | A1 | Kontrak `DiscoveryDraft` (pack + blueprint + screens kosong), memakai `DomainPack`/`Blueprint` yang ada | `core/domain/discovery/` | Test: draf garment = pack + blueprint bawaan, round-trip codec identik |
 | A2 | `DiscoveryDraftValidator`: gabungan `DomainPack.init`, `DomainPackRegistry.violations` (prefiks, id bersama identik), dan blueprint hanya menyebut modul pack. Galat **berpath** (`$.pack.modules[2].kind`) | `core/domain/discovery/` | Test dengan pack rusak: setiap galat punya path |
 | A3 | Interface `DiscoveryAgent` + `DeterministicDiscoveryAgent` (narasi → kata kunci → modul platform + modul berprefiks) | `core/domain/discovery/` | Narasi klinik → draf sah tanpa jaringan |
-| A4 | Label aksi & istilah sebagai data pack: `ModuleDefinition.actions` (tambah/ubah/setujui/hapus beserta label) + `vocabulary` (mis. `document` = "Kunjungan"); layar `/m/{code}` membacanya | `core/domain/pack/`, `presentation/navigation/GenericModuleRoute.kt` | Layar klinik tanpa kata "SPK"/"pabrik"; garment identik (tabel emas) |
+| A4 | ~~Label aksi & istilah sebagai data pack~~: `DomainPack.actions` (tambah/ubah/setujui/hapus beserta label) + `DomainPack.vocabulary` (`WORKPLACE`, `DOCUMENT`); layar `/m/{code}` membacanya | `core/domain/pack/`, `presentation/navigation/GenericModuleRoute.kt`, `workspace/ModuleWorkspaceScreen.kt` | Layar klinik tanpa kata "SPK"/"pabrik"; garment identik (tabel emas). **Selesai 2026-09-30** — aksi & istilah ditaruh di **pack**, bukan `ModuleDefinition`: `DomainPackRegistry.violations` menuntut definisi modul bersama (`org_chart`) identik lintas pack, sedangkan kata chrome memang berbeda per vertikal (test: `PackVocabularyTest.packReusingPlatformModule_…`). Bukti: `PackVocabularyTest` (9 test), baris emas `GarmentModulesParityTest.actionsAndVocabulary_…`, `DomainPackApiTest` (route→DB→klien), dan cek mata `klinik-uji` (`/m/klinik_antrean`, `/m/org_chart`, `/m/klinik_kasir`): 0× "pabrik", 0× "SPK", 7× "Kunjungan" |
 | A5 | V78 `ops.discovery_drafts` (id, **owner_user_id** FK `users` [T12], prospect_lead_id, status DRAFT/LOCKED, document JSONB, schema_version, locked_at) + repository + use case create/update/lock (LOCKED immutable) | server, `core/domain/discovery/usecases/` | Update ke LOCKED ditolak (test); `OpsSchemaBoundaryTest` diperbarui |
 | A6 | Route platform `POST /api/discovery/drafts` (narasi → draf), `GET`, `PUT`, `POST …/lock`; login wajib, pemilik draf saja; tulis fail-closed + test 403 | `server/routes/DiscoveryRoutes.kt` | Test 403 untuk pengguna lain |
 | A7 | **Pratinjau tanpa kode**: tenant sandbox per prospek (`sandbox-<lead>`); pack draf didaftarkan ke **registry sementara per prospek** — bukan `LOCKED`, tidak menyentuh registry LOCKED platform (T13); modul & menu prospek tampil di `/m`; registry dibersihkan saat sesi berakhir/kedaluwarsa | server + klien | Browser :3001: narasi → menu modul prospek tampil; registry LOCKED platform tak berubah (test); sesi berakhir → modul draf hilang |
-| A8 | `KoogDiscoveryAgent`: dependensi `ai.koog:koog-agents` di `server` saja (cek `kotlinx-datetime` 0.6.2 vs Koog di branch terpisah); structured output = JSON `DiscoveryDraft`; tool: `platformModules()`, `validate(draft)`; loop koreksi diri maks. 3×; kill-switch env → deterministik | `server/infrastructure/discovery/` | Env mati → jalur deterministik; env hidup → draf sah dari narasi emas |
+| A8 | `KoogDiscoveryAgent`: dependensi `ai.koog:koog-agents` di `server` saja (cek `kotlinx-datetime` 0.6.2 vs Koog di branch terpisah); structured output = JSON `DiscoveryDraft`; tool: `platformModules()`, `validate(draft)`; loop koreksi diri maks. 3×; kill-switch env → deterministik | `server/infrastructure/discovery/` | Env mati → jalur deterministik; env hidup → draf sah dari narasi emas. **Selesai 2026-09-30** — `koog:1.3.0` ternyata tidak menarik `kotlinx-datetime` (tak ada benturan); evals LLM hidup 4/4 (`teaching-discovery-a8-koog-agent.md`) |
 | A9 | Evals: narasi emas (klinik, bengkel, katering, garment CMT) dengan grader = validator A2 + cakupan modul yang diharapkan; skor per model/prompt dicatat | `server/src/test/` | Skor tercatat; regresi prompt ketahuan |
 
 ## 3. Fase B — Estimasi, lock, handoff
@@ -116,24 +116,142 @@ Tujuannya satu hal: calon klien menulis cerita, lalu **dalam hitungan detik meli
 
 ## 4. Fase C — Prototype renderer & Studio (dari draf asli R8–R15)
 
-Isinya tetap sama dengan draf asli:
-- `ModuleMapPane` (kanvas read-only dari blueprint), `DataFlowPane` (hint port informasional).
-- `PrototypeRenderer` + `WidgetRegistry` v1: FORM, TABLE, KANBAN, DASHBOARD, CHECKLIST, PRINT, CUSTOM_SCREEN.
-- Widget dipanen dari layar produksi, dan sample data berupa data.
-- Studio internal pola `TemplateDesigner`, disimpan di `ops.prototype_patterns` (V79).
+Isinya tetap sama dengan draf asli, dan statusnya kini:
 
-Perubahannya: deskriptor layar menunjuk **`ModuleId` pack**, dan `screens` masuk ke `DiscoveryDraft`, bukan DSL kedua.
+| # | Pekerjaan | Status |
+|---|---|---|
+| C1 | `ModuleMapPane` (kanvas read-only dari blueprint), `DataFlowPane` (hint port informasional) | **Selesai** (Fase A/D) |
+| C2 | `PrototypeRenderer` + `WidgetRegistry` v1: FORM, TABLE, KANBAN, DASHBOARD, CHECKLIST, PRINT, CUSTOM_SCREEN | **Selesai** (Fase A/D) |
+| C3 | Widget dipanen dari layar produksi, sample data berupa data | **Selesai** (Fase A/D — `WidgetRegistry.sampleRowsFor`) |
+| C4 | Studio internal pola `TemplateDesigner`, disimpan di `ops.prototype_patterns` (V79) | **Selesai 2026-09-30** — lihat di bawah |
+
+Perubahan dari draf asli yang tetap berlaku: deskriptor layar menunjuk **`ModuleId` pack**, dan `screens`
+masuk ke `DiscoveryDraft`, bukan DSL kedua.
+
+**C4 — Studio Pola Prototipe (selesai).** Rute (`GET/POST /api/discovery/patterns`) dan tabel `ops.prototype_patterns` (V79)
+sudah ada sebelum fase ini; yang dibangun adalah **pemakainya di `app/`**, karena sebelumnya nol.
+
+| Berkas | Peran |
+|---|---|
+| `presentation/discovery/studio/PrototypePatternUiModel.kt` | model + kodek `{"rows":[…]}` + panen kerangka + pembungkus pratinjau |
+| `presentation/discovery/studio/PrototypeStudioScreen.kt` | shell: galeri ↔ perancang, pratinjau hidup, simpan |
+| `presentation/discovery/studio/PrototypePatternGallery.kt` | daftar + pencarian + pemilihan (warna outline, bukan ketebalan) |
+| `presentation/discovery/studio/PrototypeRowEditor.kt` | penyunting baris; kolom `Lebar` berupa pil `penuh/separuh` |
+| `presentation/designsystem/ClayChoiceGroup.kt` | grup pil berlabel — Aturan Tiga Kali (Widget/Pack/Modul) |
+| `presentation/navigation/StudioDrawerSection.kt` | section drawer "Studio" (funnel + pola), dipisah dari `App.kt` |
+
+Yang diputuskan sadar, beserta alasannya:
+
+| Keputusan | Alasan |
+|---|---|
+| Pola = **bentuk baris** `{"rows":[{"<kolom>":"<contoh>"}]}`, bukan DSL kedua | Bentuk itu **sudah** keluaran `WidgetRegistry` dan **sudah** masukan `PrototypeRenderer`; format baru = sumber kebenaran kedua |
+| Pratinjau memakai `PrototypeRenderer` yang sama dengan draf prospek | Dua renderer akan menyimpang, dan yang menyimpang adalah yang diperlihatkan ke prospek (plan D2) |
+| Kerangka dipanen dari `WidgetRegistry`, bukan diketik dari nol | Pola mulai dari bentuk yang dikenali sistem; kosong = jawaban (modul × widget tanpa bentuk baku), bukan kegagalan senyap |
+| `moduleId` **tidak** disimpan di pola | Menyimpannya = klaim terikat modul yang mungkin tidak ada di pack tenant lain |
+| Kolom `Lebar` pada `CUSTOM_SCREEN` dikunci ke pil | Nilainya dibaca renderer untuk memasangkan blok; salah ketik mengubah tata letak tanpa memecahkan apa pun |
+| Menulis pola wajib superadmin platform (server), layar hanya menyembunyikan tombol | Gerbang wewenang milik server; UI menjelaskan, termasuk bahwa isi pola tetap bisa dibaca |
+| Rute klien `/discovery/studio` di bawah `/discovery` | `fromPath` memilih prefiks **terpanjang**, jadi tidak perlu alias; gerbang sesinya sama dengan funnel |
+
+Bukti: `PrototypePatternUiModelTest` (7, `commonTest` — jalan di kelima target), `DiscoveryApiTest::payload
+studio dari klien tersimpan utuh dan urut` (+1 = 8). Suite: `:core:jvmTest` **1030**, `:app:shared` **169**,
+`:server:test` **284** (1 skip = eval LLM opt-in), nol gagal. Cek mata di :3001 (superadmin **dan** owner
+pabrik): panen kerangka → sunting → simpan → entri muncul di galeri → reload → masih ada (lewat Postgres),
+tag "Hanya baca" + tombol mati untuk non-superadmin, lebar 1280dp tidak pecah. Pengajaran:
+[`teaching-discovery-c2-studio-pola-prototipe.md`](../teaching/teaching-discovery-c2-studio-pola-prototipe.md).
+
+**Dua cacat yang hanya ketahuan setelah layarnya dibuka** (bukan oleh test maupun kompilasi):
+
+1. Daftar pola menampilkan `Expected a JSON object at root` pada endpoint yang sehat: `DiscoveryApiClient.call()`
+   mem-parse **wajib objek**, sedangkan `GET /api/discovery/patterns` mengembalikan array. Kini `JsonParser.parse`
+   — bentuk respons diperiksa pemanggil, tempat maknanya diketahui.
+2. Pesan baris-kosong `PrototypeRenderer` ("modulnya tidak ada di pak ini") menyesatkan di Studio: yang kosong
+   adalah pola yang sedang disusun. Studio memeriksa konteksnya sendiri; renderer bersama tetap satu pesan.
+
+### Sisa Fase C (temuan, belum ditutup)
+
+- **Test pola menulis ke DB pengembang**: `module()` belum menerima `PrototypePatternRepository`, jadi
+  `PostgresPrototypePatternRepository()` (`Application.kt:550`) yang dipakai — termasuk oleh test. Akibatnya
+  fixture test muncul di Studio, dan `UNIQUE(name)` menuntut test idempoten. Perbaikannya satu parameter, tapi
+  `Application.kt` (697 baris) sudah di atas hard limit 500, sehingga harus mendarat **bersamaan** dengan
+  pemecahan file itu (konfigurasi plugin → file terpisah). Efek samping: jalur `id: null → server membuat id`
+  tidak lagi diuji end-to-end.
+- **Pola belum dipakai di pratinjau draf**: hari ini Studio adalah alat internal; `screens` draf tetap dari agent.
+- Kosakata "pabrik" di layar lain (`OrgChartScreen`, `ModuleCardView`, `AssignModuleModal`) masih di utang
+  design system. Funnel discovery sudah bersih (judul + contoh kini lintas vertikal).
 
 ## 5. Fase D — Wizard & PDF
 
-- `DiscoveryWizardScreen` 4 langkah, digerbang lewat `accessDecisions`.
-- `BlueprintPdfRenderer` ber-watermark.
+- `DiscoveryWizardScreen` 4 langkah, digerbang lewat `accessDecisions`. **Selesai 2026-09-30.**
+- `BlueprintPdfRenderer` ber-watermark. **Selesai 2026-09-30** — lihat rincian di bawah.
 - Isi kedua pekerjaan ini tetap sama dengan draf asli R16–R18.
+
+**D1 — PDF blueprint ber-watermark (selesai).** Dibangun mengikuti jalur cetak yang sudah ada di repo,
+bukan jalur baru: isi & geometri diputuskan di **domain** (`core/.../domain/discovery/print/`:
+`BlueprintPdfDocument` + `BlueprintSheetLayout`), digambar PDFBox di
+`server/.../infrastructure/pdf/BlueprintPdfRenderer.kt`, dan disajikan lewat rute terpisah
+`server/.../routes/DiscoveryBlueprintPdfRoutes.kt` (`POST /{id}/print-ticket` →
+`GET /{id}/blueprint.pdf?ticket=…`).
+
+Yang diputuskan sadar, beserta alasannya:
+
+| Keputusan | Alasan |
+|---|---|
+| Baris dipecah sekali di domain lewat `InvoiceTextLayout` | Renderer tidak boleh punya mesin pengukur kedua; kalau ia memutus barisnya sendiri, PDF bisa berbeda dari yang dihitung domain (pelajaran faktur) |
+| Pemenggalan halaman di tingkat **baris**, halaman lanjut diberi judul "(lanjutan)" | Deskripsi blueprint panjang; pemenggalan per blok menyisakan setengah halaman kosong dan halaman terpisah tanpa identitas saat difotokopi |
+| Modul **bypass** ikut dicetak (`[bypass]`) | Blueprint yang hanya menampilkan modul aktif membuat prospek membandingkan penawaran dengan sistem yang berbeda (B4/TRD-PLAT-001 FR-2) |
+| Watermark diagonal 40pt abu-abu 0,88 di tengah **setiap** halaman | Berkas ini beredar lewat WhatsApp prospek; penanda kecil di kaki halaman terbaca sebagai catatan kaki dan mudah difoto lalu dirujuk sebagai kesepakatan |
+| Teks yang dicetak disaring `ASCII_FALLBACK` + `?` | Font yang dibundel tidak memuat seluruh glyph Unicode (`→` U+2192 melempar `IllegalStateException`); isi PDF sebagian berasal dari kosakata pack tenant, dan satu karakter aneh tidak boleh menggagalkan seluruh dokumen |
+| Tiket cetak membawa `subject` + `platform_superadmin` (`PrintTicketService.verifyUser`) | Tab browser tidak bisa mengirim Bearer; tiket berumur 60 detik itu tetap diperiksa **kepemilikan draf** di rute (gerbang T12 yang sama dengan endpoint JSON) |
+| Tanpa harga di PDF | Harga hidup di `/price`; PDF berpindah tangan dan tidak boleh berisi angka yang bisa dibaca sebagai penawaran |
+
+Bukti: `BlueprintPdfDocumentTest` (5), `BlueprintSheetLayoutTest` (8, termasuk invariant "semua baris di
+dalam margin & tidak menimpa" dan "40 modul tercetak tepat sekali"), `BlueprintPdfRendererTest` (4,
+termasuk uji tinta pita tengah halaman: halaman yang sama dicetak dengan & tanpa watermark lalu
+dibandingkan pikselnya), `PrintTicketServiceTest` (+3: `verifyUser`, kedaluwarsa, silang-cakupan), dan
+`DiscoveryApiTest::pdf blueprint memakai tiket pendek dan gerbang pemilik` (401 tanpa sesi, 200 pemilik
+lewat tiket **tanpa** Bearer, 200 Bearer & superadmin, 403 pengguna lain, 401 tiket draf lain, 404 draf
+hantu). Pengajaran lengkap: [`teaching-discovery-d1-blueprint-pdf.md`](../teaching/teaching-discovery-d1-blueprint-pdf.md).
+
+**Dua cacat yang hanya ketahuan setelah PDF-nya dilihat** (bukan oleh test mana pun, bukan oleh kompilasi):
+
+1. Fase tercetak bernomor dobel (`"1. 1. Operasi — Alur kerja harian"`) karena `BlueprintPdfDocument`
+   menambahkan `order` padahal `PhaseDefinition.displayName` pack sudah memuat nomornya. Sekarang
+   `displayName` dipakai apa adanya; test membandingkan baris terhadap pack.
+2. Teks yang dicetak sempat kehilangan tipografi: fallback pertama memetakan em dash/titik tengah
+   padahal font yang dibundel **punya** glyph-nya — hanya `→` dan `✓` yang absen (dibuktikan dengan
+   menyondir `getStringWidth` per karakter). Fallback dipersempit ke dua karakter itu; em dash kembali
+   tercetak sebagai `—`.
+
+### Sisa Fase D
+- Pratinjau PDF di dalam aplikasi (saat ini membuka tab browser; Android/iOS masih no-op seperti fitur cetak lain).
+
 
 ## 6. Fase E — Operasi produk
 
 Sama dengan draf asli R22–R25: sesi interview persisten, demand ledger "tidak bisa diekspresikan", dan gerbang widget
 lewat Rule of Three.
+
+| # | Pekerjaan | Status |
+|---|---|---|
+| E1 | Sesi interview persisten: wizard memuat `GET /api/discovery/drafts`, menawarkan "Lanjutkan sesi sebelumnya" untuk draf DRAFT milik pengguna; ringkasan penuh → resume langsung ke langkah 2 | **Selesai 2026-09-30** — `DiscoveryWizardScreen` + `ResumeDraftsCard`; langkah wizard dipecah ke `DiscoveryWizardSteps.kt` (file melewati soft limit 400) |
+| E2 | Buku demand: narasi prospek **verbatim** kini tersimpan (sebelumnya tidak di mana pun!) — `ops.discovery_demands` (V80), dicatat fail-loud saat `POST /drafts`, dibaca `GET /api/discovery/demands` (superadmin saja, 403 untuk pengguna lain) | **Selesai 2026-09-30** — `DiscoveryDemand` + `DemandLedger` (core, murni), `PostgresDiscoveryDemandRepository`, insert-saja (demand = catatan historis) |
+| E3 | Gerbang Rule of Three: istilah narasi yang belum terwakili modul dikelompokkan lintas demand; ≥ 3 demand berbeda → kandidat modul/widget, dihitung saat dibaca (bukan disimpan) | **Selesai 2026-09-30** — `DemandLedger.unmatchedTerms/candidates`, diekspos di respons `GET /demands` (`minimum`, `candidates`) |
+
+Keputusan Fase E, beserta alasannya:
+
+| Keputusan | Alasan |
+|---|---|
+| Narasi verbatim disimpan di buku demand, bukan ditambahkan ke dokumen `DiscoveryDraft` | Dokumen draf = kontrak yang dibekukan & divalidasi ketat; narasi adalah **sinyal produk**, bukan bagian kontrak. Menaruhnya di dokumen berarti mengubah schema dokumen lama hanya demi telemetri |
+| Gagal menyimpan demand menggagalkan `POST /drafts` (bukan best-effort) | Narasi kini **satu-satunya** tempatnya — kegagalan senyap = demand hilang tanpa jejak, persis penyakit "fallback senyap" (tenant-variability Kontrak 4) |
+| Pencocokan istilah = substring sederhana terhadap kosakata pack, bukan embedding | Sasarannya menyaring kata yang sudah terjawab, bukan memahami bahasa; false positive tidak fatal karena kandidat disertai kutipan narasi asli untuk dibaca manusia |
+| Kandidat Rule of Three dihitung saat dibaca | Ambang bisa berubah (2 → 4) tanpa migrasi; yang disimpan adalah fakta per demand |
+| Pencatatan demand diecek `​OpsSchemaBoundaryTest` + test 403 | Tabel baru di `ops` tanpa baris guard akan "pindah" ke public diam-diam — pola yang sama dengan discovery_drafts |
+| Sambil menyentuh wiring: `prototypePatterns` di-inject lewat `module()` (utang Fase C dicicil) | Sebelumnya `PostgresPrototypePatternRepository()` dibuat langsung di `Application.kt:550` — test Studio menulis ke DB pengembang. `Application.kt` tetap 698 baris (ratchet: dipadatkan dua val 2-baris) |
+
+Sisa Fase E (belum ditutup):
+- Permukaan UI untuk membaca buku demand (superadmin hari ini membaca lewat endpoint; kandidat Rule of Three belum punya layar).
+- Resume sesi belum mengembalikan **teks narasi** (dokumen draf tidak menyimpannya; setelah E2, narasi bisa dipulihkan dari demand) — dan belum ada autosave narasi saat mengetik.
+- Gerbang Rule of Three belum terhubung ke keputusan widget Studio (saat ini hanya melapor).
 
 ## 7. Risiko
 

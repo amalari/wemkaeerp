@@ -93,7 +93,13 @@ fun FulfillmentWorkspaceScreen(
         )
 
         state.error?.let { message ->
-            ClayCard(containerColor = WeMadeColors.Error.copy(alpha = 0.08f)) {
+            // Isi kartu **opaque** + outline berperan: bayangan hard digambar tepat di belakang
+            // kartu, jadi token ber-alpha akan menampakkan siluetnya menembus kartu (navy gelap).
+            ClayCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = WeMadeColors.ErrorBg,
+                outlineColor = WeMadeColors.Error
+            ) {
                 Text(
                     text = message,
                     fontSize = 11.sp,

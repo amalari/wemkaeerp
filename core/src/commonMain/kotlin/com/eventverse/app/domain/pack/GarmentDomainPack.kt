@@ -87,6 +87,26 @@ object GarmentPortTypes {
 }
 
 /**
+ * Kosakata & aksi pack konveksi (A4). Label aksi disalin persis dari placeholder B6e — layar generik
+ * seluruh tenant garment tidak berubah sedikit pun — dan dikunci tabel emas `GarmentModulesParityTest`,
+ * supaya perubahan kata di sini harus disengaja.
+ */
+object GarmentVocabulary {
+
+    val actions: List<ModuleAction> = listOf(
+        ModuleAction(ModuleActionCode.ADD, "Tambah Pesanan"),
+        ModuleAction(ModuleActionCode.EDIT, "Input Progres"),
+        ModuleAction(ModuleActionCode.APPROVE, "Setujui SPK"),
+        ModuleAction(ModuleActionCode.DELETE, "Hapus Data")
+    )
+
+    val terms: Map<VocabularyKey, String> = mapOf(
+        VocabularyKey.WORKPLACE to "pabrik",
+        VocabularyKey.DOCUMENT to "Dokumen"
+    )
+}
+
+/**
  * Pack konveksi. Fase ([GarmentPhases], B1) dan port ([GarmentPortTypes], B2) = data literal.
 , slot ([GarmentSlots], B3) = data literal.
  */
@@ -108,7 +128,9 @@ object GarmentDomainPack {
             portTypes = wired + slots.flatMap { listOf(it.defaultInput, it.defaultOutput) },
             wiredPortTypes = wired,
             sections = GarmentModules.sections,
-            modules = GarmentModules.modules
+            modules = GarmentModules.modules,
+            actions = GarmentVocabulary.actions,
+            vocabulary = GarmentVocabulary.terms
         )
     }
 }

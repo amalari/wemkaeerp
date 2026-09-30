@@ -45,7 +45,13 @@ class OpsSchemaBoundaryTest {
             "module_pricing_quotes",
             "prospect_leads",
             "prospect_flow_translations",
-            "prospect_price_estimates"
+            "prospect_price_estimates",
+            // Funnel discovery (plan Fase A/C): narasi prospek dan pola layar internal memuat
+            // kosakata prospek — milik platform, bukan milik satu tenant. Tanpa baris ini, tabel
+            // baru bisa "pindah" ke public tanpa ada test yang gagal.
+            "discovery_drafts",
+            "discovery_demands",
+            "prototype_patterns"
         ).forEach { table ->
             assertEquals("ops", schemaOf(table), "$table escaped the ops schema")
         }

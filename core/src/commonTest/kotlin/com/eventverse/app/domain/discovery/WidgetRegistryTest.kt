@@ -42,11 +42,19 @@ class WidgetRegistryTest {
         assertTrue(rows.joinToString().contains(module.displayName))
         assertTrue(!rows.joinToString().uppercase().contains("SPK"))
 
-        // Kind lain menghasilkan data non-kosong & deterministik juga.
-        WidgetKind.entries.filter { it != WidgetKind.CUSTOM_SCREEN }.forEach { kind ->
+        // Kind lain menghasilkan data non-kosong & deterministik juga — **termasuk CUSTOM_SCREEN**,
+        // yang samplenya berupa kerangka blok. Mengeluarkannya dari loop ini pernah menyembunyikan
+        // kartu kosong di renderer: test hijau, layar tetap tanpa penjelasan apa pun.
+        WidgetKind.entries.forEach { kind ->
             val s = PrototypeScreen("scr-${kind.code}", module.id, module.displayName, kind.code)
             assertTrue(WidgetRegistry.sampleRowsFor(s, draft.pack).isNotEmpty(), kind.code)
         }
+        // Layar kustom memakai kosakata struktural (blok + lebar), bukan kolom data.
+        val custom = WidgetRegistry.sampleRowsFor(
+            PrototypeScreen("scr-custom", module.id, module.displayName, WidgetKind.CUSTOM_SCREEN.code),
+            draft.pack
+        )
+        assertEquals(listOf("penuh", "separuh", "separuh"), custom.map { it["Lebar"] })
         // Layar untuk modul asing → kosong, bukan data karangan.
         assertTrue(WidgetRegistry.sampleRowsFor(screen.copy(moduleId = ModuleId("modul_hantu")), draft.pack).isEmpty())
     }

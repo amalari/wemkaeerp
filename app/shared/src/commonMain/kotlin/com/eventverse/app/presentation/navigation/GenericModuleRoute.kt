@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.navigation
 
 import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.presentation.pack.ActiveTenantPack
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,9 @@ internal fun moduleFromGenericPath(path: String, pack: DomainPack = ActiveTenant
 /**
  * Layar `/m/{code}` (B6f): modul pack yang belum punya layar khusus dibuka di layar kerja generik, tergerbang
  * keputusan wewenangnya sendiri. Modul yang **punya** layar khusus tetap memakai layar itu lewat `ModuleScreenRegistry`.
+ *
+ * Kosakata chrome (A4) datang dari pack tenant yang sedang aktif, jadi tenant non-konveksi tidak melihat
+ * kata "pabrik" di layarnya sendiri.
  */
 @Composable
 internal fun GenericModuleRoute(
@@ -35,17 +39,19 @@ internal fun GenericModuleRoute(
     accessDecisions: Map<BusinessModule, AccessDecision>,
     persona: TestingPersona?
 ) {
-    val module = moduleFromGenericPath(path) ?: return UnknownModuleCard(path)
+    val pack = ActiveTenantPack.current
+    val module = moduleFromGenericPath(path, pack) ?: return UnknownModuleCard(path, pack)
     val none = ModuleAccessConfig()
     ModuleWorkspaceScreen(
         module = module,
         decision = accessDecisions[module] ?: AccessDecision(none, AccessSource.NONE, none, none),
-        persona = persona
+        persona = persona,
+        pack = pack
     )
 }
 
 @Composable
-private fun UnknownModuleCard(path: String) {
+private fun UnknownModuleCard(path: String, pack: DomainPack) {
     androidx.compose.foundation.layout.Box(
         modifier = androidx.compose.ui.Modifier.fillMaxSize().padding(ClaySpacing.Xxl)
     ) {
@@ -56,7 +62,8 @@ private fun UnknownModuleCard(path: String) {
             ) {
                 Text("Modul tidak ditemukan", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Alamat $path tidak menunjuk modul yang tersedia di pabrik ini.",
+                    "Alamat $path tidak menunjuk modul yang tersedia di " +
+                        "${pack.term(VocabularyKey.WORKPLACE)} ini.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = WeMadeColors.OnSurfaceMuted
                 )

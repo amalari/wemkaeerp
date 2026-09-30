@@ -35,6 +35,10 @@ enum class AccessLevel(
 
 /**
  * Data boundary scope for a role within a tenant.
+ *
+ * Seluruh kata di sini **netral vertikal**: chrome `/m/{code}` menampilkan [description] apa adanya
+ * ("Cakupan data: …"), jadi tenant klinik/bengkel tidak boleh membaca "pabrik" (A4). Dulu kata itu ada
+ * di sini, dan itulah satu-satunya kata konveksi yang masih tersisa di layar klinik setelah A4.
  */
 enum class DataScope(
     val code: String,
@@ -56,15 +60,18 @@ enum class DataScope(
     ),
     ALL_TENANT_DATA(
         code = "all_data",
-        displayName = "Seluruh Data Pabrik",
+        displayName = "Seluruh Data Perusahaan",
         shortLabel = "Semua Data",
-        description = "Pengguna dapat melihat seluruh data di seluruh divisi pabrik."
+        description = "Pengguna dapat melihat seluruh data di seluruh divisi perusahaan."
     );
 }
 
 /**
  * Dynamic Scope Capability defining whether a module's data boundary
  * can be scoped per individual/hierarchy or must remain enterprise-wide (global).
+ *
+ * Sama seperti [DataScope]: kata di sini netral vertikal. Label lama ("Seluruh Pabrik") adalah kosakata
+ * satu industri yang bocor ke tenant lain lewat layar wewenang.
  */
 enum class ScopeCapability(
     val displayName: String,
@@ -72,9 +79,9 @@ enum class ScopeCapability(
     val description: String
 ) {
     GLOBAL_ONLY(
-        displayName = "Seluruh Pabrik (Data Kolektif)",
-        shortLabel = "Seluruh Pabrik",
-        description = "Data inventaris, kalkulasi HPP, dan mesin dikelola kolektif untuk seluruh pabrik tanpa partisi kepemilikan."
+        displayName = "Seluruh Perusahaan (Data Kolektif)",
+        shortLabel = "Seluruh Perusahaan",
+        description = "Data inventaris, kalkulasi HPP, dan mesin dikelola kolektif untuk seluruh perusahaan tanpa partisi kepemilikan."
     ),
     HIERARCHICAL(
         displayName = "Hirarkis (Sendiri & Bawahan)",

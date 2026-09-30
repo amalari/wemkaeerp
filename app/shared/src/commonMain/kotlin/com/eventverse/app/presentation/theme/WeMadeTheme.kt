@@ -53,6 +53,12 @@ object WeMadeColors {
     val Info = Color(0xFF0284C7)            // Sky-600
     val InfoDark = Color(0xFF0369A1)        // Sky-700
 
+    /**
+     * Latar banner/kartu informasional. Wajib dipakai sebagai isi kartu alih-alih
+     * `Info.copy(alpha = …)` — lihat catatan opaque di KDoc `ClayCard`.
+     */
+    val InfoBg = Color(0xFFF0F9FF)          // Sky-50
+
     /** Cacat produk & jalur rework mundur. Sengaja dibedakan dari [Error] (kegagalan sistem). */
     val Defect = Color(0xFFE11D48)          // Rose-600
 

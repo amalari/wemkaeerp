@@ -1,7 +1,10 @@
 package com.eventverse.app.routes
 
 import com.eventverse.app.domain.auth.UserId
+import com.eventverse.app.domain.discovery.DemandLedger
 import com.eventverse.app.domain.discovery.DiscoveryAgent
+import com.eventverse.app.domain.discovery.DiscoveryDemand
+import com.eventverse.app.domain.discovery.DiscoveryDemandRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryPreviewRegistry
@@ -64,7 +67,8 @@ fun Route.discoveryRoutes(
     priceDraft: PriceDiscoveryDraftUseCase,
     submitDraft: SubmitDiscoveryDraftUseCase,
     handoffDraft: HandoffDiscoveryDraftUseCase,
-    prototypePatterns: PrototypePatternRepository
+    prototypePatterns: PrototypePatternRepository,
+    demands: DiscoveryDemandRepository
 ) {
     val create = CreateDiscoveryDraftUseCase(agent, repository)
     val update = UpdateDiscoveryDraftUseCase(repository)
@@ -107,6 +111,30 @@ fun Route.discoveryRoutes(
         }
     }
 
+    // Buku demand (plan §6 E2/E3) — antrean review platform: superadmin saja. Kandidat Rule of
+    // Three dihitung saat dibaca (bukan disimpan) supaya ambangnya bisa berubah tanpa migrasi.
+    route("/api/discovery/demands") {
+        get {
+            val principal = call.callerPrincipalOrNull ?: return@get unauthorized()
+            if (!principal.isPlatformSuperadmin) return@get forbidden()
+            val all = demands.findAll()
+            call.respondText(
+                jsonObjectOf(
+                    "minimum" to jsonOf(DemandLedger.RULE_OF_THREE),
+                    "candidates" to jsonArrayOf(DemandLedger.candidates(all).map { c ->
+                        jsonObjectOf(
+                            "term" to jsonOf(c.term),
+                            "demandCount" to jsonOf(c.demandCount),
+                            "samples" to jsonArrayOf(c.samples.map(::jsonOf))
+                        )
+                    }),
+                    "demands" to jsonArrayOf(all.map(::demandJson))
+                ).encode(),
+                ContentType.Application.Json
+            )
+        }
+    }
+
     route("/api/discovery/drafts") {
         // Narasi → draf. Body: {"narrative": "...", "industryHint"?, "displayName"?, "prospectLeadId"?, "id"?}.
         post {
@@ -127,8 +155,20 @@ fun Route.discoveryRoutes(
                 ownerUserId = UserId(principal.userId),
                 draftId = draftId,
                 prospectLeadId = body.string("prospectLeadId")
-            ).onSuccess { call.respondText(summary(it), ContentType.Application.Json, HttpStatusCode.Created) }
-                .onFailure { badRequest(it.message ?: "Gagal membuat draf") }
+            ).onSuccess { stored ->
+                // Buku demand (plan §6 E2): narasi verbatim kini hanya hidup di sini — gagal
+                // simpan berarti demand hilang, jadi gagal keras (bukan best-effort).
+                demands.save(
+                    DemandLedger.record(
+                        stored = stored,
+                        request = DiscoveryRequest(narrative, body.string("industryHint")),
+                        agentRef = agent.agentRef,
+                        id = "demand-${Clock.System.now().toEpochMilliseconds()}",
+                        createdAt = Clock.System.now()
+                    )
+                )
+                call.respondText(summary(stored), ContentType.Application.Json, HttpStatusCode.Created)
+            }.onFailure { badRequest(it.message ?: "Gagal membuat draf") }
         }
 
         // Draf milik pemanggil; superadmin melihat seluruhnya (antrean review platform).
@@ -319,26 +359,42 @@ fun Route.discoveryRoutes(
                 ContentType.Application.Json, HttpStatusCode.Created
             )
         }
+
+        // Rute PDF (print-ticket + blueprint.pdf) ada di `DiscoveryBlueprintPdfRoutes.kt`: cetakan
+        // punya gerbang sendiri (menerima tiket `?ticket=`), sama seperti `TraceabilityPrintRoutes`.
     }
 }
 
-private suspend fun RoutingContext.unauthorized() =
+/** Helper respons rute discovery; `internal` supaya rute PDF (`DiscoveryBlueprintPdfRoutes`) memakai kalimat yang sama. */
+internal suspend fun RoutingContext.unauthorized() =
     call.respondText("Authentication required", ContentType.Text.Plain, HttpStatusCode.Unauthorized)
 
-private suspend fun RoutingContext.badRequest(message: String) =
+internal suspend fun RoutingContext.badRequest(message: String) =
     call.respondText(message, ContentType.Text.Plain, HttpStatusCode.BadRequest)
 
-private suspend fun RoutingContext.notFound(message: String) =
+internal suspend fun RoutingContext.notFound(message: String) =
     call.respondText(message, ContentType.Text.Plain, HttpStatusCode.NotFound)
 
-private suspend fun RoutingContext.forbidden() =
+internal suspend fun RoutingContext.forbidden() =
     call.respondText("Draf ini bukan milik Anda", ContentType.Text.Plain, HttpStatusCode.Forbidden)
 
-/** Gerbang data (T12): pemilik draf atau superadmin platform. */
-private fun mayAccess(
+/** Gerbang data (T12): pemilik draf atau superadmin platform. Dipakai juga rute PDF (`DiscoveryBlueprintPdfRoutes`). */
+internal fun mayAccess(
     principal: com.eventverse.app.plugins.CallerPrincipal,
     stored: StoredDiscoveryDraft
 ): Boolean = principal.isPlatformSuperadmin || stored.ownerUserId.value == principal.userId
+
+private fun demandJson(d: DiscoveryDemand): JsonValue = jsonObjectOf(
+    "id" to jsonOf(d.id),
+    "draftId" to jsonOf(d.draftId.value),
+    "ownerUserId" to jsonOf(d.ownerUserId.value),
+    "narrative" to jsonOf(d.narrative),
+    "industryHint" to jsonOf(d.industryHint),
+    "agentRef" to jsonOf(d.agentRef),
+    "matchedModules" to jsonArrayOf(d.matchedModuleIds.map(::jsonOf)),
+    "unmatchedTerms" to jsonArrayOf(d.unmatchedTerms.map(::jsonOf)),
+    "createdAt" to jsonOf(d.createdAt?.toString())
+)
 
 private fun summaryObj(stored: StoredDiscoveryDraft): JsonValue.Obj = jsonObjectOf(
     "id" to jsonOf(stored.id.value),

@@ -2,6 +2,8 @@ package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonObjectOf
+import com.eventverse.app.shared.json.jsonOf
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -42,6 +44,12 @@ class DiscoveryApiClient(
             )
         }
 
+    /**
+     * GET /api/discovery/drafts — draf milik pemanggil (E1, sesi interview persisten).
+     * Ringkasan penuh (bukan stub), jadi wizard bisa melanjutkan sesi tanpa fetch kedua.
+     */
+    suspend fun listDrafts(): Result<JsonValue> = call(HttpMethod.Get, "/api/discovery/drafts")
+
     /** GET /api/discovery/drafts/{id} — ringkasan draf. */
     suspend fun getDraft(id: String): Result<JsonValue> = call(HttpMethod.Get, "/api/discovery/drafts/$id")
 
@@ -59,6 +67,63 @@ class DiscoveryApiClient(
             setBody("{\"companyName\":${JsonValue.Str(companyName).encode()}}")
         }
 
+    /**
+     * URL PDF blueprint (Fase D) untuk dibuka di tab browser.
+     *
+     * Dua langkah karena tab browser tidak bisa mengirim header `Authorization`: sesi ditukar dengan
+     * tiket pendek (±60 detik) yang cakupannya hanya draf ini, lalu PDF-nya dibuka lewat `?ticket=`.
+     * Sama seperti cetakan jejak produksi — dan alasan yang sama.
+     */
+    suspend fun blueprintPdfUrl(id: String): Result<String> =
+        call(HttpMethod.Post, "/api/discovery/drafts/$id/print-ticket").mapCatching { body ->
+            val obj = body as? JsonValue.Obj ?: error("Respons tiket cetak tidak dikenali")
+            val ticket = obj.string("ticket")?.takeIf { it.isNotBlank() }
+                ?: error("Server tidak menerbitkan tiket cetak")
+            resolveUrl("/api/discovery/drafts/$id/blueprint.pdf") + "?ticket=" + ticket
+        }
+
+    /** GET /api/discovery/patterns — daftar pola Studio (Fase C); login cukup. */
+    suspend fun listPrototypePatterns(): Result<JsonValue> =
+        call(HttpMethod.Get, "/api/discovery/patterns")
+
+    /**
+     * POST /api/discovery/patterns — simpan pola Studio (Fase C).
+     *
+     * Server hanya menerima **superadmin platform** (403 untuk peran lain) dan memvalidasi ulang
+     * widget kosakata tertutup + pack yang dikenal, jadi layar tidak perlu — dan tidak boleh —
+     * menjadi satu-satunya gerbang.
+     *
+     * [pattern] ditulis apa adanya sebagai objek JSON: bentuknya milik Studio
+     * (`PrototypePatternUi.patternJson`), bukan kontrak yang disusun ulang di lapisan HTTP ini.
+     * `id` null berarti pola baru — server yang membuat id-nya.
+     */
+    suspend fun savePrototypePattern(
+        name: String,
+        widgetCode: String,
+        packCode: String?,
+        pattern: JsonValue.Obj,
+        id: String? = null
+    ): Result<JsonValue> = call(HttpMethod.Post, "/api/discovery/patterns") {
+        contentType(ContentType.Application.Json)
+        setBody(
+            jsonObjectOf(
+                "id" to jsonOf(id),
+                "name" to jsonOf(name),
+                "widget" to jsonOf(widgetCode),
+                "packCode" to jsonOf(packCode),
+                "pattern" to pattern
+            ).encode()
+        )
+    }
+
+    /**
+     * Satu jalur HTTP untuk semua endpoint discovery.
+     *
+     * Respons di-parse sebagai **nilai JSON apa pun**, bukan wajib objek: `GET
+     * /api/discovery/patterns` mengembalikan array, dan `parseObject` di sini pernah membuat layar
+     * Studio menampilkan `Expected a JSON object at root` pada daftar pola yang sehat. Bentuknya
+     * diperiksa di pemanggil, tempat maknanya diketahui.
+     */
     private suspend fun call(method: HttpMethod, path: String, block: HttpRequestBuilder.() -> Unit = {}): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {
@@ -71,6 +136,6 @@ class DiscoveryApiClient(
             if (!response.status.isSuccess()) {
                 error(text.ifBlank { "HTTP ${response.status.value}" })
             }
-            JsonParser.parseObject(text)
+            JsonParser.parse(text)
         }
 }

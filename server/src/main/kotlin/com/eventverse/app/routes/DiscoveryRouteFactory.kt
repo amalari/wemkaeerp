@@ -1,6 +1,7 @@
 package com.eventverse.app.routes
 
 import com.eventverse.app.domain.discovery.DiscoveryAgent
+import com.eventverse.app.domain.discovery.DiscoveryDemandRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.PriceDiscoveryDraftUseCase
@@ -37,21 +38,30 @@ fun Route.discoveryPlatformRoutes(
     blendedHourlyRate: MoneyIdr,
     leadRepository: ProspectLeadRepository,
     agent: DiscoveryAgent,
-    prototypePatterns: PrototypePatternRepository
-) = discoveryRoutes(
-    repository = draftRepository,
-    agent = agent,
-    tenantRepository = tenantRepository,
-    priceDraft = PriceDiscoveryDraftUseCase(
-        billableCatalog = { catalogRepository.findBillable() },
-        priceProspectFlow = PriceProspectFlowUseCase(
-            buildRepository = buildRepository,
-            sizingWeightsRepository = sizingWeightsRepository,
-            embeddingProvider = embeddingProvider,
-            defaultBlendedHourlyRate = blendedHourlyRate
-        )
-    ),
-    submitDraft = SubmitDiscoveryDraftUseCase(draftRepository, leadRepository, SubmitProspectLeadUseCase(leadRepository)),
-    handoffDraft = HandoffDiscoveryDraftUseCase(draftRepository, tenantRepository, domainPackRepository, probe),
-    prototypePatterns = prototypePatterns
-)
+    prototypePatterns: PrototypePatternRepository? = null,
+    discoveryDemands: DiscoveryDemandRepository? = null
+) {
+    discoveryRoutes(
+        repository = draftRepository,
+        agent = agent,
+        tenantRepository = tenantRepository,
+        priceDraft = PriceDiscoveryDraftUseCase(
+            billableCatalog = { catalogRepository.findBillable() },
+            priceProspectFlow = PriceProspectFlowUseCase(
+                buildRepository = buildRepository,
+                sizingWeightsRepository = sizingWeightsRepository,
+                embeddingProvider = embeddingProvider,
+                defaultBlendedHourlyRate = blendedHourlyRate
+            )
+        ),
+        submitDraft = SubmitDiscoveryDraftUseCase(draftRepository, leadRepository, SubmitProspectLeadUseCase(leadRepository)),
+        handoffDraft = HandoffDiscoveryDraftUseCase(draftRepository, tenantRepository, domainPackRepository, probe),
+        // Default di sini, bukan di Application.kt: file itu sudah di atas hard limit (ratchet),
+        // dan test meng-inject in-memory lewat parameter supaya tidak menulis ke DB pengembang.
+        prototypePatterns = prototypePatterns ?: com.eventverse.app.infrastructure.PostgresPrototypePatternRepository(),
+        demands = discoveryDemands ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
+    )
+    // Cetakan blueprint (Fase D) terdaftar terpisah karena gerbangnya berbeda: ia menerima tiket
+    // pendek `?ticket=` di samping Bearer, agar PDF bisa dibuka di tab browser.
+    discoveryBlueprintPdfRoutes(repository = draftRepository)
+}

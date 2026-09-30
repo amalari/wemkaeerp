@@ -30,6 +30,10 @@ import com.eventverse.app.domain.rbac.name
 import com.eventverse.app.domain.rbac.code
 
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.ModuleAction
+import com.eventverse.app.domain.pack.ModuleActionCode
+import com.eventverse.app.domain.pack.VocabularyKey
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -62,24 +66,24 @@ import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
- * Layar kerja untuk sembilan modul bisnis konveksi.
+ * Layar kerja generik sebuah modul pack: dipakai setiap modul yang belum punya layar khusus
+ * ([ModuleScreenRegistry]), termasuk modul vertikal non-konveksi.
  *
- * `CRM_SALES` adalah modul pertama yang lepas dari placeholder generik — lihat
- * [CrmWorkspaceScreen]. Delapan modul sisanya masih memakai [ModuleWorkspacePlaceholder]:
- * banner yang berbeda, tombol yang hidup atau mati, dan cakupan data yang dinyatakan
- * terang-terangan, supaya perbedaan yang terlihat pasti berasal dari wewenang, bukan dari
- * layar yang kebetulan berbeda. Saat modul kesembilan pindah ke layar sungguhannya,
- * `ModuleWorkspacePlaceholder` dan `sampleRowsFor` di bawah bisa dihapus seluruhnya.
+ * Chrome-nya **tidak boleh** menyebut kosakata satu industri (A4): istilah ("pabrik", "SPK") dan
+ * label tombol aksi dibaca dari [pack], bukan ditulis sebagai literal di sini. Dulu layar ini menulis
+ * `"pabrik"`/`"SPK"` langsung, sehingga tenant klinik melihat kata pabrik di layarnya sendiri.
  */
 @Composable
 fun ModuleWorkspaceScreen(
     module: BusinessModule,
     decision: AccessDecision,
     persona: TestingPersona?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pack: DomainPack = ActiveTenantPack.current
 ) {
     val access = decision.config
 
@@ -108,7 +112,7 @@ fun ModuleWorkspaceScreen(
         return
     }
 
-    ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, modifier = modifier)
+    ModuleWorkspacePlaceholder(module = module, decision = decision, persona = persona, pack = pack, modifier = modifier)
 }
 
 @Composable
@@ -116,9 +120,11 @@ private fun ModuleWorkspacePlaceholder(
     module: BusinessModule,
     decision: AccessDecision,
     persona: TestingPersona?,
+    pack: DomainPack,
     modifier: Modifier = Modifier
 ) {
     val access = decision.config
+    val documentWord = pack.term(VocabularyKey.DOCUMENT)
 
     Column(
         modifier = modifier
@@ -129,9 +135,9 @@ private fun ModuleWorkspacePlaceholder(
     ) {
         ModuleHeader(module = module, access = access, persona = persona)
         AccessProvenanceCard(decision = decision, persona = persona)
-        AccessBanner(access = access)
-        ActionToolbar(level = access.level)
-        SampleRecords(module = module, access = access)
+        AccessBanner(access = access, documentWord = documentWord)
+        ActionToolbar(level = access.level, actions = pack.actions)
+        SampleRecords(module = module, access = access, documentWord = documentWord)
     }
 }
 
@@ -273,14 +279,14 @@ private fun ProvenanceRow(label: String, level: AccessLevel, isDecisive: Boolean
  * data milik pengguna sendiri.
  */
 @Composable
-private fun AccessBanner(access: ModuleAccessConfig) {
+private fun AccessBanner(access: ModuleAccessConfig, documentWord: String) {
     val (title, detail) = when (access.level) {
         AccessLevel.VIEW -> "Mode Baca Saja (Wewenang Terbatas)" to
             "Data dapat dibaca; seluruh aksi ubah dinonaktifkan."
         AccessLevel.OPERATE -> "Mode Input & Kerja" to
             "Boleh menambah dan mengubah dokumen harian. Approval dan hapus tetap tertutup."
         AccessLevel.MANAGE -> "Akses Penuh / Supervisi" to
-            "Termasuk approval SPK dan penghapusan data."
+            "Termasuk persetujuan dan penghapusan ${documentWord.lowercase()}."
         AccessLevel.NONE -> "Akses Ditutup" to ""
     }
 
@@ -329,8 +335,12 @@ private fun AccessBanner(access: ModuleAccessConfig) {
     }
 }
 
+/**
+ * Toolbar aksi generik: **urutannya dari pack** ([DomainPack.actions]), label dari pack, sedangkan
+ * gaya & wewenang minimum dari peran aksinya ([ModuleActionCode]) — bahaya tetap merah di semua vertikal.
+ */
 @Composable
-private fun ActionToolbar(level: AccessLevel) {
+private fun ActionToolbar(level: AccessLevel, actions: List<ModuleAction>) {
     ClayCard(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Aksi",
@@ -343,39 +353,29 @@ private fun ActionToolbar(level: AccessLevel) {
             modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Lg),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            RbacGuardedButton(
-                text = "Tambah Pesanan",
-                onClick = {},
-                currentLevel = level,
-                requiredLevel = AccessLevel.OPERATE
-            )
-            RbacGuardedButton(
-                text = "Input Progres",
-                onClick = {},
-                currentLevel = level,
-                requiredLevel = AccessLevel.OPERATE,
-                style = ClayButtonStyle.Secondary
-            )
-            RbacGuardedButton(
-                text = "Setujui SPK",
-                onClick = {},
-                currentLevel = level,
-                requiredLevel = AccessLevel.MANAGE,
-                style = ClayButtonStyle.Accent
-            )
-            RbacGuardedButton(
-                text = "Hapus Data",
-                onClick = {},
-                currentLevel = level,
-                requiredLevel = AccessLevel.MANAGE,
-                style = ClayButtonStyle.Danger
-            )
+            actions.forEach { action ->
+                RbacGuardedButton(
+                    text = action.label,
+                    onClick = {},
+                    currentLevel = level,
+                    requiredLevel = action.code.requiredLevel,
+                    style = action.code.toolbarStyle()
+                )
+            }
         }
     }
 }
 
+/** Gaya tombol per peran aksi — sistem, bukan data pack. */
+private fun ModuleActionCode.toolbarStyle(): ClayButtonStyle = when (this) {
+    ModuleActionCode.ADD -> ClayButtonStyle.Primary
+    ModuleActionCode.EDIT -> ClayButtonStyle.Secondary
+    ModuleActionCode.APPROVE -> ClayButtonStyle.Accent
+    ModuleActionCode.DELETE -> ClayButtonStyle.Danger
+}
+
 @Composable
-private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig) {
+private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig, documentWord: String) {
     ClayCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -383,7 +383,7 @@ private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Daftar Dokumen",
+                text = "Daftar ${documentWord.replaceFirstChar { it.uppercase() }}",
                 modifier = Modifier.weight(1f, fill = false),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -392,11 +392,22 @@ private fun SampleRecords(module: BusinessModule, access: ModuleAccessConfig) {
             ClayTag(text = access.level.badgeLabel(), tint = access.level.tint())
         }
 
+        val rows = ModuleSampleRows.rowsFor(module)
+
         Column(
             modifier = Modifier.padding(top = ClaySpacing.Lg).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            ModuleSampleRows.rowsFor(module).forEach { row ->
+            if (rows.isEmpty()) {
+                // Modul pack tanpa contoh baris (mis. modul vertikal non-konveksi) tidak boleh tampil
+                // sebagai kartu kosong: penguji tidak bisa membedakan "belum ada contoh" dari "layout rusak".
+                Text(
+                    text = "Belum ada contoh $documentWord untuk modul ini.",
+                    fontSize = 12.sp,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+            rows.forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

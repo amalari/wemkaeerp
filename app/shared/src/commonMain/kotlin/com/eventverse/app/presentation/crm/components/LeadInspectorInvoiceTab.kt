@@ -209,11 +209,12 @@ fun LeadInspectorInvoiceTab(
             )
         }
 
-        // Info Banner
+        // Info Banner — isi **opaque** (bukan `Info.copy(alpha = …)`): bayangan hard digambar tepat
+        // di belakang kartu, jadi isi transparan akan menampakkan siluetnya menembus kartu.
         ClayCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = WeMadeColors.Info.copy(alpha = 0.08f),
-            outlineColor = WeMadeColors.Info.copy(alpha = 0.3f),
+            containerColor = WeMadeColors.InfoBg,
+            outlineColor = WeMadeColors.Info,
             borderWidth = ClayBorder.Hairline,
             contentPadding = PaddingValues(ClaySpacing.Sm)
         ) {

@@ -13,6 +13,7 @@ import com.eventverse.app.domain.tenant.TenantStatus
 import com.eventverse.app.infrastructure.DatabaseFactory
 import com.eventverse.app.infrastructure.InMemoryAuditLogRepository
 import com.eventverse.app.infrastructure.InMemoryDepartmentRepository
+import com.eventverse.app.infrastructure.InMemoryDiscoveryDemandRepository
 import com.eventverse.app.infrastructure.InMemoryDiscoveryDraftRepository
 import com.eventverse.app.infrastructure.InMemoryDomainPackRepository
 import com.eventverse.app.infrastructure.InMemoryEmployeeRepository
@@ -23,14 +24,17 @@ import com.eventverse.app.infrastructure.InMemoryTenantPipelineRepository
 import com.eventverse.app.infrastructure.InMemoryTenantRepository
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
 import io.ktor.client.request.get
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
@@ -257,14 +261,142 @@ class DiscoveryApiTest {
         assertTrue(listed.bodyAsText().contains("\"widget\":\"TABLE\""))
     }
 
+    /**
+     * **Fase C**: payload yang benar-benar dikirim `PrototypeStudioScreen` — `pattern.rows` berurutan
+     * dan `packCode` null (pola umum, tidak terikat pack). Bentuk ini yang gagal diam-diam kalau salah
+     * satu sisi berubah: klien mengira tersimpan, server menyimpan pola tanpa baris.
+     *
+     * Nama **dan** id tetap dengan sengaja. Repositori pola di sini adalah Postgres pengembang
+     * (`module()` belum menyuntik `PrototypePatternRepository`, lihat catatan di plan §4), sementara
+     * `ops.prototype_patterns` punya `UNIQUE(name)`: nama baru tiap run akan membuat run kedua ditolak
+     * 409 dan meninggalkan satu baris sampah per eksekusi suite.
+     */
+    @Test
+    fun `payload studio dari klien tersimpan utuh dan urut`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        val saved = client.post("/api/discovery/patterns") {
+            asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json)
+            setBody(
+                """{"id":"pattern-klien-uji","name":"Pola Uji Klien","widget":"CUSTOM_SCREEN","packCode":null,""" +
+                    """"pattern":{"rows":[{"Blok":"Ringkasan","Lebar":"penuh"},{"Blok":"Daftar","Lebar":"separuh"}]}}"""
+            )
+        }
+        assertEquals(HttpStatusCode.Created, saved.status)
+
+        val listed = client.get("/api/discovery/patterns") { asTenant(garmentSlug) }.bodyAsText()
+        assertTrue(listed.contains("\"name\":\"Pola Uji Klien\""))
+        assertTrue(listed.contains("\"widget\":\"CUSTOM_SCREEN\""))
+        // Urutan baris menentukan pasangan blok di pratinjau → urutan harus selamat di JSONB.
+        assertTrue(listed.indexOf("Ringkasan") < listed.indexOf("Daftar"), "Urutan baris pola harus utuh")
+    }
+
+    @Test
+    fun `pdf blueprint memakai tiket pendek dan gerbang pemilik`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        // Draf prospek (pemiliknya = pengguna token garment-uji).
+        val created = client.post("/api/discovery/drafts") {
+            asTenant(garmentSlug); contentType(ContentType.Application.Json)
+            setBody("""{"id":"draft-pdf-1","narrative":"Klinik gigi dengan antrean pasien per poli.","industryHint":"klinik"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status)
+
+        val pdfPath = "/api/discovery/drafts/draft-pdf-1/blueprint.pdf"
+
+        // Tanpa sesi dan tanpa tiket: ditolak plugin, bukan menghasilkan PDF.
+        assertEquals(HttpStatusCode.Unauthorized, client.get(pdfPath).status)
+
+        // Pemilik menukar sesinya dengan tiket pendek, lalu membuka PDF **tanpa** header Bearer —
+        // inilah jalur yang dipakai tab browser.
+        val ticketResponse = client.post("/api/discovery/drafts/draft-pdf-1/print-ticket") { asTenant(garmentSlug) }
+        assertEquals(HttpStatusCode.OK, ticketResponse.status)
+        val ticket = JsonParser.parseObject(ticketResponse.bodyAsText()).string("ticket").orEmpty()
+        assertTrue(ticket.isNotBlank(), "Server tidak menerbitkan tiket cetak")
+
+        val pdf = client.get("$pdfPath?ticket=$ticket")
+        assertEquals(HttpStatusCode.OK, pdf.status)
+        assertEquals(ContentType.Application.Pdf, pdf.contentType()?.withoutParameters())
+        assertEquals("private, no-store", pdf.headers[HttpHeaders.CacheControl])
+        val bytes = pdf.bodyAsBytes()
+        assertTrue(bytes.size > 1000, "PDF blueprint terlalu kecil")
+        assertEquals("%PDF", String(bytes.sliceArray(0..3), Charsets.ISO_8859_1))
+
+        // Bearer biasa juga boleh (jalur API), dan superadmin tetap boleh seperti endpoint JSON.
+        assertEquals(HttpStatusCode.OK, client.get(pdfPath) { asTenant(garmentSlug) }.status)
+        assertEquals(HttpStatusCode.OK, client.get(pdfPath) { asSuperadminActingAs(garmentSlug) }.status)
+
+        // Pengguna lain dan tiket draf lain ditolak: gerbang pemilik + cakupan path tiket.
+        assertEquals(HttpStatusCode.Forbidden, client.get(pdfPath) { asTenant(klinikSlug) }.status)
+        val otherDraft = client.post("/api/discovery/drafts") {
+            asTenant(garmentSlug); contentType(ContentType.Application.Json)
+            setBody("""{"id":"draft-pdf-2","narrative":"Klinik kedua dengan kasir.","industryHint":"klinik"}""")
+        }
+        assertEquals(HttpStatusCode.Created, otherDraft.status)
+        val otherTicket = client.post("/api/discovery/drafts/draft-pdf-2/print-ticket") { asTenant(garmentSlug) }
+        val foreignTicket = JsonParser.parseObject(otherTicket.bodyAsText()).string("ticket").orEmpty()
+        // 401, bukan 403: cakupan path di tiket sudah ditolak plugin sebelum rute ini berjalan —
+        // tiket yang bocor dari riwayat browser tidak pernah sampai ke pemeriksaan pemilik draf.
+        assertEquals(HttpStatusCode.Unauthorized, client.get("$pdfPath?ticket=$foreignTicket").status)
+
+        // Tiket untuk draf yang tidak ada tidak bisa diterbitkan.
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.post("/api/discovery/drafts/draft-hantu/print-ticket") { asTenant(garmentSlug) }.status
+        )
+    }
+
+    @Test
+    fun `narasi tercatat di buku demand dan kandidat rule of three terbaca superadmin saja`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        application { app(tenants, InMemoryDiscoveryDraftRepository()) }
+
+        // Tiga prospek (draf berbeda) memakai istilah "gigi" yang belum punya modul di pack mana pun.
+        listOf(
+            """{"id":"draft-demand-1","narrative":"Klinik gigi dengan antrean pasien.","industryHint":"klinik"}""",
+            """{"id":"draft-demand-2","narrative":"Klinik gigi anak dengan jadwal dokter gigi.","industryHint":"klinik"}""",
+            """{"id":"draft-demand-3","narrative":"Klinik gigi lengkap dengan rekam medis.","industryHint":"klinik"}"""
+        ).forEach { body ->
+            assertEquals(
+                HttpStatusCode.Created,
+                client.post("/api/discovery/drafts") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody(body) }.status
+            )
+        }
+
+        // Sinyal produk milik platform: pengguna biasa tidak boleh membaca buku demand.
+        assertEquals(HttpStatusCode.Forbidden, client.get("/api/discovery/demands") { asTenant(garmentSlug) }.status)
+
+        val response = client.get("/api/discovery/demands") { asSuperadminActingAs(garmentSlug) }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val obj = JsonParser.parseObject(response.bodyAsText())
+        val candidates = obj.array("candidates").filterIsInstance<JsonValue.Obj>()
+        val gigi = candidates.singleOrNull { it.string("term") == "gigi" }
+        assertTrue(gigi != null, "istilah gigi harus jadi kandidat: $candidates")
+        assertEquals(3, gigi.int("demandCount"), "tiga demand berbeda: $candidates")
+        // Demand tercatat lengkap: narasi verbatim + apa yang bisa diekspresikan agent.
+        val demands = obj.array("demands").filterIsInstance<JsonValue.Obj>()
+        assertEquals(3, demands.size)
+        assertTrue(demands.all { it.string("narrative")?.contains("gigi") == true })
+        assertTrue(demands.first().array("matchedModules").isNotEmpty(), "modul hasil agent tercatat")
+    }
+
     private fun io.ktor.server.application.Application.app(
         tenants: InMemoryTenantRepository,
-        drafts: InMemoryDiscoveryDraftRepository
+        drafts: InMemoryDiscoveryDraftRepository,
+        demands: InMemoryDiscoveryDemandRepository = InMemoryDiscoveryDemandRepository()
     ) = module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),
         entitlementRepository = InMemoryTenantEntitlementRepository(), roleRepository = InMemoryRoleRepository(),
         moduleAssignmentRepository = InMemoryModuleAssignmentRepository(), departmentRepository = InMemoryDepartmentRepository(),
         employeeRepository = InMemoryEmployeeRepository(), auditLogRepository = InMemoryAuditLogRepository(),
-        domainPackRepository = InMemoryDomainPackRepository(), discoveryDraftRepository = drafts)
+        domainPackRepository = InMemoryDomainPackRepository(), discoveryDraftRepository = drafts,
+        discoveryDemandRepository = demands)
 
     /** Dokumen klinik yang sama dengan keluaran agent deterministik — jadi PUT identik selalu sah. */
     private fun currentDocument() = runBlocking {

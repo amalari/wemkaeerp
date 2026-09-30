@@ -107,4 +107,19 @@ class GarmentModulesParityTest {
         GarmentDomainPack.pack.moduleIds.forEach { assertEquals(it.name, ModuleId(it.code).storedName, it.code) }
         assertEquals(GarmentDomainPack.pack.moduleIds.map { it.code }, pack.modules.map { it.id.value })
     }
+
+    /**
+     * A4: label aksi & istilah chrome adalah **data pack**, dan pack garment menyalinnya persis dari layar
+     * generik B6e — tenant garment tidak boleh melihat perbedaan sedikit pun. Tabel emas ini yang mengunci
+     * katanya, supaya perubahan berikutnya harus disengaja.
+     */
+    @Test
+    fun actionsAndVocabulary_equalLegacyChromeWording() {
+        assertEquals(
+            listOf("ADD|Tambah Pesanan", "EDIT|Input Progres", "APPROVE|Setujui SPK", "DELETE|Hapus Data"),
+            pack.actions.map { "${it.code.name}|${it.label}" }
+        )
+        assertEquals("pabrik", pack.term(VocabularyKey.WORKPLACE))
+        assertEquals("Dokumen", pack.term(VocabularyKey.DOCUMENT))
+    }
 }

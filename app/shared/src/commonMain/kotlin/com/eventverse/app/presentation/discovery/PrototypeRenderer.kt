@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -32,6 +33,20 @@ fun PrototypeRenderer(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
+        if (draft.screens.isEmpty()) {
+            // Draf tanpa layar bukan kegagalan render: agent deterministik memang tidak mengusulkan
+            // deskriptor layar. Tanpa pesan ini, prospek hanya melihat judul "Pratinjau Layar" yang
+            // menggantung tanpa penjelasan.
+            ClayCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Draf ini belum punya layar pratinjau. Deskriptor layar diusulkan oleh agent LLM — " +
+                        "jalankan server dengan DISCOVERY_AGENT=koog dan DEEPSEEK_API_KEY terisi untuk melihatnya, " +
+                        "atau pilih pola Studio setelah modul dibangun.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+            }
+        }
         draft.screens.forEach { screen ->
             val module = draft.modules.firstOrNull { it.id == screen.moduleId }
             PrototypeScreenCard(
@@ -68,6 +83,7 @@ private fun PrototypeScreenCard(
                     WidgetKind.FORM, WidgetKind.TABLE -> WeMadeColors.Primary
                     WidgetKind.KANBAN -> WeMadeColors.Accent
                     WidgetKind.DASHBOARD -> WeMadeColors.Success
+                    WidgetKind.CUSTOM_SCREEN -> WeMadeColors.Purple
                     else -> WeMadeColors.OnSurfaceMuted
                 },
                 dot = true
@@ -75,8 +91,13 @@ private fun PrototypeScreenCard(
         }
 
         if (rows.isEmpty()) {
+            // Satu-satunya jalan ke sini: modul layar tidak ada di pack, atau kode widget di luar
+            // kosakata v1 (validator menolaknya, tapi renderer tidak boleh menebak). Kalimat lama
+            // ("menyusul setelah pola Studio dipilih") menyesatkan begitu CUSTOM_SCREEN punya
+            // kerangka sendiri — ia menyalahkan prospek atas keadaan yang bukan salahnya.
             Text(
-                "Pratinjau layar kustom — menyusul setelah pola Studio dipilih.",
+                "Layar ini belum bisa dipratinjau: \"$widget\" tidak punya contoh tata letak, " +
+                    "atau modulnya tidak ada di pak ini.",
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
@@ -157,6 +178,31 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                 }
             }
         }
+        WidgetKind.CUSTOM_SCREEN -> Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+            // Kerangka, bukan isi: blok "penuh" berdiri sendiri, blok "separuh" dipasangkan dengan
+            // tetangga berikutnya. Aturan pemasangan tinggal di renderer, bukan di sample — sample
+            // cukup menyatakan blok apa yang ada.
+            var index = 0
+            while (index < rows.size) {
+                val baris = rows[index]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                ) {
+                    if (baris["Lebar"] == "penuh") {
+                        CustomScreenBlock(baris["Blok"].orEmpty(), Modifier.fillMaxWidth())
+                    } else {
+                        CustomScreenBlock(baris["Blok"].orEmpty(), Modifier.weight(1f))
+                        val pasangan = rows.getOrNull(index + 1)?.takeIf { it["Lebar"] != "penuh" }
+                        if (pasangan != null) {
+                            CustomScreenBlock(pasangan["Blok"].orEmpty(), Modifier.weight(1f))
+                            index++
+                        }
+                    }
+                }
+                index++
+            }
+        }
         else -> Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             // TABLE & PRINT: tabel sederhana — baris pertama jadi pasangan judul–isi.
             rows.firstOrNull()?.forEach { (kolom, isi) ->
@@ -176,3 +222,22 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
         }
     }
 }
+
+/**
+ * Satu blok kerangka layar rancangan bebas — dipisah supaya [WidgetBody] tetap terbaca sebagai
+ * susunan, bukan sebagai detail gaya. Rata (tanpa bayangan) karena ia menggambarkan *isi* kartu,
+ * bukan kartu di atas kartu.
+ */
+@Composable
+private fun CustomScreenBlock(label: String, modifier: Modifier = Modifier) {
+    Text(
+        text = label,
+        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            .background(WeMadeColors.SurfaceMuted.copy(alpha = 0.14f), ClayShapes.Tile)
+            .padding(ClaySpacing.Md)
+    )
+}
+

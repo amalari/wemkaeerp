@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 
 /**
  * Gerbang bertingkat untuk ketiga layar tata kelola (Bagan Organisasi, Hak Akses, Alur Pabrik).
@@ -60,7 +62,11 @@ fun GovernanceModuleGate(
 
     when {
         decision.blockedByEntitlement -> GateMessage {
-            ModuleNotEntitledCard(moduleName = screen.title, tenantName = tenantName)
+            ModuleNotEntitledCard(
+                moduleName = screen.title,
+                tenantName = tenantName,
+                workplace = ActiveTenantPack.current.term(VocabularyKey.WORKPLACE)
+            )
         }
 
         !decision.config.isAccessible -> GateMessage {

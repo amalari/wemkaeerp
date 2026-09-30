@@ -2,6 +2,7 @@ package com.eventverse.app.infrastructure.auth
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.eventverse.app.domain.tenant.TenantId
 import java.util.*
 
@@ -26,13 +27,14 @@ class PrintTicketService(
     private val verifier = JWT.require(algorithm).withIssuer(ISSUER).build()
 
     /** [scopePath] adalah prefiks path yang boleh dibuka, mis. `/api/tenant/traceability/work-orders/SAMPLING/x`. */
-    fun issue(subject: String, tenantId: TenantId, scopePath: String): String {
+    fun issue(subject: String, tenantId: TenantId, scopePath: String, platformSuperadmin: Boolean = false): String {
         val now = Date()
         return JWT.create()
             .withIssuer(ISSUER)
             .withSubject(subject)
             .withClaim(CLAIM_TENANT, tenantId.value)
             .withClaim(CLAIM_SCOPE, scopePath)
+            .withClaim(CLAIM_PLATFORM_SUPERADMIN, platformSuperadmin)
             .withIssuedAt(now)
             .withExpiresAt(Date(now.time + validityMillis))
             .sign(algorithm)
@@ -40,10 +42,29 @@ class PrintTicketService(
 
     /** Tenant tiket, atau `null` bila tiket tidak sah, kedaluwarsa, atau bukan untuk [requestPath]. */
     fun verify(ticket: String, requestPath: String): TenantId? {
+        val decoded = decode(ticket, requestPath) ?: return null
+        return decoded.getClaim(CLAIM_TENANT).asString()?.takeIf { it.isNotBlank() }?.let(::TenantId)
+    }
+
+    /**
+     * Pemilik tiket, atau `null` bila tiket tidak sah/kedaluwarsa/bukan untuk [requestPath].
+     *
+     * Dipakai rute platform yang gerbangnya **kepemilikan dokumen**, bukan keanggotaan tenant: draf
+     * discovery milik satu pengguna (T12), dan tab browser yang membukanya tidak bisa membawa Bearer.
+     * `isPlatformSuperadmin` ikut dibawa supaya superadmin yang boleh membaca draf orang lain di API
+     * juga boleh mengunduhnya lewat tautan — dulu gerbang yang sama berbunyi sama di dua tempat.
+     */
+    fun verifyUser(ticket: String, requestPath: String): PrintTicketUser? {
+        val decoded = decode(ticket, requestPath) ?: return null
+        val userId = decoded.subject?.takeIf { it.isNotBlank() } ?: return null
+        return PrintTicketUser(userId, decoded.getClaim(CLAIM_PLATFORM_SUPERADMIN).asBoolean() ?: false)
+    }
+
+    private fun decode(ticket: String, requestPath: String): DecodedJWT? {
         val decoded = runCatching { verifier.verify(ticket) }.getOrNull() ?: return null
         val scope = decoded.getClaim(CLAIM_SCOPE).asString()?.takeIf { it.isNotBlank() } ?: return null
         if (!requestPath.endsWith(".pdf") || !requestPath.startsWith("$scope/")) return null
-        return decoded.getClaim(CLAIM_TENANT).asString()?.takeIf { it.isNotBlank() }?.let(::TenantId)
+        return decoded
     }
 
     companion object {
@@ -51,5 +72,15 @@ class PrintTicketService(
         private const val ISSUER = "wemade-erp-print"
         private const val CLAIM_TENANT = "tenant_id"
         private const val CLAIM_SCOPE = "scope"
+        private const val CLAIM_PLATFORM_SUPERADMIN = "platform_superadmin"
     }
 }
+
+/**
+ * Identitas yang dibawa tiket cetak pada rute per-pengguna.
+ *
+ * Sengaja bukan `CallerPrincipal`: tiket tidak membawa peran RBAC maupun divisi, dan membuatnya
+ * tampak seolah membawa akan mengundang pemeriksaan wewenang yang salah di rute baru.
+ */
+data class PrintTicketUser(val userId: String, val isPlatformSuperadmin: Boolean)
+

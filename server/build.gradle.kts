@@ -50,6 +50,13 @@ dependencies {
     // Object storage (S3-compatible / MinIO) untuk berkas PO yang di-upload
     implementation(libs.awssdk.s3)
 
+    // Agent LLM discovery (plan §2 A8, keputusan D4). **Hanya `server`** yang menanggung kerangka ini:
+    // `core` tetap murni tanpa framework (DDD §2 DDD-1), dan kontraknya sudah ada di domain sebagai
+    // `DiscoveryAgent`. `koog:1.3.0` tidak menarik kotlinx-datetime, jadi versi 0.6.2 repo ini aman.
+    implementation(libs.koog.agents)
+    // Klien provider DeepSeek (kunci: `DEEPSEEK_API_KEY`). Versi klien dipublikasikan terpisah dari inti.
+    implementation(libs.koog.deepseekClient)
+
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
 }

@@ -39,8 +39,36 @@ class PrintTicketServiceTest {
         assertTrue(JwtTokenService(secret = SECRET).verifyToken(ticket).isFailure)
     }
 
+    @Test
+    fun `verifyUser mengembalikan pemilik tiket dan penanda superadmin`() {
+        val owner = service.issue("usr-prospek", tenant, DRAFT_SCOPE)
+        assertEquals(PrintTicketUser("usr-prospek", isPlatformSuperadmin = false), service.verifyUser(owner, "$DRAFT_SCOPE/blueprint.pdf"))
+
+        val admin = service.issue("usr-superadmin", tenant, DRAFT_SCOPE, platformSuperadmin = true)
+        assertEquals(PrintTicketUser("usr-superadmin", isPlatformSuperadmin = true), service.verifyUser(admin, "$DRAFT_SCOPE/blueprint.pdf"))
+    }
+
+    @Test
+    fun `verifyUser menolak draf lain non pdf dan tiket kedaluwarsa`() {
+        assertNull(service.verifyUser(ticket, "/api/discovery/drafts/draft-lain/blueprint.pdf"))
+        assertNull(service.verifyUser(ticket, "$DRAFT_SCOPE/price"))
+        val expired = PrintTicketService(secret = SECRET, validityMillis = -1_000L)
+            .issue("usr-prospek", tenant, DRAFT_SCOPE)
+        assertNull(service.verifyUser(expired, "$DRAFT_SCOPE/blueprint.pdf"))
+    }
+
+    @Test
+    fun `tiket draf tidak membuka pdf tenant lain`() {
+        // Cakupan path adalah pengamannya, bukan tenant-nya: tiket yang bocor dari riwayat browser
+        // hanya boleh membuka berkas yang diterbitkannya.
+        val draftTicket = service.issue("usr-prospek", tenant, DRAFT_SCOPE)
+        assertNull(service.verify(draftTicket, "$SCOPE/spk-card.pdf"))
+        assertNull(service.verifyUser(draftTicket, "$SCOPE/labels.pdf"))
+    }
+
     private companion object {
         const val SECRET = "test-secret-test-secret-test-secret-32"
         const val SCOPE = "/api/tenant/traceability/work-orders/SAMPLING/smp-seed-0050-s"
+        const val DRAFT_SCOPE = "/api/discovery/drafts/draft-1"
     }
 }

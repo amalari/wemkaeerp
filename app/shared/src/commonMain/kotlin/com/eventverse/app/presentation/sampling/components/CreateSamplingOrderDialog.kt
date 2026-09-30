@@ -85,7 +85,10 @@ fun CreateSamplingOrderDialog(
                     modifier = Modifier.weight(1f),
                     shape = ClayShapes.Tile,
                     selected = sizeMode == SizeMode.ALL_SIZE,
-                    containerColor = if (sizeMode == SizeMode.ALL_SIZE) WeMadeColors.Primary.copy(alpha = 0.12f) else WeMadeColors.Surface,
+                    // Isi **opaque** + outline berperan: isi transparan akan menampakkan bayangan
+                    // hard di belakangnya (lihat KDoc `ClayCard`).
+                    containerColor = if (sizeMode == SizeMode.ALL_SIZE) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                    outlineColor = if (sizeMode == SizeMode.ALL_SIZE) WeMadeColors.Primary else WeMadeColors.Outline,
                     contentPadding = PaddingValues(ClaySpacing.Sm),
                     onClick = { sizeMode = SizeMode.ALL_SIZE }
                 ) {
@@ -106,7 +109,8 @@ fun CreateSamplingOrderDialog(
                     modifier = Modifier.weight(1f),
                     shape = ClayShapes.Tile,
                     selected = sizeMode == SizeMode.MULTI_SIZE,
-                    containerColor = if (sizeMode == SizeMode.MULTI_SIZE) WeMadeColors.Primary.copy(alpha = 0.12f) else WeMadeColors.Surface,
+                    containerColor = if (sizeMode == SizeMode.MULTI_SIZE) WeMadeColors.PrimaryContainer else WeMadeColors.Surface,
+                    outlineColor = if (sizeMode == SizeMode.MULTI_SIZE) WeMadeColors.Primary else WeMadeColors.Outline,
                     contentPadding = PaddingValues(ClaySpacing.Sm),
                     onClick = { sizeMode = SizeMode.MULTI_SIZE }
                 ) {

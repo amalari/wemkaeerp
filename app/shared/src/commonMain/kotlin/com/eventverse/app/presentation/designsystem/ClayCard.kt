@@ -28,6 +28,12 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  *   sehingga seleksi terbaca dari bentuk, bukan cuma dari warna outline.
  * - **Kartu tidak memenuhi seluruh kotak yang dialokasikan** — [ClayOffset] di kanan dan bawah
  *   disisihkan untuk bayangan. Ini disengaja; lihat [claySurface].
+ * - **[containerColor] wajib opaque.** Bayangan hard digambar tepat di belakang kartu, jadi
+ *   `WeMadeColors.X.copy(alpha = …)` sebagai isi kartu akan **menampakkan bayangan menembus
+ *   kartu** — kartunya tampak navy gelap, bukan redup, dan teks kelabu di atasnya jadi tidak
+ *   terbaca. Untuk meredupkan kartu, pakai token opaque (`WeMadeColors.SurfaceMuted`) dan bedakan
+ *   peran lewat [outlineColor]/warna teks. Jebakan ini ketahuan lewat pengecekan mata, bukan
+ *   kompilasi.
  */
 @Composable
 fun ClayCard(

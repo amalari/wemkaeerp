@@ -144,6 +144,7 @@ fun Application.module(
     prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
     flowTranslator: FlowTranslator? = null,
     discoveryDraftRepository: com.eventverse.app.domain.discovery.DiscoveryDraftRepository? = null,
+    discoveryDemandRepository: com.eventverse.app.domain.discovery.DiscoveryDemandRepository? = null,
     crmLeadRepository: CrmLeadRepository? = null,
     contactRepository: com.eventverse.app.domain.crm.ContactRepository? = null,
     dealRepository: com.eventverse.app.domain.deal.DealRepository? = null,
@@ -179,8 +180,7 @@ fun Application.module(
     val catalogRepo = moduleCatalogRepository ?: PostgresModuleCatalogRepository()
     val buildRepo = moduleBuildRepository ?: PostgresModuleBuildRepository()
     val quoteRepo = modulePricingQuoteRepository ?: PostgresModulePricingQuoteRepository()
-    val customizationRequestRepo =
-        moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
+    val customizationRequestRepo = moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
     val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
     val crmContactRepo = contactRepository ?: PostgresContactRepository()
@@ -547,7 +547,7 @@ fun Application.module(
             probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo,
-            prototypePatterns = com.eventverse.app.infrastructure.PostgresPrototypePatternRepository(),
+            discoveryDemands = discoveryDemandRepository,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo,

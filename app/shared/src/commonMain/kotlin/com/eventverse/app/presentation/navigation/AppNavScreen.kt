@@ -194,6 +194,21 @@ enum class AppNavScreen(
     ),
 
     /**
+     * Fase C: Studio pola prototype — alat **internal**, bukan funnel prospek. Gerbang sesinya sama
+     * dengan [DISCOVERY] (keduanya platform, bukan modul); yang membedakan hanya wewenang menulis,
+     * dan itu ditentukan server (`POST /api/discovery/patterns` menolak non-superadmin).
+     *
+     * Rutenya sengaja di bawah `/discovery/` supaya `fromPath` memilihnya lewat pencocokan prefiks
+     * terpanjang, bukan lewat daftar alias.
+     */
+    DISCOVERY_STUDIO(
+        route = "/discovery/studio",
+        title = "Studio Pola Prototipe",
+        aliases = listOf("/studio-pola", "/discovery/patterns"),
+        isNavMenuItem = false
+    ),
+
+    /**
      * Rute generik `/m/{code}` (B6f) untuk modul pack yang belum punya layar khusus. Gerbangnya modul dari path,
      * bukan field ini — satu entri melayani semua modul data-only.
      */

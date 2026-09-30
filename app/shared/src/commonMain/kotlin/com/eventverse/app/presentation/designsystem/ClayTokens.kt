@@ -111,6 +111,17 @@ object ClayBreakpoints {
 /** Lebar panel dalam layar master-detail. */
 object ClayPaneWidth {
     val List: Dp = 380.dp
+
+    /**
+     * Lebar satu kolom **papan** di dalam kanvas yang menggulir mendatar (swimlane Factory Flow,
+     * peta modul Studio Discovery, papan kanban).
+     *
+     * Wajib lebar tetap, **bukan** `fillMaxWidth(fraction)`: di dalam `Row` ber-`horizontalScroll`
+     * lebar maksimum adalah tak hingga, sehingga `fillMaxWidth` diabaikan dan kolom menyusut ke
+     * lebar intrinsiknya — teks lalu pecah satu huruf per baris. Nilainya lebih besar dari lebar
+     * teks biasa karena clay memakan ~18dp per kartu (outline 3dp + bayangan 6dp).
+     */
+    val Board: Dp = 260.dp
 }
 
 /**

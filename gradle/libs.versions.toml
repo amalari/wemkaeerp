@@ -27,6 +27,12 @@ pdfbox = "3.0.3"
 zxing = "3.5.3"
 poi = "5.4.1"
 awssdk = "2.25.60"
+# Kerangka agent LLM (plan A8). Hanya `server` yang memakainya — `core` tetap bebas framework.
+# 1.3.0 tidak lagi bergantung pada kotlinx-datetime, jadi tidak berbenturan dengan 0.6.2 di repo ini.
+koog = "1.3.0"
+# Klien DeepSeek dipublikasikan menyusul inti Koog (ia hanya lapisan tipis di atas openai-client-base
+# 1.3.0, provider & jalur HTTP-nya sengaja tetap dari Koog, bukan disalin ke sini).
+koog-deepseek = "1.3.0-beta"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -70,6 +76,8 @@ pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
 awssdk-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awssdk" }
+koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
+koog-deepseekClient = { module = "ai.koog:prompt-executor-deepseek-client", version.ref = "koog-deepseek" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

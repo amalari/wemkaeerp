@@ -94,15 +94,18 @@ object DatabaseFactory {
      * tables, which is most of the reason it is safe to point request handling at it.
      */
     private fun connectTenantScopedPool(jdbcUrl: String, maximumPoolSize: Int) {
-        val appUser = System.getenv("DB_APP_USER")
-        val appPassword = System.getenv("DB_APP_PASSWORD")
+        // Dibaca lewat [EnvLoader], **bukan** `System.getenv`: nilai yang sudah ditulis di `.env`
+        // harus berlaku juga untuk `./gradlew :server:run` dan `:server:test`. Selama kedua jalur ini
+        // memakai `System.getenv`, penegakan RLS tampak selesai padahal tidak pernah aktif di dev.
+        val appUser = EnvLoader.get("DB_APP_USER").takeIf { it.isNotBlank() }
+        val appPassword = EnvLoader.get("DB_APP_PASSWORD").takeIf { it.isNotBlank() }
 
         if (appUser.isNullOrBlank() || appPassword.isNullOrBlank()) {
             println(
                 "[DatabaseFactory] DB_APP_USER is not set; tenant-scoped queries will run as the " +
                         "owner role. PostgreSQL bypasses Row-Level Security for superusers, so tenant " +
                         "isolation currently depends on application code alone. Set DB_APP_USER / " +
-                        "DB_APP_PASSWORD to wemade_app (created in V16) to enforce it in the database."
+                        "DB_APP_PASSWORD to wemade_app (created in V16) — in the environment or in .env."
             )
             return
         }
@@ -121,6 +124,9 @@ object DatabaseFactory {
         val ds = HikariDataSource(config)
         appDataSource = ds
         appDatabase = Database.connect(ds)
+        // Diumumkan positif, bukan hanya kegagalannya: "tidak ada peringatan" tidak bisa dibedakan
+        // dari "peringatan tidak tercetak" saat memverifikasi penegakan RLS.
+        println("[DatabaseFactory] tenant-scoped pool active as '$appUser'; RLS enforced by PostgreSQL.")
     }
 
     fun runFlywayMigration(ds: DataSource) {
@@ -168,5 +174,5 @@ object DatabaseFactory {
     }
 
     private fun getEnvOrDefault(name: String, default: String): String =
-        System.getenv(name) ?: default
+        EnvLoader.get(name).takeIf { it.isNotBlank() } ?: default
 }

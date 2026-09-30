@@ -6,15 +6,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayPaneWidth
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
@@ -40,7 +43,7 @@ fun ModuleMapPane(
             val inSection = draft.modules.filter { it.section == section }
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.3f)
+                    .width(ClayPaneWidth.Board)
                     .background(WeMadeColors.SurfaceMuted.copy(alpha = 0.14f), ClayShapes.Panel)
                     .padding(ClaySpacing.Md),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
@@ -54,8 +57,11 @@ fun ModuleMapPane(
                 inSection.forEach { module ->
                     ClayCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = if (module.active) WeMadeColors.Surface else WeMadeColors.SurfaceMuted.copy(alpha = 0.12f),
-                        outlineColor = if (module.active) WeMadeColors.Primary else WeMadeColors.Outline
+                        // Peredupan modul non-aktif memakai token **opaque**, bukan `.copy(alpha = …)`:
+                        // bayangan hard digambar tepat di belakang kartu, jadi warna transparan akan
+                        // menampakkan bayangan menembus kartu (kartu tampak navy gelap, bukan redup).
+                        containerColor = if (module.active) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
+                        outlineColor = if (module.active) WeMadeColors.Primary else WeMadeColors.OutlineSoft
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -67,7 +73,8 @@ fun ModuleMapPane(
                                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                     fontWeight = if (module.active) FontWeight.Bold else FontWeight.Normal,
                                     color = if (module.active) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted,
-                                    maxLines = 2
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             if (module.active) {
@@ -104,7 +111,8 @@ fun DataFlowPane(
                             text = "Masuk: ${module.slotInput ?: "—"}  •  Keluar: ${module.slotOutput ?: "—"}",
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                             color = WeMadeColors.OnSurfaceMuted,
-                            maxLines = 2
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     ClayBadge(

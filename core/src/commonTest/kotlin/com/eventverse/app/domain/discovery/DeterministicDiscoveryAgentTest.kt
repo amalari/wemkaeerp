@@ -2,6 +2,8 @@ package com.eventverse.app.domain.discovery
 
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.ModuleActionCode
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -59,5 +61,32 @@ class DeterministicDiscoveryAgentTest {
     fun `kode pack dari narasi tanpa petunjuk tetap sah dan bukan garment`() = runTest {
         val draft = agent.draft(DiscoveryRequest("Usaha jasa bengkel servis motor dengan pesanan booking.")).getOrThrow()
         assertEquals("bengkel", draft.pack.code.value)
+    }
+
+    /**
+     * A4: draf yang lahir dari narasi langsung berbicara bahasa vertikalnya, dan **tidak pernah** membawa
+     * kosakata konveksi ke tenant lain — dulu chrome `/m/{code}` menulis "pabrik"/"SPK" sendiri.
+     */
+    @Test
+    fun `draf klinik memakai istilah klinik dan bebas kosakata konveksi`() = runTest {
+        val draft = agent.draft(DiscoveryRequest("Klinik gigi dengan antrean pasien per poli dan kasir.", industryHint = "klinik")).getOrThrow()
+
+        assertEquals("klinik", draft.pack.term(VocabularyKey.WORKPLACE))
+        assertEquals("Kunjungan", draft.pack.term(VocabularyKey.DOCUMENT))
+        assertEquals("Tambah Kunjungan", draft.pack.actionLabel(ModuleActionCode.ADD))
+
+        val words = draft.pack.actions.map { it.label } + VocabularyKey.entries.map { draft.pack.term(it) }
+        assertTrue(words.none { it.lowercase().contains("pabrik") }, "Draf klinik tidak boleh menyebut pabrik: $words")
+        assertTrue(words.none { it.lowercase().contains("spk") }, "…apalagi SPK: $words")
+    }
+
+    /** Vertikal tak dikenal tetap aman: chrome memakai kata netral platform, bukan kata konveksi. */
+    @Test
+    fun `draf vertikal tak dikenal memakai istilah netral`() = runTest {
+        val draft = agent.draft(DiscoveryRequest("Usaha jasa kustom dengan pesanan harian.")).getOrThrow()
+
+        assertEquals(VocabularyKey.WORKPLACE.neutral, draft.pack.term(VocabularyKey.WORKPLACE))
+        assertEquals("Tambah", draft.pack.actionLabel(ModuleActionCode.ADD))
+        assertEquals(ModuleActionCode.neutral, draft.pack.actions)
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -26,12 +27,16 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * admin pabrik lewat matriks RBAC, entitlement diatur superadmin platform lewat pengaturan tenant.
  * Menyamakan pesannya akan mengirim admin menyisir layar RBAC untuk masalah yang tidak akan pernah
  * bisa diselesaikan di sana.
+ *
+ * [workplace] = istilah pack untuk tempat kerja pemakainya (A4): `"pabrik"` di konveksi, `"klinik"`
+ * di klinik. Bawaannya kata netral [`VocabularyKey.WORKPLACE`], **bukan** kata konveksi.
  */
 @Composable
 fun ModuleNotEntitledCard(
     moduleName: String,
     tenantName: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    workplace: String = VocabularyKey.WORKPLACE.neutral
 ) {
     ClayCard(
         modifier = modifier.fillMaxWidth().widthIn(max = 640.dp),
@@ -70,7 +75,7 @@ fun ModuleNotEntitledCard(
             )
             Text(
                 text = "Hubungi administrator platform WeMade untuk mengaktifkan modul ini bagi " +
-                    "pabrik Anda.",
+                    "$workplace Anda.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )

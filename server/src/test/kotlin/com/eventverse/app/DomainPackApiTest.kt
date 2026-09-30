@@ -6,6 +6,8 @@ import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.pack.ModuleAction
+import com.eventverse.app.domain.pack.ModuleActionCode
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
@@ -15,6 +17,7 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
+import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
@@ -50,6 +53,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * **Bukti B7** (TRD-PLAT-001-tenant-pack AC): vertikal klinik didefinisikan sebagai **dokumen JSON**, disimpan &
@@ -83,7 +87,13 @@ class DomainPackApiTest {
         // Kosakata tenant = pack klinik; tenant garment tetap garment.
         val pack = DomainPackCodec.decode(client.get("/api/tenant/pack") { asTenant(klinikSlug) }.bodyAsText())
         assertEquals(KLINIK, pack)
+        // A4: istilah & label aksi ikut perjalanan lewat route — bukan hanya ada di kode klien.
+        assertEquals("klinik", pack.term(VocabularyKey.WORKPLACE))
+        assertEquals("Tambah Kunjungan", pack.actionLabel(ModuleActionCode.ADD))
+        assertTrue(pack.actions.none { action -> action.label.contains("SPK") }, pack.actions.map { it.label }.toString())
         assertEquals(GarmentDomainPack.CODE, DomainPackCodec.decode(client.get("/api/tenant/pack") { asTenant(garmentSlug) }.bodyAsText()).code)
+        // …dan tenant garment di server yang sama tetap berbicara garment.
+        assertEquals("pabrik", GarmentDomainPack.pack.term(VocabularyKey.WORKPLACE))
 
         // Menu pemilik tenant klinik: tepat modul pack klinik.
         val access = AccessDecisionCodec.decode(JsonParser.parseObject(client.get("/api/tenant/me/access") { asTenant(klinikSlug) }.bodyAsText()))
@@ -141,7 +151,16 @@ class DomainPackApiTest {
                 ModuleDefinition(ModuleId("klinik_antrean"), "Antrean Pasien", "Antrean pendaftaran & poli", ModuleSectionCode("LAYANAN"),
                     ModuleKind.OPERATIONAL, "clipboard", ScopeCapability.HIERARCHICAL,
                     setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("klinik_layanan"))
-            )
+            ),
+            // A4: istilah chrome & label aksi = data pack. Klinik memakai bahasanya sendiri; kata konveksi
+            // ("SPK", "pabrik") tidak boleh datang dari sini.
+            actions = listOf(
+                ModuleAction(ModuleActionCode.ADD, "Tambah Kunjungan"),
+                ModuleAction(ModuleActionCode.EDIT, "Ubah Kunjungan"),
+                ModuleAction(ModuleActionCode.APPROVE, "Setujui Kunjungan"),
+                ModuleAction(ModuleActionCode.DELETE, "Hapus Kunjungan")
+            ),
+            vocabulary = mapOf(VocabularyKey.WORKPLACE to "klinik", VocabularyKey.DOCUMENT to "Kunjungan")
         )
     }
 }
