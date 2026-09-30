@@ -9,9 +9,13 @@ import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.usecases.CreateDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.EndDiscoveryPreviewUseCase
+import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.LockDiscoveryDraftUseCase
+import com.eventverse.app.domain.discovery.usecases.PriceDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.StartDiscoveryPreviewUseCase
+import com.eventverse.app.domain.discovery.usecases.SubmitDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
+import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
@@ -48,7 +52,10 @@ import kotlinx.datetime.Clock
 fun Route.discoveryRoutes(
     repository: DiscoveryDraftRepository,
     agent: DiscoveryAgent,
-    tenantRepository: TenantRepository
+    tenantRepository: TenantRepository,
+    priceDraft: PriceDiscoveryDraftUseCase,
+    submitDraft: SubmitDiscoveryDraftUseCase,
+    handoffDraft: HandoffDiscoveryDraftUseCase
 ) {
     val create = CreateDiscoveryDraftUseCase(agent, repository)
     val update = UpdateDiscoveryDraftUseCase(repository)
@@ -160,6 +167,81 @@ fun Route.discoveryRoutes(
             endPreview(id, UserId(principal.userId), principal.isPlatformSuperadmin)
                 .onSuccess { call.respondText(jsonObjectOf("ended" to jsonOf(true)).encode(), ContentType.Application.Json) }
                 .onFailure { call.respondText(it.message ?: "Gagal mengakhiri pratinjau", ContentType.Text.Plain, HttpStatusCode.Conflict) }
+        }
+        // B1: estimasi dari draf — berubah bila modul/layar berubah (margin % via query, default 35).
+        get("/{id}/price") {
+            val principal = call.callerPrincipalOrNull ?: return@get unauthorized()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            val existing = repository.findById(id) ?: return@get notFound("Draf tidak ditemukan")
+            if (!mayAccess(principal, existing)) return@get forbidden()
+            val margin = call.request.queryParameters["marginPercent"]?.toDoubleOrNull() ?: 35.0
+            priceDraft(existing.draft, Percentage(margin))
+                .onSuccess {
+                    call.respondText(
+                        jsonObjectOf(
+                            "packCode" to jsonOf(it.packCode.value),
+                            "coveredModuleIds" to jsonArrayOf(it.coveredModuleIds.map(::jsonOf)),
+                            "newModuleIds" to jsonArrayOf(it.newModuleIds.map(::jsonOf)),
+                            "customScreenCount" to jsonOf(it.customScreenCount),
+                            "subscriptionMonthlyIdr" to jsonOf(it.pricing.range.subscriptionMonthly.amount),
+                            "gapLowMonthlyIdr" to (it.pricing.range.gapLowMonthly?.let { g -> jsonOf(g.amount) } ?: com.eventverse.app.shared.json.JsonValue.Null),
+                            "gapHighMonthlyIdr" to (it.pricing.range.gapHighMonthly?.let { g -> jsonOf(g.amount) } ?: com.eventverse.app.shared.json.JsonValue.Null),
+                            "withheld" to jsonOf(!it.pricing.range.isPublishable),
+                            "unpriceableGapCount" to jsonOf(it.pricing.range.unpriceableGapCount)
+                        ).encode(),
+                        ContentType.Application.Json
+                    )
+                }
+                .onFailure { badRequest(it.message ?: "Gagal menghitung estimasi") }
+        }
+
+        // B2: CTA "Bangun Sistem Ini" — wajib LOCKED; draf masuk funnel tim sebagai ProspectLead.
+        post("/{id}/submit") {
+            val principal = call.callerPrincipalOrNull ?: return@post unauthorized()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            val existing = repository.findById(id) ?: return@post notFound("Draf tidak ditemukan")
+            if (!mayAccess(principal, existing)) return@post forbidden()
+            val body = runCatching { JsonParser.parseObject(call.receiveText()) }.getOrNull()
+                ?: return@post badRequest("Body harus JSON objek")
+            val companyName = body.string("companyName")?.trim()?.takeIf { it.isNotBlank() }
+                ?: return@post badRequest("Field 'companyName' wajib diisi")
+            submitDraft(
+                draftId = id, callerUserId = UserId(principal.userId),
+                isPlatformSuperadmin = principal.isPlatformSuperadmin,
+                companyName = companyName, contactName = body.string("contactName"),
+                contactEmail = body.string("contactEmail"), contactPhone = body.string("contactPhone")
+            ).onSuccess {
+                call.respondText(
+                    jsonObjectOf("draftId" to jsonOf(it.draftId.value), "leadId" to jsonOf(it.leadId.value)).encode(),
+                    ContentType.Application.Json, HttpStatusCode.Created
+                )
+            }.onFailure { call.respondText(it.message ?: "Gagal mendaftarkan draf", ContentType.Text.Plain, HttpStatusCode.Conflict) }
+        }
+
+        // B3: handoff otomatis — superadmin saja; buat tenant → kunci pack → tetapkan → salin blueprint.
+        post("/{id}/handoff") {
+            val principal = call.callerPrincipalOrNull ?: return@post unauthorized()
+            if (!principal.isPlatformSuperadmin) return@post forbidden()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            if (repository.findById(id) == null) return@post notFound("Draf tidak ditemukan")
+            val body = runCatching { JsonParser.parseObject(call.receiveText()) }.getOrNull()
+                ?: return@post badRequest("Body harus JSON objek")
+            val tenantSlug = body.string("tenantSlug")?.trim()?.takeIf { it.isNotBlank() }
+                ?: return@post badRequest("Field 'tenantSlug' wajib diisi")
+            val companyName = body.string("companyName")?.trim()?.takeIf { it.isNotBlank() } ?: tenantSlug
+            handoffDraft(id, isPlatformSuperadmin = true, tenantSlug = tenantSlug, companyName = companyName)
+                .onSuccess {
+                    call.respondText(
+                        jsonObjectOf(
+                            "tenantSlug" to jsonOf(it.tenant.slug.value),
+                            "packCode" to jsonOf(it.packCode.value),
+                            "packVersion" to (it.packVersion?.let { v -> jsonOf(v) } ?: com.eventverse.app.shared.json.JsonValue.Null),
+                            "blueprintCode" to jsonOf(it.tenant.businessPreset.code.value)
+                        ).encode(),
+                        ContentType.Application.Json, HttpStatusCode.Created
+                    )
+                }
+                .onFailure { call.respondText(it.message ?: "Gagal handoff", ContentType.Text.Plain, HttpStatusCode.Conflict) }
         }
     }
 }

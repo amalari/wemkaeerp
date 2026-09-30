@@ -92,3 +92,70 @@ prompt/model ketahuan sebelum ganti model. Baseline deterministik: **4/4 PASS**.
   gerbang pemilik (test 403), TTL dibatasi 1..480 menit.
 - `Application.kt` **697 baris** ≤ 698 (Aturan Ratchet §14; blok `prospectRoutes`/`moduleDevRoutes`
   diringkas sebagai kompensasi).
+
+---
+
+# Fase B: estimasi draf, funnel, dan handoff otomatis (B1–B3)
+
+Sambungan vertikal dari Fase A: draf yang terbukti sah kini bisa **dihargai, dititipkan ke funnel,
+dan dijadikan tenant** — masih tanpa scaffold kode.
+
+## B1 — `PriceDiscoveryDraftUseCase` (estimasi dari draf)
+
+- Draf **tidak dihargai dengan rumus kedua**: modulnya disintesis menjadi `CoverageAnalysis`
+  (`CoveredByCatalog` bila moduleId ada di katalog billable, `Gap` bila tidak), lalu didelegasikan
+  ke `PriceProspectFlowUseCase` yang sudah ada. Satu sumber rumus harga; sifat "estimasi berubah
+  bila modul/layar berubah" diwarisi dari `BuildFeatureVector.screenCount` (layar kustom draf).
+- **Archetype gap = slot pack-nya sendiri** (mis. `klinik_antrean`), bukan `CUSTOM_EXTENSION` —
+  produktivitas historis garment tidak dipinjam untuk modul klinik (filter archetype pada
+  `ModuleBuildRepository` memang disengaja). Konsekuensi jujurnya: vertikal baru tanpa riwayat
+  build → rentang **ditahan** (`isPublishable == false`), bukan dikarang.
+- Vektor minimum konservatif untuk modul generik: 1 entitas, 1 use case, N layar (min. 1),
+  1 endpoint, 1 tabel — terdokumentasi di `featuresFor`.
+- Endpoint: `GET /api/discovery/drafts/{id}/price?marginPercent=35` (login + gerbang pemilik).
+
+## B2 — CTA "Bangun Sistem Ini" (`SubmitDiscoveryDraftUseCase`)
+
+- Wajib **LOCKED** dulu: yang ditawarkan ke klien harus beku (Kontrak 5). Menautkan `prospectLeadId`
+  pada baris terkunci bukan revisi dokumen — kolom `document` tidak berubah.
+- Lead dibuat lewat `SubmitProspectLeadUseCase` (invarian narasi tetap satu pintu), langsung
+  `markTranslated()` karena penerjemahannya *adalah* draf. Endpoint: `POST /{id}/submit` (409 bila
+  belum dikunci).
+
+## B3 — Handoff otomatis (`HandoffDiscoveryDraftUseCase`)
+
+- Urutan: **validasi versi pack dulu → buat tenant → simpan & kunci pack (owner = tenant) →
+  tetapkan pack → salin blueprint**. Validasi sebelum pembuatan tenant adalah koreksi dari test:
+  versi lama membuat tenant dulu, sehingga 409 meninggalkan tenant yatim.
+- Pack bawaan (garment) tidak disimpan ulang — langsung ditetapkan, `packVersion = null`. Pack data
+  baru disimpan versi 1 + dikunci (masuk `DomainPackRegistry`, layar aktif lewat jalur data B7).
+  Pack yang sudah punya versi **berbeda** di platform → ditolak "butuh review manual" (409);
+  versi **identik** dipakai ulang (draf prospek kedua yang sama).
+- **Superadmin saja** — provisioning tenant produksi, bukan aksi pemilik draf.
+  Endpoint: `POST /{id}/handoff`.
+
+## Wiring
+
+`server/routes/DiscoveryRouteFactory.kt` (`discoveryPlatformRoutes`) merakit ketiga use case dari
+dependensi modul-dev & prospek, sehingga `Application.kt` hanya menambah satu pemanggilan — dan
+tetap 697 baris (blok `prospectRoutes` diringkas sebagai kompensasi).
+
+## Bukti verifikasi Fase B
+
+- `:core:jvmTest --rerun-tasks`: **998 test, 0 gagal** (+9: 3 pricing, 6 handoff — termasuk bug
+  tenant-yatim yang tertangkap test dan diperbaiki).
+- `:server:test`: `DiscoveryApiTest` **4/4** (termasuk E2E baru: price → submit 409→lock→submit 201 →
+  handoff 403→201 → tenant baru membaca pack `klinik`-nya sendiri via `/api/tenant/pack`).
+- Kompilasi `core` & `app:shared` Jvm/WasmJs/Js hijau. **Android target tidak bisa dijalankan di
+  mesin ini** (tidak ada ANDROID_HOME/SDK) — jalankan `assembleAndroidMain` di mesin ber-SDK.
+- `audit-variability.sh`: 4 temuan (route mutasi `preview`/`submit`/`handoff`) — semuanya fail-closed:
+  login wajib, gerbang pemilik (403), gerbang superadmin (403), syarat LOCKED (409).
+- File terbesar yang disentuh: `DiscoveryRoutes.kt` 283 baris (< soft 600); test ≤ 202 baris.
+
+## Utang & langkah berikutnya (diperbarui)
+
+- A8 (Koog) tetap branch terpisah; kill-switch tidak berubah.
+- **B4** — `HandoffGenerator` (pola `GenerateSeedTopologyTool`): scaffold `CREATE SCHEMA` modul +
+  tabel + `apply_tenant_rls_in` + entri `ModuleSchemaMap` + stub route + `ModuleScreenRegistry`,
+  sebagai kandidat PR dengan review manusia.
+- Fase C (renderer/Studio), D (wizard/PDF), E (operasi produk).

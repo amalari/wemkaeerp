@@ -37,6 +37,7 @@ import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * **Bukti plan §2 A6**: funnel discovery ber-login, draf milik pemiliknya (403 untuk pengguna lain),
@@ -123,6 +124,52 @@ class DiscoveryApiTest {
         assertEquals(HttpStatusCode.OK, client.delete("/api/discovery/drafts/draft-uji-2/preview") { asTenant(garmentSlug) }.status)
         assertEquals(HttpStatusCode.Conflict, client.get("/api/tenant/pack") { asSuperadminActingAs(slug) }.status)
         assertEquals(GarmentDomainPack.pack, DomainPackRegistry.find(GarmentDomainPack.CODE))
+    }
+
+    @Test
+    fun `estimasi submit funnel dan handoff superadmin bekerja end-to-end`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        assertEquals(
+            HttpStatusCode.Created,
+            client.post("/api/discovery/drafts") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"id":"draft-b-1","narrative":"Kami klinik dengan jadwal dokter dan tagihan.","industryHint":"klinik"}""") }.status
+        )
+
+        // B1: estimasi dari draf — pack klinik penuh modul baru tanpa riwayat build → rentang ditahan jujur.
+        val priced = client.get("/api/discovery/drafts/draft-b-1/price") { asTenant(garmentSlug) }
+        assertEquals(HttpStatusCode.OK, priced.status)
+        val priceBody = JsonParser.parseObject(priced.bodyAsText())
+        assertEquals("klinik", priceBody.string("packCode"))
+        assertTrue(priceBody.string("withheld") == "true" || priced.bodyAsText().contains("\"withheld\":true"))
+
+        // B2: submit sebelum dikunci ditolak; setelah dikunci → 201 dengan id lead.
+        assertEquals(
+            HttpStatusCode.Conflict,
+            client.post("/api/discovery/drafts/draft-b-1/submit") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"companyName":"Klinik Sehat"}""") }.status
+        )
+        assertEquals(HttpStatusCode.OK, client.post("/api/discovery/drafts/draft-b-1/lock") { asTenant(garmentSlug) }.status)
+        val submitted = client.post("/api/discovery/drafts/draft-b-1/submit") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"companyName":"Klinik Sehat"}""") }
+        assertEquals(HttpStatusCode.Created, submitted.status)
+        assertTrue(JsonParser.parseObject(submitted.bodyAsText()).string("leadId")!!.startsWith("lead-"))
+
+        // B3: handoff hanya superadmin; lalu membuat tenant dengan pack & blueprint draf.
+        assertEquals(
+            HttpStatusCode.Forbidden,
+            client.post("/api/discovery/drafts/draft-b-1/handoff") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"tenantSlug":"klinik-sehat","companyName":"Klinik Sehat"}""") }.status
+        )
+        val handed = client.post("/api/discovery/drafts/draft-b-1/handoff") { asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"tenantSlug":"klinik-sehat","companyName":"Klinik Sehat"}""") }
+        assertEquals(HttpStatusCode.Created, handed.status)
+        assertEquals("klinik", JsonParser.parseObject(handed.bodyAsText()).string("packCode"))
+        assertEquals("klinik_starter", JsonParser.parseObject(handed.bodyAsText()).string("blueprintCode"))
+        // Tenant baru sungguh terprovisioning dan membaca pack-nya sendiri lewat jalur data B7.
+        val pack = client.get("/api/tenant/pack") { asSuperadminActingAs("klinik-sehat") }
+        assertEquals(HttpStatusCode.OK, pack.status)
+        assertEquals("klinik", JsonParser.parseObject(pack.bodyAsText()).string("code"))
+        // Bersihkan registry pack data hasil handoff agar tes lain mulai dari kondisi bawaan.
+        DomainPackRegistry.unregister(com.eventverse.app.domain.pack.DomainPackCode("klinik"))
     }
 
     private fun io.ktor.server.application.Application.app(

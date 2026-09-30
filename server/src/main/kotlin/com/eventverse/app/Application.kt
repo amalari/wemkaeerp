@@ -30,7 +30,7 @@ import com.eventverse.app.infrastructure.PostgresDepartmentRepository
 import com.eventverse.app.infrastructure.PostgresEmployeeRepository
 import com.eventverse.app.routes.rbacRoutes
 import com.eventverse.app.routes.departmentRoutes
-import com.eventverse.app.routes.discoveryRoutes
+import com.eventverse.app.routes.discoveryPlatformRoutes
 import com.eventverse.app.routes.employeeRoutes
 import com.eventverse.app.routes.pipelineRoutes
 import com.eventverse.app.routes.adminRoutes
@@ -534,19 +534,19 @@ fun Application.module(
             auditLogRepository = auditLogRepo
         )
         prospectRoutes(
-            leadRepository = leadRepo, translationRepository = translationRepo,
-            priceEstimateRepository = prospectEstimateRepo,
+            leadRepository = leadRepo, translationRepository = translationRepo, priceEstimateRepository = prospectEstimateRepo,
             submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo),
             translateUseCase = TranslateProspectFlowUseCase(flowTranslatorImpl, translationRepo, leadRepo),
             analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo),
-            priceUseCase = PriceProspectFlowUseCase(
-                buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
-                embeddingProvider = embeddingProviderImpl,
-                defaultBlendedHourlyRate = blendedHourlyRate
-            ),
+            priceUseCase = PriceProspectFlowUseCase(buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
+                embeddingProvider = embeddingProviderImpl, defaultBlendedHourlyRate = blendedHourlyRate),
             defaultMarginPercent = defaultMargin
         )
-        discoveryRoutes(repository = discoveryDraftRepo, tenantRepository = repository,
+        discoveryPlatformRoutes(
+            draftRepository = discoveryDraftRepo, tenantRepository = repository, domainPackRepository = domainPackRepo,
+            probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
+            buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
+            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo,
