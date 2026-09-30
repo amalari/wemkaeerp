@@ -165,12 +165,11 @@ fun Application.module(
     costingRateCardRepository: CostingRateCardRepository? = null,
     costingBenchmarkRepository: com.eventverse.app.domain.costing.CostingBenchmarkRepository? = null,
     domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null,
-    builderDeploymentRepository: com.eventverse.app.domain.builder.BuilderDeploymentRepository? = null
+    builderDeploymentRepository: com.eventverse.app.domain.builder.BuilderDeploymentRepository? = null,
+    builderChatRepository: com.eventverse.app.domain.builder.BuilderChatRepository? = null,
+    builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null
 ) {
-    val repository = tenantRepository ?: run {
-        DatabaseFactory.init()
-        PostgresTenantRepository()
-    }
+    val repository = tenantRepository ?: run { DatabaseFactory.init(); PostgresTenantRepository() }
     val userRepo = userRepository ?: PostgresUserRepository()
     val roleRepo = roleRepository ?: PostgresRoleRepository()
     val assignmentRepo = moduleAssignmentRepository ?: PostgresModuleAssignmentRepository()
@@ -475,8 +474,8 @@ fun Application.module(
                 val context = call.tenantContextOrNull
                 if (context != null) {
                     call.respondText(
-                        text = "{\"tenantId\":\"${context.tenantId.value}\",\"slug\":\"${context.slug.value}\",\"tier\":\"${context.tier.name}\",\"accessible\":${context.isAccessible}}",
-                        contentType = ContentType.Application.Json
+                        "{\"tenantId\":\"${context.tenantId.value}\",\"slug\":\"${context.slug.value}\",\"tier\":\"${context.tier.name}\",\"accessible\":${context.isAccessible}}",
+                        ContentType.Application.Json
                     )
                 } else {
                     call.respond(HttpStatusCode.NotFound, "No tenant context found")
@@ -485,10 +484,17 @@ fun Application.module(
         }
 
         rbacRoutes(roleRepo, assignmentRepo)
-        builderRoutes(repository, builderDeploymentRepository ?: com.eventverse.app.infrastructure.PostgresBuilderDeploymentRepository())
+        builderRoutes(
+            tenants = repository,
+            deployments = builderDeploymentRepository ?: com.eventverse.app.infrastructure.PostgresBuilderDeploymentRepository(),
+            chats = builderChatRepository ?: com.eventverse.app.infrastructure.PostgresBuilderChatRepository(),
+            agent = builderAgent ?: com.eventverse.app.infrastructure.builder.DiscoveryBackedBuilderAgent(
+                com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv()
+            ),
+            drafts = discoveryDraftRepo
+        )
         moduleAssignmentRoutes(assignmentRepo, roleRepo)
         departmentRoutes(deptRepo, empRepo, roleRepo, assignmentRepo)
-        // roleRepo + assignmentRepo: jangkauan data Bagan Organisasi (HIERARCHICAL), bukan CRUD karyawan.
         employeeRoutes(empRepo, deptRepo, roleRepo, assignmentRepo)
         pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
@@ -516,24 +522,17 @@ fun Application.module(
             discoveryDemands = discoveryDemandRepository,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
-            leadRepository = crmLeadRepo,
-            contactRepository = crmContactRepo,
-            dealRepository = crmDealRepo,
-            customFieldRepository = customFieldRepo,
-            employeeRepository = empRepo,
-            roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo,
-            invoiceRepository = invoiceRepo,
+            leadRepository = crmLeadRepo, contactRepository = crmContactRepo,
+            dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,
+            employeeRepository = empRepo, roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo, invoiceRepository = invoiceRepo,
             leadActivityRepository = leadActivityRepo
         )
         dealRoutes(
-            dealRepository = crmDealRepo,
-            contactRepository = crmContactRepo,
-            employeeRepository = empRepo,
-            roleRepository = roleRepo,
+            dealRepository = crmDealRepo, contactRepository = crmContactRepo,
+            employeeRepository = empRepo, roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo,
-            poFileStorage = poFileStorage,
-            samplingOrderRepository = samplingOrderRepo
+            poFileStorage = poFileStorage, samplingOrderRepository = samplingOrderRepo
         )
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,

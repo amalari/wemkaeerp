@@ -1,3 +1,4 @@
+// FILE-SIZE-EXEMPT: katalog ikon — data terurut, bukan logika. Lihat .claude/rules/file-size-rules.md §3
 package com.eventverse.app.presentation.designsystem
 
 import androidx.compose.foundation.Canvas
@@ -1350,5 +1351,23 @@ fun IconFlipVertical(modifier: Modifier = Modifier, color: Color = WeMadeColors.
             close()
         }
         drawPath(bottom, color)
+    }
+}
+
+/** Lingkaran berisi tanda tanya — pintu masuk panduan/tutorial. */
+@Composable
+fun IconHelp(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+        drawCircle(color = color, radius = w * 0.42f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = stroke))
+        val hook = Path().apply {
+            moveTo(w * 0.38f, h * 0.40f)
+            cubicTo(w * 0.38f, h * 0.26f, w * 0.62f, h * 0.26f, w * 0.62f, h * 0.40f)
+            cubicTo(w * 0.62f, h * 0.50f, w * 0.50f, h * 0.50f, w * 0.50f, h * 0.60f)
+        }
+        drawPath(hook, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(color = color, radius = stroke * 0.75f, center = Offset(w * 0.5f, h * 0.72f))
     }
 }

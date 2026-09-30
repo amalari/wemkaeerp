@@ -28,6 +28,7 @@ import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClayShapes
+import com.eventverse.app.presentation.designsystem.IconHelp
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconMenu
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -61,7 +62,9 @@ fun AppTopBar(
     onSelectCompany: (CompanyTenantProfile) -> Unit,
     onOpenTenantEntitlements: () -> Unit,
     onLogout: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Membuka daftar panduan (TRD-HELP-001 FR-4); `null` = tombol disembunyikan. */
+    onOpenHelp: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -172,6 +175,12 @@ fun AppTopBar(
                                     .width(1.dp)
                                     .background(WeMadeColors.Border)
                             )
+                        }
+                    }
+
+                    onOpenHelp?.let { open ->
+                        ClayIconButton(onClick = open, shape = ClayShapes.Tile, modifier = Modifier.padding(end = 10.dp)) {
+                            IconHelp(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurface)
                         }
                     }
 

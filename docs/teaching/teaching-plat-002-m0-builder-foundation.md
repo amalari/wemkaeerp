@@ -145,3 +145,48 @@ Bukti: `tmp/.playwright-mcp/builder-m0-visual-check.png`.
 - [ ] **T3**: Rancang (tanpa menulis kode) bentuk payload `propose_patch` untuk M1: apa yang membuat
       patch *dapat dibuang* tanpa mengubah draf? Bandingkan jawabanmu dengan Kontrak 5
       tenant-variability-rules (template disalin, dokumen membeku).
+
+---
+
+# Lampiran M1 (2026-09-30) — Chat tersimpan + `propose_patch` + panes
+
+Implementasi M1 dilampirkan di dokumen yang sama karena mesin dan kontraknya sambungan langsung.
+Discovery: [`docs/plannings/discovery-M1-builder-chat.md`](../plannings/discovery-M1-builder-chat.md).
+
+## Arsitektur yang terbentuk
+- **Domain** (`core/domain/builder/`): `BuilderChat.kt` (entitas + port `BuilderAgent.proposePatch` +
+  `BuilderChatRepository`), `BuilderChatUseCases.kt` (`SendBuilderMessageUseCase` — pesan USER dicatat
+  *dulu* agar kegagalan agent tidak memakan cerita user; `ApplyDraftPatchUseCase` — validator menilai
+  ulang, draf terkunci ditolak dengan `DraftLockedException`).
+- **Agent**: `DiscoveryBackedBuilderAgent` membungkus `DiscoveryAgent` yang sudah teruji (Koog/fallback)
+  — patch = draf penuh, **tidak pernah** ditulis agent; "Terapkan" = aksi manusia (plan §4).
+- **Persistensi**: V82 (`builder.conversations` satu-per-tenant `UNIQUE(tenant_id)`, `builder.chat_messages`
+  CHECK `role='AGENT' OR proposed_draft IS NULL`) + `PostgresBuilderChatRepository` + RLS V76.
+- **API**: `GET/POST /api/builder/chat`, `POST /api/builder/chat/apply`, `GET /api/builder/draft`
+  (envelope `summaryObj` Fase D) — semua di belakang `mayOpenBuilder` fail-closed; `module()` menerima
+  `builderChatRepository`/`builderAgent` untuk test in-memory.
+- **UI**: `BuilderChatPane` + `BuilderDesignPanes` (Modules/Data Flow/Prototype reuse penuh
+  `ModuleMapPane`/`DataFlowPane`/`PrototypeRenderer` via `DiscoveryDraftUi.fromJson`).
+
+## Pitfall baru (lanjutan daftar M0)
+6. **`/*` di dalam KDoc membuka komentar bersarang** — Kotlin mendukung komentar bersarang, jadi
+   `` `GET /api/builder/*` `` di KDoc membuat komentar tak pernah tertutup ("Unclosed comment" di
+   baris paling akhir file, bukan di baris yang bermasalah). Ganti dengan `...`.
+7. **Ratchet dikompensasi dengan pemadatan, bukan penghapusan logika**: `Application.kt` 664 → 663
+   dengan memadatkan argumen `crmRoutes`/`dealRoutes` (gaya `prospectRoutes`) — nol baris bersih.
+8. **Regex pengambil `messageId` di test HTTP** harus berankor pada prefiks id (`"id":"msg-…"`) —
+   dokumen draf di patch juga punya kunci `"id"` (kode modul) dan `.last()` akan menangkap id modul,
+   bukan id pesan.
+9. **`jsonb` Exposed butuh serializer** (plugin serialisasi yang sengaja tidak dipakai repo) — simpan
+   daftar ringkasan sebagai `TEXT` berisi JSON array + konversi manual di repository.
+10. **Demo mode web mem-mint token offline** (`jwt-offline-token-…`) — server sungguhan menolaknya,
+    sehingga cek visual UI Builder hanya sampai lapis layout (shell 9 menu ✓, pane Chat ✓). End-to-end
+    chat live menunggu login asli (OAuth) / tenant uji — item belum terverifikasi bersama item M0.
+
+## Verifikasi M1
+- Kompilasi: JVM ✓, WasmJs ✓, JS ✓ (Android: SDK tak tersedia di mesin ini — same as M0).
+- Test: `core` hijau penuh (termasuk 6 test baru `BuilderChatUseCaseTest`, fixture garment +
+  `bordir-uji`), `server` 296 test hijau penuh (termasuk 5 test baru gate chat: 200 send/apply,
+  409 double-apply, 403 tanpa izin), `app jvmTest` hijau.
+- Live: V82 ter-apply Flyway di DB dev (`builder.conversations`/`chat_messages` terbentuk);
+  `curl` tanpa token → 401 fail-closed; visual shell + pane Chat dicek dengan mata (lihat pitfall 10).

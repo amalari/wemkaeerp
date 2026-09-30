@@ -101,6 +101,9 @@ interface DiscoveryDraftRepository {
     /** Milik satu pengguna, terbaru dulu — draf siapa pun tidak pernah bocor lewat sini. */
     suspend fun findByOwner(ownerUserId: UserId): List<StoredDiscoveryDraft>
 
+    /** Draf kerja milik tenant (PLAN-builder-console M1): satu tenant, satu working draft. */
+    suspend fun findByTenant(tenantId: TenantId): StoredDiscoveryDraft?
+
     suspend fun findAll(): List<StoredDiscoveryDraft>
 
     /** Menyimpan baris apa adanya; aturan status & kepemilikan milik use case, bukan repository. */

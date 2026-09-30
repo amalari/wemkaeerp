@@ -77,6 +77,10 @@ import com.eventverse.app.presentation.module.ModuleIcon
 import com.eventverse.app.presentation.builder.BuilderShell
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.navigation.AppNavScreen
+import com.eventverse.app.presentation.tutorial.LocalTutorialAnchors
+import com.eventverse.app.presentation.tutorial.TutorialLayer
+import com.eventverse.app.presentation.tutorial.rememberTutorialUiState
+import com.eventverse.app.presentation.tutorial.tutorialScreenFor
 import com.eventverse.app.presentation.navigation.AppTopBar
 import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
@@ -198,6 +202,7 @@ fun App() {
     }
 
     var drawerOpen by remember { mutableStateOf(false) }
+    val tutorials = rememberTutorialUiState() // TRD-HELP-001: coach mark + daftar panduan
 
     /** Dialog penyambungan modul per tenant; hanya dapat dibuka platform superadmin. */
     var showTenantEntitlementDialog by remember { mutableStateOf(false) }
@@ -276,7 +281,8 @@ fun App() {
     } else navSections
 
     CompositionLocalProvider(
-        LocalAppNavigator provides navigateTo
+        LocalAppNavigator provides navigateTo,
+        LocalTutorialAnchors provides tutorials.anchors
     ) {
         WeMadeTheme {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -306,6 +312,7 @@ fun App() {
                         authViewModel.switchTenant(company)
                     },
                     onOpenTenantEntitlements = { showTenantEntitlementDialog = true },
+                    onOpenHelp = if (isAuthenticated) ({ tutorials.isListOpen = true }) else null,
                     onLogout = {
                         authViewModel.onEvent(LoginUiEvent.Logout)
                         navigateTo(AppNavScreen.LOGIN)
@@ -553,6 +560,12 @@ fun App() {
                     }
                 } else null
             )
+
+            if (isAuthenticated && !builderRoute) TutorialLayer(
+                state = tutorials,
+                currentModule = if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath) else currentScreen.businessModule,
+                decisions = accessDecisions
+            ) { id -> tutorialScreenFor(id)?.let(navigateTo) ?: run { modulePath = "${AppNavScreen.MODULE.route}/${id.value}"; currentScreen = AppNavScreen.MODULE; PlatformNavigation.pushPath(modulePath) } }
 
             // Dialog penyambungan modul per tenant.
             //

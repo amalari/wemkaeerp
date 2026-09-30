@@ -203,6 +203,13 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 |---|---|---|
 | **M0 Fondasi** | permission `MANAGE_BUILDER`, `BuilderShell` + Overview + Pengaturan, `DiscoveryDraft.tenant_id`, pin versi pack, migrasi impor `Deployment #1`, cek JWT vs host (dengan carve-out superadmin F2), **penegakan 1-owner-per-email (F3)**, undangan tenant + login di subdomain (daftar publik via flag, dinyalakan di M2) | `wemade-demo/builder` tampil dengan Deployment #1 IMPORTED; test paritas garment hijau |
 | **M1 Builder** | Chat tersimpan + `propose_patch`, Modules, Data Flow, Prototype, preview dalam builder | `bordir-uji` dibangun dari chat sampai preview yang bisa diklik |
+
+> Status implementasi (2026-09-30): **M1 selesai di kode** — chat tersimpan (V82), `propose_patch`
+> via `DiscoveryBackedBuilderAgent`, Terapkan/Buang, pane Modules/Data Flow/Prototype (reuse Fase D).
+> Test domain + HTTP gate hijau penuh; visual layout dicek dengan mata. Kriteria "dibangun dari chat
+> sampai preview yang bisa diklik" di tenant uji `bordir-uji` **menunggu login asli end-to-end**
+> (demo mode web mem-mint token offline yang ditolak server sungguhan — lihat lampiran M1 di
+> `docs/teaching/teaching-plat-002-m0-builder-foundation.md`).
 | **M2 Deploy** | `DeployTenantUseCase`, Deployments + rollback, Antrian Pembuatan tipis (dikelola superadmin), billing manual (invoice PDF dari harga terkunci + konfirmasi bayar oleh superadmin), **`ServerRouteWiring` (pemecahan F1)**, flag daftar publik, Docker + Caddy wildcard | `bordir.wemakeerp.com` hidup dari tombol Deploy; rollback teruji; invoice pertama terkirim |
 
 ### Gerbang sebelum ekspansi

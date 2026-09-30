@@ -396,7 +396,7 @@ private fun demandJson(d: DiscoveryDemand): JsonValue = jsonObjectOf(
     "createdAt" to jsonOf(d.createdAt?.toString())
 )
 
-private fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null): JsonValue.Obj = jsonObjectOf(
+internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null): JsonValue.Obj = jsonObjectOf(
     "id" to jsonOf(stored.id.value),
     // Narasi asli (E1/E2): dipulihkan dari buku demand supaya prospek yang kembali melihat
     // ceritanya sendiri, bukan mulai dari kosong. Demand lahir sebelum V80 → null.

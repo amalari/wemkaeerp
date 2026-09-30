@@ -13,6 +13,13 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantName
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.domain.tenant.TenantStatus
+import com.eventverse.app.domain.builder.BuilderAgent
+import com.eventverse.app.domain.builder.BuilderAgentReply
+import com.eventverse.app.domain.builder.ChatMessage
+import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.infrastructure.InMemoryBuilderChatRepository
 import com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository
 import com.eventverse.app.infrastructure.InMemoryDepartmentRepository
 import com.eventverse.app.infrastructure.InMemoryDomainPackRepository
@@ -25,6 +32,8 @@ import com.eventverse.app.infrastructure.InMemoryTenantRepository
 import com.eventverse.app.module
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -89,7 +98,10 @@ class BuilderRouteGateTest {
                 departmentRepository = InMemoryDepartmentRepository(),
                 employeeRepository = InMemoryEmployeeRepository(),
                 domainPackRepository = InMemoryDomainPackRepository(),
-                builderDeploymentRepository = seedDeployments()
+                builderDeploymentRepository = seedDeployments(),
+                builderChatRepository = com.eventverse.app.infrastructure.InMemoryBuilderChatRepository(),
+                builderAgent = StubBuilderAgent(),
+                discoveryDraftRepository = com.eventverse.app.infrastructure.InMemoryDiscoveryDraftRepository()
             )
         }
     }
@@ -174,5 +186,105 @@ class BuilderRouteGateTest {
         assertEquals(false, mayOpenBuilder(Role.OPERATOR))
         assertEquals(true, mayOpenBuilder(Role.TENANT_ADMIN))
         assertEquals(true, mayOpenBuilder(Role.PLATFORM_SUPERADMIN))
+    }
+
+    // ------------------------------------------------------------------ M1: chat
+
+    @Test
+    fun chat_send_returnsMessages_withPendingPatch() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/chat") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"text":"Buatkan alur produksi kaos"}""")
+        }
+
+        assertEquals(200, response.status.value)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"role\":\"USER\""))
+        assertTrue(body.contains("\"role\":\"AGENT\""))
+        assertTrue(body.contains("\"hasPendingPatch\":true"), "agent mengusulkan patch, menunggu manusia")
+    }
+
+    @Test
+    fun chat_apply_persistsTenantDraft_thenDraftEndpointServesIt() = testApplication {
+        installModule()
+
+        val sent = client.post("/api/builder/chat") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"text":"Susun draf awal"}""")
+        }
+        assertEquals(200, sent.status.value)
+        val messageId = Regex("\"id\":\"(msg-[^\"]+)\"").findAll(sent.bodyAsText())
+            .map { it.groupValues[1] }.last()
+
+        val applied = client.post("/api/builder/chat/apply") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"messageId":"$messageId"}""")
+        }
+        assertEquals(200, applied.status.value, "patch sah diterapkan: ${applied.bodyAsText()}")
+
+        val draft = client.get("/api/builder/draft") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+        assertEquals(200, draft.status.value)
+        assertTrue(draft.bodyAsText().contains("\"modules\""), "draf kerja tenant tersaji untuk pane")
+    }
+
+    @Test
+    fun chat_apply_twice_returnsConflict() = testApplication {
+        installModule()
+
+        val sent = client.post("/api/builder/chat") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"text":"Susun draf"}""")
+        }
+        val messageId = Regex("\"id\":\"(msg-[^\"]+)\"").findAll(sent.bodyAsText())
+            .map { it.groupValues[1] }.last()
+
+        client.post("/api/builder/chat/apply") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"messageId":"$messageId"}""")
+        }
+        val second = client.post("/api/builder/chat/apply") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+            setBody("""{"messageId":"$messageId"}""")
+        }
+        assertEquals(409, second.status.value, "patch yang sudah diterapkan ditolak")
+    }
+
+    @Test
+    fun chat_withoutPermission_returns403() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/chat") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo", role = Role.OPERATOR)}")
+            setBody("""{"text":"halo"}""")
+        }
+
+        assertEquals(403, response.status.value)
+    }
+
+    /** Stub agent: selalu mengusulkan draf garment sah — deterministik untuk test HTTP. */
+    private class StubBuilderAgent : BuilderAgent {
+        override val agentRef = "stub/builder-test-v1"
+        override suspend fun proposePatch(
+            currentDraft: DiscoveryDraft?,
+            history: List<ChatMessage>,
+            userMessage: String
+        ): Result<BuilderAgentReply> = Result.success(
+            BuilderAgentReply(
+                text = "Usulan draf dari stub.",
+                proposedDraft = DiscoveryDraft(pack = GarmentDomainPack.pack, blueprint = GarmentBlueprints.DEFAULT)
+            )
+        )
     }
 }

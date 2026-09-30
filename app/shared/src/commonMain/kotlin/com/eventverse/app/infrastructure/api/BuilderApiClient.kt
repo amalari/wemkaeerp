@@ -30,11 +30,30 @@ class BuilderApiClient(
     /** GET /api/builder/overview — status tenant + deployment aktif + riwayat. */
     suspend fun overview(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/overview")
 
-    private suspend fun call(method: HttpMethod, path: String): Result<JsonValue> =
+    /** GET /api/builder/draft — draf kerja tenant (envelope renderer Fase D); `null` bila belum ada. */
+    suspend fun draft(): Result<JsonValue?> =
+        call(HttpMethod.Get, "/api/builder/draft").map { it as? JsonValue.Null ?: it }
+
+    /** GET /api/builder/chat — percakapan tenant + seluruh pesan. */
+    suspend fun chat(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/chat")
+
+    /** POST /api/builder/chat — kirim pesan; agent menjawab (patch usulan, belum diterapkan). */
+    suspend fun sendMessage(text: String): Result<JsonValue> =
+        call(HttpMethod.Post, "/api/builder/chat", """{"text":${JsonValue.Str(text).encode()}}""")
+
+    /** POST /api/builder/chat/apply — aksi manusia: terapkan patch usulan dari pesan. */
+    suspend fun applyPatch(messageId: String): Result<JsonValue> =
+        call(HttpMethod.Post, "/api/builder/chat/apply", """{"messageId":${JsonValue.Str(messageId).encode()}}""")
+
+    private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {
                 this.method = method
                 authed()
+                body?.let {
+                    contentType(ContentType.Application.Json)
+                    setBody(it)
+                }
                 accept(ContentType.Application.Json)
             }
             val text = response.bodyAsText()

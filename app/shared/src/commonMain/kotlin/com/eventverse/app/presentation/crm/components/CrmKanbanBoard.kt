@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.crm.components
 
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -121,7 +123,7 @@ fun CrmKanbanBoard(
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
                 // Baris Atas: Executive KPI Metric Strip (4 Kartu Clay)
-                CrmKpiMetricsRow(metrics = kpiMetrics)
+                CrmKpiMetricsRow(metrics = kpiMetrics, modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.CRM_KPI_ROW))
 
                 Spacer(Modifier.height(ClaySpacing.Lg))
 
@@ -139,7 +141,7 @@ fun CrmKanbanBoard(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
                             placeholder = "Cari brand, kontak, nomor WA, kategori…",
-                            modifier = Modifier.width(280.dp)
+                            modifier = Modifier.width(280.dp).tutorialAnchor(GarmentTutorialAnchors.CRM_SEARCH)
                         )
 
                         // Dropdown Filter Sales PIC
@@ -236,7 +238,8 @@ fun CrmKanbanBoard(
                         if (onAddLead != null) {
                             ClayButton(
                                 text = "+ Tambah Lead",
-                                onClick = { onAddLead(LeadStage.NEW_LEAD) }
+                                onClick = { onAddLead(LeadStage.NEW_LEAD) },
+                                modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.CRM_ADD_LEAD)
                             )
                         }
                     }
@@ -246,7 +249,7 @@ fun CrmKanbanBoard(
                 // lewat New Lead; stage lain dicapai dengan memindahkan kartu, supaya Qualified
                 // selalu melewati QualifyLeadUseCase (kontak + deal dibuat bersama).
                 Row(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().tutorialAnchor(GarmentTutorialAnchors.CRM_KANBAN_COLUMNS),
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
                 ) {
                     LeadStage.entries.forEach { stage ->

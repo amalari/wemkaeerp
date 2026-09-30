@@ -21,7 +21,9 @@ internal object RouteGateLedger {
         // Kosakata vertikal tenant (nama modul, fase, port) — setiap anggota butuh untuk menyusun menu & kanvas (B7).
         "GET /api/tenant/pack",
         // Katalog template kerangka tahap bawaan platform (IndustryStageTemplates) — bukan data tenant.
-        "GET /api/tenant/stage-templates"
+        "GET /api/tenant/stage-templates",
+        // AI helper (TRD-HELP-001): disaring per tutorial dengan wewenang pemanggil; tanpa wewenang = 200 tanpa saran.
+        "POST /api/tenant/help/ask"
     )
 
     val ungated: Set<String> = emptySet()

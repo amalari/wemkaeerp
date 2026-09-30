@@ -38,6 +38,7 @@ class DiscoveryHandoffUseCasesTest {
         val rows = linkedMapOf<DiscoveryDraftId, StoredDiscoveryDraft>()
         override suspend fun findById(id: DiscoveryDraftId) = rows[id]
         override suspend fun findByOwner(owner: UserId) = rows.values.filter { it.ownerUserId == owner }
+        override suspend fun findByTenant(tenantId: com.eventverse.app.domain.tenant.TenantId) = null
         override suspend fun findAll() = rows.values.toList()
         override suspend fun save(stored: StoredDiscoveryDraft): StoredDiscoveryDraft { rows[stored.id] = stored; return stored }
     }

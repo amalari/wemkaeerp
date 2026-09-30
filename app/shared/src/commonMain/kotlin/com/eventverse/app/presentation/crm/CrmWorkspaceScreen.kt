@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.crm
 
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -130,8 +132,8 @@ fun CrmWorkspaceScreen(
         // Tab direktori CRM: Leads (papan Kanban) | Deal | Kontak
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Sm),
+                .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Sm)
+                .tutorialAnchor(GarmentTutorialAnchors.CRM_DIRECTORY_TABS),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
             CrmDirectoryTab.entries.forEach { tab ->

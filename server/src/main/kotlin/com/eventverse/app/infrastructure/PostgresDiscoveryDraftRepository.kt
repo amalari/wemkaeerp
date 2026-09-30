@@ -32,6 +32,13 @@ class PostgresDiscoveryDraftRepository : DiscoveryDraftRepository {
             .map(::toStored)
     }
 
+    override suspend fun findByTenant(tenantId: TenantId): StoredDiscoveryDraft? = DatabaseFactory.dbQuery {
+        DiscoveryDraftsTable.selectAll()
+            .where { DiscoveryDraftsTable.tenantId eq tenantId.value }
+            .orderBy(DiscoveryDraftsTable.updatedAt, order = org.jetbrains.exposed.sql.SortOrder.DESC)
+            .firstOrNull()?.let(::toStored)
+    }
+
     override suspend fun findAll(): List<StoredDiscoveryDraft> = DatabaseFactory.dbQuery {
         DiscoveryDraftsTable.selectAll().orderBy(DiscoveryDraftsTable.createdAt, order = org.jetbrains.exposed.sql.SortOrder.DESC).map(::toStored)
     }

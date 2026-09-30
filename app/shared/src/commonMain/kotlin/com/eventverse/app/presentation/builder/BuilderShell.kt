@@ -41,10 +41,10 @@ internal data class BuilderMenuItem(
 
 private fun builderMenu() = listOf(
     BuilderMenuItem("overview", "Overview"),
-    BuilderMenuItem("chat", "Chat", enabled = false, badge = "M1"),
-    BuilderMenuItem("modules", "Modules", enabled = false, badge = "M1"),
-    BuilderMenuItem("dataflow", "Data Flow", enabled = false, badge = "M1"),
-    BuilderMenuItem("prototype", "Prototype", enabled = false, badge = "M1"),
+    BuilderMenuItem("chat", "Chat"),
+    BuilderMenuItem("modules", "Modules"),
+    BuilderMenuItem("dataflow", "Data Flow"),
+    BuilderMenuItem("prototype", "Prototype"),
     BuilderMenuItem("buildqueue", "Antrian Pembuatan", enabled = false, badge = "M2"),
     BuilderMenuItem("deployments", "Deployments", enabled = false, badge = "M2"),
     BuilderMenuItem("billing", "Billing", enabled = false, badge = "M2"),
@@ -52,11 +52,11 @@ private fun builderMenu() = listOf(
 )
 
 /**
- * Shell WeMake Builder (PLAN-builder-console M0): sidebar + konten, URL `<slug>/builder`.
- * M0 membuka **Overview** dan **Pengaturan**; menu lain tampil tapi terkunci sampai M1/M2 —
- * bukan disembunyikan, supaya pemilik project melihat arah produknya.
+ * Shell WeMake Builder (PLAN-builder-console §6): sidebar + konten, URL `<slug>/builder`.
+ * M0 membuka **Overview** dan **Pengaturan**; M1 membuka **Chat, Modules, Data Flow, Prototype**;
+ * menu M2 tampil tapi terkunci — bukan disembunyikan, supaya pemilik project melihat arah produknya.
  *
- * Data diambil dari `GET /api/builder/overview` oleh pane; gerbang `MANAGE_BUILDER` ada di server,
+ * Data diambil dari endpoint `GET /api/builder/...` oleh pane; gerbang `MANAGE_BUILDER` ada di server,
  * layar ini hanya menampilkan pesannya (fail-closed tetap di API).
  */
 @Composable
@@ -79,6 +79,10 @@ fun BuilderShell(modifier: Modifier = Modifier) {
         ) {
             when (selected) {
                 "overview" -> BuilderOverviewPane()
+                "chat" -> BuilderChatPane()
+                "modules" -> BuilderModulesPane()
+                "dataflow" -> BuilderDataFlowPane()
+                "prototype" -> BuilderPrototypePane()
                 "settings" -> BuilderSettingsPane()
             }
         }
