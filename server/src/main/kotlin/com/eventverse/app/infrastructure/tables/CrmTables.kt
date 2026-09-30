@@ -64,6 +64,7 @@ object CrmLeadsTable : Table("crm_sales.crm_leads") {
     val lastContactedAt = timestamp("last_contacted_at").nullable()
 
     val createdByUserId = varchar("created_by_user_id", 64).references(UsersTable.id).nullable()
+    val createdVia = varchar("created_via", 20).default("MANUAL")
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     val archivedAt = timestamp("archived_at").nullable()
@@ -81,4 +82,14 @@ object CrmLeadActivitiesTable : Table("crm_sales.crm_lead_activities") {
     val createdAt = timestamp("created_at")
 
     override val primaryKey = PrimaryKey(id)
+}
+
+/** Opt-in draf lead AI per tenant (V84, TRD-HELP-002 K1). Tidak ada baris = mati. */
+object CrmAiSettingsTable : Table("crm_sales.crm_ai_settings") {
+    val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val leadDraftEnabled = bool("lead_draft_enabled").default(false)
+    val updatedByUserId = varchar("updated_by_user_id", 64).nullable()
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId)
 }

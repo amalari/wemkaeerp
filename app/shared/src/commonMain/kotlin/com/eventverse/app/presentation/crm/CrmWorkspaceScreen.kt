@@ -231,10 +231,9 @@ fun CrmWorkspaceScreen(
     if (state.isCreateDialogOpen) {
         CreateLeadDialog(
             initialStage = state.createDialogInitialStage,
+            customSchema = state.customFieldSchema,
             onDismiss = { viewModel.onEvent(CrmUiEvent.CloseCreateDialog) },
-            onCreate = { brandName, contactPerson, phoneNumber, email, stage, productCategory, estimatedPcs ->
-                viewModel.onEvent(CrmUiEvent.CreateLead(brandName, contactPerson, phoneNumber, email, stage, productCategory, estimatedPcs))
-            }
+            onCreate = { viewModel.onEvent(it) }
         )
     }
 

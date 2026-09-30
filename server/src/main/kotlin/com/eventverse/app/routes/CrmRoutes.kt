@@ -167,7 +167,8 @@ fun Route.crmRoutes(
             if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
 
             val reach = call.crmOwnerReach(tenant, decision, employeeRepository)
-            val req = CrmLeadCodec.decodeCreateRequest(call.receiveText())
+            val req = runCatching { CrmLeadCodec.decodeCreateRequest(call.receiveText()) }.getOrElse {
+                return@post call.respond(HttpStatusCode.BadRequest, it.message ?: "Body tidak valid") }
             if (!call.requireReachableOwner(reach, req.ownerEmployeeId)) return@post
 
             createLeadUseCase(
@@ -185,6 +186,7 @@ fun Route.crmRoutes(
                 productCategory = req.productCategory,
                 customValues = req.customValues,
                 createdByUserId = call.callerPrincipalOrNull?.userId,
+                createdVia = req.createdVia,
                 newId = { "lead-${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}-${(100..999).random()}" }
             ).onSuccess { lead ->
                 call.respondText(

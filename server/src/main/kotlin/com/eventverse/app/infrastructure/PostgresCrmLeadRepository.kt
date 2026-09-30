@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.crm.LeadCreationChannel
 import com.eventverse.app.domain.crm.BrandName
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.CrmLeadRepository
@@ -132,6 +133,7 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
                     it[productCategory] = lead.productCategory.value
                     it[lastContactedAt] = lead.lastContactedAt
                     it[createdByUserId] = lead.createdByUserId
+                    it[createdVia] = lead.createdVia.name
                     it[createdAt] = lead.createdAt
                     it[updatedAt] = lead.updatedAt
                 }
@@ -159,6 +161,7 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
             lastContactedAt = row[CrmLeadsTable.lastContactedAt],
             customAttributes = CustomAttributes.fromJsonValue(attrsObj),
             createdByUserId = row[CrmLeadsTable.createdByUserId],
+            createdVia = requireNotNull(LeadCreationChannel.fromCode(row[CrmLeadsTable.createdVia])) { "created_via tak dikenal: ${row[CrmLeadsTable.createdVia]}" },
             createdAt = row[CrmLeadsTable.createdAt],
             updatedAt = row[CrmLeadsTable.updatedAt],
             archivedAt = row[CrmLeadsTable.archivedAt]

@@ -104,6 +104,24 @@ class BuilderRouteGateTest {
                 builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
                 builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
                 builderAuditLog = com.eventverse.app.infrastructure.InMemoryAuditLogRepository(),
+                builderBillingInvoices = com.eventverse.app.infrastructure.InMemorySubscriptionInvoiceRepository(),
+                // Sumber harga uji: satu modul aktif. Harga dibekukan saat invoice terbit — itu yang
+                // dibuktikan test; kenaikan katalog diuji di domain (SubscriptionBillingUseCaseTest).
+                builderBillingPreview = com.eventverse.app.domain.builder.TenantBillingPreviewSource { tenantId ->
+                    Result.success(
+                        com.eventverse.app.domain.moduledev.usecases.TenantBillingPreview(
+                            tenantId,
+                            listOf(
+                                com.eventverse.app.domain.moduledev.usecases.BillingLine(
+                                    moduleId = "sampling_order",
+                                    displayName = "Order Sampling",
+                                    monthlyPrice = com.eventverse.app.domain.moduledev.MoneyIdr(150_000),
+                                    kind = com.eventverse.app.domain.moduledev.usecases.BillingLine.Kind.SUBSCRIPTION
+                                )
+                            )
+                        )
+                    )
+                },
                 discoveryDraftRepository = com.eventverse.app.infrastructure.InMemoryDiscoveryDraftRepository()
             )
         }
@@ -244,6 +262,47 @@ class BuilderRouteGateTest {
         assertEquals(409, response.status.value, "tanpa draf kerja, deploy ditolak — bukan diam-diam")
     }
 
+    // ------------------------------------------------------- M2: Antrian Pembuatan (superadmin)
+
+    @Test
+    fun buildQueue_forSuperadmin_returns200() = testApplication {
+        installModule()
+
+        val response = client.get("/api/builder/build-queue") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+
+        assertEquals(200, response.status.value, "konsol superadmin: ${response.bodyAsText()}")
+        assertTrue(response.bodyAsText().contains("\"requests\":"))
+    }
+
+    @Test
+    fun buildQueue_forTenantAdmin_returns403() = testApplication {
+        installModule()
+
+        val response = client.get("/api/builder/build-queue") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+
+        assertEquals(403, response.status.value, "antrian superadmin, bukan tenant — fail-closed")
+    }
+
+    @Test
+    fun buildQueue_statusChange_unknownStatus_returns400() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/build-queue/br-x/status?status=NGACO") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+
+        assertEquals(400, response.status.value, "status tak dikenal ditolak, bukan fallback senyap")
+    }
+
+
+
     @Test
     fun mayOpenBuilder_isFailClosed_forUnknownRoles() {
         assertEquals(false, mayOpenBuilder(null), "peran tidak bisa dihitung = tolak")
@@ -336,6 +395,85 @@ class BuilderRouteGateTest {
 
         assertEquals(403, response.status.value)
     }
+
+    // ------------------------------------------------------- M2: tagihan langganan (FR-M2-5)
+
+    @Test
+    fun billing_issue_forSuperadmin_locksPriceAndNumbersInvoice() = testApplication {
+        installModule()
+
+        val issued = client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo&period=2026-09") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+
+        assertEquals(200, issued.status.value, "terbit invoice: ${issued.bodyAsText()}")
+        val body = issued.bodyAsText()
+        assertTrue(body.contains("\"number\":\"INV-2026-09-001\""))
+        assertTrue(body.contains("\"status\":\"ISSUED\""))
+        assertTrue(body.contains("\"lines\":[{"), "baris harga ikut tersimpan di dokumen")
+    }
+
+    @Test
+    fun billing_issue_forTenantAdmin_returns403() = testApplication {
+        installModule()
+
+        val response = client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+
+        assertEquals(403, response.status.value, "menerbitkan tagihan = wewenang platform, bukan tenant")
+    }
+
+    @Test
+    fun billing_secondIssueInSamePeriod_returns409() = testApplication {
+        installModule()
+
+        client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo&period=2026-09") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        val repeat = client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo&period=2026-09") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+
+        assertEquals(409, repeat.status.value, "satu periode satu invoice (yang VOID boleh berulang)")
+    }
+
+    @Test
+    fun billing_confirm_marksPaid_andTenantReadsOnlyOwnInvoices() = testApplication {
+        installModule()
+        val superadmin = TestAuth.superadminToken()
+
+        val issued = client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo&period=2026-09") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer $superadmin")
+        }
+        val id = Regex("\"id\":\"([^\"]+)\"").find(issued.bodyAsText())?.groupValues?.get(1)
+        assertTrue(id != null, "invoice id terbaca dari respons terbit")
+
+        val paid = client.post("/api/builder/billing/invoices/$id/confirm?note=transfer%20BCA") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer $superadmin")
+        }
+        assertEquals(200, paid.status.value, "konfirmasi bayar: ${paid.bodyAsText()}")
+        assertTrue(paid.bodyAsText().contains("\"status\":\"PAID\""))
+
+        // Tenant lain tidak melihat invoice ini walau baris ada di tabel yang sama.
+        val otherTenant = client.get("/api/builder/billing/invoices") {
+            header("X-Tenant-Slug", "pabrik-lain")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken("pabrik-lain", tenantId = "ten-lain")}")
+        }
+        assertEquals(200, otherTenant.status.value)
+        assertTrue(
+            !otherTenant.bodyAsText().contains("INV-2026-09-001"),
+            "penyaringan dari tenantContext, bukan dari parameter: ${otherTenant.bodyAsText()}"
+        )
+    }
+
+
 
     /** Stub agent: selalu mengusulkan draf garment sah — deterministik untuk test HTTP. */
     private class StubBuilderAgent : BuilderAgent {

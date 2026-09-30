@@ -9,4 +9,8 @@
     </root>
     <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
+    <!-- TRD-HELP-002: pustaka LLM & klien HTTP mencetak isi prompt/jawaban (nama pelanggan) di TRACE/DEBUG.
+         Isi percakapan AI tidak boleh masuk log; kode kita sendiri hanya mencatat panjang & agent. -->
+    <logger name="ai.koog" level="INFO"/>
+    <logger name="org.apache.hc" level="INFO"/>
 </configuration>

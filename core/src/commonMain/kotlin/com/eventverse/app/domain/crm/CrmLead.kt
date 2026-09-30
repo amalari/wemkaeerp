@@ -67,6 +67,8 @@ data class CrmLead(
     val lastContactedAt: Instant? = null,
     val customAttributes: CustomAttributes = CustomAttributes.EMPTY,
     val createdByUserId: String? = null,
+    /** Jalur pembuatan (TRD-HELP-002 K2); [LeadCreationChannel.AI_DRAFT] tetap disimpan oleh [createdByUserId]. */
+    val createdVia: LeadCreationChannel = LeadCreationChannel.MANUAL,
     val createdAt: Instant,
     val updatedAt: Instant,
     val archivedAt: Instant? = null,

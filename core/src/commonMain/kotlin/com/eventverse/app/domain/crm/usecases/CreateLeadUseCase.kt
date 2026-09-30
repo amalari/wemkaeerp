@@ -43,6 +43,7 @@ class CreateLeadUseCase(
         productCategory: ProductCategory = ProductCategory.EMPTY,
         customValues: Map<CustomFieldId, JsonValue.Obj?> = emptyMap(),
         createdByUserId: String? = null,
+        createdVia: com.eventverse.app.domain.crm.LeadCreationChannel = com.eventverse.app.domain.crm.LeadCreationChannel.MANUAL,
         newId: () -> String
     ): Result<CrmLead> = runCatching {
         val definitions = customFieldRepository.findActiveByResource(tenantId, OwnerResource.CRM_SALES)
@@ -70,6 +71,7 @@ class CreateLeadUseCase(
             lastContactedAt = now,
             customAttributes = attributes,
             createdByUserId = createdByUserId,
+            createdVia = createdVia,
             createdAt = now,
             updatedAt = now
         )

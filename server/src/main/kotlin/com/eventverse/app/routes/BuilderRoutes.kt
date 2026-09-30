@@ -53,12 +53,24 @@ fun Route.builderRoutes(
     probe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe =
         com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
     auditLog: com.eventverse.app.domain.audit.AuditLogRepository =
-        com.eventverse.app.infrastructure.PostgresAuditLogRepository()
+        com.eventverse.app.infrastructure.PostgresAuditLogRepository(),
+    billingInvoices: com.eventverse.app.domain.builder.SubscriptionInvoiceRepository =
+        com.eventverse.app.infrastructure.PostgresSubscriptionInvoiceRepository(),
+    billingPreview: com.eventverse.app.domain.builder.TenantBillingPreviewSource =
+        com.eventverse.app.domain.builder.TenantBillingPreviewSource { tenantId ->
+            com.eventverse.app.domain.moduledev.usecases.GetTenantBillingPreviewUseCase(
+                com.eventverse.app.infrastructure.PostgresTenantPipelineRepository(),
+                com.eventverse.app.infrastructure.PostgresModuleCatalogRepository(),
+                com.eventverse.app.infrastructure.PostgresModulePricingQuoteRepository()
+            )(tenantId)
+        }
 ) {
     val send = SendBuilderMessageUseCase(chats, agent, drafts)
     val apply = ApplyDraftPatchUseCase(chats, drafts)
-    // Agregat deployment terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
+    // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
+    builderBuildQueueRoutes(buildRequests)
+    builderBillingRoutes(billingInvoices, billingPreview, auditLog)
     route("/api/builder") {
         get("/overview") {
             call.gate() ?: return@get

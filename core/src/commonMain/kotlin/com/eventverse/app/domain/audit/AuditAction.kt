@@ -30,7 +30,17 @@ enum class AuditAction(val code: String) {
     BUILDER_DEPLOYMENT_ACTIVATED("builder_deployment_activated"),
 
     /** Builder (M2): rollback menurunkan versi — terlebih wajib tercatat, termasuk aksi `force`. */
-    BUILDER_DEPLOYMENT_ROLLED_BACK("builder_deployment_rolled_back");
+    BUILDER_DEPLOYMENT_ROLLED_BACK("builder_deployment_rolled_back"),
+
+    /**
+     * Builder (M2, FR-M2-5): invoice langganan diterbitkan. Angka di dokumen ini mengikat secara
+     * komersial, dan tenant memutuskan bayar berdasarkan dokumen yang sama — jadi "siapa yang
+     * menerbitkan, kapan, dengan total berapa" harus bisa direkonstruksi tanpa menebak.
+     */
+    BUILDER_INVOICE_ISSUED("builder_invoice_issued"),
+
+    /** Builder (M2, FR-M2-5): pembayaran dikonfirmasi manual oleh superadmin. */
+    BUILDER_INVOICE_PAID("builder_invoice_paid");
 
     companion object {
         fun fromCode(code: String?): AuditAction? = entries.firstOrNull { it.code == code }

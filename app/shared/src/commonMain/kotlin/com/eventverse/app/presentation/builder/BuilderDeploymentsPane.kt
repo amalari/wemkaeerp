@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -123,11 +121,15 @@ fun BuilderDeploymentsPane(modifier: Modifier = Modifier) {
             )
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+        // Column biasa, bukan LazyColumn: shell membungkus pane dengan `verticalScroll`, dan daftar
+        // bersarang ber-`weight(1f)` di induk ber-tinggi tak terbatas berukuran nol — riwayat
+        // deployment ada di pohon tapi tak pernah terlihat (terjadi sungguhan, tertangkap saat
+        // memeriksa dengan mata, bukan oleh kompilasi).
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
-            items(rows, key = { it.number }) { r ->
+            rows.forEach { r ->
                 ClayCard {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

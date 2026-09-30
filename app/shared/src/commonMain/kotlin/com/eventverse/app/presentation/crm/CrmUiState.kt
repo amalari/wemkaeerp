@@ -121,7 +121,10 @@ sealed interface CrmUiEvent {
         val email: String = "",
         val stage: LeadStage = LeadStage.NEW_LEAD,
         val productCategory: String = "",
-        val estimatedPcs: Int? = null
+        val estimatedPcs: Int? = null,
+        val customValues: Map<com.eventverse.app.domain.customfield.CustomFieldId, com.eventverse.app.shared.json.JsonValue.Obj?> = emptyMap(),
+        /** TRD-HELP-002 K2: AI_DRAFT bila field awalnya diisi draf AI — tetap disimpan oleh user ini. */
+        val createdVia: com.eventverse.app.domain.crm.LeadCreationChannel = com.eventverse.app.domain.crm.LeadCreationChannel.MANUAL
     ) : CrmUiEvent
 
     data class UpdateStage(val leadId: LeadId, val newStage: LeadStage) : CrmUiEvent

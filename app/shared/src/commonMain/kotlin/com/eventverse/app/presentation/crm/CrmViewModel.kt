@@ -109,7 +109,8 @@ class CrmViewModel(
                 ownerEmployeeId = null,
                 expectedCloseDate = null,
                 productCategory = com.eventverse.app.domain.crm.ProductCategory(event.productCategory),
-                customValues = emptyMap()
+                customValues = event.customValues,
+                createdVia = event.createdVia
             )
 
             remoteDataSource.createLead(tenantSlug, request)

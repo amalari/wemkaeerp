@@ -22,14 +22,25 @@ import io.ktor.server.routing.route
  *
  * Dipisah dari `Application.kt` (cicilan Ratchet, PLAN-builder-console F1): blok ini satu agregat
  * yang berdiri sendiri, dan `Application.kt` berada di atas hard limit file-size-rules.
- * Daftar publik (dengan `ownerEmail` + gerbang satu-owner) baru menyala di M2 via flag; endpoint ini
- * tetap bisa dipakai alur undangan.
+ *
+ * **Flag daftar publik (FR-M2-7)**: `WEMADE_PUBLIC_SIGNUP` menggerbangi `POST /register`. Bawaan
+ * `false` — jalur masuk normal adalah undangan owner, dan endpoint pendaftaran yang terbuka
+ * tanpa sengaja adalah pintu pembuatan tenant anonim. Klien membaca keadaan gerbang dari
+ * `GET /config` supaya form daftar tidak dirender saat gerbang tertutup.
  */
 fun Route.onboardingRoutes(
     registerTenantUseCase: RegisterTenantUseCase,
-    checkSubdomainUseCase: CheckSubdomainAvailabilityUseCase
+    checkSubdomainUseCase: CheckSubdomainAvailabilityUseCase,
+    publicSignupEnabled: Boolean = false
 ) {
     route("/api/public/onboarding") {
+        get("/config") {
+            call.respondText(
+                text = "{\"publicSignupEnabled\":$publicSignupEnabled}",
+                contentType = ContentType.Application.Json
+            )
+        }
+
         get("/check-subdomain") {
             val slug = call.request.queryParameters["slug"] ?: ""
             val result = checkSubdomainUseCase(CheckSubdomainQuery(slug))
@@ -45,6 +56,13 @@ fun Route.onboardingRoutes(
         }
 
         post("/register") {
+            if (!publicSignupEnabled) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    "Daftar publik belum dibuka. Hubungi admin platform untuk undangan workspace."
+                )
+                return@post
+            }
             val params = call.receiveParameters()
             val id = params["id"] ?: "ten-${System.currentTimeMillis()}"
             val slug = params["slug"] ?: ""

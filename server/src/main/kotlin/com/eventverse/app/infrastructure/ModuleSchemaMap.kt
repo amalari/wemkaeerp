@@ -29,7 +29,7 @@ object ModuleSchemaMap {
      * di sini wajib RLS & grant yang sama, dan ikut dijaga `ModuleSchemaOwnershipTest`.
      */
     val platformSchemas: Map<String, Set<String>> = mapOf(
-        "builder" to setOf("deployments", "conversations", "chat_messages", "build_requests")
+        "builder" to setOf("deployments", "conversations", "chat_messages", "build_requests", "subscription_invoices")
     )
 
     val byModule: Map<ModuleId, Set<String>> = mapOf(
@@ -41,7 +41,7 @@ object ModuleSchemaMap {
             "sampling_yield_timings", "sampling_milestones", "sampling_finishing_deposits", "sampling_qc_inspections",
             "tenant_stage_flows", "tenant_optional_processes", "tenant_stage_phase_tags", "sample_storage_records"
         ),
-        GarmentModules.CRM_SALES to setOf("crm_leads", "crm_lead_activities", "crm_contacts", "deals", "deal_purchase_orders"),
+        GarmentModules.CRM_SALES to setOf("crm_leads", "crm_lead_activities", "crm_contacts", "deals", "deal_purchase_orders", "crm_ai_settings"),
         GarmentModules.MASTER_DATA to setOf("material_code_sequences", "material_items", "material_prices", "material_price_policies"),
         GarmentModules.VENDOR_CONTACTS to setOf("vendors", "vendor_assignments"),
         GarmentModules.TECH_PACK_BOM to setOf(

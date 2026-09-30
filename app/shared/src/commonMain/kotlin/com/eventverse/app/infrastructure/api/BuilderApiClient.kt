@@ -55,6 +55,13 @@ class BuilderApiClient(
     suspend fun rollback(force: Boolean = false): Result<JsonValue> =
         call(HttpMethod.Post, "/api/builder/deployments/rollback${if (force) "?force=true" else ""}")
 
+    /**
+     * GET /api/builder/billing/invoices — tagihan langganan **milik tenant pemanggil** (FR-M2-5).
+     * Penyaringan ada di server (`tenantContext`), bukan di sini: klien tidak pernah mengirim
+     * identitas tenant untuk endpoint ini.
+     */
+    suspend fun invoices(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/billing/invoices")
+
     private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {

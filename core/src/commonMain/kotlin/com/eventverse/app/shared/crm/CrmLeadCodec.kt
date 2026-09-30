@@ -1,5 +1,6 @@
 package com.eventverse.app.shared.crm
 
+import com.eventverse.app.domain.crm.LeadCreationChannel
 import com.eventverse.app.domain.crm.BrandName
 import com.eventverse.app.domain.crm.CrmLead
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
@@ -63,7 +64,8 @@ object CrmLeadCodec {
         "createdAt" to jsonOf(lead.createdAt.toString()),
         "updatedAt" to jsonOf(lead.updatedAt.toString()),
         "archivedAt" to jsonOf(lead.archivedAt?.toString()),
-        "activityCount" to jsonOf(lead.activityCount)
+        "activityCount" to jsonOf(lead.activityCount),
+        "createdVia" to jsonOf(lead.createdVia.name)
     )
 
     fun encodeLeads(leads: List<CrmLead>): String = jsonArrayOf(leads.map(::encodeLead)).encode()
@@ -103,7 +105,9 @@ object CrmLeadCodec {
             createdAt = createdAt,
             updatedAt = updatedAt,
             archivedAt = DateTimeCodec.parseInstantOrNull(obj.string("archivedAt")),
-            activityCount = obj.int("activityCount") ?: 0
+            activityCount = obj.int("activityCount") ?: 0,
+            // Server lama tidak mengirim kolom ini = MANUAL; nilai tak dikenal ditampilkan sebagai MANUAL hanya di klien baca.
+            createdVia = obj.string("createdVia")?.let(LeadCreationChannel::fromCode) ?: LeadCreationChannel.MANUAL
         )
     }
 
@@ -203,7 +207,8 @@ object CrmLeadCodec {
         val ownerEmployeeId: OrgNodeId? = null,
         val expectedCloseDate: LocalDate? = null,
         val productCategory: ProductCategory = ProductCategory.EMPTY,
-        val customValues: Map<CustomFieldId, JsonValue.Obj?> = emptyMap()
+        val customValues: Map<CustomFieldId, JsonValue.Obj?> = emptyMap(),
+        val createdVia: LeadCreationChannel = LeadCreationChannel.MANUAL
     )
 
     fun encodeCreateRequest(request: CreateLeadRequest): String = jsonObjectOf(
@@ -218,7 +223,8 @@ object CrmLeadCodec {
         "ownerEmployeeId" to jsonOf(request.ownerEmployeeId?.value),
         "expectedCloseDate" to jsonOf(request.expectedCloseDate?.toString()),
         "productCategory" to jsonOf(request.productCategory.value),
-        "customAttributes" to encodeCustomValues(request.customValues)
+        "customAttributes" to encodeCustomValues(request.customValues),
+        "createdVia" to jsonOf(request.createdVia.name)
     ).encode()
 
     fun decodeCreateRequest(rawJson: String): CreateLeadRequest {
@@ -235,7 +241,10 @@ object CrmLeadCodec {
             ownerEmployeeId = root.string("ownerEmployeeId")?.let { OrgNodeId(it) },
             expectedCloseDate = DateTimeCodec.parseLocalDateOrNull(root.string("expectedCloseDate")),
             productCategory = ProductCategory(root.string("productCategory") ?: ""),
-            customValues = decodeCustomValues(root)
+            customValues = decodeCustomValues(root),
+            // Tulis: nilai tak dikenal ditolak (400 di route), bukan dianggap MANUAL.
+            createdVia = root.string("createdVia")?.let { requireNotNull(LeadCreationChannel.fromCode(it)) { "createdVia tidak dikenal: $it" } }
+                ?: LeadCreationChannel.MANUAL
         )
     }
 
