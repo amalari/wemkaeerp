@@ -152,10 +152,37 @@ tetap 697 baris (blok `prospectRoutes` diringkas sebagai kompensasi).
   login wajib, gerbang pemilik (403), gerbang superadmin (403), syarat LOCKED (409).
 - File terbesar yang disentuh: `DiscoveryRoutes.kt` 283 baris (< soft 600); test ≤ 202 baris.
 
+## B4 — HandoffGenerator: scaffold kandidat PR (`HandoffScaffoldGenerator`)
+
+- Generator **murni & deterministik** di `core/domain/discovery/HandoffScaffoldGenerator.kt`:
+  pack data (mis. `klinik`) → daftar berkas teks. Ia **tidak menyentuh database maupun pohon
+  sumber** — menimpa kosakata platform diam-diam melanggar plan §7; keluarannya kandidat yang
+  wajib ditinjau manusia (pola `GenerateSeedTopologyTool`).
+- Berkas yang dihasilkan per pack:
+  1. `V<NNN>__register_<pack>_modules.sql` — per modul: `CREATE SCHEMA`, tabel stub
+     (`<modul>_records`: id/tenant_id/payload JSONB + TODO kolom nyata), indeks tenant,
+     `apply_tenant_rls_in`, `GRANT`+`ALTER DEFAULT PRIVILEGES` untuk `wemade_app` (pola V76/V77);
+     lalu `INSERT INTO module_catalog_entries` lifecycle PLANNED tanpa harga (pola V64). Bagian
+     backfill `custom_roles` & `granted_custom_module_ids` sengaja **TODO(review)**: level per
+     jabatan adalah keputusan bisnis, bukan keputusan generator.
+  2. `ModuleSchemaMap.snippet.kt.txt` — baris untuk `byModule` (dijaga `ModuleSchemaOwnershipTest`).
+  3. `<Pack>StubRoutes.snippet.kt.txt` — stub route ber-gerbang fail-closed (pola `ModuleAccessGuard`).
+  4. `ModuleScreenRegistry.snippet.kt.txt` — catatan: modul tanpa entri sudah memakai layar generik;
+     jangan tambah entri sebelum layar kustom ada.
+  5. `docs/handoff/<pack>/<modul>.catalog.md` — satu berkas review per modul (mengingatkan Uji
+     Variabilitas: modul vs tahap/proses, Kontrak 1–2 tenant-variability-rules).
+- Tidak ada berkas `.kt` langsung dari generator — semuanya `.snippet.*.txt` agar tidak mungkin
+  ikut terkompilasi sebelum direview. Endpoint: `POST /api/discovery/drafts/{id}/scaffold`
+  (superadmin saja; 409 bila draf belum LOCKED atau pack bawaan). Nomor migrasi dihitung dari
+  direktori migrasi (fallback 79).
+- Gotcha portabilitas: `String.format` tidak ada di commonMain KMP — nomor versi dipad dengan
+  `padStart(3, '0')`.
+
 ## Utang & langkah berikutnya (diperbarui)
 
 - A8 (Koog) tetap branch terpisah; kill-switch tidak berubah.
-- **B4** — `HandoffGenerator` (pola `GenerateSeedTopologyTool`): scaffold `CREATE SCHEMA` modul +
-  tabel + `apply_tenant_rls_in` + entri `ModuleSchemaMap` + stub route + `ModuleScreenRegistry`,
-  sebagai kandidat PR dengan review manusia.
-- Fase C (renderer/Studio), D (wizard/PDF), E (operasi produk).
+- Fase C (renderer/Studio), D (wizard/PDF), E (operasi produk). Verifikasi rutin Fase B:
+  `:core:jvmTest --rerun-tasks` (**1001 tes, 0 gagal** setelah B4), `:server:test` hijau,
+  kompilasi Jvm/WasmJs/Js core & app:shared (Android butuh mesin ber-SDK), dan `audit-variability.sh`
+  (route mutasi `preview`/`submit`/`handoff`/`scaffold` — semuanya fail-closed: login wajib,
+  gerbang pemilik/superadmin 403, syarat LOCKED 409).

@@ -7,6 +7,8 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryPreviewRegistry
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
+import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.usecases.CreateDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.EndDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
@@ -16,6 +18,7 @@ import com.eventverse.app.domain.discovery.usecases.StartDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.SubmitDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
 import com.eventverse.app.domain.moduledev.Percentage
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
@@ -37,6 +40,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import kotlinx.datetime.Clock
+import java.io.File
 
 /**
  * Funnel discovery ber-login (plan §2 A6). Semua endpoint wajib principal (plugin autentikasi menolak
@@ -243,6 +247,38 @@ fun Route.discoveryRoutes(
                 }
                 .onFailure { call.respondText(it.message ?: "Gagal handoff", ContentType.Text.Plain, HttpStatusCode.Conflict) }
         }
+
+        // B4: scaffold kandidat PR — superadmin saja. Generator murni: TIDAK menyentuh database
+        // maupun pohon sumber; keluarannya teks untuk ditinjau manusia sebelum dijadikan PR.
+        post("/{id}/scaffold") {
+            val principal = call.callerPrincipalOrNull ?: return@post unauthorized()
+            if (!principal.isPlatformSuperadmin) return@post forbidden()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            val existing = repository.findById(id) ?: return@post notFound("Draf tidak ditemukan")
+            if (existing.status != DiscoveryDraftStatus.LOCKED) {
+                return@post call.respondText(
+                    "Draf ${id.value} masih DRAFT; kunci dulu sebelum scaffold",
+                    ContentType.Text.Plain, HttpStatusCode.Conflict
+                )
+            }
+            if (DomainPackRegistry.isShipped(existing.draft.pack.code)) {
+                return@post call.respondText(
+                    "Pack ${existing.draft.pack.code.value} adalah pack bawaan — tidak perlu scaffold",
+                    ContentType.Text.Plain, HttpStatusCode.Conflict
+                )
+            }
+            val scaffold = HandoffScaffoldGenerator().generate(existing.draft.pack, nextMigrationVersion())
+            call.respondText(
+                jsonObjectOf(
+                    "packCode" to jsonOf(scaffold.packCode),
+                    "migrationVersion" to jsonOf(scaffold.migrationVersion),
+                    "files" to jsonArrayOf(scaffold.files.map { f ->
+                        jsonObjectOf("path" to jsonOf(f.path), "content" to jsonOf(f.content))
+                    })
+                ).encode(),
+                ContentType.Application.Json, HttpStatusCode.Created
+            )
+        }
     }
 }
 
@@ -281,3 +317,10 @@ private fun summaryObj(stored: StoredDiscoveryDraft): JsonValue.Obj = jsonObject
 )
 
 private fun summary(stored: StoredDiscoveryDraft): String = summaryObj(stored).encode()
+
+/** Nomor migrasi berikutnya dari direktori migrasi; fallback 79 kalau direktori tak terbaca. */
+private fun nextMigrationVersion(): Int = runCatching {
+    File("src/main/resources/db/migration").listFiles()
+        ?.mapNotNull { Regex("V(\\d+)__").find(it.name)?.groupValues?.get(1)?.toInt() }
+        ?.maxOrNull()?.plus(1)
+}.getOrNull() ?: 79

@@ -172,6 +172,42 @@ class DiscoveryApiTest {
         DomainPackRegistry.unregister(com.eventverse.app.domain.pack.DomainPackCode("klinik"))
     }
 
+    @Test
+    fun `scaffold kandidat pr hanya untuk superadmin dan draf terkunci`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        assertEquals(
+            HttpStatusCode.Created,
+            client.post("/api/discovery/drafts") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"id":"draft-b-2","narrative":"Kami klinik dengan jadwal dokter dan tagihan.","industryHint":"klinik"}""") }.status
+        )
+
+        // Draf yang belum dikunci ditolak 409 — scaffold hanya untuk draf beku.
+        assertEquals(
+            HttpStatusCode.Conflict,
+            client.post("/api/discovery/drafts/draft-b-2/scaffold") { asSuperadminActingAs(garmentSlug) }.status
+        )
+        assertEquals(HttpStatusCode.OK, client.post("/api/discovery/drafts/draft-b-2/lock") { asTenant(garmentSlug) }.status)
+
+        // Pemilik draf (bukan superadmin) ditolak.
+        assertEquals(
+            HttpStatusCode.Forbidden,
+            client.post("/api/discovery/drafts/draft-b-2/scaffold") { asTenant(garmentSlug) }.status
+        )
+
+        // Superadmin: kandidat PR berisi migrasi + snippet, tanpa berkas .kt yang langsung aktif.
+        val scaffolded = client.post("/api/discovery/drafts/draft-b-2/scaffold") { asSuperadminActingAs(garmentSlug) }
+        assertEquals(HttpStatusCode.Created, scaffolded.status)
+        val body = scaffolded.bodyAsText()
+        assertEquals("klinik", JsonParser.parseObject(body).string("packCode"))
+        assertTrue(body.contains("__register_klinik_modules.sql"))
+        assertTrue(body.contains("apply_tenant_rls_in"))
+        assertTrue(body.contains("ModuleSchemaMap.snippet.kt.txt"))
+        assertTrue(body.contains("docs/handoff/klinik/"))
+    }
+
     private fun io.ktor.server.application.Application.app(
         tenants: InMemoryTenantRepository,
         drafts: InMemoryDiscoveryDraftRepository
