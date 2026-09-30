@@ -2,6 +2,7 @@ package com.eventverse.app
 
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.Tenant
@@ -23,6 +24,7 @@ import com.eventverse.app.infrastructure.InMemoryTenantRepository
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.json.JsonParser
 import io.ktor.client.request.get
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -90,6 +92,37 @@ class DiscoveryApiTest {
 
         // Superadmin boleh melihat antrean seluruh draf (review platform) — via act-as workspace.
         assertEquals(HttpStatusCode.OK, client.get("/api/discovery/drafts") { asSuperadminActingAs(garmentSlug) }.status)
+    }
+
+    @Test
+    fun `pratinjau sandbox menampilkan pack draf dan berakhir fail-closed`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        assertEquals(
+            HttpStatusCode.Created,
+            client.post("/api/discovery/drafts") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"id":"draft-uji-2","narrative":"Kami klinik dengan jadwal dokter dan tagihan.","industryHint":"klinik"}""") }.status
+        )
+
+        // Mulai sesi pratinjau; pack draf terlihat lewat jalur data B7, tanpa scaffold kode.
+        val started = client.post("/api/discovery/drafts/draft-uji-2/preview?ttlMinutes=60") { asTenant(garmentSlug) }
+        assertEquals(HttpStatusCode.OK, started.status)
+        val slug = JsonParser.parseObject(started.bodyAsText()).string("sandboxSlug")!!
+        assertEquals("sandbox-klinik", slug)
+
+        val packJson = client.get("/api/tenant/pack") { asSuperadminActingAs(slug) }
+        assertEquals(HttpStatusCode.OK, packJson.status)
+        assertEquals("klinik", JsonParser.parseObject(packJson.bodyAsText()).string("code"))
+
+        // Registry LOCKED platform tidak tersentuh.
+        assertEquals(GarmentDomainPack.pack, DomainPackRegistry.find(GarmentDomainPack.CODE))
+
+        // Sesi diakhiri → pack dilepas; tenant sandbox ditolak fail-closed, tidak jatuh ke garment.
+        assertEquals(HttpStatusCode.OK, client.delete("/api/discovery/drafts/draft-uji-2/preview") { asTenant(garmentSlug) }.status)
+        assertEquals(HttpStatusCode.Conflict, client.get("/api/tenant/pack") { asSuperadminActingAs(slug) }.status)
+        assertEquals(GarmentDomainPack.pack, DomainPackRegistry.find(GarmentDomainPack.CODE))
     }
 
     private fun io.ktor.server.application.Application.app(

@@ -546,7 +546,8 @@ fun Application.module(
             ),
             defaultMarginPercent = defaultMargin
         )
-        discoveryRoutes(repository = discoveryDraftRepo, agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
+        discoveryRoutes(repository = discoveryDraftRepo, tenantRepository = repository,
+            agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo,
             contactRepository = crmContactRepo,

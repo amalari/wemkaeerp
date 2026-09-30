@@ -4,11 +4,15 @@ import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.discovery.DiscoveryAgent
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
+import com.eventverse.app.domain.discovery.DiscoveryPreviewRegistry
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.usecases.CreateDiscoveryDraftUseCase
+import com.eventverse.app.domain.discovery.usecases.EndDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.LockDiscoveryDraftUseCase
+import com.eventverse.app.domain.discovery.usecases.StartDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
+import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.discovery.DiscoveryDraftDecodeException
@@ -23,6 +27,7 @@ import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingContext
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
@@ -40,10 +45,16 @@ import kotlinx.datetime.Clock
  * Bukan `/api/admin` (prospek adalah pengguna biasa, bukan superadmin) dan bukan `/api/public`
  * (generator kelak bisa jadi mahal — lihat catatan rate-limit di `ProspectRoutes`).
  */
-fun Route.discoveryRoutes(repository: DiscoveryDraftRepository, agent: DiscoveryAgent) {
+fun Route.discoveryRoutes(
+    repository: DiscoveryDraftRepository,
+    agent: DiscoveryAgent,
+    tenantRepository: TenantRepository
+) {
     val create = CreateDiscoveryDraftUseCase(agent, repository)
     val update = UpdateDiscoveryDraftUseCase(repository)
     val lock = LockDiscoveryDraftUseCase(repository)
+    val startPreview = StartDiscoveryPreviewUseCase(repository, tenantRepository)
+    val endPreview = EndDiscoveryPreviewUseCase(repository)
 
     route("/api/discovery/drafts") {
         // Narasi → draf. Body: {"narrative": "...", "industryHint"?, "displayName"?, "prospectLeadId"?, "id"?}.
@@ -115,6 +126,40 @@ fun Route.discoveryRoutes(repository: DiscoveryDraftRepository, agent: Discovery
             lock(id, UserId(principal.userId), principal.isPlatformSuperadmin)
                 .onSuccess { call.respondText(summary(it), ContentType.Application.Json) }
                 .onFailure { call.respondText(it.message ?: "Gagal mengunci draf", ContentType.Text.Plain, HttpStatusCode.Conflict) }
+        }
+
+        // Pratinjau tanpa kode (A7): daftarkan pack draf ke registry sesi + buat tenant sandbox.
+        post("/{id}/preview") {
+            val principal = call.callerPrincipalOrNull ?: return@post unauthorized()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            val existing = repository.findById(id) ?: return@post notFound("Draf tidak ditemukan")
+            if (!mayAccess(principal, existing)) return@post forbidden()
+            val ttl = call.request.queryParameters["ttlMinutes"]?.toLongOrNull()
+                ?: DiscoveryPreviewRegistry.DEFAULT_TTL_MINUTES
+            startPreview(id, UserId(principal.userId), principal.isPlatformSuperadmin, ttlMinutes = ttl)
+                .onSuccess {
+                    call.respondText(
+                        jsonObjectOf(
+                            "sandboxSlug" to jsonOf(it.sandboxSlug),
+                            "sandboxTenantId" to jsonOf(it.sandboxTenantId.value),
+                            "packCode" to jsonOf(it.packCode.value),
+                            "expiresAt" to jsonOf(it.expiresAt.toString())
+                        ).encode(),
+                        ContentType.Application.Json
+                    )
+                }
+                .onFailure { call.respondText(it.message ?: "Gagal memulai pratinjau", ContentType.Text.Plain, HttpStatusCode.Conflict) }
+        }
+
+        // Akhiri sesi pratinjau lebih awal; pack draf dilepas dari registry.
+        delete("/{id}/preview") {
+            val principal = call.callerPrincipalOrNull ?: return@delete unauthorized()
+            val id = DiscoveryDraftId(call.parameters["id"].orEmpty())
+            val existing = repository.findById(id) ?: return@delete notFound("Draf tidak ditemukan")
+            if (!mayAccess(principal, existing)) return@delete forbidden()
+            endPreview(id, UserId(principal.userId), principal.isPlatformSuperadmin)
+                .onSuccess { call.respondText(jsonObjectOf("ended" to jsonOf(true)).encode(), ContentType.Application.Json) }
+                .onFailure { call.respondText(it.message ?: "Gagal mengakhiri pratinjau", ContentType.Text.Plain, HttpStatusCode.Conflict) }
         }
     }
 }

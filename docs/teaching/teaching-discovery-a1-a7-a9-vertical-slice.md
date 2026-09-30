@@ -1,6 +1,6 @@
-# Teaching — Discovery Fase A: narasi → draf pack + blueprint (A1–A6)
+# Teaching — Discovery Fase A: narasi → draf pack + blueprint (A1–A7, A9)
 
-> Plan: [`docs/plannings/PLAN-discovery-blueprint-prototype-studio.md`](../plannings/PLAN-discovery-blueprint-prototype-studio.md) §2 · Status: A0 (config), A1–A6 selesai · 2026-09-30
+> Plan: [`docs/plannings/PLAN-discovery-blueprint-prototype-studio.md`](../plannings/PLAN-discovery-blueprint-prototype-studio.md) §2 · Status: A0 (config), A1–A7 + A9 selesai (A8 Koog menyusul di branch terpisah) · 2026-09-30
 
 ## Apa yang dibangun
 
@@ -42,6 +42,30 @@ POST /api/discovery/drafts/{id}/lock  beku selamanya (Kontrak 5)
 
 Fase A belum menyentuh UI — layar wizard adalah Fase D. Uji lengkap lewat test API (401/403/409/201).
 
+## A7 — pratinjau tanpa kode (tanpa menyentuh registry LOCKED)
+
+```
+POST   /api/discovery/drafts/{id}/preview?ttlMinutes=60  → {sandboxSlug, packCode, expiresAt}
+DELETE /api/discovery/drafts/{id}/preview                → akhiri sesi lebih awal
+```
+
+- `DiscoveryPreviewRegistry` (core): ledger sesi dalam memori, **terkait waktu** (TTL default 120 menit,
+  purge setiap kali ledger disentuh) dan **satu sesi per kode pack**. `start` memakai
+  `DomainPackRegistry.register` — itu menulis peta *loaded* (pack data B7), **bukan** daftar `shipped`;
+  test membuktikan `GarmentDomainPack.pack` identik sebelum/sesudah sesi.
+- `StartDiscoveryPreviewUseCase` membuat tenant sandbox `sandbox-<kode>` (slug ≤30, idempoten — pakai
+  ulang tenant yang sama; slug yang dipakai pack lain → ditolak). Klien tidak perlu perubahan apa pun:
+  menu & `/m` sudah membaca `GET /api/tenant/pack` (jalur data B7).
+- Setelah sesi berakhir/kedaluwarsa, pack dilepas → tenant sandbox ditolak **fail-closed 409** oleh
+  mekanisme B7 FR-4 ("vertikal tidak dikenal"), tidak pernah jatuh ke garment. Dites di `DiscoveryApiTest`.
+
+## A9 — evals narasi emas
+
+`server/src/test/.../DiscoveryEvalsTest.kt`: 4 narasi emas (klinik, bengkel, katering, garment CMT) digrade
+dengan grader yang sama dengan produksi — `DiscoveryDraftValidator` + cakupan modul/kode blueprint yang
+diharapkan. Format log `evals | <kasus> | PASS|FAIL | …` dipakai juga agent Koog nanti, jadi regresi
+prompt/model ketahuan sebelum ganti model. Baseline deterministik: **4/4 PASS**.
+
 ## Pelajaran saat implementasi
 
 - **Ktor: handler di root vs child route.** Kebingungan awal (404 kosong) terjadi karena pembungkus
@@ -53,16 +77,18 @@ Fase A belum menyentuh UI — layar wizard adalah Fase D. Uji lengkap lewat test
 
 ## Utang & langkah berikutnya
 
-- A7 (pratinjau sandbox), A8 (KoogDiscoveryAgent + loop koreksi diri), A9 (evals) — Fase B/C/D menyusul.
-- `audit-variability.sh`: 3 temuan, semuanya dijawab — (1) `DiscoveryDraftStatus` adalah enum **platform**
-  (siklus hidup dokumen, seperti `DomainPackStatus`), bukan kosakata vertikal; (2–3) route `put`/`lock`
-  sudah fail-closed: login wajib, gerbang pemilik, status check, test 403/409.
+- A8 (KoogDiscoveryAgent + loop koreksi diri) — branch terpisah karena dependensi `ai.koog:koog-agents`
+  vs `kotlinx-datetime` 0.6.2; kill-switch & interface sudah siap.
+- Fase B (estimasi → lock → handoff), C (renderer/Studio), D (wizard/PDF), E (operasi produk).
 
 ## Bukti verifikasi
 
 - Kompilasi 5 target hijau (`core` Jvm/Js/WasmJs, `app:shared` Jvm/Js/WasmJs, `server` main+test).
-- `:core:jvmTest --rerun-tasks`: **981 test, 0 gagal** (termasuk 12 test discovery baru dengan fixture
-  non-garment — Kontrak 6).
-- `:server:test`: `DiscoveryApiTest` (2), `DomainPackApiTest` (2), `ProspectApiTest` (13) — semua hijau.
-- `Application.kt` tetap **698 baris** (Aturan Ratchet §14 dipenuhi; blok `prospectRoutes`/`moduleDevRoutes`
+- `:core:jvmTest --rerun-tasks`: **989 test, 0 gagal** (termasuk 20 test discovery: draf, validator,
+  use case, registry pratinjau — dengan fixture non-garment, Kontrak 6).
+- `:server:test`: `DiscoveryApiTest` (3, termasuk siklus pratinjau end-to-end), `DiscoveryEvalsTest`
+  (4/4 PASS), `DomainPackApiTest` (2), `ProspectApiTest` (13) — semua hijau.
+- `audit-variability.sh`: 2 temuan akhir (route mutasi `preview`) — sudah fail-closed: login wajib,
+  gerbang pemilik (test 403), TTL dibatasi 1..480 menit.
+- `Application.kt` **697 baris** ≤ 698 (Aturan Ratchet §14; blok `prospectRoutes`/`moduleDevRoutes`
   diringkas sebagai kompensasi).
