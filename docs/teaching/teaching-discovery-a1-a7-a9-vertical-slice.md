@@ -178,6 +178,33 @@ tetap 697 baris (blok `prospectRoutes` diringkas sebagai kompensasi).
 - Gotcha portabilitas: `String.format` tidak ada di commonMain KMP — nomor versi dipad dengan
   `padStart(3, '0')`.
 
+## Fase C (parsial — C1/C2): WidgetRegistry & `ops.prototype_patterns` (V79)
+
+**Sudah selesai:**
+
+- `WidgetKind` — kosakata tertutup 7 widget (FORM, TABLE, KANBAN, DASHBOARD, CHECKLIST, PRINT,
+  CUSTOM_SCREEN). Milik **sistem** (renderer harus bisa menggambar semuanya di semua vertikal) —
+  lolos Uji Variabilitas; *isi* layar tetap data pack.
+- `DiscoveryDraftValidator` kini menolak widget di luar kosakata dengan path `$.screens[i].widget`.
+- `WidgetRegistry.sampleRowsFor(screen, pack)` — **sample data berupa data**: murni & deterministik
+  (dijaga test), memakai kosakata pack (tanpa kata SPK/pabrik), kosong untuk modul asing — bukan
+  data karangan.
+- `PrototypePattern` + `PrototypePatternRepository` + `SavePrototypePatternUseCase` (core):
+  fail-closed — widget wajib kosakata, `pattern_json` wajib objek JSON, pack (bila disebut) wajib
+  dikenal registry, nama unik (upsert per id diperbolehkan).
+- V79 `ops.prototype_patterns` (schema platform, tanpa RLS, tanpa grant `wemade_app` — pola V78).
+  `created_by_user_id` **tanpa FK** ke users: pembuat adalah identitas token (superadmin platform
+  tak selalu punya baris users); integritasnya tanggung jawab route (login wajib), bukan database.
+- Route `GET /api/discovery/patterns` (login) & `POST` (superadmin; 409 fail-closed).
+- Gotcha: migrasi yang sudah terlanjur ter-aply ke DB dev tidak boleh diedit diam-diam — setelah
+  mengubah V79, tabel + baris `flyway_schema_history` versi 79 dibersihkan manual di DB dev agar
+  Flyway meng-aply ulang (checksum).
+
+**Menyusul (butuh host layar & verifikasi browser :3001):**
+`PrototypeRenderer` + `ModuleMapPane`/`DataFlowPane` (kanvas read-only dari blueprint) dan Studio
+internal — UI Compose memakai Clay, wajib dilihat dengan mata sebelum disebut selesai (Fase D
+membawa `DiscoveryWizardScreen` sebagai hostnya).
+
 ## Utang & langkah berikutnya (diperbarui)
 
 - A8 (Koog) tetap branch terpisah; kill-switch tidak berubah.

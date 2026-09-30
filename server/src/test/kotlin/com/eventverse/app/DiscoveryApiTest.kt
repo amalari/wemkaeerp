@@ -208,6 +208,55 @@ class DiscoveryApiTest {
         assertTrue(body.contains("docs/handoff/klinik/"))
     }
 
+    @Test
+    fun `pola studio dibaca berlogin dan ditulis superadmin saja`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(tenants, drafts) }
+
+        // Tanpa login → 401.
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/api/discovery/patterns").status)
+
+        // Login biasa boleh membaca (kosong dulu) tapi tidak boleh menulis.
+        assertEquals(HttpStatusCode.OK, client.get("/api/discovery/patterns") { asTenant(garmentSlug) }.status)
+        assertEquals(
+            HttpStatusCode.Forbidden,
+            client.post("/api/discovery/patterns") {
+                asTenant(garmentSlug); contentType(ContentType.Application.Json)
+                setBody("""{"name":"Pola Uji","widget":"TABLE","pattern":{"kolom":["a"]}}""")
+            }.status
+        )
+
+        // Superadmin menyimpan; widget asing dan pack hantu ditolak fail-closed.
+        assertEquals(
+            HttpStatusCode.Created,
+            client.post("/api/discovery/patterns") {
+                asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json)
+                setBody("""{"id":"pattern-1","name":"Pola Uji","widget":"TABLE","packCode":"garment","pattern":{"kolom":["a","b"]}}""")
+            }.status
+        )
+        assertEquals(
+            HttpStatusCode.Conflict,
+            client.post("/api/discovery/patterns") {
+                asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json)
+                setBody("""{"name":"Pola Rusak","widget":"SPREADSHEET","pattern":{}}""")
+            }.status
+        )
+        assertEquals(
+            HttpStatusCode.Conflict,
+            client.post("/api/discovery/patterns") {
+                asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json)
+                setBody("""{"name":"Pola Hantu","widget":"TABLE","packCode":"pack_hantu","pattern":{}}""")
+            }.status
+        )
+
+        // Pola tersimpan dan terbaca kembali.
+        val listed = client.get("/api/discovery/patterns") { asTenant(garmentSlug) }
+        assertTrue(listed.bodyAsText().contains("\"Pola Uji\""))
+        assertTrue(listed.bodyAsText().contains("\"widget\":\"TABLE\""))
+    }
+
     private fun io.ktor.server.application.Application.app(
         tenants: InMemoryTenantRepository,
         drafts: InMemoryDiscoveryDraftRepository

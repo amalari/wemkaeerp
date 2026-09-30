@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.PriceDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.SubmitDiscoveryDraftUseCase
+import com.eventverse.app.domain.discovery.PrototypePatternRepository
 import com.eventverse.app.domain.moduledev.EmbeddingProvider
 import com.eventverse.app.domain.moduledev.MoneyIdr
 import com.eventverse.app.domain.moduledev.ModuleBuildRepository
@@ -35,7 +36,8 @@ fun Route.discoveryPlatformRoutes(
     embeddingProvider: EmbeddingProvider,
     blendedHourlyRate: MoneyIdr,
     leadRepository: ProspectLeadRepository,
-    agent: DiscoveryAgent
+    agent: DiscoveryAgent,
+    prototypePatterns: PrototypePatternRepository
 ) = discoveryRoutes(
     repository = draftRepository,
     agent = agent,
@@ -50,5 +52,6 @@ fun Route.discoveryPlatformRoutes(
         )
     ),
     submitDraft = SubmitDiscoveryDraftUseCase(draftRepository, leadRepository, SubmitProspectLeadUseCase(leadRepository)),
-    handoffDraft = HandoffDiscoveryDraftUseCase(draftRepository, tenantRepository, domainPackRepository, probe)
+    handoffDraft = HandoffDiscoveryDraftUseCase(draftRepository, tenantRepository, domainPackRepository, probe),
+    prototypePatterns = prototypePatterns
 )

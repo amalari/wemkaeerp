@@ -1,0 +1,46 @@
+package com.eventverse.app.domain.discovery
+
+import com.eventverse.app.domain.pack.DomainPack
+
+/**
+ * `WidgetRegistry` v1 (plan §4): satu-satunya pemetaan kind widget → perilaku prototype. V1
+ * menyediakan **sample data berupa data** — [sampleRowsFor] murni & deterministik, sehingga
+ * renderer (Fase C UI) hanya menggambar, dan test bisa membandingkan keluarannya persis.
+ *
+ * Sample TIDAK berusaha realistis: ia penanda struktur (kolom apa, urutan apa) supaya prospek
+ * menilai *bentuk* layar, bukan datanya. Label memakai kosakata pack (nama modul/seksi), bukan
+ * istilah garment.
+ */
+object WidgetRegistry {
+
+    /** Satu baris contoh: judul kolom → isi. Renderer memutuskan bagaimana menampilkannya. */
+    fun sampleRowsFor(screen: PrototypeScreen, pack: DomainPack): List<Map<String, String>> {
+        val module = pack.modules.firstOrNull { it.id == screen.moduleId } ?: return emptyList()
+        val kolom = module.displayName
+        val seksi = pack.sections.firstOrNull { it.code == module.section }?.displayName ?: module.section.value
+        return when (WidgetKind.fromCode(screen.widget)) {
+            WidgetKind.TABLE -> (1..5).map { i ->
+                mapOf(kolom to "${module.displayName} contoh $i", "Seksi" to seksi, "Status" to statusOf(i))
+            }
+            WidgetKind.KANBAN -> listOf("Baru", "Dikerjakan", "Selesai").mapIndexed { i, kolom ->
+                mapOf("Kolom" to kolom, kolom.uppercase() to "${module.displayName} contoh ${i + 1}")
+            }
+            WidgetKind.FORM -> listOf(
+                mapOf("Nama" to "Nama ${module.displayName}", "Keterangan" to "Penjelasan singkat", "Simpan" to "Simpan ${module.displayName}")
+            )
+            WidgetKind.CHECKLIST -> (1..4).map { i ->
+                mapOf("Butir $i" to "Periksa ${module.displayName.lowercase()} langkah $i", "Selesai" to if (i % 2 == 0) "ya" else "tidak")
+            }
+            WidgetKind.DASHBOARD -> listOf(
+                "Hari ini" to "${seksi}: 12", "Minggu ini" to "${seksi}: 84",
+                "Tertunda" to "${seksi}: 3", "Selesai" to "${seksi}: 81"
+            ).map { (k, v) -> mapOf(k to v) }
+            WidgetKind.PRINT -> listOf(
+                mapOf("Dokumen" to "Cetakan ${module.displayName}", "Nomor" to "0001/${seksi.take(3).uppercase()}/2026")
+            )
+            WidgetKind.CUSTOM_SCREEN, null -> emptyList()
+        }
+    }
+
+    private fun statusOf(i: Int): String = listOf("Baru", "Proses", "Selesai", "Proses", "Baru")[(i - 1) % 5]
+}

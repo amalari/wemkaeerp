@@ -181,6 +181,19 @@ enum class AppNavScreen(
     ),
 
     /**
+     * R16/Fase D: funnel discovery ("Studio Discovery"). Bukan `BusinessModule` — datanya draf
+     * prospek per pengguna, bukan aset tenant yang di-RBAC per jabatan; gerbang layarnya sesi +
+     * kehadiran keputusan wewenang (diperiksa di cabang `App.kt`). `isNavMenuItem = false` karena
+     * tidak masuk matriks modul; baris drawer-nya ditambahkan terpisah di `App.kt`.
+     */
+    DISCOVERY(
+        route = "/discovery",
+        title = "Studio Discovery",
+        aliases = listOf("/studio-discovery", "/discovery-studio"),
+        isNavMenuItem = false
+    ),
+
+    /**
      * Rute generik `/m/{code}` (B6f) untuk modul pack yang belum punya layar khusus. Gerbangnya modul dari path,
      * bukan field ini — satu entri melayani semua modul data-only.
      */

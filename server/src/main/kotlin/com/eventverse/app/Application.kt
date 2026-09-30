@@ -547,6 +547,7 @@ fun Application.module(
             probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo,
+            prototypePatterns = com.eventverse.app.infrastructure.PostgresPrototypePatternRepository(),
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         crmRoutes(
             leadRepository = crmLeadRepo,

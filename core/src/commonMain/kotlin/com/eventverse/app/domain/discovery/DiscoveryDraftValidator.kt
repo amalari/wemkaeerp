@@ -47,6 +47,10 @@ object DiscoveryDraftValidator {
                 "$.screens[$i].moduleId",
                 "Modul '${s.moduleId.value}' tidak ada di pack ${draft.pack.code.value}"
             )
+            if (WidgetKind.fromCode(s.widget) == null) issues += DiscoveryValidationIssue(
+                "$.screens[$i].widget",
+                "Widget '${s.widget}' bukan kosakata tertutup: ${WidgetKind.entries.joinToString { it.code }}"
+            )
         }
         return issues
     }

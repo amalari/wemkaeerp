@@ -64,6 +64,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
+import com.eventverse.app.presentation.discovery.DiscoveryWizardScreen
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -252,6 +253,23 @@ fun App() {
         )
     }
 
+    // Studio Discovery (R16/Fase D) bukan modul, jadi tidak lewat buildNavMenu; barisnya
+    // ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
+    val drawerSections = if (isAuthenticated && accessDecisions.isNotEmpty()) {
+        navSections + ClayNavSection(
+            title = "Studio",
+            items = listOf(
+                ClayNavItem(
+                    key = AppNavScreen.DISCOVERY.route,
+                    label = AppNavScreen.DISCOVERY.title,
+                    selected = currentScreen == AppNavScreen.DISCOVERY,
+                    onClick = { openScreen(AppNavScreen.DISCOVERY) },
+                    icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
+                )
+            )
+        )
+    } else navSections
+
     CompositionLocalProvider(
         LocalAppNavigator provides navigateTo
     ) {
@@ -339,6 +357,22 @@ fun App() {
                                 DynamicRbacScreen(
                                     onBackToLogin = { navigateTo(AppNavScreen.LOGIN) },
                                     access = access
+                                )
+                            }
+                        }
+                        // R16/Fase D: funnel discovery. Gerbangnya ganda tapi beda bentuk dari modul:
+                        // sesi dulu (AuthGuardCard), lalu kehadiran keputusan wewenang — draf prospek
+                        // bukan aset tenant, jadi tidak dijabatkan ke satu AccessDecision modul.
+                        AppNavScreen.DISCOVERY -> {
+                            if (isAuthenticated && accessDecisions.isNotEmpty()) {
+                                DiscoveryWizardScreen()
+                            } else {
+                                AuthGuardCard(
+                                    targetModuleName = "Studio Discovery",
+                                    onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    }
                                 )
                             }
                         }
@@ -489,7 +523,7 @@ fun App() {
                 onDismiss = { drawerOpen = false },
                 title = "WeMade ERP",
                 subtitle = "Multi-Tenant Garment Platform",
-                sections = navSections,
+                sections = drawerSections,
                 footer = if (!isAuthenticated) {
                     {
                         ClayButton(

@@ -9,6 +9,10 @@ import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
 import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
+import com.eventverse.app.domain.discovery.PrototypePattern
+import com.eventverse.app.domain.discovery.PrototypePatternRepository
+import com.eventverse.app.domain.discovery.SavePrototypePatternUseCase
+import com.eventverse.app.domain.discovery.WidgetRegistry
 import com.eventverse.app.domain.discovery.usecases.CreateDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.EndDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
@@ -59,13 +63,49 @@ fun Route.discoveryRoutes(
     tenantRepository: TenantRepository,
     priceDraft: PriceDiscoveryDraftUseCase,
     submitDraft: SubmitDiscoveryDraftUseCase,
-    handoffDraft: HandoffDiscoveryDraftUseCase
+    handoffDraft: HandoffDiscoveryDraftUseCase,
+    prototypePatterns: PrototypePatternRepository
 ) {
     val create = CreateDiscoveryDraftUseCase(agent, repository)
     val update = UpdateDiscoveryDraftUseCase(repository)
     val lock = LockDiscoveryDraftUseCase(repository)
     val startPreview = StartDiscoveryPreviewUseCase(repository, tenantRepository)
     val endPreview = EndDiscoveryPreviewUseCase(repository)
+    val savePattern = SavePrototypePatternUseCase(prototypePatterns)
+
+    route("/api/discovery/patterns") {
+        // Daftar pola Studio — login cukup (dipakai renderer saat menyusun prototype).
+        get {
+            call.callerPrincipalOrNull ?: return@get unauthorized()
+            call.respondText(
+                jsonArrayOf(prototypePatterns.findAll().map(::patternJson)).encode(),
+                ContentType.Application.Json
+            )
+        }
+
+        // Simpan pola — internal Studio, superadmin saja; tulis fail-closed (widget & pack divalidasi).
+        post {
+            val principal = call.callerPrincipalOrNull ?: return@post unauthorized()
+            if (!principal.isPlatformSuperadmin) return@post forbidden()
+            val body = runCatching { JsonParser.parseObject(call.receiveText()) }.getOrNull()
+                ?: return@post badRequest("Body harus JSON objek")
+            val name = body.string("name")?.takeIf { it.isNotBlank() }
+                ?: return@post badRequest("Field 'name' wajib diisi")
+            val widget = body.string("widget")
+                ?: return@post badRequest("Field 'widget' wajib diisi")
+            val patternJson = body.obj("pattern")?.encode()
+                ?: return@post badRequest("Field 'pattern' wajib objek JSON")
+            savePattern(
+                id = body.string("id") ?: "pattern-${Clock.System.now().toEpochMilliseconds()}",
+                name = name, widgetCode = widget, patternJson = patternJson,
+                createdByUserId = UserId(principal.userId), packCode = body.string("packCode")
+            ).onSuccess {
+                call.respondText(patternJson(it).encode(), ContentType.Application.Json, HttpStatusCode.Created)
+            }.onFailure {
+                call.respondText(it.message ?: "Gagal menyimpan pola", ContentType.Text.Plain, HttpStatusCode.Conflict)
+            }
+        }
+    }
 
     route("/api/discovery/drafts") {
         // Narasi → draf. Body: {"narrative": "...", "industryHint"?, "displayName"?, "prospectLeadId"?, "id"?}.
@@ -309,14 +349,53 @@ private fun summaryObj(stored: StoredDiscoveryDraft): JsonValue.Obj = jsonObject
     "packCode" to jsonOf(stored.draft.pack.code.value),
     "packDisplayName" to jsonOf(stored.draft.pack.displayName),
     "blueprintCode" to jsonOf(stored.draft.blueprint.code.value),
+    "blueprintDescription" to jsonOf(stored.draft.blueprint.description),
     "moduleCount" to jsonOf(stored.draft.pack.modules.size),
     "activeModuleCount" to jsonOf(stored.draft.blueprint.activeModuleCodes.size),
     "screenCount" to jsonOf(stored.draft.screens.size),
     "createdAt" to jsonOf(stored.createdAt?.toString()),
-    "lockedAt" to jsonOf(stored.lockedAt?.toString())
+    "lockedAt" to jsonOf(stored.lockedAt?.toString()),
+    // Data penuh untuk renderer Fase D (ModuleMapPane/DataFlowPane/PrototypeRenderer) — tetap
+    // ringkasan: tidak ada parameter, fakta kontrak, atau harga di sini.
+    "modules" to jsonArrayOf(stored.draft.pack.modules.map { m ->
+        val slot = m.slot
+        val slotDef = slot?.let { runCatching { DomainPackRegistry.slotDefinition(it) }.getOrNull() }
+        jsonObjectOf(
+            "id" to jsonOf(m.id.value),
+            "displayName" to jsonOf(m.displayName),
+            "section" to jsonOf(m.section.value),
+            "kind" to jsonOf(m.kind.name),
+            "slot" to jsonOf(slot?.value),
+            "slotInput" to jsonOf(slotDef?.defaultInput?.value),
+            "slotOutput" to jsonOf(slotDef?.defaultOutput?.value)
+        )
+    }),
+    "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),
+    "screens" to jsonArrayOf(stored.draft.screens.map { s ->
+        jsonObjectOf(
+            "screenId" to jsonOf(s.screenId),
+            "moduleId" to jsonOf(s.moduleId.value),
+            "title" to jsonOf(s.title),
+            "widget" to jsonOf(s.widget),
+            // Sample data berupa data (plan §4): dihitung WidgetRegistry di server agar klien
+            // tidak perlu merekonstruksi DomainPack hanya untuk menggambar pratinjau.
+            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(s, stored.draft.pack).map { row ->
+                jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
+            })
+        )
+    })
 )
 
 private fun summary(stored: StoredDiscoveryDraft): String = summaryObj(stored).encode()
+
+private fun patternJson(pattern: PrototypePattern): com.eventverse.app.shared.json.JsonValue = jsonObjectOf(
+    "id" to jsonOf(pattern.id),
+    "name" to jsonOf(pattern.name),
+    "widget" to jsonOf(pattern.widget.code),
+    "packCode" to jsonOf(pattern.packCode),
+    "pattern" to com.eventverse.app.shared.json.JsonParser.parseObject(pattern.patternJson),
+    "createdByUserId" to jsonOf(pattern.createdByUserId.value)
+)
 
 /** Nomor migrasi berikutnya dari direktori migrasi; fallback 79 kalau direktori tak terbaca. */
 private fun nextMigrationVersion(): Int = runCatching {
