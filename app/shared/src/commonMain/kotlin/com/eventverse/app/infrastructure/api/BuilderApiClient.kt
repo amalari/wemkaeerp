@@ -63,6 +63,21 @@ class BuilderApiClient(
     suspend fun invoices(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/billing/invoices")
 
     /**
+     * URL PDF tagihan (FR-M2-5b) untuk dibuka di tab browser.
+     *
+     * Dua langkah karena tab browser tidak bisa mengirim header `Authorization`: sesi ditukar dengan
+     * tiket pendek (±60 detik) yang cakupannya hanya invoice ini, lalu PDF-nya dibuka lewat `?ticket=`.
+     * Sama seperti cetakan blueprint — dan alasan yang sama.
+     */
+    suspend fun invoicePdfUrl(invoiceId: String): Result<String> =
+        call(HttpMethod.Post, "/api/builder/billing/invoices/$invoiceId/print-ticket").mapCatching { body ->
+            val obj = body as? JsonValue.Obj ?: error("Respons tiket cetak tidak dikenali")
+            val ticket = obj.string("ticket")?.takeIf { it.isNotBlank() }
+                ?: error("Server tidak menerbitkan tiket cetak")
+            resolveUrl("/api/builder/billing/invoices/$invoiceId/invoice.pdf") + "?ticket=" + ticket
+        }
+
+    /**
      * GET /api/builder/build-queue — antrean permintaan kode modul **lintas tenant** (FR-M2-4).
      * Hanya superadmin; untuk peran lain server menjawab 403 dan pesannya ditampilkan apa adanya.
      */

@@ -70,7 +70,7 @@ fun Route.builderRoutes(
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
     builderBuildQueueRoutes(buildRequests)
-    builderBillingRoutes(billingInvoices, billingPreview, auditLog)
+    builderBillingRoutes(billingInvoices, billingPreview, auditLog, tenants)
     route("/api/builder") {
         get("/overview") {
             call.gate() ?: return@get

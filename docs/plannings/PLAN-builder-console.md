@@ -212,18 +212,21 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 > `docs/teaching/teaching-plat-002-m0-builder-foundation.md`).
 | **M2 Deploy** | `DeployTenantUseCase`, Deployments + rollback, Antrian Pembuatan tipis (dikelola superadmin), billing manual (invoice PDF dari harga terkunci + konfirmasi bayar oleh superadmin), **`ServerRouteWiring` (pemecahan F1)**, flag daftar publik, Docker + Caddy wildcard | `bordir.wemakeerp.com` hidup dari tombol Deploy; rollback teruji; invoice pertama terkirim |
 
-> Status implementasi (2026-09-30): **M2 hampir selesai** — `DeployTenantUseCase` + rollback dengan
+> Status implementasi (2026-10-01): **M2 selesai di kode** — `DeployTenantUseCase` + rollback dengan
 > gerbang data (append-only, ter-audit), `BuildRequest` + V83, route agregat deployment, **antrean
-> superadmin + pane-nya**, **F1 tuntas (`Application.kt` 663 → 379)**, **flag daftar publik
-> (`WEMADE_PUBLIC_SIGNUP`, bawaan tertutup)**, **tagihan langganan harga-terkunci** (V85, terbit +
-> konfirmasi bayar ter-audit, pane tenant) dan pane Deployments/Billing/Antrean **dicek dengan mata
-> dengan data nyata**. Teruji: domain + HTTP gate + live end-to-end (invoice `INV-2026-09-001` terbit
-> 9 baris Rp 3.400.000 → PAID + audit).
+> superadmin + pane-nya**, **F1 tuntas (`Application.kt` 663 → 379, lalu 394 setelah fitur sesi
+> paralel)**, **flag daftar publik (`WEMADE_PUBLIC_SIGNUP`, bawaan tertutup)**, **tagihan langganan
+> harga-terkunci** (V85, terbit + konfirmasi bayar ter-audit, pane tenant), dan **PDF tagihan platform
+> (FR-M2-5b)** — dokumen platform dengan watermark status, kolom harga rata kanan, dan unduhan lewat
+> tiket cetak; pane Deployments/Billing/Antrean **dicek dengan mata dengan data nyata**. Teruji:
+> domain + HTTP gate + live end-to-end (`INV-2026-10-001` terbit 9 baris Rp 3.400.000 → diunduh →
+> PAID → diunduh lagi dengan watermark `LUNAS` + audit).
 >
-> Sisa M2 yang **belum**: PDF invoice (FR-M2-5b — renderer invoice tenant tidak bisa dipakai langsung
-> untuk dokumen platform; JSON lengkap sudah tersedia untuk UI), dan Docker + Caddy wildcard
-> `*.wemakeerp.com` yang menunggu prasyarat non-kode (akses DNS wildcard). Detail:
-> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2 + M2b. (Lampiran M1 di
+> Sisa M2 yang **belum**: hanya Docker + Caddy wildcard `*.wemakeerp.com`, yang menunggu prasyarat
+> non-kode (akses DNS wildcard). Konsekuensinya kriteria "`bordir.wemakeerp.com` hidup dari tombol
+> Deploy" dan "invoice pertama **terkirim**" belum terbukti utuh — Deploy masih mengubah catatan
+> deployment, dan pengiriman invoice masih manual (unduh → lampirkan). Detail:
+> `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2 + M2b + M2c. (Lampiran M1 di
 > dokumen yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.)
 
 ### Gerbang sebelum ekspansi

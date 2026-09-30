@@ -35,7 +35,10 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.readBytes
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
@@ -474,6 +477,133 @@ class BuilderRouteGateTest {
     }
 
 
+
+    @Test
+    fun billing_pdf_forTenantAdmin_servesPdfOfOwnInvoice() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        val pdf = client.get("/api/builder/billing/invoices/$id/invoice.pdf") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+
+        assertEquals(200, pdf.status.value, "tenant mengunduh tagihannya sendiri: ${pdf.bodyAsText()}")
+        assertEquals(ContentType.Application.Pdf.withoutParameters().toString(), pdf.contentType()?.withoutParameters().toString())
+        assertTrue(
+            String(pdf.readBytes().copyOfRange(0, 4), Charsets.ISO_8859_1) == "%PDF",
+            "respons bukan berkas PDF"
+        )
+    }
+
+    @Test
+    fun billing_pdf_forTenantWithoutBuilderPermission_returns403() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        val pdf = client.get("/api/builder/billing/invoices/$id/invoice.pdf") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo", role = Role.OPERATOR)}")
+        }
+
+        assertEquals(403, pdf.status.value, "gerbang Builder berlaku juga untuk berkas PDF")
+    }
+
+    @Test
+    fun billing_pdf_forOtherTenant_returns404_not403() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        // 404, bukan 403: 403 akan memberi tahu tenant lain bahwa nomor invoice itu ada di sebelah,
+        // dan nomor invoice mudah ditebak (INV-2026-09-001).
+        val pdf = client.get("/api/builder/billing/invoices/$id/invoice.pdf") {
+            header("X-Tenant-Slug", "pabrik-lain")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken("pabrik-lain", tenantId = "ten-lain")}")
+        }
+
+        assertEquals(404, pdf.status.value, "invoice tenant lain tidak boleh terlihat ada")
+    }
+
+    @Test
+    fun billing_pdf_withoutCredentials_returns401() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        assertEquals(401, client.get("/api/builder/billing/invoices/$id/invoice.pdf").status.value)
+    }
+
+    @Test
+    fun billing_pdf_withPrintTicket_servesWithoutAuthorizationHeader() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        // Tab browser tidak bisa mengirim Bearer: sesi ditukar dengan tiket pendek, sama seperti
+        // cetakan blueprint.
+        val ticket = client.post("/api/builder/billing/invoices/$id/print-ticket") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+        assertEquals(200, ticket.status.value, "penerbitan tiket: ${ticket.bodyAsText()}")
+        val value = Regex("\"ticket\":\"([^\"]+)\"").find(ticket.bodyAsText())?.groupValues?.get(1)
+        assertTrue(value != null, "tiket terbaca dari respons")
+
+        val pdf = client.get("/api/builder/billing/invoices/$id/invoice.pdf?ticket=$value") {
+            header("X-Tenant-Slug", slug)
+        }
+
+        assertEquals(200, pdf.status.value, "PDF lewat tiket cetak: ${pdf.bodyAsText()}")
+        assertTrue(String(pdf.readBytes().copyOfRange(0, 4), Charsets.ISO_8859_1) == "%PDF")
+    }
+
+    @Test
+    fun billing_pdf_withTicketForAnotherInvoice_isForbidden() = testApplication {
+        installModule()
+        val first = issueInvoice(slug, period = "2026-08")
+        val second = issueInvoice(slug, period = "2026-09")
+
+        val ticket = client.post("/api/builder/billing/invoices/$first/print-ticket") {
+            header("X-Tenant-Slug", slug)
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = "ten-wemade-demo")}")
+        }
+        val value = Regex("\"ticket\":\"([^\"]+)\"").find(ticket.bodyAsText())?.groupValues?.get(1)
+
+        // Tiket terikat pada satu invoice. Yang menolak adalah **plugin** (cakupan path di tiket), bukan
+        // rute ini — karena itu 401, bukan 403: tiket yang bocor dari riwayat browser tidak pernah
+        // sampai ke pemeriksaan invoice.
+        val pdf = client.get("/api/builder/billing/invoices/$second/invoice.pdf?ticket=$value") {
+            header("X-Tenant-Slug", slug)
+        }
+
+        assertEquals(401, pdf.status.value, "tiket satu dokumen tidak berlaku untuk dokumen lain")
+    }
+
+    @Test
+    fun pdfRoutes_areRegistered() = testApplication {
+        installModule()
+        val id = issueInvoice(slug)
+
+        // Rute yang tidak melekat hanya akan terlihat sebagai 404 — pernah terjadi di sesi ini saat
+        // server lama masih memegang port. Jadi keduanya diperiksa ada, bukan sekadar "tidak error".
+        val ticket = client.post("/api/builder/billing/invoices/$id/print-ticket") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        assertEquals(200, ticket.status.value, "rute tiket cetak belum terpasang")
+    }
+
+    /** Menerbitkan satu invoice lewat jalur superadmin dan mengembalikan id-nya. */
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.issueInvoice(
+        slug: String,
+        period: String = "2026-09"
+    ): String {
+        val issued = client.post("/api/builder/billing/invoices?tenantId=ten-wemade-demo&period=$period") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        assertEquals(200, issued.status.value, "terbit invoice uji: ${issued.bodyAsText()}")
+        return Regex("\"id\":\"([^\"]+)\"").find(issued.bodyAsText())?.groupValues?.get(1)
+            ?: error("id invoice tidak terbaca dari ${issued.bodyAsText()}")
+    }
 
     /** Stub agent: selalu mengusulkan draf garment sah — deterministik untuk test HTTP. */
     private class StubBuilderAgent : BuilderAgent {

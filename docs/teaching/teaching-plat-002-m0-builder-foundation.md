@@ -323,3 +323,143 @@ tenant yang membukanya menerima `403 Hanya superadmin platform`, bukan daftar ko
   menampilkan `INV-2026-09-001 · PAID · 9 modul · Rp 3.400.000`; pane **Deployments** menampilkan
   `#1 IMPORTED · build pre-builder` dengan Deploy aktif dan Rollback nonaktif (memang belum ada
   deployment ACTIVE); pane **Antrian** kosong untuk superadmin dan menampilkan pesan 403 untuk tenant.
+
+---
+
+# Lampiran M2c (2026-10-01) — FR-M2-5b: PDF tagihan platform
+
+Ini penutup sisa M2 yang bisa dikerjakan tanpa prasyarat luar. Yang tersisa setelah lampiran ini
+hanya **Docker + Caddy wildcard** (menunggu akses DNS `*.wemakeerp.com`).
+
+## Keputusan pertama: dokumen ini **bukan** dokumen tenant
+
+`InvoicePdfRenderer` yang sudah ada mencetak penjualan **tenant** — kop profil tenant, NPWP tenant,
+prefiks nomor dokumen tenant. Tagihan langganan arahnya terbalik: platform menagih tenant. Memakai
+renderer itu berarti mencetak dokumen dengan pemilik yang salah, dan itu bukan bug kosmetik: dokumen
+uang yang salah kopnya akan dipertanyakan keuangan klien.
+
+Karena itu dokumen ini dibuat sebagai **dokumen platform**, meniru pola yang sudah terbukti di Fase D
+(lembar blueprint) — bukan pola invoice tenant:
+
+```
+core/.../domain/builder/print/
+├── SubscriptionInvoicePdfDocument.kt   # ISI: nomor, periode, baris, total (rupiah sudah berlabel)
+├── SubscriptionInvoiceSheet.kt         # BENTUK: peran baris + perataan, baris yang sudah ditempatkan
+└── SubscriptionInvoiceSheetLayout.kt   # TATA LETAK: aliran, kolom kanan, pemenggalan halaman
+
+server/.../infrastructure/pdf/
+├── PdfSheetPainter.kt                  # PRIMITIF: teks, kotak, garis, watermark, encodeSafe
+├── SubscriptionInvoicePdfRenderer.kt   # RUPA: peran baris → ukuran, bobot, keabu-abuan
+└── PrintLabels.kt                      # label waktu cetak (satu format untuk semua dokumen)
+```
+
+Empat lapis itu bukan pembagian administratif; masing-masing punya test yang berbeda:
+
+| Lapis | Diuji oleh | Pertanyaan yang dijawab |
+|---|---|---|
+| Isi | `SubscriptionInvoicePdfDocumentTest` (6) | Apakah angkanya yang **beku**? Apakah watermark sesuai status? |
+| Tata letak | `SubscriptionInvoiceSheetLayoutTest` (7) | Apakah angkanya lurus ke margin kanan? Apakah halaman lanjutan berjudul? |
+| Rupa | `SubscriptionInvoicePdfRendererTest` (4) | Apakah isinya benar-benar sampai ke kertas (ekstraksi teks PDFBox)? |
+| Gerbang | `BuilderRouteGateTest` +7 | 401 tanpa sesi, 403 tanpa izin, **404** untuk tagihan tenant lain, 200 lewat tiket |
+
+## Watermark menyebut status, dan kepekatannya berbeda
+
+`BELUM DIBAYAR` (0,80) dan `DIBATALKAN` (0,72) dicetak lebih gelap daripada `LUNAS` (0,88) — bukan
+soal selera: dua yang pertama yang mencegah orang mentransfer ke tagihan yang salah. PDF ini beredar
+lewat WhatsApp/email dan difoto; invoice lunas yang masih terlihat "belum dibayar" akan ditagih dua
+kali.
+
+## Kolom angka: satu-satunya alasan tata letaknya berbeda dari blueprint
+
+Blueprint hanya satu kolom. Tagihan butuh kolom harga yang **berakhir** di margin kanan, dan itu
+dihitung dari lebar teks yang sudah diukur (`InvoiceTextLayout.measureWidthMm10`) — bukan ditempel
+dengan jarak tetap. Test-nya membandingkan bidang, bukan tampilan:
+
+```kotlin
+amounts.forEach { line -> assertTrue(line.rect.right.value >= rightLimit - 2) }   // lurus ke margin
+labelLines.zip(amountLines).forEach { (label, amount) ->
+    assertTrue(label.rect.right.value <= amount.rect.x.value)                       // tidak bersinggungan
+}
+```
+
+Nama modul terpanjang pun tidak menabrak kolom angka: lebar sisi kanan direservasi lebih dulu, sisa
+lebar jadi milik label.
+
+## Ratchet yang ikut terkumpul
+
+| Berkas | Sebelum | Sesudah | Kenapa |
+|---|---|---|---|
+| `BlueprintPdfRenderer.kt` | 194 | **117** | primitif pindah ke `PdfSheetPainter` |
+| `DiscoveryBlueprintPdfRoutes.kt` | 146 | **141** | label waktu pindah ke `PrintLabels` |
+| `BuilderBillingRoutes.kt` | 141 | 272 | + 2 rute cetak & gerbangnya (masih di bawah soft 300) |
+
+`encodeSafe` (pemetaan glyph yang absen dari Nunito) sengaja **tidak** disalin ke renderer kedua:
+daftar itu pengetahuan hasil penyelidikan font, dan dua salinan berarti satu perbaikan akan tertinggal
+di salah satunya.
+
+`SubscriptionInvoiceSheetLayout.kt` (337 baris) melewati **soft 250** untuk `core/**`. Sudah ditinjau:
+satu tanggung jawab (bagaimana satu lembar tagihan ditata di kertas), satu nama yang jujur, dan ~90
+barisnya KDoc keputusan. Ambang **hard 400** belum terlewati; kalau nanti terlewati, yang dipecah
+adalah mesin penempat barisnya (`PageBuilder`) menjadi `SheetFlowPageBuilder`, bukan file ini dibelah
+sembarang.
+
+## Pitfall baru (lanjutan daftar M0–M2b)
+
+20. **Tiket cetak hanya berlaku untuk path berakhiran `.pdf`.** `PrintTicketService.decode` menolak
+    tiket bila `requestPath` tidak berakhiran `.pdf`. Rute pertama di sini bernama `/{id}/pdf`; tiketnya
+    terbit dengan benar, lalu **seluruh** permintaan ditolak plugin sebagai "tiket tidak sah" (401) —
+    dari luar tampak seperti tiket kedaluwarsa, padahal salah nama rute. Rute kini `/{id}/invoice.pdf`,
+    mengikuti `blueprint.pdf` / `labels.pdf` / `spk-card.pdf`. Yang menangkapnya: test rute, bukan
+    kompilasi dan bukan test renderer.
+
+21. **Proxy verifikasi: `Host: 127.0.0.1` diperlakukan sebagai subdomain tenant.** Aturan host-vs-JWT
+    mengecualikan `localhost`, tidak mengecualikan alamat loopback IP, sehingga setiap permintaan lewat
+    proxy dijawab **403** sementara `curl` langsung ke API dijawab 200. Proxy harus menulis ulang
+    `Host: localhost:8081`, bukan membuang header Host. Produksi tidak terdampak (Host selalu nama
+    domain), tapi ini jebakan nyata untuk alat verifikasi lokal.
+
+22. **Menyuntik sesi ke `localStorage` harus lengkap.** Sesi tanpa larik `permissions` **dihapus sendiri**
+    oleh aplikasi: permintaan tetap dikirim dengan `X-Tenant-Slug`, tetapi **tanpa** `Authorization`,
+    lalu aplikasi mendarat di `/login`. Yang benar: suntikkan utuh keluaran
+    `POST /api/public/auth/demo` (token + user + permissions + tenantSlug), bukan rakitan setengah.
+
+23. **Aplikasi memanggil API di origin yang sama.** Perancah verifikasi statis harus mem-proxy `/api`
+    ke server Ktor. Tanpa itu permintaan `/api/…` dilayani `index.html` (200 HTML), aplikasi membaca
+    sesinya sebagai tidak sah, dan pembersihan sesi membuat diagnosis berikutnya menyesatkan
+    ("kok langsung logout?").
+
+24. **Invarian domain tetap berlaku di fixture test.** `SubscriptionInvoice` menolak `status = PAID`
+    tanpa `paidAt`; fixture uji pun harus mengisi keduanya. Fixture yang lebih permisif dari domainnya
+    akan menyembunyikan bug yang justru sedang diuji.
+
+## Bukti verifikasi M2c
+
+- Test: `SubscriptionInvoicePdfDocumentTest` (6), `SubscriptionInvoiceSheetLayoutTest` (7),
+  `SubscriptionInvoicePdfRendererTest` (4), `BuilderRouteGateTest` 28 (7 baru untuk PDF). Renderer
+  blueprint lama tetap hijau **tanpa diubah test-nya** setelah primitifnya dipindah — itu bukti
+  refaktor tidak mengubah perilaku.
+- Live (server lokal + Postgres, JWT asli):
+  ```
+  POST /api/public/auth/demo?tenantSlug=wemade-demo&role=PLATFORM_SUPERADMIN   → token
+  POST /api/builder/billing/invoices?tenantId=ten-bordir-uji&period=2026-10   → 200 INV-2026-10-001
+  POST /api/builder/billing/invoices/inv-…-2026-10-1/print-ticket             → 200 ticket
+  GET  …/invoice.pdf?ticket=…                                                 → 200 application/pdf 12.964 B
+  POST …/confirm?note=Transfer%20BCA%201-Okt                                  → 200 PAID
+  GET  …/invoice.pdf?ticket=… (tiket baru)                                    → 200, watermark LUNAS
+  ```
+  Teksnya diperiksa dengan `pdftotext`: 9 baris modul, kolom harga rata kanan, `Total per bulan
+  Rp 3.400.000`, footer `Halaman 1 dari 1 · INV-2026-10-001 · Dicetak 01 Okt 2026 00:21 +07:00`.
+- **Dilihat dengan mata**: kedua PDF dirender ke PNG (`pdftoppm`) dan diperiksa — watermark diagonal
+  `BELUM DIBAYAR` / `LUNAS`, kolom angka lurus, tiga garis pemisah, catatan kaki tercetak.
+- Visual sisi tenant (Playwright, Wasm): pane **Billing** menampilkan dua invoice dengan tombol
+  **Unduh PDF**; menekan tombolnya menerbitkan tiket (`iss: wemade-erp-print`, `scope` = invoice itu,
+  `platform_superadmin: false`) dan membuka tab baru dengan `document.contentType == "application/pdf"`
+  — jalur yang sama dengan yang dipakai pengguna sungguhan.
+
+## Yang belum (jujur)
+
+- **Kirim** PDF masih manual (unduh → lampirkan). Belum ada email/WhatsApp gateway, jadi kriteria
+  "invoice pertama terkirim" baru terbukti sebagai "dokumen pertama diunduh".
+- Belum ada UI VOID; penomoran ulang setelah VOID sudah diizinkan domain tapi belum ber-UI.
+- Docker + Caddy wildcard tetap menunggu akses DNS — tanpa itu, "`bordir.wemakeerp.com` hidup dari
+  tombol Deploy" tidak bisa diuji, dan Deploy masih hanya mengubah catatan deployment.

@@ -10,6 +10,16 @@ FR-M2-6 (**F1 tuntas: `Application.kt` 663 → 379** lewat `PublicAuthRoutes.kt`
 `WEMADE_PUBLIC_SIGNUP`**, bawaan tertutup) **selesai di turn yang sama**. Docker/Caddy tetap
 menunggu prasyarat non-kode (akses DNS wildcard `*.wemakeerp.com`).
 
+**Pembaruan 2026-10-01 — FR-M2-5b selesai.** PDF tagihan platform kini ada, dan keputusan
+"renderer invoice tenant tidak bisa dipakai" dibuktikan benar sekaligus diselesaikan: tagihan
+dicetak sebagai **dokumen platform** (pola lembar blueprint Fase D), bukan dengan renderer invoice
+tenant. Yang dibuat: `domain/builder/print/SubscriptionInvoicePdfDocument|Sheet|SheetLayout`,
+`infrastructure/pdf/PdfSheetPainter` (primitif bersama, dipakai juga oleh renderer blueprint),
+`SubscriptionInvoicePdfRenderer`, `PrintLabels`, rute `POST …/print-ticket` + `GET …/invoice.pdf`
+dengan gerbang tenant-nya-sendiri/superadmin dan **404** untuk tagihan tenant lain. Sisa M2 tinggal
+Docker + Caddy wildcard. Detail keputusan, empat pitfall baru, dan bukti verifikasi (test, live,
+mata) ada di lampiran **M2c** `docs/teaching/teaching-plat-002-m0-builder-foundation.md`.
+
 ## 1. Kebutuhan
 - **Siapa**: pemilik project menekan Deploy; superadmin mengelola Antrian Pembuatan & rollback paksa.
 - **Data**: deployment & build request milik **tenant** (schema `builder`, RLS); pack version milik tenant.

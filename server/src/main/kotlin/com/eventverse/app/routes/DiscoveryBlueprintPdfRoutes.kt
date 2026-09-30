@@ -7,6 +7,7 @@ import com.eventverse.app.domain.discovery.print.BlueprintPdfDocument
 import com.eventverse.app.domain.discovery.print.BlueprintSheetLayout
 import com.eventverse.app.infrastructure.auth.PrintTicketService
 import com.eventverse.app.infrastructure.pdf.BlueprintPdfRenderer
+import com.eventverse.app.infrastructure.pdf.PrintLabels
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -131,13 +132,10 @@ private fun mayAccessPdf(
 }
 
 /**
- * Waktu cetak berlabel. Offset zona ikut dicetak karena PDF berpindah tangan: "14:05" tanpa zona
- * membuat dua orang di dua pulau memperdebatkan jam berapa dokumen itu dibuat.
+ * Waktu cetak berlabel — satu implementasi untuk semua dokumen platform ([PrintLabels]).
+ *
+ * Dulu fungsi privat di file ini; pindah ke `infrastructure/pdf` begitu dokumen platform kedua
+ * (tagihan langganan, FR-M2-5b) memerlukannya, supaya dua dokumen tidak mencetak jam dengan format
+ * berbeda.
  */
-private fun generatedAtLabel(): String {
-    val now = java.time.ZonedDateTime.now()
-    val stamp = now.format(
-        java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm", java.util.Locale("id", "ID"))
-    )
-    return "$stamp ${now.offset.id}"
-}
+private fun generatedAtLabel(): String = PrintLabels.now()
