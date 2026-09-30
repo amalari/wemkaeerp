@@ -38,6 +38,8 @@ import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.presentation.crm.LeadFieldProjection
 import com.eventverse.app.presentation.crm.tint
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.domain.crm.LeadCreationChannel
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -183,7 +185,7 @@ fun LeadInspectorPane(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Kiri: Tahap / Stage Selector
-                StageSelector(current = lead.stage, canWrite = canWrite, onUpdateStage = onUpdateStage)
+                StageSelector(current = lead.stage, canWrite = canWrite, onUpdateStage = onUpdateStage, fromAiDraft = lead.createdVia == LeadCreationChannel.AI_DRAFT)
 
                 // Kanan: Selector PIC ala Monday.com (searchable)
                 PicAssigneeSelector(
@@ -344,7 +346,8 @@ fun LeadInspectorPane(
 private fun StageSelector(
     current: LeadStage,
     canWrite: Boolean,
-    onUpdateStage: (LeadStage) -> Unit
+    onUpdateStage: (LeadStage) -> Unit,
+    fromAiDraft: Boolean = false // TRD-HELP-002 K2: field awalnya diisi draf AI, disimpan manusia
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -362,6 +365,7 @@ private fun StageSelector(
                 modifier = if (canWrite) Modifier.clickable { expanded = true } else Modifier
             )
         }
+        if (fromAiDraft) ClayTag(text = "Dibuat dari draf AI", tint = WeMadeColors.Info, modifier = Modifier.padding(top = ClaySpacing.Xs))
 
         if (canWrite) {
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

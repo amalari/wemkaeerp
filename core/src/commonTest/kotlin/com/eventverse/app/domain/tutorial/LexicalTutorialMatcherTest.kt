@@ -26,6 +26,15 @@ class LexicalTutorialMatcherTest {
     }
 
     @Test
+    fun samplingAndCostingQuestions_doNotCollideWithCrm() {
+        assertEquals("costing_new_sheet", top("gimana cara hitung hpp?"))
+        assertEquals("costing_quick_estimate", top("customer tanya harga kira-kira berapa"))
+        assertEquals("sampling_board_overview", top("spk sampling dari mana"))
+        assertEquals("sampling_move_stage", top("cara acc buyer untuk sampel"))
+        assertEquals("crm_find_lead", top("cari lead pakai nomor WA"), "kata 'nomor' tidak boleh membelokkan ke HPP")
+    }
+
+    @Test
     fun weakSingleWordMatches_areNotOfferedAsAlternatives() {
         val ids = matcher.rank("ada buyer baru chat WA, dicatat di mana?", all, null).map { it.tutorial.id.value }
         assertEquals("crm_new_lead", ids.first())

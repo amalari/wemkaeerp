@@ -21,7 +21,9 @@ import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.costing.components.AiQuickEstimatorPane
 import com.eventverse.app.presentation.costing.components.HistoricalBenchmarksPane
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -101,9 +103,8 @@ fun CostingWorkspaceScreen(
 
                 if (state.canWrite) {
                     ClayButton(
-                        text = "+ Hitung HPP Baru",
-                        onClick = { viewModel.onEvent(CostingUiEvent.OpenCreateDialog) },
-                        style = ClayButtonStyle.Primary
+                        text = "+ Hitung HPP Baru", onClick = { viewModel.onEvent(CostingUiEvent.OpenCreateDialog) },
+                        style = ClayButtonStyle.Primary, modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.COSTING_NEW_SHEET)
                     )
                 }
             }
@@ -217,11 +218,10 @@ private fun CostingDesktopWorkbench(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
-            // Tabs Bar — FlowRow, bukan Row: tujuh tab tidak muat satu baris di lebar 1280dp
-            // dan Row diam-diam memotong tab terakhir di luar layar.
+            // Tabs Bar — FlowRow, bukan Row: tujuh tab tidak muat satu baris di 1280dp dan Row memotong tab terakhir.
             @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
             (FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm), modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.COSTING_TABS),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
                 CostingWorkbenchTab.entries.forEach { tab ->
@@ -333,7 +333,7 @@ private fun CostingFilterBar(
             value = searchQuery,
             onValueChange = onSearchChange,
             placeholder = "Cari nomor HPP / Tech Pack...",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().tutorialAnchor(GarmentTutorialAnchors.COSTING_SEARCH)
         )
 
         Row(

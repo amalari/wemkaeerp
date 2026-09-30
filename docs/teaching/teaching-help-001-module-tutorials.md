@@ -342,3 +342,31 @@ Perbaikannya ada di `LexicalTutorialMatcher`: kandidat dengan skor kurang dari *
 
 - [ ] Tekan Enter untuk mengirim (`KeyboardActions`). Pastikan jalan di Wasm dan Desktop.
 - [ ] Tampilkan "Tutorial ini tidak tersedia di versi aplikasi Anda" bila id saran tidak ditemukan di katalog klien.
+
+---
+
+# Bagian 5 — Menambah Tutorial Modul: Sampling & Costing
+
+## Pola "tambah tutorial modul" (resep, 4 langkah)
+
+1. **Anchor** di `GarmentTutorialAnchors`: satu konstanta per elemen, lalu masukkan ke `all`.
+2. **Pasang** `Modifier.tutorialAnchor(...)` di layar. Pilih elemen di layar utama, bukan di dalam dialog, karena dialog berada di window lain.
+3. **Isi** di `GarmentTutorials` beserta `requiredLevel` yang sesuai dengan tombolnya. Contoh: "+ Hitung HPP Baru" hanya tampil bila `canWrite`, jadi tutorialnya OPERATE.
+4. **Test matcher lintas modul**: pertanyaan khas modul baru harus menang, **dan** pertanyaan modul lama tidak boleh berbelok.
+
+## Temuan: kata kunci antarmodul saling bertabrakan
+
+Setelah tutorial Costing masuk, pertanyaan "cari lead pakai nomor WA" berbelok ke **Mencari lembar HPP**. Penyebabnya: "nomor" adalah kata kunci Costing, sedangkan tutorial pencarian CRM tidak punya "nomor" atau "wa". Test lama `stepIndex_pointsAtTheMostRelevantStep` langsung merah, dan itu bagus.
+
+Perbaikannya ada di **data** (kata kunci CRM dilengkapi), bukan di test atau mesin. Kasus ini sekarang dikunci `samplingAndCostingQuestions_doNotCollideWithCrm`.
+
+Pelajarannya: setiap tutorial baru adalah perubahan peringkat untuk **semua** tutorial lain.
+
+## Dua batasan yang disengaja
+
+- **Sampling**: nama tahap adalah data tenant (`TenantStageFlow`), jadi teks tutorial menyebut "kolom tahap" dan "tombol aksi di kartu", bukan "Rajut Turun Mesin". Tutorial yang menyebut tahap rajut akan menyesatkan tenant bordir.
+- **Costing**: `CostingWorkspaceScreen.kt` (825 baris) terkena Ratchet. Anchor ditempel di baris yang sudah ada, dan dua baris import diimbangi dengan merapatkan dua pasang baris, jadi jumlahnya tetap 825. Tab Costing hanya ada di desktop; di mobile anchor-nya tidak pernah terdaftar, sehingga langkahnya jatuh ke callout tengah tanpa kode tambahan.
+
+## Label "Dibuat dari draf AI" (penutup TRD-HELP-002)
+
+`LeadInspectorPane` menampilkan `ClayTag` di bawah Tahap Lead bila `createdVia == AI_DRAFT`. Namanya belum ditampilkan, karena `OrgNode` belum punya tautan ke user dan codec lead belum mengirim `createdByUserId`. Ini gap yang tercatat, bukan tebakan.

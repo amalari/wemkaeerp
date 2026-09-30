@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.sampling
 
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,7 +115,7 @@ fun SamplingWorkspaceScreen(
     Column(modifier = modifier.fillMaxSize()) {
         // Top Toolbar
         ClayCard(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm).tutorialAnchor(GarmentTutorialAnchors.SAMPLING_HEADER),
             shape = ClayShapes.Card,
             contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
         ) {
@@ -149,6 +151,7 @@ fun SamplingWorkspaceScreen(
                 }
                 ClayButton(
                     text = "Template Alur Pabrik",
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.SAMPLING_FLOW_TEMPLATE),
                     style = ClayButtonStyle.Secondary,
                     onClick = { showFlowTemplate = true }
                 )
@@ -210,6 +213,7 @@ fun SamplingWorkspaceScreen(
             } else {
                 SamplingPipelineKanbanBoard(
                     orders = state.filteredOrders,
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.SAMPLING_BOARD),
                     selectedOrderId = state.selectedOrderId,
                     onSelectOrder = { viewModel.onEvent(SamplingUiEvent.SelectOrder(it)) },
                     onOpenSpkDetail = { order, focusFlow ->
