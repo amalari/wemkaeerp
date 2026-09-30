@@ -209,6 +209,17 @@ enum class AppNavScreen(
     ),
 
     /**
+     * Fase E: buku demand — antrean review platform (superadmin saja di server). Gerbang sesinya
+     * sama dengan [DISCOVERY]; gerbang baca superadmin dijelaskan layar, bukan disembunyikan.
+     */
+    DISCOVERY_DEMANDS(
+        route = "/discovery/demands",
+        title = "Buku Demand",
+        aliases = listOf(),
+        isNavMenuItem = false
+    ),
+
+    /**
      * Rute generik `/m/{code}` (B6f) untuk modul pack yang belum punya layar khusus. Gerbangnya modul dari path,
      * bukan field ini — satu entri melayani semua modul data-only.
      */

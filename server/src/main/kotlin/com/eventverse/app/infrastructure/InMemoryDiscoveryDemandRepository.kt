@@ -15,5 +15,8 @@ class InMemoryDiscoveryDemandRepository : DiscoveryDemandRepository {
 
     override suspend fun findAll(): List<DiscoveryDemand> = rows.reversed()
 
+    override suspend fun findByDraftId(draftId: com.eventverse.app.domain.discovery.DiscoveryDraftId): DiscoveryDemand? =
+        rows.firstOrNull { it.draftId == draftId }
+
     fun clear() = rows.clear()
 }

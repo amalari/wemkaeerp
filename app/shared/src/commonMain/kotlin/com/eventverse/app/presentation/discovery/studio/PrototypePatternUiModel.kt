@@ -86,6 +86,7 @@ data class PrototypePatternUi(
         DiscoveryDraftUi(
             id = "pattern-preview",
             status = "DRAFT",
+            narrative = null,
             packCode = packCode.orEmpty(),
             packDisplayName = packLabel,
             blueprintCode = "",

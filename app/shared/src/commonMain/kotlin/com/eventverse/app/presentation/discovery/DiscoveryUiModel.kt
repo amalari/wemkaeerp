@@ -28,6 +28,8 @@ data class DiscoveryScreenUi(
 data class DiscoveryDraftUi(
     val id: String,
     val status: String,
+    /** Narasi asli (E1/E2) — dipulihkan server dari buku demand; null untuk draf sebelum V80. */
+    val narrative: String?,
     val packCode: String,
     val packDisplayName: String,
     val blueprintCode: String,
@@ -49,6 +51,7 @@ data class DiscoveryDraftUi(
             return DiscoveryDraftUi(
                 id = o.string("id").orEmpty(),
                 status = o.string("status").orEmpty(),
+                narrative = o.string("narrative"),
                 packCode = o.string("packCode").orEmpty(),
                 packDisplayName = o.string("packDisplayName").orEmpty(),
                 blueprintCode = o.string("blueprintCode").orEmpty(),

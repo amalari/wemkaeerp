@@ -121,6 +121,8 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 busy = busy,
                 onResume = { d ->
                     busy = true; error = null
+                    // E1/E2: pulihkan cerita aslinya — "Ubah Narasi" tidak boleh kosong.
+                    d.narrative?.let { narrative = it }
                     draft = d; draftId = d.id; step = 2
                     busy = false
                 }

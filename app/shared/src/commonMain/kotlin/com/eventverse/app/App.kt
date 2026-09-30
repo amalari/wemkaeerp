@@ -66,6 +66,7 @@ import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
 import com.eventverse.app.presentation.discovery.DiscoveryWizardScreen
+import com.eventverse.app.presentation.discovery.studio.DemandLedgerScreen
 import com.eventverse.app.presentation.discovery.studio.PrototypeStudioScreen
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessSource
@@ -260,7 +261,12 @@ fun App() {
     // buildNavMenu; barisnya ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
     // Lambda, bukan `::openScreen`: referensi fungsi lokal belum didukung backend KMP ini.
     val drawerSections = if (isAuthenticated && accessDecisions.isNotEmpty()) {
-        navSections + studioDrawerSection(currentScreen) { openScreen(it) }
+        navSections + studioDrawerSection(
+            currentScreen = currentScreen,
+            // Buku demand superadmin-only di server; baris drawer ikut supaya pengguna lain
+            // tidak menabrak layar yang pasti 403.
+            showDemandLedger = session.user.role == Role.PLATFORM_SUPERADMIN
+        ) { openScreen(it) }
     } else navSections
 
     CompositionLocalProvider(
@@ -360,13 +366,15 @@ fun App() {
                         // Fase C menumpang gerbang yang sama: Studio pola prototype juga platform,
                         // bukan modul. Yang membedakan keduanya hanya layarnya; wewenang menulis pola
                         // diputus server, dan `canWrite` di sini sekadar menyembunyikan tombol.
-                        AppNavScreen.DISCOVERY, AppNavScreen.DISCOVERY_STUDIO -> {
+                        AppNavScreen.DISCOVERY, AppNavScreen.DISCOVERY_STUDIO, AppNavScreen.DISCOVERY_DEMANDS -> {
                             if (isAuthenticated && accessDecisions.isNotEmpty()) {
-                                if (screen == AppNavScreen.DISCOVERY_STUDIO) {
-                                    // `session` & `user` sudah non-null di cabang ini — tanpa `?.`.
-                                    PrototypeStudioScreen(canWrite = session.user.role == Role.PLATFORM_SUPERADMIN)
-                                } else {
-                                    DiscoveryWizardScreen()
+                                val isSuperadmin = session.user.role == Role.PLATFORM_SUPERADMIN
+                                when (screen) {
+                                    AppNavScreen.DISCOVERY_STUDIO ->
+                                        PrototypeStudioScreen(canWrite = isSuperadmin)
+                                    AppNavScreen.DISCOVERY_DEMANDS ->
+                                        DemandLedgerScreen(isSuperadmin = isSuperadmin)
+                                    else -> DiscoveryWizardScreen()
                                 }
                             } else {
                                 AuthGuardCard(

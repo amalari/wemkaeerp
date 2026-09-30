@@ -247,11 +247,17 @@ Keputusan Fase E, beserta alasannya:
 | Kandidat Rule of Three dihitung saat dibaca | Ambang bisa berubah (2 → 4) tanpa migrasi; yang disimpan adalah fakta per demand |
 | Pencatatan demand diecek `​OpsSchemaBoundaryTest` + test 403 | Tabel baru di `ops` tanpa baris guard akan "pindah" ke public diam-diam — pola yang sama dengan discovery_drafts |
 | Sambil menyentuh wiring: `prototypePatterns` di-inject lewat `module()` (utang Fase C dicicil) | Sebelumnya `PostgresPrototypePatternRepository()` dibuat langsung di `Application.kt:550` — test Studio menulis ke DB pengembang. `Application.kt` tetap 698 baris (ratchet: dipadatkan dua val 2-baris) |
+| Layar buku demand di drawer Studio (bukan modul/governance), barisnya disembunyikan untuk non-superadmin | Buku demand tetap bukan `BusinessModule` (platform, bukan tenant) — pola yang sama dengan dua layar Studio lain. Menyembunyikan baris mencegah pengguna menabrak layar yang pasti 403; layarnya tetap menjelaskan gerbang jika diakses langsung lewat URL |
+| Narasi dipulihkan lewat ringkasan draf (`findByDraftId`), bukan endpoint "my demands" baru | Demand milik pemilik draf yang sama — membuangnya ke ringkasan yang sudah tergerbang kepemilikan menambah nol permukaan serangan baru; klien tidak perlu fetch kedua saat resume |
+| Non-superadmin tidak menembak `GET /demands` sama sekali | Server pasti 403; request yang pasti gagal hanya menambah bising console dan jejak audit palsu |
+
+Irisan kedua Fase E (2026-09-30, sore) — selesai:
+- **Layar Buku Demand** `DemandLedgerScreen` di rute `/discovery/demands` (drawer Studio, baris hanya untuk superadmin): kandidat Rule of Three di atas (kartu outline Primary + badge jumlah demand + kutipan narasi), lalu semua demand (narasi verbatim, ClayTag istilah tak terwakili, footer agent + tanggal). Non-superadmin melihat kartu penjelasan gerbang (dan tidak menembak endpoint sama sekali).
+- **Pemulihan narasi saat resume**: `DiscoveryDemandRepository.findByDraftId` → narasi masuk ringkasan draf (`summaryWithNarrative`), wizard mengisi ulang textarea saat "Ubah Narasi" — draf pra-V80 tetap `null` dan mulai kosong.
 
 Sisa Fase E (belum ditutup):
-- Permukaan UI untuk membaca buku demand (superadmin hari ini membaca lewat endpoint; kandidat Rule of Three belum punya layar).
-- Resume sesi belum mengembalikan **teks narasi** (dokumen draf tidak menyimpannya; setelah E2, narasi bisa dipulihkan dari demand) — dan belum ada autosave narasi saat mengetik.
-- Gerbang Rule of Three belum terhubung ke keputusan widget Studio (saat ini hanya melapor).
+- Autosave narasi saat mengetik (resume kini sudah memulihkan teks, tapi masih ada jendela kehilangan jika tab tertutup sebelum "Susun Draf").
+- Gerbang Rule of Three belum terhubung ke keputusan widget Studio (saat ini hanya melapor di layar Buku Demand).
 
 ## 7. Risiko
 

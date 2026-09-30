@@ -87,6 +87,12 @@ class DiscoveryApiClient(
         call(HttpMethod.Get, "/api/discovery/patterns")
 
     /**
+     * GET /api/discovery/demands — buku demand (E2/E3). Server menolak non-superadmin (403);
+     * layar yang memakainya menjelaskan gerbang itu, bukan menjadi satu-satunya penjaga.
+     */
+    suspend fun listDemands(): Result<JsonValue> = call(HttpMethod.Get, "/api/discovery/demands")
+
+    /**
      * POST /api/discovery/patterns — simpan pola Studio (Fase C).
      *
      * Server hanya menerima **superadmin platform** (403 untuk peran lain) dan memvalidasi ulang

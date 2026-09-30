@@ -36,6 +36,12 @@ interface DiscoveryDemandRepository {
 
     /** Terbaru dulu — antrean review platform membaca dari atas. */
     suspend fun findAll(): List<DiscoveryDemand>
+
+    /**
+     * Draf menghasilkan paling banyak satu demand (E2); null untuk draf lahir sebelum V80.
+     * Dipakai route untuk memulihkan teks narasi ke ringkasan draf (E1 — resume sesi).
+     */
+    suspend fun findByDraftId(draftId: DiscoveryDraftId): DiscoveryDemand?
 }
 
 /**

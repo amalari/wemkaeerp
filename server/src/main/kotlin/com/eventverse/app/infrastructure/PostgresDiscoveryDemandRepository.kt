@@ -11,6 +11,7 @@ import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonOf
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 
@@ -36,6 +37,14 @@ class PostgresDiscoveryDemandRepository : DiscoveryDemandRepository {
         }
         return demand
     }
+
+    override suspend fun findByDraftId(draftId: com.eventverse.app.domain.discovery.DiscoveryDraftId): DiscoveryDemand? =
+        DatabaseFactory.dbQuery {
+            DiscoveryDemandsTable.selectAll()
+                .where { DiscoveryDemandsTable.draftId eq draftId.value }
+                .limit(1)
+                .firstOrNull()?.let(::toDemand)
+        }
 
     override suspend fun findAll(): List<DiscoveryDemand> = DatabaseFactory.dbQuery {
         DiscoveryDemandsTable.selectAll()

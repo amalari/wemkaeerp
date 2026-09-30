@@ -20,23 +20,39 @@ import com.eventverse.app.presentation.designsystem.IconLayers
  */
 fun studioDrawerSection(
     currentScreen: AppNavScreen,
+    showDemandLedger: Boolean = false,
     onOpen: (AppNavScreen) -> Unit
 ): ClayNavSection = ClayNavSection(
     title = "Studio",
-    items = listOf(
-        ClayNavItem(
+    items = buildList {
+        add(
+            ClayNavItem(
             key = AppNavScreen.DISCOVERY.route,
             label = AppNavScreen.DISCOVERY.title,
             selected = currentScreen == AppNavScreen.DISCOVERY,
             onClick = { onOpen(AppNavScreen.DISCOVERY) },
             icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
-        ),
-        ClayNavItem(
+            )
+        )
+        add(
+            ClayNavItem(
             key = AppNavScreen.DISCOVERY_STUDIO.route,
             label = AppNavScreen.DISCOVERY_STUDIO.title,
             selected = currentScreen == AppNavScreen.DISCOVERY_STUDIO,
             onClick = { onOpen(AppNavScreen.DISCOVERY_STUDIO) },
             icon = { tint -> IconEdit(modifier = Modifier.fillMaxSize(), color = tint) }
+            )
         )
-    )
+        if (showDemandLedger) {
+            add(
+                ClayNavItem(
+                key = AppNavScreen.DISCOVERY_DEMANDS.route,
+                label = AppNavScreen.DISCOVERY_DEMANDS.title,
+                selected = currentScreen == AppNavScreen.DISCOVERY_DEMANDS,
+                onClick = { onOpen(AppNavScreen.DISCOVERY_DEMANDS) },
+                icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
+                )
+            )
+        }
+    }
 )

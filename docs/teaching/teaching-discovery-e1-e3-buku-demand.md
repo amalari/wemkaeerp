@@ -3,7 +3,8 @@
 > Plan: [`docs/plannings/PLAN-discovery-blueprint-prototype-studio.md`](../plannings/PLAN-discovery-blueprint-prototype-studio.md) §6 · Tanggal: 2026-09-30
 > Kode: `core/.../domain/discovery/DiscoveryDemand.kt`, `server/.../routes/DiscoveryRoutes.kt`,
 > `server/src/main/resources/db/migration/V80__discovery_demands.sql`,
-> `app/shared/.../presentation/discovery/DiscoveryWizardScreen.kt` (+`DiscoveryWizardSteps.kt`)
+> `app/shared/.../presentation/discovery/DiscoveryWizardScreen.kt` (+`DiscoveryWizardSteps.kt`),
+> `app/shared/.../presentation/discovery/studio/DemandLedgerScreen.kt` (irisan kedua)
 
 ## Apa yang diselesaikan
 
@@ -62,12 +63,34 @@ Tiga irisan Fase E (operasi produk):
   superadmin, kandidat `gigi` demandCount=3, narasi verbatim + matchedModules tercatat.
 - `OpsSchemaBoundaryTest` +1 baris: `discovery_demands` wajib tinggal di schema `ops`.
 
-## Tantangan mandiri
+## Irisan kedua (2026-09-30 sore): layar Buku Demand & pemulihan narasi
 
-1. Layar superadmin untuk buku demand: di mana seharusnya (drawer Studio? layar governance)? Ingat
-   Kontrak 6 design system — komponen bersama buta domain.
-2. Pulihkan **teks narasi** di resume sesi dari buku demand (E2 sudah menyimpannya — sambungkan).
-3. Turunkan ambang Rule of Three menjadi per-vertikal? Uji dulu dengan Uji Variabilitas — ambang
+Dua tantangan mandiri di bawah (dulu #1 dan #2) dikerjakan di hari yang sama:
+
+1. **`DemandLedgerScreen`** (`/discovery/demands`, drawer Studio). Struktur: kandidat Rule of Three
+   di atas (kartu outline `Primary`, badge jumlah demand, kutipan narasi italic), lalu semua demand
+   (narasi, `ClayTag` istilah tak terwakili, footer agent + tanggal). Pelajaran gerbang: **server**
+   tetap satu-satunya penjaga (403); UI hanya *menjelaskan* — baris drawer disembunyikan untuk
+   non-superadmin agar tidak menabrak layar yang pasti ditolak, dan karena gerbangnya sudah pasti,
+   layar tidak buang request: `LaunchedEffect(isSuperadmin)` berhenti sebelum fetch.
+2. **Pemulihan narasi.** `DiscoveryDemandRepository.findByDraftId(draftId)` → route menambahkan
+   `narrative` ke ringkasan draf (`summaryWithNarrative`, dipakai kelima call site ringkasan) →
+   wizard mengisi ulang textarea saat resume/"Ubah Narasi". Draf lahir sebelum V80 → `null` →
+   mulai kosong, tanpa crash. Draf pra-V80 tidak pernah punya demand, jadi `findByDraftId` null
+   untuk mereka adalah **fakta, bukan kegagalan** — inilah kenapa `?` (bukan `!!`) adalah
+   pemodelan yang benar.
+
+Verifikasi tambahan: browser superadmin (1440 & 1280 — kandidat, demand, tag muat), owner demo
+(kartu penjelasan amber, tanpa kebocoran data, tanpa baris drawer), AuthGuard saat logout;
+asersi test baru: `GET /drafts/{id}` mengembalikan `narrative` verbatim. Suite `--rerun`:
+1487 test, 0 gagal; `audit-variability.sh` 0 temuan.
+
+## Tantangan mandiri (sisa)
+
+1. Turunkan ambang Rule of Three menjadi per-vertikal? Uji dulu dengan Uji Variabilitas — ambang
    adalah konsep platform atau data tenant?
-4. Demand dari agent LLM vs deterministik: apakah `agent_ref` cukup untuk membandingkan kualitas
+2. Demand dari agent LLM vs deterministik: apakah `agent_ref` cukup untuk membandingkan kualitas
    keduanya, atau perlu skor cakupan per demand?
+3. Hubungkan kandidat Rule of Three ke keputusan widget Studio (saat ini hanya melapor di layar).
+4. Autosave narasi saat mengetik — resume sudah memulihkan teks, tapi tab yang tertutup sebelum
+   "Susun Draf" masih kehilangan cerita.

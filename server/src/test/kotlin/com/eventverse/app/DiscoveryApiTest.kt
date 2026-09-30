@@ -385,6 +385,12 @@ class DiscoveryApiTest {
         assertEquals(3, demands.size)
         assertTrue(demands.all { it.string("narrative")?.contains("gigi") == true })
         assertTrue(demands.first().array("matchedModules").isNotEmpty(), "modul hasil agent tercatat")
+
+        // E1: narasi asli dipulihkan ke ringkasan draf — prospek yang kembali melihat ceritanya.
+        val draft = JsonParser.parseObject(
+            client.get("/api/discovery/drafts/draft-demand-1") { asTenant(garmentSlug) }.bodyAsText()
+        )
+        assertEquals("Klinik gigi dengan antrean pasien.", draft.string("narrative"))
     }
 
     private fun io.ktor.server.application.Application.app(

@@ -167,7 +167,7 @@ fun Route.discoveryRoutes(
                         createdAt = Clock.System.now()
                     )
                 )
-                call.respondText(summary(stored), ContentType.Application.Json, HttpStatusCode.Created)
+                call.respondText(summaryWithNarrative(stored, demands), ContentType.Application.Json, HttpStatusCode.Created)
             }.onFailure { badRequest(it.message ?: "Gagal membuat draf") }
         }
 
@@ -176,7 +176,7 @@ fun Route.discoveryRoutes(
             val principal = call.callerPrincipalOrNull ?: return@get unauthorized()
             val drafts = if (principal.isPlatformSuperadmin) repository.findAll()
             else repository.findByOwner(UserId(principal.userId))
-            call.respondText(jsonArrayOf(drafts.map { summaryObj(it) }).encode(), ContentType.Application.Json)
+            call.respondText(jsonArrayOf(drafts.map { JsonParser.parse(summaryWithNarrative(it, demands)) }).encode(), ContentType.Application.Json)
         }
 
         get("/{id}") {
@@ -184,7 +184,7 @@ fun Route.discoveryRoutes(
             val stored = repository.findById(DiscoveryDraftId(call.parameters["id"].orEmpty()))
                 ?: return@get notFound("Draf tidak ditemukan")
             if (!mayAccess(principal, stored)) return@get forbidden()
-            call.respondText(summary(stored), ContentType.Application.Json)
+            call.respondText(summaryWithNarrative(stored, demands), ContentType.Application.Json)
         }
 
         // Revisi dokumen. Body = dokumen DiscoveryDraftCodec (pack + blueprint + screens).
@@ -199,7 +199,7 @@ fun Route.discoveryRoutes(
                 return@put badRequest("Dokumen draf tidak sah (${e.path})")
             }
             update(id, UserId(principal.userId), principal.isPlatformSuperadmin, draft)
-                .onSuccess { call.respondText(summary(it), ContentType.Application.Json) }
+                .onSuccess { call.respondText(summaryWithNarrative(it, demands), ContentType.Application.Json) }
                 .onFailure {
                     val status = when (it) {
                         is UpdateDiscoveryDraftUseCase.LockedException -> HttpStatusCode.Conflict
@@ -215,7 +215,7 @@ fun Route.discoveryRoutes(
             val existing = repository.findById(id) ?: return@post notFound("Draf tidak ditemukan")
             if (!mayAccess(principal, existing)) return@post forbidden()
             lock(id, UserId(principal.userId), principal.isPlatformSuperadmin)
-                .onSuccess { call.respondText(summary(it), ContentType.Application.Json) }
+                .onSuccess { call.respondText(summaryWithNarrative(it, demands), ContentType.Application.Json) }
                 .onFailure { call.respondText(it.message ?: "Gagal mengunci draf", ContentType.Text.Plain, HttpStatusCode.Conflict) }
         }
 
@@ -396,8 +396,11 @@ private fun demandJson(d: DiscoveryDemand): JsonValue = jsonObjectOf(
     "createdAt" to jsonOf(d.createdAt?.toString())
 )
 
-private fun summaryObj(stored: StoredDiscoveryDraft): JsonValue.Obj = jsonObjectOf(
+private fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null): JsonValue.Obj = jsonObjectOf(
     "id" to jsonOf(stored.id.value),
+    // Narasi asli (E1/E2): dipulihkan dari buku demand supaya prospek yang kembali melihat
+    // ceritanya sendiri, bukan mulai dari kosong. Demand lahir sebelum V80 → null.
+    "narrative" to jsonOf(narrative),
     "ownerUserId" to jsonOf(stored.ownerUserId.value),
     "prospectLeadId" to jsonOf(stored.prospectLeadId),
     "status" to jsonOf(stored.status.name),
@@ -443,6 +446,12 @@ private fun summaryObj(stored: StoredDiscoveryDraft): JsonValue.Obj = jsonObject
 )
 
 private fun summary(stored: StoredDiscoveryDraft): String = summaryObj(stored).encode()
+
+/** Ringkasan + narasi asli dari buku demand (E1): lima pemanggil ringkasan memakai ini. */
+private suspend fun summaryWithNarrative(
+    stored: StoredDiscoveryDraft,
+    demands: DiscoveryDemandRepository
+): String = summaryObj(stored, demands.findByDraftId(stored.id)?.narrative).encode()
 
 private fun patternJson(pattern: PrototypePattern): com.eventverse.app.shared.json.JsonValue = jsonObjectOf(
     "id" to jsonOf(pattern.id),
