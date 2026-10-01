@@ -10,6 +10,7 @@ class InMemorySubscriptionInvoiceRepository : SubscriptionInvoiceRepository {
 
     override suspend fun findByTenant(tenantId: TenantId) = rows.filter { it.tenantId == tenantId }
     override suspend fun findAll() = rows.toList()
+    override suspend fun findByIpaymuTrxId(trxId: String) = rows.firstOrNull { it.ipaymuTrxId == trxId }
     override suspend fun save(invoice: SubscriptionInvoice): SubscriptionInvoice {
         rows.removeAll { it.id == invoice.id }
         rows.add(invoice)

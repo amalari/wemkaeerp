@@ -20,6 +20,7 @@ class SubscriptionBillingUseCaseTest {
         val items = mutableListOf<SubscriptionInvoice>()
         override suspend fun findByTenant(tenantId: TenantId) = items.filter { it.tenantId == tenantId }
         override suspend fun findAll() = items.toList()
+        override suspend fun findByIpaymuTrxId(trxId: String) = items.firstOrNull { it.ipaymuTrxId == trxId }
         override suspend fun save(invoice: SubscriptionInvoice): SubscriptionInvoice {
             items.removeAll { it.id == invoice.id }
             items += invoice

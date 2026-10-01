@@ -15,7 +15,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 
-/** Invoice langganan platform (tabel V85). Baca tenant difilter `tenant_id` (RLS lapis kedua). */
+/** Invoice langganan platform (tabel V85 + V86). Baca tenant difilter `tenant_id` (RLS lapis kedua). */
 class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.System) :
     SubscriptionInvoiceRepository {
 
@@ -31,6 +31,13 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
         SubscriptionInvoicesTable.selectAll()
             .orderBy(SubscriptionInvoicesTable.issuedAt, order = SortOrder.DESC)
             .map(::toInvoice)
+    }
+
+    override suspend fun findByIpaymuTrxId(trxId: String): SubscriptionInvoice? = DatabaseFactory.dbQuery {
+        SubscriptionInvoicesTable.selectAll()
+            .where { SubscriptionInvoicesTable.ipaymuTrxId eq trxId }
+            .firstOrNull()
+            ?.let(::toInvoice)
     }
 
     override suspend fun save(invoice: SubscriptionInvoice): SubscriptionInvoice = DatabaseFactory.dbQuery {
@@ -49,14 +56,16 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
                 it[issuedAt] = invoice.issuedAt ?: clock.now()
                 it[paidAt] = invoice.paidAt
                 it[paidNote] = invoice.paidNote
+                it[ipaymuTrxId] = invoice.ipaymuTrxId
             }
         } else {
-            // Hanya status pembayaran yang boleh berubah: baris & total adalah snapshot beku, dan
-            // menimpanya akan mengubah arti dokumen yang sudah dikirim ke tenant.
+            // Hanya status pembayaran & trx gateway yang boleh berubah: baris & total adalah
+            // snapshot beku, dan menimpanya akan mengubah arti dokumen yang sudah dikirim ke tenant.
             SubscriptionInvoicesTable.update({ SubscriptionInvoicesTable.id eq invoice.id.value }) {
                 it[status] = invoice.status.name
                 it[paidAt] = invoice.paidAt
                 it[paidNote] = invoice.paidNote
+                it[ipaymuTrxId] = invoice.ipaymuTrxId
             }
         }
         invoice
@@ -72,6 +81,7 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
         status = SubscriptionInvoiceStatus.valueOf(row[SubscriptionInvoicesTable.status]),
         issuedAt = row[SubscriptionInvoicesTable.issuedAt],
         paidAt = row[SubscriptionInvoicesTable.paidAt],
-        paidNote = row[SubscriptionInvoicesTable.paidNote]
+        paidNote = row[SubscriptionInvoicesTable.paidNote],
+        ipaymuTrxId = row[SubscriptionInvoicesTable.ipaymuTrxId]
     )
 }

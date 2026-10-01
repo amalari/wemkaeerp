@@ -21,6 +21,8 @@ object SubscriptionInvoicesTable : Table("builder.subscription_invoices") {
     val issuedAt = timestamp("issued_at")
     val paidAt = timestamp("paid_at").nullable()
     val paidNote = text("paid_note").nullable()
+    /** trx_id iPaymu (V86) — kunci masuk callback; NULL = dibayar manual. */
+    val ipaymuTrxId = varchar("ipaymu_trx_id", 100).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

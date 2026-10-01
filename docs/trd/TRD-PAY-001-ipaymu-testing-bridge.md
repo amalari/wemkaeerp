@@ -402,7 +402,19 @@ jadi whitelist iPaymu tidak perlu disentuh.
 
 ## 6. Pertanyaan Terbuka (diselesaikan sebelum/selama Fase 1)
 
-1. Apakah sandbox iPaymu menegakkan IP whitelist? (P3)
-2. Format verifikasi keaslian callback iPaymu yang resmi — ada signature callback, atau hanya cek status?
+1. ~~Apakah sandbox iPaymu menegakkan IP whitelist?~~ **Terjawab (audit docs.ipaymu.com,
+   2026-10-01): TIDAK** — IP whitelist + validasi domain adalah syarat **production only**
+   (registrasi domain production butuh ±2 hari kerja). Sandbox bebas dipanggil dari mana saja;
+   flag `enableOci` default false di bridge sudah sesuai.
+2. ~~Format verifikasi keaslian callback iPaymu yang resmi~~ **Terjawab (docs Callback +
+   Check Transaction, 2026-10-01)**: callback membawa header **`X-Signature` + `X-Timestamp`,
+   secret = Nomor VA**; algoritma: normalisasi tipe (`trx_id`/`status_code`/
+   `transaction_status_code`/`paid_off` → int; `is_escrow` → bool; `additional_info` default
+   `[]`) → sort key A-Z → `JSON.stringify` → escape `/`→`\/` → HMAC-SHA256. Respon webhook
+   **wajib selalu HTTP 200** (non-200 = retry tanpa akhir); penolakan lewat body
+   `accepted:false`. Isi callback tetap tidak dipercaya: status diverifikasi ulang via
+   `POST /api/v2/transaction` (`{"transactionId":"<numeric>"}`, status int di `Data.Status`:
+   1/6=Success, 0/7=Pending, -2=Expired, 2/3/4/5=Gagal) dan `Data.SessionId` wajib sama dengan
+   `sid` tersimpan. Implementasi: `IpaymuCallbackRoutes.kt` + `IpaymuClient.kt` (koreksi W1–W7).
 3. Harga Reserved Public IP di bawah PAYG. (P4)
 4. Production: server memakai bridge ini, atau IP statis sendiri bersama Docker + Caddy?

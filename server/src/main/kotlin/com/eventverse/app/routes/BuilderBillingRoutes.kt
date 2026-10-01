@@ -4,6 +4,8 @@ import com.eventverse.app.domain.audit.AuditAction
 import com.eventverse.app.domain.audit.AuditLogEntry
 import com.eventverse.app.domain.audit.AuditLogRepository
 import com.eventverse.app.domain.builder.ConfirmSubscriptionPaymentUseCase
+import com.eventverse.app.domain.builder.CreateInvoiceCheckoutUseCase
+import com.eventverse.app.domain.builder.PaymentGateway
 import com.eventverse.app.domain.builder.IssueSubscriptionInvoiceUseCase
 import com.eventverse.app.domain.builder.SubscriptionInvoice
 import com.eventverse.app.domain.builder.SubscriptionInvoiceId
@@ -54,11 +56,14 @@ fun Route.builderBillingRoutes(
     billingPreview: TenantBillingPreviewSource,
     auditLog: AuditLogRepository,
     tenants: TenantRepository,
+    /** Gateway iPaymu (L1). `null` = belum dikonfigurasi → endpoint checkout menjawab 503. */
+    ipaymuGateway: PaymentGateway? = null,
     printTickets: PrintTicketService = PrintTicketService(),
     invoiceRenderer: SubscriptionInvoicePdfRenderer = SubscriptionInvoicePdfRenderer()
 ) {
     val issue = IssueSubscriptionInvoiceUseCase(billingPreview, invoices)
     val confirm = ConfirmSubscriptionPaymentUseCase(invoices)
+    val createCheckout = ipaymuGateway?.let { CreateInvoiceCheckoutUseCase(invoices, it) }
 
     route("/api/builder/billing/invoices") {
         // ---------------------------------------------------------------- sisi tenant
@@ -110,6 +115,34 @@ fun Route.builderBillingRoutes(
                     call.respondText(invoiceJson(invoice), ContentType.Application.Json)
                 },
                 onFailure = { e -> call.respond(HttpStatusCode.Conflict, "Konfirmasi gagal: ${e.message}") }
+            )
+        }
+
+        post("/{id}/checkout") {
+            // Gerbang superadmin (gate builder): membuat transaksi iPaymu = operasi berbayar
+            // lintas tenant; tenant tidak boleh memicunya untuk invoice miliknya sendiri.
+            call.superadminGate() ?: return@post
+            if (createCheckout == null) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    "Payment gateway belum dikonfigurasi (isi IPAYMU_VA / IPAYMU_API_KEY / IPAYMU_BASE_URL)"
+                )
+                return@post
+            }
+            val id = SubscriptionInvoiceId(call.parameters["id"] ?: "")
+            createCheckout(id).fold(
+                onSuccess = { result ->
+                    call.auditBilling(
+                        auditLog, AuditAction.BUILDER_INVOICE_ISSUED, result.invoice.tenantId,
+                        "checkout iPaymu invoice ${result.invoice.number} (trx ${result.invoice.ipaymuTrxId})"
+                    )
+                    call.respondText(
+                        "{\"invoice\":${invoiceJson(result.invoice)}," +
+                            "\"paymentUrl\":${result.paymentUrl?.let { "\"$it\"" } ?: "null"}}",
+                        ContentType.Application.Json
+                    )
+                },
+                onFailure = { e -> call.respond(HttpStatusCode.Conflict, "Checkout gagal: ${e.message}") }
             )
         }
 
@@ -236,6 +269,7 @@ internal fun invoiceJson(invoice: SubscriptionInvoice): String = buildString {
     append("\"status\":\"${invoice.status.name}\",\"totalIdr\":${invoice.totalIdr.amount},")
     append("\"issuedAt\":${invoice.issuedAt?.toString()?.let { "\"$it\"" } ?: "null"},")
     append("\"paidAt\":${invoice.paidAt?.toString()?.let { "\"$it\"" } ?: "null"},")
+    append("\"ipaymuTrxId\":${invoice.ipaymuTrxId?.let { "\"$it\"" } ?: "null"},")
     append("\"lines\":[")
     append(
         invoice.lines.joinToString(",") { line ->

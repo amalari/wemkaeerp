@@ -63,14 +63,41 @@ fun Route.builderRoutes(
                 com.eventverse.app.infrastructure.PostgresModuleCatalogRepository(),
                 com.eventverse.app.infrastructure.PostgresModulePricingQuoteRepository()
             )(tenantId)
-        }
+        },
+    /** Gateway iPaymu (L1) — default dari env; `null` bila kredensial belum diisi. */
+    ipaymuGateway: com.eventverse.app.domain.builder.PaymentGateway? =
+        com.eventverse.app.infrastructure.IpaymuClient.fromEnv()
 ) {
     val send = SendBuilderMessageUseCase(chats, agent, drafts)
     val apply = ApplyDraftPatchUseCase(chats, drafts)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
     builderBuildQueueRoutes(buildRequests)
-    builderBillingRoutes(billingInvoices, billingPreview, auditLog, tenants)
+    builderBillingRoutes(billingInvoices, billingPreview, auditLog, tenants, ipaymuGateway)
+    // Callback iPaymu publik (tanpa JWT) — aktor mesin; terpasang di root path.
+    // Tanpa kredensial: handler tetap terpasang dengan gateway stub yang selalu gagal,
+    // sehingga callback valid dijawab 200 + accepted:false (fail-closed; docs iPaymu:
+    // non-200 memicu retry tanpa akhir). X-Signature diverifikasi dengan secret = Nomor VA.
+    val effectiveGateway = ipaymuGateway ?: object : com.eventverse.app.domain.builder.PaymentGateway {
+        override suspend fun createCheckout(
+            invoice: com.eventverse.app.domain.builder.SubscriptionInvoice
+        ): Result<com.eventverse.app.domain.builder.IpaymuCheckout> =
+            Result.failure(IllegalStateException("Payment gateway belum dikonfigurasi"))
+
+        override suspend fun checkStatus(
+            transactionId: String
+        ): Result<com.eventverse.app.domain.builder.IpaymuTransactionCheck> =
+            Result.failure(IllegalStateException("Payment gateway belum dikonfigurasi"))
+    }
+    ipaymuCallbackRoutes(
+        com.eventverse.app.domain.builder.HandleIpaymuNotificationUseCase(
+            invoices = billingInvoices,
+            gateway = effectiveGateway,
+            confirm = com.eventverse.app.domain.builder.ConfirmSubscriptionPaymentUseCase(billingInvoices)
+        ),
+        // Docs Callback: secret HMAC X-Signature = Nomor VA.
+        callbackSecret = com.eventverse.app.infrastructure.EnvLoader.get("IPAYMU_VA").ifBlank { null }
+    )
     route("/api/builder") {
         get("/overview") {
             call.gate() ?: return@get

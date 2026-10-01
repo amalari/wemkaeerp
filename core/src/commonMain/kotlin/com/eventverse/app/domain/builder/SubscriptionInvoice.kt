@@ -47,7 +47,12 @@ data class SubscriptionInvoice(
     val status: SubscriptionInvoiceStatus = SubscriptionInvoiceStatus.ISSUED,
     val issuedAt: Instant? = null,
     val paidAt: Instant? = null,
-    val paidNote: String? = null
+    val paidNote: String? = null,
+    /**
+     * `trx_id` dari payment gateway (L1 billing iPaymu). `null` = invoice dibayar manual.
+     * Frozen saat checkout dibuat — trx yang sama yang dicek ulang saat callback tiba.
+     */
+    val ipaymuTrxId: String? = null
 ) {
     init { require(number.isNotBlank()) { "SubscriptionInvoice.number kosong" } }
     init { require(period.matches(Regex("\\d{4}-\\d{2}"))) { "period harus YYYY-MM, dapat '$period'" } }
@@ -65,6 +70,9 @@ interface SubscriptionInvoiceRepository {
 
     /** Seluruh invoice lintas tenant — konsol superadmin. */
     suspend fun findAll(): List<SubscriptionInvoice>
+
+    /** Satu invoice per transaksi iPaymu — titik masuk handler callback (L1, FR-PAY-3.3). */
+    suspend fun findByIpaymuTrxId(trxId: String): SubscriptionInvoice?
 
     suspend fun save(invoice: SubscriptionInvoice): SubscriptionInvoice
 }
