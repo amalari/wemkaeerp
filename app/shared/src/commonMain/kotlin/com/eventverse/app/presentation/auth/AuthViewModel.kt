@@ -43,7 +43,13 @@ class AuthViewModel(
 ) {
     companion object {
         const val STORAGE_KEY = AuthApiClient.SESSION_STORAGE_KEY
+
+        /** Login dari `app.` membawa user ke Builder project-nya (PLAN-builder-console §2). */
+        const val HANDOFF_LANDING_PATH = "/builder"
     }
+
+    /** Dari `/config`; dipakai menyusun origin tenant saat handoff. */
+    private var platformBaseDomain: String? = null
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -158,6 +164,11 @@ class AuthViewModel(
 
         scope.launch {
             val result = authApiClient.loginDemo(currentSlug, role = targetRole.name)
+            if (_uiState.value.hostSurface is HostSurface.Platform && targetRole != Role.PLATFORM_SUPERADMIN) {
+                result.onSuccess { handOffToTenant(it) }
+                    .onFailure { e -> _uiState.update { it.copy(isLoading = false, errorMessage = e.message) } }
+                return@launch
+            }
             result.onSuccess { session ->
                 // 1. Simpan session token & profil ke PlatformLocalStorage (browser localStorage)
                 PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
@@ -414,13 +425,16 @@ class AuthViewModel(
     private fun resolveHostSurface() {
         val host = PlatformHost.currentHost() ?: return
         scope.launch {
-            val surface = HostSurface.parse(host, authApiClient.fetchPlatformBaseDomain().getOrNull())
+            val baseDomain = authApiClient.fetchPlatformBaseDomain().getOrNull()
+            platformBaseDomain = baseDomain
+            val surface = HostSurface.parse(host, baseDomain)
             _uiState.update {
                 it.copy(hostSurface = surface, tenantSlug = (surface as? HostSurface.Tenant)?.slug?.value ?: it.tenantSlug)
             }
             val ticket = PlatformHost.queryParameter(AuthApiClient.HANDOFF_QUERY_PARAM)
             if (surface is HostSurface.Tenant && ticket != null) {
-                PlatformNavigation.replacePath("/login") // tiket sekali pakai: jangan tinggal di history
+                // Tiket sekali pakai: buang query-nya dari history, path tujuan (/builder) tetap.
+                PlatformNavigation.replacePath(PlatformNavigation.getCurrentPath())
                 redeemHandoff(ticket, surface.slug.value)
             }
         }
@@ -441,9 +455,19 @@ class AuthViewModel(
         authApiClient.issueHandoff(session.token.value)
             .onSuccess { handoff ->
                 _uiState.update { it.copy(successMessage = "Mengalihkan ke workspace ${session.tenantSlug.orEmpty()}…") }
-                PlatformHost.openUrl("${handoff.origin}/login?${AuthApiClient.HANDOFF_QUERY_PARAM}=${handoff.ticket}")
+                val origin = tenantOriginFromHere(handoff.tenantSlug, platformBaseDomain) ?: handoff.origin
+                PlatformHost.openUrl("$origin$HANDOFF_LANDING_PATH?${AuthApiClient.HANDOFF_QUERY_PARAM}=${handoff.ticket}")
             }
             .onFailure { cause -> _uiState.update { it.copy(isLoading = false, errorMessage = cause.message) } }
+    }
+
+    /** Konsol `app./admin`: superadmin masuk tenant [slug] (act-as ber-audit, discovery-M3b). */
+    suspend fun actAsTenant(slug: String, landingPath: String): Result<Unit> {
+        val token = _uiState.value.authenticatedSession?.token?.value ?: return Result.failure(IllegalStateException("Sesi tidak ada"))
+        return authApiClient.issueHandoff(token, actAs = slug).map { h ->
+            val origin = tenantOriginFromHere(h.tenantSlug, platformBaseDomain) ?: h.origin
+            PlatformHost.openUrl("$origin$landingPath?${AuthApiClient.HANDOFF_QUERY_PARAM}=${h.ticket}")
+        }
     }
 
     /**

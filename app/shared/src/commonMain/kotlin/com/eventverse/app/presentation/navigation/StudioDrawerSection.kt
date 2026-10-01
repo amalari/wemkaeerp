@@ -21,36 +21,49 @@ import com.eventverse.app.presentation.designsystem.IconLayers
 fun studioDrawerSection(
     currentScreen: AppNavScreen,
     showDemandLedger: Boolean = false,
+    isBuilder: Boolean = false,
+    onOpenBuilder: (() -> Unit)? = null,
     onOpen: (AppNavScreen) -> Unit
 ): ClayNavSection = ClayNavSection(
     title = "Studio",
     items = buildList {
+        if (onOpenBuilder != null) {
+            add(
+                ClayNavItem(
+                    key = "/builder",
+                    label = "WeMake Builder",
+                    selected = isBuilder,
+                    onClick = onOpenBuilder,
+                    icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
+                )
+            )
+        }
         add(
             ClayNavItem(
-            key = AppNavScreen.DISCOVERY.route,
-            label = AppNavScreen.DISCOVERY.title,
-            selected = currentScreen == AppNavScreen.DISCOVERY,
-            onClick = { onOpen(AppNavScreen.DISCOVERY) },
-            icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
+                key = AppNavScreen.DISCOVERY.route,
+                label = AppNavScreen.DISCOVERY.title,
+                selected = !isBuilder && currentScreen == AppNavScreen.DISCOVERY,
+                onClick = { onOpen(AppNavScreen.DISCOVERY) },
+                icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
             )
         )
         add(
             ClayNavItem(
-            key = AppNavScreen.DISCOVERY_STUDIO.route,
-            label = AppNavScreen.DISCOVERY_STUDIO.title,
-            selected = currentScreen == AppNavScreen.DISCOVERY_STUDIO,
-            onClick = { onOpen(AppNavScreen.DISCOVERY_STUDIO) },
-            icon = { tint -> IconEdit(modifier = Modifier.fillMaxSize(), color = tint) }
+                key = AppNavScreen.DISCOVERY_STUDIO.route,
+                label = AppNavScreen.DISCOVERY_STUDIO.title,
+                selected = !isBuilder && currentScreen == AppNavScreen.DISCOVERY_STUDIO,
+                onClick = { onOpen(AppNavScreen.DISCOVERY_STUDIO) },
+                icon = { tint -> IconEdit(modifier = Modifier.fillMaxSize(), color = tint) }
             )
         )
         if (showDemandLedger) {
             add(
                 ClayNavItem(
-                key = AppNavScreen.DISCOVERY_DEMANDS.route,
-                label = AppNavScreen.DISCOVERY_DEMANDS.title,
-                selected = currentScreen == AppNavScreen.DISCOVERY_DEMANDS,
-                onClick = { onOpen(AppNavScreen.DISCOVERY_DEMANDS) },
-                icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
+                    key = AppNavScreen.DISCOVERY_DEMANDS.route,
+                    label = AppNavScreen.DISCOVERY_DEMANDS.title,
+                    selected = !isBuilder && currentScreen == AppNavScreen.DISCOVERY_DEMANDS,
+                    onClick = { onOpen(AppNavScreen.DISCOVERY_DEMANDS) },
+                    icon = { tint -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint) }
                 )
             )
         }

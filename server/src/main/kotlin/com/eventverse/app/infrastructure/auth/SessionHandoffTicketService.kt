@@ -34,13 +34,15 @@ class SessionHandoffTicketService(
     /** jti → waktu kedaluwarsa (epoch millis). */
     private val redeemed = ConcurrentHashMap<String, Long>()
 
-    fun issue(userId: String, tenantSlug: TenantSlug): String {
+    /** [actAs] = superadmin masuk tenant orang lain (discovery-M3b); penukar wajib memeriksa perannya. */
+    fun issue(userId: String, tenantSlug: TenantSlug, actAs: Boolean = false): String {
         val now = clock()
         return JWT.create()
             .withIssuer(ISSUER)
             .withSubject(userId)
             .withJWTId(UUID.randomUUID().toString())
             .withClaim(CLAIM_TENANT_SLUG, tenantSlug.value)
+            .withClaim(CLAIM_ACT_AS, actAs)
             .withIssuedAt(Date(now))
             .withExpiresAt(Date(now + validityMillis))
             .sign(algorithm)
@@ -64,7 +66,7 @@ class SessionHandoffTicketService(
         pruneExpired()
         if (redeemed.putIfAbsent(jti, expiresAt) != null) return null
 
-        return HandoffIdentity(userId, slug)
+        return HandoffIdentity(userId, slug, actAs = decoded.getClaim(CLAIM_ACT_AS).asBoolean() == true)
     }
 
     private fun pruneExpired() {
@@ -75,7 +77,8 @@ class SessionHandoffTicketService(
     private companion object {
         const val ISSUER = "wemade-erp-handoff"
         const val CLAIM_TENANT_SLUG = "tenant_slug"
+        const val CLAIM_ACT_AS = "act_as"
     }
 }
 
-data class HandoffIdentity(val userId: String, val tenantSlug: TenantSlug)
+data class HandoffIdentity(val userId: String, val tenantSlug: TenantSlug, val actAs: Boolean = false)

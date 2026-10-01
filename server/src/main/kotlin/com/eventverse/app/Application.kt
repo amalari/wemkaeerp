@@ -29,6 +29,7 @@ import com.eventverse.app.routes.builderRoutes
 import com.eventverse.app.routes.onboardingRoutes
 import com.eventverse.app.routes.publicAuthRoutes
 import com.eventverse.app.routes.sessionHandoffRoutes
+import com.eventverse.app.routes.platformTenantListRoutes
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.infrastructure.PostgresRoleRepository
@@ -242,7 +243,7 @@ fun Application.module(
 
         publicAuthRoutes(googleAuthService, authenticateWithGoogleUseCase, jwtTokenService, repository, userRepo, roleRepo, platformBaseDomain)
         // discovery-M3: login di `app.` → tiket sekali pakai → sesi di `<slug>.`
-        sessionHandoffRoutes(SessionHandoffTicketService(), jwtTokenService, repository, userRepo, platformBaseDomain)
+        sessionHandoffRoutes(SessionHandoffTicketService(), jwtTokenService, repository, userRepo, platformBaseDomain, auditLogRepo)
 
         // Protected tenant-scoped route
         route("/api/tenant") {
@@ -283,6 +284,7 @@ fun Application.module(
         employeeRoutes(empRepo, deptRepo, roleRepo, assignmentRepo)
         pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
+        platformTenantListRoutes(repository) // discovery-M3b: konsol app./admin
         domainPackRoutes(repository, domainPackRepo, com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), auditLogRepo)
         // Rute domain bisnis (corong prospek, CRM/deal, modul operasional) — lihat DomainRouteWiring.
         DomainRouteWiring(

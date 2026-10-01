@@ -128,10 +128,13 @@ class AuthApiClient(
      * POST /api/public/auth/handoff/issue — di `app.`, menerbitkan tiket sekali pakai untuk membawa
      * sesi ke subdomain tenant milik akun (discovery-M3-login-split).
      */
-    suspend fun issueHandoff(token: String): Result<HandoffTicket> = runCatching {
+    suspend fun issueHandoff(token: String, actAs: String? = null): Result<HandoffTicket> = runCatching {
+        // actAs = superadmin masuk tenant lain (discovery-M3b); server mencatat audit di tenant itu.
         val response = httpClient.post(resolveUrl("/api/public/auth/handoff/issue")) {
             header("Authorization", "Bearer $token")
             accept(ContentType.Application.Json)
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(listOfNotNull(actAs?.let { "actAs" to it }).formUrlEncode())
         }
         if (!response.status.isSuccess()) {
             error("Gagal menyiapkan perpindahan ke workspace (HTTP ${response.status.value}): ${response.bodyAsText()}")
@@ -139,6 +142,7 @@ class AuthApiClient(
         val text = response.bodyAsText()
         HandoffTicket(
             ticket = extractString(text, "ticket") ?: error("Tiket tidak ada di respons: $text"),
+            tenantSlug = extractString(text, "tenantSlug") ?: error("Tenant tidak ada di respons: $text"),
             origin = extractString(text, "origin") ?: error("Server belum mengonfigurasi PLATFORM_BASE_DOMAIN")
         )
     }
@@ -297,4 +301,4 @@ class AuthApiClient(
 }
 
 /** Tiket serah-terima sesi + origin subdomain tujuan (`https://<slug>.<base>`). */
-data class HandoffTicket(val ticket: String, val origin: String)
+data class HandoffTicket(val ticket: String, val tenantSlug: String, val origin: String)

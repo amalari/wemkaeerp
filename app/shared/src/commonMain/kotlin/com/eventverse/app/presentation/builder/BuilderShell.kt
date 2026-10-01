@@ -66,6 +66,7 @@ fun BuilderShell(modifier: Modifier = Modifier) {
 
     Row(modifier = modifier.fillMaxSize().background(WeMadeColors.Background)) {
         BuilderSidebar(
+            title = "WeMake Builder",
             menu = menu,
             selected = selected,
             onSelect = { if (it.enabled) selected = it.key },
@@ -92,8 +93,10 @@ fun BuilderShell(modifier: Modifier = Modifier) {
     }
 }
 
+/** Sidebar shell konsol — dipakai Builder dan konsol platform `app./admin` (discovery-M3b). */
 @Composable
-private fun BuilderSidebar(
+internal fun BuilderSidebar(
+    title: String,
     menu: List<BuilderMenuItem>,
     selected: String,
     onSelect: (BuilderMenuItem) -> Unit,
@@ -104,7 +107,7 @@ private fun BuilderSidebar(
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
     ) {
         Text(
-            text = "WeMake Builder",
+            text = title,
             style = rememberClayTypography().titleMedium,
             fontWeight = FontWeight.Bold,
             color = WeMadeColors.OnSurface,

@@ -43,7 +43,14 @@ enum class AuditAction(val code: String) {
     BUILDER_INVOICE_ISSUED("builder_invoice_issued"),
 
     /** Builder (M2, FR-M2-5): pembayaran dikonfirmasi manual oleh superadmin. */
-    BUILDER_INVOICE_PAID("builder_invoice_paid");
+    BUILDER_INVOICE_PAID("builder_invoice_paid"),
+
+    /**
+     * Superadmin masuk ke workspace tenant (Builder atau aplikasi hasil) lewat tiket act-as
+     * (discovery-M3b). Dicatat di tenant **tujuan**, supaya owner bisa melihat kapan operator platform
+     * membuka datanya — syarat yang disepakati untuk mengizinkan act-as sama sekali.
+     */
+    PLATFORM_ACT_AS_STARTED("platform_act_as_started");
 
     companion object {
         fun fromCode(code: String?): AuditAction? = entries.firstOrNull { it.code == code }

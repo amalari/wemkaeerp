@@ -1,10 +1,15 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.audit.AuditAction
+import com.eventverse.app.domain.audit.AuditLogEntry
+import com.eventverse.app.domain.audit.AuditLogRepository
 import com.eventverse.app.domain.auth.Role
+import kotlinx.datetime.Clock
 import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.auth.UserRepository
 import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.domain.tenant.TenantRepository
+import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 import com.eventverse.app.infrastructure.auth.SessionHandoffTicketService
 import io.ktor.http.ContentType
@@ -36,7 +41,8 @@ fun Route.sessionHandoffRoutes(
     jwtTokenService: JwtTokenService,
     tenantRepository: TenantRepository,
     userRepo: UserRepository,
-    platformBaseDomain: String?
+    platformBaseDomain: String?,
+    auditLogRepository: AuditLogRepository
 ) {
     route("/api/public/auth/handoff") {
         post("/issue") {
@@ -48,17 +54,44 @@ fun Route.sessionHandoffRoutes(
                 call.respond(HttpStatusCode.Unauthorized, "Sesi tidak sah")
                 return@post
             }
-            if (user.role == Role.PLATFORM_SUPERADMIN) {
-                call.respond(HttpStatusCode.BadRequest, "Superadmin tetap di platform; masuk tenant lewat act-as")
+            // discovery-M3b: `actAs=<slug>` = superadmin masuk tenant orang lain. Hanya superadmin; owner
+            // yang mengirimnya ditolak, bukan diabaikan diam-diam.
+            val actAsSlug = runCatching { call.receiveParameters()["actAs"] }.getOrNull()?.trim()?.ifBlank { null }
+            val isSuperadmin = user.role == Role.PLATFORM_SUPERADMIN
+            if (actAsSlug != null && !isSuperadmin) {
+                call.respond(HttpStatusCode.Forbidden, "Hanya platform superadmin yang boleh masuk ke tenant lain")
                 return@post
             }
-            val tenant = user.tenantId?.let { tenantRepository.findById(it) }
+            if (isSuperadmin && actAsSlug == null) {
+                call.respond(HttpStatusCode.BadRequest, "Superadmin wajib menyebut tenant tujuan (actAs)")
+                return@post
+            }
+            val tenant = if (actAsSlug != null) runCatching { TenantSlug(actAsSlug) }.getOrNull()?.let { tenantRepository.findBySlug(it) }
+            else user.tenantId?.let { tenantRepository.findById(it) }
             if (tenant == null || !tenant.isAccessible) {
                 call.respond(HttpStatusCode.Forbidden, "Perusahaan untuk akun ini tidak dapat diakses")
                 return@post
             }
 
-            val ticket = ticketService.issue(user.id.value, tenant.slug)
+            if (actAsSlug != null) {
+                auditLogRepository.record(
+                    AuditLogEntry(
+                        id = "audit-${tenant.id.value}-actas-${Clock.System.now().toEpochMilliseconds()}",
+                        actorUserId = user.id.value,
+                        actorRole = user.role,
+                        targetTenantId = tenant.id,
+                        action = AuditAction.PLATFORM_ACT_AS_STARTED,
+                        summary = "Superadmin ${user.username.value} masuk ke workspace ${tenant.slug.value}",
+                        occurredAt = Clock.System.now()
+                    )
+                ).onFailure {
+                    // Fail-closed: act-as tanpa jejak melanggar syarat yang membuatnya diizinkan.
+                    call.respond(HttpStatusCode.ServiceUnavailable, "Audit act-as gagal dicatat; masuk dibatalkan")
+                    return@post
+                }
+            }
+
+            val ticket = ticketService.issue(user.id.value, tenant.slug, actAs = actAsSlug != null)
             val origin = platformBaseDomain?.takeIf { it.isNotBlank() }
                 ?.let { "\"${HostSurface.tenantOrigin(tenant.slug, it)}\"" } ?: "null"
             call.respondText(
@@ -84,14 +117,18 @@ fun Route.sessionHandoffRoutes(
             // Baca ulang dari DB: tiket berumur 60 detik, tetapi akun/tenant bisa dinonaktifkan di antaranya.
             val user = userRepo.findById(UserId(identity.userId))
             val tenant = tenantRepository.findBySlug(identity.tenantSlug)
-            if (user == null || !user.isActive || tenant == null || !tenant.isAccessible || user.tenantId != tenant.id) {
+            val allowed = user != null && user.isActive && tenant != null && tenant.isAccessible &&
+                if (identity.actAs) user.role == Role.PLATFORM_SUPERADMIN else user.tenantId == tenant.id
+            if (!allowed || user == null || tenant == null) {
                 call.respond(HttpStatusCode.Forbidden, "Akun atau perusahaan tidak lagi dapat diakses")
                 return@post
             }
 
-            val sessionToken = jwtTokenService.generateToken(user, tenant.slug.value)
+            // Act-as: sesi superadmin ditambatkan ke tenant tujuan (tidak disimpan ke DB).
+            val sessionUser = if (identity.actAs) user.copy(tenantId = tenant.id) else user
+            val sessionToken = jwtTokenService.generateToken(sessionUser, tenant.slug.value)
             call.respondText(
-                authSessionJson(user, sessionToken.value, tenant.slug.value),
+                authSessionJson(sessionUser, sessionToken.value, tenant.slug.value),
                 contentType = ContentType.Application.Json
             )
         }

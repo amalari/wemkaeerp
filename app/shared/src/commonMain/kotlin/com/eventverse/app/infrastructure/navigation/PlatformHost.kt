@@ -11,6 +11,9 @@ expect object PlatformHost {
     /** `window.location.host` (dengan port), atau `null` di luar browser. */
     fun currentHost(): String?
 
+    /** `http:` / `https:` halaman ini; di luar browser `https:`. */
+    fun currentProtocol(): String
+
     /** Nilai query param pada URL saat ini, atau `null`. */
     fun queryParameter(name: String): String?
 

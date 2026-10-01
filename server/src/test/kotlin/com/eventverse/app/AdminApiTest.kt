@@ -109,6 +109,22 @@ class AdminApiTest {
         assertEquals(HttpStatusCode.OK, response.status)
     }
 
+    // discovery-M3b: daftar semua tenant untuk konsol app./admin.
+    @Test
+    fun tenantList_asTenantBoundUser_shouldReturn403() = testApplication {
+        installModule(Fixture(tenantRepoWith()))
+        val response = client.get("/api/admin/tenants") { asTenant(otherTenantSlug) }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun tenantList_asSuperadmin_shouldIncludeEveryTenant() = testApplication {
+        installModule(Fixture(tenantRepoWith()))
+        val response = client.get("/api/admin/tenants") { asSuperadmin() }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"slug\":\"$targetSlug\""), response.bodyAsText())
+    }
+
     @Test
     fun adminRoute_forUnknownTenantSlug_shouldReturn404() = testApplication {
         installModule(Fixture(tenantRepoWith()))

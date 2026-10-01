@@ -12,7 +12,12 @@ private external fun jsQueryParameter(name: String): String
 @JsFun("(url) => { try { window.location.assign(url); } catch (e) {} }")
 private external fun jsOpenUrl(url: String)
 
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => { try { return window.location.protocol || 'https:'; } catch (e) { return 'https:'; } }")
+private external fun jsCurrentProtocol(): String
+
 actual object PlatformHost {
+    actual fun currentProtocol(): String = jsCurrentProtocol()
     actual fun currentHost(): String? = jsCurrentHost().takeIf { it.isNotBlank() }
     actual fun queryParameter(name: String): String? = jsQueryParameter(name).takeIf { it.isNotBlank() }
     actual fun openUrl(url: String) = jsOpenUrl(url)

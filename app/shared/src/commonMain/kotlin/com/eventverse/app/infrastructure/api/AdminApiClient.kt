@@ -92,6 +92,25 @@ class AdminApiClient(
         return if (baseUrl.isNotBlank()) "${baseUrl.trimEnd('/')}$path" else path
     }
 
+    /** GET /api/admin/tenants — daftar semua tenant untuk konsol `app./admin` (discovery-M3b). */
+    suspend fun listTenants(): Result<List<PlatformTenantRow>> = runCatching {
+        val url = if (baseUrl.isNotBlank()) "${baseUrl.trimEnd('/')}/api/admin/tenants" else "/api/admin/tenants"
+        val response = httpClient.get(url) {
+            tokenProvider.currentToken()?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) error("Gagal memuat daftar tenant (HTTP ${response.status.value})")
+        JsonParser.parseObject(response.bodyAsText()).objectArray("tenants").map {
+            PlatformTenantRow(
+                slug = it.string("slug").orEmpty(),
+                name = it.string("name").orEmpty(),
+                status = it.string("status").orEmpty(),
+                tier = it.string("tier").orEmpty(),
+                domainPack = it.string("domainPack").orEmpty()
+            )
+        }
+    }
+
     /** GET /api/admin/tenants/{slug} */
     suspend fun getTenantAdminView(tenantSlug: String): Result<TenantAdminView> = runCatching {
         val response = httpClient.get(resolveUrl(tenantSlug)) {
@@ -142,3 +161,6 @@ class AdminApiClient(
         )
     }
 }
+
+/** Satu baris daftar tenant konsol platform. Status/tier dibiarkan string: hanya ditampilkan. */
+data class PlatformTenantRow(val slug: String, val name: String, val status: String, val tier: String, val domainPack: String)

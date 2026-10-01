@@ -49,6 +49,9 @@ import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
+import com.eventverse.app.presentation.auth.PlatformLoginScreen
+import com.eventverse.app.presentation.platform.PlatformAdminConsole
+import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.presentation.auth.LoginUiEffect
 import com.eventverse.app.presentation.auth.LoginUiEvent
 import com.eventverse.app.presentation.fulfillment.FulfillmentWorkspaceScreen
@@ -134,7 +137,9 @@ fun App() {
 
     // WeMake Builder (PLAN-builder-console M0): `/builder` adalah konsol project dengan shell
     // sendiri — satu cabang delegasi dari App, bukan layar AppNavScreen.
-    var builderRoute by remember { mutableStateOf(initialPath.startsWith("/builder")) }
+    var shellPath by remember { mutableStateOf(initialPath) } // `/builder` & `/admin` (M3b) punya shell sendiri
+    val builderRoute = shellPath.startsWith("/builder")
+    val adminRoute = shellPath.startsWith("/admin")
     var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
 
     /**
@@ -162,13 +167,13 @@ fun App() {
     // Synchronize initial URL and listen to browser Back/Forward (popstate/hashchange)
     LaunchedEffect(Unit) {
         val current = PlatformNavigation.getCurrentPath()
-        if (AppNavScreen.fromPath(current) == null && !current.startsWith("/builder")) {
+        if (AppNavScreen.fromPath(current) == null && !current.startsWith("/builder") && !current.startsWith("/admin")) {
             PlatformNavigation.replacePath(currentScreen.route)
         }
 
         PlatformNavigation.listenToPathChanges { newPath ->
             val matched = AppNavScreen.fromPath(newPath)
-            builderRoute = newPath.startsWith("/builder")
+            shellPath = newPath
             if (matched == AppNavScreen.MODULE) modulePath = newPath
             if (matched != null && matched != currentScreen) {
                 currentScreen = matched
@@ -176,19 +181,24 @@ fun App() {
         }
     }
 
+    // Superadmin di `app.` → konsol platform (M3b); handoff ke /builder → tetap di Builder; selain itu modul pertama.
+    fun landAfterLogin(role: Role) = when {
+        role == Role.PLATFORM_SUPERADMIN && authViewModel.uiState.value.hostSurface is HostSurface.Platform -> { shellPath = "/admin"; PlatformNavigation.pushPath("/admin") }
+        shellPath.startsWith("/builder") -> Unit
+        else -> awaitingLandingScreen = true
+    }
+
+    fun finishLogin(role: Role) {
+        val destination = pendingRedirectScreen
+        pendingRedirectScreen = null
+        if (destination != null) navigateTo(destination) else landAfterLogin(role)
+    }
+
     // Auto-navigate when login succeeds: redirect to the screen the user was trying to reach,
     // otherwise wait for permissions and land on the first screen they may actually open.
     LaunchedEffect(authViewModel) {
         authViewModel.uiEffect.collect { effect ->
-            if (effect is LoginUiEffect.NavigateToDashboard) {
-                val destination = pendingRedirectScreen
-                pendingRedirectScreen = null
-                if (destination != null) {
-                    navigateTo(destination)
-                } else {
-                    awaitingLandingScreen = true
-                }
-            }
+            if (effect is LoginUiEffect.NavigateToDashboard) finishLogin(effect.session.user.role)
         }
     }
 
@@ -209,6 +219,7 @@ fun App() {
 
     // Memilih item menutup drawer-nya, seperti panel produk Google Cloud Console.
     val openScreen: (AppNavScreen) -> Unit = { target ->
+        shellPath = target.route
         navigateTo(target)
         drawerOpen = false
     }
@@ -276,7 +287,9 @@ fun App() {
             currentScreen = currentScreen,
             // Buku demand superadmin-only di server; baris drawer ikut supaya pengguna lain
             // tidak menabrak layar yang pasti 403.
-            showDemandLedger = session.user.role == Role.PLATFORM_SUPERADMIN
+            showDemandLedger = session.user.role == Role.PLATFORM_SUPERADMIN,
+            isBuilder = builderRoute,
+            onOpenBuilder = { shellPath = "/builder"; PlatformNavigation.pushPath("/builder"); drawerOpen = false }
         ) { openScreen(it) }
     } else navSections
 
@@ -287,40 +300,37 @@ fun App() {
         WeMadeTheme {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isCompact = maxWidth < ClayBreakpoints.MasterDetail
+            val isBuilderLogin = currentScreen == AppNavScreen.LOGIN && (authState.hostSurface is HostSurface.Platform || builderRoute)
 
-            if (builderRoute && isAuthenticated) {
-                BuilderShell(modifier = Modifier.fillMaxSize())
+            if (adminRoute && session?.user?.role == Role.PLATFORM_SUPERADMIN) {
+                PlatformAdminConsole(onActAs = authViewModel::actAsTenant, modifier = Modifier.fillMaxSize())
             } else Column(modifier = Modifier.fillMaxSize()) {
-                AppTopBar(
-                    currentScreen = currentScreen,
-                    title = if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
-                    onOpenDrawer = { drawerOpen = true },
-                    isAuthenticated = isAuthenticated,
-                    session = session,
-                    activePersona = activePersona,
-                    policyEmployees = policyEmployees,
-                    policyDepartments = policyDepartments,
-                    policyRoles = policyRoles,
-                    auditView = auditView,
-                    isCompact = isCompact,
-                    onAuditViewChange = { policyRepository.setAuditView(it) },
-                    onApplyPersona = { authViewModel.switchPersona(it) },
-                    onResetSuperadmin = {
-                        authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
-                    },
-                    onSelectCompany = { company ->
-                        authViewModel.switchTenant(company)
-                    },
-                    onOpenTenantEntitlements = { showTenantEntitlementDialog = true },
-                    onOpenHelp = if (isAuthenticated) ({ tutorials.isListOpen = true }) else null,
-                    onLogout = {
-                        authViewModel.onEvent(LoginUiEvent.Logout)
-                        navigateTo(AppNavScreen.LOGIN)
-                    }
-                )
+                if (!isBuilderLogin) {
+                    AppTopBar(
+                        currentScreen = currentScreen,
+                        title = if (builderRoute) "Builder Console" else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
+                        onOpenDrawer = { drawerOpen = true },
+                        isAuthenticated = isAuthenticated,
+                        session = session,
+                        activePersona = activePersona,
+                        policyEmployees = policyEmployees,
+                        policyDepartments = policyDepartments,
+                        policyRoles = policyRoles,
+                        auditView = auditView,
+                        isCompact = isCompact,
+                        onAuditViewChange = { policyRepository.setAuditView(it) },
+                        onApplyPersona = { authViewModel.switchPersona(it) },
+                        onResetSuperadmin = { authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin) },
+                        onSelectCompany = { authViewModel.switchTenant(it) },
+                        onOpenTenantEntitlements = { showTenantEntitlementDialog = true },
+                        onOpenHelp = if (isAuthenticated) ({ tutorials.isListOpen = true }) else null,
+                        onLogout = { authViewModel.onEvent(LoginUiEvent.Logout); navigateTo(AppNavScreen.LOGIN) }
+                    )
+                }
 
-                // Screen Content Area with Auth Guard
-                Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
+                if (builderRoute && isAuthenticated) {
+                    BuilderShell(modifier = Modifier.weight(1f))
+                } else Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {
                         // Ketiga layar tata kelola kini melewati gerbang yang sama dengan sembilan
                         // modul operasional: sesi, lalu entitlement tenant, lalu wewenang jabatan.
@@ -524,18 +534,10 @@ fun App() {
                             }
                         }
                         AppNavScreen.LOGIN -> {
-                            LoginScreen(
-                                viewModel = authViewModel,
-                                onNavigateToDashboard = {
-                                    val destination = pendingRedirectScreen
-                                    pendingRedirectScreen = null
-                                    if (destination != null) {
-                                        navigateTo(destination)
-                                    } else {
-                                        awaitingLandingScreen = true
-                                    }
-                                }
-                            )
+                            val onLoggedIn: () -> Unit = { session?.let { finishLogin(it.user.role) } }
+                            // discovery-M3: `app.` punya pintu platform sendiri, netral industri.
+                            if (authState.hostSurface is HostSurface.Platform) PlatformLoginScreen(authViewModel, onLoggedIn)
+                            else LoginScreen(viewModel = authViewModel, onNavigateToDashboard = onLoggedIn)
                         }
                     }
                 }
@@ -543,25 +545,27 @@ fun App() {
 
             // Google Cloud Console–style product panel: floats over the content with a scrim,
             // closes on ✕, on scrim click, or once a destination is chosen.
-            ClayNavDrawer(
-                open = drawerOpen,
-                onDismiss = { drawerOpen = false },
-                title = "WeMade ERP",
-                subtitle = "Multi-Tenant Garment Platform",
-                sections = drawerSections,
-                footer = if (!isAuthenticated) {
-                    {
-                        ClayButton(
-                            text = "Login Akun",
-                            onClick = { openScreen(AppNavScreen.LOGIN) },
-                            modifier = Modifier.fillMaxWidth(),
-                            style = ClayButtonStyle.Primary
-                        )
-                    }
-                } else null
-            )
+            if (!isBuilderLogin) {
+                ClayNavDrawer(
+                    open = drawerOpen,
+                    onDismiss = { drawerOpen = false },
+                    title = "WeMade ERP",
+                    subtitle = "Multi-Tenant Garment Platform",
+                    sections = drawerSections,
+                    footer = if (!isAuthenticated) {
+                        {
+                            ClayButton(
+                                text = "Login Akun",
+                                onClick = { openScreen(AppNavScreen.LOGIN) },
+                                modifier = Modifier.fillMaxWidth(),
+                                style = ClayButtonStyle.Primary
+                            )
+                        }
+                    } else null
+                )
+            }
 
-            if (isAuthenticated && !builderRoute) TutorialLayer(
+            if (isAuthenticated && !builderRoute && !adminRoute) TutorialLayer(
                 state = tutorials,
                 currentModule = if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath) else currentScreen.businessModule,
                 decisions = accessDecisions

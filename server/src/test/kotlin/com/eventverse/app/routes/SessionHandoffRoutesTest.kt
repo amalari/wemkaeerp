@@ -12,6 +12,8 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantName
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.domain.tenant.TenantStatus
+import com.eventverse.app.domain.audit.AuditAction
+import com.eventverse.app.infrastructure.InMemoryAuditLogRepository
 import com.eventverse.app.infrastructure.InMemoryTenantRepository
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 import com.eventverse.app.infrastructure.auth.SessionHandoffTicketService
@@ -41,6 +43,7 @@ class SessionHandoffRoutesTest {
 
     private val base = "wemakeerp.com"
     private val jwt = JwtTokenService()
+    private val audit = InMemoryAuditLogRepository()
 
     private class TestUserRepository : UserRepository {
         val users = mutableMapOf<UserId, User>()
@@ -80,19 +83,19 @@ class SessionHandoffRoutesTest {
             users.save(superadmin)
         }
         application {
-            routing { sessionHandoffRoutes(SessionHandoffTicketService(), jwt, tenants, users, base) }
+            routing { sessionHandoffRoutes(SessionHandoffTicketService(), jwt, tenants, users, base, audit) }
         }
         return users
     }
 
-    private suspend fun ApplicationTestBuilder.issue(user: User): HttpResponse =
-        client.post("/api/public/auth/handoff/issue") {
+    private suspend fun ApplicationTestBuilder.issue(user: User, actAs: String? = null): HttpResponse =
+        client.submitForm("/api/public/auth/handoff/issue", parameters { actAs?.let { append("actAs", it) } }) {
             header(HttpHeaders.Host, "app.$base")
             header(HttpHeaders.Authorization, "Bearer ${jwt.generateToken(user).value}")
         }
 
-    private suspend fun ApplicationTestBuilder.ticketFor(user: User): String =
-        requireNotNull(Regex("\"ticket\":\"([^\"]+)\"").find(issue(user).bodyAsText())) { "tiket tidak terbit" }.groupValues[1]
+    private suspend fun ApplicationTestBuilder.ticketFor(user: User, actAs: String? = null): String =
+        requireNotNull(Regex("\"ticket\":\"([^\"]+)\"").find(issue(user, actAs).bodyAsText())) { "tiket tidak terbit" }.groupValues[1]
 
     private suspend fun ApplicationTestBuilder.redeem(ticket: String, host: String): HttpResponse =
         client.submitForm("/api/public/auth/handoff", parameters { append("ticket", ticket) }) {
@@ -118,9 +121,46 @@ class SessionHandoffRoutesTest {
     }
 
     @Test
-    fun `issue for superadmin should be refused`() = testApplication {
+    fun `issue for superadmin without actAs target should be 400`() = testApplication {
         install()
         assertEquals(400, issue(superadmin).status.value)
+    }
+
+    // --- Act-as superadmin (discovery-M3b): boleh masuk tenant mana pun, wajib ber-audit ---
+
+    @Test
+    fun `superadmin act-as should record audit on target tenant and anchor session to it`() = testApplication {
+        install()
+        val ticket = ticketFor(superadmin, actAs = "bordir-uji")
+
+        val entries = audit.findByTenant(TenantId("ten-bordir"))
+        assertEquals(listOf(AuditAction.PLATFORM_ACT_AS_STARTED), entries.map { it.action })
+        assertEquals("usr-superadmin-001", entries.single().actorUserId)
+
+        val session = redeem(ticket, "bordir-uji.$base")
+        assertEquals(200, session.status.value)
+        val body = session.bodyAsText()
+        assertTrue(body.contains("\"tenantId\":\"ten-bordir\""), body)
+        assertTrue(body.contains("\"role\":\"PLATFORM_SUPERADMIN\""), body)
+    }
+
+    @Test
+    fun `tenant owner using actAs should be 403 and leave no audit`() = testApplication {
+        install()
+        assertEquals(403, issue(owner, actAs = "bordir-uji").status.value)
+        assertTrue(audit.findByTenant(TenantId("ten-bordir")).isEmpty())
+    }
+
+    @Test
+    fun `superadmin act-as to unknown tenant should be 403`() = testApplication {
+        install()
+        assertEquals(403, issue(superadmin, actAs = "tidak-ada").status.value)
+    }
+
+    @Test
+    fun `superadmin act-as ticket on another tenant subdomain should be 401`() = testApplication {
+        install()
+        assertEquals(401, redeem(ticketFor(superadmin, actAs = "bordir-uji"), "wemade-demo.$base").status.value)
     }
 
     @Test

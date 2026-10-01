@@ -202,7 +202,7 @@ if (surface is HostSurface.Tenant && ticket != null) {
   - `PublicAuthHostSurfaceTest` (4): `/google` di `app.` tanpa slug, di `<slug>.` tanpa slug, slug
     bertentangan = 403, lokal tanpa slug = 400 seperti dulu.
 - **Cek mata** (stack uji `PORT=8091 PLATFORM_BASE_DOMAIN=lvh.me`, web
-  `WEMADE_WEB_PORT=3011 WEMADE_API_PORT=8091 WEMADE_DEV_ANY_HOST=1`):
+  `WEMADE_WEB_PORT=3011 WEMADE_API_PORT=8091`):
   - `app.lvh.me:3011/login` tanpa kolom slug;
   - tiket dari `/handoff/issue` → `bordir-uji.lvh.me:3011/login?handoff=…` → mendarat di `/org-chart`
     sebagai owner bordir dengan persona aktif, dan tiket hilang dari URL;
@@ -218,3 +218,54 @@ if (surface is HostSurface.Tenant && ticket != null) {
       `UserRepository.findAllByEmail` dan ubah `authenticateOnPlatform` agar mengembalikan daftar.
 - [ ] Ganti teks header "Sistem Manajemen Konveksi & Garmen Terpadu" di `app.` dengan teks platform
       netral industri (CLAUDE.md Jalur B poin 4). Ingat Ratchet `LoginScreen.kt` (≤711 baris).
+
+---
+
+## 📎 Lampiran — Pintu platform sendiri (`PlatformLoginScreen`) & pendaratan ke Builder
+
+- `app.<base>` kini merender `PlatformLoginScreen` (brand **WeMake ERP**, netral industri). `LoginScreen`
+  tetap menjadi pintu workspace tenant. Pemilihnya satu cabang di `App.kt`:
+  `if (authState.hostSurface is HostSurface.Platform)`.
+- Handoff mendarat di **`/builder`** (`AuthViewModel.HANDOFF_LANDING_PATH`), bukan `/login`. App membaca
+  `/builder?handoff=…`, menukar tiketnya, lalu `builderRoute && isAuthenticated` merender `BuilderShell`.
+  Pendaratan otomatis ke modul pertama **dilewati** bila `builderRoute`. Kalau tidak dilewati, user
+  dilempar keluar dari Builder.
+- Origin tujuan disusun di klien dari halaman saat ini (`tenantOriginFromHere`) supaya skema dan port
+  ikut: `http://bordir.lvh.me:3001` di dev, `https://bordir.wemakeerp.com` di produksi. `origin` dari
+  server hanya cadangan.
+- Tombol demo Owner di `app.` juga melewati handoff. Demo Superadmin tetap di platform.
+- Cek mata: `app.lvh.me:3011/login` → klik "Owner wemade-demo" → `wemade-demo.lvh.me:3011/builder`
+  menampilkan Builder Overview.
+
+---
+
+## 📎 Lampiran 2 — Konsol platform superadmin (`app.<base>/admin`) & act-as ber-audit (discovery-M3b)
+
+**Mental model**: superadmin = **operator platform**, bukan pengguna aplikasi hasil. Rumahnya `app./admin`;
+ia masuk ke Builder **atau** aplikasi tenant lewat act-as, dan setiap act-as tercatat di audit log
+**tenant tujuan** (`PLATFORM_ACT_AS_STARTED`), sehingga owner bisa melihatnya.
+
+- **Server**
+  - `GET /api/admin/tenants` (`PlatformTenantListRoutes.kt`). Gate-nya prefix `/api/admin` di
+    `TenantResolutionPlugin`, tidak ada pintu baru.
+  - `/handoff/issue` menerima `actAs=<slug>`:
+    - owner yang mengirimnya → 403;
+    - superadmin tanpa `actAs` → 400;
+    - audit **gagal dicatat → 503, masuk dibatalkan** (fail-closed). Act-as tanpa jejak melanggar
+      syarat yang membuatnya diizinkan.
+  - Tiket membawa klaim `act_as`. Penukar mewajibkan peran superadmin, lalu menambatkan sesi ke tenant
+    tujuan (`user.copy(tenantId = tenant.id)`, tidak disimpan ke DB).
+- **Klien**
+  - `PlatformAdminConsole` (Tenants · Antrian Pembuatan · Buku Demand). Memakai ulang
+    `BuilderSidebar` (kini `internal` + `title`), `BuilderBuildQueuePane`, `DemandLedgerScreen`, dan
+    `TenantModuleEntitlementDialog`.
+  - `App.kt`: `shellPath` menggantikan `builderRoute`. `landAfterLogin` mengirim superadmin di permukaan
+    Platform ke `/admin`.
+- **Test**
+  - `SessionHandoffRoutesTest` (12): audit tercatat di tenant tujuan dan sesi tertambat; owner +
+    `actAs` = 403 tanpa audit; tenant tak dikenal = 403; tiket act-as di subdomain lain = 401.
+  - `AdminApiTest` (+2): daftar tenant ditolak untuk owner (403) dan lengkap untuk superadmin.
+- **Cek mata**:
+  1. `app.lvh.me:3011` → Superadmin → `/admin`.
+  2. Cari "bordir" → Masuk Builder → `bordir-uji.lvh.me:3011/builder`.
+  3. Audit log `bordir-uji` memuat entri `platform_act_as_started`.

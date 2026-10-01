@@ -553,7 +553,7 @@ private fun AuthenticatedSessionCard(
 }
 
 @Composable
-private fun AlertBanners(
+internal fun AlertBanners(
     errorMessage: String?,
     successMessage: String?,
     onDismiss: () -> Unit
@@ -653,7 +653,7 @@ private fun FooterSecurityNotice() {
  * Geometric Vector canvas rendering of the official Google 4-color "G" icon
  */
 @Composable
-private fun GoogleLogoVector(modifier: Modifier = Modifier) {
+internal fun GoogleLogoVector(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
