@@ -227,7 +227,8 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 > Deploy" dan "invoice pertama **terkirim**" belum terbukti utuh — Deploy masih mengubah catatan
 > deployment, dan pengiriman invoice masih manual (unduh → lampirkan). Detail:
 > `docs/teaching/teaching-plat-002-m0-builder-foundation.md` lampiran M2 + M2b + M2c. (Lampiran M1 di
-> dokumen yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.)
+> dokumen yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.) Rencana
+> eksekusi deploy produksi (domain Hostinger sudah dibeli): [`PLAN-deploy-hostinger-caddy.md`](PLAN-deploy-hostinger-caddy.md).
 
 ### Gerbang sebelum ekspansi
 
@@ -241,7 +242,7 @@ Diukur pada 3–5 design partner yang membayar:
 
 | Fase | Isi |
 |---|---|
-| **L1 Billing iPaymu** | port `PaymentGateway` + `IpaymuPaymentGateway`, callback (signature + cek ulang status + idempoten per `trx_id`), dunning ke `TenantStatus` (`markDue`/`markPastDue`/`suspend` yang selama ini tak terpakai — terverifikasi nol pemanggil), Usage |
+| **L1 Billing iPaymu** | port `PaymentGateway` + `IpaymuPaymentGateway`, callback (signature + cek ulang status + idempoten per `trx_id`), dunning ke `TenantStatus` (`markDue`/`markPastDue`/`suspend` yang selama ini tak terpakai — terverifikasi nol pemanggil), Usage. Prasyarat infra (egress IP statis + tunnel callback) dan kontrak handler: [`TRD-PAY-001`](../trd/TRD-PAY-001-ipaymu-testing-bridge.md) |
 | **L2 Custom Domain** | verifikasi CNAME/TXT, Caddy on-demand TLS (`ask` hanya untuk host terverifikasi), tabel `tenant_hostnames` menggantikan `extractSubdomain` |
 | **L3 Lanjutan** | Roles & Akses, Data Awal (impor Excel), Integrations, Backup/Ekspor, Aktivitas, fork pack shipped → pack data |
 
