@@ -72,7 +72,8 @@ object RouteOwnership {
         "/api/tenant/pack" to RouteOwner.Platform("kosakata vertikal tenant (Domain Pack)"),
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
-        "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform")
+        "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform"),
+        "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)")
     )
 
     fun ownerOf(path: String): RouteOwner? {
