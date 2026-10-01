@@ -165,8 +165,8 @@ fun Route.adminRoutes(
                 val endsAtJson = t.trialEndsAt?.toString() ?: "null"
                 val name = t.name.value.replace("\"", "'")
                 """{"slug":"${t.slug.value}","name":"$name","tier":"${t.tier.name}",""" +
-                    """"trialEndsAt":$endsAtJson,"remainingDays":$remainingDays,""" +
-                    """"expired":${t.trialExpired(now)}}"""
+                    """"trialStarted":${t.trialEndsAt != null},"trialEndsAt":$endsAtJson,""" +
+                    """"remainingDays":$remainingDays,"expired":${t.trialExpired(now)}}"""
             } + "]",
             contentType = ContentType.Application.Json
         )

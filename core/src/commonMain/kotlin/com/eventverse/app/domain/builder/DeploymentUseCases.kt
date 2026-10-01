@@ -5,10 +5,12 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe
+import com.eventverse.app.domain.tenant.Tenant
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.domain.tenant.TenantStatus
 import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 
 class DraftNotFoundException(message: String) : IllegalStateException(message)
 class DraftInvalidException(message: String) : IllegalArgumentException(message)
@@ -98,8 +100,11 @@ class DeployTenantUseCase(
         // Kunci draf + pin versi pack di tenant (kolom V81 diisi di sini, M2).
         drafts.save(stored.copy(status = DiscoveryDraftStatus.LOCKED, lockedAt = clock.now()))
         tenants.findById(tenantId)?.let { tenant ->
+            // Go-live = MULAI jam trial (V88/V89) — BUKAN jadi ACTIVE. Builder gratis tanpa
+            // batas; trial aplikasi berjalan setelah app jadi, dan konversi ke ACTIVE terjadi
+            // saat pembayaran dikonfirmasi (activate()). Deploy ulang tidak mengatur ulang jam.
             val promoted = tenant.copy(
-                status = if (tenant.status == TenantStatus.TRIAL) TenantStatus.ACTIVE else tenant.status,
+                trialEndsAt = tenant.trialEndsAt ?: (clock.now() + Tenant.DEFAULT_TRIAL_DAYS.days),
                 domainPackVersion = nextVersion
             )
             if (promoted != tenant) tenants.save(promoted)

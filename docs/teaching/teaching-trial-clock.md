@@ -1,41 +1,51 @@
-# Teaching: Jam Trial Tenant (V88) — label tanpa tenggat → trial sungguhan
+# Teaching: Jam Trial Aplikasi (V88+V89) — builder gratis, trial mulai saat go-live
 
 Rujukan: `docs/trd/TRD-PAY-001` §6 · diskusi: "trial pakai Baserow/Airtable, perlu admin dashboard?"
 
-## 1. Masalah yang ditemukan
+## 1. Masalah & koreksi semantik (V88 → V89)
 
 `TenantStatus.TRIAL` **sudah ada sejak V1** dan jadi status default tenant baru — tapi **tanpa
-tenggat dan tanpa sanksi**. Efeknya: setiap tenant baru mendapat paket `PRO` penuh **selamanya**,
-karena tidak ada yang menutupnya. Masalahnya bukan "butuh dashboard", melainkan trial belum punya
-jam.
+tenggat dan tanpa sanksi**: setiap tenant mendapat paket `PRO` penuh selamanya.
 
-## 2. Yang dibangun (Lapis 1 — penegakan di core)
+V88 menambalnya dengan jam `tenants.trial_ends_at` (default DB `now()+14d`, dipasang saat
+registrasi) dan deploy lama langsung mempromosikan `TRIAL → ACTIVE`. **Keduanya salah moment**:
+yang dibeli bukan akun Builder, melainkan **aplikasi jadinya**. Semantik yang benar:
 
-- **V88**: `tenants.trial_ends_at TIMESTAMPTZ` dengan **DEFAULT di DB**
-  (`now() + interval '14 days'`) — tenant baru otomatis punya tenggat bahkan lewat jalur insert
-  lama. NULL = tenant legacy tanpa jam (status quo, tidak dipaksa).
-- **Domain** (`Tenant.kt`): `trialExpired(now)`, `extendTrial(days, now)` — basis perpanjangan
-  adalah `max(now, tenggat lama)` supaya menumpuk di ujung, bukan memotong sisa; menolak di luar
-  status TRIAL. Konversi ke bayar = `activate()` + alur invoice yang sudah ada.
-- **Registrasi**: `RegisterTenantUseCase` memasang jam saat daftar (`clock` + `trialDays`
-  di command, keduanya ber-default — **pemanggil lama dan `Application.kt` tidak tersentuh**).
-- **Endpoint superadmin** (di `AdminRoutes`, prefix `/api/admin` — platform, tanpa konteks tenant):
-  - `GET /api/admin/trials` — daftar + `remainingDays` + flag `expired` (**ini "dashboard"-nya**).
-  - `POST /api/admin/trials/{slug}/extend?days=N` — ter-audit (`TENANT_TRIAL_EXTENDED`).
+| Fase | Status | Jam trial |
+|---|---|---|
+| Daftar, membangun di Builder | `TRIAL`, `trialEndsAt = NULL` | tidak berjalan — **builder gratis selamanya** |
+| **Deploy pertama sukses** (go-live) | tetap `TRIAL` | **mulai**: `now + 14 hari` (deploy ulang tidak mengatur ulang) |
+| Trial berjalan | `TRIAL` | `GET /api/admin/trials` → `trialStarted: true`, `remainingDays` |
+| Bayar dikonfirmasi (iPaymu) | `ACTIVE` | selesai — langganan berjalan |
+| Trial habis, belum bayar | `TRIAL` + `expired: true` | penegakan login menyusul (titik sambung M3) |
+
+## 2. Yang dibangun
+
+- **V88**: kolom `tenants.trial_ends_at`. **V89**: default DB **dihapus** (jam hanya boleh
+  dipasang use case deploy) + reset NULL untuk tenant TRIAL yang keburu terisi default tapi
+  belum pernah deploy (`builder.deployments` ACTIVE tidak ada).
+- **Domain** (`Tenant.kt`): `trialExpired(now)`, `extendTrial(days, now)` — menumpuk di ujung
+  tenggat (`max(now, lama)`), menolak di luar TRIAL; `Tenant.DEFAULT_TRIAL_DAYS = 14`;
+  konversi ke bayar = `activate()`.
+- **`DeployTenantUseCase`**: di path deploy ACTIVE, `trialEndsAt = trialEndsAt ?:
+  (now + 14 hari)` — idempoten; deploy ulang tidak mengatur ulang. Path `BLOCKED_ON_BUILD`
+  (pack kustom) **tidak** memulai jam — app belum jadi. Registrasi sengaja tidak menyentuh jam.
+- **Endpoint superadmin** (`AdminRoutes`, prefix `/api/admin` — platform, tanpa konteks tenant):
+  `GET /api/admin/trials` (papan pantau, kini dengan `trialStarted`) dan
+  `POST /api/admin/trials/{slug}/extend?days=N` (ter-audit `TENANT_TRIAL_EXTENDED`).
 
 ## 3. Pelajaran
 
-1. **Penegakan tidak bisa disematkan ke spreadsheet.** Baserow/Airtable hanya bisa jadi lapisan
-   keputusan/CRM; yang memblokir login dan menghitung kuota harus kode core + DB (fail-closed).
-   Kalau mau papan visual: Baserow self-host sebagai tabel keputusan → memanggil endpoint
-   superadmin ini — ERP tetap satu-satunya sumber kebenaran. Airtable (SaaS per-seat) hanya untuk
-   CRM murni.
-2. **Default di DB vs di kode**: menaruh default `trial_ends_at` di migrasi membuat aturan bertahan
-   bahkan untuk jalur tulis yang lupa mengisinya; menaruhnya juga di use case (jam eksplisit)
-   membuatnya bisa diuji tanpa DB. Keduanya dipakai.
-3. **Param ber-default = perubahan tanpa gelombang**: menambah `clock` dan `trialDays` di *posisi
-   terakhir* dengan default membuat `Application.kt` (sedang dipegang alur lain) tidak perlu
-   disentuh sama sekali.
+1. **Moment-of-truth menentukan tempat jam dipasang.** Versi pertama menaruh jam di registrasi
+   karena di sanalah entitasnya lahir — padahal nilai yang dijual (aplikasi jadi) lahir di deploy.
+   Tanya "kapan nilai ini mulai dikonsumsi?", bukan "kapan datanya dibuat?".
+2. **Default di DB enak untuk backstop, berbahaya untuk kebijakan yang moment-nya spesifik** —
+   V88 → V89 adalah harga salah memilih moment. Kalau ragu, biarkan NULL dan pasang di use case
+   yang tahu konteksnya.
+3. **Penegakan tidak bisa disematkan ke spreadsheet.** Baserow/Airtable hanya lapisan keputusan
+   (tabel `slug | aksi | catatan` → memanggil endpoint superadmin); yang memblokir login dan
+   menghitung kuota tetap kode core + DB (fail-closed). Airtable (SaaS per-seat) hanya CRM murni.
 4. **Koordinasi lintas-alur**: penegakan "trial habis → tolak login" titik sambungnya di jalur
-   auth yang sedang dikerjakan alur M3 — sengaja ditunda, tercatat di sini; tinggal satu kondisi
-   `trialExpired(now)` di titik yang sama dengan cek `isAccessible`.
+   auth (login-split M3, sedang dikerjakan alur lain) — sengaja ditunda; tinggal satu kondisi
+   `trialExpired(now)` di sebelah cek `isAccessible`. Sampai saat itu,
+   `GET /api/admin/trials` sudah menandai `expired: true`.

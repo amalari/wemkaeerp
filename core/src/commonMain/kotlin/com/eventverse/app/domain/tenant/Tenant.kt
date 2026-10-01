@@ -34,11 +34,17 @@ data class Tenant(
      */
     val domainPackVersion: Int? = null,
     /**
-     * Tenggat trial (V88). `null` = tenant legacy tanpa jam (status quo, tidak dipaksa).
-     * Diisi otomatis saat registrasi (`now + trialDays`); hanya berlaku saat [status] == [TenantStatus.TRIAL].
+     * Tenggat trial (V88/V89). `null` = belum dimulai (masih membangun di Builder — gratis,
+     * tanpa batas) atau tenant legacy. Jam dimulai saat **deploy pertama sukses** (app jadi),
+     * bukan saat registrasi. Berlaku hanya selama [status] == [TenantStatus.TRIAL]; konversi
+     * ke ACTIVE = pembayaran dikonfirmasi.
      */
     val trialEndsAt: Instant? = null
 ) {
+    /** Lama trial bawaan platform (hari) — dimulai saat go-live, bukan saat registrasi. */
+    companion object {
+        const val DEFAULT_TRIAL_DAYS = 14L
+    }
     val isAccessible: Boolean
         get() = status.isAccessible
 

@@ -59,8 +59,23 @@ class DeploymentUseCaseTest {
         assertEquals(DeploymentStatus.ACTIVE, deployment.status)
         assertEquals(1, deployment.packVersion)
         assertEquals(1, tenants.rows[demo]?.domainPackVersion, "versi pack dipin di tenant (kolom V81)")
-        assertEquals(TenantStatus.ACTIVE, tenants.rows[demo]?.status, "TRIAL → ACTIVE pada deploy pertama")
+        // Go-live (V89): tenant TETAP TRIAL — jam trial aplikasi baru dimulai di sini.
+        assertEquals(TenantStatus.TRIAL, tenants.rows[demo]?.status, "status tetap TRIAL; ACTIVE = pembayaran")
+        assertTrue(tenants.rows[demo]?.trialEndsAt != null, "go-live memulai jam trial 14 hari")
         assertEquals(DiscoveryDraftStatus.LOCKED, drafts.rows[DiscoveryDraftId("draft-${demo.value}")]?.status)
+    }
+
+    @Test
+    fun redeploy_does_not_reset_the_trial_clock() = runTest {
+        seedDraft()
+        tenants.rows[demo] = tenant(status = TenantStatus.TRIAL)
+        deploy(demo).getOrThrow()
+        val firstEndsAt = tenants.rows[demo]?.trialEndsAt
+
+        unlock()
+        deploy(demo).getOrThrow()
+
+        assertEquals(firstEndsAt, tenants.rows[demo]?.trialEndsAt, "deploy ulang tidak mengatur ulang jam")
     }
 
     @Test
