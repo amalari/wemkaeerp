@@ -1,0 +1,9 @@
+encryptionsalt: v1:A3NVlEJbq+A=:v1:c89wBzx6C4FCxhW7:xFxtPIT1b8/i35waKyrjnrwXojMmNQ==
+config:
+  ipaymu-bridge:cfAccountId: b37705df1c52c8fc2e6465081573595b
+  ipaymu-bridge:cfZoneId: 22843647932ffaa48fffca519f8a3e7a
+  ipaymu-bridge:domain: wemakeerp.com
+  ipaymu-bridge:developers:
+    - achmad
+  cloudflare:apiToken:
+    secure: v1:p0ZH+F2MVhC/GitK:iur8lW9SGhC0fC27tRDRNTHRKB0GgAXLTdCDFzyJo8RVUCTn1jt92RsNTyTMSGSaOlafuKak+1OPgtfhDG1SIWctpauv

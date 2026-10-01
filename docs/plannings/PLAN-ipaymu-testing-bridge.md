@@ -1,98 +1,118 @@
 # PLAN: iPaymu Testing Bridge & Egress Gateway (OCI Jakarta + Pulumi Kotlin + Cloudflare Tunnel)
 
-> **Status**: Draf Disetujui · **Tanggal**: 2026-10-01 · **Target**: Lingkungan Pengujian & Integrasi Payment Gateway iPaymu untuk WeMake Flow Platform / EventVerse.
+> **Status**: Draf Disetujui, **direvisi 2026-10-01 pasca-review** (lihat TRD-PAY-001 v1.1) · **Target**: lingkungan
+> pengujian payment gateway iPaymu untuk WeMade Flow Platform.
+>
+> **Posisi di roadmap**: billing iPaymu adalah fase **L1** di [`PLAN-builder-console.md`](PLAN-builder-console.md) §8.
+> Rencana ini hanya menyiapkan **infrastruktur jembatan** (tidak menyentuh kode aplikasi), sehingga boleh dikerjakan
+> lebih awal. Kode Ktor (port `PaymentGateway`, `IpaymuPaymentGateway`, handler callback) dikerjakan di L1 lewat
+> `wemade-feature-discovery` → `wemade-feature-workflow`.
 
 ---
 
 ## 1. Latar Belakang & Masalah Bisnis
 
-Pada integrasi payment gateway **iPaymu** untuk modul tagihan langganan (Builder Billing M2) maupun transaksi tenant:
-1. **IP Whitelist Wajib**: Seluruh request API keluar (Outbound: Create Transaction, Virtual Account, QRIS, Check Status) wajib berasal dari IP Publik Statis yang terdaftar di dashboard iPaymu. Dynamic IP ISP lokal di laptop developer ditolak (`403 Forbidden` / `IP not authorized`).
-2. **Domain & HTTPS Callback Wajib**: Notifikasi callback/webhook (Inbound: `notify_url` & `return_url`) wajib menggunakan domain resmi ber-SSL (HTTPS) yang terdaftar. iPaymu tidak mengizinkan URL berupa raw IP publik tanpa domain atau `localhost`.
-3. **Problem Historis**: Sebelumnya developer menyewa VPN khusus untuk routing outbound. Pendekatan ini memiliki kekurangan:
-   - Koneksi internet laptop developer rentan terganggu/putus-putus.
-   - Tidak mencakup penerimaan webhook masuk (inbound) tanpa port-forwarding rumit.
-   - Tidak otomatis (IaC) dan sulit direplikasi ke tim lain atau environment staging/production.
+1. **IP Whitelist**: request API keluar ke iPaymu (create transaction, VA, QRIS, cek status) wajib dari IP publik
+   statis terdaftar. IP dinamis ISP laptop ditolak. *(Apakah sandbox juga menegakkannya belum diverifikasi — §5.)*
+2. **Domain & HTTPS Callback**: `notifyUrl` wajib domain ber-SSL; raw IP dan `localhost` ditolak.
+3. **Problem historis**: VPN sewaan mengganggu koneksi laptop, tidak menyediakan jalur webhook masuk, dan tidak
+   bisa direplikasi ke developer lain.
 
 ---
 
 ## 2. Solusi & Visi Arsitektur
 
-Membangun **Testing Bridge & Egress Gateway** terotomatisasi penuh menggunakan **Pulumi Kotlin**:
-- **Outbound Gateway (OCI Jakarta `ap-jakarta-1`)**: Memanfaatkan *OCI Always Free Tier* (Reserved Public IPv4 Statis + Compute Instance Ampere A1 ARM / AMD Micro) yang dikonfigurasi sebagai HTTP Forward Proxy (`tinyproxy`).
-- **Inbound Tunnel (Cloudflare Tunnel)**: Mengarahkan subdomain resmi (misal: `ipaymu-hook.<domain>.com`) langsung ke port backend lokal laptop (`http://localhost:8081`) melalui daemon `cloudflared` tanpa membuka port router / firewall ISP.
-- **Ktor Integration**: Ktor HttpClient menggunakan conditional proxy via Environment Variable (`IPAYMU_OUTBOUND_PROXY`).
+Jembatan pengujian yang seluruh resource-nya didefinisikan dengan **Pulumi Kotlin**:
+
+- **Outbound (OCI Jakarta `ap-jakarta-1`)**: VM Always Free dengan **Reserved Public IP** (di-`protect`). `tinyproxy`
+  hanya mendengar di `127.0.0.1:8888` dan hanya meneruskan ke domain iPaymu. Developer menjangkaunya lewat
+  **SSH local forward** — tidak ada port proxy publik, tidak ada kredensial proxy.
+- **Inbound (Cloudflare Tunnel)**: satu tunnel **per developer** (`ipaymu-hook-<dev>.<domain>`). Ingress hanya
+  meneruskan path `/api/payment/ipaymu/notify` ke `localhost:8081`; path lain dijawab 404 di edge.
+- **Kontrak ke L1**: `IPAYMU_OUTBOUND_PROXY=http://127.0.0.1:8888` (tanpa kredensial) dan syarat handler callback
+  (cek ulang status, idempoten per `trx_id`, cek nominal, pakai `ConfirmSubscriptionPaymentUseCase`).
 
 ```mermaid
 flowchart LR
-    subgraph Local_Machine [Laptop Developer / CI]
+    subgraph Local_Machine [Laptop Developer]
         KtorDev["Ktor Backend (:8081)"]
-        CFDaemon["cloudflared daemon"]
+        SSHFwd["ssh -L 8888 (127.0.0.1:8888)"]
+        CFDaemon["cloudflared (token per developer)"]
     end
 
-    subgraph OCI_Jakarta [Oracle Cloud Infrastructure - Jakarta]
-        ReservedIP["Reserved Public IP Statis\n(Whitelisted di iPaymu)"]
-        Tinyproxy["Tinyproxy Service (:8888)"]
+    subgraph OCI_Jakarta [OCI Jakarta]
+        Tinyproxy["tinyproxy @127.0.0.1:8888\n(filter: domain iPaymu saja)"]
+        ReservedIP["Reserved Public IP (protect)\nIngress: hanya SSH 22"]
     end
 
-    subgraph Cloudflare_Edge [Cloudflare Network]
-        CFTunnel["Cloudflare Tunnel\n(ipaymu-hook.domain.com)"]
+    subgraph Cloudflare_Edge [Cloudflare]
+        CFTunnel["ipaymu-hook-&lt;dev&gt;.domain\ningress: /notify saja, lainnya 404"]
     end
 
-    subgraph iPaymu_Engine [iPaymu Payment Gateway]
-        iPaymuAPI["iPaymu API v2\n(my.ipaymu.com)"]
-        iPaymuNotify["Webhook Event Dispatcher"]
+    subgraph iPaymu_Engine [iPaymu]
+        iPaymuAPI["API v2"]
+        iPaymuNotify["Webhook dispatcher"]
     end
 
-    %% Outbound Flow
-    KtorDev -->|"1. Request via Proxy (8888)"| Tinyproxy
-    Tinyproxy -->|"2. Forward API Request"| ReservedIP
-    ReservedIP -->|"3. Egress IP Lolos Whitelist"| iPaymuAPI
+    KtorDev -->|"1. HTTP proxy (CONNECT)"| SSHFwd
+    SSHFwd -->|"2. Sesi SSH terenkripsi"| Tinyproxy
+    Tinyproxy -->|"3. Keluar via Reserved IP"| ReservedIP
+    ReservedIP -->|"4. Lolos whitelist"| iPaymuAPI
 
-    %% Inbound Flow
-    iPaymuNotify -->|"4. POST Callback (HTTPS)"| CFTunnel
-    CFTunnel -->|"5. Secure WebSocket/gRPC Tunnel"| CFDaemon
-    CFDaemon -->|"6. Proxy ke Localhost:8081"| KtorDev
+    iPaymuNotify -->|"5. POST callback (HTTPS)"| CFTunnel
+    CFTunnel -->|"6. Koneksi keluar cloudflared"| CFDaemon
+    CFDaemon -->|"7. localhost:8081/notify"| KtorDev
 ```
 
 ---
 
 ## 3. Komponen Utama & Alokasi Resource
 
-| Komponen | Provider / Teknologi | Peran Teknis | Estimasi Biaya |
+| Komponen | Provider / Teknologi | Peran | Estimasi Biaya |
 | :--- | :--- | :--- | :--- |
-| **IaC Engine** | Pulumi Java/Kotlin SDK (`com.pulumi:pulumi`) | Mendefinisikan seluruh resource secara deklaratif berbasis kode Kotlin | Gratis (Pulumi Community Edition) |
-| **Cloud Provider** | OCI (`ap-jakarta-1` Jakarta) | Penyedia Reserved IPv4 Statis & VM Egress Gateway | Rp 0 (Always Free Tier) |
-| **Compute Node** | OCI `VM.Standard.A1.Flex` (1 OCPU, 6GB RAM) | Menjalankan `tinyproxy` forwarding service | Rp 0 (Always Free) |
-| **IP Statis** | OCI Core Reserved Public IP | IP tetap yang didaftarkan ke dashboard iPaymu | Rp 0 (Always Free jika attached) |
-| **Edge Ingress** | Cloudflare Zero Trust Tunnel | Menerima webhook iPaymu dengan SSL otomatis | Rp 0 (Cloudflare Free Tier) |
-| **DNS Record** | Cloudflare DNS (CNAME) | Mengarahkan `ipaymu-hook.<domain>` ke Tunnel endpoint | Rp 0 (Included) |
+| **IaC** | Pulumi Java SDK dari Kotlin (`com.pulumi:pulumi`, `:oci`, `:cloudflare`, versi di-pin) | Seluruh resource sebagai kode | Gratis (backend state: lihat §5) |
+| **Compute** | OCI `VM.Standard.A1.Flex` 1 OCPU / 6 GB (cadangan `E2.1.Micro`) | `tinyproxy` lokal | Rp 0 dalam kuota Always Free — **akun PAYG** |
+| **IP statis** | OCI Reserved Public IP, `protect = true` | IP yang di-whitelist iPaymu | Perlu dicek di pricing OCI |
+| **Akses proxy** | SSH local forward (kunci per developer) | Pengganti port proxy publik | Rp 0 |
+| **Ingress** | Cloudflare Tunnel per developer + ingress terbatas path | Menerima callback ke laptop | Rp 0 (Free) |
+| **DNS** | Cloudflare DNS (CNAME, proxied) | `ipaymu-hook-<dev>.<domain>` → tunnel | Rp 0 |
 
 ---
 
-## 4. Tahapan Rencana Kerja (Phased Roadmap)
+## 4. Tahapan Rencana Kerja
 
-### Fase 1: Inisialisasi Proyek Pulumi Kotlin (`infra-bridge/`)
-- Inisialisasi proyek Gradle dengan plugin `kotlin("jvm")`.
-- Setup dependensi `com.pulumi:pulumi`, `com.pulumi:oci`, dan `com.pulumi:cloudflare`.
-- Konfigurasi kredensial OCI CLI (API Key, Fingerprint, Tenancy OCID) dan Cloudflare API Token.
+### Fase 0: Prasyarat (sebelum menulis kode)
+- Pastikan **home region** tenancy OCI = `ap-jakarta-1` (Always Free hanya di home region; tidak bisa diganti).
+- **Upgrade akun ke PAYG** — menghindari kapasitas A1 habis *dan* reklamasi VM Always Free yang menganggur.
+- Tentukan backend state Pulumi (Pulumi Cloud individual atau object storage).
+- Cek apakah sandbox iPaymu menegakkan IP whitelist (menentukan urgensi Fase 2).
+- Siapkan API token Cloudflare (`Zone.DNS:Edit`, `Account.Cloudflare Tunnel:Edit`) dan kunci SSH publik developer.
 
-### Fase 2: OCI Network & Compute Provisioning
-- Deklarasi VCN (10.0.0.0/16), Internet Gateway, Route Table default.
-- Deklarasi Security List (Port 22 SSH, Port 8888 Tinyproxy).
-- Alokasi Reserved Public IP (LIFETIME: `RESERVED`).
-- Penyusunan `cloud-init` / `user_data` untuk auto-install `tinyproxy` pada saat first boot.
-- Pengikatan (binding) Reserved IP ke VNIC instance.
+### Fase 1: Inisialisasi Proyek Pulumi Kotlin (`infra/ipaymu-bridge/`)
+- Build Gradle **mandiri** (`settings.gradle.kts` sendiri; tidak di-include root agar build KMP tidak tersentuh).
+- Dependensi `com.pulumi:pulumi`, `com.pulumi:oci`, `com.pulumi:cloudflare` — **pin versi**; nama resource
+  Cloudflare berbeda antar major version.
+- `BridgeConfig.kt` bertipe: compartment, domain, `developers`, `sshPublicKeys`, shape.
 
-### Fase 3: Cloudflare Webhook Tunnel Provisioning
-- Pembuatan resource `Tunnel` di Pulumi dengan 32-byte secret terenkripsi.
-- Pembuatan CNAME DNS record `ipaymu-hook.<domain>` menunjuk ke `<tunnel_id>.cfargotunnel.com`.
-- Ekspor `tunnel_token` sebagai output sensitif Pulumi.
+### Fase 2: OCI Network & Compute (`OciEgressGateway.kt`, `TinyproxyCloudInit.kt`)
+- VCN `10.0.0.0/16`, IGW, Route Table, Subnet publik `10.0.1.0/24`.
+- Security List: ingress **hanya TCP 22**.
+- Lookup availability domain & image Ubuntu 24.04 aarch64 (bukan OCID manual).
+- Instance dengan `assignPublicIp = false`; Reserved IP diikat ke private IP utama VNIC; `protect = true`.
+- Cloud-init tanpa rahasia: `tinyproxy` `Listen 127.0.0.1`, `ConnectPort 443`, `Filter` + `FilterDefaultDeny Yes`
+  (allowlist `my.ipaymu.com`, `sandbox.ipaymu.com`, `api.ipify.org`). `iptables` bawaan image dibiarkan.
 
-### Fase 4: Konfigurasi Ktor & Integrasi Kode Lokal
-- Penambahan helper `HttpClient` engine proxy di server Ktor berbasis `IPAYMU_OUTBOUND_PROXY`.
-- Pendaftaran endpoint handler `post("/api/payment/ipaymu/notify")` untuk verifikasi signature transaksi iPaymu.
-- Verifikasi sandbox: request transaksi keluar lolos whitelist, callback masuk berhasil diproses lokal.
+### Fase 3: Cloudflare Tunnel per Developer (`CloudflareWebhookTunnel.kt`)
+- Per nama di `developers`: tunnel (secret 32-byte), konfigurasi ingress (path `/notify` → `localhost:8081`,
+  catch-all `http_status:404`), CNAME `ipaymu-hook-<dev>`.
+- Output: `egressIp`, `sshForwardCommand`, `webhookUrls`, `tunnelTokens` (secret).
+- Skrip verifikasi `scripts/test-ipaymu-bridge.sh` (AC-PAY-2/3/4/7 di TRD).
+
+### Fase 4: Serah-terima ke L1 Billing iPaymu (bukan bagian rencana ini)
+- Kontrak env var & syarat handler callback sudah ditulis di TRD-PAY-001 FR-PAY-3.
+- L1 memilih engine Ktor client (server belum punya engine) yang mendukung proxy + `CONNECT`.
+- L1 mengimplementasikan handler callback dengan cek ulang status, idempoten per `trx_id`, cek nominal vs
+  `totalIdr`, reuse `ConfirmSubscriptionPaymentUseCase` (aktor `system:ipaymu`), dan rekonsiliasi berkala.
 
 ---
 
@@ -100,15 +120,22 @@ flowchart LR
 
 | Risiko | Dampak | Mitigasi |
 | :--- | :--- | :--- |
-| **Kapasitas VM Jakarta Habis ("Out of Capacity")** | Gagal create instance Ampere A1 Always Free | Upgrade akun ke status **Pay As You Go (PAYG)**; tagihan tetap Rp 0 selama di bawah kuota Always Free, namun alokasi hardware diutamakan. Opsi cadangan: Gunakan shape AMD `VM.Standard.E2.1.Micro`. |
-| **Penyalahgunaan Port Proxy 8888 Terbuka** | Open proxy disalahgunakan pihak ketiga | Pasang Basic Authentication (`BasicAuth user pass`) pada konfigurasi `tinyproxy`, atau batasi IP ingress security list hanya untuk IP dinamis ISP developer saat ini. |
-| **Webhook Latency / Timeout** | iPaymu menganggap webhook gagal dan melakukan retry berlebihan | `cloudflared` memelihara 4 koneksi persistent gRPC/WebSocket ke Cloudflare edge terdekat di Jakarta, latensi round-trip ke laptop < 15ms. |
-| **Drift Antara Dev dan Production** | Perilaku payment berbeda di server nyata | Pola proxy yang sama dipakai di production (atau backend production dipindahkan langsung ke OCI VM yang sudah memiliki IP statis tersebut). |
+| **Home region bukan Jakarta** | VM Always Free tidak bisa dibuat di Jakarta | Cek di Fase 0. Alternatif: VM berbayar di Jakarta, atau egress dari home region (IP tetap statis). |
+| **Kapasitas A1 Jakarta habis** | Gagal membuat instance | PAYG; cadangan `VM.Standard.E2.1.Micro`. |
+| **VM Always Free direklamasi karena idle** | Proxy hilang tanpa peringatan | PAYG (akun PAYG tidak terkena reklamasi idle). |
+| **IP whitelist hilang saat `pulumi destroy`/redeploy** | Harus daftar ulang ke iPaymu | `protect = true` pada `PublicIp`; ganti VM tidak mengganti IP. |
+| **Proxy disalahgunakan** | IP whitelist masuk daftar hitam | Tidak ada port proxy publik (SSH forward); filter domain tujuan; SSH kunci saja. |
+| **Seluruh API dev terekspos lewat tunnel** | Endpoint dev dapat diakses dari internet | Ingress hanya path `/notify`; catch-all 404 (diuji AC-PAY-7). |
+| **Dua developer berbagi satu tunnel** | Callback terbagi acak antar laptop | Tunnel & hostname per developer; `notifyUrl` per transaksi. |
+| **Laptop mati/tidur** | Callback hilang | Rekonsiliasi cek status di L1. |
+| **Drift dev vs production** | Perilaku berbeda di server nyata | Desain egress production diputuskan di L1 bersama Docker + Caddy. |
 
 ---
 
 ## 6. Output & Deliverables
 
-1. Berkas TRD lengkap: [`docs/trd/TRD-PAY-001-ipaymu-testing-bridge.md`](../trd/TRD-PAY-001-ipaymu-testing-bridge.md)
-2. Skrip Pulumi Kotlin (`build.gradle.kts`, `OciGateway.kt`, `CloudflareWebhookTunnel.kt`, `Main.kt`).
-3. Runbook operasional untuk startup testing bridge lokal dan simulasi transaksi.
+1. TRD: [`docs/trd/TRD-PAY-001-ipaymu-testing-bridge.md`](../trd/TRD-PAY-001-ipaymu-testing-bridge.md) (v1.1).
+2. Proyek Pulumi `infra/ipaymu-bridge/` (`build.gradle.kts`, `Main.kt`, `BridgeConfig.kt`, `OciEgressGateway.kt`,
+   `TinyproxyCloudInit.kt`, `CloudflareWebhookTunnel.kt`).
+3. `scripts/test-ipaymu-bridge.sh` + runbook (TRD §5.3).
+4. Teaching doc setelah bridge berdiri (CLAUDE.md §12).

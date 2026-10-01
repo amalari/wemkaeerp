@@ -1,0 +1,4 @@
+name: ipaymu-bridge
+description: iPaymu testing bridge - Cloudflare Tunnel ingress + OCI egress gateway opsional (TRD-PAY-001)
+runtime:
+  name: java

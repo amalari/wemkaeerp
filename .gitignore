@@ -31,3 +31,8 @@ graphify-out/
 
 # Artefak Playwright MCP (screenshot, snapshot, log console)
 .playwright-mcp/
+
+# Jar inspection scratch
+.jarscan/
+**/.jarscan/
+*.tunnel-token-*
