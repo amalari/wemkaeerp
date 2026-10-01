@@ -13,6 +13,7 @@ import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.Tenant
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.domain.tenant.TenantSlug
+import com.eventverse.app.domain.tenant.TenantStatus
 import com.eventverse.app.plugins.CallerPrincipal
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.routes.dto.AdminDto
@@ -22,6 +23,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 /**
  * Platform-administration API: lets a `PLATFORM_SUPERADMIN` provision what a specific
@@ -144,6 +146,59 @@ fun Route.adminRoutes(
                 contentType = ContentType.Application.Json
             )
         }
+    }
+
+    // ------------------------------------------------------------------ jam trial (V88)
+    // TRIAL sudah ada sejak V1 tapi tanpa tenggat: tenant baru dapat PRO penuh selamanya.
+    // Endpoint ini papan pantau + tuas keputusannya; penegakan login menyusul di jalur auth
+    // (koordinasi dengan login-split M3).
+
+    get("/api/admin/trials") {
+        val now = Clock.System.now()
+        val trials = tenantRepository.findAll()
+            .filter { it.status == TenantStatus.TRIAL }
+            .sortedWith(compareBy<Tenant> { it.trialEndsAt ?: Instant.DISTANT_FUTURE }.thenBy { it.slug.value })
+
+        call.respondText(
+            text = "[" + trials.joinToString(",") { t ->
+                val remainingDays = t.trialEndsAt?.let { (it - now).inWholeDays }
+                val endsAtJson = t.trialEndsAt?.toString() ?: "null"
+                val name = t.name.value.replace("\"", "'")
+                """{"slug":"${t.slug.value}","name":"$name","tier":"${t.tier.name}",""" +
+                    """"trialEndsAt":$endsAtJson,"remainingDays":$remainingDays,""" +
+                    """"expired":${t.trialExpired(now)}}"""
+            } + "]",
+            contentType = ContentType.Application.Json
+        )
+    }
+
+    post("/api/admin/trials/{slug}/extend") {
+        val tenant = call.requireTargetTenant(tenantRepository) ?: return@post
+        val days = call.request.queryParameters["days"]?.toLongOrNull()?.coerceIn(1, 90) ?: 7L
+
+        runCatching { tenant.extendTrial(days, Clock.System.now()) }
+            .onFailure { e ->
+                call.respond(HttpStatusCode.Conflict, "Perpanjangan trial gagal: ${e.message}")
+            }
+            .onSuccess { extended ->
+                tenantRepository.save(extended).getOrElse {
+                    call.respond(HttpStatusCode.InternalServerError, "Gagal menyimpan perpanjangan trial")
+                    return@post
+                }
+                val principal = call.callerPrincipalOrNull
+                if (principal != null) {
+                    call.recordAudit(
+                        auditLogRepository, principal, extended, AuditAction.TENANT_TRIAL_EXTENDED,
+                        "trial tenant '${tenant.slug.value}' diperpanjang $days hari " +
+                            "(sampai ${extended.trialEndsAt})"
+                    )
+                }
+                call.respondText(
+                    text = """{"slug":"${extended.slug.value}","status":"${extended.status.name}",""" +
+                        """"trialEndsAt":"${extended.trialEndsAt}","extendedDays":$days}""",
+                    contentType = ContentType.Application.Json
+                )
+            }
     }
 }
 

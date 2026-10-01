@@ -8,6 +8,8 @@ import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
+import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.days
 
 /**
  * Core domain entity representing a tenant (Factory / Convection business account).
@@ -30,7 +32,12 @@ data class Tenant(
      * atas pack effective (perilaku B7 pra-pin, dipertahankan untuk semua tenant lama — test paritas garment).
      * Diisi saat deploy (M2) dan rollback, bukan saat baca.
      */
-    val domainPackVersion: Int? = null
+    val domainPackVersion: Int? = null,
+    /**
+     * Tenggat trial (V88). `null` = tenant legacy tanpa jam (status quo, tidak dipaksa).
+     * Diisi otomatis saat registrasi (`now + trialDays`); hanya berlaku saat [status] == [TenantStatus.TRIAL].
+     */
+    val trialEndsAt: Instant? = null
 ) {
     val isAccessible: Boolean
         get() = status.isAccessible
@@ -40,6 +47,21 @@ data class Tenant(
         get() = requireNotNull(com.eventverse.app.domain.pack.DomainPackRegistry.find(domainPack)) { "Pack ${domainPack.value} tenant ${slug.value} tidak dikenal" }
 
     fun canAccessPlatform(): Boolean = isAccessible
+
+    /** Trial sudah lewat tenggat? `null` tenggat = tanpa batas (legacy), selalu false. */
+    fun trialExpired(now: Instant): Boolean =
+        status == TenantStatus.TRIAL && trialEndsAt != null && now > trialEndsAt
+
+    /**
+     * Perpanjang trial. Basis perpanjangan = yang lebih jauh antara sekarang dan tenggat lama,
+     * supaya memperpanjang tenant yang belum lewat menumpuk di ujung (bukan memotong sisa).
+     */
+    fun extendTrial(days: Long, now: Instant): Tenant {
+        require(status == TenantStatus.TRIAL) { "Hanya tenant TRIAL yang bisa diperpanjang, dapat ${status.name}" }
+        require(days > 0) { "Perpanjangan harus > 0 hari, dapat $days" }
+        val base = maxOf(trialEndsAt ?: now, now)
+        return copy(trialEndsAt = base + days.days)
+    }
 
     fun activate(): Tenant = copy(status = TenantStatus.ACTIVE)
 

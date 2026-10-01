@@ -8,6 +8,7 @@ import com.eventverse.app.domain.tenant.*
 import com.eventverse.app.infrastructure.tables.TenantsTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 /**
  * PostgreSQL implementation of TenantRepository utilizing JetBrains Exposed and HikariCP.
@@ -45,6 +46,8 @@ class PostgresTenantRepository : TenantRepository {
                     it[industryTemplate] = tenant.industryTemplate.name
                     it[domainPack] = tenant.domainPack.value
                     it[domainPackVersion] = tenant.domainPackVersion
+                    // NULL tidak ditulis: biarkan DEFAULT DB (V88) berlaku untuk tenant baru.
+                    tenant.trialEndsAt?.let { endsAt -> it[trialEndsAt] = endsAt }
                 }
             } else {
                 TenantsTable.insert {
@@ -58,6 +61,8 @@ class PostgresTenantRepository : TenantRepository {
                     it[industryTemplate] = tenant.industryTemplate.name
                     it[domainPack] = tenant.domainPack.value
                     it[domainPackVersion] = tenant.domainPackVersion
+                    // NULL = biarkan nilai lama (tenant legacy tanpa jam tidak dinolkan ulang).
+                    tenant.trialEndsAt?.let { endsAt -> it[trialEndsAt] = endsAt }
                 }
             }
             tenant
@@ -86,6 +91,7 @@ class PostgresTenantRepository : TenantRepository {
         industryTemplate = IndustryTemplateCode.parseOrNull(row[TenantsTable.industryTemplate]) ?: IndustryTemplateCode.KNIT_SWEATER,
         // Kode tak dikenal tetap dibaca apa adanya; plugin tenant menolaknya 409 (B7 FR-4), bukan jatuh ke garment.
         domainPack = DomainPackCode(row[TenantsTable.domainPack]),
-        domainPackVersion = row[TenantsTable.domainPackVersion]
+        domainPackVersion = row[TenantsTable.domainPackVersion],
+        trialEndsAt = row[TenantsTable.trialEndsAt]
     )
 }

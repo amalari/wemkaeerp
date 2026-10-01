@@ -90,8 +90,10 @@ retry iPaymu habis), invoice yang faktanya sudah dibayar selamanya `ISSUED`. Pen
   plugin meloloskannya sebagai administrasi platform — superadmin **tanpa** konteks tenant
   (rekonsiliasi melintasi semua tenant; di path `/api/builder` superadmin tanpa
   `X-Tenant-Slug` malah 404 dari plugin). Gateway `null` → 503 fail-closed.
-- **Batas jujur**: invoice yang belum pernah dikirimi callback apa pun tidak punya `trx_id`
-  numerik → tidak bisa dicek (tercatat TRD §6 #5). Scheduler otomatis menunggu `Application.kt`
+- **Batas jujur, sudah dieksperimen live (2026-10-01)**: invoice yang belum pernah dikirimi
+  callback apa pun tidak punya `trx_id` numerik → tidak bisa dicek — `/transaction` **menolak
+  SessionID** (400 "transaction not found", lihat `scripts/ipaymu-live-probe.sh`). Jalurnya:
+  dashboard iPaymu + konfirmasi manual superadmin. Scheduler otomatis menunggu `Application.kt`
   bebas; endpoint manual sudah menutup kasus operasional.
 
 ## 5. Yang belum tuntas (jujur di Gate 7)

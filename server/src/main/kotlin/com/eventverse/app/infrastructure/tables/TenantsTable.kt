@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure.tables
 
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object TenantsTable : Table("tenants") {
     val id = varchar("id", 64)
@@ -22,6 +23,9 @@ object TenantsTable : Table("tenants") {
 
     /** Versi pack data yang di-pin tenant (V81, PLAN-builder-console M0). NULL = pack effective (perilaku B7). */
     val domainPackVersion = integer("domain_pack_version").nullable()
+
+    /** Tenggat trial (V88). NULL = tenant legacy tanpa jam. */
+    val trialEndsAt = timestamp("trial_ends_at").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

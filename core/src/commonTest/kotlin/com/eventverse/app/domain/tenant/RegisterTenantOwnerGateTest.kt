@@ -6,7 +6,10 @@ import com.eventverse.app.domain.auth.User
 import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.auth.Username
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -66,5 +69,19 @@ class RegisterTenantOwnerGateTest {
         ).getOrThrow()
         val result = register(RegisterTenantCommand("ten-baru", "baru", "Project Baru", ownerEmail = "superadmin@wemakeerp.com"))
         assertTrue(result.isSuccess, "akun platform bukan pemilik project — tidak boleh memblokir pendaftaran")
+    }
+
+    @Test
+    fun register_setsTrialDeadline_14DaysFromRegistration() = runTest {
+        // V88: TRIAL tanpa tenggat = tenant dapat PRO penuh selamanya. Jam dipasang saat daftar.
+        val fixedClock = object : Clock {
+            override fun now(): Instant = Instant.parse("2026-10-01T00:00:00Z")
+        }
+        val register = RegisterTenantUseCase(tenants, users, fixedClock)
+
+        val tenant = register(RegisterTenantCommand("ten-trial", "trial", "Project Trial")).getOrThrow()
+
+        assertEquals(TenantStatus.TRIAL, tenant.status)
+        assertEquals(Instant.parse("2026-10-15T00:00:00Z"), tenant.trialEndsAt)
     }
 }

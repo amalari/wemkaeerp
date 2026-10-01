@@ -4,6 +4,8 @@ import com.eventverse.app.domain.auth.EmailAddress
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.auth.UserRepository
 import com.eventverse.app.domain.stageflow.IndustryTemplateCode
+import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 
 data class RegisterTenantCommand(
     val id: String,
@@ -16,8 +18,17 @@ data class RegisterTenantCommand(
      * Email user owner yang akan mengelola project ini (PLAN-builder-console F3). `null` = pendaftaran
      * tanpa penentuan owner (mode undangan M0–M1); gerbang satu-owner tetap berlaku bila diisi.
      */
-    val ownerEmail: String? = null
-)
+    val ownerEmail: String? = null,
+    /** Lama trial hari (V88). Default sesuai kebijakan bawaan platform. */
+    val trialDays: Long = DEFAULT_TRIAL_DAYS
+) {
+    init {
+        require(trialDays > 0) { "trialDays harus > 0, dapat $trialDays" }
+    }
+}
+
+/** Lama trial bawaan platform (hari). */
+const val DEFAULT_TRIAL_DAYS = 14L
 
 /**
  * Membuat tenant TRIAL baru — "project" dalam WeMake Builder (1 akun = 1 project).
@@ -29,7 +40,9 @@ data class RegisterTenantCommand(
  */
 class RegisterTenantUseCase(
     private val tenantRepository: TenantRepository,
-    private val users: UserRepository? = null
+    private val users: UserRepository? = null,
+    /** Jam domain; default sistem. Param terakhir ber-default = pemanggil lama tak tersentuh. */
+    private val clock: Clock = Clock.System
 ) {
     suspend operator fun invoke(command: RegisterTenantCommand): Result<Tenant> = runCatching {
         val tenantId = TenantId(command.id)
@@ -63,7 +76,8 @@ class RegisterTenantUseCase(
             status = TenantStatus.TRIAL,
             tier = command.tier,
             activeMachineCount = 0,
-            industryTemplate = command.industryTemplate ?: IndustryTemplateCode.KNIT_SWEATER
+            industryTemplate = command.industryTemplate ?: IndustryTemplateCode.KNIT_SWEATER,
+            trialEndsAt = clock.now() + command.trialDays.days
         )
 
         tenantRepository.save(newTenant).getOrThrow()
