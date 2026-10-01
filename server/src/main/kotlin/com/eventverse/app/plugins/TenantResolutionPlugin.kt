@@ -43,6 +43,7 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.*
+import kotlinx.datetime.Clock
 
 val TenantContextAttributeKey = AttributeKey<TenantContext>("TenantContext")
 
@@ -75,6 +76,16 @@ class TenantResolutionConfig {
 
     /** Sumber pack data (B7). Tanpa ini hanya pack bawaan yang dikenal; tenant pack data ditolak 409. */
     var domainPackRepository: com.eventverse.app.domain.pack.DomainPackRepository? = null
+
+    /**
+     * Rute **builder console** — TIDAK terkena gerbang trial (V89). Builder gratis: tenant
+     * dengan trial aplikasi yang sudah habis justru harus tetap bisa masuk ke sini untuk
+     * melihat invoice dan berlangganan. Yang dikunci hanyalah ruang kerja aplikasi tenant.
+     */
+    var builderRoutePrefixes: List<String> = listOf("/api/builder")
+
+    /** Jam domain; default sistem. Diuji dengan clock beku. */
+    var clock: Clock = Clock.System
 }
 
 /** Modul yang di-grant untuk tenant request ini; `null` = tidak dimuat (guard tidak membatasi paket). */
@@ -111,6 +122,8 @@ val TenantResolutionPlugin = createApplicationPlugin(
     val publicPrefixes = pluginConfig.publicRoutePrefixes
     val platformPrefixes = pluginConfig.platformRoutePrefixes
     val printTickets = pluginConfig.printTicketService
+    val clock = pluginConfig.clock
+    val builderPrefixes = pluginConfig.builderRoutePrefixes
     val entitlements = pluginConfig.entitlementRepository?.let(::GetTenantEntitlementUseCase)
     val resolvePack = pluginConfig.domainPackRepository?.let(::ResolveDomainPackUseCase)
 
@@ -254,6 +267,25 @@ val TenantResolutionPlugin = createApplicationPlugin(
             call.respond(
                 HttpStatusCode.Forbidden,
                 "Tenant workspace '${resolvedTenant.slug.value}' is suspended. Please contact support."
+            )
+            return@onCall
+        }
+
+        // --- 2b. Gerbang trial (V89): aplikasi terkunci saat trial habis, builder terbuka. ---
+        // Yang dibeli tenant adalah APLIKASI jadinya, bukan akun buildernya — jadi yang
+        // dikunci hanyalah workspace ERP. Builder console tetap bisa dimasuki agar tenant
+        // dapat melihat invoice dan berlangganan (konversi ke ACTIVE). Superadmin yang
+        // act-as tetap lolos agar mampu mengaudit tenant mati.
+        val trialOver = resolvedTenant.status == TenantStatus.TRIAL &&
+            resolvedTenant.trialExpired(clock.now())
+        if (trialOver &&
+            !principal.isPlatformSuperadmin &&
+            builderPrefixes.none { path.startsWith(it) }
+        ) {
+            call.respond(
+                HttpStatusCode.PaymentRequired,
+                "Masa trial aplikasi '${resolvedTenant.slug.value}' sudah habis. " +
+                    "Masuk ke builder console untuk berlangganan dan mengaktifkan kembali."
             )
             return@onCall
         }

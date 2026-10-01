@@ -45,7 +45,23 @@ yang dibeli bukan akun Builder, melainkan **aplikasi jadinya**. Semantik yang be
 3. **Penegakan tidak bisa disematkan ke spreadsheet.** Baserow/Airtable hanya lapisan keputusan
    (tabel `slug | aksi | catatan` → memanggil endpoint superadmin); yang memblokir login dan
    menghitung kuota tetap kode core + DB (fail-closed). Airtable (SaaS per-seat) hanya CRM murni.
-4. **Koordinasi lintas-alur**: penegakan "trial habis → tolak login" titik sambungnya di jalur
-   auth (login-split M3, sedang dikerjakan alur lain) — sengaja ditunda; tinggal satu kondisi
-   `trialExpired(now)` di sebelah cek `isAccessible`. Sampai saat itu,
-   `GET /api/admin/trials` sudah menandai `expired: true`.
+## 4. Penegakan server-side (gerbang trial, V89 lanjutan)
+
+Titik pemasangan: **`TenantResolutionPlugin`**, sebelah cek `isAccessible` (suspended 403) —
+bukan di jalur auth, supaya tidak bersengketa dengan perombakan login.
+
+- `status == TRIAL && trialExpired(now)` pada tenant yang **di-resolve** → workspace ditolak
+  **402 PaymentRequired** dengan pesan mengarah ke builder console.
+- **Tiga pintu tetap terbuka dengan sengaja**:
+  1. **`/api/builder/*`** (`builderRoutePrefixes`) — tenant expired harus bisa masuk melihat
+     invoice & berlangganan; mengunci builder = tenant tidak punya cara bayar.
+  2. **Superadmin act-as** (`isPlatformSuperadmin`) — tetap bisa mengaudit tenant mati.
+  3. **Rute publik & platform** (`/api/payment`, `/api/admin`) — tidak melewati resolusi tenant.
+- Konfigurasi plugin dapat `clock` beku untuk pengujian deterministik.
+- Test (`TenantResolutionPluginTest`): expired → 402 di workspace; TRIAL berjalan → 200;
+  expired di builder → lolos (404 dari routing, bukan 402 dari gerbang); superadmin act-as
+  ke tenant expired → 200.
+- Catatan verifikasi: `platformSuperadmin_shouldBeAbleToActAsAnyTenant` gagal
+  (`UncompletedCoroutinesError`) **juga pada HEAD bersih** — bawaan kode M3, bukan gerbang
+  trial; tercatat sebagai baseline terpisah.
+

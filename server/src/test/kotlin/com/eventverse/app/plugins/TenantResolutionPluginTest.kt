@@ -13,6 +13,8 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.test.*
 
 class TenantResolutionPluginTest {
@@ -179,6 +181,90 @@ class TenantResolutionPluginTest {
 
         assertEquals(HttpStatusCode.OK, response.status, "webhook iPaymu tidak boleh 401")
         assertTrue(response.bodyAsText().contains("\"accepted\":false"))
+    }
+
+    @Test
+    fun trial_expired_tenant_workspace_should_return_402_payment_required() = testApplication {
+        val expired = InMemoryTenantRepository()
+        runBlocking {
+            expired.save(
+                Tenant(
+                    id = TenantId("ten-expired-1"), slug = TenantSlug("pabrik-lunas"),
+                    name = TenantName("Pabrik Trial Habis"), status = TenantStatus.TRIAL,
+                    tier = SubscriptionTier.PRO, trialEndsAt = Clock.System.now() - 1.days
+                )
+            )
+        }
+
+        application { module(expired) }
+
+        val response = client.get("/api/tenant/info") { asTenant("pabrik-lunas") }
+
+        assertEquals(HttpStatusCode.PaymentRequired, response.status)
+        assertTrue(response.bodyAsText().contains("trial"), "Body: ${response.bodyAsText()}")
+    }
+
+    @Test
+    fun trial_running_tenant_workspace_stays_open() = testApplication {
+        val running = InMemoryTenantRepository()
+        runBlocking {
+            running.save(
+                Tenant(
+                    id = TenantId("ten-running-1"), slug = TenantSlug("pabrik-jalan"),
+                    name = TenantName("Pabrik Trial Jalan"), status = TenantStatus.TRIAL,
+                    tier = SubscriptionTier.PRO, trialEndsAt = Clock.System.now() + 7.days
+                )
+            )
+        }
+
+        application { module(running) }
+
+        val response = client.get("/api/tenant/info") { asTenant("pabrik-jalan") }
+
+        assertEquals(HttpStatusCode.OK, response.status, "trial masih berjalan: akses penuh")
+    }
+
+    @Test
+    fun trial_expired_tenant_builder_console_stays_open_so_they_can_pay() = testApplication {
+        val expired = InMemoryTenantRepository()
+        runBlocking {
+            expired.save(
+                Tenant(
+                    id = TenantId("ten-expired-2"), slug = TenantSlug("pabrik-bayar"),
+                    name = TenantName("Pabrik Bayar"), status = TenantStatus.TRIAL,
+                    tier = SubscriptionTier.PRO, trialEndsAt = Clock.System.now() - 1.days
+                )
+            )
+        }
+
+        application { module(expired) }
+
+        // Path di bawah prefix builder: plugin lolos (404 dari routing = gerbang tidak memblokir);
+        // bila gerbang salah, responsnya 402, bukan 404.
+        val response = client.get("/api/builder/route-yang-tidak-ada") { asTenant("pabrik-bayar") }
+
+        assertEquals(HttpStatusCode.NotFound, response.status, "builder tidak boleh diblokir gerbang trial (402)")
+        assertFalse(response.bodyAsText().contains("trial sudah habis"))
+    }
+
+    @Test
+    fun superadmin_act_as_still_reaches_expired_tenant_for_audit() = testApplication {
+        val expired = InMemoryTenantRepository()
+        runBlocking {
+            expired.save(
+                Tenant(
+                    id = TenantId("ten-expired-3"), slug = TenantSlug("pabrik-audit"),
+                    name = TenantName("Pabrik Audit"), status = TenantStatus.TRIAL,
+                    tier = SubscriptionTier.PRO, trialEndsAt = Clock.System.now() - 1.days
+                )
+            )
+        }
+
+        application { module(expired) }
+
+        val response = client.get("/api/tenant/info") { asSuperadminActingAs("pabrik-audit") }
+
+        assertEquals(HttpStatusCode.OK, response.status, "superadmin tetap bisa mengaudit tenant expired")
     }
 
     @Test
