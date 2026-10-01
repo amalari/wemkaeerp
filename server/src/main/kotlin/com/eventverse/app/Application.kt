@@ -23,6 +23,7 @@ import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.infrastructure.PostgresModuleAssignmentRepository
 import com.eventverse.app.routes.moduleAssignmentRoutes
+import com.eventverse.app.routes.DomainRouteWiring
 import com.eventverse.app.routes.builderRoutes
 import com.eventverse.app.routes.onboardingRoutes
 import com.eventverse.app.routes.publicAuthRoutes
@@ -190,64 +191,9 @@ fun Application.module(
     val quoteRepo = modulePricingQuoteRepository ?: PostgresModulePricingQuoteRepository()
     val customizationRequestRepo = moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
-    val crmLeadRepo = crmLeadRepository ?: PostgresCrmLeadRepository()
-    val crmContactRepo = contactRepository ?: PostgresContactRepository()
-    val crmDealRepo = dealRepository ?: PostgresDealRepository()
-    val poFileStorage = poFileStorage ?: S3PoFileStorage()
-    val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
-    val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
-    val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
-    val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository(); val traceContainerRepo = PostgresTraceContainerRepository(); val internalTransferRepo = PostgresInternalTransferRepository()
-    val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
-        sampling = SamplingTraceWorkOrderProvider(samplingOrderRepo, traceContainerRepo),
-        bulk = BulkTraceWorkOrderProvider(bulkWorkOrderRepo, samplingOrderRepo, traceContainerRepo)
-    )
-    val knitWorksheetBuilder = KnitWorksheetBuilder(samplingOrderRepo)
-    // Host ini tercetak di setiap QR: mengubahnya kelak mematikan seluruh kartu yang sudah beredar di lantai.
-    val traceScanHost = System.getenv("TRACE_SCAN_HOST")?.takeIf { it.isNotBlank() } ?: "wemade.local"
-    val materialRepo = materialItemRepository ?: PostgresMaterialItemRepository()
-    val materialPriceRepo = materialPriceRepository ?: PostgresMaterialPriceRepository()
-    val techPackRepo = techPackRepository ?: PostgresTechPackRepository()
-    val invoiceRepo = invoiceRepository ?: PostgresInvoiceRepository()
-    val invoiceTemplateRepo = invoiceTemplateRepository ?: PostgresInvoiceTemplateRepository()
-    val invoicePaymentRepo = invoicePaymentRepository ?: PostgresInvoicePaymentRepository()
-    val invoiceIssuerProfileRepo = invoiceIssuerProfileRepository ?: PostgresInvoiceIssuerProfileRepository()
-    val costingSheetRepo = costingSheetRepository ?: PostgresCostingSheetRepository()
-    val costingRateCardRepo = costingRateCardRepository ?: PostgresCostingRateCardRepository()
-    val costingBenchmarkRepo = costingBenchmarkRepository ?: PostgresCostingBenchmarkRepository()
-
-    // Tanpa GEMINI_API_KEY seluruh fitur tetap hidup: impor memakai parser heuristik berbasis
-    // label, dan estimator berjalan tanpa petunjuk visual. Yang hilang hanya kenyamanannya,
-    // bukan fungsinya — server tidak boleh gagal start karena satu kunci API belum diisi.
-    val geminiApiKey = System.getenv("GEMINI_API_KEY")?.takeIf { it.isNotBlank() }
-    val geminiService = geminiApiKey?.let { GeminiCostingParserService(apiKey = it) }
-    val historicalCostingParser = geminiService ?: HeuristicCostingParser()
-    val designVisionAnalyzer = geminiService ?: NoopDesignVisionAnalyzer
-    val benchmarkImageStorage = LocalBenchmarkImageStorage()
-
-    // Word-overlap retrieval, not semantic. Adequate while the corpus is small and the confidence
-    // gate turns weak matches into refusals rather than bad prices — see LexicalEmbeddingProvider.
-    val embeddingProviderImpl = embeddingProvider ?: LexicalEmbeddingProvider()
-
-    val leadRepo = prospectLeadRepository ?: PostgresProspectLeadRepository()
-    val translationRepo = flowTranslationRepository ?: PostgresFlowTranslationRepository()
-    val prospectEstimateRepo =
-        prospectPriceEstimateRepository ?: PostgresProspectPriceEstimateRepository()
-
-    // Keyword matching, not comprehension (KeywordFlowTranslator): free, so safe on a public endpoint; a real model needs rate limiting.
-    val flowTranslatorImpl = flowTranslator ?: KeywordFlowTranslator()
-
     // Funnel discovery (plan Fase A): kill-switch env — deterministik selama Koog belum dipasang (A8).
     val discoveryDraftRepo = discoveryDraftRepository ?: com.eventverse.app.infrastructure.PostgresDiscoveryDraftRepository()
 
-    // Derived from REAL productive hours (~4/day), not a nominal 160-hour month. Using a nominal
-    // rate while logging honest hours recovers only half the cost on every quote.
-    val blendedHourlyRate = MoneyIdr(
-        System.getenv("WEMADE_BLENDED_HOURLY_RATE_IDR")?.toLongOrNull() ?: 250_000L
-    )
-    val defaultMargin = Percentage(
-        System.getenv("WEMADE_DEFAULT_MARGIN_PERCENT")?.toDoubleOrNull() ?: 35.0
-    )
     val registerTenantUseCase = RegisterTenantUseCase(repository, userRepo)
     val checkSubdomainUseCase = CheckSubdomainAvailabilityUseCase(repository)
     val authenticateWithGoogleUseCase = AuthenticateWithGoogleUseCase(userRepo, repository)
@@ -330,65 +276,24 @@ fun Application.module(
         pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
         domainPackRoutes(repository, domainPackRepo, com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), auditLogRepo)
-        moduleDevRoutes(
-            catalogRepository = catalogRepo, buildRepository = buildRepo, quoteRepository = quoteRepo,
-            requestRepository = customizationRequestRepo, sizingWeightsRepository = sizingWeightsRepo,
-            pipelineRepository = pipeRepo, embeddingProvider = embeddingProviderImpl,
-            auditLogRepository = auditLogRepo
-        )
-        prospectRoutes(
-            leadRepository = leadRepo, translationRepository = translationRepo, priceEstimateRepository = prospectEstimateRepo,
-            submitLeadUseCase = SubmitProspectLeadUseCase(leadRepo), translateUseCase = TranslateProspectFlowUseCase(flowTranslatorImpl, translationRepo, leadRepo),
-            analyzeCoverageUseCase = AnalyzeCoverageUseCase(catalogRepo), priceUseCase = PriceProspectFlowUseCase(buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo,
-                embeddingProvider = embeddingProviderImpl, defaultBlendedHourlyRate = blendedHourlyRate),
-            defaultMarginPercent = defaultMargin
-        )
-        discoveryPlatformRoutes(
-            draftRepository = discoveryDraftRepo, tenantRepository = repository, domainPackRepository = domainPackRepo,
-            probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
-            buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
-            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepository,
-            agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
-        crmRoutes(
-            leadRepository = crmLeadRepo, contactRepository = crmContactRepo,
-            dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,
-            employeeRepository = empRepo, roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo, invoiceRepository = invoiceRepo,
-            leadActivityRepository = leadActivityRepo
-        )
-        dealRoutes(
-            dealRepository = crmDealRepo, contactRepository = crmContactRepo,
-            employeeRepository = empRepo, roleRepository = roleRepo,
-            moduleAssignmentRepository = assignmentRepo,
-            poFileStorage = poFileStorage, samplingOrderRepository = samplingOrderRepo
-        )
-        operationalModuleRoutes(
-            samplingOrderRepo = samplingOrderRepo,
-            crmDealRepo = crmDealRepo,
-            bulkWorkOrderRepo = bulkWorkOrderRepo,
-            materialRepo = materialRepo,
-            materialPriceRepo = materialPriceRepo,
-            customFieldRepo = customFieldRepo,
-            techPackRepo = techPackRepo,
-            roleRepo = roleRepo,
-            assignmentRepo = assignmentRepo,
-            invoiceRepo = invoiceRepo,
-            invoiceTemplateRepo = invoiceTemplateRepo,
-            invoicePaymentRepo = invoicePaymentRepo,
-            invoiceIssuerProfileRepo = invoiceIssuerProfileRepo,
-            costingSheetRepo = costingSheetRepo,
-            costingRateCardRepo = costingRateCardRepo,
-            costingBenchmarkRepo = costingBenchmarkRepo,
-            pipeRepo = pipeRepo,
-            historicalCostingParser = historicalCostingParser,
-            designVisionAnalyzer = designVisionAnalyzer,
-            benchmarkImageStorage = benchmarkImageStorage,
-            traceContainerRepo = traceContainerRepo,
-            transferRepo = internalTransferRepo,
-            traceWorkOrderProvider = traceWorkOrderProvider,
-            knitWorksheetBuilder = knitWorksheetBuilder,
-            traceScanHost = traceScanHost,
-            poFileStorage = poFileStorage
-        )
+        // Rute domain bisnis (corong prospek, CRM/deal, modul operasional) — lihat DomainRouteWiring.
+        DomainRouteWiring(
+            tenants = repository, pipeRepo = pipeRepo, roleRepo = roleRepo, assignmentRepo = assignmentRepo,
+            empRepo = empRepo, catalogRepo = catalogRepo, buildRepo = buildRepo, quoteRepo = quoteRepo,
+            auditLogRepo = auditLogRepo, domainPackRepo = domainPackRepo, discoveryDraftRepo = discoveryDraftRepo,
+            embeddingProvider = embeddingProvider, flowTranslator = flowTranslator,
+            discoveryDemandRepository = discoveryDemandRepository, crmLeadRepository = crmLeadRepository,
+            contactRepository = contactRepository, dealRepository = dealRepository,
+            poFileStorageOverride = poFileStorage, customFieldDefinitionRepository = customFieldDefinitionRepository,
+            leadActivityRepository = leadActivityRepository, samplingOrderRepository = samplingOrderRepository, materialItemRepository = materialItemRepository,
+            techPackRepository = techPackRepository, invoiceRepository = invoiceRepository,
+            invoiceTemplateRepository = invoiceTemplateRepository, invoicePaymentRepository = invoicePaymentRepository,
+            invoiceIssuerProfileRepository = invoiceIssuerProfileRepository, costingSheetRepository = costingSheetRepository,
+            costingRateCardRepository = costingRateCardRepository, costingBenchmarkRepository = costingBenchmarkRepository,
+            moduleCustomizationRequestRepository = moduleCustomizationRequestRepository,
+            sizingWeightsRepository = sizingWeightsRepository, prospectLeadRepository = prospectLeadRepository,
+            flowTranslationRepository = flowTranslationRepository,
+            prospectPriceEstimateRepository = prospectPriceEstimateRepository
+        ).registerIn(this)
     }
 }
