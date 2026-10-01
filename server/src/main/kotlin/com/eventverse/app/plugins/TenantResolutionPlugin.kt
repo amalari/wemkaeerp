@@ -84,6 +84,14 @@ val ApplicationCall.grantedModulesOrNull: Set<BusinessModule>?
     get() = attributes.getOrNull(GrantedModulesAttributeKey)
 
 /**
+ * Prefix path yang bebas JWT. `/api/payment` = webhook iPaymu — sengaja publik karena aktornya
+ * mesin iPaymu; keamanannya bukan JWT melainkan `X-Signature` (secret = Nomor VA) plus urutan
+ * verifikasi domain di `IpaymuCallbackRoutes` (nominal, re-check status, cocokkan `SessionId`).
+ * Jangan menambah prefix di sini tanpa alasan yang sama kuatnya.
+ */
+val PublicRoutePrefixes: List<String> = listOf("/api/public", "/health", "/api/payment")
+
+/**
  * Authenticates the caller and resolves which tenant the request acts on.
  *
  * Tenant identity comes from the **verified** JWT, not from a request header. A tenant-bound

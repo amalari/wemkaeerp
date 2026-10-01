@@ -57,6 +57,7 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
                 it[paidAt] = invoice.paidAt
                 it[paidNote] = invoice.paidNote
                 it[ipaymuTrxId] = invoice.ipaymuTrxId
+                it[ipaymuTrxNumeric] = invoice.ipaymuTrxNumeric
             }
         } else {
             // Hanya status pembayaran & trx gateway yang boleh berubah: baris & total adalah
@@ -66,6 +67,7 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
                 it[paidAt] = invoice.paidAt
                 it[paidNote] = invoice.paidNote
                 it[ipaymuTrxId] = invoice.ipaymuTrxId
+                it[ipaymuTrxNumeric] = invoice.ipaymuTrxNumeric
             }
         }
         invoice
@@ -82,6 +84,7 @@ class PostgresSubscriptionInvoiceRepository(private val clock: Clock = Clock.Sys
         issuedAt = row[SubscriptionInvoicesTable.issuedAt],
         paidAt = row[SubscriptionInvoicesTable.paidAt],
         paidNote = row[SubscriptionInvoicesTable.paidNote],
-        ipaymuTrxId = row[SubscriptionInvoicesTable.ipaymuTrxId]
+        ipaymuTrxId = row[SubscriptionInvoicesTable.ipaymuTrxId],
+        ipaymuTrxNumeric = row[SubscriptionInvoicesTable.ipaymuTrxNumeric]
     )
 }

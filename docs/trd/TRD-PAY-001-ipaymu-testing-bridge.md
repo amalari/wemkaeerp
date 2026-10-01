@@ -418,3 +418,10 @@ jadi whitelist iPaymu tidak perlu disentuh.
    `sid` tersimpan. Implementasi: `IpaymuCallbackRoutes.kt` + `IpaymuClient.kt` (koreksi W1–W7).
 3. Harga Reserved Public IP di bawah PAYG. (P4)
 4. Production: server memakai bridge ini, atau IP statis sendiri bersama Docker + Caddy?
+5. **Rekonsiliasi untuk invoice tanpa callback sama sekali**: endpoint `/transaction` iPaymu
+   hanya menerima `trx_id` numerik, yang baru ada setelah callback pertama diterima (V87).
+   Invoice yang dibayar TANPA satu pun callback sampai tidak bisa direkonsiliasi otomatis —
+   perlu diverifikasi: apakah `/transaction` menerima `SessionID` sebagai `transactionId`,
+   atau ada endpoint lookup-by-reference. Sementara itu jalurnya: dashboard iPaymu + konfirmasi
+   manual superadmin (`POST /{id}/confirm`), yang tetap ter-audit. Scheduler rekonsiliasi
+   otomatis juga menunggu `Application.kt` bebas; pemicu manual sudah live.

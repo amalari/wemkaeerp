@@ -165,6 +165,23 @@ class TenantResolutionPluginTest {
     }
 
     @Test
+    fun ipaymu_webhook_bypasses_jwt_because_it_is_guarded_by_signature() = testApplication {
+        // Regresi nyata: webhook dulu tertangkap TenantResolutionPlugin (401) karena tidak
+        // terdaftar di prefix publik — route test lulus karena hanya memasang routing tanpa
+        // plugin. Webhook wajib 200 selalu (docs iPaymu); payload tanpa trx_id/sid dijawab
+        // accepted:false tanpa menyentuh repository.
+        application { module() }
+
+        val response = client.post("/api/payment/ipaymu/notify") {
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody("status=berhasil&amount=1")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status, "webhook iPaymu tidak boleh 401")
+        assertTrue(response.bodyAsText().contains("\"accepted\":false"))
+    }
+
+    @Test
     fun unknownTenantInToken_shouldReturn404() = testApplication {
         application { module(twoTenantRepo()) }
 

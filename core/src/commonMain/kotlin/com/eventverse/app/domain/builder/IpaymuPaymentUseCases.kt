@@ -59,6 +59,13 @@ class HandleIpaymuNotificationUseCase(
         val invoice = invoices.findByIpaymuTrxId(notification.sid)
             ?: error("Callback untuk sid '${notification.sid}' tidak dikenal")
 
+        // Rekam trx numerik iPaymu SEKARANG, sebelum verifikasi apa pun — angka ini satu-satunya
+        // kunci untuk menanyakan ulang status lewat rekonsiliasi (FR-PAY-3.3 butir 7) bila
+        // callback berikutnya hilang. Idempoten: nilai sama tidak menulis ulang.
+        if (invoice.ipaymuTrxNumeric != notification.trxId) {
+            invoices.save(invoice.copy(ipaymuTrxNumeric = notification.trxId))
+        }
+
         when (invoice.status) {
             SubscriptionInvoiceStatus.PAID -> return@runCatching invoice
             SubscriptionInvoiceStatus.VOID -> error("Invoice ${invoice.number} sudah dibatalkan")

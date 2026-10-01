@@ -112,4 +112,63 @@ class AuthenticateWithGoogleUseCaseTest {
         val msg = result.exceptionOrNull()?.message.orEmpty()
         assertTrue(msg.contains("belum terverifikasi"), "Expected unverified message, got: $msg")
     }
+
+    // --- Login di permukaan platform (app.<base>): tenant dari akun, bukan dari kolom slug ---
+
+    private suspend fun seedBordirTrialOwner(status: TenantStatus = TenantStatus.TRIAL) {
+        tenantRepository.save(
+            Tenant(
+                id = TenantId("ten-bordir"),
+                slug = TenantSlug("bordir-uji"),
+                name = TenantName("Bordir Uji"),
+                status = status,
+                tier = SubscriptionTier.PRO
+            )
+        )
+        userRepository.save(
+            User(
+                id = UserId("usr-bordir-owner"),
+                tenantId = TenantId("ten-bordir"),
+                username = Username("owner_bordir"),
+                email = EmailAddress("owner@bordir.id"),
+                role = Role.TENANT_ADMIN,
+                isActive = true
+            )
+        )
+    }
+
+    private fun platformCommand(email: String) = AuthenticateWithGoogleCommand(
+        profile = GoogleUserProfile(email, "Owner", "google-sub-bordir", emailVerified = true),
+        tenantSlug = null
+    )
+
+    @Test
+    fun authenticate_on_platform_without_slug_should_resolve_trial_tenant_from_account() = runTest {
+        seedBordirTrialOwner()
+
+        val user = authenticateWithGoogleUseCase(platformCommand("owner@bordir.id")).getOrThrow()
+
+        assertEquals("usr-bordir-owner", user.id.value)
+        assertEquals("ten-bordir", user.tenantId?.value)
+    }
+
+    @Test
+    fun authenticate_on_platform_with_unregistered_email_should_fail() = runTest {
+        assertTrue(authenticateWithGoogleUseCase(platformCommand("stranger@gmail.com")).isFailure)
+    }
+
+    @Test
+    fun authenticate_on_platform_for_suspended_tenant_should_fail() = runTest {
+        seedBordirTrialOwner(status = TenantStatus.SUSPENDED)
+
+        assertTrue(authenticateWithGoogleUseCase(platformCommand("owner@bordir.id")).isFailure)
+    }
+
+    @Test
+    fun authenticate_with_slug_of_trial_tenant_should_succeed() = runTest {
+        seedBordirTrialOwner()
+
+        val command = platformCommand("owner@bordir.id").copy(tenantSlug = "bordir-uji")
+        assertTrue(authenticateWithGoogleUseCase(command).isSuccess)
+    }
 }

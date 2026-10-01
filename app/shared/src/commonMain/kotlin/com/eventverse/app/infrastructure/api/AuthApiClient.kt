@@ -77,19 +77,19 @@ class AuthApiClient(
      */
     suspend fun loginWithGoogle(
         idToken: String,
-        tenantSlug: String
+        tenantSlug: String?
     ): Result<UserSession> = runCatching {
         require(idToken.isNotBlank()) { "Google ID token tidak boleh kosong" }
-        require(tenantSlug.isNotBlank()) { "Subdomain perusahaan wajib diisi" }
 
+        // tenantSlug null = login di permukaan platform: server menurunkan tenant dari akun.
         val response = httpClient.post(resolveUrl("/api/public/auth/google")) {
             accept(ContentType.Application.Json)
             contentType(ContentType.Application.FormUrlEncoded)
             setBody(
-                listOf(
-                    "idToken" to idToken,
-                    "tenantSlug" to tenantSlug
-                ).formUrlEncode()
+                buildList {
+                    add("idToken" to idToken)
+                    tenantSlug?.takeIf { it.isNotBlank() }?.let { add("tenantSlug" to it) }
+                }.formUrlEncode()
             )
         }
         if (!response.status.isSuccess()) {
@@ -115,7 +115,52 @@ class AuthApiClient(
         parseUserSession(text) ?: error("Gagal mem-parsing profil user dari server: $text")
     }
 
+    /** GET /api/public/onboarding/config → `platformBaseDomain` (`null` = mode lokal). */
+    suspend fun fetchPlatformBaseDomain(): Result<String?> = runCatching {
+        val response = httpClient.get(resolveUrl("/api/public/onboarding/config")) {
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) error("Konfigurasi platform tidak tersedia (HTTP ${response.status.value})")
+        extractString(response.bodyAsText(), "platformBaseDomain")?.ifBlank { null }
+    }
+
+    /**
+     * POST /api/public/auth/handoff/issue — di `app.`, menerbitkan tiket sekali pakai untuk membawa
+     * sesi ke subdomain tenant milik akun (discovery-M3-login-split).
+     */
+    suspend fun issueHandoff(token: String): Result<HandoffTicket> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/public/auth/handoff/issue")) {
+            header("Authorization", "Bearer $token")
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal menyiapkan perpindahan ke workspace (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        val text = response.bodyAsText()
+        HandoffTicket(
+            ticket = extractString(text, "ticket") ?: error("Tiket tidak ada di respons: $text"),
+            origin = extractString(text, "origin") ?: error("Server belum mengonfigurasi PLATFORM_BASE_DOMAIN")
+        )
+    }
+
+    /** POST /api/public/auth/handoff — di `<slug>.`, menukar tiket menjadi sesi biasa. */
+    suspend fun redeemHandoff(ticket: String): Result<UserSession> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/public/auth/handoff")) {
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(listOf("ticket" to ticket).formUrlEncode())
+        }
+        if (!response.status.isSuccess()) {
+            error("Tautan masuk tidak berlaku lagi. Silakan masuk kembali. (HTTP ${response.status.value})")
+        }
+        val text = response.bodyAsText()
+        parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
+    }
+
     companion object {
+        /** Query param pembawa tiket handoff pada URL `<slug>.<base>/login?handoff=…`. */
+        const val HANDOFF_QUERY_PARAM = "handoff"
+
         /**
          * Key the persisted auth session lives under. Declared here, beside the
          * (de)serialisation that owns the format, so infrastructure need not reach into
@@ -250,3 +295,6 @@ class AuthApiClient(
         }
     }
 }
+
+/** Tiket serah-terima sesi + origin subdomain tujuan (`https://<slug>.<base>`). */
+data class HandoffTicket(val ticket: String, val origin: String)

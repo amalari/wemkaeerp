@@ -18,6 +18,7 @@ import com.eventverse.app.domain.auth.*
 import com.eventverse.app.infrastructure.PostgresUserRepository
 import com.eventverse.app.infrastructure.auth.GoogleAuthService
 import com.eventverse.app.infrastructure.auth.JwtTokenService
+import com.eventverse.app.infrastructure.auth.SessionHandoffTicketService
 
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
@@ -27,6 +28,7 @@ import com.eventverse.app.routes.DomainRouteWiring
 import com.eventverse.app.routes.builderRoutes
 import com.eventverse.app.routes.onboardingRoutes
 import com.eventverse.app.routes.publicAuthRoutes
+import com.eventverse.app.routes.sessionHandoffRoutes
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.infrastructure.PostgresRoleRepository
@@ -202,7 +204,7 @@ fun Application.module(
     install(TenantResolutionPlugin) {
         this.tenantRepository = repository
         this.jwtTokenService = jwtTokenService
-        this.publicRoutePrefixes = listOf("/api/public", "/health")
+        this.publicRoutePrefixes = com.eventverse.app.plugins.PublicRoutePrefixes
         this.entitlementRepository = entitlementRepo
         this.domainPackRepository = domainPackRepo
     }
@@ -226,15 +228,21 @@ fun Application.module(
             )
         )
 
+        // PLAN-builder-console §2: base domain permukaan host (`app.` vs `<slug>.`). Kosong = mode lokal.
+        val platformBaseDomain = System.getenv("PLATFORM_BASE_DOMAIN")?.trim()?.ifBlank { null }
+
         // FR-M2-7: gerbang daftar publik. Bawaan tertutup — membuka tenant creation ke internet
         // harus keputusan sadar (`WEMADE_PUBLIC_SIGNUP=on`), bukan keadaan default.
         onboardingRoutes(
             registerTenantUseCase,
             checkSubdomainUseCase,
-            publicSignupEnabled = System.getenv("WEMADE_PUBLIC_SIGNUP")?.lowercase() in setOf("on", "true", "1")
+            publicSignupEnabled = System.getenv("WEMADE_PUBLIC_SIGNUP")?.lowercase() in setOf("on", "true", "1"),
+            platformBaseDomain = platformBaseDomain
         )
 
-        publicAuthRoutes(googleAuthService, authenticateWithGoogleUseCase, jwtTokenService, repository, userRepo, roleRepo)
+        publicAuthRoutes(googleAuthService, authenticateWithGoogleUseCase, jwtTokenService, repository, userRepo, roleRepo, platformBaseDomain)
+        // discovery-M3: login di `app.` → tiket sekali pakai → sesi di `<slug>.`
+        sessionHandoffRoutes(SessionHandoffTicketService(), jwtTokenService, repository, userRepo, platformBaseDomain)
 
         // Protected tenant-scoped route
         route("/api/tenant") {

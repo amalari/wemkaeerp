@@ -216,6 +216,26 @@ class IpaymuPaymentUseCaseTest {
     }
 
     @Test
+    fun `callback records numeric trx id even when not paid`() = runTest {
+        // Rekam numeric SEBELUM verifikasi — inilah satu-satunya bekal rekonsiliasi bila
+        // callback PAID nanti tidak pernah sampai (FR-PAY-3.3 butir 7, kolom V87).
+        val repo = FakeInvoiceRepo()
+        val gateway = FakeGateway(IpaymuTransactionStatus.PENDING)
+        repoWithSession(repo)
+        val handle = HandleIpaymuNotificationUseCase(repo, gateway, ConfirmSubscriptionPaymentUseCase(repo))
+
+        handle(
+            IpaymuNotification(
+                trxId = "555000111", sid = sessionId, referenceId = "inv-uji-001",
+                status = IpaymuTransactionStatus.PENDING, amountIdr = 150_000
+            )
+        ).getOrThrow()
+
+        assertEquals("555000111", repo.items.first().ipaymuTrxNumeric)
+        assertEquals(SubscriptionInvoiceStatus.ISSUED, repo.items.first().status)
+    }
+
+    @Test
     fun `repeat paid callback is idempotent`() = runTest {
         val repo = FakeInvoiceRepo()
         val gateway = FakeGateway(IpaymuTransactionStatus.PAID)

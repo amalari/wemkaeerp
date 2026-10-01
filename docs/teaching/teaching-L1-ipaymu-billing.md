@@ -48,6 +48,16 @@ Billing langganan platform kini bisa dibayar via iPaymu Hosted Checkout:
    di luar kode produksi (python) untuk payload tetap — kalau implementasi & test sama-sama salah,
    konstantanya tetap membongkarnya. Hati-hati urutan sort: `transaction_status_code` <
    `trx_id` secara code-unit — salah satu penyebab konstanta pertama meleset.
+9. **Route test lulus ≠ rute hidup**: test callback hanya memasang `routing {}` tanpa
+   `TenantResolutionPlugin`, sehingga webhook lolos test tapi **401 di server sungguhan** —
+   `publicRoutePrefixes` tidak memuat `/api/payment`. Perbaikan: prefix publik diekstrak jadi
+   `PublicRoutePrefixes` (satu sumber, dipakai `Application.kt`), plus test regresi yang memasang
+   `module()` penuh. Pelajarannya: verifikasi *wiring* (plugin, allowlist, instalasi) hanya bisa
+   diuji lewat komposisi yang sama dengan produksi — atau lewat mata/curl di server jalan.
+10. **Default `additional_info` masuk hash**: implementasi mematukkan `additional_info: []`
+    (docs: default `[]`) bahkan bila callback tidak membawanya — HMAC manual harus mengikutkan
+    field default yang sama, kalau tidak signature selalu mismatch. Terbukti live: payload tanpa
+    `additional_info` ditolak, dengan `"additional_info":[]` di hash → lolos ke lapisan domain.
 
 ## 3. Konfigurasi (.env root, dibaca EnvLoader)
 
@@ -62,7 +72,29 @@ Tanpa kredensial: checkout → 503; callback tetap terpasang dengan gateway stub
 dijawab 200 + `accepted:false` (fail-closed; selalu 200 sesuai docs). `IPAYMU_VA` juga dipakai
 sebagai secret verifikasi `X-Signature` callback.
 
-## 4. Yang belum tuntas (jujur di Gate 7)
+## 4. Rekonsiliasi (FR-PAY-3.3 butir 7, V87)
+
+Callback adalah *push* sekali jalan — bila tidak pernah sampai (tunnel mati saat pembayaran,
+retry iPaymu habis), invoice yang faktanya sudah dibayar selamanya `ISSUED`. Penutupnya:
+
+- **V87**: kolom `ipaymu_trx_numeric` — endpoint cek status iPaymu butuh `trx_id` **numerik**,
+  dan angka itu hanya diketahui dari callback. Handler callback kini merekamnya di **setiap**
+  callback (bahkan yang PENDING/idempoten), sebelum verifikasi apa pun.
+- **`ReconcileSubscriptionInvoicesUseCase`** (`IpaymuReconciliation.kt`): invoice `ISSUED` +
+  punya numeric + usia ≥ 1 jam (param `minAge` — callback resmi mungkin masih di antrean) →
+  `checkStatus` → anti-replay yang sama (sessionId wajib cocok) → PAID dilunasi lewat
+  `ConfirmSubscriptionPaymentUseCase`; PENDING/EXPIRED/FAILED dibiarkan — void/refund adalah
+  keputusan manusia.
+- **`POST /api/admin/billing/reconcile`** (`IpaymuReconciliationRoutes.kt`): pemicu manual
+  superadmin, ter-audit per invoice (`BUILDER_INVOICE_PAID`). Path `/api/admin` dipilih karena
+  plugin meloloskannya sebagai administrasi platform — superadmin **tanpa** konteks tenant
+  (rekonsiliasi melintasi semua tenant; di path `/api/builder` superadmin tanpa
+  `X-Tenant-Slug` malah 404 dari plugin). Gateway `null` → 503 fail-closed.
+- **Batas jujur**: invoice yang belum pernah dikirimi callback apa pun tidak punya `trx_id`
+  numerik → tidak bisa dicek (tercatat TRD §6 #5). Scheduler otomatis menunggu `Application.kt`
+  bebas; endpoint manual sudah menutup kasus operasional.
+
+## 5. Yang belum tuntas (jujur di Gate 7)
 
 - **Cek visual** belum: belum ada UI baru yang bisa dilihat; jalankan setelah tombol checkout dibuat.
 - **Integrasi live iPaymu**: koreksi W1–W7 sudah dilakukan terhadap audit docs.ipaymu.com

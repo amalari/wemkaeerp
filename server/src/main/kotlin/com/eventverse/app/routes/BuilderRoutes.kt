@@ -98,6 +98,18 @@ fun Route.builderRoutes(
         // Docs Callback: secret HMAC X-Signature = Nomor VA.
         callbackSecret = com.eventverse.app.infrastructure.EnvLoader.get("IPAYMU_VA").ifBlank { null }
     )
+    // Rekonsiliasi iPaymu (FR-PAY-3.3 butir 7): superadmin menanyakan ulang status invoice
+    // ISSUED yang callback-nya hilang. Gateway null → route tetap terpasang, 503 fail-closed.
+    ipaymuReconciliationRoutes(
+        reconcile = effectiveGateway?.let {
+            com.eventverse.app.domain.builder.ReconcileSubscriptionInvoicesUseCase(
+                invoices = billingInvoices,
+                gateway = it,
+                confirm = com.eventverse.app.domain.builder.ConfirmSubscriptionPaymentUseCase(billingInvoices)
+            )
+        },
+        auditLog = auditLog
+    )
     route("/api/builder") {
         get("/overview") {
             call.gate() ?: return@get

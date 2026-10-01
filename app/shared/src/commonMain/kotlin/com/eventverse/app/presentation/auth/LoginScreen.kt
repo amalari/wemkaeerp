@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.auth
 
+import com.eventverse.app.domain.tenant.HostSurface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -91,11 +92,12 @@ fun LoginScreen(
                         onNavigateToDashboard = onNavigateToDashboard
                     )
                 } else {
-                    // Subdomain / Tenant Slug Input
-                    TenantSlugInput(
-                        tenantSlug = state.tenantSlug,
-                        onSlugChange = { viewModel.onEvent(LoginUiEvent.UpdateTenantSlug(it)) }
-                    )
+                    // Kolom slug hanya di host lokal; di app./<slug>. tenant ditentukan akun/host (discovery-M3).
+                    when (val surface = state.hostSurface) {
+                        HostSurface.Local -> TenantSlugInput(state.tenantSlug) { viewModel.onEvent(LoginUiEvent.UpdateTenantSlug(it)) }
+                        is HostSurface.Tenant -> ClayTag(text = "Workspace: ${surface.slug.value}", tint = WeMadeColors.Primary)
+                        HostSurface.Platform -> Unit
+                    }
 
                     Spacer(modifier = Modifier.height(ClaySpacing.Xl))
 
@@ -130,7 +132,8 @@ fun LoginScreen(
                                 }
                             )
                         }
-                        LoginTab.WHATSAPP -> {
+
+                                                LoginTab.WHATSAPP -> {
                             WhatsAppLoginContent(
                                 phoneNumber = state.phoneNumber,
                                 otpCode = state.otpCode,
@@ -209,24 +212,16 @@ private fun HeaderSection() {
     }
 }
 
+/** Hanya di host lokal/dev ([HostSurface.Local]); di produksi tenant ditentukan host atau akun. */
 @Composable
-private fun TenantSlugInput(
-    tenantSlug: String,
-    onSlugChange: (String) -> Unit
-) {
+private fun TenantSlugInput(tenantSlug: String, onSlugChange: (String) -> Unit) {
     ClayTextField(
         value = tenantSlug,
         onValueChange = onSlugChange,
         modifier = Modifier.fillMaxWidth(),
-        label = "Subdomain / Kode Pabrik",
+        label = "Kode Pabrik (dev)",
         placeholder = "contoh: wemade-demo",
-        focusColor = WeMadeColors.Primary,
-        trailingIcon = {
-            ClayTag(
-                text = ".wemade.id",
-                tint = WeMadeColors.Primary
-            )
-        }
+        focusColor = WeMadeColors.Primary
     )
 }
 

@@ -1,10 +1,13 @@
 package com.eventverse.app.presentation.auth
 
 import com.eventverse.app.domain.auth.*
+import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.api.AuthApiClient
+import com.eventverse.app.infrastructure.navigation.PlatformHost
+import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.infrastructure.storage.PlatformLocalStorage
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
@@ -52,6 +55,8 @@ class AuthViewModel(
         GoogleAuthBridge.onAuthenticated = { idToken ->
             onEvent(LoginUiEvent.SubmitGoogleLogin(idToken = idToken))
         }
+
+        resolveHostSurface()
 
         // 1. Auto-restore session from PlatformLocalStorage on startup / reload
         val savedJson = PlatformLocalStorage.getItem(STORAGE_KEY)
@@ -352,8 +357,9 @@ class AuthViewModel(
      * rejected by every authenticated endpoint.
      */
     private fun handleGoogleLogin(idToken: String) {
+        val surface = _uiState.value.hostSurface
         val currentSlug = _uiState.value.tenantSlug
-        if (currentSlug.isBlank()) {
+        if (surface is HostSurface.Local && currentSlug.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Subdomain perusahaan wajib diisi") }
             return
         }
@@ -371,28 +377,19 @@ class AuthViewModel(
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         scope.launch {
-            authApiClient.loginWithGoogle(idToken = idToken, tenantSlug = currentSlug)
+            // Platform: tenant dari akun (slug null). Tenant: host yang menentukan. Lokal: kolom slug.
+            val requestedSlug = when (surface) {
+                HostSurface.Platform -> null
+                is HostSurface.Tenant -> surface.slug.value
+                HostSurface.Local -> currentSlug
+            }
+            authApiClient.loginWithGoogle(idToken = idToken, tenantSlug = requestedSlug)
                 .onSuccess { session ->
-                    val user = session.user
-                    PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
-                    sessionStorage.setSession(
-                        TenantSession(
-                            tenantId = user.tenantId ?: TenantId("ten-default"),
-                            slug = TenantSlug(session.tenantSlug ?: currentSlug),
-                            name = "Pabrik ${session.tenantSlug ?: currentSlug}",
-                            tier = SubscriptionTier.PRO
-                        )
-                    )
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            authenticatedSession = session,
-                            tenantSlug = session.tenantSlug ?: currentSlug,
-                            successMessage = "Selamat datang, ${user.username.value} " +
-                                "(${user.email.value}) — Role: ${user.role.name}"
-                        )
+                    if (surface is HostSurface.Platform && session.user.role != Role.PLATFORM_SUPERADMIN) {
+                        handOffToTenant(session)
+                    } else {
+                        applyVerifiedSession(session, fallbackSlug = currentSlug)
                     }
-                    _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
                 }
                 .onFailure { cause ->
                     // No local fallback session here: a session the API would reject is
@@ -405,6 +402,77 @@ class AuthViewModel(
                     }
                 }
         }
+    }
+
+    /**
+     * Membaca permukaan host (discovery-M3-login-split). Base domain datang dari server, bukan
+     * dikompilasi ke bundle, supaya satu build melayani dev (lokal) dan produksi. Gagal memuatnya =
+     * tetap [HostSurface.Local] — perilaku lama, tidak pernah lebih longgar.
+     *
+     * Di subdomain tenant, URL `?handoff=<tiket>` (redirect dari `app.`) langsung ditukar jadi sesi.
+     */
+    private fun resolveHostSurface() {
+        val host = PlatformHost.currentHost() ?: return
+        scope.launch {
+            val surface = HostSurface.parse(host, authApiClient.fetchPlatformBaseDomain().getOrNull())
+            _uiState.update {
+                it.copy(hostSurface = surface, tenantSlug = (surface as? HostSurface.Tenant)?.slug?.value ?: it.tenantSlug)
+            }
+            val ticket = PlatformHost.queryParameter(AuthApiClient.HANDOFF_QUERY_PARAM)
+            if (surface is HostSurface.Tenant && ticket != null) {
+                PlatformNavigation.replacePath("/login") // tiket sekali pakai: jangan tinggal di history
+                redeemHandoff(ticket, surface.slug.value)
+            }
+        }
+    }
+
+    private suspend fun redeemHandoff(ticket: String, slug: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        authApiClient.redeemHandoff(ticket)
+            .onSuccess { applyVerifiedSession(it, fallbackSlug = slug, restorePersona = true) }
+            .onFailure { cause -> _uiState.update { it.copy(isLoading = false, errorMessage = cause.message) } }
+    }
+
+    /**
+     * Login tenant di `app.`: sesi **tidak** disimpan di origin platform — ia dibawa ke
+     * `<slug>.<base>` lewat tiket sekali pakai, karena localStorage tidak melintasi origin.
+     */
+    private suspend fun handOffToTenant(session: UserSession) {
+        authApiClient.issueHandoff(session.token.value)
+            .onSuccess { handoff ->
+                _uiState.update { it.copy(successMessage = "Mengalihkan ke workspace ${session.tenantSlug.orEmpty()}…") }
+                PlatformHost.openUrl("${handoff.origin}/login?${AuthApiClient.HANDOFF_QUERY_PARAM}=${handoff.ticket}")
+            }
+            .onFailure { cause -> _uiState.update { it.copy(isLoading = false, errorMessage = cause.message) } }
+    }
+
+    /**
+     * Menyimpan sesi yang sudah diterbitkan server, lalu masuk ke dashboard. [restorePersona] untuk
+     * jalur handoff: tanpa persona, wewenang kosong dan pendaratan tidak pernah terjadi. Jalur Google
+     * sengaja belum memakainya (perilaku lama dipertahankan).
+     */
+    private suspend fun applyVerifiedSession(session: UserSession, fallbackSlug: String, restorePersona: Boolean = false) {
+        val user = session.user
+        val slug = session.tenantSlug?.ifBlank { null } ?: fallbackSlug
+        PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
+        sessionStorage.setSession(
+            TenantSession(
+                tenantId = user.tenantId ?: TenantId("ten-default"),
+                slug = TenantSlug(slug),
+                name = "Pabrik $slug",
+                tier = SubscriptionTier.PRO
+            )
+        )
+        if (restorePersona) restorePersonaFrom(session)
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                authenticatedSession = session,
+                tenantSlug = slug,
+                successMessage = "Selamat datang, ${user.username.value} (${user.email.value}) — Role: ${user.role.name}"
+            )
+        }
+        _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
     }
 
     /** See [handleVerifyWhatsAppOtp]: no OTP is actually sent, so do not claim one was. */

@@ -2,6 +2,7 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.auth.*
 import com.eventverse.app.domain.rbac.RoleRepository
+import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.domain.tenant.TenantSlug
@@ -31,7 +32,8 @@ fun Route.publicAuthRoutes(
     jwtTokenService: JwtTokenService,
     repository: TenantRepository,
     userRepo: UserRepository,
-    roleRepo: RoleRepository
+    roleRepo: RoleRepository,
+    platformBaseDomain: String? = null
 ) {
     route("/api/public/auth") {
         get("/google/url") {
@@ -47,9 +49,18 @@ fun Route.publicAuthRoutes(
         post("/google") {
             val params = call.receiveParameters()
             val idToken = params["idToken"] ?: ""
-            val tenantSlug = params["tenantSlug"] ?: ""
+            // discovery-M3: di subdomain tenant, host yang menentukan tenant; di `app.` tenant
+            // diturunkan dari akun (slug kosong). Slug yang bertentangan dengan host ditolak.
+            val requestedSlug = params["tenantSlug"]?.trim()?.ifBlank { null }
+            val surface = HostSurface.parse(call.request.host(), platformBaseDomain)
+            val hostSlug = (surface as? HostSurface.Tenant)?.slug?.value
+            if (hostSlug != null && requestedSlug != null && requestedSlug != hostSlug) {
+                call.respond(HttpStatusCode.Forbidden, "Subdomain '$hostSlug' tidak cocok dengan tenant '$requestedSlug'")
+                return@post
+            }
+            val commandSlug = hostSlug ?: requestedSlug
 
-            if (idToken.isBlank() || tenantSlug.isBlank()) {
+            if (idToken.isBlank() || (commandSlug == null && surface !is HostSurface.Platform)) {
                 call.respond(HttpStatusCode.BadRequest, "idToken and tenantSlug are required")
                 return@post
             }
@@ -65,17 +76,16 @@ fun Route.publicAuthRoutes(
 
             val googleProfile = verifyResult.getOrThrow()
             val authResult = authenticateWithGoogleUseCase(
-                AuthenticateWithGoogleCommand(googleProfile, tenantSlug)
+                AuthenticateWithGoogleCommand(googleProfile, commandSlug)
             )
 
             if (authResult.isSuccess) {
                 val user = authResult.getOrThrow()
-                val sessionToken = jwtTokenService.generateToken(user, tenantSlug)
-                val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
-
-                val responseJson = "{\"token\":\"${sessionToken.value}\",\"user\":{\"id\":\"${user.id.value}\",\"tenantId\":\"${user.tenantId?.value ?: ""}\",\"username\":\"${user.username.value}\",\"email\":\"${user.email.value}\",\"role\":\"${user.role.name}\",\"permissions\":[$permissionsJson]},\"tenantSlug\":\"$tenantSlug\"}"
-
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                val tenantSlug = commandSlug
+                    ?: user.tenantId?.let { repository.findById(it)?.slug?.value }
+                    ?: ""
+                val sessionToken = jwtTokenService.generateToken(user, tenantSlug.ifBlank { null })
+                call.respondText(authSessionJson(user, sessionToken.value, tenantSlug), contentType = ContentType.Application.Json)
             } else {
                 call.respond(
                     HttpStatusCode.Forbidden,
@@ -231,7 +241,7 @@ fun Route.publicAuthRoutes(
  * string yang sama secara terpisah, dan penambahan field identitas tenant harus muncul di
  * ketiganya sekaligus — kalau tidak, client melihat persona hanya di sebagian jalur masuk.
  */
-private fun authSessionJson(user: User, token: String, tenantSlug: String): String {
+internal fun authSessionJson(user: User, token: String, tenantSlug: String): String {
     val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
     fun nullableJson(value: String?): String = if (value == null) "null" else "\"$value\""
 

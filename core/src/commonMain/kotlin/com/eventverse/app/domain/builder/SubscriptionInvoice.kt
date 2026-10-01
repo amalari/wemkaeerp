@@ -51,8 +51,15 @@ data class SubscriptionInvoice(
     /**
      * `trx_id` dari payment gateway (L1 billing iPaymu). `null` = invoice dibayar manual.
      * Frozen saat checkout dibuat — trx yang sama yang dicek ulang saat callback tiba.
+     * **Isi kolom ini = SessionID** (`Data.SessionID` saat create) — kunci pencocokan callback.
      */
-    val ipaymuTrxId: String? = null
+    val ipaymuTrxId: String? = null,
+    /**
+     * `trx_id` **numerik** internal iPaymu (V87), hanya diketahui dari callback. Endpoint cek
+     * status (`POST /transaction`) memakai angka ini — tanpa itu rekonsiliasi tidak bisa
+     * menanyakan ulang invoice yang callback-nya hilang. `null` = belum ada callback masuk.
+     */
+    val ipaymuTrxNumeric: String? = null
 ) {
     init { require(number.isNotBlank()) { "SubscriptionInvoice.number kosong" } }
     init { require(period.matches(Regex("\\d{4}-\\d{2}"))) { "period harus YYYY-MM, dapat '$period'" } }

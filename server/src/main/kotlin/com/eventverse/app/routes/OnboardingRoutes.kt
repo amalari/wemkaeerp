@@ -31,12 +31,15 @@ import io.ktor.server.routing.route
 fun Route.onboardingRoutes(
     registerTenantUseCase: RegisterTenantUseCase,
     checkSubdomainUseCase: CheckSubdomainAvailabilityUseCase,
-    publicSignupEnabled: Boolean = false
+    publicSignupEnabled: Boolean = false,
+    /** `PLATFORM_BASE_DOMAIN`; klien memakainya untuk `HostSurface.parse`. `null` = mode lokal. */
+    platformBaseDomain: String? = null
 ) {
     route("/api/public/onboarding") {
         get("/config") {
             call.respondText(
-                text = "{\"publicSignupEnabled\":$publicSignupEnabled}",
+                text = "{\"publicSignupEnabled\":$publicSignupEnabled," +
+                    "\"platformBaseDomain\":${platformBaseDomain?.let { "\"$it\"" } ?: "null"}}",
                 contentType = ContentType.Application.Json
             )
         }

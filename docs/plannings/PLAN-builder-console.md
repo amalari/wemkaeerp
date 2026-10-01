@@ -230,6 +230,12 @@ Fallback deterministik tetap berlaku. Istilah yang tak cocok dengan modul mana p
 > dokumen yang sama; M0+M1 sudah di-commit `84aa15b`/`e4254c8`/`2c5ad0f`.) Rencana
 > eksekusi deploy produksi (domain Hostinger sudah dibeli): [`PLAN-deploy-hostinger-caddy.md`](PLAN-deploy-hostinger-caddy.md).
 
+> Status implementasi (2026-10-01): **Pemisahan login (§2) selesai di kode** —
+> [`discovery-M3-login-split.md`](discovery-M3-login-split.md). `HostSurface` (parser host tunggal
+> klien+server), `PLATFORM_BASE_DOMAIN`, login Google di `app.` tanpa slug (tenant dari akun), tiket
+> handoff sekali pakai `app.` → `<slug>.`, kolom "Kode Pabrik" hanya di mode lokal. Dicek mata di
+> `app.lvh.me` / `bordir-uji.lvh.me`. Detail: `docs/teaching/teaching-plat-003-login-split.md`.
+
 ### Gerbang sebelum ekspansi
 
 Diukur pada 3–5 design partner yang membayar:

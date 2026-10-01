@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.auth
 
 import com.eventverse.app.domain.auth.UserSession
 import com.eventverse.app.domain.rbac.TestingPersona
+import com.eventverse.app.domain.tenant.HostSurface
 
 enum class LoginTab(val label: String, val isAvailable: Boolean = true) {
     GOOGLE("Akun Google"),
@@ -22,6 +23,8 @@ enum class LoginTab(val label: String, val isAvailable: Boolean = true) {
 data class LoginUiState(
     val selectedTab: LoginTab = LoginTab.GOOGLE,
     val tenantSlug: String = "wemade-demo",
+    /** Permukaan host (`app.` / `<slug>.` / lokal). Kolom slug hanya tampil di [HostSurface.Local]. */
+    val hostSurface: HostSurface = HostSurface.Local,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
