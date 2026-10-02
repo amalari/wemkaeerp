@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "comment": "Graphify knowledge-graph MCP (v0.9.73, installed via `uv tool install graphifyy[mcp]`). Serves the prebuilt graph at graphify-out/graph.json (gitignored). Rebuild the graph with `graphify extract .` after large refactors.",
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd '/Volumes/amalari/Projects/wemkaeerp' && exec /Users/achmadbackup/.local/share/uv/tools/graphifyy/bin/python3 -m graphify.serve --graph '/Volumes/amalari/Projects/wemkaeerp/graphify-out/graph.json'"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": [
+        "query_graph",
+        "get_node",
+        "get_neighbors",
+        "get_community",
+        "god_nodes",
+        "graph_stats",
+        "shortest_path",
+        "list_prs",
+        "get_pr_impact",
+        "triage_prs"
+      ],
+      "timeout": 120
+    }
+  }
+}

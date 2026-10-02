@@ -4,9 +4,10 @@ package com.eventverse.app.domain.tenant
  * Permukaan mana yang sedang dibuka, diturunkan dari host browser dan base domain platform
  * (PLAN-builder-console §2):
  *
- * - [Platform] — `wemakeerp.com` / `app.wemakeerp.com`: login, daftar, admin platform.
- * - [Tenant] — `<slug>.wemakeerp.com`: aplikasi + Builder milik satu tenant; tenant diambil dari
- *   host, jadi login tidak lagi menanyakan "Kode Pabrik".
+ * - [Platform] — `wemakeerp.com` / `app.wemakeerp.com`: login, daftar, **Builder**, admin platform. Pemilik
+ *   tenant dan superadmin sama-sama membuka Builder di sini; sesinya tinggal di origin ini.
+ * - [Tenant] — `<slug>.wemakeerp.com`: **aplikasi hasil generate** milik satu tenant; tenant diambil dari
+ *   host, jadi login tidak lagi menanyakan "Kode Pabrik". Dibuka dari Builder lewat tiket handoff.
  * - [Local] — host di luar base domain (localhost, IP, target non-web) **atau** base domain belum
  *   dikonfigurasi. Perilakunya sama persis dengan sebelum pemisahan login: kolom slug tetap ada.
  *

@@ -25,6 +25,8 @@ data class LoginUiState(
     val tenantSlug: String = "wemade-demo",
     /** Permukaan host (`app.` / `<slug>.` / lokal). Kolom slug hanya tampil di [HostSurface.Local]. */
     val hostSurface: HostSurface = HostSurface.Local,
+    /** False sampai host dibaca dari konfigurasi server; layar awal sesi tersimpan menunggunya agar tak berkedip salah tujuan. */
+    val hostResolved: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,

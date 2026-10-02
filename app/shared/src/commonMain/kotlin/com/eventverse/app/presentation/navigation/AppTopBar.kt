@@ -59,12 +59,14 @@ fun AppTopBar(
     onAuditViewChange: (Boolean) -> Unit,
     onApplyPersona: (TestingPersona) -> Unit,
     onResetSuperadmin: () -> Unit,
-    onSelectCompany: (CompanyTenantProfile) -> Unit,
+    onSelectCompany: (slug: String) -> Unit,
     onOpenTenantEntitlements: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     /** Membuka daftar panduan (TRD-HELP-001 FR-4); `null` = tombol disembunyikan. */
-    onOpenHelp: (() -> Unit)? = null
+    onOpenHelp: (() -> Unit)? = null,
+    /** Switcher persona simulasi operasional pabrik — disembunyikan di Builder atau konsol platform. */
+    showPersonaSwitcher: Boolean = true
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -129,8 +131,8 @@ fun AppTopBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isAuthenticated && session != null) {
-                    // Di layar desktop: Switcher persona lengkap
-                    if (!isCompact) {
+                    // Di layar desktop: Switcher persona hanya tampil di platform tenant
+                    if (!isCompact && showPersonaSwitcher) {
                         PersonaSwitcherDropdown(
                             activePersona = activePersona,
                             employees = policyEmployees,
@@ -151,11 +153,12 @@ fun AppTopBar(
                                 .width(1.dp)
                                 .background(WeMadeColors.Border)
                         )
+                    }
 
-                        if (session.user.role == Role.PLATFORM_SUPERADMIN) {
+                    if (!isCompact && session.user.role == Role.PLATFORM_SUPERADMIN) {
                             CompanySwitcherDropdown(
                                 currentSlug = session.tenantSlug ?: "wemade-demo",
-                                onSelectCompany = onSelectCompany
+                                onSelectTenant = onSelectCompany
                             )
 
                             ClayIconButton(
@@ -176,9 +179,8 @@ fun AppTopBar(
                                     .background(WeMadeColors.Border)
                             )
                         }
-                    }
 
-                    onOpenHelp?.let { open ->
+                        onOpenHelp?.let { open ->
                         ClayIconButton(onClick = open, shape = ClayShapes.Tile, modifier = Modifier.padding(end = 10.dp)) {
                             IconHelp(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurface)
                         }

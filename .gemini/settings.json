@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "read_file|list_directory|grep_search|search_files|search_file_content|glob|find_files|run_command|run_shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/achmadbackup/.local/bin/graphify hook-guard gemini"
+          }
+        ]
+      }
+    ]
+  }
+}

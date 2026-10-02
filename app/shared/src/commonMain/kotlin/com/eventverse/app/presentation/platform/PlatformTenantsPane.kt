@@ -52,6 +52,7 @@ internal fun PlatformTenantsPane(
     var busySlug by remember { mutableStateOf<String?>(null) }
     var entitlementSlug by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
+    var visibleCount by remember(query) { mutableStateOf(PAGE_SIZE) }
 
     LaunchedEffect(Unit) {
         client.listTenants().onSuccess { tenants = it; error = null }.onFailure { error = it.message }
@@ -74,7 +75,10 @@ internal fun PlatformTenantsPane(
             focusColor = WeMadeColors.Primary
         )
 
-        tenants.filter { query.isBlank() || it.slug.contains(query.trim(), true) || it.name.contains(query.trim(), true) }.forEach { tenant ->
+        // Konsol bisa memuat ratusan tenant; menyusun semua kartu clay (3 tombol + bayangan) sekaligus membekukan
+        // thread UI di Wasm. Tampilkan per halaman — pencarian tetap menyaring seluruh daftar.
+        val matches = tenants.filter { query.isBlank() || it.slug.contains(query.trim(), true) || it.name.contains(query.trim(), true) }
+        matches.take(visibleCount).forEach { tenant ->
             ClayCard(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f, fill = false)) {
@@ -104,9 +108,19 @@ internal fun PlatformTenantsPane(
                 }
             }
         }
+        if (matches.size > visibleCount) {
+            ClayButton(
+                text = "Tampilkan lebih banyak (${visibleCount} dari ${matches.size})",
+                onClick = { visibleCount += PAGE_SIZE },
+                style = ClayButtonStyle.Ghost,
+                fontSize = 12.sp
+            )
+        }
     }
 
     entitlementSlug?.let { slug ->
         TenantModuleEntitlementDialog(tenantSlug = slug, onDismiss = { entitlementSlug = null }, onSaved = { entitlementSlug = null })
     }
 }
+
+private const val PAGE_SIZE = 20

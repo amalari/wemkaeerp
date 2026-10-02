@@ -432,6 +432,26 @@ terbarui. `AGENTS.md` adalah **file hasil generate** — jangan disunting langsu
 
 ---
 
+### 16. Graphify Dulu, Baru Cara Lain (Pencarian Kode)
+
+Repo ini punya knowledge graph di `graphify-out/` dan MCP server `graphify` (lihat `.mcp.json`).
+**Untuk setiap pertanyaan soal kode atau arsitektur, konsultasikan graphify lebih dulu** — sebelum
+`grep`, `find`, `Glob`, `Grep`, membaca banyak file, atau menjalankan `scripts/find-similar-feature.sh`.
+
+1. Mulai dari tool MCP `query_graph` (CLI: `graphify query "<pertanyaan>"`). Relasi antar konsep:
+   `shortest_path` / `graphify path "<A>" "<B>"`. Satu konsep: `get_node` / `graphify explain "<X>"`.
+2. Kalau `graphify-out/wiki/index.md` ada, telusuri wiki itu sebelum membuka file mentah.
+3. `GRAPH_REPORT.md` hanya untuk tinjauan arsitektur luas, atau saat query/path/explain belum cukup.
+4. Boleh beralih ke grep/glob/baca file **hanya setelah** graphify dicoba dan hasilnya kurang — atau
+   untuk string literal persis yang memang bukan simpul graph (pesan error, nilai konfigurasi).
+   Sebutkan singkat di respons bahwa graphify sudah dicoba.
+5. Setelah mengubah file kode, jalankan `graphify update .` (AST-only, tanpa biaya API) agar graph
+   tidak basi. Jangan percaya graph untuk kode yang baru saja diubah sebelum di-update.
+6. Ini melengkapi Discovery (§15): langkah "fitur serupa sudah ada?" dimulai dari graphify, lalu
+   `scripts/find-similar-feature.sh` sebagai penguat.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - Anemic Domain Model — Entity hanya data, logika di service

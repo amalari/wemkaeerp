@@ -9,6 +9,12 @@
       "env": {
         "PATH": "/Volumes/amalari/.nvm/versions/node/v24.21.0/bin:/usr/bin:/bin"
       }
+    },
+    "graphify": {
+      "command": "/Users/achmadbackup/.local/bin/graphify-mcp",
+      "args": [
+        "/Volumes/amalari/Projects/wemkaeerp/graphify-out/graph.json"
+      ]
     }
   }
 }

@@ -29,6 +29,7 @@ import com.eventverse.app.routes.builderRoutes
 import com.eventverse.app.routes.onboardingRoutes
 import com.eventverse.app.routes.publicAuthRoutes
 import com.eventverse.app.routes.sessionHandoffRoutes
+import com.eventverse.app.routes.platformActAsRoutes
 import com.eventverse.app.routes.platformTenantListRoutes
 import com.eventverse.app.domain.orgchart.DepartmentRepository
 import com.eventverse.app.domain.orgchart.EmployeeRepository
@@ -268,7 +269,7 @@ fun Application.module(
             agent = builderAgent ?: com.eventverse.app.infrastructure.builder.DiscoveryBackedBuilderAgent(
                 com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv()
             ),
-            drafts = discoveryDraftRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
+            drafts = discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
             probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
             auditLog = builderAuditLog ?: com.eventverse.app.infrastructure.PostgresAuditLogRepository(),
             billingInvoices = builderBillingInvoices
@@ -285,6 +286,7 @@ fun Application.module(
         pipelineRoutes(pipeRepo, entitlementRepo, roleRepo, assignmentRepo)
         adminRoutes(repository, pipeRepo, entitlementRepo, auditLogRepo)
         platformTenantListRoutes(repository) // discovery-M3b: konsol app./admin
+        platformActAsRoutes(repository, userRepo, jwtTokenService, auditLogRepo) // Builder di app.: act-as tanpa pindah origin
         domainPackRoutes(repository, domainPackRepo, com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), auditLogRepo)
         // Rute domain bisnis (corong prospek, CRM/deal, modul operasional) — lihat DomainRouteWiring.
         DomainRouteWiring(

@@ -86,14 +86,12 @@ import com.eventverse.app.presentation.tutorial.rememberTutorialUiState
 import com.eventverse.app.presentation.tutorial.tutorialScreenFor
 import com.eventverse.app.presentation.navigation.AppTopBar
 import com.eventverse.app.presentation.navigation.LocalAppNavigator
-import com.eventverse.app.presentation.navigation.PersonaSwitcherDropdown
 import com.eventverse.app.presentation.navigation.AuthGuardCard
 import com.eventverse.app.presentation.navigation.GenericModuleRoute
 import com.eventverse.app.presentation.navigation.moduleFromGenericPath
 import com.eventverse.app.presentation.navigation.studioDrawerSection
 import com.eventverse.app.presentation.navigation.buildNavMenu
 import com.eventverse.app.presentation.navigation.firstAccessibleScreen
-import com.eventverse.app.presentation.navigation.ProfileDropdown
 import com.eventverse.app.presentation.rbac.RbacAccessPolicyRepository
 import com.eventverse.app.presentation.workspace.GovernanceModuleGate
 import com.eventverse.app.presentation.workspace.ModuleWorkspaceScreen
@@ -123,14 +121,7 @@ fun App() {
 
     // Determine initial screen from browser URL or session status
     val initialPath = remember { PlatformNavigation.getCurrentPath() }
-    val initialScreen = remember {
-        val matched = AppNavScreen.fromPath(initialPath)
-        when {
-            matched != null -> matched
-            isAuthenticated -> AppNavScreen.ORG_CHART
-            else -> AppNavScreen.LOGIN
-        }
-    }
+    val initialScreen = remember { AppNavScreen.fromPath(initialPath) ?: if (isAuthenticated) AppNavScreen.ORG_CHART else AppNavScreen.LOGIN }
 
     var currentScreen by remember { mutableStateOf(initialScreen) }
     var modulePath by remember { mutableStateOf(initialPath) } // B6f: path `/m/{code}` untuk AppNavScreen.MODULE
@@ -143,14 +134,9 @@ fun App() {
     var pendingRedirectScreen by remember { mutableStateOf<AppNavScreen?>(null) }
 
     /**
-     * True selama kita masih menunggu wewenang tiba untuk memutuskan layar pendaratan.
-     *
-     * Sebelum ketiga layar tata kelola menjadi modul, tujuan setelah login boleh berupa konstanta
-     * `ORG_CHART` karena layar itu selalu terbuka untuk semua orang. Kini ia bisa tertutup — bagi
-     * operator jahit, atau bagi tenant yang modulnya diputus — sehingga tujuannya harus dihitung.
-     * Dan karena wewenang datang dari jaringan setelah login, keputusannya harus ditunda sampai
-     * data itu ada; memutuskan lebih awal akan mendaratkan orang di "akses ditolak" lalu melompat
-     * lagi sesaat kemudian.
+     * True selama kita menunggu wewenang tiba untuk memutuskan layar pendaratan. Layar tata kelola kini bisa
+     * tertutup (operator jahit, modul diputus), jadi tujuannya dihitung dari wewenang yang datang dari jaringan
+     * setelah login — memutuskan lebih awal mendaratkan orang di "akses ditolak" lalu melompat lagi.
      */
     var awaitingLandingScreen by remember { mutableStateOf(false) }
 
@@ -167,7 +153,7 @@ fun App() {
     // Synchronize initial URL and listen to browser Back/Forward (popstate/hashchange)
     LaunchedEffect(Unit) {
         val current = PlatformNavigation.getCurrentPath()
-        if (AppNavScreen.fromPath(current) == null && !current.startsWith("/builder") && !current.startsWith("/admin")) {
+        if (AppNavScreen.fromPath(current) == null && !current.startsWith("/builder") && !current.startsWith("/admin") && !(isAuthenticated && current.trim('/').isEmpty())) {
             PlatformNavigation.replacePath(currentScreen.route)
         }
 
@@ -181,11 +167,21 @@ fun App() {
         }
     }
 
+    fun goShell(path: String) { shellPath = path; PlatformNavigation.pushPath(path) }
+
     // Superadmin di `app.` → konsol platform (M3b); handoff ke /builder → tetap di Builder; selain itu modul pertama.
     fun landAfterLogin(role: Role) = when {
-        role == Role.PLATFORM_SUPERADMIN && authViewModel.uiState.value.hostSurface is HostSurface.Platform -> { shellPath = "/admin"; PlatformNavigation.pushPath("/admin") }
-        shellPath.startsWith("/builder") -> Unit
+        role == Role.PLATFORM_SUPERADMIN && authViewModel.uiState.value.hostSurface is HostSurface.Platform -> goShell("/admin")
+        shellPath.startsWith("/builder") || authViewModel.uiState.value.hostSurface !is HostSurface.Tenant ->
+        goShell(if (shellPath.startsWith("/builder")) shellPath else "/builder") // deep-link section dipertahankan
         else -> awaitingLandingScreen = true
+    }
+
+    // `app.` polos + sesi tersimpan: tahan layar sampai host diketahui, lalu mendarat seperti habis login (tanpa kedip org chart).
+    val awaitingHost = isAuthenticated && initialPath.trim('/').isEmpty() && !authState.hostResolved
+    LaunchedEffect(authState.hostResolved) {
+        if (!authState.hostResolved || !initialPath.trim('/').isEmpty() || !isAuthenticated) return@LaunchedEffect
+        if (authState.hostSurface is HostSurface.Platform) session?.user?.role?.let(::landAfterLogin) else PlatformNavigation.replacePath(currentScreen.route)
     }
 
     fun finishLogin(role: Role) {
@@ -289,7 +285,7 @@ fun App() {
             // tidak menabrak layar yang pasti 403.
             showDemandLedger = session.user.role == Role.PLATFORM_SUPERADMIN,
             isBuilder = builderRoute,
-            onOpenBuilder = { shellPath = "/builder"; PlatformNavigation.pushPath("/builder"); drawerOpen = false }
+            onOpenBuilder = { goShell("/builder"); drawerOpen = false }
         ) { openScreen(it) }
     } else navSections
 
@@ -299,11 +295,14 @@ fun App() {
     ) {
         WeMadeTheme {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            if (awaitingHost) return@BoxWithConstraints
             val isCompact = maxWidth < ClayBreakpoints.MasterDetail
-            val isBuilderLogin = currentScreen == AppNavScreen.LOGIN && (authState.hostSurface is HostSurface.Platform || builderRoute)
+            val isBuilderLogin = currentScreen == AppNavScreen.LOGIN && (authState.hostSurface !is HostSurface.Tenant)
 
             if (adminRoute && session?.user?.role == Role.PLATFORM_SUPERADMIN) {
-                PlatformAdminConsole(onActAs = authViewModel::actAsTenant, modifier = Modifier.fillMaxSize())
+                PlatformAdminConsole(onActAs = { slug, path -> // Builder di `app.` tanpa pindah origin; aplikasi ke subdomain tenant
+                    if (path == "/builder") authViewModel.actAsBuilder(slug).onSuccess { goShell("/builder") } else authViewModel.actAsTenant(slug, path)
+                }, modifier = Modifier.fillMaxSize())
             } else Column(modifier = Modifier.fillMaxSize()) {
                 if (!isBuilderLogin) {
                     AppTopBar(
@@ -321,15 +320,22 @@ fun App() {
                         onAuditViewChange = { policyRepository.setAuditView(it) },
                         onApplyPersona = { authViewModel.switchPersona(it) },
                         onResetSuperadmin = { authViewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin) },
-                        onSelectCompany = { authViewModel.switchTenant(it) },
+                        onSelectCompany = authViewModel::switchTenant,
                         onOpenTenantEntitlements = { showTenantEntitlementDialog = true },
                         onOpenHelp = if (isAuthenticated) ({ tutorials.isListOpen = true }) else null,
-                        onLogout = { authViewModel.onEvent(LoginUiEvent.Logout); navigateTo(AppNavScreen.LOGIN) }
+                        onLogout = { authViewModel.onEvent(LoginUiEvent.Logout); navigateTo(AppNavScreen.LOGIN) },
+                        showPersonaSwitcher = !builderRoute && (authState.hostSurface is HostSurface.Tenant || (authState.hostSurface is HostSurface.Local && !adminRoute))
                     )
                 }
 
                 if (builderRoute && isAuthenticated) {
-                    BuilderShell(modifier = Modifier.weight(1f))
+                    // Route per menu: `/builder/<key>` — section diturunkan dari URL (reload aman),
+                    // klik menu mendorong entry history baru lewat goShell (Back/Forward bekerja).
+                    key(session?.tenantSlug) { BuilderShell(modifier = Modifier.weight(1f), // remount saat tenant aktif berganti
+                        section = shellPath.removePrefix("/builder").trim('/').ifEmpty { "overview" },
+                        onSectionChange = { key -> goShell("/builder/$key") },
+                        onOpenApp = authViewModel::openTenantAppInBackground.takeIf { authState.hostSurface !is HostSurface.Tenant },
+                        onBackToConsole = { goShell("/admin") }.takeIf { session?.user?.role == Role.PLATFORM_SUPERADMIN }) }
                 } else Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {
                         // Ketiga layar tata kelola kini melewati gerbang yang sama dengan sembilan
@@ -535,8 +541,8 @@ fun App() {
                         }
                         AppNavScreen.LOGIN -> {
                             val onLoggedIn: () -> Unit = { session?.let { finishLogin(it.user.role) } }
-                            // discovery-M3: `app.` punya pintu platform sendiri, netral industri.
-                            if (authState.hostSurface is HostSurface.Platform) PlatformLoginScreen(authViewModel, onLoggedIn)
+                            // discovery-M3: `app.` punya pintu platform sendiri, netral industri; rute /builder juga memakai konsol Builder.
+                            if (isBuilderLogin) PlatformLoginScreen(authViewModel, onLoggedIn)
                             else LoginScreen(viewModel = authViewModel, onNavigateToDashboard = onLoggedIn)
                         }
                     }

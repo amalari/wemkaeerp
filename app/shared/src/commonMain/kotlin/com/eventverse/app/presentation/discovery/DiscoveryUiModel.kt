@@ -6,11 +6,20 @@ import com.eventverse.app.shared.json.JsonValue
  * Model tampilan draf discovery (Fase D): hasil parse ringkasan `GET /api/discovery/drafts/{id}`.
  * Murni data tampilan — validasi domain tetap milik server; klien hanya menggambar.
  */
+data class DiscoverySectionUi(
+    val code: String,
+    val displayName: String,
+    val order: Int,
+    val colorHex: Long,
+    val tintHex: Long
+)
+
 data class DiscoveryModuleUi(
     val id: String,
     val displayName: String,
     val section: String,
     val kind: String,
+    val iconKey: String? = null,
     val slot: String?,
     val slotInput: String?,
     val slotOutput: String?,
@@ -35,11 +44,16 @@ data class DiscoveryDraftUi(
     val blueprintCode: String,
     val blueprintDescription: String,
     val modules: List<DiscoveryModuleUi>,
+    val sectionsMetadata: List<DiscoverySectionUi> = emptyList(),
     val activeModuleCodes: List<String>,
     val screens: List<DiscoveryScreenUi>
 ) {
     val activeModules: List<DiscoveryModuleUi> get() = modules.filter { it.active }
-    val sections: List<String> get() = modules.map { it.section }.distinct()
+    val sections: List<String> get() = if (sectionsMetadata.isNotEmpty()) {
+        sectionsMetadata.sortedBy { it.order }.map { it.code }
+    } else {
+        modules.map { it.section }.distinct()
+    }
 
     companion object {
         fun fromJson(o: JsonValue.Obj): DiscoveryDraftUi {
@@ -62,10 +76,20 @@ data class DiscoveryDraftUi(
                         displayName = m.string("displayName").orEmpty(),
                         section = m.string("section").orEmpty(),
                         kind = m.string("kind").orEmpty(),
+                        iconKey = m.string("iconKey"),
                         slot = m.string("slot"),
                         slotInput = m.string("slotInput"),
                         slotOutput = m.string("slotOutput"),
                         active = m.string("id") in (arr("activeModuleCodes").mapNotNull { (it as? JsonValue.Str)?.value })
+                    )
+                },
+                sectionsMetadata = arr("sections").mapNotNull { it as? JsonValue.Obj }.map { s ->
+                    DiscoverySectionUi(
+                        code = s.string("code").orEmpty(),
+                        displayName = s.string("displayName").orEmpty(),
+                        order = s.int("order") ?: 0,
+                        colorHex = s.long("colorHex") ?: 0L,
+                        tintHex = s.long("tintHex") ?: 0L
                     )
                 },
                 activeModuleCodes = arr("activeModuleCodes").mapNotNull { (it as? JsonValue.Str)?.value },

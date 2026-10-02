@@ -161,6 +161,22 @@ class AuthApiClient(
         parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
     }
 
+    /**
+     * POST /api/admin/tenants/{slug}/act-as — superadmin masuk Builder tenant **di origin `app.`**:
+     * server mencatat audit lalu menerbitkan sesi yang ditambatkan ke tenant itu (tanpa tiket, tanpa pindah origin).
+     */
+    suspend fun actAsSession(token: String, slug: String): Result<UserSession> = runCatching {
+        val response = httpClient.post(resolveUrl("/api/admin/tenants/$slug/act-as")) {
+            header("Authorization", "Bearer $token")
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            error("Gagal masuk ke workspace $slug (HTTP ${response.status.value}): ${response.bodyAsText()}")
+        }
+        val text = response.bodyAsText()
+        parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
+    }
+
     companion object {
         /** Query param pembawa tiket handoff pada URL `<slug>.<base>/login?handoff=…`. */
         const val HANDOFF_QUERY_PARAM = "handoff"

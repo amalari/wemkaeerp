@@ -424,9 +424,19 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
             "displayName" to jsonOf(m.displayName),
             "section" to jsonOf(m.section.value),
             "kind" to jsonOf(m.kind.name),
+            "iconKey" to jsonOf(m.iconKey),
             "slot" to jsonOf(slot?.value),
             "slotInput" to jsonOf(slotDef?.defaultInput?.value),
             "slotOutput" to jsonOf(slotDef?.defaultOutput?.value)
+        )
+    }),
+    "sections" to jsonArrayOf(stored.draft.pack.sections.map { s ->
+        jsonObjectOf(
+            "code" to jsonOf(s.code.value),
+            "displayName" to jsonOf(s.displayName),
+            "order" to jsonOf(s.order),
+            "colorHex" to jsonOf(s.colorHex),
+            "tintHex" to jsonOf(s.tintHex)
         )
     }),
     "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),

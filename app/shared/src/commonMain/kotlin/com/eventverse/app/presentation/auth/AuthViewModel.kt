@@ -44,8 +44,8 @@ class AuthViewModel(
     companion object {
         const val STORAGE_KEY = AuthApiClient.SESSION_STORAGE_KEY
 
-        /** Login dari `app.` membawa user ke Builder project-nya (PLAN-builder-console §2). */
-        const val HANDOFF_LANDING_PATH = "/builder"
+        /** Pendaratan di subdomain tenant: aplikasi hasil generate (bukan Builder, yang tinggal di `app.`). */
+        const val APP_LANDING_PATH = "/login"
     }
 
     /** Dari `/config`; dipakai menyusun origin tenant saat handoff. */
@@ -165,7 +165,7 @@ class AuthViewModel(
         scope.launch {
             val result = authApiClient.loginDemo(currentSlug, role = targetRole.name)
             if (_uiState.value.hostSurface is HostSurface.Platform && targetRole != Role.PLATFORM_SUPERADMIN) {
-                result.onSuccess { handOffToTenant(it) }
+                result.onSuccess { applyVerifiedSession(it, fallbackSlug = currentSlug, restorePersona = true) }
                     .onFailure { e -> _uiState.update { it.copy(isLoading = false, errorMessage = e.message) } }
                 return@launch
             }
@@ -397,7 +397,7 @@ class AuthViewModel(
             authApiClient.loginWithGoogle(idToken = idToken, tenantSlug = requestedSlug)
                 .onSuccess { session ->
                     if (surface is HostSurface.Platform && session.user.role != Role.PLATFORM_SUPERADMIN) {
-                        handOffToTenant(session)
+                        applyVerifiedSession(session, fallbackSlug = currentSlug, restorePersona = true)
                     } else {
                         applyVerifiedSession(session, fallbackSlug = currentSlug)
                     }
@@ -423,13 +423,13 @@ class AuthViewModel(
      * Di subdomain tenant, URL `?handoff=<tiket>` (redirect dari `app.`) langsung ditukar jadi sesi.
      */
     private fun resolveHostSurface() {
-        val host = PlatformHost.currentHost() ?: return
+        val host = PlatformHost.currentHost() ?: run { _uiState.update { it.copy(hostResolved = true) }; return }
         scope.launch {
             val baseDomain = authApiClient.fetchPlatformBaseDomain().getOrNull()
             platformBaseDomain = baseDomain
             val surface = HostSurface.parse(host, baseDomain)
             _uiState.update {
-                it.copy(hostSurface = surface, tenantSlug = (surface as? HostSurface.Tenant)?.slug?.value ?: it.tenantSlug)
+                it.copy(hostSurface = surface, hostResolved = true, tenantSlug = (surface as? HostSurface.Tenant)?.slug?.value ?: it.tenantSlug)
             }
             val ticket = PlatformHost.queryParameter(AuthApiClient.HANDOFF_QUERY_PARAM)
             if (surface is HostSurface.Tenant && ticket != null) {
@@ -448,20 +448,34 @@ class AuthViewModel(
     }
 
     /**
-     * Login tenant di `app.`: sesi **tidak** disimpan di origin platform — ia dibawa ke
-     * `<slug>.<base>` lewat tiket sekali pakai, karena localStorage tidak melintasi origin.
+     * Builder hidup di `app.`; subdomain `<slug>.<base>` hanya untuk aplikasi hasil generate. Membuka
+     * aplikasi berarti pindah origin, dan localStorage tidak melintasi origin — jadi sesi dibawa lewat
+     * tiket sekali pakai. Superadmin (sesi act-as) wajib menyebut tenant tujuan; pemilik memakai tenant akunnya.
      */
-    private suspend fun handOffToTenant(session: UserSession) {
-        authApiClient.issueHandoff(session.token.value)
-            .onSuccess { handoff ->
-                _uiState.update { it.copy(successMessage = "Mengalihkan ke workspace ${session.tenantSlug.orEmpty()}…") }
-                val origin = tenantOriginFromHere(handoff.tenantSlug, platformBaseDomain) ?: handoff.origin
-                PlatformHost.openUrl("$origin$HANDOFF_LANDING_PATH?${AuthApiClient.HANDOFF_QUERY_PARAM}=${handoff.ticket}")
-            }
-            .onFailure { cause -> _uiState.update { it.copy(isLoading = false, errorMessage = cause.message) } }
+    suspend fun openTenantApp(): Result<Unit> {
+        val session = _uiState.value.authenticatedSession ?: return Result.failure(IllegalStateException("Sesi tidak ada"))
+        val slug = session.tenantSlug?.ifBlank { null } ?: return Result.failure(IllegalStateException("Tenant belum dipilih"))
+        val actAs = slug.takeIf { session.user.role == Role.PLATFORM_SUPERADMIN }
+        return authApiClient.issueHandoff(session.token.value, actAs = actAs).map { h ->
+            val origin = tenantOriginFromHere(h.tenantSlug, platformBaseDomain) ?: h.origin
+            PlatformHost.openUrl("$origin$APP_LANDING_PATH?${AuthApiClient.HANDOFF_QUERY_PARAM}=${h.ticket}")
+        }
     }
 
-    /** Konsol `app./admin`: superadmin masuk tenant [slug] (act-as ber-audit, discovery-M3b). */
+    /** Untuk tombol yang tidak punya coroutine scope sendiri (footer sidebar Builder); gagal → pesan di [LoginUiState.errorMessage]. */
+    fun openTenantAppInBackground() {
+        scope.launch { openTenantApp().onFailure { cause -> _uiState.update { it.copy(errorMessage = cause.message) } } }
+    }
+
+    /** Konsol `app./admin`: superadmin masuk Builder tenant [slug] di origin yang sama (act-as ber-audit, discovery-M3b). */
+    suspend fun actAsBuilder(slug: String): Result<Unit> {
+        val token = _uiState.value.authenticatedSession?.token?.value ?: return Result.failure(IllegalStateException("Sesi tidak ada"))
+        return authApiClient.actAsSession(token, slug).map { session ->
+            applyVerifiedSession(session, fallbackSlug = slug, restorePersona = true, announce = false)
+        }
+    }
+
+    /** Konsol `app./admin`: superadmin masuk **aplikasi** tenant [slug] di subdomainnya (tiket handoff act-as, ber-audit). */
     suspend fun actAsTenant(slug: String, landingPath: String): Result<Unit> {
         val token = _uiState.value.authenticatedSession?.token?.value ?: return Result.failure(IllegalStateException("Sesi tidak ada"))
         return authApiClient.issueHandoff(token, actAs = slug).map { h ->
@@ -475,7 +489,12 @@ class AuthViewModel(
      * jalur handoff: tanpa persona, wewenang kosong dan pendaratan tidak pernah terjadi. Jalur Google
      * sengaja belum memakainya (perilaku lama dipertahankan).
      */
-    private suspend fun applyVerifiedSession(session: UserSession, fallbackSlug: String, restorePersona: Boolean = false) {
+    private suspend fun applyVerifiedSession(
+        session: UserSession,
+        fallbackSlug: String,
+        restorePersona: Boolean = false,
+        announce: Boolean = true
+    ) {
         val user = session.user
         val slug = session.tenantSlug?.ifBlank { null } ?: fallbackSlug
         PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
@@ -496,7 +515,7 @@ class AuthViewModel(
                 successMessage = "Selamat datang, ${user.username.value} (${user.email.value}) — Role: ${user.role.name}"
             )
         }
-        _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
+        if (announce) _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
     }
 
     /** See [handleVerifyWhatsAppOtp]: no OTP is actually sent, so do not claim one was. */
@@ -530,40 +549,11 @@ class AuthViewModel(
         }
     }
 
-    fun switchTenant(company: com.eventverse.app.presentation.navigation.CompanyTenantProfile) {
-        val currentSession = _uiState.value.authenticatedSession
-        val updatedUser = currentSession?.user?.copy(
-            tenantId = TenantId(company.id)
-        ) ?: User(
-            id = UserId("usr-owner-001"),
-            tenantId = TenantId(company.id),
-            username = Username("superadmin"),
-            email = EmailAddress("student.achmad@gmail.com"),
-            role = Role.TENANT_ADMIN,
-            isActive = true
-        )
-        val newSession = UserSession(
-            user = updatedUser,
-            token = currentSession?.token ?: AuthToken("jwt-session-admin"),
-            tenantSlug = company.slug
-        )
-
-        PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(newSession))
-        sessionStorage.setSession(
-            TenantSession(
-                tenantId = TenantId(company.id),
-                slug = TenantSlug(company.slug),
-                name = company.name,
-                tier = SubscriptionTier.PRO
-            )
-        )
-
-        _uiState.update {
-            it.copy(
-                authenticatedSession = newSession,
-                tenantSlug = company.slug,
-                successMessage = "Beralih ke perusahaan: ${company.name}"
-            )
-        }
+    /**
+     * Superadmin berpindah tenant dari top bar: act-as sungguhan (token dari server, ber-audit), bukan sesi rakitan klien.
+     * Gagal → pesan di [LoginUiState.errorMessage]; sesi sebelumnya tidak diubah.
+     */
+    fun switchTenant(slug: String) {
+        scope.launch { actAsBuilder(slug).onFailure { cause -> _uiState.update { it.copy(errorMessage = cause.message) } } }
     }
 }

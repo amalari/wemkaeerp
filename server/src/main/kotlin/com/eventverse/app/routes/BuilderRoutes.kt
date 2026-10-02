@@ -50,6 +50,11 @@ fun Route.builderRoutes(
     drafts: DiscoveryDraftRepository,
     buildRequests: BuilderBuildRequestRepository =
         com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
+    pipelines: com.eventverse.app.domain.pipeline.TenantPipelineRepository =
+        com.eventverse.app.infrastructure.PostgresTenantPipelineRepository(),
+    /** Bootstrap draf kerja dari keadaan tenant (impor M0); fail-soft null = tanpa draf. */
+    bootstrapDrafts: com.eventverse.app.domain.builder.EnsureTenantWorkingDraftUseCase =
+        com.eventverse.app.domain.builder.EnsureTenantWorkingDraftUseCase(drafts, pipelines),
     probe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe =
         com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
     auditLog: com.eventverse.app.domain.audit.AuditLogRepository =
@@ -135,10 +140,18 @@ fun Route.builderRoutes(
         }
 
         // Draf kerja tenant untuk pane Modules/Data Flow/Prototype (FR-M1-4/5). Bentuk = envelope
-        // `summaryObj` yang sama dengan renderer Fase D; `null` = belum ada draf.
+        // `summaryObj` yang sama dengan renderer Fase D; `null` = belum ada draf. Tenant tanpa draf
+        // di-bootstrap dari keadaannya sendiri (impor M0): pack + pipeline aktif tenant.
         get("/draft") {
             call.gate() ?: return@get
-            val stored = drafts.findByTenant(call.tenantContext.tenantId)
+            val principal = call.callerPrincipalOrNull
+            val ownerUserId = principal?.userId?.let { com.eventverse.app.domain.auth.UserId(it) }
+            if (ownerUserId == null) {
+                call.respond(HttpStatusCode.Forbidden, "Identitas pemanggil tidak bisa dihitung.")
+                return@get
+            }
+            val tenant = call.tenantContext
+            val stored = bootstrapDrafts(tenant.tenantId, tenant.domainPack, ownerUserId)
             call.respondText(
                 stored?.let { summaryObj(it).encode() } ?: "null",
                 ContentType.Application.Json
