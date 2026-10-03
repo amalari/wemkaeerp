@@ -1,6 +1,8 @@
 package com.eventverse.app.presentation.discovery
 
+import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.pack.InteractiveScreenCodec
 
 /**
  * Model tampilan draf discovery (Fase D): hasil parse ringkasan `GET /api/discovery/drafts/{id}`.
@@ -31,7 +33,9 @@ data class DiscoveryScreenUi(
     val moduleId: String,
     val title: String,
     val widget: String,
-    val sampleRows: List<Map<String, String>>
+    val sampleRows: List<Map<String, String>>,
+    /** Versi bisa dimainkan (TRD-PLAT-003); null = gambar statis dari [sampleRows]. */
+    val interactive: InteractiveScreen? = null
 )
 
 data class DiscoveryDraftUi(
@@ -111,7 +115,8 @@ data class DiscoveryDraftUi(
                         moduleId = s.string("moduleId").orEmpty(),
                         title = s.string("title").orEmpty(),
                         widget = s.string("widget").orEmpty(),
-                        sampleRows = arr2(s, "sampleRows")
+                        sampleRows = arr2(s, "sampleRows"),
+                        interactive = s.obj("interactive")?.let { runCatching { InteractiveScreenCodec.decode(it) }.getOrNull() }
                     )
                 },
                 portLabels = stringMap("portLabels"),

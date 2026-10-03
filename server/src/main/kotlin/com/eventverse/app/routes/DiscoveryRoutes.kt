@@ -16,6 +16,7 @@ import com.eventverse.app.domain.discovery.PrototypePattern
 import com.eventverse.app.domain.discovery.PrototypePatternRepository
 import com.eventverse.app.domain.discovery.SavePrototypePatternUseCase
 import com.eventverse.app.domain.discovery.WidgetRegistry
+import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import com.eventverse.app.domain.discovery.usecases.CreateDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.usecases.EndDiscoveryPreviewUseCase
 import com.eventverse.app.domain.discovery.usecases.HandoffDiscoveryDraftUseCase
@@ -465,7 +466,9 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
             // registri hidup (samplePack) agar klien tidak perlu merekonstruksi DomainPack.
             "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(projected, samplePack).map { row ->
                 jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
-            })
+            }),
+            // TRD-PLAT-003: versi bisa dimainkan (null untuk widget non-kanban → klien menggambar statis).
+            "interactive" to (WidgetRegistry.interactiveFor(projected, samplePack)?.let(InteractiveScreenCodec::encode) ?: com.eventverse.app.shared.json.JsonValue.Null)
         )
     })
     )

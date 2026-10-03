@@ -13,6 +13,7 @@ import com.eventverse.app.domain.pack.PhaseCode
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.ScreenSuggestion
+import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
 import com.eventverse.app.domain.pack.VocabularyKey
@@ -81,7 +82,13 @@ object DomainPackCodec {
                 "moduleId" to jsonOf(s.moduleId.value), "title" to jsonOf(s.title), "widget" to jsonOf(s.widget.code),
                 "sampleRows" to jsonArrayOf(s.sampleRows.map { row ->
                     jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
-                })
+                }),
+                "kanbanHints" to (s.kanbanHints?.let { h ->
+                    jsonObjectOf(
+                        "columns" to jsonArrayOf(h.columns.map { jsonOf(it) }),
+                        "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray())
+                    )
+                } ?: JsonValue.Null)
             )
         })
     )
@@ -139,7 +146,15 @@ object DomainPackCodec {
                     moduleId = s.value("moduleId", ::ModuleId),
                     title = s.string("title"),
                     widget = s.enum("widget", WidgetKind.entries),
-                    sampleRows = sampleRows
+                    sampleRows = sampleRows,
+                    kanbanHints = s.raw.obj("kanbanHints")?.let { h ->
+                        KanbanHints(
+                            h.stringArray("columns"),
+                            (h.obj("transitions")?.entries ?: emptyMap()).mapValues { (_, v) ->
+                                ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }.toSet()
+                            }
+                        )
+                    }
                 )
             }
         } ?: emptyList()
@@ -165,6 +180,8 @@ object DomainPackCodec {
 
     /** Pembaca satu objek dengan path untuk pesan galat. Konstruktor domain yang menolak dibungkus [build] dengan path objeknya. */
     private class Reader(private val obj: JsonValue.Obj, private val path: String) {
+        /** Objek mentah, untuk field opsional bersarang yang bentuknya dibaca langsung. */
+        val raw: JsonValue.Obj get() = obj
 
         private fun fail(key: String?, message: String): Nothing =
             throw DomainPackDecodeException(if (key == null) path else "$path.$key", message)

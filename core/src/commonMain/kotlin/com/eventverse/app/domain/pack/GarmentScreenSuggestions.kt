@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.KanbanHints
 
 /**
  * Usulan layar prototype bawaan pack konveksi (mock `/builder/prototype`): satu layar per modul
@@ -46,7 +47,13 @@ object GarmentScreenSuggestions {
             listOf(
                 mapOf("Kolom" to "Baru", "Kartu" to "SP-1051 · Kemeja PDH", "Detail" to "PT Sinar Jaya · 3 pcs sampel"),
                 mapOf("Kolom" to "Dikerjakan", "Kartu" to "SP-1048 · Polo Combed", "Detail" to "Jahit sample — Nia · due 20 Mar"),
-                mapOf("Kolom" to "Selesai", "Kartu" to "SP-1043 · Seragam CV Amanah", "Detail" to "Disetujui buyer — naik produksi")
+                mapOf("Kolom" to "Selesai", "Kartu" to "SP-1043 · Seragam CV Amanah", "Detail" to "Disetujui buyer — naik produksi"),
+                mapOf("Kolom" to "Baru", "Kartu" to "SP-1052 · Kaos Oblong", "Detail" to "CV Amanah · 5 pcs sampel"),
+                mapOf("Kolom" to "Dikerjakan", "Kartu" to "SP-1046 · Jaket Bomber", "Detail" to "Potong pola — Budi · due 22 Mar")
+            ),
+            KanbanHints(
+                columns = listOf("Baru", "Dikerjakan", "Selesai"),
+                transitions = mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Baru", "Selesai"), "Selesai" to setOf("Dikerjakan"))
             )
         ),
         ScreenSuggestion(
@@ -81,7 +88,12 @@ object GarmentScreenSuggestions {
             listOf(
                 mapOf("Kolom" to "Antre Potong", "Kartu" to "PO-2026-0312 · Kemeja PDH", "Detail" to "1.200 pcs · Meja potong 3"),
                 mapOf("Kolom" to "Berjalan", "Kartu" to "PO-2026-0298 · Jahit", "Detail" to "Lini 2 · selesai 3 hari lagi"),
-                mapOf("Kolom" to "Selesai", "Kartu" to "PO-2026-0285 · Obras", "Detail" to "Lini 4 · 2.400 pcs")
+                mapOf("Kolom" to "Selesai", "Kartu" to "PO-2026-0285 · Obras", "Detail" to "Lini 4 · 2.400 pcs"),
+                mapOf("Kolom" to "Antre Potong", "Kartu" to "PO-2026-0275 · Seragam Kerja", "Detail" to "2.000 pcs · menunggu kain")
+            ),
+            KanbanHints(
+                columns = listOf("Antre Potong", "Berjalan", "Selesai"),
+                transitions = mapOf("Antre Potong" to setOf("Berjalan"), "Berjalan" to setOf("Antre Potong", "Selesai"))
             )
         ),
         ScreenSuggestion(
@@ -90,7 +102,8 @@ object GarmentScreenSuggestions {
                 mapOf("Kolom" to "Lini 2", "Kartu" to "Rian — jahit kerah", "Detail" to "320 pcs hari ini"),
                 mapOf("Kolom" to "Lini 2", "Kartu" to "Sinta — jahit badan", "Detail" to "280 pcs hari ini"),
                 mapOf("Kolom" to "Lini 4", "Kartu" to "Agus — pasang lengan", "Detail" to "255 pcs hari ini")
-            )
+            ),
+            KanbanHints(columns = listOf("Lini 2", "Lini 3", "Lini 4"))
         ),
         ScreenSuggestion(
             GarmentModules.QUALITY_CONTROL, "Checklist Inspeksi QC", WidgetKind.CHECKLIST,

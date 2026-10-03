@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.KanbanHints
 
 /** Satu kolom kanvas. [colorHex] adalah data vertikal, bukan keputusan design system. */
 data class PhaseDefinition(
@@ -50,7 +51,12 @@ data class ScreenSuggestion(
      *  - DASHBOARD: satu pasang label → angka per baris (satu tile).
      *  - PRINT: pasangan label → isi dokumen cetak.
      */
-    val sampleRows: List<Map<String, String>> = emptyList()
+    val sampleRows: List<Map<String, String>> = emptyList(),
+    /**
+     * Perilaku papan (hanya bermakna untuk [WidgetKind.KANBAN]): urutan kolom termasuk yang kosong dan
+     * transisi yang boleh. Null = kolom diturunkan dari [sampleRows], kartu bebas pindah.
+     */
+    val kanbanHints: KanbanHints? = null
 ) {
     init {
         require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }
