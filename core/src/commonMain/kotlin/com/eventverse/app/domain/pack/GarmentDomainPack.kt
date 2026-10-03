@@ -84,6 +84,29 @@ object GarmentPortTypes {
         MATERIAL_REQUISITION, VERIFIED_MATERIAL_STOCK, COSTING_CALCULATION_RESULT, CUT_PIECES_BUNDLE,
         ASSEMBLED_GARMENT_BUNDLE, INSPECTED_AND_GRADED_UNIT, DISPATCHED_SHIPMENT_MANIFEST, ISSUED_INVOICE_DOCUMENT
     )
+
+    /**
+     * Label tampilan manusiawi tiap tipe port (kosakata pack, sejajar [GarmentVocabulary.actions]).
+     * Kuncinya kode port persis seperti di kontrak katalog; mencakup juga port batas/slot default
+     * yang tidak ikut `wired` (`CommercialInquiry`, `CuttingOrderWithFabric`, dst.).
+     */
+    val labels: Map<String, String> = mapOf(
+        "CommercialInquiry" to "Inquiry / Permintaan Penawaran",
+        "ProductionOrderDraft" to "Draf Pesanan Produksi (PO)",
+        "ApprovedSampleSpecification" to "Spesifikasi Sampel Disetujui",
+        "TechPackAndYieldData" to "Tech Pack & Kebutuhan Bahan",
+        "MaterialRequisition" to "Permintaan Pembelian Bahan",
+        "VerifiedMaterialStock" to "Stok Bahan Terverifikasi",
+        "CostingCalculationResult" to "Hasil Hitung HPP per Unit",
+        "CuttingOrderWithFabric" to "SPK Potong + Kain Siap Potong",
+        "CutPiecesBundle" to "Bundle Potongan Kain",
+        "AssembledGarmentBundle" to "Bundle Hasil Jahit",
+        "FinishedGarmentUnit" to "Unit Selesai Finishing",
+        "InspectedAndGradedUnit" to "Unit Lolos QC (Tergrade)",
+        "DispatchedShipmentManifest" to "Surat Jalan / Manifest Kirim",
+        "IssuedInvoiceDocument" to "Invoice Terbit",
+        "AnyOperationalPayload" to "Data Operasional Modul Kustom"
+    )
 }
 
 /**
@@ -130,7 +153,8 @@ object GarmentDomainPack {
             sections = GarmentModules.sections,
             modules = GarmentModules.modules,
             actions = GarmentVocabulary.actions,
-            vocabulary = GarmentVocabulary.terms
+            vocabulary = GarmentVocabulary.terms,
+            portLabels = GarmentPortTypes.labels
         )
     }
 }

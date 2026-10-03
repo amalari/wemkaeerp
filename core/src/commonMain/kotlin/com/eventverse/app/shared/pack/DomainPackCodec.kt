@@ -72,7 +72,8 @@ object DomainPackCodec {
             )
         }),
         "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to jsonOf(a.label)) }),
-        "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value })
+        "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value }),
+        "portLabels" to jsonStringMapOf(pack.portLabels)
     )
 
     fun encodeToString(pack: DomainPack): String = encode(pack).encode()
@@ -129,7 +130,8 @@ object DomainPackCodec {
                 sections = sections,
                 modules = modules,
                 actions = actions,
-                vocabulary = vocabulary
+                vocabulary = vocabulary,
+                portLabels = r.stringMapOrNull("portLabels")
             )
         }
     }
@@ -211,6 +213,20 @@ object DomainPackCodec {
                 out[known] = (entry.value as? JsonValue.Str)?.value ?: fail("$key.$rawKey", "harus string")
             }
             return out
+        }
+
+        /**
+         * Peta berkunci kode port (`{"ProductionOrderDraft":"Draf Pesanan Produksi (PO)"}`). Field
+         * boleh tidak ada (pack sebelum kosakata label). Kunci tak dikenal **tidak** diverifikasi
+         * di sini — invarian `DomainPack.init` yang menolaknya, supaya encode/decode dan konstruksi
+         * langsung punya aturan validasi yang sama.
+         */
+        fun stringMapOrNull(key: String): Map<String, String> = when (val v = obj[key]) {
+            null, JsonValue.Null -> emptyMap()
+            is JsonValue.Obj -> v.entries.mapValues { (k, value) ->
+                (value as? JsonValue.Str)?.value ?: fail("$key.$k", "harus string")
+            }
+            else -> fail(key, "harus objek")
         }
 
         fun objects(key: String): List<Reader> = array(key).mapIndexed { i, v ->

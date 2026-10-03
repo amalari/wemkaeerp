@@ -60,7 +60,14 @@ data class DomainPack(
      * Istilah yang diucapkan pack (A4). **Tidak ada** = chrome memakai kata netral
      * ([VocabularyKey.neutral]) — bukan jatuh ke kosakata vertikal mana pun.
      */
-    val vocabulary: Map<VocabularyKey, String> = emptyMap()
+    val vocabulary: Map<VocabularyKey, String> = emptyMap(),
+    /**
+     * Label tampilan manusiawi tipe port (`"ProductionOrderDraft"` → `"Draf Pesanan Produksi (PO)"`).
+     * Kosakata pack, sejajar [actions] dan [vocabulary]: **kode port tetap identitas tersimpan**
+     * (kunci kontrak `upstreamPrerequisites`/`downstreamHandoffs`), label hanya untuk layar.
+     * Kunci yang tidak terdaftar di [portTypes] ditolak — label untuk port yang tidak ada = pack rusak.
+     */
+    val portLabels: Map<String, String> = emptyMap()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -87,6 +94,11 @@ data class DomainPack(
         vocabulary.forEach { (key, word) ->
             require(word.isNotBlank()) { "Istilah ${key.name} pack ${code.value} kosong" }
         }
+        val portCodes = portTypes.map { it.value }.toSet()
+        portLabels.forEach { (port, label) ->
+            require(port in portCodes) { "Label port '$port' tidak ada di kosakata pack ${code.value}" }
+            require(label.isNotBlank()) { "Label port '$port' pack ${code.value} kosong" }
+        }
     }
 
     /**
@@ -98,6 +110,12 @@ data class DomainPack(
 
     /** Istilah [key] menurut pack ini; pack yang tidak mendeklarasikannya memakai kata netral. */
     fun term(key: VocabularyKey): String = vocabulary[key] ?: key.neutral
+
+    /**
+     * Label tampilan tipe port [code] menurut pack ini. Port tanpa label (mis. port pack data yang
+     * belum menyebut kosakatanya) tampil sebagai kodenya sendiri — bukan fallback ke kosakata lain.
+     */
+    fun portLabel(code: String): String = portLabels[code] ?: code
 
     fun module(id: ModuleId): ModuleDefinition? = modules.firstOrNull { it.id == id }
 

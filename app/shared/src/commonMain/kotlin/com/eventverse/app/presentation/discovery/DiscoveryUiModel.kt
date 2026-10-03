@@ -46,7 +46,14 @@ data class DiscoveryDraftUi(
     val modules: List<DiscoveryModuleUi>,
     val sectionsMetadata: List<DiscoverySectionUi> = emptyList(),
     val activeModuleCodes: List<String>,
-    val screens: List<DiscoveryScreenUi>
+    val screens: List<DiscoveryScreenUi>,
+    /**
+     * Kosakata label dari pack draf itu sendiri (`summaryObj`: `portLabels`/`slotLabels`).
+     * Sumber utama label — bekerja juga untuk draf pra-handoff yang pack-nya belum terdaftar
+     * di [com.eventverse.app.domain.pack.DomainPackRegistry]; tanpa entri = kode, bukan pack lain.
+     */
+    val portLabels: Map<String, String> = emptyMap(),
+    val slotLabels: Map<String, String> = emptyMap()
 ) {
     val activeModules: List<DiscoveryModuleUi> get() = modules.filter { it.active }
     val sections: List<String> get() = if (sectionsMetadata.isNotEmpty()) {
@@ -62,6 +69,11 @@ data class DiscoveryDraftUi(
                 ((src[key] as? JsonValue.Arr)?.items ?: emptyList())
                     .mapNotNull { it as? JsonValue.Obj }
                     .map { row -> row.entries.mapValues { (_, v) -> (v as? JsonValue.Str)?.value.orEmpty() } }
+            fun stringMap(key: String): Map<String, String> =
+                (o[key] as? JsonValue.Obj)?.entries
+                    ?.mapValues { (_, v) -> (v as? JsonValue.Str)?.value.orEmpty() }
+                    ?.filterValues { it.isNotEmpty() }
+                    ?: emptyMap()
             return DiscoveryDraftUi(
                 id = o.string("id").orEmpty(),
                 status = o.string("status").orEmpty(),
@@ -101,7 +113,9 @@ data class DiscoveryDraftUi(
                         widget = s.string("widget").orEmpty(),
                         sampleRows = arr2(s, "sampleRows")
                     )
-                }
+                },
+                portLabels = stringMap("portLabels"),
+                slotLabels = stringMap("slotLabels")
             )
         }
     }

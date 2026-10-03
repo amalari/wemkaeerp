@@ -45,6 +45,8 @@ fun ClayTextField(
      * ditulisnya.
      */
     minLines: Int = 1,
+    /** Batas tinggi isian multi-baris (komposer chat tumbuh sampai sini lalu menggulir di dalam). */
+    maxLines: Int = Int.MAX_VALUE,
     enabled: Boolean = true,
     readOnly: Boolean = false,
     isError: Boolean = false,
@@ -120,6 +122,7 @@ fun ClayTextField(
                         singleLine = singleLine,
                         // BasicTextField melempar pengecualian bila minLines > 1 pada mode satu baris.
                         minLines = if (singleLine) 1 else minLines.coerceAtLeast(1),
+                        maxLines = if (singleLine) 1 else maxLines.coerceAtLeast(minLines.coerceAtLeast(1)),
                         enabled = enabled,
                         readOnly = readOnly,
                         textStyle = LocalTextStyle.current.copy(

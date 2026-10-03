@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.builder.chat.BuilderChatPane
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -120,13 +121,14 @@ fun BuilderShell(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
+                // Chat butuh tinggi terbatas (komposer menempel di bawah); pane lain menggulir sendiri.
+                .then(if (selected == "chat") Modifier else Modifier.verticalScroll(rememberScrollState()))
                 .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Xl)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = ClaySpacing.Xxl),
+                    .then(if (selected == "chat") Modifier.fillMaxHeight() else Modifier.padding(bottom = ClaySpacing.Xxl)),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
             ) {
                 when (selected) {

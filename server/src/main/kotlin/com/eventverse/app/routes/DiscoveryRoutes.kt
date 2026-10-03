@@ -35,6 +35,7 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.jsonStringMapOf
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receiveText
@@ -407,6 +408,11 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     "schemaVersion" to jsonOf(stored.schemaVersion),
     "packCode" to jsonOf(stored.draft.pack.code.value),
     "packDisplayName" to jsonOf(stored.draft.pack.displayName),
+    // Kosakata label port & slot ikut ringkasan: sumber utama label klien, bekerja juga untuk
+    // draf pra-handoff yang pack-nya belum terdaftar di registry klien. Label = data tampilan
+    // dari pack (bukan fakta kontrak/harga), jadi tetap dalam batas "ringkasan" di atas.
+    "portLabels" to jsonStringMapOf(stored.draft.pack.portLabels),
+    "slotLabels" to jsonStringMapOf(stored.draft.pack.slots.associate { it.code.value to it.displayName }),
     "blueprintCode" to jsonOf(stored.draft.blueprint.code.value),
     "blueprintDescription" to jsonOf(stored.draft.blueprint.description),
     "moduleCount" to jsonOf(stored.draft.pack.modules.size),

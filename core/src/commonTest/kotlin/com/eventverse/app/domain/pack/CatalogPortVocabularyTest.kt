@@ -15,4 +15,14 @@ class CatalogPortVocabularyTest {
             .toSet()
             .forEach { label -> assertTrue(pack.isWired(label), "Port '$label' belum terdaftar di GarmentPortTypes.wired") }
     }
+
+    /** Port tanpa label akan tampil sebagai kode mentah (`TechPackAndYieldData`) di Builder & kanvas. */
+    @Test
+    fun allWiredAndSlotPorts_mustHaveHumanLabel() {
+        val pack = GarmentDomainPack.pack
+        val ports = pack.wiredPortTypes.map { it.value } + pack.slots.flatMap { listOf(it.defaultInput.value, it.defaultOutput.value) }
+        ports.toSet().forEach { port ->
+            assertTrue(port in pack.portLabels, "Port '$port' belum punya label manusiawi di GarmentPortTypes.labels")
+        }
+    }
 }
