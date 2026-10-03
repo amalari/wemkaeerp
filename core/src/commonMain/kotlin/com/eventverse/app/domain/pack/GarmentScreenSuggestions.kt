@@ -4,9 +4,9 @@ import com.eventverse.app.domain.discovery.WidgetKind
 
 /**
  * Usulan layar prototype bawaan pack konveksi (mock `/builder/prototype`): satu layar per modul
- * operasional, widget-nya mengikuti watak kerjanya (PO → formulir, SPK & lini jahit → papan kanban,
- * BOM & stok kain → tabel, HPP → dasbor, inspeksi → checklist, surat jalan → cetak). Ini **data
- * pack** sejajar [GarmentPortTypes.labels] — pack vertikal lain kelak mengusulkan layarnya sendiri;
+ * operasional, widget-nya mengikuti watak kerjanya (PO → tabel daftar, SPK & lini jahit → papan
+ * kanban, BOM & stok kain → tabel, HPP → dasbor, inspeksi → checklist, surat jalan → cetak). Ini
+ * **data pack** sejajar [GarmentPortTypes.labels] — pack vertikal lain kelak mengusulkan layarnya sendiri;
  * tidak ada satu baris pun kosakata garment yang bocor ke mesin renderer.
  *
  * v2: setiap usulan membawa [ScreenSuggestion.sampleRows] — isi layar yang akan dilihat user garment
@@ -16,15 +16,28 @@ import com.eventverse.app.domain.discovery.WidgetKind
 object GarmentScreenSuggestions {
     val all: List<ScreenSuggestion> = listOf(
         ScreenSuggestion(
-            GarmentModules.CRM_SALES, "Daftar PO & Prospek", WidgetKind.FORM,
+            GarmentModules.CRM_SALES, "Daftar PO & Prospek", WidgetKind.TABLE,
             listOf(
                 mapOf(
-                    "Nama Pembeli" to "PT Sinar Jaya Garment",
                     "No. PO" to "PO-2026-0312",
-                    "Produk & Jumlah" to "1.200 pcs kemeja PDH",
-                    "Target Kirim" to "28 Maret 2026",
-                    "Catatan" to "Prospek — masih nego harga jahit",
-                    "Simpan" to "Simpan Pelanggan & Prospek Sales"
+                    "Pembeli" to "PT Sinar Jaya Garment",
+                    "Produk" to "1.200 pcs kemeja PDH",
+                    "Target Kirim" to "28 Mar 2026",
+                    "Status" to "Prospek — nego harga jahit"
+                ),
+                mapOf(
+                    "No. PO" to "PO-2026-0298",
+                    "Pembeli" to "CV Amanah Abadi",
+                    "Produk" to "800 pcs polo combed",
+                    "Target Kirim" to "10 Apr 2026",
+                    "Status" to "PO masuk — jadwal sampling"
+                ),
+                mapOf(
+                    "No. PO" to "PO-2026-0275",
+                    "Pembeli" to "PT Cahaya Tekstil",
+                    "Produk" to "2.000 pcs seragam kerja",
+                    "Target Kirim" to "2 Mei 2026",
+                    "Status" to "Prospek — kirim penawaran"
                 )
             )
         ),

@@ -126,12 +126,21 @@ Row(
 }
 ```
 
-### C. Dekomposisi File Mengikuti Aturan Proyek (Rule §14)
+### C. Rantai Alur Nilai Produksi (Opsi 1: Pipeline Flow Chain)
+Menggantikan tabel datar mentah dengan rel alur horizontal berurutan (`HorizontalPipelineRail`) yang diurutkan secara kanonik dari hulu ke hilir menggunakan `map.pipelineOrder()`.
+- Setiap stasiun menampilkan nomor urut (`TAHAP 01`, `TAHAP 02`), miniatur 3D, dan tag departemen.
+- Antar-stasiun dihubungkan dengan jembatan kabel transfer data (`StationConnectorBridge`) yang menampilkan label payload data yang dialirkan.
+- Dilengkapi **Station Inspector** interaktif: saat stasiun diklik, panel di bawahnya langsung membedah input upstream dan output downstream stasiun tersebut secara spesifik.
+- Menyediakan tombol toggle instan antara **Rantai Alur (Visual)** dan **Matriks Port (Tabel)**.
+
+### D. Dekomposisi File Mengikuti Aturan Proyek (Rule §14)
 Di project ini, aturan hard limit Compose presentation adalah 600 baris, dengan soft limit 400 baris.
-Sebelum kode membengkak:
+Struktur file setelah didekomposisi:
 - [DataFlowPane.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowPane.kt) (223 baris): Shell pane utama, 4 KPI cards, filter bar, dan grid responsif.
-- [DataFlowHandoffMatrix.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowHandoffMatrix.kt) (169 baris): Khusus komponen visual matriks sambungan port.
-- [DataFlowModuleCard.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowModuleCard.kt) (216 baris): Khusus kartu modul dan pill serah terima data.
+- [DataFlowPipelineChain.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowPipelineChain.kt) (180 baris): Shell rantai alur nilai produksi, toggle view, dan rel horizontal.
+- [DataFlowPipelineRail.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowPipelineRail.kt) (288 baris): Komponen kartu stasiun kerja, jembatan transfer payload, dan panel inspektor stasiun.
+- [DataFlowHandoffMatrix.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowHandoffMatrix.kt) (181 baris): Khusus komponen visual matriks sambungan port tabular.
+- [DataFlowModuleCard.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/discovery/DataFlowModuleCard.kt) (216 baris): Khusus kartu modul dan pill serah terima data split in/out.
 
 Semua file kini ringkas, fokus pada satu tanggung jawab, dan mudah di-maintain.
 
@@ -151,7 +160,9 @@ Semua file kini ringkas, fokus pada satu tanggung jawab, dan mudah di-maintain.
 ## ✅ 5. Checklist Verifikasi Mandiri
 
 - [x] Header konsisten dengan tab `Modules` (nama blueprint, deskripsi peran, dan badge status).
-- [x] Matriks sambungan port memiliki kolom tetap (Sumber 35%, Payload 30%, Tujuan 35%).
+- [x] Peta alur mengimplementasikan Opsi 1: Rantai Alur Nilai Produksi (Pipeline Flow Chain) horizontal dengan nomor tahap dan kabel transfer data.
+- [x] Dilengkapi Station Inspector interaktif untuk membedah data upstream dan downstream stasiun terpilih.
+- [x] Tersedia toggle instan antara Rantai Alur visual dan Matriks Port teknis.
 - [x] Kartu modul menggunakan pembagian seksi internal Masukan vs Keluaran.
 - [x] Tersedia filter departemen (`ClayChoiceChip`) yang responsif.
 - [x] Tata letak kartu menggunakan Grid 2 Kolom pada desktop lebar (`maxWidth >= 860.dp`).

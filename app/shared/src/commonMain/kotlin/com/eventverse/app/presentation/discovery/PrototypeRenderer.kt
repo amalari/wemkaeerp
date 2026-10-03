@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
+import com.eventverse.app.presentation.designsystem.ClayPaneWidth
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -27,6 +29,10 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * **berupa data** — dihitung `WidgetRegistry` di server dan dikirim dalam ringkasan draf, jadi
  * renderer hanya memetakan kind → layout. Semua kind memakai bahasa Clay; tidak ada warna literal.
  * Parameter [screens] memungkinkan pane memfilter pratinjau per modul tanpa logika render baru.
+ *
+ * Setiap layar digambar sebagai **bingkai perangkat** berlebar [ClayPaneWidth.PrototypeDevice]
+ * (lebar ponsel), disusun berjajar lewat `ClayFlowRow` — bukan `fillMaxWidth` yang membuat
+ * pratinjau terlihat seperti dokumen membentang, bukan aplikasi.
  */
 @Composable
 fun PrototypeRenderer(
@@ -49,14 +55,17 @@ fun PrototypeRenderer(
                 )
             }
         }
-        screens.forEach { screen ->
-            val module = draft.modules.firstOrNull { it.id == screen.moduleId }
-            PrototypeScreenCard(
-                title = screen.title,
-                widget = screen.widget,
-                moduleName = module?.displayName ?: screen.moduleId,
-                rows = screen.sampleRows
-            )
+        ClayFlowRow(modifier = Modifier.fillMaxWidth(), spacing = ClaySpacing.Lg) {
+            screens.forEach { screen ->
+                val module = draft.modules.firstOrNull { it.id == screen.moduleId }
+                PrototypeScreenCard(
+                    modifier = Modifier.width(ClayPaneWidth.PrototypeDevice),
+                    title = screen.title,
+                    widget = screen.widget,
+                    moduleName = module?.displayName ?: screen.moduleId,
+                    rows = screen.sampleRows
+                )
+            }
         }
     }
 }
@@ -66,9 +75,10 @@ private fun PrototypeScreenCard(
     title: String,
     widget: String,
     moduleName: String,
-    rows: List<Map<String, String>>
+    rows: List<Map<String, String>>,
+    modifier: Modifier = Modifier
 ) {
-    ClayCard(modifier = Modifier.fillMaxWidth()) {
+    ClayCard(modifier = modifier) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(title, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
@@ -245,6 +255,9 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
             // Tabel nyata: header dari kunci baris pertama, lalu SEMUA baris data — bukan cuma
             // baris pertama seperti v1. Kolom sama berat; sampel v1 (kunci konsisten) ikut bentuk ini.
             val header = rows.firstOrNull()?.keys?.toList().orEmpty()
+            // Lebar frame 360dp dibagi 5 kolom ≈ 60dp/kolom. Sel yang boleh wrap 2 baris membuat
+            // "PT Sinar Jaya" pecah per kata (Kontrak 13). Baris tabel mockup dibuat satu baris
+            // seperti tabel aplikasi nyata: teks menyusut via ellipsis, tidak pernah patah kata.
             if (header.isNotEmpty()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                     header.forEach { k ->
@@ -253,8 +266,9 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                             style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                             color = WeMadeColors.OnSurfaceMuted,
                             maxLines = 1,
+                            softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
                 }
@@ -266,9 +280,10 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                         Text(
                             row[k].orEmpty(),
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
+                            maxLines = 1,
+                            softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
                 }

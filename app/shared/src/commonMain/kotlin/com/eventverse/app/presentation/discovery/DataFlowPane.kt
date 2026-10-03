@@ -56,8 +56,8 @@ fun DataFlowPane(
         // 4 KPI Summary Cards
         DataFlowSummaryCards(map = map)
 
-        // Peta Sambungan Port Terstruktur (Tabular Matrix)
-        HandoffMatrixCard(map = map, draft = draft)
+        // Peta Rantai Alur Nilai (Pipeline Flow Chain - Opsi 1)
+        DataFlowPipelineChain(map = map, draft = draft)
 
         // Header Rincian per Modul + Filter Bar Departemen
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {

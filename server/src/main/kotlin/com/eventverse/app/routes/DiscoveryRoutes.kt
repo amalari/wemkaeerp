@@ -453,14 +453,17 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     }),
     "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),
     "screens" to jsonArrayOf(stored.draft.screens.map { s ->
+        // Layar default-* diproyeksikan ke usulan pack hidup (WidgetRegistry.screenFor) supaya
+        // revisi watak layar di pack mengalir ke draf beku; sampleRows mengikuti yang terproyeksi.
+        val projected = WidgetRegistry.screenFor(s, samplePack)
         jsonObjectOf(
             "screenId" to jsonOf(s.screenId),
             "moduleId" to jsonOf(s.moduleId.value),
-            "title" to jsonOf(s.title),
-            "widget" to jsonOf(s.widget),
+            "title" to jsonOf(projected.title),
+            "widget" to jsonOf(projected.widget),
             // Sample data berupa data (plan §4): dihitung WidgetRegistry di server dari pack
             // registri hidup (samplePack) agar klien tidak perlu merekonstruksi DomainPack.
-            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(s, samplePack).map { row ->
+            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(projected, samplePack).map { row ->
                 jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
             })
         )

@@ -14,6 +14,19 @@ import com.eventverse.app.domain.pack.DomainPack
  */
 object WidgetRegistry {
 
+    /**
+     * Proyeksi deskriptor layar beku ke pack **registri hidup**. Layar ber-id `default-<moduleId>`
+     * (dibuat `EnsureTenantWorkingDraftUseCase`) adalah milik pack: judul, widget, dan barisnya
+     * mengikuti usulan terkini — begitu pack merevisi watak layar (mis. CRM dari FORM menjadi
+     * TABLE), draf lama ikut tanpa dokumennya ditulis ulang. Layar lain (usulan agent LLM /
+     * suntingan user) tetap beku apa adanya.
+     */
+    fun screenFor(screen: PrototypeScreen, pack: DomainPack): PrototypeScreen {
+        if (!screen.screenId.startsWith("default-")) return screen
+        val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId } ?: return screen
+        return screen.copy(title = suggestion.title, widget = suggestion.widget.code)
+    }
+
     /** Satu baris contoh: judul kolom → isi. Renderer memutuskan bagaimana menampilkannya. */
     fun sampleRowsFor(screen: PrototypeScreen, pack: DomainPack): List<Map<String, String>> {
         // v2: isi layar bawaan pack dipakai **apa adanya** bila watak widget layar cocok dengan

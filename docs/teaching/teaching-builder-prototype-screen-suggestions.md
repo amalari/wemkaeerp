@@ -24,7 +24,7 @@ tidak boleh: mesin renderer menebak-nebak sendiri istilah garment — itu bocorn
 kode platform.
 
 **Hasil akhir.** Tenant garment yang baru di-bootstrap langsung melihat 9 kartu mock
-(Daftar PO & Prospek → form, Papan SPK Sampling → kanban, …, Surat Jalan & Packing List → cetak)
+(Daftar PO & Prospek → tabel daftar, Papan SPK Sampling → kanban, …, Surat Jalan & Packing List → cetak)
 tanpa API key apa pun — dan pack klinik kelak mengusulkan layar kliniknya sendiri, karena usulan
 layar adalah **data pack**, bukan kode.
 
@@ -196,3 +196,53 @@ DASHBOARD = satu pasang label→angka per baris; PRINT = pasangan label→isi do
   kaya — fallback registri hidup terbukti bekerja tanpa menulis ulang draf.
 - Kompilasi JVM/WasmJs/JS/server hijau + `:core:jvmTest`, `:app:shared:jvmTest` hijau; Android
   tetap terbatas environment (SDK tidak ada — pra-eksisting).
+
+## 📱 8. v2.1 (2026-10-03): Bingkai Perangkat & Proyeksi `default-*` — "kok ga kaya prototype apps?"
+
+**Keluhan**: isi layar sudah nyata, tapi pratinjau membentang penuh ~1700px — terlihat seperti
+dokumen, bukan aplikasi. Dan layar "Daftar PO & Prospek" dirender sebagai satu form entry.
+
+**Dua perbaikan**:
+
+1. **Bingkai perangkat** (renderer): setiap layar kini digambar sebagai frame berlebar tetap
+   `ClayPaneWidth.PrototypeDevice` (360dp, token baru di `ClayTokens.kt`), disusun berjajar
+   `ClayFlowRow` — di lebar 1280dp terlihat ±3 mockup berdampingan. `PrototypeRenderer` dipakai
+   4 call site (Builder prototype, wizard Discovery, Prototype Studio, Chat result), semuanya
+   ikut tanpa perubahan signature.
+2. **"Daftar" berarti daftar** (data pack): usulan CRM berubah FORM → TABLE berisi 3 PO nyata
+   (PT Sinar Jaya, CV Amanah, PT Cahaya Tekstil). Widget = watak layar; form entry bukan watak
+   layar daftar.
+
+### Pelajaran ketiga: widget ikut beku, bukan cuma baris
+
+V2 memproyeksikan **baris** dari registri hidup, tapi **widget** tetap dibaca dari snapshot —
+sehingga begitu pack mengubah watak layar (FORM → TABLE), `sampleRowsFor` melihat widget tidak
+cocok dan diam-diam jatuh ke baris generik. Proyeksi kini utuh: `WidgetRegistry.screenFor`
+mengambil alih **judul + widget** layar `default-*` dari pack hidup; layar kustom (agent LLM /
+suntingan user) tetap beku. Rumus yang sama tiga kali terbukti: *snapshot beku untuk yang
+milik user, registri hidup untuk yang milik pack*.
+
+### Verifikasi v2.1
+
+- `WidgetRegistryTest.layar default diproyeksikan...` — default-* diambil alih pack; modul
+  asing & layar kustom tidak.
+- API: draf beku `wemade-demo` kini mengirim `Daftar PO & Prospek | TABLE` + 3 baris PO.
+- Uji visual menunggu hard-refresh `/builder/prototype` (webpack 3001 hot-reload).
+
+### Perbaikan lanjutan v2.1.1: sel tabel satu baris (Kontrak 13 di frame 360dp)
+
+Hasil cek mata pertama: frame sudah benar (3 mockup per baris di 1280px), tapi isi tabel CRM
+pecah per kata — "PT Sinar Jaya" jadi 3 baris, "28-Mar-2026" patah dua. Penyebabnya aritmetika:
+360dp ÷ 5 kolom `weight(1f)` ≈ 60dp/kolom, dan sel lama boleh `maxLines = 2`, sehingga Nunito
+ber-x-height besar melipat setiap kata. Perbaikan mengikuti Kontrak 13 design system: sel tabel
+mockup dibuat seperti baris tabel aplikasi nyata — `maxLines = 1` + `softWrap = false` +
+`weight(1f, fill = false)` + `Ellipsis`. Teks yang tidak muat menyusut dengan tanda potong,
+tidak pernah patah kata.
+
+Pelajaran sampingnya soal *tooling*: continuous build Gradle di volume eksternal `/Volumes/…`
+bisa diam-diam berhenti bereaksi terhadap perubahan file (watch service gagal senyap), bahkan
+tertahan lock dari proses Gradle client lain yang statusnya `STOPPED`. Gejalanya bukan error —
+hanya "halaman tidak pernah berubah". Diagnosisnya: bandingkan `stat` mtime file sumber vs
+`build/kotlin-webpack/**/developmentExecutable/webApp.js`; obatnya bunuh proses beku, lalu
+nyalakan ulang frontend. Karena webpack dev server menyajikan dari memori, mtime file di disk
+bukan bukti stale — satu-satunya ujujan yang sah adalah memuat halamannya.

@@ -113,6 +113,14 @@ object ClayPaneWidth {
     val List: Dp = 380.dp
 
     /**
+     * Lebar bingkai satu layar pratinjau prototype (mock `/builder/prototype` dan wizard
+     * Discovery). Sengaja mendekati lebar layar ponsel: pratinjau yang melebar mengikuti
+     * kontainer terlihat seperti dokumen, bukan aplikasi. Beberapa bingkai disusun berjajar
+     * lewat `ClayFlowRow`, bukan `fillMaxWidth`.
+     */
+    val PrototypeDevice: Dp = 360.dp
+
+    /**
      * Lebar satu kolom **papan** di dalam kanvas yang menggulir mendatar (swimlane Factory Flow,
      * peta modul Studio Discovery, papan kanban).
      *

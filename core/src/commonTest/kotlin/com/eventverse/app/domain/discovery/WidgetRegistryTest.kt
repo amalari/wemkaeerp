@@ -74,9 +74,36 @@ class WidgetRegistryTest {
         assertEquals(suggestion.sampleRows, WidgetRegistry.sampleRowsFor(screen, pack))
 
         // Widget berbeda dari usulan → penanda struktural generik, bukan baris yang salah bentuk.
-        val generic = WidgetRegistry.sampleRowsFor(screen.copy(widget = WidgetKind.TABLE.code), pack)
+        // Dipilih dinamis: jangan mengasumsikan widget usulan pertama pack (dulu FORM, kini TABLE).
+        val lain = WidgetKind.entries.first { it != suggestion.widget }
+        val generic = WidgetRegistry.sampleRowsFor(screen.copy(widget = lain.code), pack)
         assertTrue(generic.isNotEmpty())
         assertTrue(generic != suggestion.sampleRows)
+    }
+
+    @Test
+    fun `layar default diproyeksikan ke usulan pack hidup, layar lain tetap beku`() = runTest {
+        val pack = GarmentDomainPack.pack
+        val suggestion = pack.screenSuggestions.first()
+        // Layar beku lama dengan widget usang (mis. draf pra-revisi pack) tetap diambil alih pack.
+        val beku = PrototypeScreen(
+            "default-${suggestion.moduleId.value}",
+            suggestion.moduleId,
+            "Judul Lama",
+            WidgetKind.entries.first { it != suggestion.widget }.code
+        )
+        val projected = WidgetRegistry.screenFor(beku, pack)
+        assertEquals(suggestion.title, projected.title)
+        assertEquals(suggestion.widget.code, projected.widget)
+        assertEquals(suggestion.sampleRows, WidgetRegistry.sampleRowsFor(projected, pack))
+
+        // Modul yang tidak ada di pack → deskriptor beku dikembalikan apa adanya.
+        val hantu = PrototypeScreen("default-modul_hantu", ModuleId("modul_hantu"), "Judul Hantu", "TABLE")
+        assertEquals(hantu, WidgetRegistry.screenFor(hantu, pack))
+
+        // Layar kustom (bukan default-*) tidak pernah diambil alih pack.
+        val kustom = PrototypeScreen("scr-agent-1", suggestion.moduleId, "Judul Kustom", "FORM")
+        assertEquals(kustom, WidgetRegistry.screenFor(kustom, pack))
     }
 
     @Test

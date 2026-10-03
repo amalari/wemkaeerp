@@ -192,5 +192,22 @@ class DataFlowModelTest {
         // Tipenya dipakai sendiri → pemakaian internal, bukan keluaran akhir.
         assertEquals(flow.module.id, flow.outgoing.single().to?.id)
     }
+
+    @Test
+    fun `pipelineOrder mengurutkan stasiun kerja dari hulu ke hilir`() {
+        val map = buildDataFlowMap(draft())
+        val order = map.pipelineOrder().map { it.module.id }
+
+        // crm_sales di awal rantai karena menerima PO pelanggan dari luar sistem
+        assertEquals("crm_sales", order.first())
+        // fulfillment di ujung rantai
+        assertEquals("fulfillment", order.last())
+        // sampling berada di antara crm_sales dan tech_pack_bom
+        assertTrue(order.indexOf("sampling_order") > order.indexOf("crm_sales"))
+        assertTrue(order.indexOf("tech_pack_bom") > order.indexOf("sampling_order"))
+        // cutting mendahului sewing, sewing mendahului qc
+        assertTrue(order.indexOf("production_mrp") < order.indexOf("operator_exec"))
+        assertTrue(order.indexOf("operator_exec") < order.indexOf("quality_control"))
+    }
 }
 

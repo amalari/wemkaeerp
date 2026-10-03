@@ -61,55 +61,67 @@ internal fun HandoffMatrixCard(
                 ClayBadge(text = "${map.handoffs.size} Jalur Sambungan", tint = WeMadeColors.Primary, fontSize = 10.sp)
             }
 
-            // Header Kolom Matriks (Bobot tetap: 0.35f | 0.30f | 0.35f)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(WeMadeColors.SurfaceMuted, ClayShapes.Tile)
-                    .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "DARI MODUL (SUMBER)",
-                    style = typography.bodySmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    modifier = Modifier.weight(0.35f)
-                )
-                Text(
-                    text = "KONTRAK DATA / PAYLOAD",
-                    style = typography.bodySmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(0.30f)
-                )
-                Text(
-                    text = "MENUJU MODUL (TUJUAN)",
-                    style = typography.bodySmall,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.weight(0.35f)
-                )
-            }
+            HandoffMatrixTable(map = map, draft = draft)
+        }
+    }
+}
 
-            // Daftar Baris Sambungan
-            Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                map.handoffs.forEachIndexed { index, handoff ->
-                    HandoffMatrixRow(handoff = handoff, draft = draft)
-                    if (index < map.handoffs.lastIndex) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(WeMadeColors.Border.copy(alpha = 0.25f))
-                        )
-                    }
-                }
+/** Tabel matriks port berbobot tetap (0.35f | 0.30f | 0.35f) yang dapat di-embed di card atau accordion. */
+@Composable
+internal fun HandoffMatrixTable(
+    map: DataFlowMap,
+    draft: DiscoveryDraftUi,
+    modifier: Modifier = Modifier
+) {
+    val typography = rememberClayTypography()
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+        // Header Kolom Matriks (Bobot tetap: 0.35f | 0.30f | 0.35f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(WeMadeColors.SurfaceMuted, ClayShapes.Tile)
+                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "DARI MODUL (SUMBER)",
+                style = typography.bodySmall,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurfaceMuted,
+                modifier = Modifier.weight(0.35f)
+            )
+            Text(
+                text = "KONTRAK DATA / PAYLOAD",
+                style = typography.bodySmall,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurfaceMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(0.30f)
+            )
+            Text(
+                text = "MENUJU MODUL (TUJUAN)",
+                style = typography.bodySmall,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = WeMadeColors.OnSurfaceMuted,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(0.35f)
+            )
+        }
+
+        // Daftar Baris Sambungan
+        map.handoffs.forEachIndexed { index, handoff ->
+            HandoffMatrixRow(handoff = handoff, draft = draft)
+            if (index < map.handoffs.lastIndex) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(WeMadeColors.Border.copy(alpha = 0.25f))
+                )
             }
         }
     }

@@ -59,6 +59,21 @@ data class DataFlowMap(val flows: List<ModuleDataFlow>) {
 
     /** Port keluar yang belum dipakai modul aktif lain (keluaran akhir alur). */
     val endOutputCount: Int get() = handoffs.count { it.to == null }
+
+    /**
+     * Urutan alur stasiun kerja dari hulu ke hilir (topological pipeline stream).
+     * Mengikuti urutan kanonik kanvas Factory Flow [OperationalModuleCatalog.all]
+     * yang sudah terbukti mencerminkan aliran alami data manufaktur.
+     */
+    fun pipelineOrder(): List<ModuleDataFlow> {
+        if (flows.isEmpty()) return emptyList()
+        val catalogOrder: List<String> = OperationalModuleCatalog.all.map { it.module.value }
+        val catalogModules = flows.filter { it.module.id in catalogOrder }
+            .sortedBy { catalogOrder.indexOf(it.module.id) }
+        val otherModules = flows.filter { it.module.id !in catalogOrder }
+
+        return catalogModules + otherModules
+    }
 }
 
 private class Ports(val inputs: List<String>, val references: List<String>, val outputs: List<String>)
