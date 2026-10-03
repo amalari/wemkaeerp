@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.discovery
 
 import com.eventverse.app.domain.auth.UserId
+import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.ModuleId
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -57,6 +58,25 @@ class WidgetRegistryTest {
         assertEquals(listOf("penuh", "separuh", "separuh"), custom.map { it["Lebar"] })
         // Layar untuk modul asing → kosong, bukan data karangan.
         assertTrue(WidgetRegistry.sampleRowsFor(screen.copy(moduleId = ModuleId("modul_hantu")), draft.pack).isEmpty())
+    }
+
+    @Test
+    fun `baris contoh pack garment dipakai apa adanya, widget lain tetap generik`() = runTest {
+        val pack = GarmentDomainPack.pack
+        val suggestion = pack.screenSuggestions.first()
+        val screen = PrototypeScreen(
+            "default-${suggestion.moduleId.value}",
+            suggestion.moduleId,
+            suggestion.title,
+            suggestion.widget.code
+        )
+        // Layar bawaan pack (widget cocok dengan usulan) memakai data vertikal pack — bukan karangan.
+        assertEquals(suggestion.sampleRows, WidgetRegistry.sampleRowsFor(screen, pack))
+
+        // Widget berbeda dari usulan → penanda struktural generik, bukan baris yang salah bentuk.
+        val generic = WidgetRegistry.sampleRowsFor(screen.copy(widget = WidgetKind.TABLE.code), pack)
+        assertTrue(generic.isNotEmpty())
+        assertTrue(generic != suggestion.sampleRows)
     }
 
     @Test

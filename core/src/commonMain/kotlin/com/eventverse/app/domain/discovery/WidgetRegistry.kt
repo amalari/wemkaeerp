@@ -16,6 +16,14 @@ object WidgetRegistry {
 
     /** Satu baris contoh: judul kolom → isi. Renderer memutuskan bagaimana menampilkannya. */
     fun sampleRowsFor(screen: PrototypeScreen, pack: DomainPack): List<Map<String, String>> {
+        // v2: isi layar bawaan pack dipakai **apa adanya** bila watak widget layar cocok dengan
+        // usulannya — ini data vertikal dari pack, bukan karangan mesin. Layar dengan widget lain
+        // (mis. usulan agent LLM) jatuh ke penanda struktural generik di bawah, karena baris pack
+        // punya bentuk yang dikontrak per widget (lihat KDoc ScreenSuggestion).
+        val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }
+        if (suggestion != null && suggestion.sampleRows.isNotEmpty() && suggestion.widget == WidgetKind.fromCode(screen.widget)) {
+            return suggestion.sampleRows
+        }
         val module = pack.modules.firstOrNull { it.id == screen.moduleId } ?: return emptyList()
         val kolom = module.displayName
         val seksi = pack.sections.firstOrNull { it.code == module.section }?.displayName ?: module.section.value

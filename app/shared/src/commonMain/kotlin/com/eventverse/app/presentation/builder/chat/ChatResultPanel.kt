@@ -41,7 +41,7 @@ private val TABS = listOf("Modul", "Fitur", "Alur Data", "Prototype")
 internal fun ChatResultPanel(
     draft: DiscoveryDraftUi?,
     patchPreview: List<String>,
-    onClose: () -> Unit,
+    onClose: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val typography = rememberClayTypography()
@@ -59,7 +59,7 @@ internal fun ChatResultPanel(
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
             )
-            ClayIconButton(onClick = onClose) { IconClose(Modifier.size(14.dp)) }
+            onClose?.let { close -> ClayIconButton(onClick = close) { IconClose(Modifier.size(14.dp)) } }
         }
         ClayTabBar(
             tabs = TABS,

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,8 +37,8 @@ import com.eventverse.app.shared.json.JsonValue
 import kotlinx.coroutines.launch
 
 /**
- * Chat Builder (FR-M1-1/2/3) berlayout chat: riwayat di tengah, komposer menempel di bawah, panel
- * "Hasil request" di kanan (layar lebar) atau menggantikan chat (layar sempit). Patch usulan **tidak
+ * Chat Builder (FR-M1-1/2/3): dua panel — percakapan di kiri (riwayat + komposer menempel di bawah),
+ * "Hasil request" selalu terlihat di kanan; layar sempit menukar keduanya lewat tombol Hasil. Patch usulan **tidak
  * otomatis** jadi draf — tombol Terapkan yang memutuskan (plan §4); draf dimuat ulang setelah Terapkan.
  */
 @Composable
@@ -97,8 +96,7 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val wide = maxWidth >= ClayBreakpoints.MasterDetail
-        val showPanel = panelOpen
-        val chat: @Composable (Modifier) -> Unit = { m ->
+                val chat: @Composable (Modifier) -> Unit = { m ->
             Column(modifier = m, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -111,9 +109,9 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.OnSurface
                     )
-                    ClayButton(
-                        text = if (panelOpen) "Tutup hasil" else "Hasil",
-                        onClick = { previewSummary = emptyList(); panelOpen = !panelOpen },
+                    if (!wide) ClayButton(
+                        text = "Hasil",
+                        onClick = { previewSummary = emptyList(); panelOpen = true },
                         style = ClayButtonStyle.Secondary,
                         leading = { IconLayers(Modifier.size(14.dp)) }
                     )
@@ -153,14 +151,19 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
             }
         }
         val panel: @Composable (Modifier) -> Unit = { m ->
-            ChatResultPanel(draft = draft, patchPreview = previewSummary, onClose = { panelOpen = false }, modifier = m)
+            ChatResultPanel(
+                draft = draft,
+                patchPreview = previewSummary,
+                onClose = if (wide) null else ({ panelOpen = false }),
+                modifier = m
+            )
         }
         when {
-            showPanel && wide -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
-                chat(Modifier.weight(1f).fillMaxHeight())
-                panel(Modifier.width(440.dp).fillMaxHeight())
+            wide -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
+                chat(Modifier.weight(0.42f).fillMaxHeight())
+                panel(Modifier.weight(0.58f).fillMaxHeight())
             }
-            showPanel -> panel(Modifier.fillMaxSize())
+            panelOpen -> panel(Modifier.fillMaxSize())
             else -> chat(Modifier.fillMaxSize())
         }
     }

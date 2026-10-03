@@ -1,8 +1,11 @@
 package com.eventverse.app.shared.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import kotlin.test.Test
@@ -12,6 +15,28 @@ import kotlin.test.assertTrue
 
 /** B7 AC: codec pack ketat, round-trip garment identik, dan aturan identitas global registry. */
 class DomainPackCodecTest {
+
+    @Test
+    fun screenSuggestions_sampleRows_optional_roundTrips_andRejectsNonString() {
+        val withRows = KLINIK_JSON.replace(
+            "\"modules\":[",
+            "\"screenSuggestions\":[{\"moduleId\":\"klinik_antrean\",\"title\":\"Antrean Harian\",\"widget\":\"KANBAN\"," +
+                "\"sampleRows\":[{\"Kolom\":\"Baru\",\"Kartu\":\"Q-001 · pasien baru\"}]}],\"modules\":["
+        )
+        val pack = DomainPackCodec.decode(withRows)
+        assertEquals(
+            listOf(mapOf("Kolom" to "Baru", "Kartu" to "Q-001 · pasien baru")),
+            pack.screenSuggestions.single().sampleRows
+        )
+        assertEquals(pack, DomainPackCodec.decode(DomainPackCodec.encodeToString(pack)))
+
+        // Pack lama tanpa sampleRows tetap ter-decode — kosong, bukan fallback ke pack lain.
+        val withoutRows = withRows.replace(",\"sampleRows\":[{\"Kolom\":\"Baru\",\"Kartu\":\"Q-001 · pasien baru\"}]", "")
+        assertEquals(emptyList(), DomainPackCodec.decode(withoutRows).screenSuggestions.single().sampleRows)
+
+        // Nilai bukan string ditolak dengan path yang menunjuk baris & kuncinya.
+        assertPathRejected("$.screenSuggestions[0].sampleRows[0].Kartu", withRows.replace("\"Q-001 · pasien baru\"", "7"))
+    }
 
     @Test
     fun garmentPack_roundTripsIdentically() {
@@ -31,6 +56,31 @@ class DomainPackCodecTest {
         } finally {
             DomainPackRegistry.unregister(pack.code)
         }
+    }
+
+    @Test
+    fun screenSuggestions_optionalField_roundTrips_andIsRejectedWhenInvalid() {
+        // Pack lama tanpa field ini tetap ter-decode — kosong, tanpa fallback ke usulan pack lain.
+        assertEquals(emptyList(), DomainPackCodec.decode(KLINIK_JSON).screenSuggestions)
+
+        val withScreens = KLINIK_JSON.replace(
+            "\"modules\":[",
+            "\"screenSuggestions\":[{\"moduleId\":\"klinik_antrean\",\"title\":\"Antrean Harian\",\"widget\":\"KANBAN\"}],\"modules\":["
+        )
+        val pack = DomainPackCodec.decode(withScreens)
+        assertEquals(
+            listOf(ScreenSuggestion(ModuleId("klinik_antrean"), "Antrean Harian", WidgetKind.KANBAN)),
+            pack.screenSuggestions
+        )
+        assertEquals(pack, DomainPackCodec.decode(DomainPackCodec.encodeToString(pack)))
+
+        // Widget di luar kosakata tertutup ditolak dengan path yang bisa dikembalikan ke AI/penyunting.
+        val badWidget = withScreens.replace("\"widget\":\"KANBAN\"", "\"widget\":\"MAGIC\"")
+        assertPathRejected("$.screenSuggestions[0].widget", badWidget)
+
+        // Usulan layar ke modul yang tidak ada = pack rusak — invarian DomainPack menolaknya.
+        val badModule = withScreens.replace("\"moduleId\":\"klinik_antrean\"", "\"moduleId\":\"hantu\"")
+        assertPathRejected("$", badModule, prefixOnly = true)
     }
 
     @Test

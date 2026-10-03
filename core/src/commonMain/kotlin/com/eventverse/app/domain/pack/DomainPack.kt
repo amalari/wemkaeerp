@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
+
 /** Satu kolom kanvas. [colorHex] adalah data vertikal, bukan keputusan design system. */
 data class PhaseDefinition(
     val code: PhaseCode,
@@ -23,6 +25,39 @@ data class SlotDefinition(
     val defaultOutput: PortType
 ) {
     init { require(displayName.isNotBlank()) { "Nama slot ${code.value} kosong" } }
+}
+
+/**
+ * Usulan satu layar prototype bawaan pack (mock `/builder/prototype`). **Isi layar = data pack**:
+ * judul layar dan watak widget bawaan adalah kosakata vertikal (tenant-variability-rules), sementara
+ * bentuk widgetnya sendiri tetap kosakata sistem [WidgetKind] yang bisa digambar renderer mana pun.
+ * Draf kerja tenant yang baru di-bootstrap memakai usulan ini sebelum agent LLM mengusulkan layar
+ * miliknya sendiri; draf yang sudah punya layar tidak pernah ditimpa.
+ */
+data class ScreenSuggestion(
+    val moduleId: ModuleId,
+    val title: String,
+    val widget: WidgetKind,
+    /**
+     * Baris contoh isi layar (v2 mock `/builder/prototype`): **data vertikal** — kalimat, angka, dan
+     * nama yang akan dilihat user garment, bukan karangan mesin renderer. Kosong = pack tidak
+     * mengusulkan isi; `WidgetRegistry` lalu memakai penanda strukturnya sendiri (tidak pernah
+     * fallback ke kosakata pack lain). Bentuk baris dikonsumsi per widget:
+     *  - KANBAN: kunci `Kolom` menamaikan kolom papan; entri lain = kartu (nilai pertama judul, sisanya detail).
+     *  - FORM: satu baris berisi label field → contoh isian; kunci `Simpan` digambar sebagai tombol.
+     *  - CHECKLIST: kunci `Butir` → teks inspeksi, `Selesai` = "ya"/"tidak".
+     *  - TABLE: baris-baris berkunci sama = header + isi tabel.
+     *  - DASHBOARD: satu pasang label → angka per baris (satu tile).
+     *  - PRINT: pasangan label → isi dokumen cetak.
+     */
+    val sampleRows: List<Map<String, String>> = emptyList()
+) {
+    init {
+        require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }
+        require(sampleRows.all { row -> row.isNotEmpty() && row.keys.all { it.isNotBlank() } && row.values.all { it.isNotBlank() } }) {
+            "Usulan layar ${moduleId.value} punya baris contoh kosong"
+        }
+    }
 }
 
 /**
@@ -67,7 +102,13 @@ data class DomainPack(
      * (kunci kontrak `upstreamPrerequisites`/`downstreamHandoffs`), label hanya untuk layar.
      * Kunci yang tidak terdaftar di [portTypes] ditolak — label untuk port yang tidak ada = pack rusak.
      */
-    val portLabels: Map<String, String> = emptyMap()
+    val portLabels: Map<String, String> = emptyMap(),
+    /**
+     * Usulan layar prototype bawaan pack (lihat [ScreenSuggestion]). Kosong = pack belum mengusulkan
+     * layar apa pun — pane prototype tetap jujur menampilkan keadaan kosong, tanpa fallback ke
+     * kosakata pack lain.
+     */
+    val screenSuggestions: List<ScreenSuggestion> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -89,6 +130,13 @@ data class DomainPack(
         modules.forEach { m ->
             require(m.section in sectionCodes) { "Modul ${m.id.value} menunjuk seksi tak dikenal ${m.section.value}" }
             m.slot?.let { require(it in slotCodes) { "Modul ${m.id.value} menunjuk slot tak dikenal ${it.value}" } }
+        }
+        val moduleIds = modules.map { it.id.value }.toSet()
+        requireUnique("usulan layar", screenSuggestions.map { it.moduleId.value })
+        screenSuggestions.forEach { s ->
+            require(s.moduleId.value in moduleIds) {
+                "Usulan layar menunjuk modul tak dikenal ${s.moduleId.value} di pack ${code.value}"
+            }
         }
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->

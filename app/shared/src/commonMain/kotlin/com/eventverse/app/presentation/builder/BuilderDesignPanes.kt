@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.infrastructure.api.BuilderApiClient
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.discovery.DataFlowPane
@@ -106,13 +109,36 @@ fun BuilderModulesPane(modifier: Modifier = Modifier) {
 @Composable
 fun BuilderDataFlowPane(modifier: Modifier = Modifier) {
     BuilderTenantDraft { draft ->
-        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            Text(
-                text = "Aliran data antar modul",
-                style = rememberClayTypography().titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
+        val typography = rememberClayTypography()
+        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "${draft.packDisplayName} · Aliran Data",
+                        style = typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    Text(
+                        text = "Peta serah-terima data antar modul aktif. Sambungan dihitung otomatis dari kontrak port domain.",
+                        style = typography.bodySmall,
+                        fontSize = 11.sp,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm), verticalAlignment = Alignment.CenterVertically) {
+                    val opsCount = draft.activeModules.count { it.kind == "OPERATIONAL" }
+                    ClayBadge(text = "$opsCount Modul Alur", tint = WeMadeColors.Success, dot = true)
+                    ClayBadge(text = "${draft.sections.size} Departemen", tint = WeMadeColors.Primary)
+                    ClayBadge(text = draft.blueprintCode.uppercase(), tint = WeMadeColors.Info)
+                }
+            }
+
             DataFlowPane(draft = draft)
         }
     }
@@ -121,14 +147,52 @@ fun BuilderDataFlowPane(modifier: Modifier = Modifier) {
 @Composable
 fun BuilderPrototypePane(modifier: Modifier = Modifier) {
     BuilderTenantDraft { draft ->
+        val typography = rememberClayTypography()
+        // "Per modul ada apa aja": filter modul — pilih satu modul, pratinjau hanya menampilkan
+        // layar miliknya. null = Semua Modul. Urutan chip mengikuti urutan modul di pack.
+        var selectedModule by remember(draft.id) { mutableStateOf<String?>(null) }
+        val modulesWithScreens = draft.modules.filter { m -> draft.screens.any { it.moduleId == m.id } }
+        val visibleScreens = selectedModule
+            ?.let { id -> draft.screens.filter { it.moduleId == id } }
+            ?: draft.screens
         Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            Text(
-                text = "Pratinjau layar",
-                style = rememberClayTypography().titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
-            PrototypeRenderer(draft = draft)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Pratinjau layar",
+                    style = typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface
+                )
+                ClayBadge(
+                    text = "${visibleScreens.size} dari ${draft.screens.size} layar",
+                    tint = WeMadeColors.Primary,
+                    dot = true
+                )
+            }
+            if (modulesWithScreens.size > 1) {
+                ClayFlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    spacing = ClaySpacing.Sm
+                ) {
+                    ClayButton(
+                        text = "Semua Modul",
+                        onClick = { selectedModule = null },
+                        style = if (selectedModule == null) ClayButtonStyle.Primary else ClayButtonStyle.Secondary
+                    )
+                    modulesWithScreens.forEach { m ->
+                        ClayButton(
+                            text = m.displayName,
+                            onClick = { selectedModule = m.id },
+                            style = if (selectedModule == m.id) ClayButtonStyle.Primary else ClayButtonStyle.Secondary
+                        )
+                    }
+                }
+            }
+            PrototypeRenderer(draft = draft, screens = visibleScreens)
         }
     }
 }

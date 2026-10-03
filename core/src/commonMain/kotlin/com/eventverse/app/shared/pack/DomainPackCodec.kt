@@ -1,5 +1,6 @@
 package com.eventverse.app.shared.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.ModuleAction
@@ -11,6 +12,7 @@ import com.eventverse.app.domain.pack.ModuleSectionCode
 import com.eventverse.app.domain.pack.PhaseCode
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
+import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
 import com.eventverse.app.domain.pack.VocabularyKey
@@ -73,7 +75,15 @@ object DomainPackCodec {
         }),
         "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to jsonOf(a.label)) }),
         "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value }),
-        "portLabels" to jsonStringMapOf(pack.portLabels)
+        "portLabels" to jsonStringMapOf(pack.portLabels),
+        "screenSuggestions" to jsonArrayOf(pack.screenSuggestions.map { s ->
+            jsonObjectOf(
+                "moduleId" to jsonOf(s.moduleId.value), "title" to jsonOf(s.title), "widget" to jsonOf(s.widget.code),
+                "sampleRows" to jsonArrayOf(s.sampleRows.map { row ->
+                    jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
+                })
+            )
+        })
     )
 
     fun encodeToString(pack: DomainPack): String = encode(pack).encode()
@@ -119,6 +129,20 @@ object DomainPackCodec {
             ?.map { a -> a.build { ModuleAction(a.enum("code", ModuleActionCode.entries), a.string("label")) } }
             ?: ModuleActionCode.neutral
         val vocabulary = r.enumKeyedStrings("vocabulary", VocabularyKey.entries)
+        // Usulan layar prototype: field boleh tidak ada (pack sebelum fitur mock) — kosong berarti pack
+        // belum mengusulkan layar, bukan fallback ke usulan pack lain. Widget ketat: di luar kosakata
+        // tertutup ditolak dengan path, supaya AI/penyunting tahu baris mana yang salah (Kontrak 4).
+        val screenSuggestions = r.objectsOrNull("screenSuggestions")?.map { s ->
+            val sampleRows = s.objectsOrNull("sampleRows")?.map { row -> row.stringRow() } ?: emptyList()
+            s.build {
+                ScreenSuggestion(
+                    moduleId = s.value("moduleId", ::ModuleId),
+                    title = s.string("title"),
+                    widget = s.enum("widget", WidgetKind.entries),
+                    sampleRows = sampleRows
+                )
+            }
+        } ?: emptyList()
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -131,7 +155,8 @@ object DomainPackCodec {
                 modules = modules,
                 actions = actions,
                 vocabulary = vocabulary,
-                portLabels = r.stringMapOrNull("portLabels")
+                portLabels = r.stringMapOrNull("portLabels"),
+                screenSuggestions = screenSuggestions
             )
         }
     }
@@ -231,6 +256,15 @@ object DomainPackCodec {
 
         fun objects(key: String): List<Reader> = array(key).mapIndexed { i, v ->
             Reader(v as? JsonValue.Obj ?: fail("$key[$i]", "harus objek"), "$path.$key[$i]")
+        }
+
+        /**
+         * Satu baris contoh isi layar (`sampleRows`): objek berkunci bebas berisi string — kuncinya
+         * adalah label tampilan milik pack, jadi tidak diverifikasi di sini. Urutan kunci dipertahankan
+         * (renderer menggambar entri berurutan: judul kartu sebelum detailnya).
+         */
+        fun stringRow(): Map<String, String> = obj.entries.mapValues { (k, v) ->
+            (v as? JsonValue.Str)?.value ?: fail(k, "harus string")
         }
     }
 }

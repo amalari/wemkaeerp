@@ -397,7 +397,13 @@ private fun demandJson(d: DiscoveryDemand): JsonValue = jsonObjectOf(
     "createdAt" to jsonOf(d.createdAt?.toString())
 )
 
-internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null): JsonValue.Obj = jsonObjectOf(
+internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null): JsonValue.Obj {
+    // Sample data berupa data (plan §4), v2: dihitung dari pack **registri hidup**, bukan snapshot
+    // beku di draf. Draf lama menyimpan pack sebelum kosakata `sampleRows`, dan dokumen beku tidak
+    // boleh ditimpa (Kontrak 5 tenant-variability-rules) — pelajaran yang sama dengan backfill di
+    // EnsureTenantWorkingDraftUseCase. Pack yang belum terdaftar tetap memakai snapshot-nya sendiri.
+    val samplePack = DomainPackRegistry.find(stored.draft.pack.code) ?: stored.draft.pack
+    return jsonObjectOf(
     "id" to jsonOf(stored.id.value),
     // Narasi asli (E1/E2): dipulihkan dari buku demand supaya prospek yang kembali melihat
     // ceritanya sendiri, bukan mulai dari kosong. Demand lahir sebelum V80 → null.
@@ -452,14 +458,15 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
             "moduleId" to jsonOf(s.moduleId.value),
             "title" to jsonOf(s.title),
             "widget" to jsonOf(s.widget),
-            // Sample data berupa data (plan §4): dihitung WidgetRegistry di server agar klien
-            // tidak perlu merekonstruksi DomainPack hanya untuk menggambar pratinjau.
-            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(s, stored.draft.pack).map { row ->
+            // Sample data berupa data (plan §4): dihitung WidgetRegistry di server dari pack
+            // registri hidup (samplePack) agar klien tidak perlu merekonstruksi DomainPack.
+            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(s, samplePack).map { row ->
                 jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
             })
         )
     })
-)
+    )
+}
 
 private fun summary(stored: StoredDiscoveryDraft): String = summaryObj(stored).encode()
 

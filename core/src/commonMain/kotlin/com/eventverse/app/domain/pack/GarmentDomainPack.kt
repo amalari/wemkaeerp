@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -154,7 +155,8 @@ object GarmentDomainPack {
             modules = GarmentModules.modules,
             actions = GarmentVocabulary.actions,
             vocabulary = GarmentVocabulary.terms,
-            portLabels = GarmentPortTypes.labels
+            portLabels = GarmentPortTypes.labels,
+            screenSuggestions = GarmentScreenSuggestions.all
         )
     }
 }

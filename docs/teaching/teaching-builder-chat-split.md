@@ -65,3 +65,10 @@ Bila riwayat kosong tapi draf tenant ada (hasil `EnsureTenantWorkingDraftUseCase
 - [ ] Tampilkan diff patch yang sebenarnya (modul bertambah/berkurang) di panel untuk usulan yang belum diterapkan, bukan hanya ringkasan teks.
 - [ ] Buat agent memakai `history` percakapan (sekarang stateless).
 - [ ] Seed `screens` garment agar tab Prototype tidak kosong.
+
+---
+
+## 🔁 Pembaruan: menu Builder pindah ke drawer header, chat selalu dua panel
+- **Navigasi**: sidebar tetap `BuilderSidebar` dicabut dari `BuilderShell` (tetap dipakai `PlatformAdminConsole`). Menu Builder kini dirender oleh `ClayNavDrawer` yang sama dengan ERP, lewat tombol hamburger di header. `BuilderNav.kt` memuat `builderDrawerSections`, `builderSection`, `builderSectionTitle`, `BuilderDrawerFooter`. Di `App.kt` hanya ada percabangan `if (builderRoute)` pada sumber section/judul/footer drawer — rute ERP tidak berubah. `App.kt` dijaga ≤ 599 baris (aturan ratchet): 597.
+- **Chat**: layar lebar selalu menampilkan percakapan (42%) + Hasil request (58%); tombol tutup panel hanya ada di layar sempit. Padding konten chat dikecilkan agar ruangnya penuh.
+- **Jebakan**: berbagi ruang kerja dengan sesi lain — kompilasi gagal karena file orang lain setengah jadi. Jangan "membereskan" file itu diam-diam; laporkan.

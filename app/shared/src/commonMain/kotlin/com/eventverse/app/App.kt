@@ -59,6 +59,7 @@ import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayIconButton
+import com.eventverse.app.presentation.builder.*
 import com.eventverse.app.presentation.designsystem.ClayNavDrawer
 import com.eventverse.app.presentation.designsystem.ClayNavItem
 import com.eventverse.app.presentation.designsystem.ClayNavSection
@@ -77,7 +78,6 @@ import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.module.ModuleIcon
-import com.eventverse.app.presentation.builder.BuilderShell
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.navigation.AppNavScreen
 import com.eventverse.app.presentation.tutorial.LocalTutorialAnchors
@@ -278,7 +278,7 @@ fun App() {
     // Studio Discovery (R16/Fase D) dan Studio Pola Prototipe (Fase C) bukan modul, jadi tidak lewat
     // buildNavMenu; barisnya ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
     // Lambda, bukan `::openScreen`: referensi fungsi lokal belum didukung backend KMP ini.
-    val drawerSections = if (isAuthenticated && accessDecisions.isNotEmpty()) {
+    val drawerSections = if (builderRoute) builderDrawerSections(shellPath) { goShell("/builder/$it"); drawerOpen = false } else if (isAuthenticated && accessDecisions.isNotEmpty()) {
         navSections + studioDrawerSection(
             currentScreen = currentScreen,
             // Buku demand superadmin-only di server; baris drawer ikut supaya pengguna lain
@@ -307,7 +307,7 @@ fun App() {
                 if (!isBuilderLogin) {
                     AppTopBar(
                         currentScreen = currentScreen,
-                        title = if (builderRoute) "Builder Console" else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
+                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
                         onOpenDrawer = { drawerOpen = true },
                         isAuthenticated = isAuthenticated,
                         session = session,
@@ -329,13 +329,9 @@ fun App() {
                 }
 
                 if (builderRoute && isAuthenticated) {
-                    // Route per menu: `/builder/<key>` — section diturunkan dari URL (reload aman),
-                    // klik menu mendorong entry history baru lewat goShell (Back/Forward bekerja).
                     key(session?.tenantSlug) { BuilderShell(modifier = Modifier.weight(1f), // remount saat tenant aktif berganti
-                        section = shellPath.removePrefix("/builder").trim('/').ifEmpty { "overview" },
-                        onSectionChange = { key -> goShell("/builder/$key") },
-                        onOpenApp = authViewModel::openTenantAppInBackground.takeIf { authState.hostSurface !is HostSurface.Tenant },
-                        onBackToConsole = { goShell("/admin") }.takeIf { session?.user?.role == Role.PLATFORM_SUPERADMIN }) }
+                        section = builderSection(shellPath),
+                        onSectionChange = { key -> goShell("/builder/$key") }) }
                 } else Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {
                         // Ketiga layar tata kelola kini melewati gerbang yang sama dengan sembilan
@@ -555,10 +551,12 @@ fun App() {
                 ClayNavDrawer(
                     open = drawerOpen,
                     onDismiss = { drawerOpen = false },
-                    title = "WeMade ERP",
-                    subtitle = "Multi-Tenant Garment Platform",
+                    title = if (builderRoute) "WeMake Builder" else "WeMade ERP",
+                    subtitle = if (builderRoute) "Garment Platform" else "Multi-Tenant Garment Platform",
                     sections = drawerSections,
-                    footer = if (!isAuthenticated) {
+                    footer = if (builderRoute) {
+                        { BuilderDrawerFooter(authViewModel::openTenantAppInBackground.takeIf { authState.hostSurface !is HostSurface.Tenant }, { goShell("/admin") }.takeIf { session?.user?.role == Role.PLATFORM_SUPERADMIN }) }
+                    } else if (!isAuthenticated) {
                         {
                             ClayButton(
                                 text = "Login Akun",

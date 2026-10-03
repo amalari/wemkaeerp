@@ -63,7 +63,7 @@ internal data class BuilderMenuItem(
     val icon: (@Composable (Modifier, Color) -> Unit)? = null
 )
 
-private fun builderMenu() = listOf(
+internal fun builderMenu() = listOf(
     BuilderMenuItem("overview", "Overview", icon = { m, c -> IconGlobe(m, c) }),
     BuilderMenuItem("chat", "Chat AI", icon = { m, c -> IconChat(m, c) }),
     BuilderMenuItem("modules", "Modules", icon = { m, c -> IconLayers(m, c) }),
@@ -76,78 +76,54 @@ private fun builderMenu() = listOf(
 )
 
 /**
- * Shell WeMake Builder (PLAN-builder-console §6): sidebar Vercel-style + konten, URL `<slug>/builder`.
- * Mengintegrasikan navigasi tab interaktif, ikon modern, dan styling claymorphic.
+ * Shell WeMake Builder (PLAN-builder-console §6): hanya area konten — menu Builder hidup di drawer
+ * header (`builderDrawerSections`, sama seperti navigasi platform), jadi seluruh lebar layar milik pane.
  *
  * Setiap menu punya **route sendiri** (`/builder/<key>`) supaya reload & Back/Forward browser tetap
- * membuka pane yang sama: [section] diturunkan App dari `shellPath`, dan [onSectionChange] mendorong
- * URL baru (App memanggil `goShell`). Sumber kebenaran tunggal = URL; state lokal hanya cermin.
+ * membuka pane yang sama: [section] diturunkan App dari `shellPath`. Sumber kebenaran tunggal = URL.
+ * Pane [fullHeight] (chat) mengelola scroll-nya sendiri; pane lain digulir shell.
  */
 @Composable
 fun BuilderShell(
     modifier: Modifier = Modifier,
     section: String = "overview",
-    onSectionChange: (String) -> Unit = {},
-    onOpenApp: (suspend () -> Any?)? = null,
-    onBackToConsole: (() -> Unit)? = null
+    onSectionChange: (String) -> Unit = {}
 ) {
-    val menu = remember { builderMenu() }
-    var selected by remember {
-        mutableStateOf(menu.firstOrNull { it.key == section }?.key ?: "overview")
-    }
-    // Back/Forward (popstate): URL berubah di luar → pane mengikuti; key tak dikenal diabaikan.
-    LaunchedEffect(section) {
-        if (menu.any { it.key == section } && section != selected) selected = section
-    }
-    fun select(key: String) {
-        if (selected == key) return
-        selected = key
-        onSectionChange(key)
-    }
+    val selected = remember(section) { builderMenu().firstOrNull { it.key == section }?.key ?: "overview" }
+    val fullHeight = selected == "chat"
 
-    Row(modifier = modifier.fillMaxSize().background(WeMadeColors.Background)) {
-        BuilderSidebar(
-            title = "WeMake Builder",
-            menu = menu,
-            selected = selected,
-            onSelect = { if (it.enabled) select(it.key) },
-            modifier = Modifier.width(260.dp).fillMaxHeight(),
-            onOpenApp = onOpenApp,
-            onBackToConsole = onBackToConsole
-        )
-
-        // Area Konten Utama
-        Box(
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(WeMadeColors.Background)
+            .then(if (fullHeight) Modifier else Modifier.verticalScroll(rememberScrollState()))
+            .padding(
+                horizontal = if (fullHeight) ClaySpacing.Lg else ClaySpacing.Xxl,
+                vertical = if (fullHeight) ClaySpacing.Md else ClaySpacing.Xl
+            )
+    ) {
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                // Chat butuh tinggi terbatas (komposer menempel di bawah); pane lain menggulir sendiri.
-                .then(if (selected == "chat") Modifier else Modifier.verticalScroll(rememberScrollState()))
-                .padding(horizontal = ClaySpacing.Xxl, vertical = ClaySpacing.Xl)
+                .fillMaxWidth()
+                .then(if (fullHeight) Modifier.fillMaxHeight() else Modifier.padding(bottom = ClaySpacing.Xxl)),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (selected == "chat") Modifier.fillMaxHeight() else Modifier.padding(bottom = ClaySpacing.Xxl)),
-                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-            ) {
-                when (selected) {
-                    "overview" -> BuilderOverviewPane(onNavigate = { select(it) })
-                    "chat" -> BuilderChatPane()
-                    "modules" -> BuilderModulesPane()
-                    "dataflow" -> BuilderDataFlowPane()
-                    "prototype" -> BuilderPrototypePane()
-                    "buildqueue" -> BuilderBuildQueuePane()
-                    "deployments" -> BuilderDeploymentsPane()
-                    "billing" -> BuilderBillingPane()
-                    "settings" -> BuilderSettingsPane()
-                }
+            when (selected) {
+                "overview" -> BuilderOverviewPane(onNavigate = onSectionChange)
+                "chat" -> BuilderChatPane()
+                "modules" -> BuilderModulesPane()
+                "dataflow" -> BuilderDataFlowPane()
+                "prototype" -> BuilderPrototypePane()
+                "buildqueue" -> BuilderBuildQueuePane()
+                "deployments" -> BuilderDeploymentsPane()
+                "billing" -> BuilderBillingPane()
+                "settings" -> BuilderSettingsPane()
             }
         }
     }
 }
 
-/** Sidebar shell konsol ala Vercel: Brand Header, Pill Navigation, dan Platform Info Footer. */
+/** Sidebar konsol platform superadmin (`PlatformAdminConsole`) ala Vercel: Brand Header, Pill Navigation, dan Platform Info Footer. */
 @Composable
 internal fun BuilderSidebar(
     title: String = "WeMake Builder",
