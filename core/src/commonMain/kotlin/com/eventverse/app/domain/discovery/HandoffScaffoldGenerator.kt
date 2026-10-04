@@ -22,6 +22,19 @@ class HandoffScaffoldGenerator {
 
     data class Scaffold(val packCode: String, val migrationVersion: Int, val files: List<GeneratedFile>)
 
+    /**
+     * Keluaran **dari spec** (kontrak §3.4): migrasi bertabel nyata, tabel+repository Exposed, route CRUD
+     * fail-closed, dan test gerbang — bukan tabel stub. [packExpression] = ekspresi Kotlin yang menghasilkan
+     * `DomainPack` modul ini (dipakai test gerbang yang digenerate; mis. `LayananPilotPack.pack`).
+     * Batas v1 dan alasannya: lihat [com.eventverse.app.domain.discovery.handoff.SpecScaffoldGenerator].
+     */
+    fun generateFromSpec(
+        spec: com.eventverse.app.domain.prototype.PrototypeSpec,
+        module: ModuleDefinition,
+        migrationVersion: Int,
+        packExpression: String
+    ): Scaffold = com.eventverse.app.domain.discovery.handoff.SpecScaffoldGenerator.generate(spec, module, migrationVersion, packExpression)
+
     fun generate(pack: DomainPack, migrationVersion: Int): Scaffold = Scaffold(
         packCode = pack.code.value,
         migrationVersion = migrationVersion,
