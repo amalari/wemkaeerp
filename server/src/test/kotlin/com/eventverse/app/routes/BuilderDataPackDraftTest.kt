@@ -94,5 +94,7 @@ class BuilderDataPackDraftTest {
         val body = response.bodyAsText()
         assertTrue("Papan Permintaan" in body, "draf pilot harus tersaji, bukan 'null': $body")
         assertTrue("\"packCode\":\"layanan\"" in body)
+        // C3: ikatan data layar pilot sampai ke klien sebagai {"type":"api","basePath":…}.
+        assertTrue("\"binding\":{\"type\":\"api\",\"basePath\":\"${LayananPilotPack.API_BASE_PATH}\"}" in body, "binding Api harus tersaji: $body")
     }
 }
