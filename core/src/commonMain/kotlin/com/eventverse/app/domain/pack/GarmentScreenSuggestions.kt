@@ -1,8 +1,14 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.CardElement
+import com.eventverse.app.domain.prototype.CardStyle
+import com.eventverse.app.domain.prototype.ColumnMeta
 import com.eventverse.app.domain.prototype.CountSpec
 import com.eventverse.app.domain.prototype.DashboardHints
+import com.eventverse.app.domain.prototype.FieldHint
+import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.FormConfig
 import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
@@ -17,13 +23,30 @@ import com.eventverse.app.domain.prototype.TableHints
  * v2: setiap usulan membawa [ScreenSuggestion.sampleRows] — isi layar yang akan dilihat user garment
  * (nama buyer, nomor PO, jumlah pcs, tanggal), sehingga pratinjau terbaca seperti aplikasi jadi,
  * bukan kerangka "contoh 1". Bentuk baris per widget dikontrakkan di KDoc [ScreenSuggestion].
+ *
+ * B3 (butir jalur B): dua layar terpenting membawa petunjuk kaya — CRM "Daftar PO" bertipe
+ * ([TableHints.fields], `inlineCreate`, `editableFields`) dan papan SPK sampling berkartu bertipe
+ * ([KanbanHints.card]/[KanbanHints.columnMeta]/[KanbanHints.detailForm]). Garment tetap **mode
+ * legacy** (baris berkunci "Kolom", field dari baris) — deklarasi `fields`/`groupField` milik mode
+ * server (B2.1) dan sengaja tidak dipakai di sini.
  */
 object GarmentScreenSuggestions {
     val all: List<ScreenSuggestion> = listOf(
         ScreenSuggestion(
             GarmentModules.CRM_SALES, "Daftar PO & Prospek", WidgetKind.TABLE,
             GarmentExportSeed.crmRows(),
-            tableHints = TableHints("Status", listOf("Prospek", "Sampling", "Produksi", "Siap kirim"))
+            // B3: No. PO & Pembeli wajib, sisanya teks; status ENUM otomatis dari kolom status.
+            tableHints = TableHints(
+                "Status", listOf("Prospek", "Sampling", "Produksi", "Siap kirim"),
+                fields = listOf(
+                    FieldHint("No. PO", FieldType.TEXT, required = true),
+                    FieldHint("Pembeli", FieldType.TEXT, required = true),
+                    FieldHint("Produk", FieldType.TEXT),
+                    FieldHint("Target Kirim", FieldType.TEXT)
+                ),
+                inlineCreate = true,
+                editableFields = listOf("Pembeli", "Produk", "Target Kirim")
+            )
         ),
         ScreenSuggestion(
             GarmentModules.SAMPLING_ORDER, "Papan SPK Sampling", WidgetKind.KANBAN,
@@ -31,7 +54,24 @@ object GarmentScreenSuggestions {
             KanbanHints(
                 columns = listOf("Baru", "Dikerjakan", "Selesai"),
                 transitions = mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Baru", "Selesai"), "Selesai" to setOf("Dikerjakan")),
-                groupLabel = "Status SPK sampling"
+                groupLabel = "Status SPK sampling",
+                // B3: kartu bertipe — nomor jadi judul; lencana jenis; angka/tanggal/tanda sesuai data.
+                card = listOf(
+                    CardElement("Nomor", CardStyle.TITLE),
+                    CardElement("Artikel", CardStyle.TEXT),
+                    CardElement("Jenis", CardStyle.BADGE),
+                    CardElement("Pembeli", CardStyle.TEXT),
+                    CardElement("Jumlah", CardStyle.NUMBER),
+                    CardElement("Due", CardStyle.DATE),
+                    CardElement("Mendesak", CardStyle.FLAG)
+                ),
+                // Warna kolom = data pack; kolom Dikerjakan dibatasi WIP 3 SPK.
+                columnMeta = mapOf(
+                    "Baru" to ColumnMeta(tintHex = 0xFF64748B),
+                    "Dikerjakan" to ColumnMeta(tintHex = 0xFF2563EB, wipLimit = 3),
+                    "Selesai" to ColumnMeta(tintHex = 0xFF16A34A)
+                ),
+                detailForm = FormConfig(listOf("Nomor", "Artikel", "Jenis", "Pembeli", "Jumlah", "Due", "Mendesak"), "Simpan SPK")
             )
         ),
         ScreenSuggestion(
