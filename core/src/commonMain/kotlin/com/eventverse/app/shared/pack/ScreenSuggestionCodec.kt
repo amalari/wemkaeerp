@@ -4,6 +4,8 @@ import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.domain.prototype.DashboardHints
+import com.eventverse.app.domain.prototype.FieldHint
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
@@ -42,14 +44,25 @@ internal object ScreenSuggestionCodec {
             jsonObjectOf(
                 "columns" to jsonArrayOf(h.columns.map { jsonOf(it) }),
                 "transitions" to transitionsJson(h.transitions),
-                "groupLabel" to jsonOf(h.groupLabel)
+                "groupLabel" to jsonOf(h.groupLabel),
+                "card" to (if (h.card.isEmpty()) JsonValue.Null else InteractiveScreenCodec.encodeCardElements(h.card)),
+                "columnMeta" to (if (h.columnMeta.isEmpty()) JsonValue.Null else InteractiveScreenCodec.encodeColumnMetaMap(h.columnMeta)),
+                "detailForm" to (h.detailForm?.let { f -> InteractiveScreenCodec.encodeFormConfig(f) } ?: JsonValue.Null)
             )
         } ?: JsonValue.Null),
         "tableHints" to (s.tableHints?.let { h ->
             jsonObjectOf(
                 "statusColumn" to jsonOf(h.statusColumn),
                 "options" to jsonArrayOf(h.options.map { jsonOf(it) }),
-                "transitions" to transitionsJson(h.transitions)
+                "transitions" to transitionsJson(h.transitions),
+                "fields" to jsonArrayOf(h.fields.map { f ->
+                    jsonObjectOf(
+                        "key" to jsonOf(f.key), "type" to jsonOf(f.type.name),
+                        "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
+                    )
+                }),
+                "inlineCreate" to jsonOf(h.inlineCreate),
+                "editableFields" to jsonArrayOf(h.editableFields.map(::jsonOf))
             )
         } ?: JsonValue.Null),
         "dashboardHints" to (s.dashboardHints?.let { h ->
@@ -94,10 +107,35 @@ internal object ScreenSuggestionCodec {
                     r.entries.mapValues { (k, v) -> (v as? JsonValue.Str)?.value ?: fail("sampleRows[$i].$k", "harus string") }
                 },
                 kanbanHints = (o["kanbanHints"] as? JsonValue.Obj)?.let { h ->
-                    KanbanHints(strListIn(h, "columns"), transitionsIn(h), (h["groupLabel"] as? JsonValue.Str)?.value)
+                    KanbanHints(
+                        strListIn(h, "columns"),
+                        transitionsIn(h),
+                        (h["groupLabel"] as? JsonValue.Str)?.value,
+                        card = InteractiveScreenCodec.decodeCardElements(h["card"]),
+                        columnMeta = InteractiveScreenCodec.decodeColumnMetaMap(h["columnMeta"]),
+                        detailForm = InteractiveScreenCodec.decodeFormConfig(h["detailForm"])
+                    )
                 },
                 tableHints = (o["tableHints"] as? JsonValue.Obj)?.let { h ->
-                    TableHints((h["statusColumn"] as? JsonValue.Str)?.value.orEmpty(), strListIn(h, "options"), transitionsIn(h))
+                    TableHints(
+                        (h["statusColumn"] as? JsonValue.Str)?.value.orEmpty(),
+                        strListIn(h, "options"),
+                        transitionsIn(h),
+                        fields = ((h["fields"] as? JsonValue.Arr)?.items ?: emptyList()).map { item ->
+                            val f = item as? JsonValue.Obj ?: fail("tableHints.fields", "harus objek")
+                            val typeName = (f["type"] as? JsonValue.Str)?.value
+                            val type = FieldType.entries.firstOrNull { it.name == typeName }
+                                ?: fail("tableHints.fields.type", "'${typeName.orEmpty()}' bukan tipe field yang dikenal")
+                            FieldHint(
+                                (f["key"] as? JsonValue.Str)?.value ?: fail("tableHints.fields.key", "wajib string"),
+                                type,
+                                (f["required"] as? JsonValue.Bool)?.value ?: false,
+                                strListIn(f, "options")
+                            )
+                        },
+                        inlineCreate = (h["inlineCreate"] as? JsonValue.Bool)?.value ?: false,
+                        editableFields = strListIn(h, "editableFields")
+                    )
                 },
                 dashboardHints = (o["dashboardHints"] as? JsonValue.Obj)?.let { h ->
                     DashboardHints(((h["counts"] as? JsonValue.Obj)?.entries ?: emptyMap()).mapNotNull { (label, v) ->

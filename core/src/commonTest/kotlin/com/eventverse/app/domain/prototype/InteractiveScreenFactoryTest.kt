@@ -46,6 +46,47 @@ class InteractiveScreenFactoryTest {
         assertNull(InteractiveScreenFactory.kanban("s", "Papan", listOf(mapOf("x" to "y"))))
     }
 
+    // ---- petunjuk kaya B2 ---------------------------------------------------------------------
+
+    @Test
+    fun kanban_richHints_cardColumnMetaDetailForm_flowIntoConfig() {
+        val hints = KanbanHints(
+            listOf("A", "B", "C"),
+            card = listOf(CardElement("Judul", CardStyle.TITLE), CardElement("Kolom", CardStyle.BADGE)),
+            columnMeta = mapOf("B" to ColumnMeta(tintHex = 0xFF2563EB, wipLimit = 1)),
+            detailForm = FormConfig(listOf("Judul", "Info"), "Simpan perubahan")
+        )
+        val screen = assertNotNull(InteractiveScreenFactory.kanban("s", "Papan", rows, hints))
+        val k = screen.spec.screens.single().kanban!!
+        assertEquals(hints.card, k.card, "elemen kartu boleh menunjuk field kelompok (lencana status)")
+        assertEquals(hints.columnMeta, k.columnMeta)
+        assertEquals(hints.detailForm, k.detailForm)
+        screen.newStore() // spec sah
+    }
+
+    @Test
+    fun kanban_withoutRichHints_keepsLegacyBehavior() {
+        val screen = assertNotNull(InteractiveScreenFactory.kanban("s", "Papan", rows, KanbanHints(listOf("A", "B", "C"))))
+        val k = screen.spec.screens.single().kanban!!
+        assertTrue(k.card.isEmpty() && k.columnMeta.isEmpty() && k.detailForm == null, "tanpa petunjuk kaya = perilaku lama")
+    }
+
+    @Test
+    fun kanban_incoherentRichHints_areRejected_notIgnored() {
+        assertNull(
+            InteractiveScreenFactory.kanban("s", "Papan", rows, KanbanHints(listOf("A", "B"), card = listOf(CardElement("Hantu", CardStyle.TEXT)))),
+            "elemen kartu di luar field ditolak"
+        )
+        assertNull(
+            InteractiveScreenFactory.kanban("s", "Papan", rows, KanbanHints(listOf("A", "B"), columnMeta = mapOf("Hantu" to ColumnMeta(wipLimit = 1)))),
+            "metadata kolom di luar kolom papan ditolak"
+        )
+        assertNull(
+            InteractiveScreenFactory.kanban("s", "Papan", rows, KanbanHints(listOf("A", "B"), detailForm = FormConfig(listOf("Hantu")))),
+            "form detail di luar field entitas ditolak"
+        )
+    }
+
     @Test
     fun codec_roundTrip_preservesSpecAndSeed() {
         val hints = KanbanHints(listOf("A", "B", "C"), mapOf("A" to setOf("B")))
@@ -87,6 +128,73 @@ class InteractiveTableTest {
     @Test
     fun table_nonUniformRows_isNull() {
         assertNull(InteractiveScreenFactory.table("t", "x", listOf(mapOf("a" to "1"), mapOf("b" to "2"))))
+    }
+
+    // ---- petunjuk kaya B2 ---------------------------------------------------------------------
+
+    @Test
+    fun table_typedFieldHints_driveFieldSpecs_requiredAndEnum() {
+        val hints = TableHints(
+            "Status", listOf("Tersedia", "Menipis", "Konsinyasi"),
+            fields = listOf(
+                FieldHint("Bahan", FieldType.TEXT, required = true),
+                FieldHint("Stok", FieldType.NUMBER),
+                FieldHint("Status", FieldType.ENUM, options = listOf("Tersedia", "Menipis", "Konsinyasi"))
+            )
+        )
+        val screen = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        val fields = screen.spec.entity("item")!!.fields
+        assertEquals(listOf(FieldType.TEXT, FieldType.NUMBER, FieldType.ENUM), fields.map { it.type }, "tipe turun dari hints, bukan semua TEXT")
+        assertTrue(fields.first { it.key == "Bahan" }.required)
+        assertEquals(hints.options, fields.first { it.key == "Status" }.options)
+        screen.newStore() // seed lolos validasi bertipe ("420"/"96" angka)
+    }
+
+    @Test
+    fun table_inlineCreateAndEditableFields_flowIntoConfig() {
+        val hints = TableHints("Status", listOf("Tersedia", "Menipis"), inlineCreate = true, editableFields = listOf("Bahan", "Stok"))
+        val screen = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        val t = screen.spec.screens.single().table!!
+        assertTrue(t.inlineCreate)
+        assertEquals(listOf("Bahan", "Stok"), t.editableFields)
+    }
+
+    @Test
+    fun table_withoutTypeHints_keepsLegacyAllTextBehavior() {
+        val screen = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        assertEquals(
+            listOf(FieldType.TEXT, FieldType.TEXT, FieldType.ENUM),
+            screen.spec.entity("item")!!.fields.map { it.type },
+            "legacy: semua TEXT kecuali kolom status"
+        )
+        val t = screen.spec.screens.single().table!!
+        assertTrue(!t.inlineCreate && t.editableFields.isEmpty())
+    }
+
+    @Test
+    fun table_incoherentHints_areRejected_notIgnored() {
+        assertNull(
+            InteractiveScreenFactory.table("t", "Stok", rows, TableHints("Status", listOf("Tersedia", "Menipis"), fields = listOf(FieldHint("Hantu", FieldType.NUMBER)))),
+            "FieldHint di luar kolom ditolak"
+        )
+        assertNull(
+            InteractiveScreenFactory.table("t", "Stok", rows, TableHints("Status", listOf("Tersedia", "Menipis"), editableFields = listOf("Hantu"))),
+            "editableFields di luar field ditolak"
+        )
+        assertNull(
+            InteractiveScreenFactory.table(
+                "t", "Stok", rows,
+                TableHints("Status", listOf("Tersedia", "Menipis"), transitions = mapOf("Tersedia" to setOf("Menipis")), editableFields = listOf("Status"))
+            ),
+            "status bermesin tidak bisa jadi sel teks"
+        )
+        assertNull(
+            InteractiveScreenFactory.table(
+                "t", "Stok", rows.map { it + ("Stok" to "bukan angka") },
+                TableHints("Status", listOf("Tersedia", "Menipis"), fields = listOf(FieldHint("Stok", FieldType.NUMBER)))
+            ),
+            "seed yang tak lolos tipe petunjuk ditolak"
+        )
     }
 
     @Test

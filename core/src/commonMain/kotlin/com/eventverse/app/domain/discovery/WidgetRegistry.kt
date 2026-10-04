@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.discovery
 
 import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.InteractiveScreenFactory
 
@@ -83,7 +84,7 @@ object WidgetRegistry {
     fun interactiveFor(screen: PrototypeScreen, pack: DomainPack): InteractiveScreen? {
         val kind = WidgetKind.fromCode(screen.widget)
         val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }?.takeIf { it.widget == kind }
-        return when (kind) {
+        val built = when (kind) {
             WidgetKind.KANBAN -> InteractiveScreenFactory.kanban(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.kanbanHints)
             WidgetKind.TABLE -> InteractiveScreenFactory.table(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.tableHints)
             WidgetKind.CHECKLIST -> InteractiveScreenFactory.checklist(screen.screenId, screen.title, sampleRowsFor(screen, pack))
@@ -95,6 +96,9 @@ object WidgetRegistry {
                 ?.formHints?.let { InteractiveScreenFactory.form(screen.screenId, screen.title, it) }
             else -> null
         }
+        // Kontrak v2 (plan induk §3.4): asal data layar mengikuti usulan pack — Api untuk modul
+        // pilot, memori (bawaan) untuk sisanya; tanpa usulan cocok pun tetap memori.
+        return built?.copy(binding = suggestion?.dataBinding ?: DataBinding.Memory)
     }
 
     private fun statusOf(i: Int): String = listOf("Baru", "Proses", "Selesai", "Proses", "Baru")[(i - 1) % 5]

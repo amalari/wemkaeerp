@@ -2,23 +2,65 @@ package com.eventverse.app.domain.prototype
 
 /**
  * Petunjuk perilaku papan dari pack: urutan kolom (termasuk yang kosong) dan transisi yang boleh.
- * Tanpa [transitions] kartu bebas pindah ke kolom mana pun.
+ * Tanpa [transitions] kartu bebas pindah ke kolom mana pun. Kunci B2 opsional — kosong/null =
+ * perilaku lama.
  */
 data class KanbanHints(
     val columns: List<String>,
     val transitions: Map<String, Set<String>> = emptyMap(),
     /** Nama kolom status di bahasa pack ("Status SPK"), dipakai di pesan penolakan. Null = "Kolom". */
-    val groupLabel: String? = null
+    val groupLabel: String? = null,
+    /** Elemen bertipe kartu (B2, plan induk §3.4); kosong = perilaku lama (titleField + detailFields). */
+    val card: List<CardElement> = emptyList(),
+    /** Metadata kolom (B2): warna data tenant (tintHex) & batas WIP; kunci wajib kolom di [columns]. */
+    val columnMeta: Map<String, ColumnMeta> = emptyMap(),
+    /** Form saat kartu diketuk (B2); field-nya wajib milik entitas papan (divalidasi spec). */
+    val detailForm: FormConfig? = null
 )
 
 /**
+ * Deklarasi tipe satu field tabel dari pack (butir B2): kuncinya = kolom baris contoh. Tipe memakai
+ * [FieldType] — kosakata tertutup **milik sistem** (Uji Variabilitas: input/renderer harus bisa
+ * menangani tiap tipe di semua vertikal); nama field dan opsinya tetap data pack.
+ */
+data class FieldHint(
+    val key: String,
+    val type: FieldType,
+    val required: Boolean = false,
+    val options: List<String> = emptyList()
+) {
+    init {
+        require(key.isNotBlank()) { "FieldHint.key kosong" }
+        if (type == FieldType.ENUM) {
+            require(options.isNotEmpty() && options.distinct().size == options.size) { "FieldHint ENUM '$key' wajib punya opsi unik" }
+        } else {
+            require(options.isEmpty()) { "FieldHint '$key' bukan ENUM tapi punya opsi" }
+        }
+    }
+
+    /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. */
+    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required)
+}
+
+/**
  * Petunjuk perilaku tabel dari pack: kolom [statusColumn] bernilai salah satu [options] dan bisa
- * diubah di baris. Tanpa petunjuk, tabel hanya bisa disortir/difilter.
+ * diubah di baris. Tanpa petunjuk, tabel hanya bisa disortir/difilter. Kunci B2 opsional — kosong/
+ * false = perilaku lama.
  */
 data class TableHints(
     val statusColumn: String,
     val options: List<String>,
-    val transitions: Map<String, Set<String>> = emptyMap()
+    val transitions: Map<String, Set<String>> = emptyMap(),
+    /**
+     * Tipe field per kolom (B2): menurunkan [FieldSpec] selain TEXT. Kosong = perilaku lama (semua
+     * kolom TEXT kecuali [statusColumn]). Kunci wajib kolom baris contoh — tak koheren ditolak
+     * factory (null → gambar statis), bukan diabaikan.
+     */
+    val fields: List<FieldHint> = emptyList(),
+    /** Baris isian + tombol Tambah langsung di tabel (B2). */
+    val inlineCreate: Boolean = false,
+    /** Sel yang bisa disunting lewat ketuk (B2); status bermesin tidak boleh masuk (divalidasi spec). */
+    val editableFields: List<String> = emptyList()
 )
 
 /** Petunjuk dasbor dari pack: ubin berlabel [counts].key dihitung dari layar lain, bukan angka statis. */
