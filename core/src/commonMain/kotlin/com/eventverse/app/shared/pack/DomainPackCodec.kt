@@ -14,6 +14,7 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.domain.prototype.DashboardHints
+import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.domain.pack.SlotCode
@@ -101,6 +102,14 @@ object DomainPackCodec {
                 } ?: JsonValue.Null),
                 "dashboardHints" to (s.dashboardHints?.let { h ->
                     jsonObjectOf("counts" to jsonObjectOf(*h.counts.map { (label, c) -> label to InteractiveScreenCodec.encodeCount(c) }.toTypedArray()))
+                } ?: JsonValue.Null),
+                "formHints" to (s.formHints?.let { h ->
+                    jsonObjectOf(
+                        "fields" to jsonArrayOf(h.fields.map(::jsonOf)),
+                        "required" to jsonArrayOf(h.required.map(::jsonOf)),
+                        "options" to jsonObjectOf(*h.options.map { (k, v) -> k to jsonArrayOf(v.map(::jsonOf)) }.toTypedArray()),
+                        "submitLabel" to jsonOf(h.submitLabel)
+                    )
                 } ?: JsonValue.Null)
             )
         })
@@ -170,6 +179,17 @@ object DomainPackCodec {
                         DashboardHints((h.obj("counts")?.entries ?: emptyMap()).mapNotNull { (label, v) ->
                             (v as? JsonValue.Obj)?.let { label to InteractiveScreenCodec.decodeCount(it) }
                         }.toMap())
+                    },
+                    // Field boleh tidak ada (pack sebelum butir B2) — bukan fallback, memang tanpa form.
+                    formHints = s.raw.obj("formHints")?.let { h ->
+                        FormHints(
+                            h.stringArray("fields"),
+                            h.stringArray("required"),
+                            (h.obj("options")?.entries ?: emptyMap()).mapValues { (_, v) ->
+                                ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }
+                            },
+                            h.string("submitLabel")
+                        )
                     }
                 )
             }

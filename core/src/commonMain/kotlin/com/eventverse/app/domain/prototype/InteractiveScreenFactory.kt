@@ -88,4 +88,28 @@ object InteractiveScreenFactory {
             InteractiveScreen(PrototypeSpec(emptyList(), listOf(ScreenSpec(screenId, title, WidgetKind.DASHBOARD, null, dashboard = DashboardConfig(tiles)))), emptyMap())
         }.getOrNull()
     }
+
+    /**
+     * Formulir tambah data dari petunjuk pack (butir B2). Entitas form memakai id [ENTITY_ID] yang
+     * **sama** dengan layar sumber satu modulnya — penghubung form → layar sumber adalah pasangan
+     * *(moduleId, entityId)*: `PrototypeScreen.moduleId` form dan sumber sama, dan spec keduanya
+     * menunjuk entityId sama, sehingga dalam satu `PrototypeSession` baris hasil `Create` lewat
+     * reducer langsung tampil di tabel/papan sumbernya. Tidak ada seed — form tidak menampilkan
+     * baris. Null bila petunjuknya tak bisa dibentuk jadi spec sah (digambar statis, bukan ditebak).
+     */
+    fun form(screenId: String, title: String, hints: FormHints): InteractiveScreen? {
+        if (hints.fields.isEmpty() || hints.fields.map { it.trim() }.distinct().size != hints.fields.size) return null
+        return runCatching {
+            val fields = hints.fields.map { key ->
+                val options = hints.options[key]
+                if (options != null) FieldSpec(key, key, FieldType.ENUM, options, required = key in hints.required)
+                else FieldSpec(key, key, FieldType.TEXT, required = key in hints.required)
+            }
+            val spec = PrototypeSpec(
+                listOf(EntitySpec(ENTITY_ID, title, fields)),
+                listOf(ScreenSpec(screenId, title, WidgetKind.FORM, ENTITY_ID, form = FormConfig(hints.fields, hints.submitLabel ?: "Simpan")))
+            )
+            InteractiveScreen(spec, emptyMap()).also { it.newStore() }
+        }.getOrNull()
+    }
 }

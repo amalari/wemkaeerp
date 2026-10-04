@@ -19,7 +19,7 @@ class InteractiveTableState(screen: InteractiveScreen) : PlayableState {
     private val spec = screen.spec
     private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
     val config: TableConfig = requireNotNull(screenSpec.table) { "Layar '${screenSpec.screenId}' bukan tabel" }
-    private val entityId = requireNotNull(screenSpec.entityId) { "Layar tabel tanpa entitas" }
+    val entityId: String = requireNotNull(screenSpec.entityId) { "Layar tabel tanpa entitas" }
     private val entity = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
     private val machine = entity.stateMachine?.takeIf { it.field == config.statusField }
 
@@ -55,6 +55,18 @@ class InteractiveTableState(screen: InteractiveScreen) : PlayableState {
     fun setStatus(rowId: String, to: String) {
         val field = config.statusField ?: return
         PrototypeReducer.moveCard(spec, store, entityId, rowId, field, to)
+            .onSuccess { store = it; message = null }
+            .onFailure { message = it.message }
+    }
+
+    fun delete(rowId: String) {
+        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Delete(entityId, rowId))
+            .onSuccess { store = it; message = null }
+            .onFailure { message = it.message }
+    }
+
+    fun insertRow(row: PrototypeRow) {
+        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Create(entityId, row))
             .onSuccess { store = it; message = null }
             .onFailure { message = it.message }
     }
