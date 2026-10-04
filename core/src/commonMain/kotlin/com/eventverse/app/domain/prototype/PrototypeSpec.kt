@@ -23,6 +23,18 @@ data class TableConfig(val columns: List<String>, val statusField: String? = nul
 data class ChecklistConfig(val labelField: String, val doneField: String)
 
 /**
+ * Formulir tambah data (kontrak v1): [fields] = urutan field entitas yang ditampilkan; [submitLabel] teks tombol.
+ * Layar form terikat ke entitas yang **sama** dengan tabel/papan sumbernya, sehingga baris baru langsung
+ * tampil di sana lewat sesi prototype.
+ */
+data class FormConfig(val fields: List<String>, val submitLabel: String = "Simpan") {
+    init {
+        require(fields.isNotEmpty() && fields.distinct().size == fields.size) { "Form wajib punya field unik" }
+        require(submitLabel.isNotBlank()) { "Label tombol form kosong" }
+    }
+}
+
+/**
  * Satu layar prototype. Layar data (kanban/tabel/checklist) **terikat** ke [entityId]; dasbor tidak
  * punya entitas sendiri — angkanya dihitung dari layar lain lewat [DashboardConfig].
  */
@@ -34,7 +46,8 @@ data class ScreenSpec(
     val kanban: KanbanConfig? = null,
     val table: TableConfig? = null,
     val checklist: ChecklistConfig? = null,
-    val dashboard: DashboardConfig? = null
+    val dashboard: DashboardConfig? = null,
+    val form: FormConfig? = null
 ) {
     init {
         require(screenId.isNotBlank() && title.isNotBlank()) { "ScreenSpec tanpa id/judul" }
@@ -44,6 +57,7 @@ data class ScreenSpec(
         need(WidgetKind.TABLE, table != null, "tabel")
         need(WidgetKind.CHECKLIST, checklist != null, "checklist")
         need(WidgetKind.DASHBOARD, dashboard != null, "dasbor")
+        need(WidgetKind.FORM, form != null, "form")
         require((widget == WidgetKind.DASHBOARD) == (entityId == null)) {
             "Layar '$screenId': entitas wajib untuk layar data, dan tidak boleh ada untuk dasbor"
         }
@@ -67,6 +81,9 @@ data class PrototypeSpec(val entities: List<EntitySpec>, val screens: List<Scree
                         "Layar '$id': kolom status '$sf' wajib ENUM dan tampil di tabel"
                     }
                 }
+            }
+            screen.form?.let { f ->
+                require(f.fields.all { entity.field(it) != null }) { "Layar '$id': field form di luar field entitas" }
             }
             screen.checklist?.let { c ->
                 require(entity.field(c.labelField) != null) { "Layar '$id': field butir '${c.labelField}' tidak ada" }

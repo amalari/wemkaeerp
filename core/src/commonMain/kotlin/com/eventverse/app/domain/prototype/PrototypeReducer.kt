@@ -4,6 +4,8 @@ package com.eventverse.app.domain.prototype
 sealed interface PrototypeAction {
     data class SetField(val entityId: String, val rowId: String, val field: String, val value: String) : PrototypeAction
     data class Create(val entityId: String, val row: PrototypeRow) : PrototypeAction
+    /** Kontrak v1: hapus satu baris. Baris lain tidak tersentuh. */
+    data class Delete(val entityId: String, val rowId: String) : PrototypeAction
 }
 
 /**
@@ -17,6 +19,7 @@ object PrototypeReducer {
             when (action) {
                 is PrototypeAction.SetField -> setField(spec, store, action)
                 is PrototypeAction.Create -> create(spec, store, action)
+                is PrototypeAction.Delete -> delete(spec, store, action)
             }
         }
 
@@ -28,6 +31,7 @@ object PrototypeReducer {
         val entity = requireNotNull(spec.entity(a.entityId)) { "Entitas '${a.entityId}' tidak dikenal" }
         val field = requireNotNull(entity.field(a.field)) { "Field '${a.field}' tidak ada di '${entity.label}'" }
         require(field.accepts(a.value)) { "Nilai '${a.value}' tidak sah untuk '${field.label}'" }
+        require(!field.required || a.value.isNotBlank()) { "'${field.label}' wajib diisi" }
         val row = requireNotNull(store.rowsOf(a.entityId).firstOrNull { it.id == a.rowId }) { "Baris '${a.rowId}' tidak ada" }
         val machine = entity.stateMachine?.takeIf { it.field == a.field }
         if (machine != null) {
@@ -45,6 +49,15 @@ object PrototypeReducer {
             val field = requireNotNull(entity.field(k)) { "Field '$k' tidak ada di '${entity.label}'" }
             require(field.accepts(v)) { "Nilai '$v' tidak sah untuk '${field.label}'" }
         }
+        entity.fields.filter { it.required }.forEach { f ->
+            require(a.row[f.key].isNotBlank()) { "'${f.label}' wajib diisi" }
+        }
         return store.copy(rows = store.rows + (a.entityId to store.rowsOf(a.entityId) + a.row))
+    }
+
+    private fun delete(spec: PrototypeSpec, store: PrototypeStore, a: PrototypeAction.Delete): PrototypeStore {
+        val entity = requireNotNull(spec.entity(a.entityId)) { "Entitas '${a.entityId}' tidak dikenal" }
+        require(store.rowsOf(a.entityId).any { it.id == a.rowId }) { "Baris '${a.rowId}' tidak ada di '${entity.label}'" }
+        return store.copy(rows = store.rows + (a.entityId to store.rowsOf(a.entityId).filterNot { it.id == a.rowId }))
     }
 }
