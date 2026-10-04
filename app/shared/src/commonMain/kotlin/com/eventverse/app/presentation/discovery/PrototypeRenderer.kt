@@ -106,7 +106,8 @@ private fun PrototypeScreenCard(
             )
         }
 
-        if (rows.isEmpty()) {
+        // Layar berbinding Api tak punya baris contoh (datanya dari server) tetapi punya blok interaktif.
+        if (rows.isEmpty() && block == null) {
             // Satu-satunya jalan ke sini: modul layar tidak ada di pack, atau kode widget di luar
             // kosakata v1 (validator menolaknya, tapi renderer tidak boleh menebak). Kalimat lama
             // ("menyusul setelah pola Studio dipilih") menyesatkan begitu CUSTOM_SCREEN punya
