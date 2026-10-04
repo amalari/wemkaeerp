@@ -55,9 +55,9 @@ object InteractiveScreenCodec {
                     jsonObjectOf(
                         "groupField" to jsonOf(k.groupField), "columns" to jsonArrayOf(k.columns.map(::jsonOf)),
                         "titleField" to jsonOf(k.titleField), "detailFields" to jsonArrayOf(k.detailFields.map(::jsonOf)),
-                        "card" to jsonArrayOf(k.card.map { el -> jsonObjectOf("field" to jsonOf(el.field), "style" to jsonOf(el.style.name)) }),
-                        "columnMeta" to jsonObjectOf(*k.columnMeta.map { (col, m) -> col to encodeColumnMeta(m) }.toTypedArray()),
-                        "detailForm" to (k.detailForm?.let { f -> jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel)) } ?: JsonValue.Null)
+                        "card" to encodeCardElements(k.card),
+                        "columnMeta" to encodeColumnMetaMap(k.columnMeta),
+                        "detailForm" to (k.detailForm?.let { f -> encodeFormConfig(f) } ?: JsonValue.Null)
                     )
                 } ?: JsonValue.Null),
                 "table" to (sc.table?.let { t ->
@@ -66,7 +66,7 @@ object InteractiveScreenCodec {
                         "inlineCreate" to jsonOf(t.inlineCreate), "editableFields" to jsonArrayOf(t.editableFields.map(::jsonOf))
                     )
                 } ?: JsonValue.Null),
-                "form" to (sc.form?.let { f -> jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel)) } ?: JsonValue.Null),
+                "form" to (sc.form?.let { f -> encodeFormConfig(f) } ?: JsonValue.Null),
                 "checklist" to (sc.checklist?.let { c -> jsonObjectOf("labelField" to jsonOf(c.labelField), "doneField" to jsonOf(c.doneField)) } ?: JsonValue.Null),
                 "dashboard" to (sc.dashboard?.let { d ->
                     jsonObjectOf("tiles" to jsonArrayOf(d.tiles.map { t ->
@@ -105,24 +105,15 @@ object InteractiveScreenCodec {
                 sc.obj("kanban")?.let { k ->
                     KanbanConfig(
                         k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields"),
-                        card = k.objectArray("card").map { el ->
-                            CardElement(
-                                el.string("field").orEmpty(),
-                                requireNotNull(CardStyle.entries.firstOrNull { it.name == el.string("style") }) {
-                                    "Gaya kartu '${el.string("style").orEmpty()}' tidak dikenal"
-                                }
-                            )
-                        },
-                        columnMeta = k.obj("columnMeta")?.entries?.mapValues { (col, v) ->
-                            decodeColumnMeta(v as? JsonValue.Obj ?: throw IllegalArgumentException("columnMeta.$col: harus objek"))
-                        }.orEmpty(),
-                        detailForm = k.obj("detailForm")?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") }
+                        card = decodeCardElements(k["card"]),
+                        columnMeta = decodeColumnMetaMap(k["columnMeta"]),
+                        detailForm = decodeFormConfig(k["detailForm"])
                     )
                 },
                 table = sc.obj("table")?.let { t ->
                     TableConfig(t.stringArray("columns"), t.string("statusField"), t.boolean("inlineCreate") ?: false, t.stringArray("editableFields"))
                 },
-                form = sc.obj("form")?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") },
+                form = decodeFormConfig(sc["form"]),
                 checklist = sc.obj("checklist")?.let { c -> ChecklistConfig(c.string("labelField").orEmpty(), c.string("doneField").orEmpty()) },
                 dashboard = sc.obj("dashboard")?.let { d ->
                     DashboardConfig(d.objectArray("tiles").map { t -> TileSpec(t.string("label").orEmpty(), t.string("value"), t.obj("count")?.let(::decodeCount)) })
@@ -168,4 +159,33 @@ object InteractiveScreenCodec {
     )
 
     private fun decodeColumnMeta(o: JsonValue.Obj): ColumnMeta = ColumnMeta(o.long("tintHex"), o.int("wipLimit"))
+
+    /** Bentuk kawat kartu/metadata/form — dipakai bersama level layar dan level petunjuk pack. */
+    internal fun encodeCardElements(card: List<CardElement>): JsonValue =
+        jsonArrayOf(card.map { el -> jsonObjectOf("field" to jsonOf(el.field), "style" to jsonOf(el.style.name)) })
+
+    internal fun encodeColumnMetaMap(meta: Map<String, ColumnMeta>): JsonValue.Obj =
+        jsonObjectOf(*meta.map { (col, m) -> col to encodeColumnMeta(m) }.toTypedArray())
+
+    internal fun encodeFormConfig(f: FormConfig): JsonValue.Obj =
+        jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel))
+
+    internal fun decodeCardElements(node: JsonValue?): List<CardElement> =
+        ((node as? JsonValue.Arr)?.items ?: emptyList()).map { item ->
+            val el = item as? JsonValue.Obj ?: throw IllegalArgumentException("Elemen kartu harus objek")
+            val styleName = el.string("style")
+            CardElement(
+                el.string("field").orEmpty(),
+                requireNotNull(CardStyle.entries.firstOrNull { it.name == styleName }) { "Gaya kartu '$styleName' tidak dikenal" }
+            )
+        }
+
+    internal fun decodeColumnMetaMap(node: JsonValue?): Map<String, ColumnMeta> =
+        ((node as? JsonValue.Obj)?.entries ?: emptyMap()).mapValues { (col, v) ->
+            decodeColumnMeta(v as? JsonValue.Obj ?: throw IllegalArgumentException("columnMeta.$col: harus objek"))
+        }
+
+    /** Null/absen = tanpa form (bukan fallback); FormConfig sendiri menolak field kosong. */
+    internal fun decodeFormConfig(node: JsonValue?): FormConfig? =
+        (node as? JsonValue.Obj)?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") }
 }

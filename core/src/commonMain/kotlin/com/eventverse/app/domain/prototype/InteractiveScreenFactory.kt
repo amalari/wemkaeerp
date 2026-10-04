@@ -20,15 +20,30 @@ object InteractiveScreenFactory {
         val textKeys = rows.flatMap { it.keys }.filter { it != GROUP_FIELD }.distinct()
         if (textKeys.isEmpty()) return null
         return runCatching {
+            // Petunjuk kaya (B2) wajib koheren: elemen kartu menunjuk field papan (termasuk field
+            // kelompoknya, mis. lencana status), metadata menunjuk kolom. Tak koheren ditolak
+            // (null → gambar statis), bukan diabaikan.
+            hints?.card?.forEach { el ->
+                require(el.field == GROUP_FIELD || el.field in textKeys) { "Elemen kartu menunjuk field '${el.field}' yang tidak ada di baris contoh" }
+            }
+            hints?.columnMeta?.forEach { (col, _) ->
+                require(col in columns) { "Metadata kolom '$col' tidak ada di kolom papan" }
+            }
             val group = FieldSpec(GROUP_FIELD, hints?.groupLabel ?: GROUP_FIELD, FieldType.ENUM, columns)
             val entity = EntitySpec(
                 ENTITY_ID, title,
                 listOf(group) + textKeys.map { FieldSpec(it, it, FieldType.TEXT) },
                 hints?.transitions?.takeIf { it.isNotEmpty() }?.let { StateMachine(GROUP_FIELD, it) }
             )
+            val kanban = KanbanConfig(
+                GROUP_FIELD, columns, textKeys.first(), textKeys.drop(1),
+                card = hints?.card.orEmpty(),
+                columnMeta = hints?.columnMeta.orEmpty(),
+                detailForm = hints?.detailForm
+            )
             val spec = PrototypeSpec(
                 listOf(entity),
-                listOf(ScreenSpec(screenId, title, WidgetKind.KANBAN, ENTITY_ID, KanbanConfig(GROUP_FIELD, columns, textKeys.first(), textKeys.drop(1))))
+                listOf(ScreenSpec(screenId, title, WidgetKind.KANBAN, ENTITY_ID, kanban))
             )
             val seed = mapOf(ENTITY_ID to rows.mapIndexed { i, r -> PrototypeRow("$screenId-${i + 1}", r) })
             InteractiveScreen(spec, seed).also { it.newStore() }
@@ -43,16 +58,34 @@ object InteractiveScreenFactory {
         val columns = rows.firstOrNull()?.keys?.toList().orEmpty()
         if (columns.isEmpty() || rows.any { it.keys != rows.first().keys }) return null
         return runCatching {
+            // Tipe field dari petunjuk (B2): kuncinya wajib kolom baris contoh, dan nilai seed wajib
+            // lolos tipe — tak koheren ditolak (null → gambar statis), bukan diabaikan. Tanpa
+            // hints/fields: perilaku lama (semua TEXT kecuali kolom status).
+            hints?.fields?.forEach { f -> require(f.key in columns) { "FieldHint '${f.key}' tidak ada di kolom baris contoh" } }
+            val hintsByColumn = hints?.fields.orEmpty().associateBy { it.key }
             val entity = EntitySpec(
                 ENTITY_ID, title,
                 columns.map { c ->
-                    if (c == hints?.statusColumn) FieldSpec(c, c, FieldType.ENUM, hints.options) else FieldSpec(c, c, FieldType.TEXT)
+                    when {
+                        hintsByColumn[c] != null -> hintsByColumn.getValue(c).toFieldSpec()
+                        c == hints?.statusColumn -> FieldSpec(c, c, FieldType.ENUM, hints?.options.orEmpty())
+                        else -> FieldSpec(c, c, FieldType.TEXT)
+                    }
                 },
                 hints?.takeIf { it.transitions.isNotEmpty() }?.let { StateMachine(it.statusColumn, it.transitions) }
             )
             val spec = PrototypeSpec(
                 listOf(entity),
-                listOf(ScreenSpec(screenId, title, WidgetKind.TABLE, ENTITY_ID, table = TableConfig(columns, hints?.statusColumn)))
+                listOf(
+                    ScreenSpec(
+                        screenId, title, WidgetKind.TABLE, ENTITY_ID,
+                        table = TableConfig(
+                            columns, hints?.statusColumn,
+                            inlineCreate = hints?.inlineCreate ?: false,
+                            editableFields = hints?.editableFields.orEmpty()
+                        )
+                    )
+                )
             )
             val seed = mapOf(ENTITY_ID to rows.mapIndexed { i, r -> PrototypeRow("$screenId-${i + 1}", r) })
             InteractiveScreen(spec, seed).also { it.newStore() }
