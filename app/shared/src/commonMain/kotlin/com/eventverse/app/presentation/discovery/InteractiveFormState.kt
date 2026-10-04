@@ -13,27 +13,33 @@ import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeAction
 import com.eventverse.app.domain.prototype.PrototypeReducer
 import com.eventverse.app.domain.prototype.PrototypeRow
+import com.eventverse.app.domain.prototype.PrototypeStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * State formulir penambahan data prototype (TRD-PLAT-003, butir A2).
+ * Berjalan di atas [BlockDataController] dan [com.eventverse.app.domain.prototype.BlockDataPort].
  * Form terikat ke [entityId] yang sama dengan tabel/papan kanban sumbernya.
- * Submit memanggil [PrototypeReducer.reduce] dengan [PrototypeAction.Create],
- * dan bila berhasil memicu [onRowCreated] sehingga baris baru langsung muncul
- * di tabel/kanban pada sesi bersama [PrototypeSession].
  */
 @Stable
 class InteractiveFormState(
     val screen: InteractiveScreen,
+    val controller: BlockDataController = createDefaultController(screen),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     val onRowCreated: ((entityId: String, newRow: PrototypeRow) -> Unit)? = null
 ) : PlayableState {
-    val spec = screen.spec
-    private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
-    val config: FormConfig = requireNotNull(screenSpec.form) { "Layar '${screenSpec.screenId}' bukan form" }
-    val entityId: String = requireNotNull(screenSpec.entityId) { "Layar form tanpa entitas" }
-    val entity: EntitySpec = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
+    val spec get() = controller.spec
+    private val screenSpec get() = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+    val config: FormConfig get() = requireNotNull(screenSpec.form) { "Layar '${screenSpec.screenId}' bukan form" }
+    val entityId: String get() = controller.entityId
+    val entity: EntitySpec get() = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
 
-    var store by mutableStateOf(screen.newStore())
-        private set
+    override val rows: List<PrototypeRow> get() = controller.rows
+    override val phase: BlockDataPhase get() = controller.phase
+    override val errorMessage: String? get() = controller.errorMessage
 
     val formValues = mutableStateMapOf<String, String>()
     var message by mutableStateOf<String?>(null)
@@ -41,13 +47,16 @@ class InteractiveFormState(
     var successMessage by mutableStateOf<String?>(null)
         private set
 
-    private var autoIdCounter = 1
-
     init {
         resetForm()
+        if (controller.phase is BlockDataPhase.Loading && controller.rows.isEmpty()) {
+            scope.launch { controller.load() }
+        }
     }
 
-    override val rows: List<PrototypeRow> get() = store.rowsOf(entityId)
+    override fun retry() {
+        scope.launch { controller.load() }
+    }
 
     fun fields(): List<FieldSpec> = config.fields.mapNotNull { entity.field(it) }
 
@@ -58,32 +67,32 @@ class InteractiveFormState(
     }
 
     fun submit(): Boolean {
-        val existingIds = store.rowsOf(entityId).map { it.id }.toSet()
-        var newId = "$entityId-${store.rowsOf(entityId).size + autoIdCounter}"
-        while (newId in existingIds) {
-            autoIdCounter++
-            newId = "$entityId-${store.rowsOf(entityId).size + autoIdCounter}"
+        // Pra-validasi
+        val dummyRow = PrototypeRow("temp", formValues.toMap())
+        val dummyStore = PrototypeStore.seeded(spec, mapOf(entityId to controller.rows))
+        val prevalResult = PrototypeReducer.reduce(spec, dummyStore, PrototypeAction.Create(entityId, dummyRow))
+        if (prevalResult.isFailure) {
+            message = prevalResult.exceptionOrNull()?.message
+            successMessage = null
+            return false
         }
-        autoIdCounter++
 
-        val newRow = PrototypeRow(newId, formValues.toMap())
-        val result = PrototypeReducer.reduce(spec, store, PrototypeAction.Create(entityId, newRow))
+        val valuesToSave = formValues.toMap()
+        val optimisticRow = PrototypeRow("$entityId-${controller.rows.size + 1}", valuesToSave)
 
-        return result.fold(
-            onSuccess = { updatedStore ->
-                store = updatedStore
-                message = null
-                successMessage = "Data '${entity.label}' berhasil ditambahkan!"
-                onRowCreated?.invoke(entityId, newRow)
-                resetForm()
-                true
-            },
-            onFailure = { error ->
-                message = error.message
+        message = null
+        successMessage = "Data '${entity.label}' berhasil ditambahkan!"
+        controller.insertRowLocally(optimisticRow)
+        onRowCreated?.invoke(entityId, optimisticRow)
+        resetForm()
+
+        scope.launch {
+            controller.create(valuesToSave).onFailure { err ->
+                message = err.message
                 successMessage = null
-                false
             }
-        )
+        }
+        return true
     }
 
     fun resetForm() {
@@ -94,6 +103,16 @@ class InteractiveFormState(
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
                 else -> ""
             }
+        }
+    }
+
+    companion object {
+        fun createDefaultController(screen: InteractiveScreen): BlockDataController {
+            val screenSpec = requireNotNull(screen.spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+            val entityId = requireNotNull(screenSpec.entityId) { "Layar form tanpa entitas" }
+            val port = BlockDataPortFactory.defaultFactory.createPort(screen, entityId)
+            val seedRows = screen.seed[entityId].orEmpty()
+            return BlockDataController(port, screen.spec, entityId, seedRows)
         }
     }
 }

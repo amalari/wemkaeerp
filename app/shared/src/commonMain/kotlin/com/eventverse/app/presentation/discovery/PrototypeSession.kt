@@ -1,29 +1,40 @@
 package com.eventverse.app.presentation.discovery
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.brief.CaptureEntry
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeRow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** Blok yang bisa dimainkan; [rows] = baris datanya, null untuk blok tanpa data (dasbor). */
 sealed interface PlayableState {
     val rows: List<PrototypeRow>?
+    val phase: BlockDataPhase get() = BlockDataPhase.Idle
+    val errorMessage: String? get() = null
+    fun retry() {}
 }
 
 /**
- * Satu sesi prototype untuk seluruh layar draf: memegang state tiap blok dan menjadi sumber data
- * bersama, sehingga dasbor menghitung angkanya dari papan/tabel layar lain (memindah kartu mengubah
- * angka dasbor). Hidup di memori; menutup layar membuangnya, seed membuatnya ulang.
- *
- * Mendukung pembaruan spec (A4 - Chat Edit) dan log perubahan [captureLog] untuk brief (A5).
+ * Satu sesi prototype untuk seluruh layar draf (TRD-PLAT-003, butir A2):
+ * - Memegang controller dan port data per blok sesuai [com.eventverse.app.domain.prototype.DataBinding].
+ * - Menjadi sumber data bersama, sehingga dasbor menghitung angkanya dari baris layar lain.
+ * - Mempertahankan port yang sama saat spec diubah lewat [updateScreenSpec] (undo tetap bekerja).
+ * - Dibuat sekali per draf (ingat kunci remember berbasis draft.id).
  */
-class PrototypeSession(screens: List<DiscoveryScreenUi>) {
+class PrototypeSession(
+    screens: List<DiscoveryScreenUi>,
+    val portFactory: BlockDataPortFactory = BlockDataPortFactory.defaultFactory,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+) {
     private val blocks = mutableStateMapOf<String, PlayableState>()
+    private val controllers = mutableMapOf<String, BlockDataController>()
 
     /**
      * Modul yang sedang dipakai (panel Paket & Harga). `null` = semua. Modul di luar himpunan ini tidak
@@ -42,7 +53,21 @@ class PrototypeSession(screens: List<DiscoveryScreenUi>) {
     init {
         screens.forEach { s ->
             s.interactive?.let { screen ->
-                build(screen)?.let { block ->
+                val screenSpec = screen.spec.screens.firstOrNull()
+                val entityId = screenSpec?.entityId
+                val controller = if (entityId != null) {
+                    val port = portFactory.createPort(screen, entityId)
+                    val seedRows = screen.seed[entityId].orEmpty()
+                    BlockDataController(port, screen.spec, entityId, seedRows).also { ctrl ->
+                        controllers[s.screenId] = ctrl
+                        // Bila seed kosong (misal API), muat di latar belakang
+                        if (seedRows.isEmpty()) {
+                            scope.launch { ctrl.load() }
+                        }
+                    }
+                } else null
+
+                build(screen, controller)?.let { block ->
                     blocks[s.screenId] = block
                 }
             }
@@ -68,35 +93,36 @@ class PrototypeSession(screens: List<DiscoveryScreenUi>) {
 
     /** Menyiarkan baris baru ke semua blok yang mengelola [entityId] yang sama. */
     fun broadcastRowCreated(entityId: String, newRow: PrototypeRow) {
-        blocks.values.forEach { b ->
-            when (b) {
-                is InteractiveKanbanState -> if (b.entityId == entityId) b.insertRow(newRow)
-                is InteractiveTableState -> if (b.entityId == entityId) b.insertRow(newRow)
-                else -> {}
-            }
+        controllers.values.filter { it.entityId == entityId }.forEach { ctrl ->
+            ctrl.insertRowLocally(newRow)
         }
     }
 
     /** Menghapus baris dari semua blok yang mengelola [entityId] yang sama. */
     fun broadcastRowDeleted(entityId: String, rowId: String) {
-        blocks.values.forEach { b ->
-            when (b) {
-                is InteractiveKanbanState -> if (b.entityId == entityId) b.delete(rowId)
-                is InteractiveTableState -> if (b.entityId == entityId) b.delete(rowId)
-                else -> {}
-            }
+        controllers.values.filter { it.entityId == entityId }.forEach { ctrl ->
+            ctrl.deleteRowLocally(rowId)
         }
     }
 
     /**
-     * Memperbarui spec layar setelah chat edit (A4). Menyimpan spec sebelumnya di stack undo.
+     * Memperbarui spec layar setelah chat edit (A4). Mempertahankan port yang sama agar baris data
+     * dan koneksi tidak hilang.
      */
     fun updateScreenSpec(screenId: String, oldScreen: InteractiveScreen, updatedScreen: InteractiveScreen) {
         val stack = undoStackByScreen.getOrPut(screenId) { mutableListOf() }
         stack.add(oldScreen)
 
-        build(updatedScreen)?.let { newBlock ->
-            blocks[screenId] = newBlock
+        val controller = controllers[screenId]
+        if (controller != null) {
+            controller.updateSpec(updatedScreen.spec)
+            build(updatedScreen, controller)?.let { newBlock ->
+                blocks[screenId] = newBlock
+            }
+        } else {
+            build(updatedScreen, null)?.let { newBlock ->
+                blocks[screenId] = newBlock
+            }
         }
     }
 
@@ -107,8 +133,16 @@ class PrototypeSession(screens: List<DiscoveryScreenUi>) {
         val stack = undoStackByScreen[screenId] ?: return null
         if (stack.isEmpty()) return null
         val previousScreen = stack.removeAt(stack.lastIndex)
-        build(previousScreen)?.let { restoredBlock ->
-            blocks[screenId] = restoredBlock
+        val controller = controllers[screenId]
+        if (controller != null) {
+            controller.updateSpec(previousScreen.spec)
+            build(previousScreen, controller)?.let { restoredBlock ->
+                blocks[screenId] = restoredBlock
+            }
+        } else {
+            build(previousScreen, null)?.let { restoredBlock ->
+                blocks[screenId] = restoredBlock
+            }
         }
         return previousScreen
     }
@@ -119,12 +153,15 @@ class PrototypeSession(screens: List<DiscoveryScreenUi>) {
         captureLog.addAll(entries)
     }
 
-    private fun build(screen: InteractiveScreen): PlayableState? = when (screen.spec.screens.firstOrNull()?.widget) {
-        WidgetKind.KANBAN -> InteractiveKanbanState(screen)
-        WidgetKind.TABLE -> InteractiveTableState(screen)
-        WidgetKind.CHECKLIST -> InteractiveChecklistState(screen)
-        WidgetKind.DASHBOARD -> InteractiveDashboardState(screen) { moduleId -> rowsOf(moduleId) }
-        WidgetKind.FORM -> InteractiveFormState(screen) { entityId, newRow -> broadcastRowCreated(entityId, newRow) }
-        else -> null
-    }
+    private fun build(screen: InteractiveScreen, controller: BlockDataController?): PlayableState? =
+        when (screen.spec.screens.firstOrNull()?.widget) {
+            WidgetKind.KANBAN -> controller?.let { InteractiveKanbanState(screen, it, scope) }
+            WidgetKind.TABLE -> controller?.let { InteractiveTableState(screen, it, scope) }
+            WidgetKind.CHECKLIST -> controller?.let { InteractiveChecklistState(screen, it, scope) }
+            WidgetKind.DASHBOARD -> InteractiveDashboardState(screen) { moduleId -> rowsOf(moduleId) }
+            WidgetKind.FORM -> controller?.let {
+                InteractiveFormState(screen, it, scope) { entityId, newRow -> broadcastRowCreated(entityId, newRow) }
+            }
+            else -> null
+        }
 }
