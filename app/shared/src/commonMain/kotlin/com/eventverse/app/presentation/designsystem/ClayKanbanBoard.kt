@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,11 +92,12 @@ fun <ID : Any, T : Any> ClayKanbanBoard(
             val needsHorizontalScroll = maxWidth < totalColumnsWidth
             val scrollState = rememberScrollState()
 
-            val rowModifier = if (needsHorizontalScroll) {
-                Modifier.fillMaxSize().horizontalScroll(scrollState)
-            } else {
-                Modifier.fillMaxSize()
-            }
+            // Papan dirancang untuk wadah bertinggi terbatas (layar penuh). Di wadah tak terbatas — mis. bingkai
+            // prototype di dalam kartu yang bisa di-scroll — `fillMaxHeight`/`weight(1f)`/`LazyColumn` runtuh jadi
+            // tinggi nol dan hanya header kolom yang terlihat. Karena itu layout mengikuti constraint yang diterima.
+            val bounded = constraints.hasBoundedHeight
+            val sized = if (bounded) Modifier.fillMaxSize() else Modifier
+            val rowModifier = if (needsHorizontalScroll) sized.horizontalScroll(scrollState) else sized
 
             Row(
                 modifier = rowModifier.padding(ClaySpacing.Md),
@@ -108,11 +110,8 @@ fun <ID : Any, T : Any> ClayKanbanBoard(
                     } == true
                     val holdsDragged = column.items.any { itemId(it) == dragState.draggedItem?.let(itemId) }
 
-                    val colModifier = if (needsHorizontalScroll) {
-                        Modifier.width(columnWidth).fillMaxHeight()
-                    } else {
-                        Modifier.weight(1f).fillMaxHeight()
-                    }
+                    val colBase = if (needsHorizontalScroll) Modifier.width(columnWidth) else Modifier.weight(1f)
+                    val colModifier = if (bounded) colBase.fillMaxHeight() else colBase
 
                     Column(
                         modifier = colModifier
@@ -163,7 +162,7 @@ fun <ID : Any, T : Any> ClayKanbanBoard(
                         // Isi daftar kartu
                         if (column.items.isEmpty()) {
                             Box(
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                modifier = if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth().padding(ClaySpacing.Lg),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -174,22 +173,42 @@ fun <ID : Any, T : Any> ClayKanbanBoard(
                                 )
                             }
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                                contentPadding = PaddingValues(bottom = ClaySpacing.Md)
-                            ) {
-                                items(items = column.items, key = itemId) { item ->
-                                    KanbanCardWrapper(
-                                        item = item,
-                                        itemId = itemId(item),
-                                        columns = columns,
-                                        canMove = canMove,
-                                        onMove = onMove,
-                                        dragState = dragState,
-                                        onCardClick = onCardClick,
-                                        content = itemContent
-                                    )
+                            if (bounded) {
+                                LazyColumn(
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                                    contentPadding = PaddingValues(bottom = ClaySpacing.Md)
+                                ) {
+                                    items(items = column.items, key = itemId) { item ->
+                                        KanbanCardWrapper(
+                                            item = item,
+                                            itemId = itemId(item),
+                                            columns = columns,
+                                            canMove = canMove,
+                                            onMove = onMove,
+                                            dragState = dragState,
+                                            onCardClick = onCardClick,
+                                            content = itemContent
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Tinggi tak terbatas: daftar biasa (tinggi mengikuti isi), bukan LazyColumn.
+                                Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+                                    column.items.forEach { item ->
+                                        key(itemId(item)) {
+                                            KanbanCardWrapper(
+                                                item = item,
+                                                itemId = itemId(item),
+                                                columns = columns,
+                                                canMove = canMove,
+                                                onMove = onMove,
+                                                dragState = dragState,
+                                                onCardClick = onCardClick,
+                                                content = itemContent
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

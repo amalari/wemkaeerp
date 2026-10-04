@@ -208,3 +208,14 @@ Jalankan test dengan perintah:
 
 - [ ] **Tantangan 1: Custom Field Validation**: Tambahkan validasi regex pada `FormField` untuk tipe format seperti `EMAIL` atau `PHONE` langsung di `InteractiveFormState`.
 - [ ] **Tantangan 2: Column Reordering Animation**: Pada `ClayKanbanBoard`, tambahkan animasi reordering kartu ketika item di-drop menggunakan `Modifier.animateItemPlacement()`.
+
+---
+
+## Catatan pasca-integrasi: papan kanban runtuh di wadah bertinggi tak terbatas
+
+Saat jalur A, B, dan C digabung dan dilihat di `/builder/prototype`, ketiga papan kanban hanya menampilkan **header kolom tanpa kartu**. Test unit lulus semua — bug ini hanya terlihat dengan mata.
+
+- **Penyebab:** `ClayKanbanBoard` dirancang untuk wadah bertinggi terbatas (`fillMaxSize`, `Modifier.weight(1f)`, `LazyColumn`). Bingkai prototype berada di dalam kartu yang bisa di-scroll, sehingga tinggi tak terbatas dan semuanya runtuh jadi tinggi nol.
+- **Perbaikan:** layout mengikuti constraint yang diterima (`BoxWithConstraints.constraints.hasBoundedHeight`). Terbatas → layout lama; tak terbatas → kolom biasa tanpa `weight`/`LazyColumn`.
+- **Pelajaran:** komponen layout generik wajib dicoba di **kedua** kondisi (terbatas dan tak terbatas). `LazyColumn` dan `weight` di dalam induk yang bisa di-scroll adalah jebakan klasik Compose.
+- **Trade-off yang masih terbuka:** kolom lebar 240dp membuat bingkai ponsel 360dp hanya menampilkan ±1,3 kolom (perlu scroll ke samping), padahal versi lama memuat tiga kolom rapat. Lebar kolom perlu ditinjau ulang untuk bingkai prototype.
