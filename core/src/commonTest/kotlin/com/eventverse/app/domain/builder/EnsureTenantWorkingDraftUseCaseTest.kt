@@ -10,6 +10,11 @@ import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.GarmentScreenSuggestions
+import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.LayananPilotPack
+import com.eventverse.app.domain.blueprint.Blueprint
+import com.eventverse.app.domain.blueprint.BlueprintCode
+import com.eventverse.app.domain.blueprint.BlueprintModule
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
 import com.eventverse.app.domain.pipeline.TenantPipelineRepository
@@ -18,7 +23,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.test.Test
+import kotlin.test.AfterTest
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -112,6 +119,70 @@ class EnsureTenantWorkingDraftUseCaseTest {
         val backfilled = assertNotNull(useCase(drafts)(tenant, GarmentDomainPack.CODE, owner))
         assertEquals(GarmentScreenSuggestions.all.size, backfilled.draft.screens.size)
         assertSame(stalePack, backfilled.draft.pack, "Snapshot pack milik draf tidak pernah diganti")
+    }
+
+    // ---- pack data tanpa blueprint bawaan garmen (modul pilot `layanan`) ------------------------------
+
+    @AfterTest
+    fun unregisterDataPack() { DomainPackRegistry.unregister(LayananPilotPack.CODE) }
+
+    private fun layananDraft(screens: List<PrototypeScreen>) = StoredDiscoveryDraft(
+        id = DiscoveryDraftId("draft-${tenant.value}"),
+        ownerUserId = owner,
+        draft = DiscoveryDraft(
+            pack = LayananPilotPack.pack,
+            blueprint = Blueprint(
+                BlueprintCode("layanan_starter"), LayananPilotPack.CODE, "Starter Layanan", "Pilot", "Draf pilot", "Tim layanan",
+                listOf(BlueprintModule(LayananPilotPack.CHANGE_REQUEST.value, active = true))
+            ),
+            screens = screens
+        ),
+        tenantId = tenant,
+        createdAt = now,
+        updatedAt = now
+    )
+
+    private val pilotScreen = PrototypeScreen("default-${LayananPilotPack.CHANGE_REQUEST.value}", LayananPilotPack.CHANGE_REQUEST, "Papan Permintaan", "KANBAN")
+
+    @Test
+    fun dataPackWithoutShippedBlueprint_existingDraftWithScreens_isReturned() = runTest {
+        // Dulu `null`: blueprint dicari di GarmentBlueprints.all SEBELUM draf tersimpan dicek.
+        DomainPackRegistry.register(LayananPilotPack.pack)
+        val drafts = FakeDrafts()
+        val seeded = layananDraft(listOf(pilotScreen))
+        drafts.save(seeded)
+
+        val result = assertNotNull(useCase(drafts)(tenant, LayananPilotPack.CODE, owner), "draf tersimpan harus dikembalikan")
+        assertSame(seeded, result, "dikembalikan apa adanya, tidak disentuh")
+    }
+
+    @Test
+    fun dataPackWithoutShippedBlueprint_noDraft_stillReturnsNull_andCreatesNothing() = runTest {
+        // Perubahan ini TIDAK membuat draf untuk pack tanpa blueprint bawaan (itu pekerjaan terpisah).
+        DomainPackRegistry.register(LayananPilotPack.pack)
+        val drafts = FakeDrafts()
+
+        assertNull(useCase(drafts)(tenant, LayananPilotPack.CODE, owner))
+        assertTrue(drafts.rows.isEmpty(), "bootstrap tidak boleh menyimpan apa pun untuk pack tanpa blueprint")
+    }
+
+    @Test
+    fun dataPackWithoutShippedBlueprint_existingDraftWithoutScreens_isNotBackfilled_unchangedBehaviour() = runTest {
+        DomainPackRegistry.register(LayananPilotPack.pack)
+        val drafts = FakeDrafts()
+        drafts.save(layananDraft(emptyList()))
+
+        assertNull(useCase(drafts)(tenant, LayananPilotPack.CODE, owner), "backfill tetap butuh blueprint bawaan")
+        assertTrue(drafts.rows.values.single().draft.screens.isEmpty(), "draf kosong tidak dimodifikasi")
+    }
+
+    @Test
+    fun unknownPack_returnsNull_evenIfADraftIsStored() = runTest {
+        // Pack tak terdaftar di proses ini = kosakata tak bisa dipercaya: tetap null (tidak jatuh ke draf).
+        val drafts = FakeDrafts()
+        drafts.save(layananDraft(listOf(pilotScreen)))
+
+        assertNull(useCase(drafts)(tenant, LayananPilotPack.CODE, owner))
     }
 
     private fun useCase(drafts: DiscoveryDraftRepository) =

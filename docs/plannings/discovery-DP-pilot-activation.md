@@ -1,7 +1,7 @@
 # Discovery Note — Aktivasi Tenant Pilot (`layanan`) untuk Port Data (Jalur C, butir C0)
 
 **Tanggal**: 2026-10-04 · **Penulis**: Agent C (Claude Sonnet 5.5) · **Rencana**: [PLAN-prototype-data-port-rich-blocks](PLAN-prototype-data-port-rich-blocks.md) / `parallel2/PLAN-dp-C-api-pilot.md`
-**Status**: temuan selesai; **butuh satu keputusan koordinator** (§4) sebelum C4 (aktivasi dev) bisa dikerjakan.
+**Status**: temuan selesai; keputusan §4 **disetujui koordinator (Opsi 1) dan sudah diterapkan** (lihat §8). C4 menunggu kontrak B0.
 
 ## 1. Pertanyaan
 Bagaimana pack **data** `layanan` (modul `layanan_change_request`) menjadi dikenal runtime sebuah tenant, dan bagaimana halaman `/builder/prototype` tenant itu mendapat layar kanban pilot yang terikat ke API?
@@ -71,10 +71,16 @@ Agent C **tidak** mengubah file itu sendiri (di luar kepemilikan jalur C pada re
 ## 7. Status butir C
 | Butir | Status |
 |---|---|
-| C0 Discovery | **selesai** (dokumen ini; menunggu keputusan §4) |
+| C0 Discovery | **selesai** (keputusan §4 diterapkan, §8) |
 | C1 `ApiBlockDataPort` | menunggu B0 (`BlockDataPort`) |
 | C2 pack pilot kanban kaya | menunggu B0 (`CardElement`, `ColumnMeta`, `DataBinding`) |
 | C3 JSON draf `binding` | menunggu B0 |
-| C4 aktivasi dev | menunggu B0 **dan** keputusan §4 |
+| C4 aktivasi dev | menunggu B0 (keputusan §4 sudah diterapkan) |
 | C5 penguatan server | **selesai** (hak per verb, atomik multi-field, urutan stabil) |
 | C6 verifikasi G3 | menunggu semua di atas + A |
+
+## 8. Keputusan diterapkan (Opsi 1)
+- **Perubahan**: `EnsureTenantWorkingDraftUseCase` mengembalikan draf yang sudah ada dan berlayar **sebelum** mencari blueprint (+5 baris, komentar alasan). Pack tanpa blueprint bawaan tetap **tidak** dibuatkan draf.
+- **Tes (core, `EnsureTenantWorkingDraftUseCaseTest`, 8 tes)**: draf tersimpan untuk pack data dikembalikan (merah sebelum perubahan); tanpa draf tetap `null` dan tidak menyimpan apa pun; draf kosong tidak di-backfill; pack tak terdaftar tetap `null`; empat tes garmen lama tak berubah.
+- **Tes (server, `BuilderDataPackDraftTest`)**: jalur nyata tanpa Postgres — plugin tenant memuat pack dari repository, `GET /api/builder/draft` mengembalikan draf pilot. Dibuktikan **merah tanpa perubahan** (perubahan dicabut sementara) dan hijau dengan perubahan.
+- **Belum**: pembuatan draf otomatis untuk pack data umum (Opsi 2) — dicatat sebagai kelanjutan.

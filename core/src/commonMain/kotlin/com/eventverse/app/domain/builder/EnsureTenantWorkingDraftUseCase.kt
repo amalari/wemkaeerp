@@ -53,6 +53,11 @@ class EnsureTenantWorkingDraftUseCase(
         ownerUserId: UserId
     ): StoredDiscoveryDraft? {
         val pack = DomainPackRegistry.find(domainPack) ?: return null
+        // Draf yang sudah ada dan sudah berlayar dikembalikan **sebelum** blueprint dicari: pack data (mis. `layanan`)
+        // tidak punya blueprint di GarmentBlueprints.all, dan dulu fungsi ini berhenti di sana walau draf-nya sudah
+        // tersimpan. Perilaku garmen tak berubah (draf berlayar memang tak pernah disentuh), dan pack tanpa
+        // blueprint tetap TIDAK dibuatkan draf — membuat draf untuk pack data umum adalah pekerjaan terpisah.
+        drafts.findByTenant(tenantId)?.takeIf { it.draft.screens.isNotEmpty() }?.let { return it }
         val blueprint = GarmentBlueprints.all.firstOrNull { it.pack == pack.code } ?: return null
         val effectiveActive = effectiveActiveCodes(tenantId, blueprint)
 
