@@ -49,15 +49,18 @@ internal object GarmentExportSeed {
 
     fun order(po: String): Order = requireNotNull(orders.firstOrNull { it.po == po }) { "PO '$po' tidak ada di seed" }
 
-    /** SPK sampling: (nomor, PO atau null untuk prospek, jenis contoh, kolom, detail). */
-    data class SampleJob(val no: String, val po: String?, val style: String, val kind: String, val column: String, val detail: String)
+    /** SPK sampling: (nomor, PO atau null untuk prospek, artikel, jenis contoh, kolom, pembeli, jumlah pcs, due, mendesak). */
+    data class SampleJob(
+        val no: String, val po: String?, val style: String, val kind: String, val column: String,
+        val buyer: String, val qtyPcs: Int, val due: String, val urgent: Boolean
+    )
 
     val sampleJobs: List<SampleJob> = listOf(
-        SampleJob("SP-1051", "HP-26-0431", "Bomber JB-077", "PP sample", "Baru", "Harbor & Pine · 3 pcs"),
-        SampleJob("SP-1052", null, "Crew Tee (prospek Sakura)", "Proto sample", "Baru", "Sakura Trading · 5 pcs"),
-        SampleJob("SP-1048", "KA-26-0388", "Polo PL-118", "Size-set sample", "Dikerjakan", "Jahit — Nia · due 20 Okt"),
-        SampleJob("SP-1046", "NW-26-0412", "Hoodie HF-210", "Fit sample rev.2", "Dikerjakan", "Potong pola — Budi · due 22 Okt"),
-        SampleJob("SP-1043", "NW-26-0371", "Henley HT-044", "PP sample", "Selesai", "Disetujui Nordic Wear — naik produksi")
+        SampleJob("SP-1051", "HP-26-0431", "Bomber JB-077", "PP sample", "Baru", "Harbor & Pine", 3, "24 Okt", false),
+        SampleJob("SP-1052", null, "Crew Tee (prospek Sakura)", "Proto sample", "Baru", "Sakura Trading", 5, "est. Nov 2026", false),
+        SampleJob("SP-1048", "KA-26-0388", "Polo PL-118", "Size-set sample", "Dikerjakan", "Kestrel Apparel", 4, "20 Okt", false),
+        SampleJob("SP-1046", "NW-26-0412", "Hoodie HF-210", "Fit sample rev.2", "Dikerjakan", "Nordic Wear", 3, "22 Okt", true),
+        SampleJob("SP-1043", "NW-26-0371", "Henley HT-044", "PP sample", "Selesai", "Nordic Wear", 2, "Disetujui — naik produksi", false)
     ).also { jobs -> jobs.forEach { j -> j.po?.let(::order) } }
 
     /** Baris layar. Semua rujukan PO/artikel diambil dari seed, bukan diketik ulang. */
@@ -74,7 +77,16 @@ internal object GarmentExportSeed {
     )
 
     fun samplingRows(): List<Map<String, String>> = sampleJobs.map { j ->
-        mapOf("Kolom" to j.column, "Kartu" to "${j.no} · ${j.style}", "Detail" to "${j.kind} — ${j.detail}")
+        mapOf(
+            "Kolom" to j.column,
+            "Nomor" to j.no,
+            "Artikel" to j.style,
+            "Jenis" to j.kind,
+            "Pembeli" to j.buyer,
+            "Jumlah" to "${j.qtyPcs} pcs",
+            "Due" to j.due,
+            "Mendesak" to if (j.urgent) "ya" else "tidak"
+        )
     }
 
     fun mrpRows(): List<Map<String, String>> = orders.filter { it.stage != Stage.SAMPLING }.map { o ->
