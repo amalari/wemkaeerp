@@ -11,8 +11,10 @@ import kotlinx.coroutines.sync.withLock
  * atomik karena store immutable dan hanya dikomit bila seluruh perubahan sah. Operasi diserialkan
  * lewat [Mutex] — tidak ada balapan antar-call.
  *
- * Id baris baru berprefiks stabil `"<entityId>-<n>"` dengan `n` terkecil yang belum terpakai —
- * deterministik, unik, tanpa jam.
+ * Id baris baru berprefiks stabil `"<entityId>-<n>"`, `n` **monoton** — tidak pernah dipakai ulang
+ * selama umur port (bahkan setelah barisnya dihapus) dan tidak bentrok dengan id seed berprefiks
+ * sama. Klasifikasi galat: baris tak dikenal = [PortError.NotFound] (padanan 404 kontrak);
+ * pelanggaran aturan isi/transisi = [PortError.Validation]. Semuanya berpesan pengguna.
  */
 class InMemoryBlockDataPort(
     private val spec: PrototypeSpec,
@@ -25,6 +27,11 @@ class InMemoryBlockDataPort(
     private val mutex = Mutex()
     private var store: PrototypeStore = PrototypeStore.seeded(spec, mapOf(entityId to seed))
 
+    /** Penghitung id monoton; id seed berprefiks sama ikut dihitung supaya tak pernah bentrok. */
+    private var lastIdNumber: Int = store.rowsOf(entityId)
+        .mapNotNull { it.id.removePrefix("$entityId-").toIntOrNull() }
+        .maxOrNull() ?: 0
+
     override suspend fun load(): Result<List<PrototypeRow>> = guarded { store.rowsOf(entityId) }
 
     override suspend fun create(values: Map<String, String>): Result<PrototypeRow> = guarded {
@@ -34,7 +41,7 @@ class InMemoryBlockDataPort(
     }
 
     override suspend fun update(rowId: String, changes: Map<String, String>): Result<PrototypeRow> = guarded {
-        require(store.rowsOf(entityId).any { it.id == rowId }) { "Baris '$rowId' tidak ada" }
+        rowOrNotFound(rowId)
         var working = store
         changes.forEach { (field, value) ->
             working = apply(PrototypeAction.SetField(entityId, rowId, field, value), working)
@@ -44,9 +51,15 @@ class InMemoryBlockDataPort(
     }
 
     override suspend fun delete(rowId: String): Result<Unit> = guarded {
+        rowOrNotFound(rowId)
         store = apply(PrototypeAction.Delete(entityId, rowId), store)
         Unit
     }
+
+    /** Baris wajib ada; tidak ada = [PortError.NotFound] (padanan 404 kontrak), bukan Validation. */
+    private fun rowOrNotFound(rowId: String): PrototypeRow =
+        store.rowsOf(entityId).firstOrNull { it.id == rowId }
+            ?: throw PortException(PortError.NotFound("Baris '$rowId' tidak ada di '${spec.entity(entityId)?.label ?: entityId}'."))
 
     /** Penolakan reducer dibungkus [PortException] ber-[PortError.Validation] berpesan pengguna. */
     private fun apply(action: PrototypeAction, from: PrototypeStore): PrototypeStore =
@@ -62,11 +75,5 @@ class InMemoryBlockDataPort(
         Result.failure(PortException(PortError.Validation(e.message ?: "Perubahan ditolak.")))
     }
 
-    private fun nextId(): String {
-        val prefix = "$entityId-"
-        val used = store.rowsOf(entityId).mapTo(mutableSetOf()) { it.id }
-        var n = 1
-        while (prefix + n in used) n++
-        return prefix + n
-    }
+    private fun nextId(): String = "$entityId-${++lastIdNumber}"
 }
