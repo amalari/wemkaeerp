@@ -7,6 +7,7 @@ import com.eventverse.app.domain.prototype.DashboardConfig
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.FormConfig
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeRow
@@ -31,7 +32,7 @@ object InteractiveScreenCodec {
                 "fields" to jsonArrayOf(e.fields.map { f ->
                     jsonObjectOf(
                         "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                        "options" to jsonArrayOf(f.options.map(::jsonOf))
+                        "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required)
                     )
                 }),
                 "stateMachine" to (e.stateMachine?.let { sm ->
@@ -55,6 +56,7 @@ object InteractiveScreenCodec {
                 "table" to (sc.table?.let { t ->
                     jsonObjectOf("columns" to jsonArrayOf(t.columns.map(::jsonOf)), "statusField" to jsonOf(t.statusField))
                 } ?: JsonValue.Null),
+                "form" to (sc.form?.let { f -> jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel)) } ?: JsonValue.Null),
                 "checklist" to (sc.checklist?.let { c -> jsonObjectOf("labelField" to jsonOf(c.labelField), "doneField" to jsonOf(c.doneField)) } ?: JsonValue.Null),
                 "dashboard" to (sc.dashboard?.let { d ->
                     jsonObjectOf("tiles" to jsonArrayOf(d.tiles.map { t ->
@@ -80,7 +82,7 @@ object InteractiveScreenCodec {
                 requireNotNull(e.string("id")) { "entitas tanpa id" }, e.string("label").orEmpty(),
                 e.objectArray("fields").map { f ->
                     val type = FieldType.entries.firstOrNull { it.name == f.string("type") }
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false)
                 },
                 machine
             )
@@ -91,6 +93,7 @@ object InteractiveScreenCodec {
                 sc.string("screenId").orEmpty(), sc.string("title").orEmpty(), widget, sc.string("entityId"),
                 sc.obj("kanban")?.let { k -> KanbanConfig(k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields")) },
                 table = sc.obj("table")?.let { t -> TableConfig(t.stringArray("columns"), t.string("statusField")) },
+                form = sc.obj("form")?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") },
                 checklist = sc.obj("checklist")?.let { c -> ChecklistConfig(c.string("labelField").orEmpty(), c.string("doneField").orEmpty()) },
                 dashboard = sc.obj("dashboard")?.let { d ->
                     DashboardConfig(d.objectArray("tiles").map { t -> TileSpec(t.string("label").orEmpty(), t.string("value"), t.obj("count")?.let(::decodeCount)) })

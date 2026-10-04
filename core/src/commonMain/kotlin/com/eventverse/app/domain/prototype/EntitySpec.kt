@@ -11,7 +11,9 @@ data class FieldSpec(
     val label: String,
     val type: FieldType,
     /** Wajib terisi untuk [FieldType.ENUM]; kosong untuk tipe lain. */
-    val options: List<String> = emptyList()
+    val options: List<String> = emptyList(),
+    /** Kontrak v1: field wajib. Ditegakkan reducer pada `Create`; `SetField` boleh mengosongkan hanya bila tidak wajib. */
+    val required: Boolean = false
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
