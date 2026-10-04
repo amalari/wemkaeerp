@@ -34,6 +34,13 @@ class BuilderApiClient(
     suspend fun draft(): Result<JsonValue?> =
         call(HttpMethod.Get, "/api/builder/draft").map { it as? JsonValue.Null ?: it }
 
+    /** GET /api/builder/draft/price — estimasi harga draf kerja tenant; [modules] = hanya modul terpilih. */
+    suspend fun draftPrice(modules: Collection<String>? = null, marginPercent: Double = 35.0): Result<JsonValue> =
+        call(
+            HttpMethod.Get,
+            "/api/builder/draft/price?marginPercent=$marginPercent" + (modules?.let { "&modules=" + it.joinToString(",") } ?: "")
+        )
+
     /** GET /api/builder/chat — percakapan tenant + seluruh pesan. */
     suspend fun chat(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/chat")
 

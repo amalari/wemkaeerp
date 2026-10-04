@@ -41,19 +41,22 @@ fun Route.discoveryPlatformRoutes(
     prototypePatterns: PrototypePatternRepository? = null,
     discoveryDemands: DiscoveryDemandRepository? = null
 ) {
+    val priceDraft = PriceDiscoveryDraftUseCase(
+        billableCatalog = { catalogRepository.findBillable() },
+        priceProspectFlow = PriceProspectFlowUseCase(
+            buildRepository = buildRepository,
+            sizingWeightsRepository = sizingWeightsRepository,
+            embeddingProvider = embeddingProvider,
+            defaultBlendedHourlyRate = blendedHourlyRate
+        )
+    )
+    // Harga draf kerja tenant untuk panel di /builder/prototype (gerbang builder, bukan pemilik draf).
+    builderPriceRoutes(draftRepository, priceDraft)
     discoveryRoutes(
         repository = draftRepository,
         agent = agent,
         tenantRepository = tenantRepository,
-        priceDraft = PriceDiscoveryDraftUseCase(
-            billableCatalog = { catalogRepository.findBillable() },
-            priceProspectFlow = PriceProspectFlowUseCase(
-                buildRepository = buildRepository,
-                sizingWeightsRepository = sizingWeightsRepository,
-                embeddingProvider = embeddingProvider,
-                defaultBlendedHourlyRate = blendedHourlyRate
-            )
-        ),
+        priceDraft = priceDraft,
         submitDraft = SubmitDiscoveryDraftUseCase(draftRepository, leadRepository, SubmitProspectLeadUseCase(leadRepository)),
         handoffDraft = HandoffDiscoveryDraftUseCase(draftRepository, tenantRepository, domainPackRepository, probe),
         // Default di sini, bukan di Application.kt: file itu sudah di atas hard limit (ratchet),

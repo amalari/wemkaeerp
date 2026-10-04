@@ -179,6 +179,66 @@ class BuilderDraftBootstrapTest {
         )
     }
 
+    private suspend fun ApplicationTestBuilder.getPrice(query: String = "", role: Role? = null): io.ktor.client.statement.HttpResponse =
+        client.get("/api/builder/draft/price$query") {
+            header("Host", "$slug.wemakeerp.com")
+            header(
+                HttpHeaders.Authorization,
+                "Bearer ${if (role == null) TestAuth.tenantToken(slug, tenantId = tenantId) else TestAuth.tenantToken(slug, role = role, tenantId = tenantId)}"
+            )
+        }
+
+    private fun seedExistingDraft() = runBlocking {
+        draftRepo.save(
+            StoredDiscoveryDraft(
+                id = DiscoveryDraftId("draft-$tenantId"),
+                ownerUserId = UserId("usr-pemilik"),
+                draft = DiscoveryDraft(pack = GarmentDomainPack.pack, blueprint = GarmentBlueprints.DEFAULT),
+                status = DiscoveryDraftStatus.DRAFT,
+                tenantId = TenantId(tenantId)
+            )
+        )
+    }
+
+    @Test
+    fun price_withoutDraft_returns404_andCreatesNothing() = testApplication {
+        seedPipeline()
+        installModule()
+
+        assertEquals(404, getPrice().status.value)
+        assertNull(runBlocking { draftRepo.findByTenant(TenantId(tenantId)) }, "estimasi hanya membaca, tidak membuat draf")
+    }
+
+    @Test
+    fun price_unauthorizedRole_returns403_andCreatesNoDraft() = testApplication {
+        seedPipeline()
+        installModule()
+
+        val response = getPrice(role = Role.SALES)
+
+        assertEquals(403, response.status.value)
+        assertNull(runBlocking { draftRepo.findByTenant(TenantId(tenantId)) }, "ditolak tidak boleh memicu bootstrap")
+    }
+
+    @Test
+    fun price_withoutCredentials_returns401() = testApplication {
+        seedPipeline()
+        installModule()
+
+        assertEquals(401, client.get("/api/builder/draft/price") { header("Host", "$slug.wemakeerp.com") }.status.value)
+    }
+
+    @Test
+    fun price_unknownModule_returns400_notSilentlyIgnored() = testApplication {
+        seedExistingDraft()
+        installModule()
+
+        val response = getPrice("?modules=modul_hantu")
+
+        assertEquals(400, response.status.value)
+        assertTrue(response.bodyAsText().contains("modul_hantu"))
+    }
+
     @Test
     fun bootstrap_unknownPack_returnsNull_withoutSaving() {
         val useCase = EnsureTenantWorkingDraftUseCase(draftRepo, pipelineRepo)

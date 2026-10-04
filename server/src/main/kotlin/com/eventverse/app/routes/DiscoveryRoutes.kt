@@ -261,23 +261,10 @@ fun Route.discoveryRoutes(
             val existing = repository.findById(id) ?: return@get notFound("Draf tidak ditemukan")
             if (!mayAccess(principal, existing)) return@get forbidden()
             val margin = call.request.queryParameters["marginPercent"]?.toDoubleOrNull() ?: 35.0
-            priceDraft(existing.draft, Percentage(margin))
-                .onSuccess {
-                    call.respondText(
-                        jsonObjectOf(
-                            "packCode" to jsonOf(it.packCode.value),
-                            "coveredModuleIds" to jsonArrayOf(it.coveredModuleIds.map(::jsonOf)),
-                            "newModuleIds" to jsonArrayOf(it.newModuleIds.map(::jsonOf)),
-                            "customScreenCount" to jsonOf(it.customScreenCount),
-                            "subscriptionMonthlyIdr" to jsonOf(it.pricing.range.subscriptionMonthly.amount),
-                            "gapLowMonthlyIdr" to (it.pricing.range.gapLowMonthly?.let { g -> jsonOf(g.amount) } ?: com.eventverse.app.shared.json.JsonValue.Null),
-                            "gapHighMonthlyIdr" to (it.pricing.range.gapHighMonthly?.let { g -> jsonOf(g.amount) } ?: com.eventverse.app.shared.json.JsonValue.Null),
-                            "withheld" to jsonOf(!it.pricing.range.isPublishable),
-                            "unpriceableGapCount" to jsonOf(it.pricing.range.unpriceableGapCount)
-                        ).encode(),
-                        ContentType.Application.Json
-                    )
-                }
+            // `modules=a,b` = harga hanya modul terpilih (what-if "bila modul X dilepas"); tanpa parameter = semua.
+            val only = call.request.queryParameters["modules"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            priceDraft(existing.draft, Percentage(margin), onlyModuleIds = only)
+                .onSuccess { call.respondText(priceJson(it).encode(), ContentType.Application.Json) }
                 .onFailure { badRequest(it.message ?: "Gagal menghitung estimasi") }
         }
 

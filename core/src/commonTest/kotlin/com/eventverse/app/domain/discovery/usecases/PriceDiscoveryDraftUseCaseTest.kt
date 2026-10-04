@@ -112,4 +112,28 @@ class PriceDiscoveryDraftUseCaseTest {
     }
 
     private fun runTest(block: suspend () -> Unit) = kotlinx.coroutines.test.runTest { block() }
+
+    @Test
+    fun `harga mengikuti subset modul, rincian per modul, dan id asing ditolak`() = runTest {
+        val draft = DeterministicDiscoveryAgent().draft(
+            DiscoveryRequest("Kami klinik dengan antrean pasien dan tagihan kasir.", industryHint = "klinik")
+        ).getOrThrow()
+        val ids = draft.pack.modules.map { it.id.value }
+        val first = draft.pack.modules.first()
+        val useCase = PriceDiscoveryDraftUseCase(
+            billableCatalog = { listOf(entry(first.id.value, first.slot?.value ?: "governance", 750_000)) },
+            priceProspectFlow = priceProspect
+        )
+        val all = useCase(draft, Percentage(35.0)).getOrThrow()
+        assertEquals(ids.size, all.lines.size)
+        assertEquals(750_000L, all.lines.first { it.moduleId == first.id.value }.monthlyIdr)
+
+        val only = useCase(draft, Percentage(35.0), onlyModuleIds = setOf(first.id.value)).getOrThrow()
+        assertEquals(listOf(first.id.value), only.lines.map { it.moduleId })
+        assertTrue(only.newModuleIds.isEmpty())
+        assertEquals(750_000L, only.pricing.range.subscriptionMonthly.amount)
+
+        assertTrue(useCase(draft, Percentage(35.0), onlyModuleIds = setOf("hantu")).isFailure)
+        assertTrue(useCase(draft, Percentage(35.0), onlyModuleIds = emptySet()).isFailure)
+    }
 }

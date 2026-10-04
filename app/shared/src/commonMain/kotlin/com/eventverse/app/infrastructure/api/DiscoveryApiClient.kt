@@ -53,9 +53,13 @@ class DiscoveryApiClient(
     /** GET /api/discovery/drafts/{id} — ringkasan draf. */
     suspend fun getDraft(id: String): Result<JsonValue> = call(HttpMethod.Get, "/api/discovery/drafts/$id")
 
-    /** GET /api/discovery/drafts/{id}/price — estimasi dari draf (B1). */
-    suspend fun price(id: String, marginPercent: Double = 35.0): Result<JsonValue> =
-        call(HttpMethod.Get, "/api/discovery/drafts/$id/price?marginPercent=$marginPercent")
+    /** GET /api/discovery/drafts/{id}/price — estimasi dari draf (B1); [modules] = harga hanya modul terpilih. */
+    suspend fun price(id: String, marginPercent: Double = 35.0, modules: Collection<String>? = null): Result<JsonValue> =
+        call(
+            HttpMethod.Get,
+            "/api/discovery/drafts/$id/price?marginPercent=$marginPercent" +
+                (modules?.let { "&modules=" + it.joinToString(",") } ?: "")
+        )
 
     /** POST /api/discovery/drafts/{id}/lock — bekukan draf. */
     suspend fun lock(id: String): Result<JsonValue> = call(HttpMethod.Post, "/api/discovery/drafts/$id/lock")

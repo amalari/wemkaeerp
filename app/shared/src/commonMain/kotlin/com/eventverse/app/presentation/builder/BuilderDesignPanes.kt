@@ -27,6 +27,7 @@ import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.discovery.DataFlowPane
 import com.eventverse.app.presentation.discovery.DiscoveryDraftUi
 import com.eventverse.app.presentation.discovery.ModuleMapPane
+import com.eventverse.app.presentation.discovery.PrototypePricePanel
 import com.eventverse.app.presentation.discovery.PrototypeRenderer
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -152,9 +153,12 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
         // layar miliknya. null = Semua Modul. Urutan chip mengikuti urutan modul di pack.
         var selectedModule by remember(draft.id) { mutableStateOf<String?>(null) }
         val modulesWithScreens = draft.modules.filter { m -> draft.screens.any { it.moduleId == m.id } }
-        val visibleScreens = selectedModule
-            ?.let { id -> draft.screens.filter { it.moduleId == id } }
-            ?: draft.screens
+        // Modul yang dipakai (panel harga): layar dan harga sama-sama mengikutinya. Awalnya semua.
+        var included by remember(draft.id) { mutableStateOf(modulesWithScreens.map { it.id }.toSet()) }
+        val includedScreens = draft.screens.filter { it.moduleId in included }
+        val visibleScreens = selectedModule?.takeIf { it in included }
+            ?.let { id -> includedScreens.filter { it.moduleId == id } }
+            ?: includedScreens
         Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -173,6 +177,11 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
                     dot = true
                 )
             }
+            PrototypePricePanel(
+                draft = draft,
+                included = included,
+                onToggle = { id -> included = if (id in included) included - id else included + id }
+            )
             if (modulesWithScreens.size > 1) {
                 ClayFlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -192,7 +201,7 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
                     }
                 }
             }
-            PrototypeRenderer(draft = draft, screens = visibleScreens)
+            PrototypeRenderer(draft = draft.copy(screens = includedScreens), screens = visibleScreens)
         }
     }
 }
