@@ -14,29 +14,56 @@ object InteractiveScreenFactory {
     const val LABEL_FIELD = "Butir"
     const val DONE_FIELD = "Selesai"
 
+    /**
+     * Dua mode (B2.1, usulan jalur C — lihat KDoc [KanbanHints]):
+     *  - **Legacy**: baris contoh wajib berkunci `"Kolom"` (atau [KanbanHints.groupField]) dan tak
+     *    kosong; field entitas diturunkan dari baris, semuanya TEXT. Perilaku garment tak berubah.
+     *  - **Dideklarasikan**: [KanbanHints.fields] diisi — entitas dari petunjuk (status ENUM, tanggal
+     *    DATE, …), `titleField` = elemen kartu bergaya TITLE (atau deklarasi pertama), dan baris
+     *    contoh **opsional** (layar berbinding Api memuat datanya dari server).
+     *
+     * Petunjuk tak koheren tetap **ditolak** (null → gambar statis), bukan diabaikan.
+     */
     fun kanban(screenId: String, title: String, rows: List<Map<String, String>>, hints: KanbanHints? = null): InteractiveScreen? {
-        if (rows.isEmpty() || rows.any { GROUP_FIELD !in it }) return null
-        val columns = hints?.columns ?: rows.map { it.getValue(GROUP_FIELD) }.distinct()
-        val textKeys = rows.flatMap { it.keys }.filter { it != GROUP_FIELD }.distinct()
-        if (textKeys.isEmpty()) return null
+        val declared = hints?.fields.orEmpty()
+        val declaredMode = declared.isNotEmpty()
+        if (declaredMode && hints?.groupField.isNullOrBlank()) return null
+        val groupField = hints?.groupField?.takeIf { it.isNotBlank() } ?: GROUP_FIELD
+        if (!declaredMode && (rows.isEmpty() || rows.any { groupField !in it })) return null
+        val columns = hints?.columns ?: rows.map { it.getValue(groupField) }.distinct()
+        val textKeys = rows.flatMap { it.keys }.filter { it != groupField }.distinct()
+        if (!declaredMode && textKeys.isEmpty()) return null
         return runCatching {
-            // Petunjuk kaya (B2) wajib koheren: elemen kartu menunjuk field papan (termasuk field
+            // Petunjuk kaya wajib koheren: elemen kartu menunjuk field papan (termasuk field
             // kelompoknya, mis. lencana status), metadata menunjuk kolom. Tak koheren ditolak
             // (null → gambar statis), bukan diabaikan.
+            val declaredKeys = declared.map { it.key }.toSet()
             hints?.card?.forEach { el ->
-                require(el.field == GROUP_FIELD || el.field in textKeys) { "Elemen kartu menunjuk field '${el.field}' yang tidak ada di baris contoh" }
+                require(el.field == groupField || el.field in declaredKeys || (!declaredMode && el.field in textKeys)) {
+                    "Elemen kartu menunjuk field '${el.field}' yang tidak ada di papan"
+                }
             }
             hints?.columnMeta?.forEach { (col, _) ->
                 require(col in columns) { "Metadata kolom '$col' tidak ada di kolom papan" }
             }
-            val group = FieldSpec(GROUP_FIELD, hints?.groupLabel ?: GROUP_FIELD, FieldType.ENUM, columns)
+            declared.forEach { f ->
+                require(f.key != groupField) { "FieldHint '${f.key}' tidak boleh menimpa field kelompok papan (type-nya dipaksa ENUM)" }
+            }
+            val group = FieldSpec(groupField, hints?.groupLabel ?: groupField, FieldType.ENUM, columns)
+            val entityFields = if (declaredMode) declared.map { it.toFieldSpec() } else textKeys.map { FieldSpec(it, it, FieldType.TEXT) }
+            val titleField = if (declaredMode) {
+                hints?.card?.firstOrNull { it.style == CardStyle.TITLE }?.field ?: declared.first().key
+            } else {
+                textKeys.first()
+            }
+            val detailFields = if (declaredMode) entityFields.map { it.key }.filter { it != titleField } else textKeys.drop(1)
             val entity = EntitySpec(
                 ENTITY_ID, title,
-                listOf(group) + textKeys.map { FieldSpec(it, it, FieldType.TEXT) },
-                hints?.transitions?.takeIf { it.isNotEmpty() }?.let { StateMachine(GROUP_FIELD, it) }
+                listOf(group) + entityFields,
+                hints?.transitions?.takeIf { it.isNotEmpty() }?.let { StateMachine(groupField, it) }
             )
             val kanban = KanbanConfig(
-                GROUP_FIELD, columns, textKeys.first(), textKeys.drop(1),
+                groupField, columns, titleField, detailFields,
                 card = hints?.card.orEmpty(),
                 columnMeta = hints?.columnMeta.orEmpty(),
                 detailForm = hints?.detailForm

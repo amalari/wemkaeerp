@@ -37,8 +37,16 @@ object WidgetRegistry {
         // (mis. usulan agent LLM) jatuh ke penanda struktural generik di bawah, karena baris pack
         // punya bentuk yang dikontrak per widget (lihat KDoc ScreenSuggestion).
         val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }
-        if (suggestion != null && suggestion.sampleRows.isNotEmpty() && suggestion.widget == WidgetKind.fromCode(screen.widget)) {
-            return suggestion.sampleRows
+        if (suggestion != null && suggestion.widget == WidgetKind.fromCode(screen.widget)) {
+            if (suggestion.sampleRows.isNotEmpty()) return suggestion.sampleRows
+            // B2.1 (usulan jalur C): layar berbinding Api atau berdeklarasi field kaya sah tanpa
+            // baris contoh — datanya dari server, bentuknya dari hints. Marker generik berkunci
+            // "Kolom" justru membuat seed tak sah terhadap field yang dideklarasikan, jadi kosong
+            // dikembalikan apa adanya (bukan dikarang).
+            val declaresShape = suggestion.dataBinding is DataBinding.Api ||
+                suggestion.kanbanHints?.fields?.isNotEmpty() == true ||
+                suggestion.tableHints?.fields?.isNotEmpty() == true
+            if (declaresShape) return emptyList()
         }
         val module = pack.modules.firstOrNull { it.id == screen.moduleId } ?: return emptyList()
         val kolom = module.displayName
