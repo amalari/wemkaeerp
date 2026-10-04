@@ -1,6 +1,12 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.asStaff
 import com.eventverse.app.asTenant
+import com.eventverse.app.domain.rbac.AccessLevel
+import com.eventverse.app.domain.rbac.CustomRole
+import com.eventverse.app.domain.rbac.DataScope
+import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.domain.rbac.RoleId
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.LayananPilotPack
 import com.eventverse.app.domain.tenant.SubscriptionTier
@@ -74,13 +80,27 @@ class LayananChangeRequestApiIntegrationTest {
     @AfterTest
     fun cleanup() { if (enabled) DomainPackRegistry.unregister(LayananPilotPack.CODE) }
 
+    /** Tiga jabatan di tenant A, satu per tingkat wewenang modul pilot — bukti hak per verb. */
+    private fun roles() = InMemoryRoleRepository().also { repo ->
+        runBlocking {
+            mapOf("role-view" to AccessLevel.VIEW, "role-operate" to AccessLevel.OPERATE, "role-manage" to AccessLevel.MANAGE).forEach { (id, level) ->
+                repo.save(
+                    CustomRole(
+                        id = RoleId(id), tenantId = TenantId("ten-pilot-a"), name = id, description = "",
+                        modulePermissions = mapOf(LayananPilotPack.CHANGE_REQUEST to ModuleAccessConfig(level, DataScope.ALL_TENANT_DATA))
+                    )
+                )
+            }
+        }
+    }
+
     private fun ApplicationTestBuilder.install() {
         application {
             module(
                 tenantRepository = tenants,
                 pipelineRepository = InMemoryTenantPipelineRepository(),
                 entitlementRepository = InMemoryTenantEntitlementRepository(),
-                roleRepository = InMemoryRoleRepository(),
+                roleRepository = roles(),
                 moduleAssignmentRepository = InMemoryModuleAssignmentRepository()
             )
         }
@@ -140,5 +160,76 @@ class LayananChangeRequestApiIntegrationTest {
         assertTrue(!client.get(base) { asTenant(slugB) }.bodyAsText().contains(id), "daftar B tidak memuat baris A")
         assertEquals("Milik A", JsonParser.parseObject(client.get("$base/$id") { asTenant(slugA) }.bodyAsText()).obj("values")!!.string("judul"), "baris A utuh")
         client.delete("$base/$id") { asTenant(slugA) }
+    }
+
+    // ---- C5: hak per verb, atomik multi-field, urutan stabil --------------------------------------
+
+    private suspend fun ApplicationTestBuilder.asRole(path: String, method: String, role: String, body: String? = null) =
+        when (method) {
+            "GET" -> client.get(path) { asStaff(slugA, customRoleId = role) }
+            "POST" -> client.post(path) { asStaff(slugA, customRoleId = role); contentType(ContentType.Application.Json); setBody(body ?: "{}") }
+            "PUT" -> client.put(path) { asStaff(slugA, customRoleId = role); contentType(ContentType.Application.Json); setBody(body ?: "{}") }
+            else -> client.delete(path) { asStaff(slugA, customRoleId = role) }
+        }
+
+    @Test
+    fun rightsPerVerb_viewReadsOnly_operateWritesButCannotDelete_manageDeletes() = testApplication {
+        if (!enabled) return@testApplication
+        install()
+        val id = JsonParser.parseObject(create(slugA, """"judul":"Hak per verb","status":"Baru"""").bodyAsText()).string("id").orEmpty()
+        val one = "$base/$id"
+
+        // VIEW: baca boleh; tambah/ubah/hapus 403
+        assertEquals(HttpStatusCode.OK, asRole(base, "GET", "role-view").status)
+        assertEquals(HttpStatusCode.OK, asRole(one, "GET", "role-view").status)
+        assertEquals(HttpStatusCode.Forbidden, asRole(base, "POST", "role-view", json(""""judul":"x","status":"Baru"""")).status)
+        assertEquals(HttpStatusCode.Forbidden, asRole(one, "PUT", "role-view", json(""""judul":"dibajak"""")).status)
+        assertEquals(HttpStatusCode.Forbidden, asRole(one, "DELETE", "role-view").status)
+
+        // OPERATE: tambah dan ubah (termasuk pindah status) boleh; hapus 403
+        val created = asRole(base, "POST", "role-operate", json(""""judul":"Dari operator","status":"Baru""""))
+        assertEquals(HttpStatusCode.Created, created.status)
+        val opId = JsonParser.parseObject(created.bodyAsText()).string("id").orEmpty()
+        assertEquals(HttpStatusCode.OK, asRole("$base/$opId", "PUT", "role-operate", json(""""status":"Ditinjau"""")).status)
+        assertEquals(HttpStatusCode.Forbidden, asRole("$base/$opId", "DELETE", "role-operate").status)
+
+        // MANAGE: hapus boleh
+        assertEquals(HttpStatusCode.OK, asRole("$base/$opId", "DELETE", "role-manage").status)
+        assertEquals(HttpStatusCode.OK, asRole(one, "DELETE", "role-manage").status)
+    }
+
+    @Test
+    fun putWithSeveralFields_isAtomic_aLaterInvalidFieldLeavesEarlierOnesUnsaved() = testApplication {
+        if (!enabled) return@testApplication
+        install()
+        val id = JsonParser.parseObject(create(slugA, """"judul":"Judul asli","prioritas":"Rendah","status":"Baru"""").bodyAsText()).string("id").orEmpty()
+
+        // judul sah, tetapi loncat status Baru -> Selesai dilarang: tidak boleh ada yang tersimpan
+        val bad = client.put("$base/$id") { asTenant(slugA); contentType(ContentType.Application.Json); setBody(json(""""judul":"Judul baru","prioritas":"Tinggi","status":"Selesai"""")) }
+        assertEquals(HttpStatusCode.BadRequest, bad.status)
+        val after = JsonParser.parseObject(client.get("$base/$id") { asTenant(slugA) }.bodyAsText()).obj("values")!!
+        assertEquals("Judul asli", after.string("judul"), "judul tidak boleh berubah")
+        assertEquals("Rendah", after.string("prioritas"), "prioritas tidak boleh berubah")
+        assertEquals("Baru", after.string("status"))
+
+        // kombinasi sah tersimpan utuh
+        val ok = client.put("$base/$id") { asTenant(slugA); contentType(ContentType.Application.Json); setBody(json(""""judul":"Judul baru","prioritas":"Tinggi","status":"Ditinjau"""")) }
+        assertEquals(HttpStatusCode.OK, ok.status)
+        val saved = JsonParser.parseObject(client.get("$base/$id") { asTenant(slugA) }.bodyAsText()).obj("values")!!
+        assertEquals(listOf("Judul baru", "Tinggi", "Ditinjau"), listOf(saved.string("judul"), saved.string("prioritas"), saved.string("status")))
+        client.delete("$base/$id") { asTenant(slugA) }
+    }
+
+    @Test
+    fun list_orderIsStableAcrossCalls_evenForRowsCreatedInTheSameInstant() = testApplication {
+        if (!enabled) return@testApplication
+        install()
+        val ids = (1..6).map { i -> JsonParser.parseObject(create(slugA, """"judul":"Baris $i","status":"Baru"""").bodyAsText()).string("id").orEmpty() }
+        fun order(body: String) = JsonParser.parse(body).let { (it as com.eventverse.app.shared.json.JsonValue.Arr).items }
+            .filterIsInstance<com.eventverse.app.shared.json.JsonValue.Obj>().mapNotNull { it.string("id") }.filter { it in ids }
+        val first = order(client.get(base) { asTenant(slugA) }.bodyAsText())
+        repeat(4) { assertEquals(first, order(client.get(base) { asTenant(slugA) }.bodyAsText()), "urutan harus sama di setiap panggilan") }
+        assertEquals(ids.toSet(), first.toSet())
+        ids.forEach { client.delete("$base/$it") { asTenant(slugA) } }
     }
 }
