@@ -14,7 +14,8 @@ data class AppliedOps(val screen: InteractiveScreen, val log: List<CaptureEntry>
  * **Keputusan B3 — `AddField` tidak mengubah layar yang ada:** kolom tabel (`TableConfig.columns`)
  * dan field form (`FormConfig.fields`) adalah daftar eksplisit per layar; tidak ada layar yang
  * "menampilkan semua field". Field baru hanya masuk ke entitasnya; memunculkannya di layar tertentu
- * adalah keputusan lanjutan, bukan efek samping diam-diam.
+ * adalah keputusan lanjutan, bukan efek samping diam-diam. Jalur eksplisitnya adalah operasi
+ * [SpecOp.ShowFieldOnCard] (B4) untuk papan kanban.
  */
 object SpecOpApplier {
     const val MAX_OPS_PER_TURN = 5
@@ -26,10 +27,9 @@ object SpecOpApplier {
             is SpecOp.AddTransition -> addTransition(screen, op)
             is SpecOp.AddField -> addField(screen, op)
             is SpecOp.RenameFieldLabel -> renameFieldLabel(screen, op)
-            // Kontrak v2 (plan induk §3.5): jenis operasi diterbitkan lebih dulu di G0 agar codec
-            // dan UI bisa dikunci; pelaksananya menyusul di butir B4. Ditolak jelas, bukan ditebak.
-            is SpecOp.ShowFieldOnCard -> error("Menampilkan field di kartu belum didukung di versi ini.")
-            is SpecOp.SetFieldRequired -> error("Mengubah kewajiban field belum didukung di versi ini.")
+            // Kontrak v2 (plan induk §3.5), dilaksanakan sejak B4: kartu & kewajiban field.
+            is SpecOp.ShowFieldOnCard -> showFieldOnCard(screen, op)
+            is SpecOp.SetFieldRequired -> setFieldRequired(screen, op)
         }
     }
 
@@ -125,6 +125,35 @@ object SpecOpApplier {
         val f = requireNotNull(e.field(op.key)) { "Field '${op.key}' tidak ada di '${e.label}'." }
         return withField(screen, e, f.copy(label = op.label))
     }
+
+    /**
+     * B4 (kontrak v2): menampilkan [SpecOp.ShowFieldOnCard.field] pada kartu papan kanban entitas
+     * tersebut. Field yang sudah tampil **diganti gayanya di posisi semula** (urutan kartu terjaga,
+     * tidak ada duplikat); yang belum tampil ditambahkan di akhir. Field kelompok (mis. lencana
+     * status) juga boleh. Hanya layar kanban milik entitas yang berubah; tabel/form tak tersentuh.
+     */
+    private fun showFieldOnCard(screen: InteractiveScreen, op: SpecOp.ShowFieldOnCard): InteractiveScreen {
+        val e = entity(screen, op.entityId)
+        require(e.field(op.field) != null) { "Field '${op.field}' tidak ada di '${e.label}'." }
+        require(screen.spec.screens.any { it.entityId == op.entityId && it.kanban != null }) {
+            "'${e.label}' tidak punya papan kanban yang bisa diberi elemen kartu."
+        }
+        return withScreens(screen) { sc ->
+            sc.kanban?.takeIf { sc.entityId == op.entityId }?.let { sc.copy(kanban = it.copy(card = it.card.upsertCardElement(op.field, op.style))) } ?: sc
+        }
+    }
+
+    /** B4 (kontrak v2): kewajiban isi ditegakkan [PrototypeReducer] pada `Create`. */
+    private fun setFieldRequired(screen: InteractiveScreen, op: SpecOp.SetFieldRequired): InteractiveScreen {
+        val e = entity(screen, op.entityId)
+        val f = requireNotNull(e.field(op.field)) { "Field '${op.field}' tidak ada di '${e.label}'." }
+        if (f.required == op.required) return screen // sudah seperti itu — tidak ada yang perlu berubah
+        return withField(screen, e, f.copy(required = op.required))
+    }
+
+    private fun List<CardElement>.upsertCardElement(field: String, style: CardStyle): List<CardElement> =
+        if (any { it.field == field }) map { if (it.field == field) CardElement(field, style) else it }
+        else this + CardElement(field, style)
 
     // ---- bantu rekonstruksi ----------------------------------------------------------------
 
