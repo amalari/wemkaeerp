@@ -88,6 +88,11 @@ object WidgetRegistry {
             WidgetKind.TABLE -> InteractiveScreenFactory.table(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.tableHints)
             WidgetKind.CHECKLIST -> InteractiveScreenFactory.checklist(screen.screenId, screen.title, sampleRowsFor(screen, pack))
             WidgetKind.DASHBOARD -> InteractiveScreenFactory.dashboard(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.dashboardHints)
+            // FORM melengkapi layar sumber satu modul (butir B2): petunjuknya dibaca dari usulan
+            // modul yang sama apa pun watak widget sumbernya (lazimnya TABLE) — bukan dari usulan
+            // ber-widget FORM. Tanpa petunjuk = layar berbentuk tak cocok → null → digambar statis.
+            WidgetKind.FORM -> pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }
+                ?.formHints?.let { InteractiveScreenFactory.form(screen.screenId, screen.title, it) }
             else -> null
         }
     }

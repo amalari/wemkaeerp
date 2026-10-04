@@ -3,6 +3,7 @@ package com.eventverse.app.domain.pack
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.prototype.CountSpec
 import com.eventverse.app.domain.prototype.DashboardHints
+import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 
@@ -59,7 +60,15 @@ object GarmentScreenSuggestions {
         ScreenSuggestion(
             GarmentModules.INVENTORY, "Stok Kain & Bahan Baku", WidgetKind.TABLE,
             GarmentExportSeed.inventoryRows(),
-            tableHints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi"))
+            tableHints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi")),
+            // Form pelengkap tabel: Bahan, Stok, dan Kepemilikan wajib diisi (butir B2) supaya
+            // baris baru langsung lolos aturan stok — kepemilikan menentukan semantik nilai (Kontrak 3).
+            formHints = FormHints(
+                fields = listOf("Bahan", "Stok", "Kepemilikan"),
+                required = listOf("Bahan", "Stok", "Kepemilikan"),
+                options = mapOf("Kepemilikan" to listOf("Milik pabrik", "Titipan buyer")),
+                submitLabel = "Catat bahan"
+            )
         ),
         ScreenSuggestion(
             GarmentModules.PRODUCTION_MRP, "Jadwal Potong & SPK Massal", WidgetKind.KANBAN,

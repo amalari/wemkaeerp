@@ -3,7 +3,9 @@ package com.eventverse.app.domain.prototype
 import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.WidgetRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.pack.DomainPackCodec
 import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -175,5 +177,86 @@ class InteractiveDashboardChecklistTest {
             val screen = PrototypeScreen("default-${s.moduleId.value}", s.moduleId, s.title, s.widget.code)
             assertNotNull(WidgetRegistry.interactiveFor(screen, pack), "${s.moduleId.value} tidak interaktif")
         }
+    }
+}
+
+/** Butir B2: blok form di factory & registry, termasuk form Stok Kain garment (Bahan/Stok/Kepemilikan wajib). */
+class InteractiveFormTest {
+    private val hints = FormHints(
+        fields = listOf("Bahan", "Stok", "Kepemilikan"),
+        required = listOf("Bahan", "Stok", "Kepemilikan"),
+        options = mapOf("Kepemilikan" to listOf("Milik pabrik", "Titipan buyer")),
+        submitLabel = "Catat bahan"
+    )
+
+    @Test
+    fun form_createsRowsThroughReducer_andEnforcesRequiredWithUserMessage() {
+        val screen = assertNotNull(InteractiveScreenFactory.form("tambah-bahan", "Catat Bahan", hints))
+        val store = screen.newStore()
+        val kurang = PrototypeReducer.reduce(screen.spec, store, PrototypeAction.Create("item", PrototypeRow("b-1", mapOf("Bahan" to "Kain X", "Stok" to "10 kg"))))
+        assertTrue(kurang.isFailure)
+        assertTrue(kurang.exceptionOrNull()!!.message!!.contains("Kepemilikan"), "pesan memakai nama field berbahasa pengguna")
+        val ok = PrototypeReducer.reduce(
+            screen.spec, store,
+            PrototypeAction.Create("item", PrototypeRow("b-1", mapOf("Bahan" to "Kain X", "Stok" to "10 kg", "Kepemilikan" to "Milik pabrik")))
+        ).getOrThrow()
+        assertEquals("Kain X", ok.rowsOf("item").single()["Bahan"])
+    }
+
+    @Test
+    fun form_enumFieldRejectsUnknownOption_andSubmitLabelFollowsHints() {
+        val screen = assertNotNull(InteractiveScreenFactory.form("f", "Catat Bahan", hints))
+        assertEquals("Catat bahan", screen.spec.screens.single().form!!.submitLabel)
+        assertTrue(
+            PrototypeReducer.reduce(screen.spec, screen.newStore(), PrototypeAction.Create("item", PrototypeRow("b-9", mapOf("Bahan" to "K", "Stok" to "1", "Kepemilikan" to "Sewa")))).isFailure
+        )
+    }
+
+    @Test
+    fun form_invalidHints_isNotInteractive() {
+        assertNull(InteractiveScreenFactory.form("f", "F", FormHints(emptyList())))
+        assertNull(InteractiveScreenFactory.form("f", "F", FormHints(listOf("A", "A"))))
+    }
+
+    @Test
+    fun garmentInventoryForm_isInteractiveViaRegistry_andSharesEntityWithTableSource() {
+        val pack = GarmentDomainPack.pack
+        val form = assertNotNull(
+            WidgetRegistry.interactiveFor(PrototypeScreen("default-${GarmentModules.INVENTORY.value}-form", GarmentModules.INVENTORY, "Catat Bahan", "FORM"), pack),
+            "form stok kain tidak interaktif"
+        )
+        val table = assertNotNull(
+            WidgetRegistry.interactiveFor(PrototypeScreen("default-${GarmentModules.INVENTORY.value}", GarmentModules.INVENTORY, "Stok Kain", "TABLE"), pack)
+        )
+        // Penghubung form → layar sumber: entityId sama dan field form ada di kolom tabel sumbernya.
+        val tableFieldKeys = table.spec.entity(InteractiveScreenFactory.ENTITY_ID)!!.fields.map { it.key }
+        assertTrue(
+            form.spec.entity(InteractiveScreenFactory.ENTITY_ID)!!.fields.all { it.key in tableFieldKeys },
+            "field form wajib jadi kolom tabel sumbernya"
+        )
+        val next = PrototypeReducer.reduce(
+            form.spec, form.newStore(),
+            PrototypeAction.Create("item", PrototypeRow("b-1", mapOf("Bahan" to "Katun 30s", "Stok" to "500 kg", "Kepemilikan" to "Milik pabrik")))
+        ).getOrThrow()
+        assertEquals(1, next.rowsOf("item").size)
+    }
+
+    @Test
+    fun form_withoutPackHints_staysStatic() {
+        val pack = GarmentDomainPack.pack
+        assertNull(
+            WidgetRegistry.interactiveFor(PrototypeScreen("default-${GarmentModules.CRM_SALES.value}-form", GarmentModules.CRM_SALES, "Form CRM", "FORM"), pack),
+            "layar lama berbentuk tak cocok tetap null (statis), bukan ditebak"
+        )
+    }
+
+    @Test
+    fun formHints_survivePackCodecRoundTrip() {
+        val pack = GarmentDomainPack.pack
+        val decoded = DomainPackCodec.decode(DomainPackCodec.encode(pack).encode())
+        pack.screenSuggestions.filter { it.formHints != null }.forEach { s ->
+            assertEquals(s.formHints, decoded.screenSuggestions.first { it.moduleId == s.moduleId }.formHints)
+        }
+        assertTrue(pack.screenSuggestions.any { it.formHints != null }, "fixture garment wajib membawa formHints")
     }
 }
