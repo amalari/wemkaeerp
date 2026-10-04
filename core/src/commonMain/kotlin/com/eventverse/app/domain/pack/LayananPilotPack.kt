@@ -1,7 +1,13 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.CardElement
+import com.eventverse.app.domain.prototype.CardStyle
+import com.eventverse.app.domain.prototype.ColumnMeta
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.EntitySpec
+import com.eventverse.app.domain.prototype.FieldHint
+import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.FormConfig
@@ -57,7 +63,52 @@ object LayananPilotPack {
             ModuleAction(ModuleActionCode.APPROVE, "Setujui Permintaan"),
             ModuleAction(ModuleActionCode.DELETE, "Hapus Permintaan")
         ),
-        vocabulary = mapOf(VocabularyKey.WORKPLACE to "tim", VocabularyKey.DOCUMENT to "Permintaan")
+        vocabulary = mapOf(VocabularyKey.WORKPLACE to "tim", VocabularyKey.DOCUMENT to "Permintaan"),
+        screenSuggestions = listOf(boardSuggestion())
+    )
+
+    /** Basis route CRUD hasil generator (V90); sama dengan `LayananChangeRequestRoutes`. */
+    const val API_BASE_PATH = "/api/tenant/modules/layanan_change_request/change_requests"
+
+    /**
+     * Papan pilot berbinding [DataBinding.Api]: tanpa baris contoh (data dari server), field
+     * dideklarasikan dengan tipe sebenarnya (B2.1) agar kunci baris server (`status`, `judul`, …) cocok.
+     * Mesin status dan opsi mengikuti [entity]; [PilotBoardParityTest] menjaga keduanya tak menyimpang.
+     */
+    private fun boardSuggestion() = ScreenSuggestion(
+        moduleId = CHANGE_REQUEST,
+        title = "Papan Permintaan",
+        widget = WidgetKind.KANBAN,
+        kanbanHints = KanbanHints(
+            columns = listOf("Baru", "Ditinjau", "Disetujui", "Selesai"),
+            transitions = mapOf(
+                "Baru" to setOf("Ditinjau"),
+                "Ditinjau" to setOf("Baru", "Disetujui"),
+                "Disetujui" to setOf("Ditinjau", "Selesai"),
+                "Selesai" to setOf("Disetujui")
+            ),
+            groupLabel = "Status",
+            groupField = "status",
+            fields = listOf(
+                FieldHint("judul", FieldType.TEXT, required = true),
+                FieldHint("peminta", FieldType.TEXT),
+                FieldHint("prioritas", FieldType.ENUM, options = listOf("Rendah", "Sedang", "Tinggi")),
+                FieldHint("perkiraan_jam", FieldType.NUMBER),
+                FieldHint("target_selesai", FieldType.DATE),
+                FieldHint("mendesak", FieldType.BOOL),
+                FieldHint("catatan", FieldType.TEXT)
+            ),
+            card = listOf(
+                CardElement("judul", CardStyle.TITLE),
+                CardElement("prioritas", CardStyle.BADGE),
+                CardElement("peminta", CardStyle.TEXT),
+                CardElement("target_selesai", CardStyle.DATE),
+                CardElement("mendesak", CardStyle.FLAG)
+            ),
+            columnMeta = mapOf("Ditinjau" to ColumnMeta(wipLimit = 5)),
+            detailForm = FormConfig(listOf("judul", "peminta", "prioritas", "perkiraan_jam", "target_selesai", "mendesak", "catatan"), "Simpan")
+        ),
+        dataBinding = DataBinding.Api(API_BASE_PATH)
     )
 
     val entity = EntitySpec(
