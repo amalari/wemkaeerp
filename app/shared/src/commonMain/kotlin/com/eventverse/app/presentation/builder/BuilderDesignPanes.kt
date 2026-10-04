@@ -149,39 +149,65 @@ fun BuilderDataFlowPane(modifier: Modifier = Modifier) {
 fun BuilderPrototypePane(modifier: Modifier = Modifier) {
     BuilderTenantDraft { draft ->
         val typography = rememberClayTypography()
+        var currentScreens by remember(draft.id) { mutableStateOf(draft.screens) }
+        val session = remember(currentScreens) { com.eventverse.app.presentation.discovery.PrototypeSession(currentScreens) }
+        var showExportDialog by remember { mutableStateOf(false) }
+
         // "Per modul ada apa aja": filter modul — pilih satu modul, pratinjau hanya menampilkan
         // layar miliknya. null = Semua Modul. Urutan chip mengikuti urutan modul di pack.
         var selectedModule by remember(draft.id) { mutableStateOf<String?>(null) }
-        val modulesWithScreens = draft.modules.filter { m -> draft.screens.any { it.moduleId == m.id } }
+        val modulesWithScreens = draft.modules.filter { m -> currentScreens.any { it.moduleId == m.id } }
         // Modul yang dipakai (panel harga): layar dan harga sama-sama mengikutinya. Awalnya semua.
         var included by remember(draft.id) { mutableStateOf(modulesWithScreens.map { it.id }.toSet()) }
-        val includedScreens = draft.screens.filter { it.moduleId in included }
+        val includedScreens = currentScreens.filter { it.moduleId in included }
         val visibleScreens = selectedModule?.takeIf { it in included }
             ?.let { id -> includedScreens.filter { it.moduleId == id } }
             ?: includedScreens
+
         Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Pratinjau layar",
-                    style = typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                ClayBadge(
-                    text = "${visibleScreens.size} dari ${draft.screens.size} layar",
-                    tint = WeMadeColors.Primary,
-                    dot = true
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Pratinjau layar",
+                        style = typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WeMadeColors.OnSurface
+                    )
+                    ClayBadge(
+                        text = "${visibleScreens.size} dari ${currentScreens.size} layar",
+                        tint = WeMadeColors.Primary,
+                        dot = true
+                    )
+                }
+
+                // A5: Tombol Ekspor Brief Kebutuhan
+                com.eventverse.app.presentation.designsystem.ClayButton(
+                    text = "Ekspor Brief",
+                    style = com.eventverse.app.presentation.designsystem.ClayButtonStyle.Primary,
+                    onClick = { showExportDialog = true }
                 )
             }
+
+            // A4: Panel Chat Edit Prototype
+            com.eventverse.app.presentation.discovery.PrototypeChatEditPanel(
+                screens = currentScreens,
+                session = session,
+                onScreensUpdated = { currentScreens = it }
+            )
+
             PrototypePricePanel(
-                draft = draft,
+                draft = draft.copy(screens = currentScreens),
                 included = included,
                 onToggle = { id -> included = if (id in included) included - id else included + id }
             )
+
             if (modulesWithScreens.size > 1) {
                 ClayFlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -201,7 +227,21 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
                     }
                 }
             }
-            PrototypeRenderer(draft = draft.copy(screens = includedScreens), screens = visibleScreens)
+
+            PrototypeRenderer(
+                draft = draft.copy(screens = includedScreens),
+                screens = visibleScreens,
+                session = session
+            )
+        }
+
+        if (showExportDialog) {
+            com.eventverse.app.presentation.discovery.PrototypeExportBriefDialog(
+                draft = draft.copy(screens = currentScreens),
+                includedModuleIds = included,
+                session = session,
+                onDismissRequest = { showExportDialog = false }
+            )
         }
     }
 }

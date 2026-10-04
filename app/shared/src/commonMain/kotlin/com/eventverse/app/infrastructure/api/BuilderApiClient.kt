@@ -41,6 +41,22 @@ class BuilderApiClient(
             "/api/builder/draft/price?marginPercent=$marginPercent" + (modules?.let { "&modules=" + it.joinToString(",") } ?: "")
         )
 
+    /** POST /api/builder/draft/spec-ops — usulan operasi spec dari percakapan (A4). */
+    suspend fun proposeSpecOps(message: String, screenId: String, specJson: String): Result<JsonValue> =
+        call(
+            HttpMethod.Post,
+            "/api/builder/draft/spec-ops",
+            """{"message":${JsonValue.Str(message).encode()},"screenId":${JsonValue.Str(screenId).encode()},"spec":$specJson}"""
+        )
+
+    /** POST /api/builder/draft/brief — ekspor brief kebutuhan developer (A5). */
+    suspend fun exportBrief(included: Collection<String>, changesJson: String): Result<JsonValue> =
+        call(
+            HttpMethod.Post,
+            "/api/builder/draft/brief",
+            """{"included":[${included.joinToString(",") { JsonValue.Str(it).encode() }}],"changes":$changesJson}"""
+        )
+
     /** GET /api/builder/chat — percakapan tenant + seluruh pesan. */
     suspend fun chat(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/chat")
 

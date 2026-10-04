@@ -11,5 +11,6 @@ fun InteractiveBlock(state: PlayableState, modifier: Modifier = Modifier) {
         is InteractiveTableState -> InteractiveTable(state, modifier)
         is InteractiveChecklistState -> InteractiveChecklist(state, modifier)
         is InteractiveDashboardState -> InteractiveDashboard(state, modifier)
+        is InteractiveFormState -> InteractiveForm(state, modifier)
     }
 }

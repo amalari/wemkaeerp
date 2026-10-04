@@ -82,7 +82,12 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
 
 @Composable
 private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
-    Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+    var showConfirmDelete by remember { mutableStateOf(false) }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
         state.config.columns.forEach { column ->
             if (state.isStatus(column)) {
                 StatusCell(row, column, state)
@@ -96,6 +101,39 @@ private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
                 )
             }
         }
+        Text(
+            text = "×",
+            style = MaterialTheme.typography.titleMedium,
+            color = WeMadeColors.OnSurfaceMuted,
+            modifier = Modifier
+                .padding(horizontal = ClaySpacing.Xs)
+                .clickable { showConfirmDelete = true }
+        )
+    }
+
+    if (showConfirmDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showConfirmDelete = false },
+            title = { Text("Hapus Baris", fontWeight = FontWeight.Bold) },
+            text = { Text("Yakin ingin menghapus data baris '${row.id}'?") },
+            confirmButton = {
+                com.eventverse.app.presentation.designsystem.ClayButton(
+                    text = "Hapus",
+                    style = com.eventverse.app.presentation.designsystem.ClayButtonStyle.Danger,
+                    onClick = {
+                        showConfirmDelete = false
+                        state.delete(row.id)
+                    }
+                )
+            },
+            dismissButton = {
+                com.eventverse.app.presentation.designsystem.ClayButton(
+                    text = "Batal",
+                    style = com.eventverse.app.presentation.designsystem.ClayButtonStyle.Secondary,
+                    onClick = { showConfirmDelete = false }
+                )
+            }
+        )
     }
 }
 

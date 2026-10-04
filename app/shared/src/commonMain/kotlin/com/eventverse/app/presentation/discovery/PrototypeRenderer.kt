@@ -39,7 +39,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun PrototypeRenderer(
     draft: DiscoveryDraftUi,
     modifier: Modifier = Modifier,
-    screens: List<DiscoveryScreenUi> = draft.screens
+    screens: List<DiscoveryScreenUi> = draft.screens,
+    session: PrototypeSession = remember(draft.screens) { PrototypeSession(draft.screens) }
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
         if (screens.isEmpty()) {
@@ -56,8 +57,6 @@ fun PrototypeRenderer(
                 )
             }
         }
-        // Sesi dibangun dari SEMUA layar draf (bukan hanya yang difilter) agar dasbor tetap bisa menghitung dari modul lain.
-        val session = remember(draft.screens) { PrototypeSession(draft.screens) }
         ClayFlowRow(modifier = Modifier.fillMaxWidth(), spacing = ClaySpacing.Lg) {
             screens.forEach { screen ->
                 val module = draft.modules.firstOrNull { it.id == screen.moduleId }

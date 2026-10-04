@@ -21,7 +21,7 @@ class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
     private val spec = screen.spec
     private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
     val config: KanbanConfig = requireNotNull(screenSpec.kanban) { "Layar '${screenSpec.screenId}' bukan kanban" }
-    private val entityId = requireNotNull(screenSpec.entityId) { "Layar kanban tanpa entitas" }
+    val entityId: String = requireNotNull(screenSpec.entityId) { "Layar kanban tanpa entitas" }
     private val machine = spec.entity(entityId)?.stateMachine?.takeIf { it.field == config.groupField }
 
     var store by mutableStateOf(screen.newStore())
@@ -54,6 +54,18 @@ class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
 
     fun move(rowId: String, to: String) {
         PrototypeReducer.moveCard(spec, store, entityId, rowId, config.groupField, to)
+            .onSuccess { store = it; message = null }
+            .onFailure { message = it.message }
+    }
+
+    fun delete(rowId: String) {
+        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Delete(entityId, rowId))
+            .onSuccess { store = it; message = null }
+            .onFailure { message = it.message }
+    }
+
+    fun insertRow(row: PrototypeRow) {
+        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Create(entityId, row))
             .onSuccess { store = it; message = null }
             .onFailure { message = it.message }
     }
