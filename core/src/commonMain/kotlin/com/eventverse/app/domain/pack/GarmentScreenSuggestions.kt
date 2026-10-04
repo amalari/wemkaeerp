@@ -21,39 +21,12 @@ object GarmentScreenSuggestions {
     val all: List<ScreenSuggestion> = listOf(
         ScreenSuggestion(
             GarmentModules.CRM_SALES, "Daftar PO & Prospek", WidgetKind.TABLE,
-            listOf(
-                mapOf(
-                    "No. PO" to "PO-2026-0312",
-                    "Pembeli" to "PT Sinar Jaya Garment",
-                    "Produk" to "1.200 pcs kemeja PDH",
-                    "Target Kirim" to "28 Mar 2026",
-                    "Status" to "Prospek — nego harga jahit"
-                ),
-                mapOf(
-                    "No. PO" to "PO-2026-0298",
-                    "Pembeli" to "CV Amanah Abadi",
-                    "Produk" to "800 pcs polo combed",
-                    "Target Kirim" to "10 Apr 2026",
-                    "Status" to "PO masuk — jadwal sampling"
-                ),
-                mapOf(
-                    "No. PO" to "PO-2026-0275",
-                    "Pembeli" to "PT Cahaya Tekstil",
-                    "Produk" to "2.000 pcs seragam kerja",
-                    "Target Kirim" to "2 Mei 2026",
-                    "Status" to "Prospek — kirim penawaran"
-                )
-            )
+            GarmentExportSeed.crmRows(),
+            tableHints = TableHints("Status", listOf("Prospek", "Sampling", "Produksi", "Siap kirim"))
         ),
         ScreenSuggestion(
             GarmentModules.SAMPLING_ORDER, "Papan SPK Sampling", WidgetKind.KANBAN,
-            listOf(
-                mapOf("Kolom" to "Baru", "Kartu" to "SP-1051 · Kemeja PDH", "Detail" to "PT Sinar Jaya · 3 pcs sampel"),
-                mapOf("Kolom" to "Dikerjakan", "Kartu" to "SP-1048 · Polo Combed", "Detail" to "Jahit sample — Nia · due 20 Mar"),
-                mapOf("Kolom" to "Selesai", "Kartu" to "SP-1043 · Seragam CV Amanah", "Detail" to "Disetujui buyer — naik produksi"),
-                mapOf("Kolom" to "Baru", "Kartu" to "SP-1052 · Kaos Oblong", "Detail" to "CV Amanah · 5 pcs sampel"),
-                mapOf("Kolom" to "Dikerjakan", "Kartu" to "SP-1046 · Jaket Bomber", "Detail" to "Potong pola — Budi · due 22 Mar")
-            ),
+            GarmentExportSeed.samplingRows(),
             KanbanHints(
                 columns = listOf("Baru", "Dikerjakan", "Selesai"),
                 transitions = mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Baru", "Selesai"), "Selesai" to setOf("Dikerjakan")),
@@ -62,22 +35,18 @@ object GarmentScreenSuggestions {
         ),
         ScreenSuggestion(
             GarmentModules.TECH_PACK_BOM, "Spesifikasi BOM & Tech Pack", WidgetKind.TABLE,
-            listOf(
-                mapOf("Komponen" to "Kain Cotton Combed 30s", "Spesifikasi" to "Navy · 280 gsm", "Pemakaian" to "1,8 yd/pcs", "Status" to "Final"),
-                mapOf("Komponen" to "Benang Polyester 120", "Spesifikasi" to "Putih · 5.000 yd/koni", "Pemakaian" to "0,05 koni/pcs", "Status" to "Final"),
-                mapOf("Komponen" to "Kancing mutiara 4 lubang", "Spesifikasi" to "12 mm", "Pemakaian" to "11 pcs/baju", "Status" to "Draft"),
-                mapOf("Komponen" to "Label woven brand", "Spesifikasi" to "PDH-2024 rev.3", "Pemakaian" to "1 pcs/baju", "Status" to "Final")
-            ),
+            GarmentExportSeed.bomRows(),
             tableHints = TableHints("Status", listOf("Draft", "Final"))
         ),
         ScreenSuggestion(
             GarmentModules.COSTING_HPP, "Dasbor HPP & Biaya", WidgetKind.DASHBOARD,
             listOf(
-                mapOf("HPP rata-rata" to "Rp 38.500 / pcs"),
-                mapOf("Margin target" to "22%"),
-                mapOf("Order aktif" to "12 PO"),
+                mapOf("HPP rata-rata" to "Rp 98.400 / pcs"),
+                mapOf("Margin target" to "25%"),
+                mapOf("Order aktif" to "2 PO"),
                 mapOf("SPK sampling berjalan" to "4 SPK"),
-                mapOf("Biaya terbesar" to "Kain — 54% dari HPP")
+                mapOf("Nilai order produksi (FOB)" to GarmentExportSeed.activeValueText()),
+                mapOf("Biaya terbesar" to "Kain — 58% dari HPP")
             ),
             dashboardHints = DashboardHints(
                 mapOf(
@@ -89,22 +58,12 @@ object GarmentScreenSuggestions {
         ),
         ScreenSuggestion(
             GarmentModules.INVENTORY, "Stok Kain & Bahan Baku", WidgetKind.TABLE,
-            listOf(
-                mapOf("Bahan" to "Cotton Combed 30s", "Stok" to "420 kg", "Kepemilikan" to "Milik pabrik", "Status" to "Tersedia"),
-                mapOf("Bahan" to "Kain Fleece Katun 280 gsm", "Stok" to "180 kg", "Kepemilikan" to "Titipan buyer", "Status" to "Konsinyasi"),
-                mapOf("Bahan" to "Benang Polyester 120", "Stok" to "96 koni", "Kepemilikan" to "Milik pabrik", "Status" to "Tersedia"),
-                mapOf("Bahan" to "Kancing mutiara 12 mm", "Stok" to "5.000 pcs", "Kepemilikan" to "Milik pabrik", "Status" to "Menipis")
-            ),
+            GarmentExportSeed.inventoryRows(),
             tableHints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi"))
         ),
         ScreenSuggestion(
             GarmentModules.PRODUCTION_MRP, "Jadwal Potong & SPK Massal", WidgetKind.KANBAN,
-            listOf(
-                mapOf("Kolom" to "Antre Potong", "Kartu" to "PO-2026-0312 · Kemeja PDH", "Detail" to "1.200 pcs · Meja potong 3"),
-                mapOf("Kolom" to "Berjalan", "Kartu" to "PO-2026-0298 · Jahit", "Detail" to "Lini 2 · selesai 3 hari lagi"),
-                mapOf("Kolom" to "Selesai", "Kartu" to "PO-2026-0285 · Obras", "Detail" to "Lini 4 · 2.400 pcs"),
-                mapOf("Kolom" to "Antre Potong", "Kartu" to "PO-2026-0275 · Seragam Kerja", "Detail" to "2.000 pcs · menunggu kain")
-            ),
+            GarmentExportSeed.mrpRows(),
             KanbanHints(
                 columns = listOf("Antre Potong", "Berjalan", "Selesai"),
                 transitions = mapOf("Antre Potong" to setOf("Berjalan"), "Berjalan" to setOf("Antre Potong", "Selesai")),
@@ -113,33 +72,16 @@ object GarmentScreenSuggestions {
         ),
         ScreenSuggestion(
             GarmentModules.OPERATOR_EXEC, "Kanban Lini Jahit", WidgetKind.KANBAN,
-            listOf(
-                mapOf("Kolom" to "Lini 2", "Kartu" to "Rian — jahit kerah", "Detail" to "320 pcs hari ini"),
-                mapOf("Kolom" to "Lini 2", "Kartu" to "Sinta — jahit badan", "Detail" to "280 pcs hari ini"),
-                mapOf("Kolom" to "Lini 4", "Kartu" to "Agus — pasang lengan", "Detail" to "255 pcs hari ini")
-            ),
+            GarmentExportSeed.linimRows(),
             KanbanHints(columns = listOf("Lini 2", "Lini 3", "Lini 4"), groupLabel = "Lini jahit")
         ),
         ScreenSuggestion(
             GarmentModules.QUALITY_CONTROL, "Checklist Inspeksi QC", WidgetKind.CHECKLIST,
-            listOf(
-                mapOf("Butir" to "Jahitan lurus, tidak ada loncat", "Selesai" to "ya"),
-                mapOf("Butir" to "Kancing & lubang lengkap (11 pcs)", "Selesai" to "ya"),
-                mapOf("Butir" to "Permukaan bersih, tanpa noda minyak", "Selesai" to "tidak"),
-                mapOf("Butir" to "Ukuran dalam toleransi ±0,5 cm", "Selesai" to "ya")
-            )
+            GarmentExportSeed.qcRows()
         ),
         ScreenSuggestion(
             GarmentModules.FULFILLMENT, "Surat Jalan & Packing List", WidgetKind.PRINT,
-            listOf(
-                mapOf(
-                    "Dokumen" to "Surat Jalan SJ-2201",
-                    "Nomor" to "0001/SJ/III/2026",
-                    "Penerima" to "PT Sinar Jaya Garment",
-                    "Isi" to "40 karton — 4.800 pcs kemeja PDH",
-                    "Ekspedisi" to "Truk rental — berangkat 14.00"
-                )
-            )
+            listOf(GarmentExportSeed.suratJalanRow())
         )
     )
 }

@@ -300,7 +300,14 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
             rows.firstOrNull()?.forEach { (kolom, isi) ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(kolom, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
-                    Text(isi, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 2)
+                    // Nilai panjang (alamat, isi kiriman) boleh mengalah dan rata kanan, tidak menjepit labelnya (Kontrak 13).
+                    Text(
+                        isi,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        modifier = Modifier.weight(1f, fill = false).padding(start = ClaySpacing.Md)
+                    )
                 }
                 HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.2f))
             }
