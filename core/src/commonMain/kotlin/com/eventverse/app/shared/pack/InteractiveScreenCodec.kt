@@ -1,8 +1,12 @@
 package com.eventverse.app.shared.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.CardElement
+import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.ChecklistConfig
+import com.eventverse.app.domain.prototype.ColumnMeta
 import com.eventverse.app.domain.prototype.CountSpec
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardConfig
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldSpec
@@ -50,11 +54,17 @@ object InteractiveScreenCodec {
                 "kanban" to (sc.kanban?.let { k ->
                     jsonObjectOf(
                         "groupField" to jsonOf(k.groupField), "columns" to jsonArrayOf(k.columns.map(::jsonOf)),
-                        "titleField" to jsonOf(k.titleField), "detailFields" to jsonArrayOf(k.detailFields.map(::jsonOf))
+                        "titleField" to jsonOf(k.titleField), "detailFields" to jsonArrayOf(k.detailFields.map(::jsonOf)),
+                        "card" to jsonArrayOf(k.card.map { el -> jsonObjectOf("field" to jsonOf(el.field), "style" to jsonOf(el.style.name)) }),
+                        "columnMeta" to jsonObjectOf(*k.columnMeta.map { (col, m) -> col to encodeColumnMeta(m) }.toTypedArray()),
+                        "detailForm" to (k.detailForm?.let { f -> jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel)) } ?: JsonValue.Null)
                     )
                 } ?: JsonValue.Null),
                 "table" to (sc.table?.let { t ->
-                    jsonObjectOf("columns" to jsonArrayOf(t.columns.map(::jsonOf)), "statusField" to jsonOf(t.statusField))
+                    jsonObjectOf(
+                        "columns" to jsonArrayOf(t.columns.map(::jsonOf)), "statusField" to jsonOf(t.statusField),
+                        "inlineCreate" to jsonOf(t.inlineCreate), "editableFields" to jsonArrayOf(t.editableFields.map(::jsonOf))
+                    )
                 } ?: JsonValue.Null),
                 "form" to (sc.form?.let { f -> jsonObjectOf("fields" to jsonArrayOf(f.fields.map(::jsonOf)), "submitLabel" to jsonOf(f.submitLabel)) } ?: JsonValue.Null),
                 "checklist" to (sc.checklist?.let { c -> jsonObjectOf("labelField" to jsonOf(c.labelField), "doneField" to jsonOf(c.doneField)) } ?: JsonValue.Null),
@@ -67,7 +77,8 @@ object InteractiveScreenCodec {
         }),
         "seed" to jsonObjectOf(*s.seed.map { (entityId, rows) ->
             entityId to jsonArrayOf(rows.map { jsonObjectOf("id" to jsonOf(it.id), "values" to jsonStringMapOf(it.values)) })
-        }.toTypedArray())
+        }.toTypedArray()),
+        "binding" to encodeBinding(s.binding)
     )
 
     fun decode(o: JsonValue.Obj): InteractiveScreen {
@@ -91,8 +102,26 @@ object InteractiveScreenCodec {
             val widget = requireNotNull(WidgetKind.fromCode(sc.string("widget").orEmpty())) { "widget layar tak dikenal" }
             ScreenSpec(
                 sc.string("screenId").orEmpty(), sc.string("title").orEmpty(), widget, sc.string("entityId"),
-                sc.obj("kanban")?.let { k -> KanbanConfig(k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields")) },
-                table = sc.obj("table")?.let { t -> TableConfig(t.stringArray("columns"), t.string("statusField")) },
+                sc.obj("kanban")?.let { k ->
+                    KanbanConfig(
+                        k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields"),
+                        card = k.objectArray("card").map { el ->
+                            CardElement(
+                                el.string("field").orEmpty(),
+                                requireNotNull(CardStyle.entries.firstOrNull { it.name == el.string("style") }) {
+                                    "Gaya kartu '${el.string("style").orEmpty()}' tidak dikenal"
+                                }
+                            )
+                        },
+                        columnMeta = k.obj("columnMeta")?.entries?.mapValues { (col, v) ->
+                            decodeColumnMeta(v as? JsonValue.Obj ?: throw IllegalArgumentException("columnMeta.$col: harus objek"))
+                        }.orEmpty(),
+                        detailForm = k.obj("detailForm")?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") }
+                    )
+                },
+                table = sc.obj("table")?.let { t ->
+                    TableConfig(t.stringArray("columns"), t.string("statusField"), t.boolean("inlineCreate") ?: false, t.stringArray("editableFields"))
+                },
                 form = sc.obj("form")?.let { f -> FormConfig(f.stringArray("fields"), f.string("submitLabel") ?: "Simpan") },
                 checklist = sc.obj("checklist")?.let { c -> ChecklistConfig(c.string("labelField").orEmpty(), c.string("doneField").orEmpty()) },
                 dashboard = sc.obj("dashboard")?.let { d ->
@@ -105,7 +134,7 @@ object InteractiveScreenCodec {
                 PrototypeRow(r.string("id").orEmpty(), r.stringMap("values"))
             }
         }
-        return InteractiveScreen(PrototypeSpec(entities, screens), seed)
+        return InteractiveScreen(PrototypeSpec(entities, screens), seed, decodeBindingValue(o["binding"]))
     }
 
     internal fun encodeCount(c: CountSpec): JsonValue.Obj = jsonObjectOf(
@@ -115,4 +144,28 @@ object InteractiveScreenCodec {
 
     internal fun decodeCount(o: JsonValue.Obj): CountSpec =
         CountSpec(o.string("moduleId").orEmpty(), o.string("field"), o.string("equals"), o.string("notEquals"), o.string("suffix").orEmpty())
+
+    /** [DataBinding] ke JSON: memori ditulis `null` (plan induk §3.7 — tanpa kunci = memori). */
+    internal fun encodeBinding(b: DataBinding): JsonValue = when (b) {
+        is DataBinding.Memory -> JsonValue.Null
+        is DataBinding.Api -> jsonObjectOf("type" to jsonOf("api"), "basePath" to jsonOf(b.basePath))
+    }
+
+    /** Tanpa kunci = memori (kompatibel mundur); tipe/bentuk tak dikenal **ditolak**, tidak ditebak. */
+    internal fun decodeBindingValue(node: JsonValue?): DataBinding = when (node) {
+        null, JsonValue.Null -> DataBinding.Memory
+        is JsonValue.Obj -> when (val type = node.string("type")) {
+            "memory", null -> DataBinding.Memory
+            "api" -> DataBinding.Api(requireNotNull(node.string("basePath")) { "binding.basePath kosong" })
+            else -> throw IllegalArgumentException("Tipe binding '$type' tidak dikenal.")
+        }
+        else -> throw IllegalArgumentException("Kunci 'binding' harus objek.")
+    }
+
+    private fun encodeColumnMeta(m: ColumnMeta): JsonValue.Obj = jsonObjectOf(
+        "tintHex" to (m.tintHex?.let(::jsonOf) ?: JsonValue.Null),
+        "wipLimit" to (m.wipLimit?.let(::jsonOf) ?: JsonValue.Null)
+    )
+
+    private fun decodeColumnMeta(o: JsonValue.Obj): ColumnMeta = ColumnMeta(o.long("tintHex"), o.int("wipLimit"))
 }

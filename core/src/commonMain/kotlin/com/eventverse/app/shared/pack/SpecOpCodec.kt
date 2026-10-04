@@ -1,6 +1,7 @@
 package com.eventverse.app.shared.pack
 
 import com.eventverse.app.domain.discovery.brief.CaptureEntry
+import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.SpecOp
@@ -27,6 +28,8 @@ object SpecOpCodec {
             )
         )
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
+        is SpecOp.ShowFieldOnCard -> jsonObjectOf("type" to jsonOf("ShowFieldOnCard"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "style" to jsonOf(op.style.name))
+        is SpecOp.SetFieldRequired -> jsonObjectOf("type" to jsonOf("SetFieldRequired"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "required" to jsonOf(op.required))
     }
 
     fun decode(o: JsonValue.Obj): Result<SpecOp> = runCatching {
@@ -44,6 +47,14 @@ object SpecOpCodec {
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))
+            "ShowFieldOnCard" -> {
+                val style = CardStyle.entries.firstOrNull { it.name == o.string("style") }
+                SpecOp.ShowFieldOnCard(str("entityId"), str("field"), requireNotNull(style) { "Gaya kartu '${o.string("style").orEmpty()}' tidak dikenal." })
+            }
+            "SetFieldRequired" -> SpecOp.SetFieldRequired(
+                str("entityId"), str("field"),
+                requireNotNull(o.boolean("required")) { "Bidang 'required' wajib diisi." }
+            )
             else -> throw IllegalArgumentException("Jenis operasi '${type.orEmpty()}' tidak dikenal.")
         }
     }

@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
@@ -69,7 +70,13 @@ data class ScreenSuggestion(
      * usulan ber-widget apa pun (lazimnya TABLE/KANBAN), karena form berbagi entitas dengan layar
      * sumbernya, bukan berdiri sendiri. Null = modul tidak mengusulkan form.
      */
-    val formHints: FormHints? = null
+    val formHints: FormHints? = null,
+    /**
+     * Asal data layar (kontrak v2, plan induk §3.4): bawaan [DataBinding.Memory] (demo memori);
+     * modul pilot memakai [DataBinding.Api] agar blok memuat/menyimpan ke server. Jenis binding
+     * adalah kosakata **sistem** (kode); memilih nilainya adalah keputusan pack.
+     */
+    val dataBinding: DataBinding = DataBinding.Memory
 ) {
     init {
         require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }
