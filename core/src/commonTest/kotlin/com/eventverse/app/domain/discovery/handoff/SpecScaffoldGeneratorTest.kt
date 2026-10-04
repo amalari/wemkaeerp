@@ -128,6 +128,8 @@ class SpecScaffoldGeneratorTest {
         val routes = pilot().file("LayananChangeRequestRoutes.kt")
         assertTrue("/api/tenant/modules/layanan_change_request/change_requests" in routes, "di bawah /api/tenant agar tercakup RouteGateTest")
         assertTrue("tenant.pack.module(MODULE) == null" in routes, "modul harus ada di pack tenant")
+        assertTrue(routes.indexOf("requireModuleAccess(MODULE") in 0 until routes.indexOf("tenant.pack.module(MODULE)"), "RBAC (403) sebelum cek pack (404)")
+        assertTrue(routes.indexOf("DomainPackRegistry.moduleDefinition(MODULE) == null") in 0 until routes.indexOf("moduleDecision("), "modul tak dikenal = 403, bukan error saat menghitung keputusan")
         val post = routes.substringAfter("        post {").substringBefore("        put(")
         assertTrue(post.indexOf("authorized(AccessLevel.OPERATE)") in 0 until post.indexOf("bodyValues()"), "gerbang sebelum body dibaca")
         assertTrue("authorized(AccessLevel.MANAGE)" in routes.substringAfter("delete(\"/{id}\")"))
@@ -139,7 +141,7 @@ class SpecScaffoldGeneratorTest {
     @Test
     fun generatedGateTest_coversUnauthorizedRoles_andUsesGivenPack() {
         val test = pilot().file("RoutesGateTest.kt")
-        listOf("401", "Forbidden", "Unauthorized", "NotFound").forEach { assertTrue(it in test, "kasus hilang: $it") }
+        listOf("Forbidden", "Unauthorized", "NotFound").forEach { assertTrue(it in test, "kasus hilang: $it") }
         assertTrue("private val pack = $packExpr" in test)
         assertTrue("DomainPackRegistry.register(pack)" in test)
     }

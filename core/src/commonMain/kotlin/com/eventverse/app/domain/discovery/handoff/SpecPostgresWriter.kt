@@ -31,18 +31,20 @@ internal object SpecPostgresWriter {
 
     fun repositoryFile(t: SpecTable): String {
         val cls = "Postgres" + SpecNaming.pascal(t.schema) + "Repository"
-        val tbl = t.objectName
+        val objectName = t.objectName
+        val tbl = "T" // alias lokal supaya baris query tetap terbaca
         return buildString {
             appendLine("package com.eventverse.app.infrastructure")
             appendLine()
             appendLine("import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository")
             appendLine("import com.eventverse.app.domain.prototype.PrototypeRow")
             appendLine("import com.eventverse.app.domain.tenant.TenantId")
-            appendLine("import com.eventverse.app.infrastructure.tables.$tbl")
+            appendLine("import com.eventverse.app.infrastructure.tables.$objectName")
             appendLine("import kotlinx.datetime.Clock")
             appendLine("import kotlinx.datetime.LocalDate")
             appendLine("import org.jetbrains.exposed.sql.ResultRow")
             appendLine("import org.jetbrains.exposed.sql.SortOrder")
+            appendLine("import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq")
             appendLine("import org.jetbrains.exposed.sql.and")
             appendLine("import org.jetbrains.exposed.sql.deleteWhere")
             appendLine("import org.jetbrains.exposed.sql.insert")
@@ -51,6 +53,8 @@ internal object SpecPostgresWriter {
             appendLine()
             appendLine("/** KANDIDAT PR (hasil generator) — ${t.qualified}. Setiap query lewat `dbQuery(tenantId)` (RLS aktif). */")
             appendLine("class $cls : PrototypeRowRepository {")
+            appendLine()
+            appendLine("    private val T = $objectName")
             appendLine()
             appendLine("    override suspend fun list(tenantId: TenantId): List<PrototypeRow> = DatabaseFactory.dbQuery(tenantId) {")
             appendLine("        $tbl.selectAll().where { $tbl.tenantId eq tenantId.value }.orderBy($tbl.createdAt to SortOrder.ASC).map(::hydrate)")

@@ -5,7 +5,7 @@ import com.eventverse.app.domain.prototype.FieldType
 
 /**
  * Route CRUD **fail-closed** dari spec (kontrak §3.4). Urutan gerbang tidak boleh diubah:
- * konteks tenant → modul ada di pack tenant (404) → keputusan RBAC + level (403) → **baru** body dibaca.
+ * konteks tenant → modul dikenal (403 bila tidak) → keputusan RBAC + level (403) → modul ada di pack tenant (404, hanya untuk yang lolos RBAC) → **baru** body dibaca.
  * Validasi isi memakai `PrototypeReducer` dengan spec yang sama dengan prototype (required, opsi enum,
  * transisi status), jadi aturan di prototype dan di server tidak bisa berbeda. Route di bawah
  * `/api/tenant/…` supaya tercakup `RouteGateTest` dan `RouteOwnershipTest`.
@@ -20,7 +20,8 @@ internal object SpecRoutesWriter {
             appendLine("package com.eventverse.app.routes")
             appendLine()
             listOf(
-                "com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository", "com.eventverse.app.domain.pack.ModuleId",
+                "com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository", "com.eventverse.app.domain.pack.DomainPackRegistry",
+                "com.eventverse.app.domain.pack.ModuleId",
                 "com.eventverse.app.domain.prototype.EntitySpec", "com.eventverse.app.domain.prototype.FieldSpec",
                 "com.eventverse.app.domain.prototype.FieldType", "com.eventverse.app.domain.prototype.PrototypeAction",
                 "com.eventverse.app.domain.prototype.PrototypeReducer", "com.eventverse.app.domain.prototype.PrototypeRow",
@@ -55,10 +56,14 @@ internal object SpecRoutesWriter {
             appendLine(") {")
             appendLine("    suspend fun ApplicationCall.authorized(required: AccessLevel): TenantContext? {")
             appendLine("        val tenant = tenantContextOrNull ?: run { respond(HttpStatusCode.NotFound, \"No tenant context found\"); return null }")
-            appendLine("        // Modul harus ada di pack tenant; tanpa ini pemilik tenant lain (owner melewati matriks) bisa masuk.")
-            appendLine("        if (tenant.pack.module(MODULE) == null) { respond(HttpStatusCode.NotFound, \"Modul tidak tersedia untuk tenant ini.\"); return null }")
+            appendLine("        // Modul tak dikenal proses ini (pack-nya tidak termuat) = keputusan RBAC tak bisa dihitung = 403 (fail-closed, Kontrak 7).")
+            appendLine("        if (DomainPackRegistry.moduleDefinition(MODULE) == null) { respond(HttpStatusCode.Forbidden, \"Modul tidak tersedia.\"); return null }")
+            appendLine("        // RBAC DULU: tanpa wewenang = 403 sebelum apa pun tentang isi tenant terungkap (RouteGateTest menegakkan ini).")
             appendLine("        val decision = moduleDecision(MODULE, tenant, roleRepository, moduleAssignmentRepository)")
-            appendLine("        return tenant.takeIf { requireModuleAccess(MODULE, decision, required) }")
+            appendLine("        if (!requireModuleAccess(MODULE, decision, required)) return null")
+            appendLine("        // Yang lolos RBAC (mis. owner, yang melewati matriks) tetap harus berada di tenant yang packnya memuat modul ini.")
+            appendLine("        if (tenant.pack.module(MODULE) == null) { respond(HttpStatusCode.NotFound, \"Modul tidak tersedia untuk tenant ini.\"); return null }")
+            appendLine("        return tenant")
             appendLine("    }")
             appendLine()
             appendLine("    /** `{\"values\":{...}}` → peta string; JSON tak sah = 400 dan `null`. */")

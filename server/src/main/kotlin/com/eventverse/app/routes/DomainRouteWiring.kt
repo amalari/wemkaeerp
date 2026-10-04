@@ -204,6 +204,10 @@ class DomainRouteWiring(
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
+        // Pilot Jalur C: modul pack data `layanan` (gerbang fail-closed; hanya tenant yang packnya memuat modul ini).
+        layananChangeRequestRoutes(
+            com.eventverse.app.infrastructure.PostgresLayananChangeRequestRepository(), roleRepo, assignmentRepo
+        )
         crmRoutes(
             leadRepository = crmLeadRepo, contactRepository = crmContactRepo,
             dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,

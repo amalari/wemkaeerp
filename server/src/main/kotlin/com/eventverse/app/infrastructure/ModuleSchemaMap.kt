@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure
 
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.pack.LayananPilotPack
 import com.eventverse.app.domain.pack.ModuleId
 
 /**
@@ -59,7 +60,9 @@ object ModuleSchemaMap {
         ),
         GarmentModules.INVOICING to setOf(
             "invoice_number_sequences", "invoice_issuer_profiles", "invoice_templates", "invoices", "invoice_lines", "invoice_payments"
-        )
+        ),
+        // Pilot Jalur C (PLAN-proto-C): modul pack data `layanan`, hasil HandoffScaffoldGenerator.generateFromSpec.
+        LayananPilotPack.CHANGE_REQUEST to setOf("change_requests")
     )
 
     /** Nama schema modul = kode modulnya; tidak ada tabel pemetaan kedua. */
