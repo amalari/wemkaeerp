@@ -116,7 +116,11 @@ class RichBlocksContractTest {
                 listOf("Baru"),
                 card = listOf(CardElement("No", CardStyle.TITLE)),
                 columnMeta = mapOf("Baru" to ColumnMeta(0xFF112233, wipLimit = 2)),
-                detailForm = FormConfig(listOf("No"), "Simpan")
+                detailForm = FormConfig(listOf("No"), "Simpan"),
+                // B2.1 — kunci yang sempat hilang saat pack disimpan→dimuat (temuan jalur C, fix
+                // 62782b4): tanpa regresi ini papan pilot jatuh ke mode lama di runtime.
+                groupField = "status",
+                fields = listOf(FieldHint("Judul", FieldType.TEXT, required = true))
             ),
             tableHints = TableHints(
                 "Status", listOf("Baru"),
