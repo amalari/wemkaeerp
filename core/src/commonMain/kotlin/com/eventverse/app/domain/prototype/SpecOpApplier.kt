@@ -26,6 +26,10 @@ object SpecOpApplier {
             is SpecOp.AddTransition -> addTransition(screen, op)
             is SpecOp.AddField -> addField(screen, op)
             is SpecOp.RenameFieldLabel -> renameFieldLabel(screen, op)
+            // Kontrak v2 (plan induk §3.5): jenis operasi diterbitkan lebih dulu di G0 agar codec
+            // dan UI bisa dikunci; pelaksananya menyusul di butir B4. Ditolak jelas, bukan ditebak.
+            is SpecOp.ShowFieldOnCard -> error("Menampilkan field di kartu belum didukung di versi ini.")
+            is SpecOp.SetFieldRequired -> error("Mengubah kewajiban field belum didukung di versi ini.")
         }
     }
 

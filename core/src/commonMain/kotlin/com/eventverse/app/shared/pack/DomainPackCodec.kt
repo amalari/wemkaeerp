@@ -1,6 +1,5 @@
 package com.eventverse.app.shared.pack
 
-import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.ModuleAction
@@ -12,11 +11,6 @@ import com.eventverse.app.domain.pack.ModuleSectionCode
 import com.eventverse.app.domain.pack.PhaseCode
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
-import com.eventverse.app.domain.pack.ScreenSuggestion
-import com.eventverse.app.domain.prototype.DashboardHints
-import com.eventverse.app.domain.prototype.FormHints
-import com.eventverse.app.domain.prototype.KanbanHints
-import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
 import com.eventverse.app.domain.pack.VocabularyKey
@@ -80,39 +74,7 @@ object DomainPackCodec {
         "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to jsonOf(a.label)) }),
         "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value }),
         "portLabels" to jsonStringMapOf(pack.portLabels),
-        "screenSuggestions" to jsonArrayOf(pack.screenSuggestions.map { s ->
-            jsonObjectOf(
-                "moduleId" to jsonOf(s.moduleId.value), "title" to jsonOf(s.title), "widget" to jsonOf(s.widget.code),
-                "sampleRows" to jsonArrayOf(s.sampleRows.map { row ->
-                    jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
-                }),
-                "kanbanHints" to (s.kanbanHints?.let { h ->
-                    jsonObjectOf(
-                        "columns" to jsonArrayOf(h.columns.map { jsonOf(it) }),
-                        "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray()),
-                        "groupLabel" to jsonOf(h.groupLabel)
-                    )
-                } ?: JsonValue.Null),
-                "tableHints" to (s.tableHints?.let { h ->
-                    jsonObjectOf(
-                        "statusColumn" to jsonOf(h.statusColumn),
-                        "options" to jsonArrayOf(h.options.map { jsonOf(it) }),
-                        "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray())
-                    )
-                } ?: JsonValue.Null),
-                "dashboardHints" to (s.dashboardHints?.let { h ->
-                    jsonObjectOf("counts" to jsonObjectOf(*h.counts.map { (label, c) -> label to InteractiveScreenCodec.encodeCount(c) }.toTypedArray()))
-                } ?: JsonValue.Null),
-                "formHints" to (s.formHints?.let { h ->
-                    jsonObjectOf(
-                        "fields" to jsonArrayOf(h.fields.map(::jsonOf)),
-                        "required" to jsonArrayOf(h.required.map(::jsonOf)),
-                        "options" to jsonObjectOf(*h.options.map { (k, v) -> k to jsonArrayOf(v.map(::jsonOf)) }.toTypedArray()),
-                        "submitLabel" to jsonOf(h.submitLabel)
-                    )
-                } ?: JsonValue.Null)
-            )
-        })
+        "screenSuggestions" to ScreenSuggestionCodec.encode(pack.screenSuggestions)
     )
 
     fun encodeToString(pack: DomainPack): String = encode(pack).encode()
@@ -159,41 +121,9 @@ object DomainPackCodec {
             ?: ModuleActionCode.neutral
         val vocabulary = r.enumKeyedStrings("vocabulary", VocabularyKey.entries)
         // Usulan layar prototype: field boleh tidak ada (pack sebelum fitur mock) — kosong berarti pack
-        // belum mengusulkan layar, bukan fallback ke usulan pack lain. Widget ketat: di luar kosakata
-        // tertutup ditolak dengan path, supaya AI/penyunting tahu baris mana yang salah (Kontrak 4).
-        val screenSuggestions = r.objectsOrNull("screenSuggestions")?.map { s ->
-            val sampleRows = s.objectsOrNull("sampleRows")?.map { row -> row.stringRow() } ?: emptyList()
-            s.build {
-                ScreenSuggestion(
-                    moduleId = s.value("moduleId", ::ModuleId),
-                    title = s.string("title"),
-                    widget = s.enum("widget", WidgetKind.entries),
-                    sampleRows = sampleRows,
-                    kanbanHints = s.raw.obj("kanbanHints")?.let { h ->
-                        KanbanHints(h.stringArray("columns"), transitionsOf(h), h.string("groupLabel"))
-                    },
-                    tableHints = s.raw.obj("tableHints")?.let { h ->
-                        TableHints(h.string("statusColumn").orEmpty(), h.stringArray("options"), transitionsOf(h))
-                    },
-                    dashboardHints = s.raw.obj("dashboardHints")?.let { h ->
-                        DashboardHints((h.obj("counts")?.entries ?: emptyMap()).mapNotNull { (label, v) ->
-                            (v as? JsonValue.Obj)?.let { label to InteractiveScreenCodec.decodeCount(it) }
-                        }.toMap())
-                    },
-                    // Field boleh tidak ada (pack sebelum butir B2) — bukan fallback, memang tanpa form.
-                    formHints = s.raw.obj("formHints")?.let { h ->
-                        FormHints(
-                            h.stringArray("fields"),
-                            h.stringArray("required"),
-                            (h.obj("options")?.entries ?: emptyMap()).mapValues { (_, v) ->
-                                ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }
-                            },
-                            h.string("submitLabel")
-                        )
-                    }
-                )
-            }
-        } ?: emptyList()
+        // belum mengusulkan layar, bukan fallback ke usulan pack lain. Decode ketatnya kini milik
+        // ScreenSuggestionCodec (dipecah dari file ini, batas ukuran file).
+        val screenSuggestions = ScreenSuggestionCodec.decode(root["screenSuggestions"])
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -215,15 +145,7 @@ object DomainPackCodec {
     private fun color(argb: Long): String = "#" + argb.toString(16).uppercase().padStart(8, '0')
 
     /** Pembaca satu objek dengan path untuk pesan galat. Konstruktor domain yang menolak dibungkus [build] dengan path objeknya. */
-    private fun transitionsOf(h: JsonValue.Obj): Map<String, Set<String>> =
-        (h.obj("transitions")?.entries ?: emptyMap()).mapValues { (_, v) ->
-            ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }.toSet()
-        }
-
     private class Reader(private val obj: JsonValue.Obj, private val path: String) {
-        /** Objek mentah, untuk field opsional bersarang yang bentuknya dibaca langsung. */
-        val raw: JsonValue.Obj get() = obj
-
         private fun fail(key: String?, message: String): Nothing =
             throw DomainPackDecodeException(if (key == null) path else "$path.$key", message)
 
@@ -314,15 +236,6 @@ object DomainPackCodec {
 
         fun objects(key: String): List<Reader> = array(key).mapIndexed { i, v ->
             Reader(v as? JsonValue.Obj ?: fail("$key[$i]", "harus objek"), "$path.$key[$i]")
-        }
-
-        /**
-         * Satu baris contoh isi layar (`sampleRows`): objek berkunci bebas berisi string — kuncinya
-         * adalah label tampilan milik pack, jadi tidak diverifikasi di sini. Urutan kunci dipertahankan
-         * (renderer menggambar entri berurutan: judul kartu sebelum detailnya).
-         */
-        fun stringRow(): Map<String, String> = obj.entries.mapValues { (k, v) ->
-            (v as? JsonValue.Str)?.value ?: fail(k, "harus string")
         }
     }
 }

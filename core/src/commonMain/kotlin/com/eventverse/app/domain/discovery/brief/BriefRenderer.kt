@@ -79,6 +79,8 @@ object BriefRenderer {
         is SpecOp.AddTransition -> "izinkan '${op.from}' ke '${op.to}' pada '${op.field}'"
         is SpecOp.AddField -> "tambah field '${op.field.key}' (${op.field.type.name}) ke '${op.entityId}'"
         is SpecOp.RenameFieldLabel -> "ganti label '${op.key}' menjadi '${op.label}'"
+        is SpecOp.ShowFieldOnCard -> "tampilkan '${op.field}' di kartu"
+        is SpecOp.SetFieldRequired -> "jadikan '${op.field}' ${if (op.required) "wajib diisi" else "boleh dikosongkan"}"
     }
 
     /** Format rupiah deterministik tanpa bergantung locale: pemisah ribuan titik. */
