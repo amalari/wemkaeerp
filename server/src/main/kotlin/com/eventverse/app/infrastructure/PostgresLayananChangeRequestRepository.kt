@@ -21,7 +21,7 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
     private val T = LayananChangeRequestChangeRequestsTable
 
     override suspend fun list(tenantId: TenantId): List<PrototypeRow> = DatabaseFactory.dbQuery(tenantId) {
-        T.selectAll().where { T.tenantId eq tenantId.value }.orderBy(T.createdAt to SortOrder.ASC).map(::hydrate)
+        T.selectAll().where { T.tenantId eq tenantId.value }.orderBy(T.createdAt to SortOrder.ASC, T.id to SortOrder.ASC).map(::hydrate)
     }
 
     override suspend fun find(tenantId: TenantId, id: String): PrototypeRow? = DatabaseFactory.dbQuery(tenantId) {

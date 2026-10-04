@@ -161,6 +161,12 @@ class SpecScaffoldGeneratorTest {
     }
 
     @Test
+    fun repository_listOrdering_isTotal_soTiedTimestampsCannotReorderRows() {
+        val repo = pilot().file("PostgresLayananChangeRequestRepository.kt")
+        assertTrue("orderBy(T.createdAt to SortOrder.ASC, T.id to SortOrder.ASC)" in repo, "urutan harus total (created_at lalu id)")
+    }
+
+    @Test
     fun versionMustBePositive_andPackExpressionRequired() {
         assertFailsWith<IllegalArgumentException> { generator.generateFromSpec(LayananPilotPack.spec, LayananPilotPack.module, 0, packExpr) }
         assertFailsWith<IllegalArgumentException> { generator.generateFromSpec(LayananPilotPack.spec, LayananPilotPack.module, 90, " ") }

@@ -57,7 +57,7 @@ internal object SpecPostgresWriter {
             appendLine("    private val T = $objectName")
             appendLine()
             appendLine("    override suspend fun list(tenantId: TenantId): List<PrototypeRow> = DatabaseFactory.dbQuery(tenantId) {")
-            appendLine("        $tbl.selectAll().where { $tbl.tenantId eq tenantId.value }.orderBy($tbl.createdAt to SortOrder.ASC).map(::hydrate)")
+            appendLine("        $tbl.selectAll().where { $tbl.tenantId eq tenantId.value }.orderBy($tbl.createdAt to SortOrder.ASC, $tbl.id to SortOrder.ASC).map(::hydrate)")
             appendLine("    }")
             appendLine()
             appendLine("    override suspend fun find(tenantId: TenantId, id: String): PrototypeRow? = DatabaseFactory.dbQuery(tenantId) {")
