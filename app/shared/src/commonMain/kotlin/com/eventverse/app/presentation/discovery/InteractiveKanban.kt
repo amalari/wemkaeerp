@@ -31,7 +31,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
-import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -45,8 +44,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * pindah datang dari spec; di sini hanya menggambar dan meneruskan gestur.
  */
 @Composable
-fun InteractiveKanban(screen: InteractiveScreen, modifier: Modifier = Modifier) {
-    val state = remember(screen) { InteractiveKanbanState(screen) }
+fun InteractiveKanban(state: InteractiveKanbanState, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             state.config.columns.forEach { column ->

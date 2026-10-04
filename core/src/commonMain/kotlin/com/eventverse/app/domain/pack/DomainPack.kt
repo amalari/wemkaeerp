@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 
@@ -59,7 +60,9 @@ data class ScreenSuggestion(
      */
     val kanbanHints: KanbanHints? = null,
     /** Perilaku tabel (hanya bermakna untuk [WidgetKind.TABLE]); null = tabel hanya bisa disortir/difilter. */
-    val tableHints: TableHints? = null
+    val tableHints: TableHints? = null,
+    /** Ubin dasbor yang dihitung dari layar lain (hanya bermakna untuk [WidgetKind.DASHBOARD]). */
+    val dashboardHints: DashboardHints? = null
 ) {
     init {
         require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }

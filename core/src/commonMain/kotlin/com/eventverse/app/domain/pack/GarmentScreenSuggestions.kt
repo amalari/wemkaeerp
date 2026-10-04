@@ -1,6 +1,8 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.CountSpec
+import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 
@@ -74,7 +76,15 @@ object GarmentScreenSuggestions {
                 mapOf("HPP rata-rata" to "Rp 38.500 / pcs"),
                 mapOf("Margin target" to "22%"),
                 mapOf("Order aktif" to "12 PO"),
+                mapOf("SPK sampling berjalan" to "4 SPK"),
                 mapOf("Biaya terbesar" to "Kain — 54% dari HPP")
+            ),
+            dashboardHints = DashboardHints(
+                mapOf(
+                    // Angka ikut berubah saat kartu di papan sumber dipindah (TRD-PLAT-003).
+                    "Order aktif" to CountSpec(GarmentModules.PRODUCTION_MRP.value, "Kolom", notEquals = "Selesai", suffix = " PO"),
+                    "SPK sampling berjalan" to CountSpec(GarmentModules.SAMPLING_ORDER.value, "Kolom", notEquals = "Selesai", suffix = " SPK")
+                )
             )
         ),
         ScreenSuggestion(

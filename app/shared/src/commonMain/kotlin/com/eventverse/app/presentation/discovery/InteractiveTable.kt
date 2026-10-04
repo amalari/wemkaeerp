@@ -27,7 +27,6 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -42,8 +41,7 @@ private val ColumnWidth = 118.dp
  * ke samping — sel tidak lagi dipotong jadi "PO-2026…" di bingkai selebar ponsel.
  */
 @Composable
-fun InteractiveTable(screen: InteractiveScreen, modifier: Modifier = Modifier) {
-    val state = remember(screen) { InteractiveTableState(screen) }
+fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
         ClayTextField(
             value = state.query,

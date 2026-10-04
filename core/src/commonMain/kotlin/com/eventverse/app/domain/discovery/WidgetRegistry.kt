@@ -76,7 +76,7 @@ object WidgetRegistry {
     }
 
     /**
-     * Versi **bisa dimainkan** layar kanban/tabel (TRD-PLAT-003): spec + seed dari baris contoh yang sama
+     * Versi **bisa dimainkan** layar kanban/tabel/checklist/dasbor (TRD-PLAT-003): spec + seed dari baris contoh yang sama
      * dengan [sampleRowsFor], dipandu `kanbanHints` pack. Null untuk widget lain atau baris yang tak
      * bisa dibentuk jadi papan — klien lalu menggambar statis.
      */
@@ -86,6 +86,8 @@ object WidgetRegistry {
         return when (kind) {
             WidgetKind.KANBAN -> InteractiveScreenFactory.kanban(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.kanbanHints)
             WidgetKind.TABLE -> InteractiveScreenFactory.table(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.tableHints)
+            WidgetKind.CHECKLIST -> InteractiveScreenFactory.checklist(screen.screenId, screen.title, sampleRowsFor(screen, pack))
+            WidgetKind.DASHBOARD -> InteractiveScreenFactory.dashboard(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.dashboardHints)
             else -> null
         }
     }

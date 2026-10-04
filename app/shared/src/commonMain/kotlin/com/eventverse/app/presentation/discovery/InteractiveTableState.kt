@@ -15,11 +15,11 @@ import com.eventverse.app.domain.prototype.TableView
  * perubahan status melewati [PrototypeReducer], jadi opsi dan transisi dijaga spec, bukan UI.
  */
 @Stable
-class InteractiveTableState(screen: InteractiveScreen) {
+class InteractiveTableState(screen: InteractiveScreen) : PlayableState {
     private val spec = screen.spec
     private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
     val config: TableConfig = requireNotNull(screenSpec.table) { "Layar '${screenSpec.screenId}' bukan tabel" }
-    private val entityId = screenSpec.entityId
+    private val entityId = requireNotNull(screenSpec.entityId) { "Layar tabel tanpa entitas" }
     private val entity = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
     private val machine = entity.stateMachine?.takeIf { it.field == config.statusField }
 
@@ -32,6 +32,8 @@ class InteractiveTableState(screen: InteractiveScreen) {
         private set
     var message by mutableStateOf<String?>(null)
         private set
+
+    override val rows: List<PrototypeRow> get() = store.rowsOf(entityId)
 
     val visibleRows: List<PrototypeRow>
         get() = TableView.apply(store.rowsOf(entityId), config.columns, query, sortColumn, ascending)

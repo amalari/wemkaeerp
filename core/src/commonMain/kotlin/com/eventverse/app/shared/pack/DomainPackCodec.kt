@@ -13,6 +13,7 @@ import com.eventverse.app.domain.pack.PhaseCode
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.ScreenSuggestion
+import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.domain.pack.SlotCode
@@ -97,6 +98,9 @@ object DomainPackCodec {
                         "options" to jsonArrayOf(h.options.map { jsonOf(it) }),
                         "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray())
                     )
+                } ?: JsonValue.Null),
+                "dashboardHints" to (s.dashboardHints?.let { h ->
+                    jsonObjectOf("counts" to jsonObjectOf(*h.counts.map { (label, c) -> label to InteractiveScreenCodec.encodeCount(c) }.toTypedArray()))
                 } ?: JsonValue.Null)
             )
         })
@@ -161,6 +165,11 @@ object DomainPackCodec {
                     },
                     tableHints = s.raw.obj("tableHints")?.let { h ->
                         TableHints(h.string("statusColumn").orEmpty(), h.stringArray("options"), transitionsOf(h))
+                    },
+                    dashboardHints = s.raw.obj("dashboardHints")?.let { h ->
+                        DashboardHints((h.obj("counts")?.entries ?: emptyMap()).mapNotNull { (label, v) ->
+                            (v as? JsonValue.Obj)?.let { label to InteractiveScreenCodec.decodeCount(it) }
+                        }.toMap())
                     }
                 )
             }

@@ -2,15 +2,14 @@ package com.eventverse.app.presentation.discovery
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.eventverse.app.domain.discovery.WidgetKind
-import com.eventverse.app.domain.prototype.InteractiveScreen
 
-/** Memilih blok yang bisa dimainkan menurut widget di spec; widget tanpa blok interaktif belum ada di sini. */
+/** Memilih blok menurut jenis state-nya; tiap jenis punya file composable sendiri. */
 @Composable
-fun InteractiveBlock(screen: InteractiveScreen, modifier: Modifier = Modifier) {
-    when (screen.spec.screens.firstOrNull()?.widget) {
-        WidgetKind.KANBAN -> InteractiveKanban(screen, modifier)
-        WidgetKind.TABLE -> InteractiveTable(screen, modifier)
-        else -> Unit
+fun InteractiveBlock(state: PlayableState, modifier: Modifier = Modifier) {
+    when (state) {
+        is InteractiveKanbanState -> InteractiveKanban(state, modifier)
+        is InteractiveTableState -> InteractiveTable(state, modifier)
+        is InteractiveChecklistState -> InteractiveChecklist(state, modifier)
+        is InteractiveDashboardState -> InteractiveDashboard(state, modifier)
     }
 }

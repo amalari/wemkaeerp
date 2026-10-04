@@ -7,6 +7,7 @@ import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -108,6 +109,71 @@ class InteractiveTableTest {
         pack.screenSuggestions.filter { it.tableHints != null }.forEach { s ->
             val screen = PrototypeScreen("default-${s.moduleId.value}", s.moduleId, s.title, s.widget.code)
             assertNotNull(WidgetRegistry.interactiveFor(screen, pack), "tabel ${s.moduleId.value} tidak interaktif")
+        }
+    }
+}
+
+class InteractiveDashboardChecklistTest {
+    private val checklistRows = listOf(
+        mapOf("Butir" to "Jahitan lurus", "Selesai" to "ya"),
+        mapOf("Butir" to "Kancing lengkap", "Selesai" to "tidak")
+    )
+    private val tileRows = listOf(mapOf("Aktif" to "9 tiket"), mapOf("Margin" to "22%"))
+
+    @Test
+    fun checklist_toggle_goesThroughReducer_andRejectsNonBoolValue() {
+        val screen = assertNotNull(InteractiveScreenFactory.checklist("c", "QC", checklistRows))
+        val store = screen.newStore()
+        val next = PrototypeReducer.reduce(screen.spec, store, PrototypeAction.SetField("item", "c-2", "Selesai", "ya")).getOrThrow()
+        assertEquals("ya", next.rowsOf("item")[1]["Selesai"])
+        assertTrue(PrototypeReducer.reduce(screen.spec, store, PrototypeAction.SetField("item", "c-2", "Selesai", "mungkin")).isFailure)
+    }
+
+    @Test
+    fun checklist_invalidDoneValue_isNotInteractive() {
+        assertNull(InteractiveScreenFactory.checklist("c", "QC", listOf(mapOf("Butir" to "x", "Selesai" to "setengah"))))
+    }
+
+    @Test
+    fun dashboard_countTile_followsSourceRows_andFallsBackWhenSourceMissing() {
+        val tile = TileSpec("Aktif", "9 tiket", CountSpec("tiket_mod", "status", notEquals = "Selesai", suffix = " tiket"))
+        val rows = listOf(
+            PrototypeRow("1", mapOf("status" to "Baru")), PrototypeRow("2", mapOf("status" to "Selesai")), PrototypeRow("3", mapOf("status" to "Diproses"))
+        )
+        assertEquals("2 tiket", DashboardEvaluator.valueOf(tile) { rows })
+        assertEquals("9 tiket", DashboardEvaluator.valueOf(tile) { null })
+        assertEquals("22%", DashboardEvaluator.valueOf(TileSpec("Margin", "22%")) { rows })
+    }
+
+    @Test
+    fun dashboard_allStatic_isNotInteractive_andBoundTileIs() {
+        assertNull(InteractiveScreenFactory.dashboard("d", "Dasbor", tileRows, DashboardHints(emptyMap())))
+        val screen = assertNotNull(InteractiveScreenFactory.dashboard("d", "Dasbor", tileRows, DashboardHints(mapOf("Aktif" to CountSpec("m", "s", equals = "Baru")))))
+        assertEquals(2, screen.spec.screens.single().dashboard?.tiles?.size)
+    }
+
+    @Test
+    fun codec_roundTrip_preservesChecklistAndDashboard() {
+        val c = assertNotNull(InteractiveScreenFactory.checklist("c", "QC", checklistRows))
+        val d = assertNotNull(InteractiveScreenFactory.dashboard("d", "D", tileRows, DashboardHints(mapOf("Aktif" to CountSpec("m", "s", notEquals = "Selesai", suffix = " x")))))
+        listOf(c, d).forEach { original ->
+            assertEquals(original, InteractiveScreenCodec.decode(JsonParser.parseObject(InteractiveScreenCodec.encode(original).encode())))
+        }
+    }
+
+    @Test
+    fun screenSpec_dashboardWithEntity_isRejected() {
+        assertFailsWith<IllegalArgumentException> {
+            ScreenSpec("d", "D", com.eventverse.app.domain.discovery.WidgetKind.DASHBOARD, "item", dashboard = DashboardConfig(listOf(TileSpec("a", "1"))))
+        }
+    }
+
+    @Test
+    fun garmentQcChecklistAndHppDashboard_areInteractive() {
+        val pack = GarmentDomainPack.pack
+        pack.screenSuggestions.filter { it.widget.code == "CHECKLIST" || it.dashboardHints != null }.forEach { s ->
+            val screen = PrototypeScreen("default-${s.moduleId.value}", s.moduleId, s.title, s.widget.code)
+            assertNotNull(WidgetRegistry.interactiveFor(screen, pack), "${s.moduleId.value} tidak interaktif")
         }
     }
 }

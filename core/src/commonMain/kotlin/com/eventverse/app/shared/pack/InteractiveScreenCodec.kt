@@ -1,6 +1,9 @@
 package com.eventverse.app.shared.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.ChecklistConfig
+import com.eventverse.app.domain.prototype.CountSpec
+import com.eventverse.app.domain.prototype.DashboardConfig
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
@@ -11,6 +14,7 @@ import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
 import com.eventverse.app.domain.prototype.StateMachine
 import com.eventverse.app.domain.prototype.TableConfig
+import com.eventverse.app.domain.prototype.TileSpec
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -50,6 +54,12 @@ object InteractiveScreenCodec {
                 } ?: JsonValue.Null),
                 "table" to (sc.table?.let { t ->
                     jsonObjectOf("columns" to jsonArrayOf(t.columns.map(::jsonOf)), "statusField" to jsonOf(t.statusField))
+                } ?: JsonValue.Null),
+                "checklist" to (sc.checklist?.let { c -> jsonObjectOf("labelField" to jsonOf(c.labelField), "doneField" to jsonOf(c.doneField)) } ?: JsonValue.Null),
+                "dashboard" to (sc.dashboard?.let { d ->
+                    jsonObjectOf("tiles" to jsonArrayOf(d.tiles.map { t ->
+                        jsonObjectOf("label" to jsonOf(t.label), "value" to jsonOf(t.value), "count" to (t.count?.let(::encodeCount) ?: JsonValue.Null))
+                    }))
                 } ?: JsonValue.Null)
             )
         }),
@@ -78,9 +88,13 @@ object InteractiveScreenCodec {
         val screens = o.objectArray("screens").map { sc ->
             val widget = requireNotNull(WidgetKind.fromCode(sc.string("widget").orEmpty())) { "widget layar tak dikenal" }
             ScreenSpec(
-                sc.string("screenId").orEmpty(), sc.string("title").orEmpty(), widget, sc.string("entityId").orEmpty(),
+                sc.string("screenId").orEmpty(), sc.string("title").orEmpty(), widget, sc.string("entityId"),
                 sc.obj("kanban")?.let { k -> KanbanConfig(k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields")) },
-                table = sc.obj("table")?.let { t -> TableConfig(t.stringArray("columns"), t.string("statusField")) }
+                table = sc.obj("table")?.let { t -> TableConfig(t.stringArray("columns"), t.string("statusField")) },
+                checklist = sc.obj("checklist")?.let { c -> ChecklistConfig(c.string("labelField").orEmpty(), c.string("doneField").orEmpty()) },
+                dashboard = sc.obj("dashboard")?.let { d ->
+                    DashboardConfig(d.objectArray("tiles").map { t -> TileSpec(t.string("label").orEmpty(), t.string("value"), t.obj("count")?.let(::decodeCount)) })
+                }
             )
         }
         val seed = (o.obj("seed")?.entries ?: emptyMap()).mapValues { (_, rows) ->
@@ -90,4 +104,12 @@ object InteractiveScreenCodec {
         }
         return InteractiveScreen(PrototypeSpec(entities, screens), seed)
     }
+
+    internal fun encodeCount(c: CountSpec): JsonValue.Obj = jsonObjectOf(
+        "moduleId" to jsonOf(c.moduleId), "field" to jsonOf(c.field), "equals" to jsonOf(c.equals),
+        "notEquals" to jsonOf(c.notEquals), "suffix" to jsonOf(c.suffix)
+    )
+
+    internal fun decodeCount(o: JsonValue.Obj): CountSpec =
+        CountSpec(o.string("moduleId").orEmpty(), o.string("field"), o.string("equals"), o.string("notEquals"), o.string("suffix").orEmpty())
 }

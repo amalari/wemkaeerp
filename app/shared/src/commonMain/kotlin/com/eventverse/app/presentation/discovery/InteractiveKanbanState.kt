@@ -17,11 +17,11 @@ import com.eventverse.app.domain.prototype.PrototypeRow
  * Store hidup di memori sesi dan hilang saat layar ditutup; seed membuatnya ulang.
  */
 @Stable
-class InteractiveKanbanState(screen: InteractiveScreen) {
+class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
     private val spec = screen.spec
     private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
     val config: KanbanConfig = requireNotNull(screenSpec.kanban) { "Layar '${screenSpec.screenId}' bukan kanban" }
-    private val entityId = screenSpec.entityId
+    private val entityId = requireNotNull(screenSpec.entityId) { "Layar kanban tanpa entitas" }
     private val machine = spec.entity(entityId)?.stateMachine?.takeIf { it.field == config.groupField }
 
     var store by mutableStateOf(screen.newStore())
@@ -38,6 +38,8 @@ class InteractiveKanbanState(screen: InteractiveScreen) {
 
     private val columnBounds = mutableMapOf<String, Rect>()
     private var pointerOrigin = Offset.Zero
+
+    override val rows: List<PrototypeRow> get() = store.rowsOf(entityId)
 
     fun cards(column: String): List<PrototypeRow> =
         store.rowsOf(entityId).filter { it[config.groupField] == column }

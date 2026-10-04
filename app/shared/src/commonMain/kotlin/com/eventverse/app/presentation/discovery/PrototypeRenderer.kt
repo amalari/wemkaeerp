@@ -10,11 +10,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.eventverse.app.domain.discovery.WidgetKind
-import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -56,6 +56,8 @@ fun PrototypeRenderer(
                 )
             }
         }
+        // Sesi dibangun dari SEMUA layar draf (bukan hanya yang difilter) agar dasbor tetap bisa menghitung dari modul lain.
+        val session = remember(draft.screens) { PrototypeSession(draft.screens) }
         ClayFlowRow(modifier = Modifier.fillMaxWidth(), spacing = ClaySpacing.Lg) {
             screens.forEach { screen ->
                 val module = draft.modules.firstOrNull { it.id == screen.moduleId }
@@ -65,7 +67,7 @@ fun PrototypeRenderer(
                     widget = screen.widget,
                     moduleName = module?.displayName ?: screen.moduleId,
                     rows = screen.sampleRows,
-                    interactive = screen.interactive
+                    block = session.block(screen.screenId)
                 )
             }
         }
@@ -79,7 +81,7 @@ private fun PrototypeScreenCard(
     moduleName: String,
     rows: List<Map<String, String>>,
     modifier: Modifier = Modifier,
-    interactive: InteractiveScreen? = null
+    block: PlayableState? = null
 ) {
     ClayCard(modifier = modifier) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -122,7 +124,7 @@ private fun PrototypeScreenCard(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = ClaySpacing.Sm), color = WeMadeColors.Outline.copy(alpha = 0.3f))
         // Blok yang bisa dimainkan menggantikan gambar statis; widget lain / baris tak sah tetap statis.
-        if (interactive != null) InteractiveBlock(interactive) else WidgetBody(widget = widget, rows = rows)
+        if (block != null) InteractiveBlock(block) else WidgetBody(widget = widget, rows = rows)
     }
 }
 
