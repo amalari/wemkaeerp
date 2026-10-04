@@ -3,6 +3,8 @@ package com.eventverse.app.domain.pack
 import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.WidgetRegistry
 import com.eventverse.app.domain.prototype.DataBinding
+import com.eventverse.app.domain.prototype.InteractiveScreenFactory
+import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -41,5 +43,20 @@ class PilotBoardParityTest {
     @Test
     fun board_startsEmpty_dataComesFromServer() {
         assertTrue(built.seed.values.all { it.isEmpty() }, "binding Api tidak membawa seed")
+    }
+
+    @Test
+    fun board_survivesJsonRoundTrip_withApiBinding() {
+        val decoded = assertNotNull(InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(built)))
+        assertEquals(built.binding, decoded.binding)
+        assertEquals(built.spec, decoded.spec)
+    }
+
+    @Test
+    fun memoryScreen_keepsNoBindingKey_oldDraftsUnchanged() {
+        val memory = assertNotNull(InteractiveScreenFactory.kanban("k", "K", listOf(mapOf("Kolom" to "A", "Judul" to "x"))))
+        val json = InteractiveScreenCodec.encode(memory).toString()
+        assertTrue("\"type\":\"api\"" !in json, json)
+        assertEquals(DataBinding.Memory, assertNotNull(InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(memory))).binding)
     }
 }

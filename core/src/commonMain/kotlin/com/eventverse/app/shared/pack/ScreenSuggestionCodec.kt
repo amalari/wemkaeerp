@@ -45,6 +45,8 @@ internal object ScreenSuggestionCodec {
                 "columns" to jsonArrayOf(h.columns.map { jsonOf(it) }),
                 "transitions" to transitionsJson(h.transitions),
                 "groupLabel" to jsonOf(h.groupLabel),
+                "groupField" to jsonOf(h.groupField),
+                "fields" to jsonArrayOf(h.fields.map(::encodeFieldHint)),
                 "card" to (if (h.card.isEmpty()) JsonValue.Null else InteractiveScreenCodec.encodeCardElements(h.card)),
                 "columnMeta" to (if (h.columnMeta.isEmpty()) JsonValue.Null else InteractiveScreenCodec.encodeColumnMetaMap(h.columnMeta)),
                 "detailForm" to (h.detailForm?.let { f -> InteractiveScreenCodec.encodeFormConfig(f) } ?: JsonValue.Null)
@@ -55,12 +57,7 @@ internal object ScreenSuggestionCodec {
                 "statusColumn" to jsonOf(h.statusColumn),
                 "options" to jsonArrayOf(h.options.map { jsonOf(it) }),
                 "transitions" to transitionsJson(h.transitions),
-                "fields" to jsonArrayOf(h.fields.map { f ->
-                    jsonObjectOf(
-                        "key" to jsonOf(f.key), "type" to jsonOf(f.type.name),
-                        "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
-                    )
-                }),
+                "fields" to jsonArrayOf(h.fields.map(::encodeFieldHint)),
                 "inlineCreate" to jsonOf(h.inlineCreate),
                 "editableFields" to jsonArrayOf(h.editableFields.map(::jsonOf))
             )
@@ -79,6 +76,11 @@ internal object ScreenSuggestionCodec {
         "dataBinding" to InteractiveScreenCodec.encodeBinding(s.dataBinding)
     )
 
+    private fun encodeFieldHint(f: FieldHint): JsonValue.Obj = jsonObjectOf(
+        "key" to jsonOf(f.key), "type" to jsonOf(f.type.name),
+        "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
+    )
+
     private fun decodeOne(o: JsonValue.Obj, path: String): ScreenSuggestion {
         fun fail(key: String?, message: String): Nothing =
             throw DomainPackDecodeException(if (key == null) path else "$path.$key", message)
@@ -88,6 +90,19 @@ internal object ScreenSuggestionCodec {
         fun transitionsIn(node: JsonValue.Obj): Map<String, Set<String>> =
             ((node["transitions"] as? JsonValue.Obj)?.entries ?: emptyMap()).mapValues { (_, v) ->
                 ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }.toSet()
+            }
+        fun fieldHintsIn(node: JsonValue.Obj, where: String): List<FieldHint> =
+            ((node["fields"] as? JsonValue.Arr)?.items ?: emptyList()).map { item ->
+                val f = item as? JsonValue.Obj ?: fail(where, "harus objek")
+                val typeName = (f["type"] as? JsonValue.Str)?.value
+                val type = FieldType.entries.firstOrNull { it.name == typeName }
+                    ?: fail("$where.type", "'${typeName.orEmpty()}' bukan tipe field yang dikenal")
+                FieldHint(
+                    (f["key"] as? JsonValue.Str)?.value ?: fail("$where.key", "wajib string"),
+                    type,
+                    (f["required"] as? JsonValue.Bool)?.value ?: false,
+                    strListIn(f, "options")
+                )
             }
         val moduleId = try {
             ModuleId(str("moduleId"))
@@ -113,7 +128,9 @@ internal object ScreenSuggestionCodec {
                         (h["groupLabel"] as? JsonValue.Str)?.value,
                         card = InteractiveScreenCodec.decodeCardElements(h["card"]),
                         columnMeta = InteractiveScreenCodec.decodeColumnMetaMap(h["columnMeta"]),
-                        detailForm = InteractiveScreenCodec.decodeFormConfig(h["detailForm"])
+                        detailForm = InteractiveScreenCodec.decodeFormConfig(h["detailForm"]),
+                        groupField = (h["groupField"] as? JsonValue.Str)?.value,
+                        fields = fieldHintsIn(h, "kanbanHints.fields")
                     )
                 },
                 tableHints = (o["tableHints"] as? JsonValue.Obj)?.let { h ->
@@ -121,18 +138,7 @@ internal object ScreenSuggestionCodec {
                         (h["statusColumn"] as? JsonValue.Str)?.value.orEmpty(),
                         strListIn(h, "options"),
                         transitionsIn(h),
-                        fields = ((h["fields"] as? JsonValue.Arr)?.items ?: emptyList()).map { item ->
-                            val f = item as? JsonValue.Obj ?: fail("tableHints.fields", "harus objek")
-                            val typeName = (f["type"] as? JsonValue.Str)?.value
-                            val type = FieldType.entries.firstOrNull { it.name == typeName }
-                                ?: fail("tableHints.fields.type", "'${typeName.orEmpty()}' bukan tipe field yang dikenal")
-                            FieldHint(
-                                (f["key"] as? JsonValue.Str)?.value ?: fail("tableHints.fields.key", "wajib string"),
-                                type,
-                                (f["required"] as? JsonValue.Bool)?.value ?: false,
-                                strListIn(f, "options")
-                            )
-                        },
+                        fields = fieldHintsIn(h, "tableHints.fields"),
                         inlineCreate = (h["inlineCreate"] as? JsonValue.Bool)?.value ?: false,
                         editableFields = strListIn(h, "editableFields")
                     )
