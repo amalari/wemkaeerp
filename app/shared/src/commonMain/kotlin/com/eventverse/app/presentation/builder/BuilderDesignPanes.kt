@@ -150,7 +150,10 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
     BuilderTenantDraft { draft ->
         val typography = rememberClayTypography()
         var currentScreens by remember(draft.id) { mutableStateOf(draft.screens) }
-        val session = remember(currentScreens) { com.eventverse.app.presentation.discovery.PrototypeSession(currentScreens) }
+        // Sesi hidup selama drafnya sama: perubahan spec lewat chat memperbarui blok DI DALAM sesi
+        // (`updateScreenSpec`). Jika sesi dikunci pada `currentScreens`, ia dibuat ulang tiap perubahan dan
+        // log tangkapan, riwayat undo, dan posisi kartu ikut hilang.
+        val session = remember(draft.id) { com.eventverse.app.presentation.discovery.PrototypeSession(draft.screens) }
         var showExportDialog by remember { mutableStateOf(false) }
 
         // "Per modul ada apa aja": filter modul — pilih satu modul, pratinjau hanya menampilkan
@@ -160,6 +163,8 @@ fun BuilderPrototypePane(modifier: Modifier = Modifier) {
         // Modul yang dipakai (panel harga): layar dan harga sama-sama mengikutinya. Awalnya semua.
         var included by remember(draft.id) { mutableStateOf(modulesWithScreens.map { it.id }.toSet()) }
         val includedScreens = currentScreens.filter { it.moduleId in included }
+        // Dasbor menghitung dari modul yang dipakai saja (what-if panel harga); sesi tidak lagi dibuat ulang per pilihan.
+        androidx.compose.runtime.SideEffect { session.includedModuleIds = included }
         val visibleScreens = selectedModule?.takeIf { it in included }
             ?.let { id -> includedScreens.filter { it.moduleId == id } }
             ?: includedScreens

@@ -60,7 +60,8 @@ fun PrototypeChatEditPanel(
     val interactiveScreens = remember(screens) { screens.filter { it.interactive != null } }
     if (interactiveScreens.isEmpty()) return
 
-    var selectedScreenId by remember(screens) {
+    // Kunci = daftar id layar, bukan objeknya: spec yang berubah (hasil edit) tidak boleh mengembalikan pilihan ke layar pertama.
+    var selectedScreenId by remember(screens.map { it.screenId }) {
         mutableStateOf(interactiveScreens.firstOrNull()?.screenId.orEmpty())
     }
     var messageText by remember { mutableStateOf("") }

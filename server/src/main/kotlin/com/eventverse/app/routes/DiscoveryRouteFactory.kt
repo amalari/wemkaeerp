@@ -52,6 +52,9 @@ fun Route.discoveryPlatformRoutes(
     )
     // Harga draf kerja tenant untuk panel di /builder/prototype (gerbang builder, bukan pemilik draf).
     builderPriceRoutes(draftRepository, priceDraft)
+    // C4/C6 (PLAN-proto-C): brief kebutuhan dan usulan operasi spec — keduanya baca-saja, di belakang gerbang builder.
+    builderBriefRoutes(draftRepository, priceDraft)
+    builderSpecOpRoutes()
     discoveryRoutes(
         repository = draftRepository,
         agent = agent,

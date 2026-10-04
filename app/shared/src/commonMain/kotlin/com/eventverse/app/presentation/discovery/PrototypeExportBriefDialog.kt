@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eventverse.app.domain.discovery.brief.BriefCoverage
 import com.eventverse.app.domain.discovery.brief.BriefEntity
 import com.eventverse.app.domain.discovery.brief.BriefField
 import com.eventverse.app.domain.discovery.brief.BriefModule
@@ -106,25 +105,13 @@ fun PrototypeExportBriefDialog(
                     BriefModule(m.id, m.displayName, screens, entities)
                 }
 
-            val coverage = draft.modules
-                .filter { it.id in includedModuleIds }
-                .map { m ->
-                    BriefCoverage(
-                        moduleId = m.id,
-                        displayName = m.displayName,
-                        covered = true,
-                        monthlyIdr = 0L,
-                        gapLowIdr = null,
-                        gapHighIdr = null
-                    )
-                }
-
             val localBrief = RequirementsBrief(
                 packCode = draft.packCode,
                 modules = briefModules,
                 changes = session.captureLog.toList(),
-                coverage = coverage,
-                customNeeds = emptyList()
+                // Server tak terjangkau: cakupan katalog & harga TIDAK diklaim (dulu dipalsukan "sudah ada, Rp 0").
+                coverage = emptyList(),
+                customNeeds = listOf("Cakupan katalog dan harga tidak tersedia: brief ini dibuat lokal karena server tidak terjangkau.")
             )
 
             markdownContent = BriefRenderer.markdown(localBrief)

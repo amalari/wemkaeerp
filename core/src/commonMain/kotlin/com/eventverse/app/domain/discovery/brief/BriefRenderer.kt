@@ -3,7 +3,7 @@ package com.eventverse.app.domain.discovery.brief
 import com.eventverse.app.domain.prototype.SpecOp
 
 /**
- * Menyusun [RequirementsBrief] menjadi Markdown **deterministik** (masukan sama → keluaran sama,
+ * Menyusun [RequirementsBrief] menjadi Markdown **deterministik** (masukan sama -> keluaran sama,
  * byte per byte) untuk developer yang tidak ikut sesi. Susunan bagian: ringkasan, modul & layar,
  * perubahan klien, cakupan katalog (sudah ada vs perlu dibangun + harga), kebutuhan kustom.
  * Renderer tidak mengenal istilah satu industri — seluruh isi datang dari data brief.
@@ -27,7 +27,7 @@ object BriefRenderer {
             appendLine("### ${m.displayName} (`${m.moduleId}`)")
             m.screens.forEach { s ->
                 val target = s.entityId?.let { "entitas `$it`" } ?: "tanpa entitas"
-                appendLine("- Layar: ${s.title} (${s.widget}) → $target")
+                appendLine("- Layar: ${s.title} (${s.widget}) -> $target")
             }
             m.entities.forEach { e ->
                 appendLine("- Entitas `${e.id}` — ${e.label}")
@@ -39,7 +39,7 @@ object BriefRenderer {
                 when {
                     e.statusField == null || e.transitions.isEmpty() -> {}
                     else -> e.transitions.forEach { (from, tos) ->
-                        appendLine("  - Status `${e.statusField}`: $from → ${tos.joinToString(", ")}")
+                        appendLine("  - Status `${e.statusField}`: $from -> ${tos.joinToString(", ")}")
                     }
                 }
                 if (e.statusField != null && e.transitions.isEmpty()) {

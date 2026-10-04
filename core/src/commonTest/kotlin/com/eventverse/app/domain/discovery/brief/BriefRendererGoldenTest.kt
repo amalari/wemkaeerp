@@ -61,17 +61,17 @@ class BriefRendererGoldenTest {
 
         ## Modul & layar
         ### Tiket Servis (`tiket`)
-        - Layar: Papan Tiket (KANBAN) → entitas `tiket`
-        - Layar: Tambah Tiket (FORM) → entitas `tiket`
+        - Layar: Papan Tiket (KANBAN) -> entitas `tiket`
+        - Layar: Tambah Tiket (FORM) -> entitas `tiket`
         - Entitas `tiket` — Tiket
           - Judul: TEXT, wajib
           - Peminta: TEXT
           - Status tiket: ENUM (opsi: Baru | Diproses | Selesai)
-          - Status `Status`: Baru → Diproses
-          - Status `Status`: Diproses → Selesai, Baru
+          - Status `Status`: Baru -> Diproses
+          - Status `Status`: Diproses -> Selesai, Baru
 
         ### Notifikasi WA (`notifikasi`)
-        - Layar: Kirim Uji Coba (FORM) → tanpa entitas
+        - Layar: Kirim Uji Coba (FORM) -> tanpa entitas
 
         ## Perubahan dari klien
         - 2026-10-04T09:00:00Z — tambah status 'Revisi' pada 'Status' setelah 'Diproses': diterapkan
@@ -129,14 +129,14 @@ class BriefRendererGoldenTest {
 
         ## Modul & layar
         ### SPK Sampling (`sampling_order`)
-        - Layar: Papan SPK Sampling (KANBAN) → entitas `item`
+        - Layar: Papan SPK Sampling (KANBAN) -> entitas `item`
         - Entitas `item` — SPK Sampling
           - Kolom: ENUM (opsi: Baru | Dikerjakan | Selesai)
           - Kartu: TEXT
           - Detail: TEXT
-          - Status `Kolom`: Baru → Dikerjakan
-          - Status `Kolom`: Dikerjakan → Baru, Selesai
-          - Status `Kolom`: Selesai → Dikerjakan
+          - Status `Kolom`: Baru -> Dikerjakan
+          - Status `Kolom`: Dikerjakan -> Baru, Selesai
+          - Status `Kolom`: Selesai -> Dikerjakan
 
         ## Perubahan dari klien
         - 2026-10-04T10:00:00Z — tambah status 'Pressing' pada 'Kolom' setelah 'Selesai': diterapkan
@@ -157,7 +157,7 @@ class BriefRendererGoldenTest {
     fun golden_garment_isBytePerByteExact_andDeterministic() {
         val md = BriefRenderer.markdown(garment)
         assertEquals(garmentGolden + "\n", md)
-        assertEquals(md, BriefRenderer.markdown(garment), "masukan sama → keluaran byte per byte sama")
+        assertEquals(md, BriefRenderer.markdown(garment), "masukan sama -> keluaran byte per byte sama")
     }
 
     @Test

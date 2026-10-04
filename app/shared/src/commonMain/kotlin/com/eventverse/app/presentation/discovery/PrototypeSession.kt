@@ -2,6 +2,9 @@ package com.eventverse.app.presentation.discovery
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.brief.CaptureEntry
 import com.eventverse.app.domain.prototype.InteractiveScreen
@@ -21,6 +24,12 @@ sealed interface PlayableState {
  */
 class PrototypeSession(screens: List<DiscoveryScreenUi>) {
     private val blocks = mutableStateMapOf<String, PlayableState>()
+
+    /**
+     * Modul yang sedang dipakai (panel Paket & Harga). `null` = semua. Modul di luar himpunan ini tidak
+     * menjadi sumber angka dasbor; nilainya state Compose, jadi dasbor menghitung ulang saat pilihan berubah.
+     */
+    var includedModuleIds: Set<String>? by mutableStateOf(null)
 
     /** Log riwayat operasi untuk ekspor brief (A5). */
     val captureLog = mutableStateListOf<CaptureEntry>()
@@ -53,7 +62,9 @@ class PrototypeSession(screens: List<DiscoveryScreenUi>) {
     fun block(screenId: String): PlayableState? = blocks[screenId]
 
     /** Baris layar data pertama milik [moduleId]; null bila modul itu tak punya layar yang bisa dimainkan. */
-    fun rowsOf(moduleId: String): List<PrototypeRow>? = sourceScreenByModule[moduleId]?.let { blocks[it]?.rows }
+    fun rowsOf(moduleId: String): List<PrototypeRow>? =
+        if (includedModuleIds?.contains(moduleId) == false) null
+        else sourceScreenByModule[moduleId]?.let { blocks[it]?.rows }
 
     /** Menyiarkan baris baru ke semua blok yang mengelola [entityId] yang sama. */
     fun broadcastRowCreated(entityId: String, newRow: PrototypeRow) {
