@@ -107,6 +107,35 @@ class RichBlocksContractTest {
         assertEquals(DataBinding.Memory, decoded[1].dataBinding, "pack lama tanpa kunci = memori")
     }
 
+    @Test
+    fun screenSuggestionCodec_richHintKeys_roundTrip_andLegacyJsonStaysReadable() {
+        val rich = ScreenSuggestion(
+            ModuleId("uji"), "Antrian", WidgetKind.TABLE,
+            sampleRows = listOf(mapOf("No" to "1", "Status" to "Baru")),
+            kanbanHints = KanbanHints(
+                listOf("Baru"),
+                card = listOf(CardElement("No", CardStyle.TITLE)),
+                columnMeta = mapOf("Baru" to ColumnMeta(0xFF112233, wipLimit = 2)),
+                detailForm = FormConfig(listOf("No"), "Simpan")
+            ),
+            tableHints = TableHints(
+                "Status", listOf("Baru"),
+                fields = listOf(FieldHint("No", FieldType.NUMBER, required = true)),
+                inlineCreate = true, editableFields = listOf("No")
+            )
+        )
+        val json = jsonObjectOf("screenSuggestions" to ScreenSuggestionCodec.encode(listOf(rich))).encode()
+        assertEquals(rich, ScreenSuggestionCodec.decode(JsonParser.parseObject(json)["screenSuggestions"]).single(), "kunci hint kaya round-trip utuh")
+
+        // Pack JSON lama: tanpa kunci B2 tetap terbaca dengan nilai bawaan (kompatibilitas mundur).
+        val legacy = """{"screenSuggestions":[{"moduleId":"lama","title":"Lama","widget":"TABLE","sampleRows":[],"tableHints":{"statusColumn":"Status","options":["A"]}}]}"""
+        val decodedLegacy = ScreenSuggestionCodec.decode(JsonParser.parseObject(legacy)["screenSuggestions"]).single()
+        val legacyHints = assertNotNullTableHints(decodedLegacy.tableHints)
+        assertTrue(legacyHints.fields.isEmpty() && !legacyHints.inlineCreate && legacyHints.editableFields.isEmpty())
+    }
+
+    private fun assertNotNullTableHints(hints: TableHints?): TableHints = requireNotNull(hints)
+
     // ---- SpecOp baru: codec ketat, applier menolak sampai B4 ----------------------------------
 
     @Test
