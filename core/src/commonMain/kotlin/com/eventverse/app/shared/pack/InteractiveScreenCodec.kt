@@ -10,6 +10,7 @@ import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
 import com.eventverse.app.domain.prototype.StateMachine
+import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -46,6 +47,9 @@ object InteractiveScreenCodec {
                         "groupField" to jsonOf(k.groupField), "columns" to jsonArrayOf(k.columns.map(::jsonOf)),
                         "titleField" to jsonOf(k.titleField), "detailFields" to jsonArrayOf(k.detailFields.map(::jsonOf))
                     )
+                } ?: JsonValue.Null),
+                "table" to (sc.table?.let { t ->
+                    jsonObjectOf("columns" to jsonArrayOf(t.columns.map(::jsonOf)), "statusField" to jsonOf(t.statusField))
                 } ?: JsonValue.Null)
             )
         }),
@@ -75,7 +79,8 @@ object InteractiveScreenCodec {
             val widget = requireNotNull(WidgetKind.fromCode(sc.string("widget").orEmpty())) { "widget layar tak dikenal" }
             ScreenSpec(
                 sc.string("screenId").orEmpty(), sc.string("title").orEmpty(), widget, sc.string("entityId").orEmpty(),
-                sc.obj("kanban")?.let { k -> KanbanConfig(k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields")) }
+                sc.obj("kanban")?.let { k -> KanbanConfig(k.string("groupField").orEmpty(), k.stringArray("columns"), k.string("titleField").orEmpty(), k.stringArray("detailFields")) },
+                table = sc.obj("table")?.let { t -> TableConfig(t.stringArray("columns"), t.string("statusField")) }
             )
         }
         val seed = (o.obj("seed")?.entries ?: emptyMap()).mapValues { (_, rows) ->

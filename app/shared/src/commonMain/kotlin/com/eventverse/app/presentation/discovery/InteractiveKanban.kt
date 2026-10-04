@@ -131,7 +131,7 @@ private fun KanbanCard(card: PrototypeRow, state: InteractiveKanbanState) {
                 card[state.config.titleField],
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
             state.config.detailFields.forEach { field ->
@@ -139,7 +139,7 @@ private fun KanbanCard(card: PrototypeRow, state: InteractiveKanbanState) {
                     card[field],
                     style = MaterialTheme.typography.labelSmall,
                     color = WeMadeColors.OnSurfaceMuted,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
             }

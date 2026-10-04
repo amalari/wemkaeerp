@@ -2,6 +2,7 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.prototype.KanbanHints
+import com.eventverse.app.domain.prototype.TableHints
 
 /**
  * Usulan layar prototype bawaan pack konveksi (mock `/builder/prototype`): satu layar per modul
@@ -53,7 +54,8 @@ object GarmentScreenSuggestions {
             ),
             KanbanHints(
                 columns = listOf("Baru", "Dikerjakan", "Selesai"),
-                transitions = mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Baru", "Selesai"), "Selesai" to setOf("Dikerjakan"))
+                transitions = mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Baru", "Selesai"), "Selesai" to setOf("Dikerjakan")),
+                groupLabel = "Status SPK sampling"
             )
         ),
         ScreenSuggestion(
@@ -63,7 +65,8 @@ object GarmentScreenSuggestions {
                 mapOf("Komponen" to "Benang Polyester 120", "Spesifikasi" to "Putih · 5.000 yd/koni", "Pemakaian" to "0,05 koni/pcs", "Status" to "Final"),
                 mapOf("Komponen" to "Kancing mutiara 4 lubang", "Spesifikasi" to "12 mm", "Pemakaian" to "11 pcs/baju", "Status" to "Draft"),
                 mapOf("Komponen" to "Label woven brand", "Spesifikasi" to "PDH-2024 rev.3", "Pemakaian" to "1 pcs/baju", "Status" to "Final")
-            )
+            ),
+            tableHints = TableHints("Status", listOf("Draft", "Final"))
         ),
         ScreenSuggestion(
             GarmentModules.COSTING_HPP, "Dasbor HPP & Biaya", WidgetKind.DASHBOARD,
@@ -81,7 +84,8 @@ object GarmentScreenSuggestions {
                 mapOf("Bahan" to "Kain Fleece Katun 280 gsm", "Stok" to "180 kg", "Kepemilikan" to "Titipan buyer", "Status" to "Konsinyasi"),
                 mapOf("Bahan" to "Benang Polyester 120", "Stok" to "96 koni", "Kepemilikan" to "Milik pabrik", "Status" to "Tersedia"),
                 mapOf("Bahan" to "Kancing mutiara 12 mm", "Stok" to "5.000 pcs", "Kepemilikan" to "Milik pabrik", "Status" to "Menipis")
-            )
+            ),
+            tableHints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi"))
         ),
         ScreenSuggestion(
             GarmentModules.PRODUCTION_MRP, "Jadwal Potong & SPK Massal", WidgetKind.KANBAN,
@@ -93,7 +97,8 @@ object GarmentScreenSuggestions {
             ),
             KanbanHints(
                 columns = listOf("Antre Potong", "Berjalan", "Selesai"),
-                transitions = mapOf("Antre Potong" to setOf("Berjalan"), "Berjalan" to setOf("Antre Potong", "Selesai"))
+                transitions = mapOf("Antre Potong" to setOf("Berjalan"), "Berjalan" to setOf("Antre Potong", "Selesai")),
+                groupLabel = "Tahap produksi"
             )
         ),
         ScreenSuggestion(
@@ -103,7 +108,7 @@ object GarmentScreenSuggestions {
                 mapOf("Kolom" to "Lini 2", "Kartu" to "Sinta — jahit badan", "Detail" to "280 pcs hari ini"),
                 mapOf("Kolom" to "Lini 4", "Kartu" to "Agus — pasang lengan", "Detail" to "255 pcs hari ini")
             ),
-            KanbanHints(columns = listOf("Lini 2", "Lini 3", "Lini 4"))
+            KanbanHints(columns = listOf("Lini 2", "Lini 3", "Lini 4"), groupLabel = "Lini jahit")
         ),
         ScreenSuggestion(
             GarmentModules.QUALITY_CONTROL, "Checklist Inspeksi QC", WidgetKind.CHECKLIST,

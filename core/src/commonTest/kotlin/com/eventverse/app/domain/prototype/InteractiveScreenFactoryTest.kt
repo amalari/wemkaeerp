@@ -60,3 +60,54 @@ class InteractiveScreenFactoryTest {
         }
     }
 }
+
+class InteractiveTableTest {
+    private val rows = listOf(
+        mapOf("Bahan" to "Kain A", "Stok" to "420", "Status" to "Tersedia"),
+        mapOf("Bahan" to "kain b", "Stok" to "96", "Status" to "Menipis")
+    )
+    private val hints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi"))
+
+    @Test
+    fun table_statusChange_goesThroughReducerAndRejectsUnknownOption() {
+        val screen = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        val store = screen.newStore()
+        assertTrue(PrototypeReducer.moveCard(screen.spec, store, "item", "t-1", "Status", "Konsinyasi").isSuccess)
+        assertTrue(PrototypeReducer.moveCard(screen.spec, store, "item", "t-1", "Status", "Hantu").isFailure)
+    }
+
+    @Test
+    fun table_statusOutsideOptions_isNotInteractive() {
+        assertNull(InteractiveScreenFactory.table("t", "Stok", rows, TableHints("Status", listOf("Final"))))
+    }
+
+    @Test
+    fun table_nonUniformRows_isNull() {
+        assertNull(InteractiveScreenFactory.table("t", "x", listOf(mapOf("a" to "1"), mapOf("b" to "2"))))
+    }
+
+    @Test
+    fun tableView_numericColumnSortsAsNumbers_andFilterIsCaseInsensitive() {
+        val screen = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        val all = screen.newStore().rowsOf("item")
+        val cols = listOf("Bahan", "Stok", "Status")
+        assertEquals(listOf("96", "420"), TableView.apply(all, cols, "", "Stok", true).map { it["Stok"] })
+        assertEquals(listOf("kain b"), TableView.apply(all, cols, "MENIPIS", null, true).map { it["Bahan"] })
+    }
+
+    @Test
+    fun codec_roundTrip_preservesTableConfig() {
+        val original = assertNotNull(InteractiveScreenFactory.table("t", "Stok", rows, hints))
+        val decoded = InteractiveScreenCodec.decode(JsonParser.parseObject(InteractiveScreenCodec.encode(original).encode()))
+        assertEquals(original, decoded)
+    }
+
+    @Test
+    fun garmentTables_withHints_areInteractive() {
+        val pack = GarmentDomainPack.pack
+        pack.screenSuggestions.filter { it.tableHints != null }.forEach { s ->
+            val screen = PrototypeScreen("default-${s.moduleId.value}", s.moduleId, s.title, s.widget.code)
+            assertNotNull(WidgetRegistry.interactiveFor(screen, pack), "tabel ${s.moduleId.value} tidak interaktif")
+        }
+    }
+}

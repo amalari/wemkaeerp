@@ -13,18 +13,28 @@ data class KanbanConfig(
     val detailFields: List<String> = emptyList()
 )
 
+/**
+ * Konfigurasi tabel: [columns] urutan kolom tampil; [statusField] (opsional, ENUM) = kolom yang
+ * statusnya bisa diubah langsung di baris lewat reducer.
+ */
+data class TableConfig(val columns: List<String>, val statusField: String? = null)
+
 /** Satu layar prototype yang **terikat** ke entitas — bukan lagi baris contoh lepas. */
 data class ScreenSpec(
     val screenId: String,
     val title: String,
     val widget: WidgetKind,
     val entityId: String,
-    val kanban: KanbanConfig? = null
+    val kanban: KanbanConfig? = null,
+    val table: TableConfig? = null
 ) {
     init {
         require(screenId.isNotBlank() && title.isNotBlank()) { "ScreenSpec tanpa id/judul" }
         require((widget == WidgetKind.KANBAN) == (kanban != null)) {
             "Layar '$screenId': konfigurasi kanban wajib ada tepat untuk widget KANBAN"
+        }
+        require((widget == WidgetKind.TABLE) == (table != null)) {
+            "Layar '$screenId': konfigurasi tabel wajib ada tepat untuk widget TABLE"
         }
     }
 }
@@ -36,6 +46,16 @@ data class PrototypeSpec(val entities: List<EntitySpec>, val screens: List<Scree
         screens.forEach { screen ->
             val entity = requireNotNull(entities.firstOrNull { it.id == screen.entityId }) {
                 "Layar '${screen.screenId}' menunjuk entitas '${screen.entityId}' yang tidak ada"
+            }
+            screen.table?.let { t ->
+                require(t.columns.isNotEmpty() && t.columns.all { entity.field(it) != null }) {
+                    "Layar '${screen.screenId}': kolom tabel di luar field entitas"
+                }
+                t.statusField?.let { sf ->
+                    require(entity.field(sf)?.type == FieldType.ENUM && sf in t.columns) {
+                        "Layar '${screen.screenId}': kolom status '$sf' wajib ENUM dan tampil di tabel"
+                    }
+                }
             }
             screen.kanban?.let { k ->
                 val group = requireNotNull(entity.field(k.groupField)) {

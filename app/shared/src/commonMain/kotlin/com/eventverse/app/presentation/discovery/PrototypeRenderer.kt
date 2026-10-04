@@ -121,8 +121,8 @@ private fun PrototypeScreenCard(
         }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = ClaySpacing.Sm), color = WeMadeColors.Outline.copy(alpha = 0.3f))
-        // Kanban yang bisa dimainkan menggantikan gambar statis; widget lain / baris tak sah tetap statis.
-        if (interactive != null) InteractiveKanban(interactive) else WidgetBody(widget = widget, rows = rows)
+        // Blok yang bisa dimainkan menggantikan gambar statis; widget lain / baris tak sah tetap statis.
+        if (interactive != null) InteractiveBlock(interactive) else WidgetBody(widget = widget, rows = rows)
     }
 }
 

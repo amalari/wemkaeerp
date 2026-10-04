@@ -2,6 +2,7 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.prototype.KanbanHints
+import com.eventverse.app.domain.prototype.TableHints
 
 /** Satu kolom kanvas. [colorHex] adalah data vertikal, bukan keputusan design system. */
 data class PhaseDefinition(
@@ -56,7 +57,9 @@ data class ScreenSuggestion(
      * Perilaku papan (hanya bermakna untuk [WidgetKind.KANBAN]): urutan kolom termasuk yang kosong dan
      * transisi yang boleh. Null = kolom diturunkan dari [sampleRows], kartu bebas pindah.
      */
-    val kanbanHints: KanbanHints? = null
+    val kanbanHints: KanbanHints? = null,
+    /** Perilaku tabel (hanya bermakna untuk [WidgetKind.TABLE]); null = tabel hanya bisa disortir/difilter. */
+    val tableHints: TableHints? = null
 ) {
     init {
         require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }

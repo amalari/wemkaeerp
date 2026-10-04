@@ -76,15 +76,18 @@ object WidgetRegistry {
     }
 
     /**
-     * Versi **bisa dimainkan** layar kanban (TRD-PLAT-003): spec + seed dari baris contoh yang sama
+     * Versi **bisa dimainkan** layar kanban/tabel (TRD-PLAT-003): spec + seed dari baris contoh yang sama
      * dengan [sampleRowsFor], dipandu `kanbanHints` pack. Null untuk widget lain atau baris yang tak
      * bisa dibentuk jadi papan — klien lalu menggambar statis.
      */
     fun interactiveFor(screen: PrototypeScreen, pack: DomainPack): InteractiveScreen? {
-        if (WidgetKind.fromCode(screen.widget) != WidgetKind.KANBAN) return null
-        val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }
-        val hints = suggestion?.kanbanHints?.takeIf { suggestion.widget == WidgetKind.KANBAN }
-        return InteractiveScreenFactory.kanban(screen.screenId, screen.title, sampleRowsFor(screen, pack), hints)
+        val kind = WidgetKind.fromCode(screen.widget)
+        val suggestion = pack.screenSuggestions.firstOrNull { it.moduleId == screen.moduleId }?.takeIf { it.widget == kind }
+        return when (kind) {
+            WidgetKind.KANBAN -> InteractiveScreenFactory.kanban(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.kanbanHints)
+            WidgetKind.TABLE -> InteractiveScreenFactory.table(screen.screenId, screen.title, sampleRowsFor(screen, pack), suggestion?.tableHints)
+            else -> null
+        }
     }
 
     private fun statusOf(i: Int): String = listOf("Baru", "Proses", "Selesai", "Proses", "Baru")[(i - 1) % 5]

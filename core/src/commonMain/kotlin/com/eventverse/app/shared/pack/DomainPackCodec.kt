@@ -14,6 +14,7 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.domain.prototype.KanbanHints
+import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
 import com.eventverse.app.domain.pack.VocabularyKey
@@ -86,6 +87,14 @@ object DomainPackCodec {
                 "kanbanHints" to (s.kanbanHints?.let { h ->
                     jsonObjectOf(
                         "columns" to jsonArrayOf(h.columns.map { jsonOf(it) }),
+                        "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray()),
+                        "groupLabel" to jsonOf(h.groupLabel)
+                    )
+                } ?: JsonValue.Null),
+                "tableHints" to (s.tableHints?.let { h ->
+                    jsonObjectOf(
+                        "statusColumn" to jsonOf(h.statusColumn),
+                        "options" to jsonArrayOf(h.options.map { jsonOf(it) }),
                         "transitions" to jsonObjectOf(*h.transitions.map { (from, tos) -> from to jsonArrayOf(tos.map { jsonOf(it) }) }.toTypedArray())
                     )
                 } ?: JsonValue.Null)
@@ -148,12 +157,10 @@ object DomainPackCodec {
                     widget = s.enum("widget", WidgetKind.entries),
                     sampleRows = sampleRows,
                     kanbanHints = s.raw.obj("kanbanHints")?.let { h ->
-                        KanbanHints(
-                            h.stringArray("columns"),
-                            (h.obj("transitions")?.entries ?: emptyMap()).mapValues { (_, v) ->
-                                ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }.toSet()
-                            }
-                        )
+                        KanbanHints(h.stringArray("columns"), transitionsOf(h), h.string("groupLabel"))
+                    },
+                    tableHints = s.raw.obj("tableHints")?.let { h ->
+                        TableHints(h.string("statusColumn").orEmpty(), h.stringArray("options"), transitionsOf(h))
                     }
                 )
             }
@@ -179,6 +186,11 @@ object DomainPackCodec {
     private fun color(argb: Long): String = "#" + argb.toString(16).uppercase().padStart(8, '0')
 
     /** Pembaca satu objek dengan path untuk pesan galat. Konstruktor domain yang menolak dibungkus [build] dengan path objeknya. */
+    private fun transitionsOf(h: JsonValue.Obj): Map<String, Set<String>> =
+        (h.obj("transitions")?.entries ?: emptyMap()).mapValues { (_, v) ->
+            ((v as? JsonValue.Arr)?.items.orEmpty()).filterIsInstance<JsonValue.Str>().map { it.value }.toSet()
+        }
+
     private class Reader(private val obj: JsonValue.Obj, private val path: String) {
         /** Objek mentah, untuk field opsional bersarang yang bentuknya dibaca langsung. */
         val raw: JsonValue.Obj get() = obj
