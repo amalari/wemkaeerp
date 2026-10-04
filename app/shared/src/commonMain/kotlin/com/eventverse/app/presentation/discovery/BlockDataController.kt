@@ -38,14 +38,15 @@ class BlockDataController(
     val port: BlockDataPort,
     initialSpec: PrototypeSpec,
     val entityId: String,
+    initialRows: List<PrototypeRow> = emptyList(),
 ) {
     var spec: PrototypeSpec by mutableStateOf(initialSpec)
         private set
 
-    var rows: List<PrototypeRow> by mutableStateOf(emptyList())
+    var rows: List<PrototypeRow> by mutableStateOf(initialRows)
         private set
 
-    var phase: BlockDataPhase by mutableStateOf(BlockDataPhase.Loading)
+    var phase: BlockDataPhase by mutableStateOf(if (initialRows.isNotEmpty()) BlockDataPhase.Idle else BlockDataPhase.Loading)
         private set
 
     var errorMessage: String? by mutableStateOf(null)
@@ -212,6 +213,18 @@ class BlockDataController(
                 Result.failure(err)
             }
         )
+    }
+
+    /** Memasukkan baris langsung secara lokal (mis. hasil siaran form lintas-blok) tanpa memicu create baru. */
+    fun insertRowLocally(row: PrototypeRow) {
+        if (rows.none { it.id == row.id }) {
+            rows = rows + row
+        }
+    }
+
+    /** Menghapus baris langsung secara lokal (mis. hasil siaran hapus lintas-blok). */
+    fun deleteRowLocally(rowId: String) {
+        rows = rows.filterNot { it.id == rowId }
     }
 
     private fun formatError(throwable: Throwable): String {

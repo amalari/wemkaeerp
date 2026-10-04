@@ -5,38 +5,55 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.eventverse.app.domain.prototype.InteractiveScreen
-import com.eventverse.app.domain.prototype.PrototypeReducer
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.prototype.TableView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * State tabel prototype (TRD-PLAT-003). Sortir/filter hanya cara melihat (dihitung [TableView]);
- * perubahan status melewati [PrototypeReducer], jadi opsi dan transisi dijaga spec, bukan UI.
+ * State tabel prototype (TRD-PLAT-003, butir A2).
+ * Berjalan di atas [BlockDataController] dan [com.eventverse.app.domain.prototype.BlockDataPort].
+ * Sortir/filter dihitung [TableView]; perubahan data dikelola controller.
  */
 @Stable
-class InteractiveTableState(screen: InteractiveScreen) : PlayableState {
-    private val spec = screen.spec
-    private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
-    val config: TableConfig = requireNotNull(screenSpec.table) { "Layar '${screenSpec.screenId}' bukan tabel" }
-    val entityId: String = requireNotNull(screenSpec.entityId) { "Layar tabel tanpa entitas" }
-    private val entity = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
-    private val machine = entity.stateMachine?.takeIf { it.field == config.statusField }
+class InteractiveTableState(
+    screen: InteractiveScreen,
+    val controller: BlockDataController = createDefaultController(screen),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+) : PlayableState {
+    private val spec get() = controller.spec
+    private val screenSpec get() = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+    val config: TableConfig get() = requireNotNull(screenSpec.table) { "Layar '${screenSpec.screenId}' bukan tabel" }
+    val entityId: String get() = controller.entityId
+    private val entity get() = requireNotNull(spec.entity(entityId)) { "Entitas '$entityId' tidak ada" }
+    private val machine get() = entity.stateMachine?.takeIf { it.field == config.statusField }
 
-    var store by mutableStateOf(screen.newStore())
-        private set
     var query by mutableStateOf("")
     var sortColumn by mutableStateOf<String?>(null)
         private set
     var ascending by mutableStateOf(true)
         private set
-    var message by mutableStateOf<String?>(null)
-        private set
 
-    override val rows: List<PrototypeRow> get() = store.rowsOf(entityId)
+    override val rows: List<PrototypeRow> get() = controller.rows
+    override val phase: BlockDataPhase get() = controller.phase
+    override val errorMessage: String? get() = controller.errorMessage
+    val message: String? get() = controller.errorMessage
 
     val visibleRows: List<PrototypeRow>
-        get() = TableView.apply(store.rowsOf(entityId), config.columns, query, sortColumn, ascending)
+        get() = TableView.apply(controller.rows, config.columns, query, sortColumn, ascending)
+
+    init {
+        if (controller.phase is BlockDataPhase.Loading && controller.rows.isEmpty()) {
+            scope.launch { controller.load() }
+        }
+    }
+
+    override fun retry() {
+        scope.launch { controller.load() }
+    }
 
     fun toggleSort(column: String) {
         if (sortColumn == column) ascending = !ascending else { sortColumn = column; ascending = true }
@@ -54,20 +71,26 @@ class InteractiveTableState(screen: InteractiveScreen) : PlayableState {
 
     fun setStatus(rowId: String, to: String) {
         val field = config.statusField ?: return
-        PrototypeReducer.moveCard(spec, store, entityId, rowId, field, to)
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        scope.launch { controller.move(rowId, field, to) }
     }
 
     fun delete(rowId: String) {
-        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Delete(entityId, rowId))
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        controller.deleteRowLocally(rowId)
+        scope.launch { controller.delete(rowId) }
     }
 
     fun insertRow(row: PrototypeRow) {
-        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Create(entityId, row))
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        controller.insertRowLocally(row)
+        scope.launch { controller.create(row.values) }
+    }
+
+    companion object {
+        fun createDefaultController(screen: InteractiveScreen): BlockDataController {
+            val screenSpec = requireNotNull(screen.spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+            val entityId = requireNotNull(screenSpec.entityId) { "Layar tabel tanpa entitas" }
+            val port = BlockDataPortFactory.defaultFactory.createPort(screen, entityId)
+            val seedRows = screen.seed[entityId].orEmpty()
+            return BlockDataController(port, screen.spec, entityId, seedRows)
+        }
     }
 }

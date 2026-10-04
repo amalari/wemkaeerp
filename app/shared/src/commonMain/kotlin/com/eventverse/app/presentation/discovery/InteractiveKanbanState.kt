@@ -8,24 +8,33 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.KanbanConfig
-import com.eventverse.app.domain.prototype.PrototypeReducer
 import com.eventverse.app.domain.prototype.PrototypeRow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * State papan kanban prototype (TRD-PLAT-003). Hanya memegang state UI (seret, kolom di bawah
- * pointer, pesan) — aturan pindah kartu seluruhnya milik [PrototypeReducer] di core.
- * Store hidup di memori sesi dan hilang saat layar ditutup; seed membuatnya ulang.
+ * State papan kanban prototype (TRD-PLAT-003, butir A2).
+ * Berjalan di atas [BlockDataController] dan [com.eventverse.app.domain.prototype.BlockDataPort].
+ * Memegang state UI interaksi papan (seret, kolom di bawah pointer); operasi data dikelola controller.
  */
 @Stable
-class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
-    private val spec = screen.spec
-    private val screenSpec = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
-    val config: KanbanConfig = requireNotNull(screenSpec.kanban) { "Layar '${screenSpec.screenId}' bukan kanban" }
-    val entityId: String = requireNotNull(screenSpec.entityId) { "Layar kanban tanpa entitas" }
-    private val machine = spec.entity(entityId)?.stateMachine?.takeIf { it.field == config.groupField }
+class InteractiveKanbanState(
+    screen: InteractiveScreen,
+    val controller: BlockDataController = createDefaultController(screen),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+) : PlayableState {
+    val spec get() = controller.spec
+    private val screenSpec get() = requireNotNull(spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+    val config: KanbanConfig get() = requireNotNull(screenSpec.kanban) { "Layar '${screenSpec.screenId}' bukan kanban" }
+    val entityId: String get() = controller.entityId
+    private val machine get() = spec.entity(entityId)?.stateMachine?.takeIf { it.field == config.groupField }
 
-    var store by mutableStateOf(screen.newStore())
-        private set
+    override val rows: List<PrototypeRow> get() = controller.rows
+    override val phase: BlockDataPhase get() = controller.phase
+    override val errorMessage: String? get() = controller.errorMessage
+
     /** Alasan penolakan terakhir (transisi terlarang), null bila aksi terakhir berhasil. */
     var message by mutableStateOf<String?>(null)
         private set
@@ -36,13 +45,24 @@ class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
     var hoverColumn by mutableStateOf<String?>(null)
         private set
 
+    /** Kartu yang sedang dibuka di dialog detail (butir A5). */
+    var selectedCardForDetail by mutableStateOf<PrototypeRow?>(null)
+
     private val columnBounds = mutableMapOf<String, Rect>()
     private var pointerOrigin = Offset.Zero
 
-    override val rows: List<PrototypeRow> get() = store.rowsOf(entityId)
+    init {
+        if (controller.phase is BlockDataPhase.Loading && controller.rows.isEmpty()) {
+            scope.launch { controller.load() }
+        }
+    }
+
+    override fun retry() {
+        scope.launch { controller.load() }
+    }
 
     fun cards(column: String): List<PrototypeRow> =
-        store.rowsOf(entityId).filter { it[config.groupField] == column }
+        controller.rows.filter { it[config.groupField] == column }
 
     fun registerColumn(column: String, bounds: Rect) { columnBounds[column] = bounds }
 
@@ -53,21 +73,37 @@ class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
     }
 
     fun move(rowId: String, to: String) {
-        PrototypeReducer.moveCard(spec, store, entityId, rowId, config.groupField, to)
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        scope.launch {
+            controller.move(rowId, config.groupField, to)
+                .onSuccess { message = null }
+                .onFailure { message = it.message }
+        }
     }
 
     fun delete(rowId: String) {
-        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Delete(entityId, rowId))
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        controller.deleteRowLocally(rowId)
+        scope.launch {
+            controller.delete(rowId)
+                .onSuccess { message = null }
+                .onFailure { message = it.message }
+        }
     }
 
     fun insertRow(row: PrototypeRow) {
-        com.eventverse.app.domain.prototype.PrototypeReducer.reduce(spec, store, com.eventverse.app.domain.prototype.PrototypeAction.Create(entityId, row))
-            .onSuccess { store = it; message = null }
-            .onFailure { message = it.message }
+        controller.insertRowLocally(row)
+        scope.launch {
+            controller.create(row.values)
+                .onSuccess { message = null }
+                .onFailure { message = it.message }
+        }
+    }
+
+    fun updateRow(rowId: String, changes: Map<String, String>) {
+        scope.launch {
+            controller.update(rowId, changes)
+                .onSuccess { message = null }
+                .onFailure { message = it.message }
+        }
     }
 
     fun startDrag(rowId: String, cardOrigin: Offset, grab: Offset) {
@@ -94,5 +130,15 @@ class InteractiveKanbanState(screen: InteractiveScreen) : PlayableState {
         draggedId = null
         dragOffset = Offset.Zero
         hoverColumn = null
+    }
+
+    companion object {
+        fun createDefaultController(screen: InteractiveScreen): BlockDataController {
+            val screenSpec = requireNotNull(screen.spec.screens.firstOrNull()) { "Layar interaktif tanpa ScreenSpec" }
+            val entityId = requireNotNull(screenSpec.entityId) { "Layar kanban tanpa entitas" }
+            val port = BlockDataPortFactory.defaultFactory.createPort(screen, entityId)
+            val seedRows = screen.seed[entityId].orEmpty()
+            return BlockDataController(port, screen.spec, entityId, seedRows)
+        }
     }
 }
