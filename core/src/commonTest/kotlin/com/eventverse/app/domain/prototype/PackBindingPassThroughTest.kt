@@ -34,6 +34,7 @@ import kotlin.test.assertTrue
  */
 class PackBindingPassThroughTest {
     private val moduleId = ModuleId("uji_modul")
+    private val kanbanModuleId = ModuleId("uji_papan")
 
     private val pack = DomainPack(
         code = DomainPackCode("uji"),
@@ -46,6 +47,10 @@ class PackBindingPassThroughTest {
         modules = listOf(
             ModuleDefinition(
                 moduleId, "Modul Uji", "deskripsi uji", ModuleSectionCode("uji_seksi"),
+                ModuleKind.OPERATIONAL, "uji", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), slot = SlotCode("uji_slot")
+            ),
+            ModuleDefinition(
+                kanbanModuleId, "Modul Papan Uji", "deskripsi papan uji", ModuleSectionCode("uji_seksi"),
                 ModuleKind.OPERATIONAL, "uji", ScopeCapability.GLOBAL_ONLY, setOf(DataScope.ALL_TENANT_DATA), slot = SlotCode("uji_slot")
             )
         ),
@@ -65,6 +70,25 @@ class PackBindingPassThroughTest {
                     inlineCreate = true, editableFields = listOf("Nama", "Total")
                 ),
                 dataBinding = DataBinding.Api("/api/tenant/modules/uji_modul/perbaikan")
+            ),
+            // Skenario B2.1 (usulan jalur C): papan berbinding Api TANPA baris contoh — datanya dari
+            // server; bentuknya seluruhnya dari hints (groupField=status, field bertipe).
+            ScreenSuggestion(
+                kanbanModuleId, "Papan Permintaan", WidgetKind.KANBAN,
+                sampleRows = emptyList(),
+                kanbanHints = KanbanHints(
+                    columns = listOf("Baru", "Dikerjakan", "Selesai"),
+                    transitions = mapOf("Baru" to setOf("Dikerjakan")),
+                    groupField = "status",
+                    fields = listOf(
+                        FieldHint("judul", FieldType.TEXT, required = true),
+                        FieldHint("prioritas", FieldType.ENUM, options = listOf("Tinggi", "Rendah"))
+                    ),
+                    card = listOf(CardElement("judul", CardStyle.TITLE), CardElement("status", CardStyle.BADGE)),
+                    columnMeta = mapOf("Dikerjakan" to ColumnMeta(tintHex = 0xFF2563EB, wipLimit = 2)),
+                    detailForm = FormConfig(listOf("judul", "prioritas"), "Simpan")
+                ),
+                dataBinding = DataBinding.Api("/api/tenant/modules/layanan_change_request/change_requests")
             )
         )
     )
@@ -88,5 +112,23 @@ class PackBindingPassThroughTest {
             WidgetRegistry.interactiveFor(PrototypeScreen("default-${GarmentModules.INVENTORY.value}", GarmentModules.INVENTORY, "Stok Kain", "TABLE"), garment)
         )
         assertEquals(DataBinding.Memory, built.binding, "pack lama tanpa kunci binding = memori (kompatibel mundur)")
+    }
+
+    @Test
+    fun interactiveFor_apiKanban_withoutSampleRows_isInteractive_notStatic() {
+        val built = assertNotNull(
+            WidgetRegistry.interactiveFor(PrototypeScreen("default-$kanbanModuleId", kanbanModuleId, "Papan Permintaan", "KANBAN"), pack),
+            "papan Api tanpa baris contoh tetap interaktif — inilah yang dulu jatuh ke gambar statis"
+        )
+        assertEquals(DataBinding.Api("/api/tenant/modules/layanan_change_request/change_requests"), built.binding)
+        val k = assertNotNull(built.spec.screens.single().kanban)
+        assertEquals("status", k.groupField, "bukan 'Kolom'")
+        assertTrue(built.seed.getValue("item").isEmpty(), "tanpa seed karangan: data datang dari server")
+        val entity = assertNotNull(built.spec.entity("item"))
+        assertEquals(FieldType.ENUM, assertNotNull(entity.field("status")).type, "status ENUM, bukan TEXT")
+        assertEquals(FieldType.TEXT, assertNotNull(entity.field("judul")).type)
+        assertEquals(FieldType.ENUM, assertNotNull(entity.field("prioritas")).type)
+        val next = PrototypeReducer.moveCard(built.spec, built.newStore(), "item", "papan-1", "status", "Dikerjakan")
+        assertTrue(next.isFailure, "seed kosong: tidak ada kartu karangan untuk dipindah")
     }
 }

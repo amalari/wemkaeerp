@@ -4,6 +4,14 @@ package com.eventverse.app.domain.prototype
  * Petunjuk perilaku papan dari pack: urutan kolom (termasuk yang kosong) dan transisi yang boleh.
  * Tanpa [transitions] kartu bebas pindah ke kolom mana pun. Kunci B2 opsional — kosong/null =
  * perilaku lama.
+ *
+ * Dua mode bentuk papan (B2.1, mengikuti temuan jalur C di modul pilot):
+ *  - **Legacy** (garment): [fields] kosong — field entitas diturunkan dari baris contoh yang wajib
+ *    berkunci `"Kolom"` (atau [groupField] bila ditimpa), semua field selain kelompok bertipe TEXT.
+ *  - **Dideklarasikan**: [fields] diisi — bentuk entitas dari petunjuk (status ENUM, tanggal DATE,
+ *    dsb., bukan semua TEXT), [groupField] **wajib**, dan baris contoh **opsional** karena data
+ *    layar berbinding [com.eventverse.app.domain.prototype.DataBinding.Api] datang dari server.
+ *    `titleField` = field elemen kartu bergaya TITLE (atau field deklarasi pertama).
  */
 data class KanbanHints(
     val columns: List<String>,
@@ -15,7 +23,18 @@ data class KanbanHints(
     /** Metadata kolom (B2): warna data tenant (tintHex) & batas WIP; kunci wajib kolom di [columns]. */
     val columnMeta: Map<String, ColumnMeta> = emptyMap(),
     /** Form saat kartu diketuk (B2); field-nya wajib milik entitas papan (divalidasi spec). */
-    val detailForm: FormConfig? = null
+    val detailForm: FormConfig? = null,
+    /**
+     * Kunci field kelompok di baris data (B2.1, usulan jalur C): null = `"Kolom"` (garment tetap
+     * sama). Wajib diisi bila [fields] dideklarasikan.
+     */
+    val groupField: String? = null,
+    /**
+     * Deklarasi field entitas papan (B2.1, usulan jalur C): status ENUM, tanggal DATE, dsb. — bukan
+     * semua TEXT. Kuncinya kunci baris server/pack; [groupField] tidak boleh dideklarasikan di sini
+     * (type-nya dipaksa ENUM dengan opsi [columns]). Kosong = mode legacy.
+     */
+    val fields: List<FieldHint> = emptyList()
 )
 
 /**

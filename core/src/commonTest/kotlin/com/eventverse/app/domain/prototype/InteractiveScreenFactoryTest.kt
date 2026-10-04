@@ -87,6 +87,96 @@ class InteractiveScreenFactoryTest {
         )
     }
 
+    // ---- B2.1: papan berfield dideklarasikan (usulan jalur C — modul pilot) --------------------
+
+    @Test
+    fun kanban_declaredFields_boardShapedFromHints_notKolom() {
+        // Baris gaya server pilot: tanpa kunci "Kolom", status ENUM, judul/prioritas bertipe.
+        val serverRows = listOf(
+            mapOf("status" to "Baru", "judul" to "Ganti logo", "prioritas" to "Tinggi"),
+            mapOf("status" to "Dikerjakan", "judul" to "Perbaiki formulir", "prioritas" to "Rendah")
+        )
+        val hints = KanbanHints(
+            columns = listOf("Baru", "Dikerjakan", "Selesai"),
+            transitions = mapOf("Baru" to setOf("Dikerjakan")),
+            groupField = "status",
+            fields = listOf(
+                FieldHint("judul", FieldType.TEXT),
+                FieldHint("prioritas", FieldType.ENUM, options = listOf("Tinggi", "Rendah"))
+            ),
+            card = listOf(
+                CardElement("judul", CardStyle.TITLE),
+                CardElement("status", CardStyle.BADGE),
+                CardElement("prioritas", CardStyle.TEXT)
+            )
+        )
+        val screen = assertNotNull(InteractiveScreenFactory.kanban("pilot", "Permintaan Perubahan", serverRows, hints))
+        val entity = assertNotNull(screen.spec.entity("item"))
+        val k = screen.spec.screens.single().kanban!!
+        assertEquals("status", k.groupField, "field kelompok mengikuti hints, bukan 'Kolom'")
+        assertEquals(FieldType.ENUM, assertNotNull(entity.field("status")).type)
+        assertEquals(FieldType.TEXT, assertNotNull(entity.field("judul")).type)
+        assertEquals(FieldType.ENUM, assertNotNull(entity.field("prioritas")).type)
+        assertEquals("judul", k.titleField, "titleField dari elemen kartu bergaya TITLE")
+        assertEquals(listOf("prioritas"), k.detailFields)
+        val next = PrototypeReducer.moveCard(screen.spec, screen.newStore(), "item", "pilot-1", "status", "Dikerjakan").getOrThrow()
+        assertEquals("Dikerjakan", next.rowsOf("item").first()["status"])
+    }
+
+    @Test
+    fun kanban_declaredFields_emptyRows_boardStillForms_andRequiredEnforced() {
+        val hints = KanbanHints(
+            columns = listOf("Baru", "Dikerjakan", "Selesai"),
+            groupField = "status",
+            fields = listOf(FieldHint("judul", FieldType.TEXT, required = true))
+        )
+        val screen = assertNotNull(
+            InteractiveScreenFactory.kanban("pilot", "Permintaan", emptyList(), hints),
+            "binding Api: papan sah tanpa baris contoh — datanya dari server"
+        )
+        assertTrue(screen.seed.getValue("item").isEmpty(), "tanpa seed karangan")
+        val store = screen.newStore()
+        assertTrue(
+            PrototypeReducer.reduce(screen.spec, store, PrototypeAction.Create("item", PrototypeRow("cr-1", mapOf("status" to "Baru")))).isFailure,
+            "judul wajib ditegakkan saat create"
+        )
+        val ok = PrototypeReducer.reduce(
+            screen.spec, store,
+            PrototypeAction.Create("item", PrototypeRow("cr-1", mapOf("judul" to "Reset cache", "status" to "Baru")))
+        ).getOrThrow()
+        assertEquals("Baru", ok.rowsOf("item").single()["status"])
+    }
+
+    @Test
+    fun kanban_declaredFields_incoherent_areRejected_notIgnored() {
+        val fields = listOf(FieldHint("judul", FieldType.TEXT))
+        assertNull(
+            InteractiveScreenFactory.kanban("p", "P", emptyList(), KanbanHints(listOf("Baru"), groupField = "status", fields = fields, card = listOf(CardElement("hantu", CardStyle.TEXT)))),
+            "elemen kartu di luar field deklarasi ditolak"
+        )
+        assertNull(
+            InteractiveScreenFactory.kanban("p", "P", emptyList(), KanbanHints(listOf("Baru"), groupField = "status", fields = listOf(FieldHint("status", FieldType.TEXT)))),
+            "field kelompok tidak boleh dideklarasikan ulang (type-nya dipaksa ENUM)"
+        )
+        assertNull(
+            InteractiveScreenFactory.kanban("p", "P", emptyList(), KanbanHints(listOf("Baru"), fields = fields)),
+            "field dideklarasikan tanpa groupField = tak koheren"
+        )
+        assertNull(
+            InteractiveScreenFactory.kanban("p", "P", listOf(mapOf("judul" to "x", "ekstra" to "y")), KanbanHints(listOf("Baru"), groupField = "status", fields = fields)),
+            "baris dengan kunci di luar deklarasi ditolak, bukan didiamkan"
+        )
+    }
+
+    @Test
+    fun kanban_groupFieldDefaultsToKolom_garmentParity() {
+        val hints = KanbanHints(listOf("A", "B", "C"), card = listOf(CardElement("Judul", CardStyle.TITLE)))
+        val screen = assertNotNull(InteractiveScreenFactory.kanban("s", "Papan", rows, hints))
+        val k = screen.spec.screens.single().kanban!!
+        assertEquals(InteractiveScreenFactory.GROUP_FIELD, k.groupField, "bawaan tetap 'Kolom' — garment identik")
+        assertEquals(FieldType.TEXT, assertNotNull(assertNotNull(screen.spec.entity("item")).field("Judul")).type)
+    }
+
     @Test
     fun codec_roundTrip_preservesSpecAndSeed() {
         val hints = KanbanHints(listOf("A", "B", "C"), mapOf("A" to setOf("B")))
