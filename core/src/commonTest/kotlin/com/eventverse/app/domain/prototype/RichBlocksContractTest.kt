@@ -140,7 +140,7 @@ class RichBlocksContractTest {
 
     private fun assertNotNullTableHints(hints: TableHints?): TableHints = requireNotNull(hints)
 
-    // ---- SpecOp baru: codec ketat, applier menolak sampai B4 ----------------------------------
+    // ---- SpecOp baru: codec ketat, applier dilaksanakan sejak B4 -------------------------------
 
     @Test
     fun specOpCodec_newOps_roundTrip_strictly() {
@@ -154,12 +154,50 @@ class RichBlocksContractTest {
     }
 
     @Test
-    fun applier_newOps_rejectedWithBelumDidukung_untilB4() {
-        PrototypeContractSamples.richOps.forEach { op ->
-            val result = SpecOpApplier.apply(rich, op)
-            assertTrue(result.isFailure, "${op::class.simpleName} memang belum dilaksanakan")
-            assertTrue(result.exceptionOrNull()!!.message.orEmpty().contains("belum didukung"))
-        }
+    fun applier_showFieldOnCard_upsertsElement_onKanbanScreensOnly() {
+        fun kanbanOf(s: InteractiveScreen) = s.spec.screens.first().kanban!!
+        // Field yang belum tampil ditambahkan di akhir kartu:
+        val withNew = SpecOpApplier.apply(rich, SpecOp.AddField("order", FieldSpec("Catatan", "Catatan", FieldType.TEXT))).getOrThrow()
+        val added = SpecOpApplier.apply(withNew, SpecOp.ShowFieldOnCard("order", "Catatan", CardStyle.TEXT)).getOrThrow()
+        assertEquals("Catatan", kanbanOf(added).card.last().field, "elemen baru di akhir kartu")
+        assertEquals(CardStyle.TEXT, kanbanOf(added).card.last().style)
+        assertEquals(7, kanbanOf(added).card.size)
+        // Field yang sudah tampil (Target di posisi contoh ke-4) diganti gayanya di posisi semula:
+        val restyled = SpecOpApplier.apply(added, SpecOp.ShowFieldOnCard("order", "Target", CardStyle.NUMBER)).getOrThrow()
+        assertEquals(3, kanbanOf(restyled).card.indexOfFirst { it.field == "Target" }, "posisi semula terjaga")
+        assertEquals(CardStyle.NUMBER, kanbanOf(restyled).card[3].style)
+        assertEquals(7, kanbanOf(restyled).card.size, "mengganti, bukan menduplikasi")
+        assertEquals(rich.spec.screens.last(), added.spec.screens.last(), "layar tabel milik entitas sama tak tersentuh")
+        assertTrue(SpecOpApplier.apply(rich, SpecOp.ShowFieldOnCard("order", "Hantu")).isFailure, "field tak dikenal ditolak")
+        assertTrue(SpecOpApplier.apply(rich, SpecOp.ShowFieldOnCard("hantu", "Nomor")).isFailure, "entitas tak dikenal ditolak")
+        val noKanban = InteractiveScreen(
+            PrototypeSpec(
+                listOf(PrototypeContractSamples.orderEntity),
+                listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "order", table = TableConfig(listOf("Status"), "Status")))
+            ),
+            emptyMap()
+        )
+        assertTrue(SpecOpApplier.apply(noKanban, SpecOp.ShowFieldOnCard("order", "Nomor")).isFailure, "tanpa papan kanban tidak ada kartu untuk diubah")
+    }
+
+    @Test
+    fun applier_setFieldRequired_togglesFlag_andReducerEnforcesOnCreate() {
+        val next = SpecOpApplier.apply(rich, SpecOp.SetFieldRequired("order", "Total", true)).getOrThrow()
+        assertTrue(next.spec.entity("order")!!.field("Total")!!.required, "Total jadi wajib")
+        val store = next.newStore()
+        assertTrue(
+            PrototypeReducer.reduce(next.spec, store, PrototypeAction.Create("order", PrototypeRow("o-3", mapOf("Nomor" to "SV-3", "Pelanggan" to "Cici", "Status" to "Baru")))).isFailure,
+            "create tanpa field wajib baru ditolak"
+        )
+        val ok = PrototypeReducer.reduce(
+            next.spec, store,
+            PrototypeAction.Create("order", PrototypeRow("o-4", mapOf("Nomor" to "SV-4", "Pelanggan" to "Dodi", "Total" to "5000", "Status" to "Baru")))
+        ).getOrThrow()
+        assertEquals("5000", ok.rowsOf("order").first { it.id == "o-4" }["Total"])
+        val off = SpecOpApplier.apply(next, SpecOp.SetFieldRequired("order", "Total", false)).getOrThrow()
+        assertTrue(!off.spec.entity("order")!!.field("Total")!!.required, "kewajiban bisa dicabut")
+        assertTrue(SpecOpApplier.apply(rich, SpecOp.SetFieldRequired("order", "Hantu", true)).isFailure)
+        assertTrue(SpecOpApplier.apply(rich, SpecOp.SetFieldRequired("hantu", "Total", true)).isFailure)
     }
 
     // ---- bantu ---------------------------------------------------------------------------------
