@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -36,20 +38,39 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 private val ColumnWidth = 118.dp
 
 /**
- * Tabel prototype yang bisa dimainkan (TRD-PLAT-003): cari, urut dengan mengetuk judul kolom, dan
- * (bila pack menyatakan kolom status) ubah status di baris. Kolom diberi lebar tetap dan digulir
- * ke samping — sel tidak lagi dipotong jadi "PO-2026…" di bingkai selebar ponsel.
+ * Tabel prototype yang bisa dimainkan (TRD-PLAT-003, butir A4):
+ * - Cari & urut kolom
+ * - Ubah status lewat lencana ENUM
+ * - Form pembuatan baris inline ([TableConfig.inlineCreate])
+ * - Pengeditan sel inline ([TableConfig.editableFields])
  */
 @Composable
 fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-        ClayTextField(
-            value = state.query,
-            onValueChange = { state.query = it },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            placeholder = "Cari di tabel…"
-        )
-        Column(modifier = Modifier.horizontalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            ClayTextField(
+                value = state.query,
+                onValueChange = { state.query = it },
+                modifier = Modifier.weight(1f),
+                placeholder = "Cari di tabel…"
+            )
+            if (state.config.inlineCreate && !state.isCreatingInline) {
+                ClayButton(
+                    text = "+ Tambah",
+                    style = ClayButtonStyle.Primary,
+                    onClick = { state.startInlineCreate() }
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+        ) {
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                 state.config.columns.forEach { column ->
                     val marker = if (state.sortColumn == column) (if (state.ascending) " ▲" else " ▼") else ""
@@ -67,15 +88,24 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                 }
             }
             HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.3f))
+
+            if (state.isCreatingInline) {
+                InlineRowEditor(state = state, columnWidth = ColumnWidth)
+                HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.2f))
+            }
+
             val rows = state.visibleRows
             rows.forEach { row -> TableRow(row, state) }
-            if (rows.isEmpty()) {
+            if (rows.isEmpty() && !state.isCreatingInline) {
                 Text("Tidak ada baris yang cocok.", style = MaterialTheme.typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
             }
         }
         state.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
         if (state.config.statusField != null) {
             Text("Ketuk status untuk mengubahnya.", style = MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
+        }
+        if (state.config.editableFields.isNotEmpty()) {
+            Text("Ketuk sel untuk mengedit nilai.", style = MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
         }
     }
 }
@@ -92,12 +122,11 @@ private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
             if (state.isStatus(column)) {
                 StatusCell(row, column, state)
             } else {
-                Text(
-                    row[column],
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(ColumnWidth)
+                TableCell(
+                    row = row,
+                    column = column,
+                    state = state,
+                    columnWidth = ColumnWidth
                 )
             }
         }

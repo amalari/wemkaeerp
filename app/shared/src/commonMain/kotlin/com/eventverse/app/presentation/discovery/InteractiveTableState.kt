@@ -2,8 +2,11 @@ package com.eventverse.app.presentation.discovery
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.eventverse.app.domain.prototype.FieldSpec
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.TableConfig
@@ -77,6 +80,90 @@ class InteractiveTableState(
     fun delete(rowId: String) {
         controller.deleteRowLocally(rowId)
         scope.launch { controller.delete(rowId) }
+    }
+
+    fun fieldSpec(column: String): FieldSpec? = entity.field(column)
+
+    // --- Inline Creation (A4) ---
+    var isCreatingInline by mutableStateOf(false)
+        private set
+    val inlineValues = mutableStateMapOf<String, String>()
+    var inlineErrorMessage by mutableStateOf<String?>(null)
+        private set
+
+    fun startInlineCreate() {
+        inlineValues.clear()
+        config.columns.forEach { col ->
+            val f = entity.field(col)
+            inlineValues[col] = when (f?.type) {
+                FieldType.BOOL -> "tidak"
+                FieldType.ENUM -> f.options.firstOrNull().orEmpty()
+                else -> ""
+            }
+        }
+        inlineErrorMessage = null
+        isCreatingInline = true
+    }
+
+    fun cancelInlineCreate() {
+        isCreatingInline = false
+        inlineErrorMessage = null
+        inlineValues.clear()
+    }
+
+    fun setInlineValue(column: String, value: String) {
+        inlineValues[column] = value
+        inlineErrorMessage = null
+    }
+
+    fun submitInlineCreate() {
+        val valuesToSave = inlineValues.toMap()
+        scope.launch {
+            controller.create(valuesToSave).fold(
+                onSuccess = {
+                    cancelInlineCreate()
+                },
+                onFailure = { err ->
+                    inlineErrorMessage = err.message ?: "Gagal menambah data"
+                }
+            )
+        }
+    }
+
+    // --- Inline Cell Editing (A4) ---
+    var editingCell by mutableStateOf<Pair<String, String>?>(null)
+        private set
+    var editingValue by mutableStateOf("")
+    var cellErrorMessage by mutableStateOf<String?>(null)
+        private set
+
+    fun isCellEditable(column: String): Boolean =
+        config.editableFields.contains(column) && !isStatus(column)
+
+    fun startCellEdit(rowId: String, column: String, currentValue: String) {
+        editingCell = rowId to column
+        editingValue = currentValue
+        cellErrorMessage = null
+    }
+
+    fun cancelCellEdit() {
+        editingCell = null
+        editingValue = ""
+        cellErrorMessage = null
+    }
+
+    fun submitCellEdit(rowId: String, column: String) {
+        val valueToSave = editingValue
+        scope.launch {
+            controller.update(rowId, mapOf(column to valueToSave)).fold(
+                onSuccess = {
+                    cancelCellEdit()
+                },
+                onFailure = { err ->
+                    cellErrorMessage = err.message ?: "Gagal mengubah nilai sel"
+                }
+            )
+        }
     }
 
     fun insertRow(row: PrototypeRow) {
