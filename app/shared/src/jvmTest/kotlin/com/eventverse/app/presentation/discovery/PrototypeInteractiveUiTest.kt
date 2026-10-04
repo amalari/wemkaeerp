@@ -4,12 +4,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.prototype.CardElement
+import com.eventverse.app.domain.prototype.CardStyle
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.InteractiveScreenFactory
 import com.eventverse.app.domain.prototype.KanbanHints
+import com.eventverse.app.domain.prototype.PrototypeContractSamples
 import com.eventverse.app.domain.prototype.PrototypeRow
+import com.eventverse.app.domain.prototype.SpecOp
+import com.eventverse.app.domain.prototype.SpecOpApplier
 import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.presentation.designsystem.ClayKanbanDragState
+import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -154,4 +162,88 @@ class PrototypeInteractiveUiTest {
         assertFalse(dragState.isDragging)
         assertNull(dragState.draggedItem)
     }
+
+    @Test
+    fun testChatEditShowFieldOnCardAndSetFieldRequired() {
+        val initialScreen = PrototypeContractSamples.orderScreen
+        val screenUi = DiscoveryScreenUi(
+            screenId = "antrian",
+            moduleId = "servis",
+            title = "Antrian Servis",
+            widget = WidgetKind.KANBAN.name,
+            sampleRows = initialScreen.seed["order"].orEmpty().map { it.values },
+            interactive = initialScreen
+        )
+        val session = PrototypeSession(listOf(screenUi))
+
+        // Terapkan SpecOp.ShowFieldOnCard (ubah Target menjadi NUMBER di posisi semula)
+        val op1 = SpecOp.ShowFieldOnCard("order", "Target", CardStyle.NUMBER)
+        val op2 = SpecOp.SetFieldRequired("order", "Total", true)
+        val applied = SpecOpApplier.applyAll(initialScreen, listOf(op1, op2), "2026-10-04T10:00:00Z")
+
+        assertEquals(2, applied.log.count { it.ok })
+        val updatedKanban = applied.screen.spec.screens.first { it.screenId == "antrian" }.kanban!!
+        val targetElem = updatedKanban.card.firstOrNull { it.field == "Target" }
+        assertNotNull(targetElem)
+        assertEquals(CardStyle.NUMBER, targetElem.style)
+        assertTrue(applied.screen.spec.entity("order")!!.field("Total")!!.required)
+
+        session.updateScreenSpec("antrian", initialScreen, applied.screen)
+        assertTrue(session.canUndo("antrian"))
+        val restored = session.undo("antrian")
+        assertNotNull(restored)
+        val restoredKanban = restored.spec.screens.first { it.screenId == "antrian" }.kanban!!
+        assertEquals(CardStyle.DATE, restoredKanban.card.first { it.field == "Target" }.style)
+    }
+
+    @Test
+    fun testDiscoveryUiModelParsesBinding() {
+        val memScreen = PrototypeContractSamples.orderScreen
+        val apiScreen = PrototypeContractSamples.orderScreenApi
+
+        val draftJson = JsonValue.Obj(
+            mapOf(
+                "id" to JsonValue.Str("draft-1"),
+                "status" to JsonValue.Str("draft"),
+                "packCode" to JsonValue.Str("layanan"),
+                "modules" to JsonValue.Arr(emptyList()),
+                "screens" to JsonValue.Arr(
+                    listOf(
+                        JsonValue.Obj(
+                            mapOf(
+                                "screenId" to JsonValue.Str("s-mem"),
+                                "moduleId" to JsonValue.Str("m1"),
+                                "title" to JsonValue.Str("Memori"),
+                                "widget" to JsonValue.Str(WidgetKind.KANBAN.name),
+                                "sampleRows" to JsonValue.Arr(emptyList()),
+                                "interactive" to InteractiveScreenCodec.encode(memScreen)
+                            )
+                        ),
+                        JsonValue.Obj(
+                            mapOf(
+                                "screenId" to JsonValue.Str("s-api"),
+                                "moduleId" to JsonValue.Str("m1"),
+                                "title" to JsonValue.Str("API"),
+                                "widget" to JsonValue.Str(WidgetKind.KANBAN.name),
+                                "sampleRows" to JsonValue.Arr(emptyList()),
+                                "interactive" to InteractiveScreenCodec.encode(apiScreen)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val parsed = DiscoveryDraftUi.fromJson(draftJson)
+        assertEquals(2, parsed.screens.size)
+        val memParsed = parsed.screens.first { it.screenId == "s-mem" }.interactive
+        assertNotNull(memParsed)
+        assertTrue(memParsed.binding is DataBinding.Memory)
+
+        val apiParsed = parsed.screens.first { it.screenId == "s-api" }.interactive
+        assertNotNull(apiParsed)
+        assertTrue(apiParsed.binding is DataBinding.Api)
+        assertEquals("/api/tenant/modules/servis/service_orders", (apiParsed.binding as DataBinding.Api).basePath)
+    }
 }
+
