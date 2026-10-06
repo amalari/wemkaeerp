@@ -34,10 +34,16 @@ object DiscoveryDraftCodec {
         "pack" to DomainPackCodec.encode(draft.pack),
         "blueprint" to encodeBlueprint(draft.blueprint),
         "screens" to jsonArrayOf(draft.screens.map { s ->
-            jsonObjectOf(
+            // Kunci baru ditulis hanya bila ada: draf lama tetap ter-encode byte-per-byte sama.
+            val base = jsonObjectOf(
                 "screenId" to jsonOf(s.screenId), "moduleId" to jsonOf(s.moduleId.value),
                 "title" to jsonOf(s.title), "widget" to jsonOf(s.widget)
             )
+            val extra = buildMap<String, JsonValue> {
+                s.proposal?.let { put("proposal", ScreenProposalCodec.encode(it)) }
+                s.source?.let { put("source", ScreenProposalCodec.encodeSource(it)) }
+            }
+            JsonValue.Obj(base.entries + extra)
         })
     )
 
@@ -64,7 +70,10 @@ object DiscoveryDraftCodec {
                     screenId = r.string("screenId"),
                     moduleId = r.value("moduleId", ::ModuleId),
                     title = r.string("title"),
-                    widget = r.string("widget")
+                    widget = r.string("widget"),
+                    // Opsional & kompatibel mundur: draf lama tanpa kunci ini terbaca apa adanya.
+                    proposal = optionalObject(s, "proposal", "$.screens[$i]")?.let { ScreenProposalCodec.decode(it, "$.screens[$i].proposal") },
+                    source = optionalObject(s, "source", "$.screens[$i]")?.let { ScreenProposalCodec.decodeSource(it, "$.screens[$i].source") }
                 )
             }
         }
@@ -109,6 +118,13 @@ object DiscoveryDraftCodec {
                 modules = modules
             )
         }
+    }
+
+    /** Kunci objek opsional: absen/null = tidak ada; ada tapi bukan objek = **ditolak**, tidak diabaikan. */
+    private fun optionalObject(parent: JsonValue.Obj, key: String, parentPath: String): JsonValue.Obj? = when (val v = parent[key]) {
+        null, JsonValue.Null -> null
+        is JsonValue.Obj -> v
+        else -> fail("$parentPath.$key", "harus objek")
     }
 
     private fun fail(path: String, message: String): Nothing = throw DiscoveryDraftDecodeException(path, message)

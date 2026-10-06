@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.discovery
 
+import com.eventverse.app.domain.discovery.proposal.ScreenProposalValidator
 import com.eventverse.app.domain.pack.DomainPackRegistry
 
 /** Satu pelanggaran dengan **path** ke bagian dokumen yang salah (`$.pack.modules[2].id`). */
@@ -51,7 +52,27 @@ object DiscoveryDraftValidator {
                 "$.screens[$i].widget",
                 "Widget '${s.widget}' bukan kosakata tertutup: ${WidgetKind.entries.joinToString { it.code }}"
             )
+            issues += proposalIssues(i, s, moduleIds)
         }
+        return issues
+    }
+
+    /**
+     * Usulan isi layar: identitas harus sama dengan deskriptor layarnya (satu kebenaran), asal wajib ada, lalu
+     * seluruh aturan [ScreenProposalValidator] dengan path `$.screens[i].proposal…`. Satu validator untuk
+     * semua pembuat — draf tidak punya aturan usulan sendiri.
+     */
+    private fun proposalIssues(i: Int, s: PrototypeScreen, moduleIds: Set<String>): List<DiscoveryValidationIssue> {
+        val p = s.proposal ?: return if (s.source != null) {
+            listOf(DiscoveryValidationIssue("$.screens[$i].source", "source hanya bermakna bila layar punya proposal"))
+        } else emptyList()
+        val at = "$.screens[$i].proposal"
+        val issues = mutableListOf<DiscoveryValidationIssue>()
+        if (p.screenId != s.screenId) issues += DiscoveryValidationIssue("$at.screenId", "Harus sama dengan screenId layar '${s.screenId}', dapat '${p.screenId}'")
+        if (p.moduleId != s.moduleId) issues += DiscoveryValidationIssue("$at.moduleId", "Harus sama dengan moduleId layar '${s.moduleId.value}', dapat '${p.moduleId.value}'")
+        if (p.widget.code != s.widget) issues += DiscoveryValidationIssue("$at.widget", "Harus sama dengan widget layar '${s.widget}', dapat '${p.widget.code}'")
+        if (s.source == null) issues += DiscoveryValidationIssue("$.screens[$i].source", "Layar ber-proposal wajib menyebut source (PACK, DETERMINISTIC, atau AGENT)")
+        issues += ScreenProposalValidator.validate(p, at, s.source, moduleIds).map { DiscoveryValidationIssue(it.path, it.message) }
         return issues
     }
 
