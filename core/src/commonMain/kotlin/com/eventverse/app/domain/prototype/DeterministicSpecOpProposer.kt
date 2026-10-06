@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prototype
 
+import com.eventverse.app.domain.discovery.WidgetKind
+
 /**
  * Pengusul operasi berbasis **kata kunci Indonesia** — tanpa LLM, tanpa jaringan, deterministik
  * (butir B5). Kalimat yang dikenal (huruf besar/kecil bebas, nama baru dipakai apa adanya):
@@ -23,7 +25,7 @@ class DeterministicSpecOpProposer : SpecOpProposer {
             "Maksimal ${SpecOpApplier.MAX_OPS_PER_TURN} permintaan sekali kirim; sisanya kirim di giliran berikutnya."
         }
         val scope = Scope(screen)
-        segments.map { scope.parse(it) }
+        segments.map { CHANGE.find(it)?.let { m -> scope.parseChange(m) } ?: scope.parse(it) }
     }
 
     private companion object {
@@ -31,12 +33,24 @@ class DeterministicSpecOpProposer : SpecOpProposer {
         val AFTER = Regex("""^(.*?)\s+setelah\s+(.+)$""", RegexOption.IGNORE_CASE)
         val RENAME = Regex("""^(?:ganti|ubah)\s+nama\s+(?:(?:status|kolom|field)\s+)?(.+?)\s+(?:jadi|menjadi|->|→)\s+(.+)$""", RegexOption.IGNORE_CASE)
         val ALLOW = Regex("""^(?:izinkan|bolehkan|boleh)\s+(.+?)\s+ke\s+(.+)$""", RegexOption.IGNORE_CASE)
+        /** SP-B5: "ubah jadi tabel", "ubah tampilan jadi papan", "jadikan kanban". */
+        val CHANGE = Regex("""^(?:ubah|ganti|jadikan)(?:\s+tampilan)?(?:\s+(?:jadi|menjadi))?\s+(tabel|papan|kanban)$""", RegexOption.IGNORE_CASE)
         val EXAMPLES = "Belum bisa memahami permintaan itu. Contoh: " +
             "\"tambah status Revisi setelah Dikerjakan\", \"ganti nama Selesai jadi Ditutup\", " +
-            "\"tambah kolom Prioritas\", \"izinkan Baru ke Selesai\"."
+            "\"tambah kolom Prioritas\", \"izinkan Baru ke Selesai\", \"ubah jadi tabel\"."
     }
     /** Resolusi deterministik entitas & field status dari layar; gagal jelas bila ambigu. */
     private class Scope(private val screen: InteractiveScreen) {
+        /** Layar sasaran "ubah jadi …": satu-satunya layar data (tabel/papan/daftar periksa); ambigu = ditolak. */
+        fun parseChange(m: MatchResult): SpecOp {
+            val dataScreens = screen.spec.screens.filter { it.widget == WidgetKind.TABLE || it.widget == WidgetKind.KANBAN || it.widget == WidgetKind.CHECKLIST }
+            require(dataScreens.size == 1) {
+                if (dataScreens.isEmpty()) "Layar ini tidak punya tampilan data yang bisa diubah." else "Ada ${dataScreens.size} tampilan data di layar ini; sebutkan yang mana."
+            }
+            val widget = if (m.groupValues[1].equals("tabel", ignoreCase = true)) WidgetKind.TABLE else WidgetKind.KANBAN
+            return SpecOp.ChangeWidget(dataScreens.single().screenId, widget)
+        }
+
         val entity: EntitySpec = if (screen.spec.entities.size == 1) {
             screen.spec.entities.single()
         } else {
@@ -48,7 +62,9 @@ class DeterministicSpecOpProposer : SpecOpProposer {
         private val enumFields = entity.fields.filter { it.type == FieldType.ENUM }
 
         /** Satu-satunya field ENUM, atau yang ditunjuk struktur layar (kanban/tabel/mesin status). */
-        val statusField: FieldSpec = when {
+        val statusField: FieldSpec by lazy { resolveStatusField() }
+
+        private fun resolveStatusField(): FieldSpec = when {
             enumFields.size == 1 -> enumFields.single()
             else -> {
                 val hinted = buildSet {
