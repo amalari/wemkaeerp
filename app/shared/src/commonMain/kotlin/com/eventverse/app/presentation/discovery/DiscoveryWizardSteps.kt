@@ -74,8 +74,32 @@ internal fun StepBuild(
     busy: Boolean,
     onNameChange: (String) -> Unit,
     onBack: () -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    draft: DiscoveryDraftUi? = null
 ) {
+    if (draft != null && draft.screens.isNotEmpty()) {
+        ClayCard(modifier = Modifier.fillMaxWidth()) {
+            Text("Tinjauan Usulan Antarmuka", style = androidx.compose.material3.MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Ringkasan tampilan dan alur per modul yang diusulkan untuk bisnis Anda:",
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = WeMadeColors.OnSurfaceMuted
+            )
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                draft.screens.forEach { screen ->
+                    val module = draft.modules.firstOrNull { it.id == screen.moduleId }
+                    ModuleProposalSummaryCard(
+                        screen = screen,
+                        moduleName = module?.displayName ?: screen.moduleId
+                    )
+                }
+            }
+        }
+    }
+
     ClayCard(modifier = Modifier.fillMaxWidth()) {
         Text("Bangun Sistem Ini", style = androidx.compose.material3.MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Text(

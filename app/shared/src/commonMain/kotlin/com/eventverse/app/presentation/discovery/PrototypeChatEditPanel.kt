@@ -80,7 +80,9 @@ fun PrototypeChatEditPanel(
         "tambah status Revisi setelah Dikerjakan",
         "ganti nama Selesai jadi Ditutup",
         "tambah kolom Prioritas",
-        "izinkan Baru ke Selesai"
+        "izinkan Baru ke Selesai",
+        "ubah jadi tabel",
+        "ubah jadi kanban"
     )
 
     fun executeEdit(instruction: String) {
@@ -103,8 +105,21 @@ fun PrototypeChatEditPanel(
             }
 
             if (proposedOps.isNullOrEmpty()) {
+                val isWidgetChange = instruction.contains("ubah jadi", ignoreCase = true) ||
+                    instruction.contains("ganti ke", ignoreCase = true)
                 isError = true
-                operationResult = "Belum bisa memahami permintaan itu. Gunakan contoh format yang didukung."
+                operationResult = if (isWidgetChange) {
+                    val targetWidget = if (instruction.contains("kanban", ignoreCase = true)) "kanban" else "tabel"
+                    val entity = currentInteractive.spec.entities.firstOrNull { it.id == currentInteractive.spec.screens.firstOrNull()?.entityId }
+                    val hasEnumStatus = entity?.fields?.any { it.type == com.eventverse.app.domain.prototype.FieldType.ENUM } == true
+                    if (targetWidget == "kanban" && !hasEnumStatus) {
+                        "Penolakan: Tidak dapat mengubah jadi kanban karena entitas tidak memiliki field status bertipe ENUM."
+                    } else {
+                        "Operasi ubah jadi $targetWidget belum didukung oleh mesin operasi aktif."
+                    }
+                } else {
+                    "Belum bisa memahami permintaan itu. Gunakan contoh format yang didukung."
+                }
                 isSubmitting = false
                 return@launch
             }
