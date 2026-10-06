@@ -1,5 +1,6 @@
 package com.eventverse.app.shared.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.brief.CaptureEntry
 import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.FieldSpec
@@ -30,6 +31,7 @@ object SpecOpCodec {
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
         is SpecOp.ShowFieldOnCard -> jsonObjectOf("type" to jsonOf("ShowFieldOnCard"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "style" to jsonOf(op.style.name))
         is SpecOp.SetFieldRequired -> jsonObjectOf("type" to jsonOf("SetFieldRequired"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "required" to jsonOf(op.required))
+        is SpecOp.ChangeWidget -> jsonObjectOf("type" to jsonOf("ChangeWidget"), "screenId" to jsonOf(op.screenId), "widget" to jsonOf(op.widget.code))
     }
 
     fun decode(o: JsonValue.Obj): Result<SpecOp> = runCatching {
@@ -54,6 +56,10 @@ object SpecOpCodec {
             "SetFieldRequired" -> SpecOp.SetFieldRequired(
                 str("entityId"), str("field"),
                 requireNotNull(o.boolean("required")) { "Bidang 'required' wajib diisi." }
+            )
+            "ChangeWidget" -> SpecOp.ChangeWidget(
+                str("screenId"),
+                requireNotNull(WidgetKind.fromCode(o.string("widget").orEmpty())) { "Jenis tampilan '${o.string("widget").orEmpty()}' tidak dikenal." }
             )
             else -> throw IllegalArgumentException("Jenis operasi '${type.orEmpty()}' tidak dikenal.")
         }

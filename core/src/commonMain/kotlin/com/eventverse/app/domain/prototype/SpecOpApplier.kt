@@ -15,7 +15,8 @@ data class AppliedOps(val screen: InteractiveScreen, val log: List<CaptureEntry>
  * dan field form (`FormConfig.fields`) adalah daftar eksplisit per layar; tidak ada layar yang
  * "menampilkan semua field". Field baru hanya masuk ke entitasnya; memunculkannya di layar tertentu
  * adalah keputusan lanjutan, bukan efek samping diam-diam. Jalur eksplisitnya adalah operasi
- * [SpecOp.ShowFieldOnCard] (B4) untuk papan kanban.
+ * [SpecOp.ShowFieldOnCard] (B4) untuk papan kanban. [SpecOp.ChangeWidget] (SP-B5) mengganti jenis tampilan
+ * satu layar tanpa menyentuh entitas/seed (lihat `ChangeWidgetOp`).
  */
 object SpecOpApplier {
     const val MAX_OPS_PER_TURN = 5
@@ -30,6 +31,8 @@ object SpecOpApplier {
             // Kontrak v2 (plan induk §3.5), dilaksanakan sejak B4: kartu & kewajiban field.
             is SpecOp.ShowFieldOnCard -> showFieldOnCard(screen, op)
             is SpecOp.SetFieldRequired -> setFieldRequired(screen, op)
+            // SP-B5: ganti jenis tampilan; aturan kelayakan di ChangeWidgetOp (tolak bermesej, tak menebak).
+            is SpecOp.ChangeWidget -> ChangeWidgetOp.apply(screen, op)
         }
     }
 

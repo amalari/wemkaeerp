@@ -1,11 +1,13 @@
 package com.eventverse.app.domain.prototype
 
+import com.eventverse.app.domain.discovery.WidgetKind
+
 /**
  * Operasi pada spec prototype (kontrak v1): satu-satunya cara klien/AI mengubah spec lewat percakapan.
  * Kosakata **tertutup** (sealed) — operasi di luar daftar ini tidak bisa dibentuk, jadi tidak ada
  * "operasi bebas" yang bisa diselundupkan LLM. Menambah jenis operasi = mengubah kode dan kontrak.
  * Kontrak v1 punya 5 jenis; v2 menambah [ShowFieldOnCard] dan [SetFieldRequired] (total 7, plan
- * induk §3.5).
+ * induk §3.5); SP-B5 menambah [ChangeWidget] (total 8).
  */
 sealed interface SpecOp {
     /** Tambah status/kolom (opsi ENUM); [after] null = di akhir. */
@@ -22,4 +24,11 @@ sealed interface SpecOp {
     data class ShowFieldOnCard(val entityId: String, val field: String, val style: CardStyle = CardStyle.TEXT) : SpecOp
     /** Ubah kewajiban isi [field]; ditegakkan reducer pada `Create` (kontrak v2). */
     data class SetFieldRequired(val entityId: String, val field: String, val required: Boolean) : SpecOp
+
+    /**
+     * Ganti jenis tampilan layar [screenId] menjadi [widget] — hanya **TABLE** dan **KANBAN** (papan) yang dikenal;
+     * jenis lain ditolak dengan pesan. Tabel selalu mungkin untuk layar data; papan butuh field pilihan status
+     * (ENUM). Aturan kelayakan lengkap di `ChangeWidgetOp`.
+     */
+    data class ChangeWidget(val screenId: String, val widget: WidgetKind) : SpecOp
 }

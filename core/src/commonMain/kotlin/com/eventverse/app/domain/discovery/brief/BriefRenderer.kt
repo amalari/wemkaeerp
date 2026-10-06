@@ -80,6 +80,7 @@ object BriefRenderer {
         is SpecOp.AddField -> "tambah field '${op.field.key}' (${op.field.type.name}) ke '${op.entityId}'"
         is SpecOp.RenameFieldLabel -> "ganti label '${op.key}' menjadi '${op.label}'"
         is SpecOp.ShowFieldOnCard -> "tampilkan '${op.field}' di kartu"
+        is SpecOp.ChangeWidget -> "ubah tampilan layar '${op.screenId}' menjadi ${if (op.widget == com.eventverse.app.domain.discovery.WidgetKind.KANBAN) "papan (kanban)" else op.widget.code.lowercase()}"
         is SpecOp.SetFieldRequired -> "jadikan '${op.field}' ${if (op.required) "wajib diisi" else "boleh dikosongkan"}"
     }
 
