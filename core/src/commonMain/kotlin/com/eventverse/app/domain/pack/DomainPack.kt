@@ -76,7 +76,13 @@ data class ScreenSuggestion(
      * modul pilot memakai [DataBinding.Api] agar blok memuat/menyimpan ke server. Jenis binding
      * adalah kosakata **sistem** (kode); memilih nilainya adalah keputusan pack.
      */
-    val dataBinding: DataBinding = DataBinding.Memory
+    val dataBinding: DataBinding = DataBinding.Memory,
+    /**
+     * Alasan pilihan layar ini dalam bahasa pemilik usaha ("Dipilih karena …"), ditulis manusia — data pack.
+     * Dibaca `PackScreenProposer` menjadi `ScreenProposal.rationale`. Null = pack belum menuliskannya; proposer
+     * lalu **menolak** (tidak mengarang alasan). Opsional: pack lama tanpa kunci ini tetap terbaca.
+     */
+    val rationale: String? = null
 ) {
     init {
         require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }

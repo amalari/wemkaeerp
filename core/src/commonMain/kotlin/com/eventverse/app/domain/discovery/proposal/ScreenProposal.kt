@@ -80,4 +80,11 @@ object ProposalLimits {
     const val TEXT = 200
     const val TILES = 8
     val KEY = Regex("[a-z][a-z0-9_]{0,40}")
+
+    /**
+     * Kunci untuk usulan **dari pack**: ditulis manusia dan harus identik dengan kunci baris contoh vertikalnya
+     * ("No. PO", "Status SPK" — label tampil sekaligus kunci, kontrak lama sebelum proposal). Usulan deterministik
+     * dan agent tetap memakai [KEY] yang ketat: kunci mudah dihasilkan model dan aman disimpan.
+     */
+    val PACK_KEY = Regex("\\S(.{0,39}\\S)?")
 }

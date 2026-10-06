@@ -69,6 +69,7 @@ internal object ProposalViewRules {
         view.card.forEachIndexed { i, el -> exists(".view.card[$i].field", el.field, "Elemen kartu") }
         if (view.card.map { it.field }.distinct().size != view.card.size) sink.add(".view.card", "Elemen kartu memuat field kembar")
         existAll(".view.detailFormFields", view.detailFormFields, "Field form detail")
+        sink.text(".view.detailFormSubmitLabel", view.detailFormSubmitLabel, "detailFormSubmitLabel")
         view.columnMeta.keys.forEach { col ->
             if (col !in columns) sink.add(".view.columnMeta.$col", "Metadata untuk kolom '$col' yang bukan pilihan status (${columns.joinToString()})")
         }
