@@ -1,61 +1,43 @@
-# PLAN — Wawancara Discovery: Divisi → Peran → Modul + Fitur (+ modul bersama)
+# PLAN — Agent C: Agent Koog Menebak Wawancara & Evaluasi
 
-**Tanggal:** 2026-10-07 · **Status:** rencana induk 3 agen (belum ada kode) · rencana per agen: [parallel4/](parallel4/) · **Induk:** [PLAN-screen-proposal-contract-koog](PLAN-screen-proposal-contract-koog.md)
-**Asal:** arahan produk 2026-10-07 — dari cerita pengguna, tentukan dulu divisi apa saja, ubah alurnya menjadi modul dan fitur, tanyakan peran mana menangani modul mana (untuk menghubungkan), perkirakan sendiri lalu minta konfirmasi (wawancara), dan pakai ulang modul yang sudah ada bila cocok (mis. keuangan, data port bisa berbeda).
+**Agent:** C · **Tanggal:** 2026-10-07 · **Induk:** [PLAN-discovery-interview-role-module](../PLAN-discovery-interview-role-module.md)
+
+> Berdiri sendiri untuk satu agent. Bila selisih dengan plan induk, **plan induk (kontrak §6) yang berlaku**.
+
+---
+
+## Misi & Lingkupmu — Agent C
+
+**Misi:** membuat agent Koog **menebak** tiap giliran wawancara (divisi, peran, peran → modul + asal, sambungan) di bawah kontrak yang sama dengan pembuat deterministik, lalu **mengukurnya** lewat eval berstruktur dengan batas biaya yang benar.
+
+**Kamu memiliki:** `server/.../infrastructure/discovery/**` (prompt, alat `interview_state`, `AgentInterviewGuesser`), `server/src/test/**/DiscoveryEval*` + berkas eval baru, skrip eval live, dokumen eval.
+**Dilarang:** `app/**`, `core/**` (kontrak = B; minta perubahan lewat laporan), `DiscoveryRoutes.kt`.
+
+### Butir kerja
+**C0 — Kasus eval & penilai wawancara (G0, offline, ±1 hari).** Rancang ≥ 10 kasus emas **dengan kunci jawaban per langkah** (divisi/peran/tautan yang diharapkan) dan penilai berstruktur (kriteria: valid, divisi masuk akal, peran→divisi benar, tautan modul benar, **asal modul masuk akal**, kemurnian vertikal, jumlah giliran). **Penilai dites sendiri** (kasus lulus/gagal buatan tangan) dan **baseline deterministik wajib 100%**; kalibrasi penilai dicatat terbuka. **AC:** penilai lulus tesnya sendiri; tidak ada panggilan LLM.
+
+**C1 — Prompt wawancara.** Contoh dokumen **dirakit dari kode** (`DiscoveryDraftCodec`) dan dites lolos validator; aturan: tebak dulu baru tanya, jangan mengarang modul/divisi di luar katalog, `origin` jujur. **AC:** contoh lolos validator penuh.
+
+**C2 — Alat.** `interview_state` (keadaan sesi saat ini) dan katalog modul platform + asalnya; **alat dan jawaban akhir memakai jembatan/dekoder yang sama** (pelajaran: `validate_draft` pernah menolak `useShipped`). **AC:** tes alat dan dekoder sepakat pada dokumen berjembatan.
+
+**C3 — `AgentInterviewGuesser`.** Keluaran hanya **usulan**; galat berpath dikembalikan pada putaran koreksi berbatas; provenance dibubuhkan server. **AC:** tes dengan `ScriptedPromptExecutor` (tanpa jaringan): sampah → galat berpath; keluaran sah → lolos.
+
+**C4 — Eval live (G3, opt-in).** Skrip dengan **estimasi biaya dicetak dan diverifikasi** (estimasi lama meleset ±4× — gandakan margin), konfirmasi eksplisit, ulangan 1 dulu baru 3; periksa saldo sebelum/sesudah; laporan `docs/plannings/eval-iv-<tanggal>.md` (jangan menimpa laporan lama — tanggal dalam UTC). Kegagalan penilai vs model dipisah di laporan.
+
+**C5 — Perbaikan dari eval.** Prompt/alat/penilai diperbaiki berdasar pola gagal; kalibrasi penilai ditandai terbuka.
+
+### Urutan & ketergantungan
+`C0 (offline, G0) → [setelah B0] C1 → C2 → C3 → [G2] C4 → C5`. C tidak menunggu A.
+
+### Definition of Done — C
+- [ ] AC C0–C5; **tidak ada panggilan LLM di tes otomatis**; kunci API tak pernah di repo/log
+- [ ] Baseline deterministik 100%; penilai dites sendiri
+- [ ] Kompilasi server hijau; tes server di DB scratch
+- [ ] Teaching doc `docs/teaching/teaching-iv-c-<slug>.md`
 
 ---
 
-## 0. Discovery Note (template `wemade-feature-discovery`)
-
-### 1. Kebutuhan
-- **Siapa memakai:** calon klien / pemilik usaha di Studio Discovery (`/discovery`); superadmin untuk meninjau.
-- **Data milik:** draf discovery (`ops.discovery_drafts`, platform-global, per pemilik) — **bukan** data tenant produksi.
-- **Berubah kapan:** sekali per draf, berulang selama sesi wawancara; hasil beku saat draf dikunci (Kontrak 5).
-
-### 2. Fitur serupa
-- `scripts/find-similar-feature.sh wawancara interview divisi department role` + graphify (`Department`, `DepartmentModuleAssignment`, `CustomRole`, `DiscoveryDraft`, `ScreenProposal`).
-- **Sudah ada (dipakai ulang, bukan dibuat paralel):** `Department` + `DepartmentTier` (divisi per tenant), `DepartmentModuleAssignment` (divisi/jabatan ↔ modul, akses, scope), `CustomRole` (akses modul per jabatan), buku demand (`DiscoveryDemand`: modul terwakili vs istilah belum), agent Koog + validator + `ScreenProposal`.
-- **Belum ada:** percakapan bertahap (wawancara); divisi/peran sebagai bagian **draf** discovery; asal modul (pakai ulang / kembangkan / baru); referensi modul platform dengan adaptor port.
-- **Keputusan:** **Mirip → tiru pola** `DiscoveryDraft` + codec + validator (draf tetap satu dokumen berversi) dan `DepartmentModuleAssignment` (bentuk hasil wawancara).
-
-### 3. Jenis
-**Governance/Foundation untuk data hasilnya; fitur di dalam Studio Discovery untuk layarnya.** Bukan modul operasional baru: tidak dijual, tidak dihitung kuota, tidak di kanvas Factory Flow. Alasan: wawancara hanya menghasilkan keputusan (draf); modul operasional yang dihasilkan baru lahir saat draf dibangun.
-
-### 4. Uji Variabilitas
-| Konsep | Tenant? | Industri? | Admin ubah? | Kode/Data | Template & titik beku |
-|---|---|---|---|---|---|
-| Daftar divisi hasil wawancara | ya | ya | ya | **Data** (di draf) | draf beku saat `LOCKED`; disalin ke `Department` saat dibangun |
-| Peran/jabatan per divisi | ya | ya | ya | **Data** | idem, ke `CustomRole`/`DepartmentTier` |
-| Pemetaan peran → modul | ya | ya | ya | **Data** (`RoleModuleLink`) | idem, ke `DepartmentModuleAssignment` |
-| Asal modul (`REUSE_PLATFORM` / `REUSE_PACK` / `NEW`) | tidak | tidak | tidak | **Kode** (kosakata tertutup, milik sistem) | — |
-| Tebakan peran → modul ("operator rajut → modul operator mesin") | ya | ya | — | **Data pack** (kamus peran per pack, seperti `defaultWidget`) | ikut pack |
-| Daftar modul platform yang boleh dirujuk | tidak | tidak | tidak | **Kode** (registri platform) | — |
-| Pemetaan port saat modul dipakai ulang | ya | ya | ya | **Data** (`portMapping` di referensi) | beku bersama draf |
-| Jumlah/urutan pertanyaan | — | — | — | **Kode** (batas sistem, mis. ≤ 8 pertanyaan) | — |
-
-### 5. Core & extend
-- **Core (baru):** paket `core/.../domain/discovery/interview/` — `InterviewSession`, `DivisionDraft`, `RoleDraft`, `RoleModuleLink`, `ModuleOrigin`, `InterviewQuestion`, aturan "apa pertanyaan berikutnya" sebagai fungsi murni.
-- **Titik extend:** `DiscoveryDraft` (kunci baru opsional `interview`, kompatibel mundur seperti `proposal`), `DiscoveryDraftValidator` (aturan wawancara berpath), `DiscoveryDraftCodec`, agent Koog (prompt + alat baru), `DeterministicDiscoveryAgent` (kamus peran → modul sebagai data pack).
-- **Contoh yang ditiru:** `ScreenProposal` + `ScreenProposalValidator` (kontrak + validator tunggal + galat berpath), `PackScreenProposer`/`DeterministicScreenProposer` (acuan + deterministik), `DepartmentModuleAssignment` (bentuk hasil).
-- **Jangan disentuh:** `DiscoveryRoutes.kt` (di atas batas lunak — tambah route di file baru), tabel utang file-size.
-
-### 6. I/O & kanvas
-- **Masuk:** narasi + jawaban pengguna per giliran. **Keluar:** `InterviewSession` terkonfirmasi → draf (pack + blueprint + layar) **dan** seed `Department`/`DepartmentModuleAssignment`/`CustomRole` saat dibangun.
-- **Kanvas:** tidak ada (bukan node). Hasilnya mengisi kanvas lewat modul yang terbentuk.
-- **Telemetri:** jumlah giliran, % tebakan yang dikonfirmasi tanpa ubah (ukuran mutu tebakan), waktu sampai draf kunci.
-
-### 7. Governance
-| Operasi | Level minimum | Peran yang ditolak (dites 403) |
-|---|---|---|
-| Mulai/jawab wawancara pada draf sendiri | pemilik draf | pengguna lain (403); tanpa login (401) |
-| Lihat wawancara draf orang lain | superadmin platform | semua selain superadmin (403) |
-| Kunci draf (membekukan hasil wawancara) | pemilik draf | pengguna lain (403) |
-- **Gate:** sama dengan `DiscoveryRoutes` (`mayAccess`); **tulis fail-closed** (Kontrak 7). `ScopeCapability`: tidak berlaku (bukan modul). Entitlement: ikut funnel discovery (bukan paket tenant).
-
-### 8. Ukuran → TRD?
-Agregat baru + kunci dokumen + route + langkah wizard + prompt/alat + fase eval ⇒ **TRD perlu** (`trd-generator`) sebelum kode. Migrasi DB: **tidak perlu** bila wawancara disimpan di dokumen draf (JSONB); perlu bila sesi dipisah.
-
----
+## Rujukan bersama (salinan dari plan induk)
 
 ## 1. Alur wawancara (workflow)
 
@@ -202,3 +184,6 @@ G4  Modul bersama (I5)      ── hanya setelah keputusan §5.4 dan bila G2 hij
 
 ## 12. Asumsi bawaan sampai Anda memutuskan (ubah di sini bila berbeda)
 Wawancara **opsional**; ≤ 8 giliran; hasil ke tenant = **usulan yang ditinjau** (tidak otomatis membuat `Department`); modul bersama (I5) **ditunda**; sablon/bordir **belum diputuskan** (tidak memblokir G0–G2; menentukan daftar kemurnian vertikal dan kasus eval).
+
+## Format laporan ke koordinator (setiap PR / akhir gelombang)
+1. Butir selesai + cabang/PR. 2. Hasil perintah verifikasi (sertakan kegagalan apa adanya). 3. `wc -l` sebelum → sesudah untuk file di atas batas lunak. 4. Yang belum diverifikasi + temuan/keputusan terbuka. 5. Perubahan kontrak yang kamu butuhkan — jangan menyunting berkas milik agent lain.
