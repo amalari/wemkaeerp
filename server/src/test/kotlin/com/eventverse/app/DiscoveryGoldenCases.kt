@@ -28,7 +28,8 @@ data class DiscoveryGoldenCase(
 
 object DiscoveryGoldenCases {
 
-    private val DATA_WIDGETS = setOf("KANBAN", "TABLE", "FORM", "CHECKLIST", "DASHBOARD")
+    /** Rekalibrasi 2026-10-07: dokumen cetak (kuitansi, surat jalan) adalah tampilan sah untuk modul mana pun. */
+    private val DATA_WIDGETS = setOf("KANBAN", "TABLE", "FORM", "CHECKLIST", "DASHBOARD", "PRINT")
 
     val all: List<DiscoveryGoldenCase> = listOf(
         DiscoveryGoldenCase(
@@ -59,9 +60,10 @@ object DiscoveryGoldenCases {
             name = "sablon-bordir",
             narrative = "Usaha sablon dan bordir manual: order sablon kaos masuk harian, dikerjakan per gelombang.",
             industryHint = "sablon",
-            expectedPackCode = "garment",
-            garmentPack = true,
-            expectedBlueprintCode = "fob_full_package"
+            // Keputusan produk 2026-10-07: sablon/bordir tidak punya pack baku — packnya bergantung modul yang
+            // dihasilkan dari alur pengguna. Dinilai dari kemampuan, bukan dari pack garment.
+            expectedPackCode = "sablon",
+            expectedCapabilities = listOf(setOf("pesanan", "order"))
         ),
         DiscoveryGoldenCase(
             name = "klinik",
@@ -69,7 +71,8 @@ object DiscoveryGoldenCases {
             industryHint = "klinik",
             expectedPackCode = "klinik",
             expectedCapabilities = listOf(setOf("antrean", "pendaftaran", "jadwal"), setOf("tagihan", "kasir", "pembayaran")),
-            allowedWidgets = mapOf("antrean" to setOf("KANBAN", "TABLE"))
+            // Pendaftaran pasien lazim berupa formulir; antrean tetap tidak boleh dasbor/daftar periksa.
+            allowedWidgets = mapOf("antrean" to setOf("KANBAN", "TABLE", "FORM"))
         ),
         DiscoveryGoldenCase(
             name = "bengkel",

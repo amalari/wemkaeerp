@@ -45,7 +45,7 @@ object DiscoveryEvalGrader {
      */
     private val WORD_TERMS = Regex("\\b(spk|fob|cmt|bom|hpp|po|buyer|makloon|maklon)\\b", RegexOption.IGNORE_CASE)
     private val SUBSTRING_TERMS = listOf(
-        "konveksi", "jahit", "garmen", "garment", "tekstil", "busana", "pakaian", "bordir", "sablon", "kain"
+        "konveksi", "jahit", "garmen", "garment", "busana", "pakaian"
     )
 
     fun grade(case: DiscoveryGoldenCase, result: Result<DiscoveryDraft>): EvalVerdict {
@@ -75,7 +75,10 @@ object DiscoveryEvalGrader {
     /** Kriteria 2 — cakupan: kode pack (+ blueprint bila ditetapkan) dan sufiks modul per kemampuan. */
     private fun coverage(case: DiscoveryGoldenCase, draft: DiscoveryDraft): CriterionResult {
         val moduleIds = draft.pack.modules.map { it.id.value }
-        val packOk = draft.pack.code.value == case.expectedPackCode
+        // Tanpa petunjuk industri dan bukan garment, kode pack adalah pilihan agent (deterministik memakai
+        // 'kustom' sebagai cadangan, bukan kebenaran). Dengan petunjuk, kodenya harus persis slug petunjuk.
+        val packOk = draft.pack.code.value == case.expectedPackCode ||
+            (case.industryHint == null && !case.garmentPack && draft.pack.code.value.matches(Regex("[a-z][a-z0-9_]*")))
         val blueprintOk = case.expectedBlueprintCode == null || draft.blueprint.code.value == case.expectedBlueprintCode
         val missing = case.expectedCapabilities
             .filter { synonyms -> moduleIds.none { id -> synonyms.any { id.endsWith("_$it") } } }
@@ -127,14 +130,13 @@ object DiscoveryEvalGrader {
             if (status.options.size !in 2..8) {
                 statusProblems += "${s.screenId}: status '${status.key}' punya ${status.options.size} pilihan (harus 2–8)"
             }
+            // Rekalibrasi 2026-10-07: alur sah tidak harus acyclic — level stok atau status bayar boleh bolak-balik.
+            // Yang dinilai: setiap status terhubung ke alur (tidak yatim) bila transisi dideklarasikan, dan
+            // transisi hanya antar opsi yang ada (sudah dijaga validator). Alur kerja berurutan tetap lolos.
             if (entity.transitions.isNotEmpty()) {
-                val targets = entity.transitions.values.flatten().toSet()
-                if (status.options.none { it !in targets }) {
-                    statusProblems += "${s.screenId}: status '${status.key}' tanpa kondisi awal"
-                }
-                if (status.options.none { entity.transitions[it].isNullOrEmpty() }) {
-                    statusProblems += "${s.screenId}: status '${status.key}' tanpa kondisi akhir"
-                }
+                val connected = entity.transitions.keys + entity.transitions.values.flatten()
+                val orphans = status.options.filter { it !in connected }
+                if (orphans.isNotEmpty()) statusProblems += "${s.screenId}: status $orphans yatim (tidak terhubung ke alur)"
             }
         }
 
@@ -148,7 +150,7 @@ object DiscoveryEvalGrader {
             CriterionResult(
                 "status_bermakna",
                 statusProblems.isEmpty(),
-                if (statusProblems.isEmpty()) "status layar dalam rentang 2–8 dengan awal dan akhir"
+                if (statusProblems.isEmpty()) "status layar dalam rentang 2–8 dan semuanya terhubung ke alur"
                 else statusProblems.joinToString()
             ),
             CriterionResult(

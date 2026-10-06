@@ -230,10 +230,18 @@ internal fun draftArgument(rawArgs: JSONObject, serializer: JSONSerializer): Str
     }
 }
 
-/** Laporan validasi sebagai JSON: `{"valid":false,"issues":[{"path":"…","message":"…"}]}`. */
+/**
+ * Laporan validasi sebagai JSON: `{"valid":false,"issues":[{"path":"…","message":"…"}]}`.
+ *
+ * Alat ini **harus memahami jembatan `useShipped` yang sama** dengan jawaban akhir ([decodeAnswer]); kalau tidak,
+ * model menulis jawaban yang benar (`{"pack":{"useShipped":"garment"}}`), ditolak alat ini, lalu menulis ulang
+ * seluruh pack dari ingatan sampai kehabisan langkah (ditemukan di eval live 2026-10-07).
+ */
 internal fun validationReport(draftJson: String): String = reportOf(
     try {
-        DiscoveryDraftValidator.validate(DiscoveryDraftCodec.decode(draftJson))
+        DiscoveryDraftValidator.validate(
+            DiscoveryDraftCodec.decode(applyShippedBlueprintBridge(applyShippedPackBridge(draftJson)))
+        )
     } catch (e: DiscoveryDraftDecodeException) {
         listOf(DiscoveryValidationIssue(e.path, e.message ?: "dokumen tidak sah"))
     } catch (e: IllegalArgumentException) {
@@ -259,6 +267,16 @@ internal fun platformCatalogJson(packs: List<DomainPack>): String = jsonObjectOf
                 "code" to jsonOf(pack.code.value),
                 "displayName" to jsonOf(pack.displayName),
                 "reuseWith" to jsonOf("{\"pack\":{\"useShipped\":\"${pack.code.value}\"}}"),
+                // Starter alur bawaan pack ini: model WAJIB memilih salah satunya (bukan mengarang blueprint baru).
+                "starterBlueprints" to jsonArrayOf(
+                    shippedStarterBlueprints().filter { it.pack == pack.code }.map { bp ->
+                        jsonObjectOf(
+                            "code" to jsonOf(bp.code.value), "displayName" to jsonOf(bp.displayName),
+                            "description" to jsonOf(bp.description), "targetClientProfile" to jsonOf(bp.targetClientProfile),
+                            "reuseWith" to jsonOf("{\"blueprint\":{\"useShipped\":\"${bp.code.value}\"}}")
+                        )
+                    }
+                ),
                 "phases" to jsonArrayOf(pack.phases.map { jsonOf(it.code.value) }),
                 "sections" to jsonArrayOf(
                     pack.sections.map { jsonObjectOf("code" to jsonOf(it.code.value), "displayName" to jsonOf(it.displayName)) }
