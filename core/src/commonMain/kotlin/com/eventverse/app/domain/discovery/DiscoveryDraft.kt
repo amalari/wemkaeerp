@@ -2,6 +2,8 @@ package com.eventverse.app.domain.discovery
 
 import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.blueprint.Blueprint
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
+import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.tenant.TenantId
@@ -25,7 +27,15 @@ data class PrototypeScreen(
     val screenId: String,
     val moduleId: ModuleId,
     val title: String,
-    val widget: String
+    val widget: String,
+    /**
+     * Isi layar yang diusulkan (kontrak `ScreenProposal`). Opsional & kompatibel mundur: draf lama yang hanya
+     * punya kode jenis tetap terbaca dan digambar dengan penanda generik. Konsistensinya dengan field di atas
+     * ditegakkan `DiscoveryDraftValidator` (galat berpath), bukan di sini, agar bisa dikoreksi agent.
+     */
+    val proposal: ScreenProposal? = null,
+    /** Asal [proposal] (Pack/Deterministik/Agent); wajib bila [proposal] ada — dicek validator. */
+    val source: ProposalSource? = null
 ) {
     init {
         require(screenId.isNotBlank()) { "PrototypeScreen.screenId kosong" }
