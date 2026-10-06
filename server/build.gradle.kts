@@ -78,3 +78,13 @@ tasks.register<JavaExec>("importHistoricalCosting") {
     environment(System.getenv())
     standardInput = System.`in`
 }
+
+/**
+ * Test otomatis **tidak boleh** memanggil LLM sungguhan (aturan repo). `EnvLoader` ikut membaca `.env`, jadi mesin
+ * dev yang menyalakan `DISCOVERY_AGENT=koog` membuat `DiscoveryApiTest` memanggil DeepSeek (lambat, berbiaya, dan
+ * melewati batas 60 detik). Env sistem mengalahkan `.env`, jadi agent dikunci deterministik untuk semua task test.
+ * Eval live memakai gerbang tersendiri (`DISCOVERY_LIVE_EVALS`) dan membangun agennya sendiri — tidak terpengaruh.
+ */
+tasks.withType<Test>().configureEach {
+    environment("DISCOVERY_AGENT", "deterministic")
+}
