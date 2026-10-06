@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.discovery
 
+import com.eventverse.app.domain.discovery.proposal.CrossScreenRules
+import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.discovery.proposal.ScreenProposalValidator
+import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
 
 /** Satu pelanggaran dengan **path** ke bagian dokumen yang salah (`$.pack.modules[2].id`). */
@@ -43,6 +46,11 @@ object DiscoveryDraftValidator {
                 "Modul '${m.moduleCode}' tidak ada di pack ${draft.pack.code.value}"
             )
         }
+        if (draft.screens.size > ProposalLimits.SCREENS) issues += DiscoveryValidationIssue(
+            "$.screens", "Terlalu banyak layar (${draft.screens.size}); maksimum ${ProposalLimits.SCREENS}. Pilih layar untuk modul utama saja"
+        )
+        // Murni = pack non-garment: kosakata konveksi di layar usulannya ditolak (B4).
+        val purity = draft.pack.code != GarmentDomainPack.CODE
         draft.screens.forEachIndexed { i, s ->
             if (s.moduleId.value !in moduleIds) issues += DiscoveryValidationIssue(
                 "$.screens[$i].moduleId",
@@ -52,8 +60,19 @@ object DiscoveryDraftValidator {
                 "$.screens[$i].widget",
                 "Widget '${s.widget}' bukan kosakata tertutup: ${WidgetKind.entries.joinToString { it.code }}"
             )
-            issues += proposalIssues(i, s, moduleIds)
+            issues += proposalIssues(i, s, moduleIds, purity)
         }
+        // Konsistensi lintas-layar: screenId unik (semua layar) dan entity.id sama berdefinisi konsisten (yang berproposal).
+        val ids = mutableMapOf<String, Int>()
+        draft.screens.forEachIndexed { i, s ->
+            ids[s.screenId]?.let { first ->
+                issues += DiscoveryValidationIssue("$.screens[$i].screenId", "screenId '${s.screenId}' sudah dipakai di $.screens[$first]; setiap layar wajib punya screenId unik")
+            } ?: run { ids[s.screenId] = i }
+        }
+        issues += CrossScreenRules.check(
+            draft.screens.mapIndexedNotNull { i, s -> s.proposal?.let { "$.screens[$i].proposal" to it } },
+            screenIds = false
+        ).map { DiscoveryValidationIssue(it.path, it.message) }
         return issues
     }
 
@@ -62,7 +81,7 @@ object DiscoveryDraftValidator {
      * seluruh aturan [ScreenProposalValidator] dengan path `$.screens[i].proposal…`. Satu validator untuk
      * semua pembuat — draf tidak punya aturan usulan sendiri.
      */
-    private fun proposalIssues(i: Int, s: PrototypeScreen, moduleIds: Set<String>): List<DiscoveryValidationIssue> {
+    private fun proposalIssues(i: Int, s: PrototypeScreen, moduleIds: Set<String>, purity: Boolean): List<DiscoveryValidationIssue> {
         val p = s.proposal ?: return if (s.source != null) {
             listOf(DiscoveryValidationIssue("$.screens[$i].source", "source hanya bermakna bila layar punya proposal"))
         } else emptyList()
@@ -72,7 +91,7 @@ object DiscoveryDraftValidator {
         if (p.moduleId != s.moduleId) issues += DiscoveryValidationIssue("$at.moduleId", "Harus sama dengan moduleId layar '${s.moduleId.value}', dapat '${p.moduleId.value}'")
         if (p.widget.code != s.widget) issues += DiscoveryValidationIssue("$at.widget", "Harus sama dengan widget layar '${s.widget}', dapat '${p.widget.code}'")
         if (s.source == null) issues += DiscoveryValidationIssue("$.screens[$i].source", "Layar ber-proposal wajib menyebut source (PACK, DETERMINISTIC, atau AGENT)")
-        issues += ScreenProposalValidator.validate(p, at, s.source, moduleIds).map { DiscoveryValidationIssue(it.path, it.message) }
+        issues += ScreenProposalValidator.validate(p, at, s.source, moduleIds, purity).map { DiscoveryValidationIssue(it.path, it.message) }
         return issues
     }
 

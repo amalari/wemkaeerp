@@ -103,7 +103,12 @@ object GarmentScreenSuggestions {
         ScreenSuggestion(
             GarmentModules.INVENTORY, "Stok Kain & Bahan Baku", WidgetKind.TABLE,
             GarmentExportSeed.inventoryRows(),
-            tableHints = TableHints("Status", listOf("Tersedia", "Menipis", "Konsinyasi")),
+            // B4: "Kepemilikan" bertipe ENUM di tabel juga — formulir pelengkapnya sudah ENUM pada entitas yang sama,
+            // dan lintas-layar entitas yang sama wajib berdefinisi konsisten (semua nilai seed ada di pilihan).
+            tableHints = TableHints(
+                "Status", listOf("Tersedia", "Menipis", "Konsinyasi"),
+                fields = listOf(FieldHint("Kepemilikan", FieldType.ENUM, options = listOf("Milik pabrik", "Titipan buyer")))
+            ),
             // Form pelengkap tabel: Bahan, Stok, dan Kepemilikan wajib diisi (butir B2) supaya
             // baris baru langsung lolos aturan stok — kepemilikan menentukan semantik nilai (Kontrak 3).
             formHints = FormHints(

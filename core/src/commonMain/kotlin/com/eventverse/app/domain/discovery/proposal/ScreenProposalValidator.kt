@@ -45,12 +45,14 @@ object ScreenProposalValidator {
      * @param path awalan path galat; default `$` (usulan berdiri sendiri), draf memakai `$.screens[i].proposal`.
      * @param source asal usulan bila diketahui; hanya [ProposalSource.Pack] yang boleh memilih `DataBinding.Api`.
      * @param packModuleIds modul pack bila diketahui; ubin dasbor yang menghitung modul lain wajib menunjuk modul ini.
+     * @param verticalPurity true untuk pack non-garment: istilah konveksi di teks usulan ditolak ([VerticalPurity]).
      */
     fun validate(
         proposal: ScreenProposal,
         path: String = "$",
         source: ProposalSource? = null,
-        packModuleIds: Set<String>? = null
+        packModuleIds: Set<String>? = null,
+        verticalPurity: Boolean = false
     ): List<ProposalIssue> {
         val sink = IssueSink(path, packKeys = source == ProposalSource.Pack)
         sink.text(".screenId", proposal.screenId, "screenId")
@@ -61,11 +63,27 @@ object ScreenProposalValidator {
         proposal.entity?.let { ProposalEntityRules.check(it, sink) }
         ProposalViewRules.check(proposal, sink, packModuleIds)
         ProposalEntityRules.checkSeed(proposal, sink)
+        if (verticalPurity) ProposalPurityRules.check(proposal, sink)
 
         if (proposal.binding is DataBinding.Api && source != null && source != ProposalSource.Pack) {
             sink.add(".binding", "Hanya usulan dari pack yang boleh terikat ke API; usulan ${sourceName(source)} wajib memakai binding memori")
         }
         return sink.issues
+    }
+
+    /**
+     * Seluruh usulan satu dokumen sekaligus: tiap usulan lewat [validate] (path `<[basePath]>[i]`), lalu aturan
+     * lintas-layar ([CrossScreenRules]: `screenId` unik, `entity.id` sama berdefinisi konsisten).
+     */
+    fun validateAll(
+        proposals: List<ScreenProposal>,
+        basePath: String = "$.proposals",
+        source: ProposalSource? = null,
+        packModuleIds: Set<String>? = null,
+        verticalPurity: Boolean = false
+    ): List<ProposalIssue> {
+        val located = proposals.mapIndexed { i, p -> "$basePath[$i]" to p }
+        return located.flatMap { (path, p) -> validate(p, path, source, packModuleIds, verticalPurity) } + CrossScreenRules.check(located)
     }
 
     private fun checkEntityPresence(p: ScreenProposal, sink: IssueSink) {

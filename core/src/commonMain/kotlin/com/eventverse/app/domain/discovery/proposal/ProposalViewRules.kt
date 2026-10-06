@@ -66,6 +66,7 @@ internal object ProposalViewRules {
         val statusField = entity?.statusField
         if (entity != null && statusField == null) sink.add(".entity.statusField", "Kanban wajib punya statusField (field ENUM yang menjadi kolom papan)")
         val columns = entity?.fields?.firstOrNull { it.key == statusField }?.options.orEmpty()
+        if (view.card.size > ProposalLimits.FIELDS) sink.add(".view.card", "Terlalu banyak elemen kartu (${view.card.size}); maksimum ${ProposalLimits.FIELDS}")
         view.card.forEachIndexed { i, el -> exists(".view.card[$i].field", el.field, "Elemen kartu") }
         if (view.card.map { it.field }.distinct().size != view.card.size) sink.add(".view.card", "Elemen kartu memuat field kembar")
         existAll(".view.detailFormFields", view.detailFormFields, "Field form detail")
