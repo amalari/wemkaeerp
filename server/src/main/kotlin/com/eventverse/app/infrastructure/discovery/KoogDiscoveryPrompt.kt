@@ -8,6 +8,11 @@ import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
 import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.proposal.EntityProposal
+import com.eventverse.app.domain.discovery.proposal.FieldProposal
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
+import com.eventverse.app.domain.discovery.proposal.ScreenProposal
+import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.ModuleDefinition
@@ -19,28 +24,44 @@ import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 
 /**
- * Prompt agent discovery Koog (plan §2 A8).
+ * Prompt agent discovery Koog (plan §2 A8; diperluas SP-C1: `proposal` di dalam dokumen draf).
  *
- * Dua keputusan yang disengaja:
+ * Tiga keputusan yang disengaja:
  *
  * 1. **Contoh dokumen dibuat kode, bukan ditempel sebagai teks.** [exampleDraftJson] dirakit dari
- *    `DiscoveryDraft` sungguhan lalu di-encode `DiscoveryDraftCodec` — parser produksi. Jadi contoh di
- *    prompt tidak mungkin melenceng dari kontrak (dites: contoh itu sendiri wajib lolos validator).
+ *    `DiscoveryDraft` sungguhan (termasuk `ScreenProposal`-nya) lalu di-encode `DiscoveryDraftCodec` —
+ *    parser produksi. Jadi contoh di prompt tidak mungkin melenceng dari kontrak (dites: contoh itu
+ *    sendiri wajib lolos validator penuh, termasuk aturan proposal).
  *    Konsekuensinya contoh **tidak bocor jawaban**: kode pack-nya `contoh`, bukan narasi yang diminta.
  * 2. **Jembatan pack bawaan** (`useShipped`) dibahas di prompt karena validator produksi menuntut pack
  *    bawaan platform dikembalikan **identik**; model tidak akan pernah bisa menulis ulang dokumen itu
  *    dari ingatan. Lihat `KoogDiscoveryAgent.applyShippedPackBridge`.
+ * 3. **Sumber proposal tidak dipercaya ke model.** Aturan prompt menyuruh menyalin blok `source` dari
+ *    contoh (yang membawa `agentRef` agent ini), dan server tetap membubuhkannya ulang setelah dekode
+ *    (`KoogDiscoveryAgent.stampAgentProvenance`) — prompt hanyalah guru, validator dan server yang polisi.
  */
 internal object KoogDiscoveryPrompt {
 
-    /** Jumlah karakter jawaban sebelumnya yang diumpan balikkan; sisanya dipotong agar prompt tidak membengkak. */
+    /** Jumlah karakter jawaban sebelumnya yang diumpanbalikkan; sisanya dipotong agar prompt tidak membengkak. */
     private const val PREVIOUS_ANSWER_CHAR_LIMIT = 6_000
+
+    /**
+     * Galat koreksi yang dikirim ke model dipotong jumlahnya (dan panjang tiap pesannya) supaya putaran
+     * koreksi tetap ringkas: 12 galat teratas jauh melampaui yang bisa diperbaiki satu putaran, dan
+     * galat pertama biasanya menjebak galat-galat berikutnya (satu field hilang → puluhan rujukan rusak).
+     */
+    internal const val MAX_FEEDBACK_ISSUES = 12
+    private const val FEEDBACK_MESSAGE_CHAR_LIMIT = 240
+
+    /** `agentRef` contoh bila pemanggil tidak menyebutnya (test, pratinjau prompt). */
+    internal const val EXAMPLE_AGENT_REF = "koog/model/draft-v2"
 
     private val WIDGET_CODES: String = WidgetKind.entries.joinToString(", ") { it.code }
 
@@ -63,33 +84,61 @@ internal object KoogDiscoveryPrompt {
         5. `screens[].widget` hanya boleh salah satu dari: $WIDGET_CODES.
         6. Semua field yang terlihat di contoh WAJIB ada. Jangan mengarang field baru.
         7. Balas HANYA objek JSON — tanpa penjelasan, tanpa pagar kode, tanpa teks pembuka.
-        8. Hemat langkah: panggil `platform_modules()` maksimal sekali dan `validate_draft` maksimal dua
-           kali. Begitu draf bersih, langsung balas JSON-nya — agent dibatasi jumlah langkahnya.
+        8. Hemat langkah: panggil `platform_modules()` dan `screen_catalog()` maksimal sekali
+           masing-masing, dan `validate_draft` maksimal dua kali. Begitu draf bersih, langsung balas
+           JSON-nya — agent dibatasi jumlah langkahnya.
         9. `pack.vocabulary` menyebut istilah yang benar-benar diucapkan pemilik usaha, mis.
            `{"WORKPLACE":"klinik","DOCUMENT":"Kunjungan"}` (kunci hanya boleh WORKPLACE atau DOCUMENT).
            Jangan pakai istilah konveksi ("pabrik", "SPK") kecuali vertikalnya memang konveksi.
            `pack.actions` = label tombol layar kerja, mis. `{"code":"ADD","label":"Tambah Kunjungan"}`.
+        10. Setiap layar data (`KANBAN`, `TABLE`, `FORM`, `CHECKLIST`) wajib membawa `proposal` berisi isi
+            layar: {"screenId","moduleId","title","widget","rationale","entity","view","seed","source"} —
+            tanpa kunci lain. `DASHBOARD` dan `CUSTOM_SCREEN`: `"entity": null`.
+        11. `entity` = jenis benda yang dikelola layar: `fields` bertipe (`TEXT`, `NUMBER`, `DATE`, `ENUM`,
+            `BOOL`; `ENUM` wajib `options` 2–8 pilihan), `statusField` = kunci field ENUM status kerja
+            (2–8 pilihan, ada kondisi awal dan akhir), `transitions` = perpindahan status yang sah.
+            Maksimal 12 field per entity; `seed` maksimal 8 baris objek string — angka ditulis "5",
+            tanggal "2026-03-01", BOOL "ya"/"tidak", dan field wajib terisi di setiap baris.
+        12. `view` mengikuti widget (lihat contoh): TABLE {columns, inlineCreate, editableFields} dengan
+            kolom = kunci field; KANBAN {card:[{field,style}], columnMeta, detailFormFields} dengan kolom
+            papan = opsi statusField; FORM {fields, submitLabel} yang memuat semua field wajib;
+            CHECKLIST {labelField, doneField BOOL}; DASHBOARD {tiles:[{label,value?,count?}]} maksimal 8
+            ubin; PRINT {fields}; CUSTOM_SCREEN null. Kunci `view` tidak boleh dikarang.
+        13. `rationale` satu kalimat bahasa pemilik usaha (maksimal 200 karakter), pola "Dipilih karena …".
+            Pilih widget dari watak kerja modul, bukan selera: antrean/alur kerja → KANBAN, daftar/ledger
+            → TABLE, pencatatan satu-per-satu → FORM, langkah bercentang → CHECKLIST, ringkasan angka →
+            DASHBOARD, dokumen yang dicetak → PRINT. Nama field dan status memakai kata dari narasi.
+        14. `source` tiap layar ber-proposal: salin PERSIS blok "source" dari contoh dokumen di pesan
+            pengguna (ia membawa agentRef agent ini). Jangan mengarang agentRef lain.
 
         Alat yang tersedia (pakai sebelum menjawab):
         - `platform_modules()` — daftar pack bawaan platform beserta modul, slot, dan seksinya. Pakai
           untuk (a) mengetahui kode pack bawaan, dan (b) meniru gaya penamaan modul platform.
+        - `screen_catalog()` — kosakata tertutup untuk `proposal`: jenis tampilan beserta bentuk `view`
+          dan kewajiban `entity`-nya, tipe field, gaya kartu kanban, batas ukuran, dan petunjuk
+          peran kerja → jenis tampilan yang dipakai pack bawaan (petunjuk, bukan aturan).
         - `validate_draft(draft)` — memvalidasi dokumen yang baru kamu susun. Ia mengembalikan
-          `{"valid":true}` atau daftar galat berpath (`${'$'}.pack.modules[2].id`). Perbaiki dulu sebelum
-          menjawab; jangan pernah menjawab dokumen yang masih berisi galat.
+          `{"valid":true}` atau daftar galat berpath (`${'$'}.pack.modules[2].id`,
+          `${'$'}.screens[0].proposal.entity.fields[1].type`). Perbaiki dulu sebelum menjawab; jangan
+          pernah menjawab dokumen yang masih berisi galat.
 
         Pedoman isi (bukan aturan kaku): ambil 3–6 modul yang benar-benar disebut narasi, satu fase per
         tahap kerja yang jelas, dan seksi menu yang masuk akal bagi pemilik usaha. Nama modul memakai
         istilah narasi ("Antrean Pasien", "Servis Motor"), bukan istilah internal ("CRUD", "Tabel").
-        Beri 1–3 `screens` untuk modul utama; sisanya boleh kosong.
+        Beri 1–3 `screens` untuk modul utama; sisanya boleh kosong. Dua layar yang mengelola benda sama
+        memakai definisi `entity` yang sama persis.
     """.trimIndent()
 
     /**
      * Contoh kerangka: dokumen **sah** berkode pack `contoh`, sehingga model belajar bentuknya tanpa
-     * menerima jawabannya. Sifat "sah" itu dikunci test (`KoogDiscoveryPromptTest`).
+     * menerima jawabannya. Sifat "sah" itu dikunci test (`KoogDiscoveryPromptTest`) — termasuk seluruh
+     * aturan `proposal`-nya. [agentRef] disuntik ke blok `source` contoh supaya model menyalin sumber
+     * yang benar; server tetap membubuhkannya ulang setelah dekode (lapis kedua).
      */
-    fun exampleDraftJson(): String = DiscoveryDraftCodec.encodeToString(exampleDraft())
+    fun exampleDraftJson(agentRef: String = EXAMPLE_AGENT_REF): String =
+        DiscoveryDraftCodec.encodeToString(exampleDraft(agentRef))
 
-    fun exampleDraft(): DiscoveryDraft {
+    fun exampleDraft(agentRef: String = EXAMPLE_AGENT_REF): DiscoveryDraft {
         val section = ModuleSection(ModuleSectionCode("UTAMA"), "Operasional", 1, 0xFF2563EB, 0xFFEFF6FF)
         val phase = PhaseDefinition(PhaseCode("OPERASI"), 1, "1. Operasi", "Alur kerja harian", 0xFF2563EB)
         val permintaan = PortType("Permintaan")
@@ -132,25 +181,77 @@ internal object KoogDiscoveryPrompt {
             targetClientProfile = "Pemilik usaha kecil yang mencatat pesanan harian.",
             modules = modules.map { BlueprintModule(it.id.value, active = true) }
         )
+        // Entity yang sama dipakai dua layar — contoh untuk aturan "definisi entity identik antar-layar".
+        val pesanan = EntityProposal(
+            id = "pesanan",
+            label = "Pesanan",
+            fields = listOf(
+                FieldProposal("nomor", "Nomor pesanan", FieldType.TEXT, required = true),
+                FieldProposal("pelanggan", "Pelanggan", FieldType.TEXT, required = true),
+                FieldProposal("tanggal", "Tanggal masuk", FieldType.DATE),
+                FieldProposal("jumlah", "Jumlah (Rp)", FieldType.NUMBER),
+                FieldProposal("status", "Status", FieldType.ENUM, options = listOf("Baru", "Diproses", "Selesai"))
+            ),
+            statusField = "status",
+            transitions = mapOf("Baru" to listOf("Diproses"), "Diproses" to listOf("Selesai"))
+        )
+        val daftar = ScreenProposal(
+            screenId = "contoh_pesanan_list",
+            moduleId = ModuleId("contoh_pesanan"),
+            title = "Daftar Pesanan",
+            widget = WidgetKind.TABLE,
+            rationale = "Dipilih karena pemilik menelusuri daftar pesanan yang masuk setiap hari.",
+            entity = pesanan,
+            view = ViewProposal.Table(
+                columns = listOf("nomor", "pelanggan", "tanggal", "jumlah", "status"),
+                inlineCreate = true,
+                editableFields = listOf("pelanggan", "tanggal", "jumlah")
+            ),
+            seed = listOf(
+                mapOf(
+                    "nomor" to "PSN-001", "pelanggan" to "Ibu Sari", "tanggal" to "2026-10-01",
+                    "jumlah" to "250000", "status" to "Baru"
+                ),
+                mapOf(
+                    "nomor" to "PSN-002", "pelanggan" to "Pak Budi", "tanggal" to "2026-10-02",
+                    "jumlah" to "480000", "status" to "Diproses"
+                )
+            )
+        )
+        val catat = ScreenProposal(
+            screenId = "contoh_pesanan_form",
+            moduleId = ModuleId("contoh_pesanan"),
+            title = "Pesanan Baru",
+            widget = WidgetKind.FORM,
+            rationale = "Dipilih karena petugas mencatat pesanan baru satu per satu lewat formulir.",
+            entity = pesanan,
+            view = ViewProposal.Form(
+                fields = listOf("nomor", "pelanggan", "tanggal", "jumlah"),
+                submitLabel = "Simpan Pesanan"
+            )
+        )
         return DiscoveryDraft(
             pack = pack,
             blueprint = blueprint,
             screens = listOf(
-                PrototypeScreen("contoh_pesanan_list", ModuleId("contoh_pesanan"), "Daftar Pesanan", WidgetKind.TABLE.code),
-                PrototypeScreen("contoh_pesanan_form", ModuleId("contoh_pesanan"), "Pesanan Baru", WidgetKind.FORM.code)
+                PrototypeScreen(daftar.screenId, daftar.moduleId, daftar.title, daftar.widget.code, daftar, ProposalSource.Agent(agentRef)),
+                PrototypeScreen(catat.screenId, catat.moduleId, catat.title, catat.widget.code, catat, ProposalSource.Agent(agentRef))
             )
         )
     }
 
     /**
      * Pesan pengguna satu putaran. [feedback] kosong = putaran pertama; kalau ada, jawaban sebelumnya
-     * dikirim ulang bersama galat berpath supaya model mengoreksi **bagian yang salah** saja.
+     * dikirim ulang bersama galat berpath supaya model mengoreksi **bagian yang salah** saja. Galatnya
+     * dipotong ([MAX_FEEDBACK_ISSUES] teratas, tiap pesan dibatasi) — galat ke-13 ke bawah biasanya
+     * akibat berantai dari yang pertama, dan umpan balik yang membengkak justru membingungkan model.
      */
     fun userMessage(
         request: DiscoveryRequest,
         feedback: List<DiscoveryValidationIssue>,
         previousAnswer: String?,
-        round: Int
+        round: Int,
+        agentRef: String = EXAMPLE_AGENT_REF
     ): String = buildString {
         appendLine("Narasi prospek:")
         appendLine("\"\"\"")
@@ -160,14 +261,18 @@ internal object KoogDiscoveryPrompt {
         request.displayName?.takeIf { it.isNotBlank() }?.let { appendLine("Nama tampilan yang diminta: $it") }
         appendLine()
         appendLine("Contoh kerangka dokumen yang sah (kode pack 'contoh' — jangan dipakai apa adanya):")
-        appendLine(exampleDraftJson())
+        appendLine(exampleDraftJson(agentRef))
         appendLine()
         if (feedback.isEmpty()) {
             appendLine("Susun dokumen untuk narasi di atas, panggil validate_draft, lalu balas JSON-nya.")
             return@buildString
         }
         appendLine("Putaran koreksi ke-$round. Draf sebelumnya ditolak validator:")
-        feedback.forEach { appendLine("- ${it.path}: ${it.message}") }
+        feedback.take(MAX_FEEDBACK_ISSUES).forEach {
+            appendLine("- ${it.path}: ${it.message.take(FEEDBACK_MESSAGE_CHAR_LIMIT)}")
+        }
+        val hidden = feedback.size - MAX_FEEDBACK_ISSUES
+        if (hidden > 0) appendLine("(+$hidden galat lain tidak dicantumkan; perbaiki dulu yang tercantum)")
         previousAnswer?.let {
             appendLine()
             appendLine("Jawaban sebelumnya (dipotong bila terlalu panjang):")

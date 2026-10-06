@@ -12,8 +12,12 @@ import ai.koog.serialization.JSONSerializer
 import ai.koog.serialization.typeToken
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
+import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.prototype.CardStyle
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.discovery.DiscoveryDraftDecodeException
 import com.eventverse.app.shared.json.jsonArrayOf
@@ -21,22 +25,25 @@ import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 
 /**
- * Alat agent discovery Koog (plan §2 A8): `platform_modules()` dan `validate_draft(draft)`.
+ * Alat agent discovery Koog (plan §2 A8; diperluas SP-C2): `platform_modules()`, `screen_catalog()`, dan
+ * `validate_draft(draft)`.
  *
  * Kenapa argumen di-decode sendiri, bukan lewat kotlinx-serialization seperti contoh Koog pada umumnya:
  * repo ini **sengaja belum memakai plugin serialisasi** (`core` KMP tanpa compiler plugin itu — lihat
- * catatan di `ProspectCodec`/`ModuleDevCodec`). Kedua alat ini cukup memakai deskriptor eksplisit +
+ * catatan di `ProspectCodec`/`ModuleDevCodec`). Ketiga alat ini cukup memakai deskriptor eksplisit +
  * `decodeArgs` sendiri, sehingga dependensi Koog tetap tidak menular ke konvensi repo. Deskriptor tetap
  * dibuat tangan **di sini** (bukan hasil introspeksi kelas) — satu tempat, dites langsung.
  */
 internal object DiscoveryTools {
     const val PLATFORM_MODULES: String = "platform_modules"
+    const val SCREEN_CATALOG: String = "screen_catalog"
     const val VALIDATE_DRAFT: String = "validate_draft"
 }
 
 /** Registry alat satu run agent. Alat baru = tambahkan di sini; tidak ada state bersama antarpanggilan. */
 internal fun discoveryToolRegistry(): ToolRegistry = ToolRegistry {
     tool(PlatformModulesTool())
+    tool(ScreenCatalogTool())
     tool(ValidateDraftTool())
 }
 
@@ -59,6 +66,129 @@ internal class PlatformModulesTool(
 
     override suspend fun execute(args: Unit): String = platformCatalogJson(packs())
 }
+
+/**
+ * Kosakata tertutup untuk `proposal` (SP-C2): jenis tampilan + bentuk `view`-nya, tipe field, gaya kartu,
+ * batas ukuran, dan **petunjuk** peran kerja → jenis tampilan yang dipakai pack bawaan. Petunjuk, bukan
+ * aturan keras — aturan tetap milik validator; alat ini hanya mencegah model menebak kosakata atau
+ * mengarang kunci `view`. Tanpa argumen; jawabannya deterministik penuh (dites).
+ */
+internal class ScreenCatalogTool(
+    private val packs: () -> List<DomainPack> = { DomainPackRegistry.shipped }
+) : Tool<Unit, String>(
+    argsType = typeToken<Unit>(),
+    resultType = typeToken<String>(),
+    descriptor = ToolDescriptor(
+        name = DiscoveryTools.SCREEN_CATALOG,
+        description = "Kosakata tertutup untuk proposal layar: jenis tampilan + bentuk view-nya, tipe field, " +
+            "gaya kartu, batas ukuran, dan petunjuk peran kerja → jenis tampilan dari pack bawaan.",
+        requiredParameters = emptyList()
+    )
+) {
+    override fun decodeArgs(rawArgs: JSONObject, serializer: JSONSerializer): Unit = Unit
+
+    override fun encodeResultToString(result: String, serializer: JSONSerializer): String = result
+
+    override suspend fun execute(args: Unit): String = screenCatalogJson(packs())
+}
+
+/** `entity` menurut widget — cermin `ScreenProposalValidator.checkEntityPresence`, bukan aturan baru. */
+private fun entityRule(widget: WidgetKind): String = when (widget) {
+    WidgetKind.KANBAN, WidgetKind.TABLE, WidgetKind.FORM, WidgetKind.CHECKLIST -> "wajib"
+    WidgetKind.DASHBOARD, WidgetKind.CUSTOM_SCREEN -> "null"
+    WidgetKind.PRINT -> "opsional"
+}
+
+private fun viewShape(widget: WidgetKind): String = when (widget) {
+    WidgetKind.KANBAN ->
+        "{\"card\":[{\"field\":\"kunci\",\"style\":\"TITLE|TEXT|BADGE|DATE|NUMBER|FLAG\"}]," +
+            "\"columnMeta\":{\"<opsi status>\":{\"tintHex\":16711680,\"wipLimit\":3}},\"detailFormFields\":[kunci]} " +
+            "(kolom papan = opsi statusField)"
+    WidgetKind.TABLE ->
+        "{\"columns\":[kunci],\"inlineCreate\":true|false,\"editableFields\":[kunci]} " +
+            "(kolom dan field sunting = kunci field; status bermesin tidak boleh disunting)"
+    WidgetKind.FORM -> "{\"fields\":[kunci],\"submitLabel\":\"Simpan …\"} (semua field wajib masuk form)"
+    WidgetKind.CHECKLIST -> "{\"labelField\":\"kunci teks\",\"doneField\":\"kunci BOOL\"}"
+    WidgetKind.DASHBOARD ->
+        "{\"tiles\":[{\"label\":\"…\",\"value\":\"…\",\"count\":{\"moduleId\":\"…\",\"field\":\"…\",\"equals\":\"…\"}}]} " +
+            "(maksimal 8 ubin; count menunjuk modul di pack)"
+    WidgetKind.PRINT -> "{\"fields\":[kunci]}"
+    WidgetKind.CUSTOM_SCREEN -> "null"
+}
+
+private fun widgetNote(widget: WidgetKind): String = when (widget) {
+    WidgetKind.KANBAN -> "untuk antrean/alur kerja yang bergerak antar status"
+    WidgetKind.TABLE -> "untuk daftar/ledger yang ditelusuri"
+    WidgetKind.FORM -> "untuk pencatatan satu-per-satu"
+    WidgetKind.CHECKLIST -> "untuk langkah kerja yang dicentang"
+    WidgetKind.DASHBOARD -> "untuk ringkasan angka tanpa daftar"
+    WidgetKind.PRINT -> "untuk dokumen yang diserahkan dalam bentuk cetak"
+    WidgetKind.CUSTOM_SCREEN -> "hanya bila tak ada jenis yang cocok"
+}
+
+/**
+ * Katalog ringkas: yang dibutuhkan model untuk menyusun `proposal`, tidak lebih. Angka batas diambil
+ * dari `ProposalLimits` (satu sumber kebenaran dengan validator), sehingga prompt tidak mungkin bergeser
+ * dari aturan produksi.
+ */
+internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
+    "widgetKinds" to jsonArrayOf(
+        WidgetKind.entries.map { w ->
+            jsonObjectOf(
+                "code" to jsonOf(w.code),
+                "displayName" to jsonOf(w.displayName),
+                "entity" to jsonOf(entityRule(w)),
+                "view" to jsonOf(viewShape(w)),
+                "note" to jsonOf(widgetNote(w))
+            )
+        }
+    ),
+    "fieldTypes" to jsonArrayOf(
+        FieldType.entries.map { t ->
+            jsonObjectOf(
+                "name" to jsonOf(t.name),
+                "note" to jsonOf(
+                    when (t) {
+                        FieldType.TEXT -> "teks bebas"
+                        FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
+                        FieldType.DATE -> "tanggal ISO YYYY-MM-DD"
+                        FieldType.ENUM -> "wajib options 2-8 pilihan; dipakai untuk status kerja"
+                        FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
+                    }
+                )
+            )
+        }
+    ),
+    "cardStyles" to jsonArrayOf(CardStyle.entries.map { jsonOf(it.name) }),
+    "limits" to jsonObjectOf(
+        "fields" to jsonOf(ProposalLimits.FIELDS),
+        "options" to jsonOf(ProposalLimits.OPTIONS),
+        "statuses" to jsonOf(ProposalLimits.STATUSES),
+        "seedRows" to jsonOf(ProposalLimits.SEED_ROWS),
+        "text" to jsonOf(ProposalLimits.TEXT),
+        "tiles" to jsonOf(ProposalLimits.TILES)
+    ),
+    "roleHints" to jsonObjectOf(
+        "note" to jsonOf(
+            "Petunjuk peran kerja -> jenis tampilan dari pack bawaan platform. " +
+                "Petunjuk, bukan aturan keras: ikuti watak kerja modul pada narasi."
+        ),
+        "examples" to jsonArrayOf(
+            packs.flatMap { pack ->
+                val moduleName = pack.modules.associate { it.id.value to it.displayName }
+                pack.screenSuggestions.map { s ->
+                    jsonObjectOf(
+                        "pack" to jsonOf(pack.code.value),
+                        "module" to jsonOf(s.moduleId.value),
+                        "moduleDisplayName" to jsonOf(moduleName[s.moduleId.value] ?: s.moduleId.value),
+                        "screenTitle" to jsonOf(s.title),
+                        "widget" to jsonOf(s.widget.code)
+                    )
+                }
+            }
+        )
+    )
+).encode()
 
 /** Validator draf untuk koreksi diri **di dalam** satu run: galat berpath, bukan lemparan. */
 internal class ValidateDraftTool : Tool<String, String>(

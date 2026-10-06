@@ -4,6 +4,8 @@ import ai.koog.prompt.executor.clients.deepseek.DeepSeekModels
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
+import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
@@ -58,17 +60,18 @@ class KoogDiscoveryAgentTest {
     }
 
     @Test
-    fun `narasi menghasilkan draf sah dan kedua alat discovery dikirim ke model`() = runBlocking {
+    fun `narasi menghasilkan draf sah dan seluruh alat discovery dikirim ke model`() = runBlocking {
         val expectedJson = validKlinikJson()
         val executor = ScriptedPromptExecutor(listOf("Berikut hasilnya:\n```json\n$expectedJson\n```"))
         val agent = KoogDiscoveryAgent(executor, model = model)
 
         val draft = agent.draft(narasiKlinik).getOrThrow()
 
-        assertEquals(DiscoveryDraftCodec.decode(expectedJson), draft)
+        // Pasca-B3 draf deterministik berlayar ber-proposal; lewat jalur LLM sumbernya dibubuhkan Agent.
+        assertEquals(stampAgentProvenance(DiscoveryDraftCodec.decode(expectedJson), agent.agentRef), draft)
         assertEquals(1, executor.calls)
         assertEquals(
-            listOf(DiscoveryTools.PLATFORM_MODULES, DiscoveryTools.VALIDATE_DRAFT),
+            listOf(DiscoveryTools.PLATFORM_MODULES, DiscoveryTools.SCREEN_CATALOG, DiscoveryTools.VALIDATE_DRAFT),
             executor.toolsSeen.single().map { it.name }
         )
         val systemText = executor.prompts.single().messages.first().textContent()
@@ -149,5 +152,122 @@ class KoogDiscoveryAgentTest {
         val feedback = executor.lastPromptText()
         assertTrue(feedback.contains("$.pack.useShipped"))
         assertTrue(feedback.contains("pilihan: garment"))
+    }
+
+    // ==== SP-C3: draf ber-proposal — loop koreksi, provenance, dan fallback (LLM palsu berskrip) ====
+
+    private val agentRefExample = "koog/deepseek-v4-flash/draft-v2"
+
+    /** Tipe field ke-4 proposal layar pertama diganti kosakata karangan → dekode gagal berpath. */
+    private fun withBrokenFieldType(json: String): String {
+        val root = JsonParser.parseObject(json)
+        val screens = root.array("screens")
+        val screen = screens.first() as JsonValue.Obj
+        val proposal = requireNotNull(screen.obj("proposal"))
+        val entity = requireNotNull(proposal.obj("entity"))
+        val fields = entity.array("fields").mapIndexed { i, f ->
+            if (i == 3) JsonValue.Obj((f as JsonValue.Obj).entries + ("type" to JsonValue.Str("KARANGAN"))) else f
+        }
+        val patchedProposal = JsonValue.Obj(
+            proposal.entries + ("entity" to JsonValue.Obj(entity.entries + ("fields" to JsonValue.Arr(fields))))
+        )
+        val patchedScreens = listOf(JsonValue.Obj(screen.entries + ("proposal" to patchedProposal))) + screens.drop(1)
+        return JsonValue.Obj(root.entries + ("screens" to JsonValue.Arr(patchedScreens))).encode()
+    }
+
+    /** Widget proposal layar pertama diganti kosakata karangan → dekode gagal berpath di proposal.widget. */
+    private fun withInvalidWidget(json: String): String {
+        val root = JsonParser.parseObject(json)
+        val screens = root.array("screens")
+        val screen = screens.first() as JsonValue.Obj
+        val proposal = requireNotNull(screen.obj("proposal"))
+        val patchedProposal = JsonValue.Obj(proposal.entries + ("widget" to JsonValue.Str("MAGIC")))
+        val patchedScreens = listOf(JsonValue.Obj(screen.entries + ("proposal" to patchedProposal))) + screens.drop(1)
+        return JsonValue.Obj(root.entries + ("screens" to JsonValue.Arr(patchedScreens))).encode()
+    }
+
+    /** Layar pertama mengaku PACK (bohong), layar kedua tanpa source sama sekali — server yang membubuhkan. */
+    private fun withFakeSource(json: String): String {
+        val root = JsonParser.parseObject(json)
+        val screens = root.array("screens").mapIndexed { i, s ->
+            if (i == 0) JsonValue.Obj((s as JsonValue.Obj).entries + ("source" to jsonObjectOf("kind" to jsonOf("PACK"))))
+            else JsonValue.Obj((s as JsonValue.Obj).entries - "source")
+        }
+        return JsonValue.Obj(root.entries + ("screens" to JsonValue.Arr(screens))).encode()
+    }
+
+    @Test
+    fun `jawaban berproposal langsung sah dan identik dengan contoh prompt`() = runBlocking {
+        val answer = KoogDiscoveryPrompt.exampleDraftJson(agentRefExample)
+        val executor = ScriptedPromptExecutor(listOf(answer))
+        val agent = KoogDiscoveryAgent(executor, model = model)
+
+        val draft = agent.draft(narasiKlinik).getOrThrow()
+
+        assertEquals(1, executor.calls)
+        assertEquals(KoogDiscoveryPrompt.exampleDraft(agentRefExample), draft)
+        assertTrue(draft.screens.all { it.proposal != null && it.source is ProposalSource.Agent })
+        val entities = draft.screens.mapNotNull { it.proposal?.entity }
+        assertEquals(2, entities.size)
+        assertEquals(entities.first(), entities.last(), "Entity yang sama antar-layar wajib berdefinisi identik")
+    }
+
+    @Test
+    fun `galat proposal dikirim berpath ke putaran koreksi berikutnya`() = runBlocking {
+        val broken = withBrokenFieldType(KoogDiscoveryPrompt.exampleDraftJson(agentRefExample))
+        val executor = ScriptedPromptExecutor(listOf(broken, KoogDiscoveryPrompt.exampleDraftJson(agentRefExample)))
+        val agent = KoogDiscoveryAgent(executor, model = model)
+
+        val draft = agent.draft(narasiKlinik).getOrThrow()
+
+        assertEquals(2, executor.calls)
+        assertTrue(draft.screens.all { it.proposal != null })
+        val feedback = executor.lastPromptText()
+        assertTrue(feedback.contains("$.screens[0].proposal.entity.fields[3].type"), "Path proposal wajib diteruskan: $feedback")
+        assertTrue(feedback.contains("KARANGAN"), "Nilai penyebab wajib disebut")
+    }
+
+    @Test
+    fun `jenis tampilan tak sah ditolak berpath, bukan diterima`() = runBlocking {
+        val invalid = withInvalidWidget(KoogDiscoveryPrompt.exampleDraftJson(agentRefExample))
+        val executor = ScriptedPromptExecutor(listOf(invalid, KoogDiscoveryPrompt.exampleDraftJson(agentRefExample)))
+        val agent = KoogDiscoveryAgent(executor, model = model)
+
+        val draft = agent.draft(narasiKlinik).getOrThrow()
+
+        assertEquals(2, executor.calls, "Keluaran MAGIC wajib ditolak, bukan diterima begitu saja")
+        val feedback = executor.lastPromptText()
+        assertTrue(feedback.contains("$.screens[0].proposal.widget"), "Path proposal.widget wajib diteruskan: $feedback")
+        assertTrue(draft.screens.all { WidgetKind.fromCode(it.widget) != null })
+    }
+
+    @Test
+    fun `sumber karangan model diganti sumber agent yang sebenarnya`() = runBlocking {
+        val lying = withFakeSource(KoogDiscoveryPrompt.exampleDraftJson(agentRefExample))
+        val executor = ScriptedPromptExecutor(listOf(lying))
+        val agent = KoogDiscoveryAgent(executor, model = model)
+
+        val draft = agent.draft(narasiKlinik).getOrThrow()
+
+        assertEquals(1, executor.calls, "Sumber sebenarnya diketahui server — model tidak boleh membuang putaran untuk itu")
+        assertTrue(draft.screens.isNotEmpty())
+        assertTrue(
+            draft.screens.all { it.source == ProposalSource.Agent(agent.agentRef) },
+            "Semua layar ber-proposal wajib bersumber agent ini: ${draft.screens.map { it.source }}"
+        )
+    }
+
+    @Test
+    fun `fallback deterministik tidak pernah membawa sumber agent`() = runBlocking {
+        val executor = ScriptedPromptExecutor(listOf("bukan json", "bukan json", "bukan json"))
+        val agent = KoogDiscoveryAgent(executor, model = model, fallback = DeterministicDiscoveryAgent())
+
+        val draft = agent.draft(narasiKlinik).getOrThrow()
+
+        assertEquals(3, executor.calls)
+        assertTrue(
+            draft.screens.none { it.source is ProposalSource.Agent },
+            "Draf fallback adalah keluaran deterministik; tidak boleh ditandai Agent"
+        )
     }
 }

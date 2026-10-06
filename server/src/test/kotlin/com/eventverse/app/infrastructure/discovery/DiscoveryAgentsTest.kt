@@ -25,14 +25,14 @@ class DiscoveryAgentsTest {
         val agent = DiscoveryAgents.from(configured = "koog", apiKey = "sk-uji", modelId = "deepseek-v4-pro")
 
         assertTrue(agent is KoogDiscoveryAgent)
-        assertEquals("koog/deepseek-v4-pro/draft-v1", agent.agentRef)
+        assertEquals("koog/deepseek-v4-pro/draft-v2", agent.agentRef)
     }
 
     @Test
     fun `model id tak dikenal diteruskan apa adanya dengan definisi default`() {
         val agent = DiscoveryAgents.from(configured = "koog", apiKey = "sk-uji", modelId = "model-karangan")
 
-        assertEquals("koog/model-karangan/draft-v1", agent.agentRef)
+        assertEquals("koog/model-karangan/draft-v2", agent.agentRef)
     }
 
     @Test

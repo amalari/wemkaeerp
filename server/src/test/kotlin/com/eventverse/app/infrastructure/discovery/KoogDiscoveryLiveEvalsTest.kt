@@ -1,115 +1,135 @@
 package com.eventverse.app.infrastructure.discovery
 
-import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
+import ai.koog.prompt.executor.clients.deepseek.DeepSeekLLMClient
+import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
+import com.eventverse.app.DiscoveryEvalGrader
+import com.eventverse.app.DiscoveryGoldenCases
 import com.eventverse.app.domain.discovery.DiscoveryRequest
+import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
+import com.eventverse.app.infrastructure.EnvLoader
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import org.junit.Assume.assumeTrue
+import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.writeText
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * **Evals agent LLM hidup (plan §2 A8).** Dinilai dengan grader yang sama seperti `DiscoveryEvalsTest`:
- * `DiscoveryDraftValidator` + cakupan modul yang diharapkan. Skor dicetak dengan format log yang sama
- * (`evals | <agent> | <kasus> | PASS|FAIL | …`) supaya bisa dibandingkan langsung dengan baseline
- * deterministik dan dipakai mendeteksi regresi prompt/model.
+ * **Evals agent LLM hidup (plan SP-C5).** Set kasus emas yang **sama** dengan baseline
+ * (`DiscoveryGoldenCases`, ≥ 10 vertikal), dinilai grader yang sama ([DiscoveryEvalGrader]), diulang
+ * **≥ 3 ulangan per kasus** untuk mengukur variasi. Mencetak perkiraan biaya sebelum jalan dan menulis
+ * laporan `docs/plannings/eval-SP-koog-<tanggal>.md` (skor per kasus & kriteria, variasi antar-ulangan,
+ * putaran koreksi, token/waktu, perbandingan baseline).
  *
- * **Opt-in**: butuh `DISCOVERY_LIVE_EVALS=1` **dan** `DEEPSEEK_API_KEY`. Tanpa keduanya test dilewati
- * (`assumeTrue`) sehingga `:server:test` biasa tetap tanpa jaringan dan tanpa biaya. Dijalankan manual:
+ * Tiga gerbang opt-in — tanpa semuanya test **dilewati** (`assumeTrue`) sehingga `:server:test` biasa
+ * tetap tanpa jaringan, tanpa kunci, tanpa biaya:
  *
  * ```
- * DISCOVERY_LIVE_EVALS=1 DEEPSEEK_API_KEY=sk-… ./gradlew :server:test --tests '*KoogDiscoveryLiveEvalsTest'
+ * DISCOVERY_LIVE_EVALS=1 DEEPSEEK_API_KEY=sk-… DISCOVERY_LIVE_EVALS_CONFIRM=yes \
+ *   ./gradlew :server:test --tests '*KoogDiscoveryLiveEvalsTest'
  * ```
  *
- * Jalur cadangan deterministik sengaja **dimatikan** di sini: evals harus mengukur LLM, bukan menyamarkan
- * kegagalannya dengan draf kata kunci.
+ * `DISCOVERY_LIVE_EVALS_CONFIRM=yes` adalah **konfirmasi biaya**: perkiraan (kasus × ulangan × putaran)
+ * dicetak di pesan penolakan, dan pelari wajib menyetujuinya eksplisit setelah meninjau.
+ * `DISCOVERY_LIVE_EVALS_REPEAT` mengubah jumlah ulangan (1–5; bawaan 3). Jalur cadangan deterministik
+ * sengaja **dimatikan**: evals mengukur LLM, bukan menyamarkan kegagalannya. Kunci API hanya dari env
+ * dan tidak pernah dicetak.
  */
 class KoogDiscoveryLiveEvalsTest {
 
-    /**
-     * [expectedCapabilities] = daftar kemampuan yang harus ada; **satu kumpulan sinonim** per kemampuan
-     * (`antrean` vs `pendaftaran`). Agent deterministik menamai modul dari kata kunci narasi, agent LLM
-     * menamainya secara semantik — dua-duanya benar, jadi grader menguji **kemampuannya**, bukan ejaannya.
-     */
-    private data class GoldenCase(
-        val name: String,
-        val narrative: String,
-        val industryHint: String?,
-        val expectedPackCode: String,
-        val expectedCapabilities: List<Set<String>> = emptyList()
-    )
-
-    private val cases = listOf(
-        GoldenCase(
-            name = "klinik",
-            narrative = "Kami klinik gigi: pasien mendaftar antrean per poli, ada stok obat, dan tagihan pembayaran kasir.",
-            industryHint = "klinik",
-            expectedPackCode = "klinik",
-            expectedCapabilities = listOf(
-                setOf("antrean", "pendaftaran", "jadwal"),
-                setOf("tagihan", "kasir", "pembayaran", "invoice")
-            )
-        ),
-        GoldenCase(
-            name = "bengkel",
-            narrative = "Bengkel servis motor: pelanggan booking servis lewat telepon dan ada stok sparepart.",
-            industryHint = "bengkel",
-            expectedPackCode = "bengkel",
-            expectedCapabilities = listOf(setOf("pesanan", "booking", "servis"))
-        ),
-        GoldenCase(
-            name = "katering",
-            narrative = "Katering harian: pesanan langganan tiap minggu dan laporan pengiriman bulanan.",
-            industryHint = "katering",
-            expectedPackCode = "katering",
-            expectedCapabilities = listOf(setOf("pesanan"), setOf("laporan", "rekap", "pengiriman"))
-        ),
-        GoldenCase(
-            name = "garment-cmt",
-            narrative = "Kami konveksi makloon, kain dari buyer, cukup jahit saja.",
-            industryHint = null,
-            expectedPackCode = "garment"
-        )
-    )
-
     @Test
-    fun `narasi emas menghasilkan draf sah dari model hidup`() = runBlocking {
+    fun `narasi emas dinilai berulang dari model hidup dan laporan tertulis`() = runBlocking {
         assumeTrue("DISCOVERY_LIVE_EVALS bukan 1 — evals LLM hidup dilewati", System.getenv("DISCOVERY_LIVE_EVALS") == "1")
         val apiKey = System.getenv("DEEPSEEK_API_KEY")?.takeIf { it.isNotBlank() }
         assumeTrue("DEEPSEEK_API_KEY kosong — evals LLM hidup dilewati", apiKey != null)
-
-        val agent = DiscoveryAgents.from(
-            configured = DiscoveryAgents.KOOG,
-            apiKey = apiKey,
-            modelId = System.getenv("DISCOVERY_AGENT_MODEL"),
-            fallbackEnabled = false
+        val repetitions = System.getenv("DISCOVERY_LIVE_EVALS_REPEAT")?.trim()?.toIntOrNull()?.coerceIn(1, 5) ?: 3
+        val rounds = KoogDiscoveryAgent.DEFAULT_MAX_CORRECTION_ROUNDS
+        assumeTrue(
+            "Konfirmasi biaya belum diberikan. " +
+                DiscoveryLiveEvalReport.costEstimate(DiscoveryGoldenCases.all.size, repetitions, rounds) +
+                ". Set DISCOVERY_LIVE_EVALS_CONFIRM=yes untuk menjalankan.",
+            System.getenv("DISCOVERY_LIVE_EVALS_CONFIRM") == "yes"
         )
-        var passed = 0
 
-        for (c in cases) {
-            val result = agent.draft(DiscoveryRequest(c.narrative, c.industryHint))
-            val graded = result.fold(
-                onSuccess = { draft ->
-                    val issues = DiscoveryDraftValidator.validate(draft)
-                    val moduleIds = draft.pack.modules.map { it.id.value }
-                    val coverage = draft.pack.code.value == c.expectedPackCode &&
-                        c.expectedCapabilities.all { synonyms ->
-                            moduleIds.any { id -> synonyms.any { suffix -> id.endsWith("_$suffix") } }
-                        }
-                    val ok = issues.isEmpty() && coverage
-                    Triple(ok, "pack=${draft.pack.code.value} modules=$moduleIds", issues.map { it.path }.toString())
-                },
-                onFailure = { Triple(false, "gagal: ${it.message}", "-") }
-            )
-            if (graded.first) passed++
-            println(
-                "evals | ${agent.agentRef} | ${c.name} | ${if (graded.first) "PASS" else "FAIL"} | " +
-                    "${graded.second} issues=${graded.third}"
+        val counting = CountingPromptExecutor(MultiLLMPromptExecutor(DeepSeekLLMClient(requireNotNull(apiKey))))
+        val model = DiscoveryAgents.resolveModel(EnvLoader.get("DISCOVERY_AGENT_MODEL").takeIf { it.isNotBlank() })
+        val agent = KoogDiscoveryAgent(executor = counting, model = model, fallback = null)
+
+        val results = mutableListOf<LiveCaseResult>()
+        for (case in DiscoveryGoldenCases.all) {
+            var pass = 0
+            val failedCriteria = mutableListOf<String>()
+            val roundsUsed = mutableListOf<Int>()
+            val durations = mutableListOf<Long>()
+            val tokens = mutableListOf<Long?>()
+
+            repeat(repetitions) { rep ->
+                val callsBefore = counting.calls
+                val started = System.currentTimeMillis()
+                val verdict = DiscoveryEvalGrader.grade(case, agent.draft(DiscoveryRequest(case.narrative, case.industryHint)))
+                durations += System.currentTimeMillis() - started
+                roundsUsed += (counting.calls - callsBefore).coerceAtLeast(1)
+                tokens += counting.snapshot().drop(callsBefore)
+                    .fold(0L to true) { acc, call ->
+                        val known = acc.second && call.totalTokens != null
+                        (acc.first + (call.totalTokens ?: 0)) to known
+                    }
+                    .let { (sum, known) -> if (known) sum else null }
+                println("evals | ulangan-${rep + 1}/$repetitions | " + verdict.logLine(agent.agentRef))
+                if (verdict.passed) pass++
+                else failedCriteria += verdict.criteria.filter { !it.passed }.map { "${it.criterion}: ${it.detail.take(120)}" }
+            }
+
+            results += LiveCaseResult(
+                caseName = case.name,
+                repetitions = repetitions,
+                passCount = pass,
+                failureSummary = failedCriteria.distinct().joinToString().ifEmpty { "-" },
+                rounds = roundsUsed,
+                durationsMs = durations,
+                totalTokens = tokens.reduceOrNull { acc, v -> if (acc != null && v != null) acc + v else null }
             )
         }
 
-        println("evals | skor: $passed/${cases.size} (${agent.agentRef})")
-        assertTrue(passed > 0, "Tidak satu pun narasi emas lolos — prompt/kontrak atau kunci API yang salah")
-        assertEquals(cases.size, passed, "Skor $passed/${cases.size} — lihat baris FAIL di log evals")
+        val baseline = DeterministicDiscoveryAgent()
+        val baselineLines = DiscoveryGoldenCases.all.map { case ->
+            DiscoveryEvalGrader.grade(case, baseline.draft(DiscoveryRequest(case.narrative, case.industryHint)))
+                .logLine(baseline.agentRef)
+        }
+        val report = DiscoveryLiveEvalReport.build(
+            agentRef = agent.agentRef,
+            modelId = model.id,
+            generatedAt = Clock.System.now().toString(),
+            maxCorrectionRounds = rounds,
+            baselineLines = baselineLines,
+            results = results
+        )
+        println(report)
+        writeReport(report)
+
+        assertTrue(
+            results.any { it.passCount > 0 },
+            "Tidak satu pun ulangan lolos — prompt/kontrak atau kunci API yang salah; lihat laporan"
+        )
+    }
+
+    /**
+     * Lokasi laporan: `DISCOVERY_LIVE_EVAL_REPORT` bila ditetapkan, else `<root-repo>/docs/plannings/
+     * eval-SP-koog-<tanggal>.md` — root dicari dari direktori kerja ke atas sampai `settings.gradle.kts`.
+     */
+    private fun writeReport(report: String) {
+        val override = System.getenv("DISCOVERY_LIVE_EVAL_REPORT")
+        val target = override?.let { Path.of(it) } ?: run {
+            var dir: Path? = Path.of(System.getProperty("user.dir")).toAbsolutePath()
+            while (dir != null && !dir.resolve("settings.gradle.kts").exists()) dir = dir.parent
+            val root = dir ?: Path.of(".").toAbsolutePath()
+            val date = Clock.System.now().toString().take(10)
+            root.resolve("docs").resolve("plannings").resolve("eval-SP-koog-$date.md")
+        }
+        target.parent?.toFile()?.mkdirs()
+        target.writeText(report)
+        println("evals | laporan tertulis: $target")
     }
 }
