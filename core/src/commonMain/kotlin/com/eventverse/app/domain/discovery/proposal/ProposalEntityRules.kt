@@ -79,6 +79,10 @@ internal object ProposalEntityRules {
                 sink.text(at, v, "Nilai '$k'", required = false)
                 checkValue(f, v, at, sink)
             }
+            val statusKey = entity.statusField?.takeIf { k -> entity.fields.any { it.key == k } }   // statusField rusak sudah dilaporkan checkStatus
+            if (p.view is ViewProposal.Kanban && statusKey != null && row[statusKey].isNullOrEmpty()) {
+                sink.add(".seed[$i].$statusKey", "Kartu papan wajib punya '$statusKey' supaya tampil di salah satu kolom (${entity.fields.first { it.key == statusKey }.options.joinToString()})")
+            }
             entity.fields.filter { it.required && row[it.key].isNullOrEmpty() }.forEach { f ->
                 sink.add(".seed[$i].${f.key}", "Field wajib '${f.key}' harus terisi di setiap baris contoh")
             }
