@@ -1,13 +1,17 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.discovery.proposal.toInteractiveScreen
 import com.eventverse.app.domain.discovery.WidgetRegistry
+import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.shared.json.jsonStringMapOf
+import com.eventverse.app.shared.discovery.ScreenProposalCodec
 import com.eventverse.app.shared.pack.InteractiveScreenCodec
 
 /** Ringkasan draf discovery untuk klien (`GET /api/discovery/drafts/{id}`), dipisah dari rute demi batas ukuran file. */
@@ -66,23 +70,45 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
         )
     }),
     "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),
-    "screens" to jsonArrayOf(stored.draft.screens.map { s ->
-        // Layar default-* diproyeksikan ke usulan pack hidup (WidgetRegistry.screenFor) supaya
-        // revisi watak layar di pack mengalir ke draf beku; sampleRows mengikuti yang terproyeksi.
-        val projected = WidgetRegistry.screenFor(s, samplePack)
-        jsonObjectOf(
-            "screenId" to jsonOf(s.screenId),
-            "moduleId" to jsonOf(s.moduleId.value),
-            "title" to jsonOf(projected.title),
-            "widget" to jsonOf(projected.widget),
-            // Sample data berupa data (plan §4): dihitung WidgetRegistry di server dari pack
-            // registri hidup (samplePack) agar klien tidak perlu merekonstruksi DomainPack.
-            "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(projected, samplePack).map { row ->
-                jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
-            }),
-            // TRD-PLAT-003: versi bisa dimainkan (null untuk widget non-kanban → klien menggambar statis).
-            "interactive" to (WidgetRegistry.interactiveFor(projected, samplePack)?.let(InteractiveScreenCodec::encode) ?: com.eventverse.app.shared.json.JsonValue.Null)
-        )
-    })
+    "screens" to jsonArrayOf(stored.draft.screens.map { screenObj(it, samplePack) })
+    )
+}
+
+/**
+ * Satu layar untuk klien. Layar **berproposal** (SP-B/C): proposal adalah sumber kebenaran — dikirim apa adanya
+ * beserta `source` dan `rationale` (supaya klien menampilkan alasan & lencana asal), baris contoh = `seed`
+ * proposal, dan versi bisa dimainkan dibangun dari proposal itu sendiri (`toInteractiveScreen`; null untuk
+ * cetak/layar kustom yang memang digambar statis). Layar **tanpa proposal** (draf lama, usulan agent lama)
+ * tetap lewat `WidgetRegistry` persis seperti sebelumnya — draf lama tidak berubah perilaku.
+ */
+private fun screenObj(s: PrototypeScreen, samplePack: DomainPack): JsonValue.Obj {
+    val proposal = s.proposal ?: return legacyScreenObj(s, samplePack)
+    return jsonObjectOf(
+        "screenId" to jsonOf(s.screenId),
+        "moduleId" to jsonOf(s.moduleId.value),
+        "title" to jsonOf(s.title),
+        "widget" to jsonOf(s.widget),
+        "rationale" to jsonOf(proposal.rationale),
+        "source" to (s.source?.let(ScreenProposalCodec::encodeSource) ?: JsonValue.Null),
+        "proposal" to ScreenProposalCodec.encode(proposal),
+        "sampleRows" to jsonArrayOf(proposal.seed.map { jsonStringMapOf(it) }),
+        "interactive" to (proposal.toInteractiveScreen(s.source).getOrNull()?.let(InteractiveScreenCodec::encode) ?: JsonValue.Null)
+    )
+}
+
+private fun legacyScreenObj(s: PrototypeScreen, samplePack: DomainPack): JsonValue.Obj {
+    // Layar default-* diproyeksikan ke usulan pack hidup (WidgetRegistry.screenFor) supaya
+    // revisi watak layar di pack mengalir ke draf beku; sampleRows mengikuti yang terproyeksi.
+    val projected = WidgetRegistry.screenFor(s, samplePack)
+    return jsonObjectOf(
+        "screenId" to jsonOf(s.screenId),
+        "moduleId" to jsonOf(s.moduleId.value),
+        "title" to jsonOf(projected.title),
+        "widget" to jsonOf(projected.widget),
+        // Sample data berupa data (plan §4): dihitung WidgetRegistry di server dari pack
+        // registri hidup (samplePack) agar klien tidak perlu merekonstruksi DomainPack.
+        "sampleRows" to jsonArrayOf(WidgetRegistry.sampleRowsFor(projected, samplePack).map { jsonStringMapOf(it) }),
+        // TRD-PLAT-003: versi bisa dimainkan (null untuk widget non-kanban → klien menggambar statis).
+        "interactive" to (WidgetRegistry.interactiveFor(projected, samplePack)?.let(InteractiveScreenCodec::encode) ?: JsonValue.Null)
     )
 }
