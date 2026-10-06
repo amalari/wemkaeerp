@@ -69,7 +69,7 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
         val slots = capabilities.map { cap ->
             SlotDefinition(
                 SlotCode("${code}_${cap.suffix}"), cap.name, PhaseCode("OPERASI"),
-                PortType("Permintaan"), PortType("Catatan")
+                PortType("Permintaan"), PortType("Catatan"), cap.widget, cap.statuses
             )
         }
         val modules = capabilities.map { cap ->
@@ -145,7 +145,11 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
         )
     }
 
-    private data class Capability(val suffix: String, val name: String, val keywords: List<String>)
+    /** [widget]/[statuses] = pemetaan peran → tampilan slot (null = tanpa pendapat, mis. kemampuan cadangan). */
+    private data class Capability(
+        val suffix: String, val name: String, val keywords: List<String>,
+        val widget: WidgetKind? = null, val statuses: List<String> = emptyList()
+    )
 
     companion object {
         private val GARMENT_WORDS = listOf(
@@ -177,11 +181,16 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
         )
 
         private val CATALOG = listOf(
-            Capability("pesanan", "Penerimaan Pesanan", listOf("pesanan", "order", "booking", "reservasi", "pendaftaran")),
-            Capability("antrean", "Antrean & Penjadwalan", listOf("antrean", "antrian", "jadwal", "poli", "slot waktu")),
-            Capability("stok", "Persediaan & Gudang", listOf("stok", "persediaan", "gudang", "bahan")),
-            Capability("tagihan", "Tagihan & Pembayaran", listOf("tagihan", "invoice", "pembayaran", "kasir", "penjualan")),
-            Capability("laporan", "Laporan & Pemantauan", listOf("laporan", "monitoring", "dasbor", "dashboard", "rekap"))
+            Capability("pesanan", "Penerimaan Pesanan", listOf("pesanan", "order", "booking", "reservasi", "pendaftaran"),
+                WidgetKind.TABLE, listOf("Baru", "Diproses", "Selesai")),
+            Capability("antrean", "Antrean & Penjadwalan", listOf("antrean", "antrian", "jadwal", "poli", "slot waktu"),
+                WidgetKind.KANBAN, listOf("Menunggu", "Dikerjakan", "Selesai")),
+            Capability("stok", "Persediaan & Gudang", listOf("stok", "persediaan", "gudang", "bahan"),
+                WidgetKind.TABLE, listOf("Tersedia", "Menipis", "Habis")),
+            Capability("tagihan", "Tagihan & Pembayaran", listOf("tagihan", "invoice", "pembayaran", "kasir", "penjualan"),
+                WidgetKind.TABLE, listOf("Belum bayar", "Lunas")),
+            Capability("laporan", "Laporan & Pemantauan", listOf("laporan", "monitoring", "dasbor", "dashboard", "rekap"),
+                WidgetKind.DASHBOARD)
         )
     }
 }

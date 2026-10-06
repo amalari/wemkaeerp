@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -50,19 +51,23 @@ object GarmentSlots {
     val FULFILLMENT = SlotCode("fulfillment")
     val CUSTOM_EXTENSION = SlotCode("custom_extension")
 
-    internal data class Meta(val slot: SlotCode, val displayName: String, val input: String, val output: String, val representative: BusinessModule)
+    /** [widget]/[statuses] = pemetaan peran → tampilan (null/kosong = pack tidak berpendapat; lihat `SlotDefinition`). */
+    internal data class Meta(
+        val slot: SlotCode, val displayName: String, val input: String, val output: String, val representative: BusinessModule,
+        val widget: WidgetKind? = null, val statuses: List<String> = emptyList()
+    )
 
     /** Urutan = urutan enum lama (dipakai `all`, mis. untuk pilihan slot di UI). */
     internal val meta: List<Meta> = listOf(
-        Meta(ORDER_INGESTION, "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES),
-        Meta(RAW_MATERIAL, "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY),
-        Meta(PRODUCT_ENGINEERING, "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM),
-        Meta(COSTING_HPP, "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP),
-        Meta(CUTTING, "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", GarmentModules.PRODUCTION_MRP),
-        Meta(SEWING, "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", GarmentModules.OPERATOR_EXEC),
+        Meta(ORDER_INGESTION, "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES, WidgetKind.TABLE, listOf("Prospek", "Sampling", "Produksi", "Siap kirim")),
+        Meta(RAW_MATERIAL, "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY, WidgetKind.TABLE, listOf("Tersedia", "Menipis", "Konsinyasi")),
+        Meta(PRODUCT_ENGINEERING, "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM, WidgetKind.TABLE, listOf("Draft", "Final")),
+        Meta(COSTING_HPP, "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP, WidgetKind.DASHBOARD),
+        Meta(CUTTING, "Pemotongan Pola Kain (Spreading & Cutting)", "CuttingOrderWithFabric", "CutPiecesBundle", GarmentModules.PRODUCTION_MRP, WidgetKind.KANBAN, listOf("Antre Potong", "Berjalan", "Selesai")),
+        Meta(SEWING, "Penjahitan & Perakitan (Sewing Line)", "CutPiecesBundle", "AssembledGarmentBundle", GarmentModules.OPERATOR_EXEC, WidgetKind.KANBAN, listOf("Lini 2", "Lini 3", "Lini 4")),
         Meta(FINISHING, "Finishing, Cuci, Setrika & Trimming", "AssembledGarmentBundle", "FinishedGarmentUnit", GarmentModules.OPERATOR_EXEC),
-        Meta(QUALITY_CONTROL, "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", GarmentModules.QUALITY_CONTROL),
-        Meta(FULFILLMENT, "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", GarmentModules.FULFILLMENT),
+        Meta(QUALITY_CONTROL, "Pengawasan Mutu, Grading & Inspeksi", "FinishedGarmentUnit", "InspectedAndGradedUnit", GarmentModules.QUALITY_CONTROL, WidgetKind.CHECKLIST),
+        Meta(FULFILLMENT, "Pengemasan, Surat Jalan & Ekspedisi", "InspectedAndGradedUnit", "DispatchedShipmentManifest", GarmentModules.FULFILLMENT, WidgetKind.PRINT),
         Meta(CUSTOM_EXTENSION, "Modul Khusus Tambahan (Custom Plugin / Extension)", "AnyOperationalPayload", "AnyOperationalPayload", GarmentModules.PRODUCTION_MRP)
     )
 

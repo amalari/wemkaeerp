@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.FormHints
@@ -21,15 +22,43 @@ data class PhaseDefinition(
     }
 }
 
-/** Satu slot kemampuan: modul yang mengisinya digambar di [phase] dan lazimnya menerima/mengeluarkan port default. */
+/**
+ * Satu slot kemampuan: modul yang mengisinya digambar di [phase] dan lazimnya menerima/mengeluarkan port default.
+ *
+ * **Pemetaan peran → tampilan** (plan §2.3, data pack — Uji Variabilitas: tiap industri memberi watak kerja yang
+ * berbeda pada slot yang sama):
+ *  - [defaultWidget] — jenis tampilan lazim modul pengisi slot ini (antrean → KANBAN, stok → TABLE, laporan →
+ *    DASHBOARD). **Null = pack tidak berpendapat**: pembuat deterministik tidak membuat layar untuk slot itu
+ *    dan tidak pernah meminjam tebakan dari pack/slot lain.
+ *  - [defaultStatuses] — urutan status lazim (awal → akhir) bila tampilannya KANBAN/TABLE; kosong = tidak ada
+ *    status baku. Kolom kanban/pilihan status layar diturunkan darinya.
+ *
+ * Keduanya opsional dan kompatibel mundur: pack lama tanpa kunci ini terbaca dengan `null`/kosong.
+ */
 data class SlotDefinition(
     val code: SlotCode,
     val displayName: String,
     val phase: PhaseCode,
     val defaultInput: PortType,
-    val defaultOutput: PortType
+    val defaultOutput: PortType,
+    val defaultWidget: WidgetKind? = null,
+    val defaultStatuses: List<String> = emptyList()
 ) {
-    init { require(displayName.isNotBlank()) { "Nama slot ${code.value} kosong" } }
+    init {
+        require(displayName.isNotBlank()) { "Nama slot ${code.value} kosong" }
+        if (defaultStatuses.isNotEmpty()) {
+            require(defaultWidget == WidgetKind.KANBAN || defaultWidget == WidgetKind.TABLE) {
+                "Slot ${code.value}: defaultStatuses hanya bermakna untuk defaultWidget KANBAN atau TABLE"
+            }
+            require(defaultStatuses.size in 2..ProposalLimits.STATUSES) {
+                "Slot ${code.value}: defaultStatuses wajib 2–${ProposalLimits.STATUSES} butir, dapat ${defaultStatuses.size}"
+            }
+            require(defaultStatuses.distinct().size == defaultStatuses.size) { "Slot ${code.value}: defaultStatuses ada yang kembar" }
+            require(defaultStatuses.all { it.isNotBlank() && it.length <= ProposalLimits.TEXT }) {
+                "Slot ${code.value}: butir defaultStatuses wajib terisi dan ≤ ${ProposalLimits.TEXT} karakter"
+            }
+        }
+    }
 }
 
 /**
