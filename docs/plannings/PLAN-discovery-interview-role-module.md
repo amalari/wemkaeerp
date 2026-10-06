@@ -107,8 +107,50 @@ Bentuk hasil yang sudah ada dipakai ulang: divisi → `Department`; peran → `D
 | **I1** | Pembuat tebakan deterministik (kamus peran → modul sebagai data pack) + aturan "pertanyaan berikutnya" (fungsi murni) | deterministik byte-per-byte; pack tanpa kamus ⇒ tanya terbuka |
 | **I2** | Route wawancara (file baru, bukan `DiscoveryRoutes.kt`), gate + tes 403/401, fail-closed | tes peran tak berwenang |
 | **I3** | Langkah wizard "Wawancara" (A) — konfirmasi per giliran, ringkasan, tombol terima semua | cek mata di tenant non-garment |
-| **I4** | Koog: prompt + alat `interview_state`; LLM menebak, validator menegakkan; eval baru (≥ 10 kasus) | skor tebakan terkonfirmasi ≥ target yang disepakati |
+| **I4** | Koog: prompt + alat `interview_state`; LLM menebak, validator menegakkan; eval baru (≥ 10 kasus) + kriteria **berdasar-cerita** (lihat §4.1) | skor tebakan terkonfirmasi ≥ target yang disepakati; 0 modul tanpa dasar |
 | **I5** | Modul bersama (`ModuleReference` + adaptor port) | keputusan §3 selesai dulu |
+
+### 4.1 Aturan "berdasar cerita" (DIPUTUSKAN 2026-10-07, tagline "ERP untukmu")
+
+ERP dibentuk dari bisnis pengguna, bukan dari daftar ERP standar. Konsekuensinya mengikat I1 dan I4:
+
+1. **Modul/fitur hanya boleh masuk draf bila punya dasar**: kutipan dari narasi, atau jawaban pengguna di giliran wawancara. Tiap `RoleModuleLink` menyimpan `basis` (kutipan/id jawaban); tanpa `basis` → ditolak validator (galat berpath), bukan dilonggarkan.
+2. **Daftar ERP umum** (pembelian, keuangan, upah, dst.) boleh dipakai agent hanya sebagai **bahan pertanyaan** ("apakah Anda juga mengurus ini?"), tidak pernah langsung menjadi isi draf.
+3. **Eval:** tambah kriteria `berdasar_cerita` (setiap modul dapat ditelusuri ke cerita/jawaban) dan kasus negatif (cerita kecil → draf kecil; modul "lazim" yang tak disebut tidak boleh muncul).
+4. **Ukuran mutu:** utamakan % tebakan diterima pemilik, bukan jumlah modul tercakup.
+
+### 4.2 Persona pewawancara: konsultan bisnis (DIPUTUSKAN 2026-10-07)
+
+Prompt sistem agent wawancara (`KoogDiscoveryPrompt.kt`, bagian baru khusus wawancara) menempatkan agent sebagai **konsultan digitalisasi usaha**, bukan formulir. Tujuannya membantu pemilik yang belum tahu apa yang ia butuhkan.
+
+**Urutan percakapan** (menggantikan pembuka G1 yang langsung menebak divisi):
+
+| Fase | Pertanyaan konsultan | Hasil |
+|---|---|---|
+| F0 Bisnis | "Usahanya apa? Produknya, pelanggannya, skalanya?" | profil bisnis (narasi) |
+| F1 Tujuan | "Sistem seperti apa yang ingin dibuat? Apa yang paling merepotkan sekarang?" | tujuan + titik sakit |
+| F2 Spesifikasi kebutuhan | per area yang muncul: "siapa yang mengisi, apa yang dicatat, siapa yang perlu melihat, kapan dianggap selesai?" | requirement spec per area (input untuk modul + fitur) |
+| F3 Terjemahan | Koog menerjemahkan F0–F2 ke divisi → peran → modul + fitur (G1–G5 yang sudah direncanakan) | draf |
+
+**Perilaku konsultan:**
+
+1. **Menyarankan bila pengguna bingung** ("belum tahu", jawaban kosong, atau meminta saran): menawarkan 2–3 pilihan berdasarkan narasinya sendiri, dengan alasan singkat, mis. "Anda menyebut sering salah hitung upah. Mau kita catat hasil per operator per hari?".
+2. **Mengajukan pertanyaan dari pengetahuannya** tentang modul/proses yang lazim untuk bisnis serupa, sebagai **pertanyaan**, bukan sebagai isi draf ("Biasanya usaha seperti ini juga mengurus pembelian bahan. Apakah itu juga Anda lakukan?").
+3. **Satu kelompok pertanyaan per giliran**, bahasa awam, tanpa istilah teknis internal (archetype, port, pack).
+4. **Tidak memaksa:** selalu ada "lewati" dan "terima semua tebakan".
+
+**Mendamaikan dengan §4.1 (berdasar cerita).** Saran konsultan **boleh** menjadi isi draf, tetapi hanya setelah pengguna menerimanya. Jenis `basis` yang sah:
+
+| `basis` | Arti | Boleh masuk draf? |
+|---|---|---|
+| `NARASI` | kutipan dari cerita pengguna | ya |
+| `JAWABAN` | jawaban pengguna atas pertanyaan wawancara | ya |
+| `SARAN_DITERIMA` | usulan konsultan yang dikonfirmasi pengguna (`Confirmation.CONFIRMED`/`CHANGED`) | ya |
+| `SARAN_BELUM_DIJAWAB` | usulan konsultan yang belum dijawab / ditolak | **tidak** (validator menolak) |
+
+Dengan begitu konsultan membantu tanpa menggiring: pengetahuan konsultan memperkaya *pertanyaan dan pilihan*, tetapi keputusan tetap milik pemilik usaha. Saran yang sering ditolak/diubah dicatat ke buku demand sebagai sinyal mutu saran.
+
+**Dampak ke tahap:** I1 (aturan pertanyaan berikutnya mengenal F0–F2), I4 (prompt + alat; eval menambah skenario "pengguna bingung" → agent memberi saran berdasar narasi, bukan menebak liar), dan kontrak `RoleModuleLink.basis` bertambah jenis di atas. Koog memakai **spec F2 sebagai masukan terjemahan**, bukan hanya narasi awal.
 
 ## 5. Pertanyaan terbuka (asumsi bawaan di §12)
 
