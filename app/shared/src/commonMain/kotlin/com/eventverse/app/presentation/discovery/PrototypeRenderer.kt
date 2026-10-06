@@ -99,10 +99,14 @@ private fun PrototypeScreenCard(
                     horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                 ) {
+                    // Kontrak 13: nama modul boleh mengalah; lencana sumber tidak boleh patah per huruf.
                     Text(
                         moduleName,
                         style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                        color = WeMadeColors.OnSurfaceMuted
+                        color = WeMadeColors.OnSurfaceMuted,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (source != null) {
                         ProposalSourceBadge(source = source)
