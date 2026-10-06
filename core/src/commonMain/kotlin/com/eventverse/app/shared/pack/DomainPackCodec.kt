@@ -48,12 +48,7 @@ object DomainPackCodec {
                 "subtitle" to jsonOf(p.subtitle), "color" to jsonOf(color(p.colorHex))
             )
         }),
-        "slots" to jsonArrayOf(pack.slots.map { s ->
-            jsonObjectOf(
-                "code" to jsonOf(s.code.value), "displayName" to jsonOf(s.displayName), "phase" to jsonOf(s.phase.value),
-                "defaultInput" to jsonOf(s.defaultInput.value), "defaultOutput" to jsonOf(s.defaultOutput.value)
-            )
-        }),
+        "slots" to jsonArrayOf(pack.slots.map(SlotDefinitionCodec::encode)),
         "portTypes" to jsonArrayOf(pack.portTypes.map { jsonOf(it.value) }.sortedBy { (it as JsonValue.Str).value }),
         "wiredPortTypes" to jsonArrayOf(pack.wiredPortTypes.map { jsonOf(it.value) }.sortedBy { (it as JsonValue.Str).value }),
         "sections" to jsonArrayOf(pack.sections.map { s ->
@@ -91,12 +86,7 @@ object DomainPackCodec {
         val phases = r.objects("phases").map { p ->
             p.build { PhaseDefinition(p.value("code", ::PhaseCode), p.int("order"), p.string("displayName"), p.string("subtitle"), p.color("color")) }
         }
-        val slots = r.objects("slots").map { s ->
-            s.build { SlotDefinition(
-                s.value("code", ::SlotCode), s.string("displayName"), s.value("phase", ::PhaseCode),
-                s.value("defaultInput", ::PortType), s.value("defaultOutput", ::PortType)
-            ) }
-        }
+        val slots = r.objects("slots").map { s -> SlotDefinitionCodec.decode(s.node(), s.at()) }
         val sections = r.objects("sections").map { s ->
             ModuleSection(s.value("code", ::ModuleSectionCode), s.string("displayName"), s.int("order"), s.color("color"), s.color("tint"))
         }
@@ -148,6 +138,10 @@ object DomainPackCodec {
     private class Reader(private val obj: JsonValue.Obj, private val path: String) {
         private fun fail(key: String?, message: String): Nothing =
             throw DomainPackDecodeException(if (key == null) path else "$path.$key", message)
+
+        /** Objek mentah dan path-nya, untuk codec bagian yang membaca sendiri ([SlotDefinitionCodec]). */
+        fun node(): JsonValue.Obj = obj
+        fun at(): String = path
 
         fun <T> build(block: () -> T): T = try { block() } catch (e: DomainPackDecodeException) { throw e } catch (e: IllegalArgumentException) {
             fail(null, e.message ?: "tidak sah")

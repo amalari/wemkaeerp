@@ -141,7 +141,7 @@ object GarmentDomainPack {
     val pack: DomainPack by lazy {
         val slots = GarmentSlots.meta.map { m ->
             val phase = requireNotNull(GarmentPhases.phaseOfSlot[m.slot.value]) { "Slot ${m.slot.value} belum dipetakan ke fase garment" }
-            SlotDefinition(m.slot, m.displayName, phase.code, PortType(m.input), PortType(m.output))
+            SlotDefinition(m.slot, m.displayName, phase.code, PortType(m.input), PortType(m.output), m.widget, m.statuses)
         }
         val wired = GarmentPortTypes.wired
         DomainPack(
