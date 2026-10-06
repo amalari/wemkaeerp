@@ -61,7 +61,7 @@ object DeterministicScreenProposer : ScreenProposer {
             WidgetKind.KANBAN -> {
                 require(statuses.isNotEmpty()) { "Slot ${slot.code.value} berwidget KANBAN tetapi tanpa defaultStatuses; papan butuh kolom" }
                 layar(
-                    "Dipilih karena ${name.lowercase()}$where bergerak lewat tahap ${statuses.joinToString(" → ")}, jadi paling jelas dilihat sebagai papan.",
+                    "Dipilih karena ${name.lowercase()}$where bergerak lewat tahap ${stages(statuses)}, jadi paling jelas dilihat sebagai papan.",
                     entity,
                     ViewProposal.Kanban(
                         card = listOf(CardElement(TITLE, CardStyle.TITLE), CardElement(NOTE, CardStyle.TEXT)) + extras.mapNotNull(::cardOf),
@@ -104,6 +104,10 @@ object DeterministicScreenProposer : ScreenProposer {
             )
         }
     }
+
+    /** "A, B, lalu C" — tanpa panah: glyph non-ASCII (→) tidak ada di font Nunito dan tampil sebagai kotak. */
+    private fun stages(statuses: List<String>): String =
+        if (statuses.size < 2) statuses.joinToString() else statuses.dropLast(1).joinToString() + ", lalu " + statuses.last()
 
     private fun cardOf(f: FieldProposal): CardElement? = when (f.type) {
         FieldType.DATE -> CardElement(f.key, CardStyle.DATE)

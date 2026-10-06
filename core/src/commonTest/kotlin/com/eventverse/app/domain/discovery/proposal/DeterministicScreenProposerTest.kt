@@ -107,6 +107,18 @@ class DeterministicScreenProposerTest {
     }
 
     @Test
+    fun `teks yang tampil ke prospek hanya berisi karakter yang ada di font aplikasi`() = runTest {
+        // Nunito tidak punya panah/simbol non-ASCII: tampil sebagai kotak (ditemukan saat cek visual).
+        narratives.values.forEach { text ->
+            draftOf(text).screens.forEach { s ->
+                val p = s.proposal!!
+                val shown = listOf(p.title, p.rationale) + (p.entity?.fields?.flatMap { listOf(it.label) + it.options }.orEmpty()) + p.seed.flatMap { it.values }
+                shown.forEach { t -> assertTrue(t.all { it.code < 0x100 }, "karakter non-Latin1 di '$t'") }
+            }
+        }
+    }
+
+    @Test
     fun `keluaran deterministik byte-per-byte`() = runTest {
         narratives.values.forEach { text ->
             assertEquals(DiscoveryDraftCodec.encodeToString(draftOf(text)), DiscoveryDraftCodec.encodeToString(draftOf(text)))
