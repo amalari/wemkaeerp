@@ -259,6 +259,16 @@ internal fun platformCatalogJson(packs: List<DomainPack>): String = jsonObjectOf
                 "code" to jsonOf(pack.code.value),
                 "displayName" to jsonOf(pack.displayName),
                 "reuseWith" to jsonOf("{\"pack\":{\"useShipped\":\"${pack.code.value}\"}}"),
+                // Starter alur bawaan pack ini: model WAJIB memilih salah satunya (bukan mengarang blueprint baru).
+                "starterBlueprints" to jsonArrayOf(
+                    shippedStarterBlueprints().filter { it.pack == pack.code }.map { bp ->
+                        jsonObjectOf(
+                            "code" to jsonOf(bp.code.value), "displayName" to jsonOf(bp.displayName),
+                            "description" to jsonOf(bp.description), "targetClientProfile" to jsonOf(bp.targetClientProfile),
+                            "reuseWith" to jsonOf("{\"blueprint\":{\"useShipped\":\"${bp.code.value}\"}}")
+                        )
+                    }
+                ),
                 "phases" to jsonArrayOf(pack.phases.map { jsonOf(it.code.value) }),
                 "sections" to jsonArrayOf(
                     pack.sections.map { jsonObjectOf("code" to jsonOf(it.code.value), "displayName" to jsonOf(it.displayName)) }

@@ -7,6 +7,8 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.utils.io.use
 import com.eventverse.app.domain.discovery.DiscoveryAgent
 import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
@@ -150,7 +152,7 @@ class KoogDiscoveryAgent(
  * ambil objek JSON dari teks, jembatani pack bawaan, lalu dekode dengan parser produksi.
  */
 internal fun decodeAnswer(answer: String): DiscoveryDraft =
-    DiscoveryDraftCodec.decode(applyShippedPackBridge(extractJsonObject(answer)))
+    DiscoveryDraftCodec.decode(applyShippedBlueprintBridge(applyShippedPackBridge(extractJsonObject(answer))))
 
 /**
  * Membubuhkan sumber AGENT pada setiap layar ber-proposal — **di server, bukan dipercaya ke model**.
@@ -205,6 +207,35 @@ internal fun applyShippedPackBridge(
         )
     return JsonValue.Obj(root.entries + ("pack" to DomainPackCodec.encode(target))).encode()
 }
+
+/**
+ * Mengganti singkatan `"blueprint": {"useShipped": "<kode>"}` dengan starter blueprint bawaan platform
+ * (SP-C eval 2026-10-06: model selalu mengarang kode blueprint baru untuk pack bawaan — `garment_starter`
+ * — padahal alur yang benar memilih salah satu starter bawaan). Sama seperti jembatan pack: kode tak dikenal
+ * **ditolak berpath** dan dokumen lain dikembalikan apa adanya. Dokumen blueprint dirakit lewat
+ * `DiscoveryDraftCodec` dari pack bawaan pemiliknya, jadi bentuknya pasti sah menurut parser produksi.
+ */
+internal fun applyShippedBlueprintBridge(
+    json: String,
+    shipped: List<DomainPack> = DomainPackRegistry.shipped,
+    starters: List<Blueprint> = shippedStarterBlueprints()
+): String {
+    val root = runCatching { JsonParser.parseObject(json) }.getOrNull() ?: return json
+    val requested = root.obj("blueprint")?.string("useShipped")?.takeIf { it.isNotBlank() } ?: return json
+    val starter = starters.firstOrNull { it.code.value == requested }
+        ?: throw DiscoveryDraftDecodeException(
+            "$.blueprint.useShipped",
+            "blueprint bawaan '$requested' tidak dikenal; pilihan: ${starters.joinToString { it.code.value }}"
+        )
+    val owner = shipped.firstOrNull { it.code == starter.pack }
+        ?: throw DiscoveryDraftDecodeException("$.blueprint.useShipped", "pack pemilik blueprint '$requested' tidak ada di registri")
+    val document = JsonParser.parseObject(DiscoveryDraftCodec.encodeToString(DiscoveryDraft(owner, starter)))
+    val blueprint = requireNotNull(document["blueprint"]) { "encode blueprint bawaan gagal" }
+    return JsonValue.Obj(root.entries + ("blueprint" to blueprint)).encode()
+}
+
+/** Starter blueprint bawaan platform; satu-satunya tempat daftar ini dirakit untuk agent (alat katalog juga memakainya). */
+internal fun shippedStarterBlueprints(): List<Blueprint> = GarmentBlueprints.all
 
 /** Galat apa pun menjadi satu baris umpan balik berpath untuk putaran koreksi berikutnya. */
 internal fun issueOf(failure: Throwable): DiscoveryValidationIssue = when (failure) {

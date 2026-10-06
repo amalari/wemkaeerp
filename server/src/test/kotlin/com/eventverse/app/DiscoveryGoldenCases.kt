@@ -28,7 +28,8 @@ data class DiscoveryGoldenCase(
 
 object DiscoveryGoldenCases {
 
-    private val DATA_WIDGETS = setOf("KANBAN", "TABLE", "FORM", "CHECKLIST", "DASHBOARD")
+    /** Rekalibrasi 2026-10-07: dokumen cetak (kuitansi, surat jalan) adalah tampilan sah untuk modul mana pun. */
+    private val DATA_WIDGETS = setOf("KANBAN", "TABLE", "FORM", "CHECKLIST", "DASHBOARD", "PRINT")
 
     val all: List<DiscoveryGoldenCase> = listOf(
         DiscoveryGoldenCase(
@@ -69,7 +70,8 @@ object DiscoveryGoldenCases {
             industryHint = "klinik",
             expectedPackCode = "klinik",
             expectedCapabilities = listOf(setOf("antrean", "pendaftaran", "jadwal"), setOf("tagihan", "kasir", "pembayaran")),
-            allowedWidgets = mapOf("antrean" to setOf("KANBAN", "TABLE"))
+            // Pendaftaran pasien lazim berupa formulir; antrean tetap tidak boleh dasbor/daftar periksa.
+            allowedWidgets = mapOf("antrean" to setOf("KANBAN", "TABLE", "FORM"))
         ),
         DiscoveryGoldenCase(
             name = "bengkel",

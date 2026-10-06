@@ -107,23 +107,39 @@ class DiscoveryEvalGraderTest {
         assertTrue(verdict.passed, "Draf garment bawaan wajib lulus semua kriteria: ${verdict.criteria.filter { !it.passed }}")
     }
 
-    @Test
-    fun `status tanpa kondisi awal dan akhir ditandai penilai status`() {
-        val draft = KoogDiscoveryPrompt.exampleDraft().let { d ->
+    private fun withTransitions(transitions: (List<String>) -> Map<String, List<String>>) =
+        KoogDiscoveryPrompt.exampleDraft().let { d ->
             d.copy(
                 screens = d.screens.map { s ->
                     val p = s.proposal ?: return@map s
-                    s.copy(proposal = p.copy(entity = p.entity?.copy(transitions = fullCycle())))
+                    val options = p.entity?.fields?.firstOrNull { it.key == p.entity?.statusField }?.options ?: return@map s
+                    s.copy(proposal = p.copy(entity = p.entity?.copy(transitions = transitions(options))))
                 }
             )
         }
 
-        val verdict = DiscoveryEvalGrader.grade(jasaItCase, Result.success(draft))
-
+    @Test
+    fun `siklus penuh lolos karena alur bolak-balik sah (rekalibrasi 2026-10-07)`() {
+        val verdict = DiscoveryEvalGrader.grade(jasaItCase, Result.success(withTransitions { o -> o.associateWith { from -> o.filter { it != from } } }))
         val status = verdict.criteria.first { it.criterion == "status_bermakna" }
-        assertTrue(!status.passed, "Siklus penuh tanpa awal/akhir wajib ditandai: ${status.detail}")
-        assertTrue(status.detail.contains("tanpa kondisi awal"))
-        assertTrue(status.detail.contains("tanpa kondisi akhir"))
+        assertTrue(status.passed, "Level stok/status bayar boleh bolak-balik: ${status.detail}")
+    }
+
+    @Test
+    fun `status yatim yang tak terhubung ke alur ditandai penilai status`() {
+        val verdict = DiscoveryEvalGrader.grade(jasaItCase, Result.success(withTransitions { o -> mapOf(o[0] to listOf(o[1])) }))
+        val status = verdict.criteria.first { it.criterion == "status_bermakna" }
+        assertTrue(!status.passed, "Status tanpa hubungan ke alur wajib ditandai: ${status.detail}")
+        assertTrue(status.detail.contains("yatim"))
+    }
+
+    @Test
+    fun `kode pack bebas bila tanpa petunjuk dan bukan garment tetapi persis bila ada petunjuk`() {
+        val draft = KoogDiscoveryPrompt.exampleDraft()           // kode pack 'contoh'
+        val coverage = { case: DiscoveryGoldenCase -> DiscoveryEvalGrader.grade(case, Result.success(draft)).criteria.first { it.criterion == "cakupan_modul" } }
+        assertTrue(coverage(jasaItCase.copy(industryHint = null, expectedPackCode = "kustom", expectedCapabilities = emptyList())).passed)
+        assertTrue(!coverage(jasaItCase.copy(industryHint = "klinik", expectedPackCode = "klinik", expectedCapabilities = emptyList())).passed)
+        assertTrue(!coverage(DiscoveryGoldenCases.all.first { it.name == "garment-cmt" }.copy(expectedBlueprintCode = null)).passed, "garment selalu wajib pack garment")
     }
 
     @Test
@@ -173,11 +189,5 @@ class DiscoveryEvalGraderTest {
     }
 
     /** Kasus lulus/gagal buatan tangan: transisi siklus penuh (Baru→Diproses→Selesai→Baru). */
-    private fun fullCycle(): Map<String, List<String>> = mapOf(
-        "Baru" to listOf("Diproses"),
-        "Diproses" to listOf("Selesai"),
-        "Selesai" to listOf("Baru")
-    )
-
     private class DiscoveryDraftGagal : RuntimeException("simulasi agent gagal total")
 }

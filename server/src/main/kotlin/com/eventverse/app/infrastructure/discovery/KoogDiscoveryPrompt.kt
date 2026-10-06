@@ -74,11 +74,18 @@ internal object KoogDiscoveryPrompt {
 
         Aturan keras — validator produksi menolak pelanggaran berikut:
         1. `pack.code` adalah slug huruf kecil (`klinik`, `bengkel`, `katering`), bukan nama panjang.
+           Bila pesan pengguna memuat "Petunjuk industri", `pack.code` WAJIB persis slug petunjuk itu
+           (mis. petunjuk "klinik" → `klinik`, bukan `klinik_gigi`); jangan menambah kata atau sufiks.
         2. Setiap modul dan slot BARU wajib berprefiks `<pack.code>_` (contoh: `klinik_antrean`). Ini
            mencegah draf merebut id modul platform.
-        3. Jangan menulis ulang pack bawaan platform. Bila salah satu pack bawaan sudah cocok, pakai
-           jembatan: tulis `"pack": {"useShipped": "<kode pack bawaan>"}` — server menyalin dokumen
-           aslinya. `blueprint.pack` tetap memakai kode pack itu.
+        3. Jangan menulis ulang pack bawaan platform. Bila narasi bisnisnya sudah dicakup salah satu pack
+           bawaan (lihat `platform_modules()`: nama, modul, dan istilah pack), kamu WAJIB memakai pack itu
+           lewat jembatan `"pack": {"useShipped": "<kode pack bawaan>"}` — server menyalin dokumen
+           aslinya. Membuat pack baru untuk bisnis yang sudah dicakup pack bawaan dianggap SALAH.
+           Untuk pack bawaan, blueprint-nya JUGA dipilih dari starter bawaan, jangan dikarang:
+           `"blueprint": {"useShipped": "<kode starter>"}` dengan kode dari
+           `platform_modules().shippedPacks[].starterBlueprints` — pilih yang paling cocok dengan
+           narasi (baca `description` dan `targetClientProfile`-nya). Pada kasus ini `screens` boleh kosong.
         4. Setiap `blueprint.modules[].moduleCode` wajib ada di `pack.modules[].id`. Modul non-aktif
            tetap dicantumkan dengan `"active": false` beserta parameter alasan bypass-nya.
         5. `screens[].widget` hanya boleh salah satu dari: $WIDGET_CODES.
@@ -96,7 +103,11 @@ internal object KoogDiscoveryPrompt {
             tanpa kunci lain. `DASHBOARD` dan `CUSTOM_SCREEN`: `"entity": null`.
         11. `entity` = jenis benda yang dikelola layar: `fields` bertipe (`TEXT`, `NUMBER`, `DATE`, `ENUM`,
             `BOOL`; `ENUM` wajib `options` 2–8 pilihan), `statusField` = kunci field ENUM status kerja
-            (2–8 pilihan, ada kondisi awal dan akhir), `transitions` = perpindahan status yang sah.
+            (2–8 pilihan), `transitions` = perpindahan status yang sah. Status yang berupa ALUR KERJA
+            (Baru → Diproses → Selesai) wajib berurutan dengan satu kondisi awal dan satu akhir. Status
+            yang bukan alur kerja — level stok (Tersedia/Menipis/Habis), status pembayaran, status
+            aktif/nonaktif — KOSONGKAN `transitions` (artinya bebas berpindah), jangan menggambar
+            siklus perpindahan.
             Maksimal 12 field per entity; `seed` maksimal 8 baris objek string — angka ditulis "5",
             tanggal "2026-03-01", BOOL "ya"/"tidak", dan field wajib terisi di setiap baris.
         12. `view` mengikuti widget (lihat contoh): TABLE {columns, inlineCreate, editableFields} dengan
@@ -121,6 +132,11 @@ internal object KoogDiscoveryPrompt {
           `{"valid":true}` atau daftar galat berpath (`${'$'}.pack.modules[2].id`,
           `${'$'}.screens[0].proposal.entity.fields[1].type`). Perbaiki dulu sebelum menjawab; jangan
           pernah menjawab dokumen yang masih berisi galat.
+
+        15. Setiap kemampuan yang DISEBUT narasi (pesanan, antrean, jadwal, stok, tagihan/pembayaran,
+            laporan, pendaftaran, dst.) wajib punya modul sendiri, dan `id` modulnya berakhiran kata
+            kemampuan itu: `<pack.code>_pesanan`, `<pack.code>_laporan`, `<pack.code>_tagihan`.
+            Jangan menggabungkan dua kemampuan ke satu modul dan jangan melewatkan satu pun.
 
         Pedoman isi (bukan aturan kaku): ambil 3–6 modul yang benar-benar disebut narasi, satu fase per
         tahap kerja yang jelas, dan seksi menu yang masuk akal bagi pemilik usaha. Nama modul memakai
