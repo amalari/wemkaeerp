@@ -10,6 +10,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
@@ -57,7 +58,11 @@ class KoogDiscoveryAgent(
         require(maxToolIterations > 0) { "maxToolIterations harus positif" }
     }
 
-    override val agentRef: String = "koog/${model.id}/draft-v1"
+    /**
+     * `draft-v2` = prompt & contoh membawa `proposal` (SP-C1). Naikkan versi setiap kali bentuk keluaran
+     * yang diharapkan berubah; draf lama `draft-v1` tetap terbaca karena `proposal` bersifat tambatif.
+     */
+    override val agentRef: String = "koog/${model.id}/draft-v2"
 
     override suspend fun draft(request: DiscoveryRequest): Result<DiscoveryDraft> =
         runCatching { generate(request) }.recoverCatching { failure ->
@@ -80,7 +85,7 @@ class KoogDiscoveryAgent(
             previousAnswer = answer
 
             val draft = try {
-                decodeAnswer(answer)
+                stampAgentProvenance(decodeAnswer(answer), agentRef)
             } catch (e: Exception) {
                 lastFailure = e
                 feedback = listOf(issueOf(e))
@@ -116,7 +121,7 @@ class KoogDiscoveryAgent(
             temperature = TEMPERATURE,
             maxIterations = maxToolIterations
         )
-        val input = KoogDiscoveryPrompt.userMessage(request, feedback, previousAnswer, round)
+        val input = KoogDiscoveryPrompt.userMessage(request, feedback, previousAnswer, round, agentRef)
         return agent.use { it.run(input) }
     }
 
@@ -146,6 +151,21 @@ class KoogDiscoveryAgent(
  */
 internal fun decodeAnswer(answer: String): DiscoveryDraft =
     DiscoveryDraftCodec.decode(applyShippedPackBridge(extractJsonObject(answer)))
+
+/**
+ * Membubuhkan sumber AGENT pada setiap layar ber-proposal — **di server, bukan dipercaya ke model**.
+ * Model yang menulis `{"kind":"PACK"}` atau lupa `source` sama sekali tidak mengubah provenance: seluruh
+ * isi draf ini keluaran agent ini, dan jejak auditnya harus menyebut [agentRef] yang sebenarnya. Layar
+ * tanpa proposal (gaya draf lama) dibiarkan apa adanya. Dipanggil sebelum validasi supaya model tidak
+ * membuang satu putaran koreksi hanya untuk menyalin `source` yang sebenarnya diketahui server.
+ */
+internal fun stampAgentProvenance(draft: DiscoveryDraft, agentRef: String): DiscoveryDraft =
+    if (draft.screens.none { it.proposal != null }) draft
+    else draft.copy(
+        screens = draft.screens.map { s ->
+            if (s.proposal == null) s else s.copy(source = ProposalSource.Agent(agentRef))
+        }
+    )
 
 /**
  * Model sering membungkus JSON dalam pagar kode (` ```json … ``` `) atau menambah kalimat pembuka.
