@@ -39,6 +39,11 @@ import kotlin.test.assertTrue
  */
 class KoogDiscoveryLiveEvalsTest {
 
+    /** `DISCOVERY_LIVE_EVALS_CASES=sablon-bordir,klinik` menjalankan sebagian kasus (hemat biaya saat memverifikasi satu perbaikan). */
+    private fun selectedCases() = System.getenv("DISCOVERY_LIVE_EVALS_CASES")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+        ?.let { names -> DiscoveryGoldenCases.all.filter { it.name in names }.ifEmpty { error("DISCOVERY_LIVE_EVALS_CASES tidak cocok dengan kasus mana pun: $names") } }
+        ?: DiscoveryGoldenCases.all
+
     @Test
     fun `narasi emas dinilai berulang dari model hidup dan laporan tertulis`() = runBlocking {
         assumeTrue("DISCOVERY_LIVE_EVALS bukan 1 — evals LLM hidup dilewati", System.getenv("DISCOVERY_LIVE_EVALS") == "1")
@@ -48,7 +53,7 @@ class KoogDiscoveryLiveEvalsTest {
         val rounds = KoogDiscoveryAgent.DEFAULT_MAX_CORRECTION_ROUNDS
         assumeTrue(
             "Konfirmasi biaya belum diberikan. " +
-                DiscoveryLiveEvalReport.costEstimate(DiscoveryGoldenCases.all.size, repetitions, rounds) +
+                DiscoveryLiveEvalReport.costEstimate(selectedCases().size, repetitions, rounds) +
                 ". Set DISCOVERY_LIVE_EVALS_CONFIRM=yes untuk menjalankan.",
             System.getenv("DISCOVERY_LIVE_EVALS_CONFIRM") == "yes"
         )
@@ -58,7 +63,7 @@ class KoogDiscoveryLiveEvalsTest {
         val agent = KoogDiscoveryAgent(executor = counting, model = model, fallback = null)
 
         val results = mutableListOf<LiveCaseResult>()
-        for (case in DiscoveryGoldenCases.all) {
+        for (case in selectedCases()) {
             var pass = 0
             val failedCriteria = mutableListOf<String>()
             val roundsUsed = mutableListOf<Int>()
@@ -94,7 +99,7 @@ class KoogDiscoveryLiveEvalsTest {
         }
 
         val baseline = DeterministicDiscoveryAgent()
-        val baselineLines = DiscoveryGoldenCases.all.map { case ->
+        val baselineLines = selectedCases().map { case ->
             DiscoveryEvalGrader.grade(case, baseline.draft(DiscoveryRequest(case.narrative, case.industryHint)))
                 .logLine(baseline.agentRef)
         }

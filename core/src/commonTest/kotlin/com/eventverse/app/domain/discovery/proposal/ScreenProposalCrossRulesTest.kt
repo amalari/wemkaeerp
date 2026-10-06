@@ -35,12 +35,12 @@ class ScreenProposalCrossRulesTest {
     fun `istilah konveksi di setiap bagian teks ditolak dengan path bagian itu`() {
         val k = kanbanAntrean()
         assertAt("$.title", purity(k.copy(title = "Antrean jahit")), "jahit")
-        assertAt("$.rationale", purity(k.copy(rationale = "Dipilih karena kain datang bertahap.")), "kain")
+        assertAt("$.rationale", purity(k.copy(rationale = "Dipilih karena jahit berjalan bertahap.")), "jahit")
         assertAt("$.entity.label", purity(k.copy(entity = k.entity?.copy(label = "SPK"))), "SPK")
         val labelField = k.copy(entity = k.entity?.copy(fields = k.entity!!.fields.mapIndexed { i, f -> if (i == 1) f.copy(label = "Buyer") else f }))
         assertAt("$.entity.fields[1].label", purity(labelField), "Buyer")
-        val option = k.copy(entity = k.entity?.copy(fields = k.entity!!.fields.map { f -> if (f.key == "status") f.copy(options = listOf("Menunggu", "Dipotong", "Potong")) else f }, transitions = emptyMap()))
-        assertAt("$.entity.fields[4].options[2]", purity(option), "Potong")
+        val option = k.copy(entity = k.entity?.copy(fields = k.entity!!.fields.map { f -> if (f.key == "status") f.copy(options = listOf("Menunggu", "Diperiksa", "Buyer")) else f }, transitions = emptyMap()))
+        assertAt("$.entity.fields[4].options[2]", purity(option), "Buyer")
         assertAt("$.seed[0].keluhan", purity(k.copy(seed = listOf(mapOf("nama" to "A", "keluhan" to "pesan 100 pcs", "status" to "Menunggu")))), "pcs")
         val tile = ScreenProposalFixtures.dasborHarian().copy(view = ViewProposal.Dashboard(listOf(TileSpec("Order PO aktif", value = "2"))))
         assertAt("$.view.tiles[0].label", purity(tile), "PO")
@@ -50,10 +50,15 @@ class ScreenProposalCrossRulesTest {
 
     @Test
     fun `pencocokan per kata utuh dan tak peka huruf besar`() {
-        assertEquals("Kain", VerticalPurity.leak("Stok Kain rol"))
+        assertEquals("Jahit", VerticalPurity.leak("Stok Jahit rol"))
         assertEquals("po", VerticalPurity.leak("nomor po 12"))
-        assertNull(VerticalPurity.leak("Poli gigi, polimer, tempo, kainnya"))   // 'kainnya' bukan kata 'kain'
+        assertNull(VerticalPurity.leak("Poli gigi, polimer, tempo, jahitnya"))   // 'jahitnya' bukan kata 'jahit'
         assertNull(VerticalPurity.leak("Pasien poliklinik antre"))
+    }
+
+    @Test
+    fun `istilah tekstil umum bukan kebocoran karena sablon dan bordir tidak punya pack baku`() {
+        listOf("sablon", "bordir", "kain", "tekstil", "potong").forEach { assertNull(VerticalPurity.leak("Order $it harian"), it) }
     }
 
     @Test

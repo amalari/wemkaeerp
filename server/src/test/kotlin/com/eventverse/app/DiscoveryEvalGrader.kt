@@ -45,7 +45,7 @@ object DiscoveryEvalGrader {
      */
     private val WORD_TERMS = Regex("\\b(spk|fob|cmt|bom|hpp|po|buyer|makloon|maklon)\\b", RegexOption.IGNORE_CASE)
     private val SUBSTRING_TERMS = listOf(
-        "konveksi", "jahit", "garmen", "garment", "tekstil", "busana", "pakaian", "bordir", "sablon", "kain"
+        "konveksi", "jahit", "garmen", "garment", "busana", "pakaian"
     )
 
     fun grade(case: DiscoveryGoldenCase, result: Result<DiscoveryDraft>): EvalVerdict {

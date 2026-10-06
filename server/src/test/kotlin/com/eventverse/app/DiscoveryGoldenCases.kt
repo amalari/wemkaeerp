@@ -60,9 +60,10 @@ object DiscoveryGoldenCases {
             name = "sablon-bordir",
             narrative = "Usaha sablon dan bordir manual: order sablon kaos masuk harian, dikerjakan per gelombang.",
             industryHint = "sablon",
-            expectedPackCode = "garment",
-            garmentPack = true,
-            expectedBlueprintCode = "fob_full_package"
+            // Keputusan produk 2026-10-07: sablon/bordir tidak punya pack baku — packnya bergantung modul yang
+            // dihasilkan dari alur pengguna. Dinilai dari kemampuan, bukan dari pack garment.
+            expectedPackCode = "sablon",
+            expectedCapabilities = listOf(setOf("pesanan", "order"))
         ),
         DiscoveryGoldenCase(
             name = "klinik",

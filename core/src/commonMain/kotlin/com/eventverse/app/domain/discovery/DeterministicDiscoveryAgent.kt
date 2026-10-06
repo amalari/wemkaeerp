@@ -158,9 +158,10 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
     )
 
     companion object {
+        // Sablon/bordir sengaja TIDAK di sini (keputusan produk 2026-10-07): bukan pack baku, dibentuk dari alur pengguna.
         private val GARMENT_WORDS = listOf(
             "konveksi", "jahit", "garmen", "garment", "kain", "tekstil", "busana", "pakaian",
-            "bordir", "sablon", "makloon", "potong", "spk", "fob", "cmt"
+            "makloon", "potong", "spk", "fob", "cmt"
         )
         private val CMT_WORDS = listOf("makloon", "maklon", "cmt", "kain titipan", "bahan dari buyer", "bahan disediakan")
         private val D2C_WORDS = listOf("d2c", "brand sendiri", "distro", "retail", "marketplace", "toko online")
