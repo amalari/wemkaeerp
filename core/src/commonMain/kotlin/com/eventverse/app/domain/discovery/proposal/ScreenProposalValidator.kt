@@ -7,7 +7,7 @@ import com.eventverse.app.domain.prototype.DataBinding
 data class ProposalIssue(val path: String, val message: String)
 
 /** Pengumpul galat berpath bersama aturan-aturan validator; path anak dirakit dari [root]. */
-internal class IssueSink(private val root: String) {
+internal class IssueSink(private val root: String, private val packKeys: Boolean = false) {
     val issues = mutableListOf<ProposalIssue>()
 
     fun add(sub: String, message: String) { issues += ProposalIssue("$root$sub", message) }
@@ -19,7 +19,9 @@ internal class IssueSink(private val root: String) {
     }
 
     fun key(sub: String, value: String, name: String) {
-        if (!ProposalLimits.KEY.matches(value)) {
+        if (packKeys) {
+            if (!ProposalLimits.PACK_KEY.matches(value)) add(sub, "$name '$value' tidak sah: tidak boleh kosong atau berspasi di tepi, maksimum 41 karakter")
+        } else if (!ProposalLimits.KEY.matches(value)) {
             add(sub, "$name '$value' tidak sah: huruf kecil awal, lalu huruf kecil/angka/garis bawah, maksimum 41 karakter")
         }
     }
@@ -50,7 +52,7 @@ object ScreenProposalValidator {
         source: ProposalSource? = null,
         packModuleIds: Set<String>? = null
     ): List<ProposalIssue> {
-        val sink = IssueSink(path)
+        val sink = IssueSink(path, packKeys = source == ProposalSource.Pack)
         sink.text(".screenId", proposal.screenId, "screenId")
         sink.text(".title", proposal.title, "title")
         sink.text(".rationale", proposal.rationale, "rationale")

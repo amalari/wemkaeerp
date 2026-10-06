@@ -13,6 +13,9 @@ import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 
+/** Melekatkan alasan pilihan layar (data pack) tanpa menambah argumen posisi ke tiap konstruktor. */
+private fun ScreenSuggestion.because(reason: String): ScreenSuggestion = copy(rationale = reason)
+
 /**
  * Usulan layar prototype bawaan pack konveksi (mock `/builder/prototype`): satu layar per modul
  * operasional, widget-nya mengikuti watak kerjanya (PO → tabel daftar, SPK & lini jahit → papan
@@ -47,7 +50,7 @@ object GarmentScreenSuggestions {
                 inlineCreate = true,
                 editableFields = listOf("Pembeli", "Produk", "Target Kirim")
             )
-        ),
+        ).because("Dipilih karena PO dan prospek dibandingkan berderet — pembeli, produk, dan target kirim — lalu statusnya diubah langsung di baris."),
         ScreenSuggestion(
             GarmentModules.SAMPLING_ORDER, "Papan SPK Sampling", WidgetKind.KANBAN,
             GarmentExportSeed.samplingRows(),
@@ -73,12 +76,12 @@ object GarmentScreenSuggestions {
                 ),
                 detailForm = FormConfig(listOf("Nomor", "Artikel", "Jenis", "Pembeli", "Jumlah", "Due", "Mendesak"), "Simpan SPK")
             )
-        ),
+        ).because("Dipilih karena SPK sampling berpindah tahap dari baru, dikerjakan, sampai selesai, dan antrean kerja terlihat jelas di papan."),
         ScreenSuggestion(
             GarmentModules.TECH_PACK_BOM, "Spesifikasi BOM & Tech Pack", WidgetKind.TABLE,
             GarmentExportSeed.bomRows(),
             tableHints = TableHints("Status", listOf("Draft", "Final"))
-        ),
+        ).because("Dipilih karena BOM adalah daftar bahan per artikel yang dibaca berderet dan ditandai draft atau final."),
         ScreenSuggestion(
             GarmentModules.COSTING_HPP, "Dasbor HPP & Biaya", WidgetKind.DASHBOARD,
             listOf(
@@ -96,7 +99,7 @@ object GarmentScreenSuggestions {
                     "SPK sampling berjalan" to CountSpec(GarmentModules.SAMPLING_ORDER.value, "Kolom", notEquals = "Selesai", suffix = " SPK")
                 )
             )
-        ),
+        ).because("Dipilih karena pemilik butuh angka ringkas HPP, margin, dan order aktif tanpa membuka daftar."),
         ScreenSuggestion(
             GarmentModules.INVENTORY, "Stok Kain & Bahan Baku", WidgetKind.TABLE,
             GarmentExportSeed.inventoryRows(),
@@ -109,7 +112,7 @@ object GarmentScreenSuggestions {
                 options = mapOf("Kepemilikan" to listOf("Milik pabrik", "Titipan buyer")),
                 submitLabel = "Catat bahan"
             )
-        ),
+        ).because("Dipilih karena stok kain dicek berderet per bahan, dengan penanda milik pabrik atau titipan buyer."),
         ScreenSuggestion(
             GarmentModules.PRODUCTION_MRP, "Jadwal Potong & SPK Massal", WidgetKind.KANBAN,
             GarmentExportSeed.mrpRows(),
@@ -118,19 +121,19 @@ object GarmentScreenSuggestions {
                 transitions = mapOf("Antre Potong" to setOf("Berjalan"), "Berjalan" to setOf("Antre Potong", "Selesai")),
                 groupLabel = "Tahap produksi"
             )
-        ),
+        ).because("Dipilih karena SPK massal bergerak dari antre potong, berjalan, sampai selesai dan perlu terlihat sebagai papan."),
         ScreenSuggestion(
             GarmentModules.OPERATOR_EXEC, "Kanban Lini Jahit", WidgetKind.KANBAN,
             GarmentExportSeed.linimRows(),
             KanbanHints(columns = listOf("Lini 2", "Lini 3", "Lini 4"), groupLabel = "Lini jahit")
-        ),
+        ).because("Dipilih karena pekerjaan dibagi per lini jahit dan kepala produksi perlu melihat beban tiap lini."),
         ScreenSuggestion(
             GarmentModules.QUALITY_CONTROL, "Checklist Inspeksi QC", WidgetKind.CHECKLIST,
             GarmentExportSeed.qcRows()
-        ),
+        ).because("Dipilih karena inspeksi mutu adalah daftar butir periksa yang dicentang satu per satu."),
         ScreenSuggestion(
             GarmentModules.FULFILLMENT, "Surat Jalan & Packing List", WidgetKind.PRINT,
             listOf(GarmentExportSeed.suratJalanRow())
-        )
+        ).because("Dipilih karena surat jalan dan packing list diserahkan ke pembeli dalam bentuk cetak.")
     )
 }

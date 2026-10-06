@@ -25,12 +25,14 @@ class ProposalConversionException(val issues: List<ProposalIssue>) :
  * melempar mentah dan tidak pernah menghasilkan layar setengah jadi (konstruktor `PrototypeSpec` tetap jadi
  * lapisan kedua; kegagalannya dibungkus jadi isu `$`).
  *
+ * [source] diteruskan ke validator (hanya [ProposalSource.Pack] memakai aturan kunci longgar, lihat [ProposalLimits.PACK_KEY]).
+ *
  * `PRINT` dan `CUSTOM_SCREEN` sah sebagai usulan tetapi **tidak punya bentuk interaktif** (sama seperti
  * `WidgetRegistry.interactiveFor` yang mengembalikan null): konversi gagal dengan pesan jelas dan pemanggil
  * menggambarnya statis — tidak ada tebakan.
  */
-fun ScreenProposal.toInteractiveScreen(): Result<InteractiveScreen> {
-    val issues = ScreenProposalValidator.validate(this)
+fun ScreenProposal.toInteractiveScreen(source: ProposalSource? = null): Result<InteractiveScreen> {
+    val issues = ScreenProposalValidator.validate(this, source = source)
     if (issues.isNotEmpty()) return Result.failure(ProposalConversionException(issues))
     if (widget == WidgetKind.PRINT || widget == WidgetKind.CUSTOM_SCREEN) {
         return Result.failure(
@@ -40,7 +42,9 @@ fun ScreenProposal.toInteractiveScreen(): Result<InteractiveScreen> {
     return runCatching {
         val entities = entity?.let { listOf(it.toEntitySpec()) }.orEmpty()
         val spec = PrototypeSpec(entities, listOf(toScreenSpec()))
-        val rows = entity?.let { e -> mapOf(e.id to seed.mapIndexed { i, r -> PrototypeRow("$screenId-${i + 1}", r) }) }.orEmpty()
+        // Tanpa seed tidak ada kunci sama sekali (sama dengan layar form lama), bukan daftar kosong.
+        val rows = entity?.takeIf { seed.isNotEmpty() }
+            ?.let { e -> mapOf(e.id to seed.mapIndexed { i, r -> PrototypeRow("$screenId-${i + 1}", r) }) }.orEmpty()
         InteractiveScreen(spec, rows, binding).also { it.newStore() }
     }.recoverCatching { e ->
         if (e is ProposalConversionException) throw e
@@ -69,7 +73,7 @@ private fun ScreenProposal.toScreenSpec(): ScreenSpec {
                 kanban = KanbanConfig(
                     group, columns, title, e0.fields.map { it.key }.filter { it != title && it != group },
                     card = v.card, columnMeta = v.columnMeta,
-                    detailForm = v.detailFormFields.takeIf { it.isNotEmpty() }?.let { FormConfig(it) }
+                    detailForm = v.detailFormFields.takeIf { it.isNotEmpty() }?.let { FormConfig(it, v.detailFormSubmitLabel) }
                 )
             )
         }

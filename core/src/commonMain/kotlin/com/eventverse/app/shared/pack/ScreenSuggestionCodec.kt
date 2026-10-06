@@ -73,7 +73,8 @@ internal object ScreenSuggestionCodec {
                 "submitLabel" to jsonOf(h.submitLabel)
             )
         } ?: JsonValue.Null),
-        "dataBinding" to InteractiveScreenCodec.encodeBinding(s.dataBinding)
+        "dataBinding" to InteractiveScreenCodec.encodeBinding(s.dataBinding),
+        "rationale" to jsonOf(s.rationale)
     )
 
     private fun encodeFieldHint(f: FieldHint): JsonValue.Obj = jsonObjectOf(
@@ -158,7 +159,8 @@ internal object ScreenSuggestionCodec {
                         (h["submitLabel"] as? JsonValue.Str)?.value
                     )
                 },
-                dataBinding = InteractiveScreenCodec.decodeBindingValue(o["dataBinding"])
+                dataBinding = InteractiveScreenCodec.decodeBindingValue(o["dataBinding"]),
+                rationale = (o["rationale"] as? JsonValue.Str)?.value
             )
         } catch (e: DomainPackDecodeException) {
             throw e

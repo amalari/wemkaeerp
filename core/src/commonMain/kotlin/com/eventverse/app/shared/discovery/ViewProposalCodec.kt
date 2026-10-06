@@ -20,7 +20,8 @@ internal object ViewProposalCodec {
         is ViewProposal.Kanban -> jsonObjectOf(
             "card" to InteractiveScreenCodec.encodeCardElements(v.card),
             "columnMeta" to InteractiveScreenCodec.encodeColumnMetaMap(v.columnMeta),
-            "detailFormFields" to jsonArrayOf(v.detailFormFields.map(::jsonOf))
+            "detailFormFields" to jsonArrayOf(v.detailFormFields.map(::jsonOf)),
+            "detailFormSubmitLabel" to jsonOf(v.detailFormSubmitLabel)
         )
         is ViewProposal.Table -> jsonObjectOf(
             "columns" to jsonArrayOf(v.columns.map(::jsonOf)), "inlineCreate" to jsonOf(v.inlineCreate),
@@ -48,7 +49,8 @@ internal object ViewProposalCodec {
                 ViewProposal.Kanban(
                     card = r.parsed("card") { InteractiveScreenCodec.decodeCardElements(raw["card"]) },
                     columnMeta = r.parsed("columnMeta") { InteractiveScreenCodec.decodeColumnMetaMap(raw["columnMeta"]) },
-                    detailFormFields = r.strings("detailFormFields")
+                    detailFormFields = r.strings("detailFormFields"),
+                    detailFormSubmitLabel = r.optString("detailFormSubmitLabel") ?: "Simpan"
                 )
             }
             WidgetKind.TABLE -> ViewProposal.Table(r.strings("columns"), r.boolean("inlineCreate", false), r.strings("editableFields"))

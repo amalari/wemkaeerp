@@ -19,7 +19,8 @@ sealed interface ViewProposal {
         val card: List<CardElement> = emptyList(),
         val columnMeta: Map<String, ColumnMeta> = emptyMap(),
         /** Field yang tampil di form saat kartu diketuk; kosong = tanpa form detail. */
-        val detailFormFields: List<String> = emptyList()
+        val detailFormFields: List<String> = emptyList(),
+        val detailFormSubmitLabel: String = "Simpan"
     ) : ViewProposal
 
     data class Table(
