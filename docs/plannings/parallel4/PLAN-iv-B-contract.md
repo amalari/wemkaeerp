@@ -25,9 +25,9 @@
 
 **B4 — Ringkasan & route.** `DiscoverySummary.kt` mengirim `interview`, `nextQuestion`, `origin`; `DiscoveryInterviewRoutes.kt` (`POST …/interview`) — pemilik draf saja, **fail-closed**. **AC:** tes 401/403 (pengguna lain), tes ringkasan memuat kunci baru **dan** draf lama tak berubah; dijalankan terhadap DB scratch.
 
-**B5 — Perluasan validator.** Kemurnian vertikal, batas ukuran, konsistensi lintas-bagian (peran→divisi, tautan→modul, `origin` vs pack). **AC:** tes per aturan sah/tak sah; pesan galat bisa dipahami LLM.
+**B5 — Perluasan validator.** Kemurnian vertikal — **jadikan kosakata cadangan per pack sebagai data** (`DomainPack`, opsional dan kompatibel mundur) alih-alih daftar kode `VerticalPurity` (sablon/bordir/kain/tekstil/potong sudah dikeluarkan dari daftar kode pada 2026-10-07; tidak ada pack baku untuk usaha tekstil-adjacent) —, batas ukuran, konsistensi lintas-bagian (peran→divisi, tautan→modul, `origin` vs pack). **AC:** tes per aturan sah/tak sah; pesan galat bisa dipahami LLM.
 
-**B6 — Modul bersama (I5, opsional, hanya setelah keputusan koordinator).** `ModuleReference` + adaptor port; **tidak dikerjakan** sebelum invarian "pack bawaan identik" dan "id platform dilarang" diputuskan.
+**B6 — Modul bersama (I5, setelah G2).** Pack **tidak baku**: dirakit dari modul hasil alur pengguna, dan modul yang bisa dipakai ulang dipakai ulang (arah diputuskan 2026-10-07). Bangun `ModuleReference` + adaptor port (kosakata port platform ↔ pack); rancang dulu perubahan invarian "pack bawaan identik" dan "id platform dilarang" sebagai usulan bertes sebelum menyentuh validator. **AC:** pack non-garment merujuk modul keuangan platform dengan `portMapping` lengkap lolos validator; rujukan ke id tak terdaftar atau port tak kompatibel ditolak berpath; pack garment lama tak berubah.
 
 ### Urutan & ketergantungan
 `B0 (segera) → B1 → B2 → B3 → B4 → B5 → [keputusan] B6`. **A dan C menunggu B0.**
@@ -75,7 +75,9 @@ data class ModuleReference(val platformModuleId: String, val portMapping: Map<Po
 
 Bentuk hasil yang sudah ada dipakai ulang: divisi → `Department`; peran → `DepartmentTier`/`CustomRole`; peran ↔ modul → `DepartmentModuleAssignment` (kunci NAME enum, bukan code — lihat `module-integration-rules` §5.5).
 
-## 3. Modul bersama (mis. keuangan) — keputusan desain terbuka
+## 3. Modul bersama (mis. keuangan) — arah diputuskan, rincian invarian terbuka
+
+**Arahan 2026-10-07:** pack **tidak baku**; ia dirakit dari modul yang dihasilkan dari alur pengguna, dan modul yang bisa dipakai ulang (mis. keuangan, data port berbeda) dipakai ulang. Karena itu modul bersama naik dari "opsional" menjadi tahap yang pasti dikerjakan (I5); yang masih terbuka hanya rincian di bawah.
 
 - **Sekarang:** modul pack baru wajib berawalan kode pack dan id platform dilarang dipakai ⇒ pack baru **tidak bisa** merujuk modul keuangan platform.
 - **Usulan:** `ModuleReference` ke modul platform yang terdaftar (`OperationalModuleCatalog`) + **adaptor port** (kosakata port pack ↔ kosakata platform). Validator: rujukan hanya ke id yang terdaftar, `portMapping` lengkap dan tipenya kompatibel (kontrak input/output modul).
@@ -95,7 +97,7 @@ Bentuk hasil yang sudah ada dipakai ulang: divisi → `Department`; peran → `D
 
 ## 5. Pertanyaan terbuka (asumsi bawaan di §12)
 
-1. **Sablon/bordir:** pack sendiri atau bagian garment? (menentukan daftar kemurnian vertikal dan kasus eval — lihat laporan eval ronde 2.)
+1. ~~Sablon/bordir: pack sendiri atau bagian garment?~~ **DIPUTUSKAN 2026-10-07:** sablon dan bordir **tidak punya pack baku** — pack bergantung modul yang dihasilkan dari alur pengguna, dan modul yang bisa dipakai ulang dipakai ulang. Akibatnya sudah diterapkan (commit `1b4e7b8`): kata sablon/bordir/kain/tekstil/potong bukan lagi kebocoran konveksi, agent deterministik tidak mengarahkan sablon/bordir ke pack garment, kasus eval `sablon-bordir` dinilai dari kemampuan.
 2. **Wawancara wajib atau opsional?** Usul: opsional, dengan "terima semua tebakan".
 3. **Batas giliran** (usul ≤ 8) dan apakah tiap giliran boleh berisi beberapa keputusan sekaligus.
 4. **Modul bersama (§3):** boleh mengubah invarian "pack bawaan identik" dan "id platform dilarang"?
@@ -186,7 +188,7 @@ G4  Modul bersama (I5)      ── hanya setelah keputusan §5.4 dan bila G2 hij
 7. **Hak akses:** pengguna lain menjawab wawancara draf orang ⇒ 403; tanpa login ⇒ 401.
 
 ## 12. Asumsi bawaan sampai Anda memutuskan (ubah di sini bila berbeda)
-Wawancara **opsional**; ≤ 8 giliran; hasil ke tenant = **usulan yang ditinjau** (tidak otomatis membuat `Department`); modul bersama (I5) **ditunda**; sablon/bordir **belum diputuskan** (tidak memblokir G0–G2; menentukan daftar kemurnian vertikal dan kasus eval).
+Wawancara **opsional**; ≤ 8 giliran; hasil ke tenant = **usulan yang ditinjau** (tidak otomatis membuat `Department`); modul bersama (I5) **dikerjakan setelah G2** tetapi arahnya sudah diputuskan (pakai ulang diinginkan; tinggal rincian invarian §3); sablon/bordir **diputuskan 2026-10-07** (tidak punya pack baku, lihat §5.1). Daftar kemurnian vertikal sebaiknya jadi **data pack** (kosakata cadangan per pack) alih-alih daftar kode.
 
 ## Format laporan ke koordinator (setiap PR / akhir gelombang)
 1. Butir selesai + cabang/PR. 2. Hasil perintah verifikasi (sertakan kegagalan apa adanya). 3. `wc -l` sebelum → sesudah untuk file di atas batas lunak. 4. Yang belum diverifikasi + temuan/keputusan terbuka. 5. Perubahan kontrak yang kamu butuhkan — jangan menyunting berkas milik agent lain.

@@ -14,7 +14,7 @@
 **Dilarang:** `app/**`, `core/**` (kontrak = B; minta perubahan lewat laporan), `DiscoveryRoutes.kt`.
 
 ### Butir kerja
-**C0 — Kasus eval & penilai wawancara (G0, offline, ±1 hari).** Rancang ≥ 10 kasus emas **dengan kunci jawaban per langkah** (divisi/peran/tautan yang diharapkan) dan penilai berstruktur (kriteria: valid, divisi masuk akal, peran→divisi benar, tautan modul benar, **asal modul masuk akal**, kemurnian vertikal, jumlah giliran). **Penilai dites sendiri** (kasus lulus/gagal buatan tangan) dan **baseline deterministik wajib 100%**; kalibrasi penilai dicatat terbuka. **AC:** penilai lulus tesnya sendiri; tidak ada panggilan LLM.
+**C0 — Kasus eval & penilai wawancara (kasus usaha tekstil-adjacent seperti sablon/bordir dinilai dari kemampuan dan asal modul, **bukan** dari pack baku — keputusan 2026-10-07) (G0, offline, ±1 hari).** Rancang ≥ 10 kasus emas **dengan kunci jawaban per langkah** (divisi/peran/tautan yang diharapkan) dan penilai berstruktur (kriteria: valid, divisi masuk akal, peran→divisi benar, tautan modul benar, **asal modul masuk akal**, kemurnian vertikal, jumlah giliran). **Penilai dites sendiri** (kasus lulus/gagal buatan tangan) dan **baseline deterministik wajib 100%**; kalibrasi penilai dicatat terbuka. **AC:** penilai lulus tesnya sendiri; tidak ada panggilan LLM.
 
 **C1 — Prompt wawancara.** Contoh dokumen **dirakit dari kode** (`DiscoveryDraftCodec`) dan dites lolos validator; aturan: tebak dulu baru tanya, jangan mengarang modul/divisi di luar katalog, `origin` jujur. **AC:** contoh lolos validator penuh.
 
@@ -72,7 +72,9 @@ data class ModuleReference(val platformModuleId: String, val portMapping: Map<Po
 
 Bentuk hasil yang sudah ada dipakai ulang: divisi → `Department`; peran → `DepartmentTier`/`CustomRole`; peran ↔ modul → `DepartmentModuleAssignment` (kunci NAME enum, bukan code — lihat `module-integration-rules` §5.5).
 
-## 3. Modul bersama (mis. keuangan) — keputusan desain terbuka
+## 3. Modul bersama (mis. keuangan) — arah diputuskan, rincian invarian terbuka
+
+**Arahan 2026-10-07:** pack **tidak baku**; ia dirakit dari modul yang dihasilkan dari alur pengguna, dan modul yang bisa dipakai ulang (mis. keuangan, data port berbeda) dipakai ulang. Karena itu modul bersama naik dari "opsional" menjadi tahap yang pasti dikerjakan (I5); yang masih terbuka hanya rincian di bawah.
 
 - **Sekarang:** modul pack baru wajib berawalan kode pack dan id platform dilarang dipakai ⇒ pack baru **tidak bisa** merujuk modul keuangan platform.
 - **Usulan:** `ModuleReference` ke modul platform yang terdaftar (`OperationalModuleCatalog`) + **adaptor port** (kosakata port pack ↔ kosakata platform). Validator: rujukan hanya ke id yang terdaftar, `portMapping` lengkap dan tipenya kompatibel (kontrak input/output modul).
@@ -92,7 +94,7 @@ Bentuk hasil yang sudah ada dipakai ulang: divisi → `Department`; peran → `D
 
 ## 5. Pertanyaan terbuka (asumsi bawaan di §12)
 
-1. **Sablon/bordir:** pack sendiri atau bagian garment? (menentukan daftar kemurnian vertikal dan kasus eval — lihat laporan eval ronde 2.)
+1. ~~Sablon/bordir: pack sendiri atau bagian garment?~~ **DIPUTUSKAN 2026-10-07:** sablon dan bordir **tidak punya pack baku** — pack bergantung modul yang dihasilkan dari alur pengguna, dan modul yang bisa dipakai ulang dipakai ulang. Akibatnya sudah diterapkan (commit `1b4e7b8`): kata sablon/bordir/kain/tekstil/potong bukan lagi kebocoran konveksi, agent deterministik tidak mengarahkan sablon/bordir ke pack garment, kasus eval `sablon-bordir` dinilai dari kemampuan.
 2. **Wawancara wajib atau opsional?** Usul: opsional, dengan "terima semua tebakan".
 3. **Batas giliran** (usul ≤ 8) dan apakah tiap giliran boleh berisi beberapa keputusan sekaligus.
 4. **Modul bersama (§3):** boleh mengubah invarian "pack bawaan identik" dan "id platform dilarang"?
@@ -183,7 +185,7 @@ G4  Modul bersama (I5)      ── hanya setelah keputusan §5.4 dan bila G2 hij
 7. **Hak akses:** pengguna lain menjawab wawancara draf orang ⇒ 403; tanpa login ⇒ 401.
 
 ## 12. Asumsi bawaan sampai Anda memutuskan (ubah di sini bila berbeda)
-Wawancara **opsional**; ≤ 8 giliran; hasil ke tenant = **usulan yang ditinjau** (tidak otomatis membuat `Department`); modul bersama (I5) **ditunda**; sablon/bordir **belum diputuskan** (tidak memblokir G0–G2; menentukan daftar kemurnian vertikal dan kasus eval).
+Wawancara **opsional**; ≤ 8 giliran; hasil ke tenant = **usulan yang ditinjau** (tidak otomatis membuat `Department`); modul bersama (I5) **dikerjakan setelah G2** tetapi arahnya sudah diputuskan (pakai ulang diinginkan; tinggal rincian invarian §3); sablon/bordir **diputuskan 2026-10-07** (tidak punya pack baku, lihat §5.1). Daftar kemurnian vertikal sebaiknya jadi **data pack** (kosakata cadangan per pack) alih-alih daftar kode.
 
 ## Format laporan ke koordinator (setiap PR / akhir gelombang)
 1. Butir selesai + cabang/PR. 2. Hasil perintah verifikasi (sertakan kegagalan apa adanya). 3. `wc -l` sebelum → sesudah untuk file di atas batas lunak. 4. Yang belum diverifikasi + temuan/keputusan terbuka. 5. Perubahan kontrak yang kamu butuhkan — jangan menyunting berkas milik agent lain.
