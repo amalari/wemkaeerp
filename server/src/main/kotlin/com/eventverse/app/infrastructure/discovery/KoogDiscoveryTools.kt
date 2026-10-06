@@ -230,10 +230,18 @@ internal fun draftArgument(rawArgs: JSONObject, serializer: JSONSerializer): Str
     }
 }
 
-/** Laporan validasi sebagai JSON: `{"valid":false,"issues":[{"path":"…","message":"…"}]}`. */
+/**
+ * Laporan validasi sebagai JSON: `{"valid":false,"issues":[{"path":"…","message":"…"}]}`.
+ *
+ * Alat ini **harus memahami jembatan `useShipped` yang sama** dengan jawaban akhir ([decodeAnswer]); kalau tidak,
+ * model menulis jawaban yang benar (`{"pack":{"useShipped":"garment"}}`), ditolak alat ini, lalu menulis ulang
+ * seluruh pack dari ingatan sampai kehabisan langkah (ditemukan di eval live 2026-10-07).
+ */
 internal fun validationReport(draftJson: String): String = reportOf(
     try {
-        DiscoveryDraftValidator.validate(DiscoveryDraftCodec.decode(draftJson))
+        DiscoveryDraftValidator.validate(
+            DiscoveryDraftCodec.decode(applyShippedBlueprintBridge(applyShippedPackBridge(draftJson)))
+        )
     } catch (e: DiscoveryDraftDecodeException) {
         listOf(DiscoveryValidationIssue(e.path, e.message ?: "dokumen tidak sah"))
     } catch (e: IllegalArgumentException) {

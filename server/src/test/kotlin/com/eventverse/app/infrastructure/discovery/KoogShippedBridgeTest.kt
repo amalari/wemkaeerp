@@ -56,3 +56,22 @@ class KoogShippedBridgeTest {
             .forEach { assertTrue(s.contains(it), "prompt tidak memuat '$it'") }
     }
 }
+
+/** Alat `validate_draft` dan jawaban akhir harus sepakat: dokumen berjembatan dinilai sama. */
+class KoogValidateToolBridgeTest {
+
+    private val bridged = """{"pack":{"useShipped":"garment"},"blueprint":{"useShipped":"fob_full_package"},"screens":[]}"""
+
+    @Test
+    fun `validate_draft menerima dokumen berjembatan pack dan blueprint`() {
+        val report = JsonParser.parseObject(validationReport(bridged))
+        assertEquals(true, report.boolean("valid"), report.encode())
+    }
+
+    @Test
+    fun `validate_draft menolak starter tak dikenal berpath bukan galat pack yang menyesatkan`() {
+        val report = JsonParser.parseObject(validationReport(bridged.replace("fob_full_package", "garment_starter")))
+        assertEquals(false, report.boolean("valid"))
+        assertEquals("$.blueprint.useShipped", report.objectArray("issues").single().string("path"))
+    }
+}
