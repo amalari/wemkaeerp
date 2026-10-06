@@ -3,6 +3,8 @@ package com.eventverse.app.domain.discovery
 import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.blueprint.BlueprintModule
+import com.eventverse.app.domain.discovery.proposal.DeterministicScreenProposer
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.GarmentBlueprints
@@ -30,7 +32,7 @@ import com.eventverse.app.domain.rbac.ScopeCapability
  * 1. narasi konveksi → draf memakai pack garment bawaan + salah satu starter B4 (FOB/CMT/D2C). Dokumen pack
  *    **identik** dengan yang dikirim platform — validator menolak penulisan ulang pack bawaan;
  * 2. narasi lain → pack baru berprefiks kode vertikal (aturan identitas global B7), satu fase, satu seksi,
- *    dan modul generik per kata kunci kemampuan. Modul selalu berprefiks `<kode pack>_`, jadi tidak mungkin
+ *    dan modul generik per kata kunci kemampuan, **beserta layarnya** (`DeterministicScreenProposer`, source DETERMINISTIC). Modul selalu berprefiks `<kode pack>_`, jadi tidak mungkin
  *    merebut id platform (risiko plan §7).
  *
  * Ini juga baseline evals A9: skor agent LLM dibandingkan hasil deterministik yang sama narasinya.
@@ -106,7 +108,11 @@ class DeterministicDiscoveryAgent : DiscoveryAgent {
             targetClientProfile = request.narrative.take(150),
             modules = modules.map { BlueprintModule(it.id.value, active = true) }
         )
-        return DiscoveryDraft(pack = pack, blueprint = blueprint)
+        // Layar dari pemetaan peran → tampilan pack (plan §2.3); modul tanpa pendapat tidak dibuatkan layar.
+        val screens = DeterministicScreenProposer.proposalsForAll(pack).getOrThrow().map { p ->
+            PrototypeScreen(p.screenId, p.moduleId, p.title, p.widget.code, p, ProposalSource.Deterministic)
+        }
+        return DiscoveryDraft(pack = pack, blueprint = blueprint, screens = screens)
     }
 
     /** Kode pack dari hint, atau kata kunci vertikal pertama di narasi; slug ketat, tanpa jatuh ke 'garment'. */
