@@ -4,6 +4,8 @@
 
 > Berdiri sendiri untuk satu agent. Bila selisih dengan plan induk, **plan induk (kontrak §6) yang berlaku**.
 
+> **PEMBARUAN 2026-10-07 (WAJIB BACA, mengalahkan butir di bawah bila bertentangan):** induk §4.1 (aturan berdasar cerita), §4.2 (persona konsultan + fase F0-F2), §5 (keputusan: wawancara opsional, <=8 giliran G1-G5 + <=6 giliran F0-F2, hasil hanya usulan), §6.1 (kontrak `basisRef`, `BusinessProfile`, `RequirementSpec`), §8.1 (jadwal).
+
 ---
 
 ## Misi & Lingkupmu — Agent B
@@ -28,6 +30,9 @@
 **B5 — Perluasan validator.** Kemurnian vertikal — **jadikan kosakata cadangan per pack sebagai data** (`DomainPack`, opsional dan kompatibel mundur) alih-alih daftar kode `VerticalPurity` (sablon/bordir/kain/tekstil/potong sudah dikeluarkan dari daftar kode pada 2026-10-07; tidak ada pack baku untuk usaha tekstil-adjacent) —, batas ukuran, konsistensi lintas-bagian (peran→divisi, tautan→modul, `origin` vs pack). **AC:** tes per aturan sah/tak sah; pesan galat bisa dipahami LLM.
 
 **B6 — Modul bersama (I5, setelah G2).** Pack **tidak baku**: dirakit dari modul hasil alur pengguna, dan modul yang bisa dipakai ulang dipakai ulang (arah diputuskan 2026-10-07). Bangun `ModuleReference` + adaptor port (kosakata port platform ↔ pack); rancang dulu perubahan invarian "pack bawaan identik" dan "id platform dilarang" sebagai usulan bertes sebelum menyentuh validator. **AC:** pack non-garment merujuk modul keuangan platform dengan `portMapping` lengkap lolos validator; rujukan ke id tak terdaftar atau port tak kompatibel ditolak berpath; pack garment lama tak berubah.
+
+**B7 - Berdasar cerita & persona (G0, bagian dari kontrak; +0,5 hari).** Tulis kode §6.1: `Basis`, `BasisRef`, `BusinessProfile`, `RequirementSpec`, langkah `F0_BISNIS/F1_TUJUAN/F2_SPEK`; `basisRef` wajib di divisi/peran/tautan/sambungan. Validator: `SARAN_BELUM_DIJAWAB` ditolak berpath, `NARASI` wajib `quote` substring narasi, `JAWABAN` wajib `answerId` ada. `nextQuestion` mengenal fase F0-F2 (<= 6 giliran). Ringkasan/route membawa `profile`, `specs`, `basis` per modul.
+- **AC:** draf lama terbaca; tes per aturan dengan path tepat; fixture non-garment; modul tanpa dasar -> ditolak. **Kabari A dan C** setelah merge.
 
 ### Urutan & ketergantungan
 `B0 (segera) → B1 → B2 → B3 → B4 → B5 → [keputusan] B6`. **A dan C menunggu B0.**

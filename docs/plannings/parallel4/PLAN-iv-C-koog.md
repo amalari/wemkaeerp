@@ -4,6 +4,8 @@
 
 > Berdiri sendiri untuk satu agent. Bila selisih dengan plan induk, **plan induk (kontrak §6) yang berlaku**.
 
+> **PEMBARUAN 2026-10-07 (WAJIB BACA, mengalahkan butir di bawah bila bertentangan):** induk §4.1 (aturan berdasar cerita), §4.2 (persona konsultan + fase F0-F2), §5 (keputusan: wawancara opsional, <=8 giliran G1-G5 + <=6 giliran F0-F2, hasil hanya usulan), §6.1 (kontrak `basisRef`, `BusinessProfile`, `RequirementSpec`), §8.1 (jadwal).
+
 ---
 
 ## Misi & Lingkupmu — Agent C
@@ -25,6 +27,11 @@
 **C4 — Eval live (G3, opt-in).** Skrip dengan **estimasi biaya dicetak dan diverifikasi** (estimasi lama meleset ±4× — gandakan margin), konfirmasi eksplisit, ulangan 1 dulu baru 3; periksa saldo sebelum/sesudah; laporan `docs/plannings/eval-iv-<tanggal>.md` (jangan menimpa laporan lama — tanggal dalam UTC). Kegagalan penilai vs model dipisah di laporan.
 
 **C5 — Perbaikan dari eval.** Prompt/alat/penilai diperbaiki berdasar pola gagal; kalibrasi penilai ditandai terbuka.
+
+**C6 - Persona konsultan (inti pembaruan; +2-3 hari).** Prompt sistem wawancara: konsultan digitalisasi usaha. Urutan F0 (bisnis) -> F1 (tujuan/titik sakit) -> F2 (spesifikasi per area: siapa mengisi, apa dicatat, siapa melihat, kapan selesai) -> terjemahan G1-G5 dari F0-F2. Perilaku (induk §4.2): saran 2-3 pilihan berdasar narasi bila pengguna bingung; pengetahuan modul lazim hanya sebagai **pertanyaan**, tidak pernah langsung isi draf; bahasa awam; selalu bisa lewati. Setiap isi draf membawa `basisRef`; saran baru masuk setelah diterima (`SARAN_DITERIMA`).
+- **Eval baru:** kriteria `berdasar_cerita` (tiap modul tertelusur ke narasi/jawaban); kasus **negatif** (cerita kecil -> draf kecil; modul lazim yang tak disebut tidak boleh muncul); skenario **pengguna bingung** (agent menyarankan berdasar narasi, bukan menebak liar); skenario **pengguna menolak saran**.
+- **Latensi:** target tiap giliran < ~15-20 detik; catat waktu per giliran di laporan; timbang model lebih cepat untuk tebakan.
+- **AC:** tanpa LLM di tes otomatis (`ScriptedPromptExecutor`); baseline deterministik tetap 100%; laporan eval memisah gagal-penilai vs gagal-model.
 
 ### Urutan & ketergantungan
 `C0 (offline, G0) → [setelah B0] C1 → C2 → C3 → [G2] C4 → C5`. C tidak menunggu A.

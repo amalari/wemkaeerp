@@ -4,6 +4,8 @@
 
 > Berdiri sendiri untuk satu agent. Bila selisih dengan plan induk, **plan induk (kontrak §6) yang berlaku**.
 
+> **PEMBARUAN 2026-10-07 (WAJIB BACA, mengalahkan butir di bawah bila bertentangan):** induk §4.1 (aturan berdasar cerita), §4.2 (persona konsultan + fase F0-F2), §5 (keputusan: wawancara opsional, <=8 giliran G1-G5 + <=6 giliran F0-F2, hasil hanya usulan), §6.1 (kontrak `basisRef`, `BusinessProfile`, `RequirementSpec`), §8.1 (jadwal).
+
 ---
 
 ## Misi & Lingkupmu — Agent A
@@ -27,6 +29,9 @@
 **A5 — Jalur aman.** Jawaban ditolak server / `nextQuestion` hilang / draf lama: pesan jelas dan jalan keluar (lewati wawancara), bukan kartu kosong atau crash. **AC:** kasus buatan tangan terbaca prospek.
 
 **A6 — Verifikasi akhir (G2/G3, dengan mata).** Skenario §11 poin 1, 2, 3, 6; **periksa data tersimpan di DB scratch** (input canvas Compose tidak andal — jangan percaya hanya layar); dokumentasikan layar tangkap.
+
+**A7 - Fase percakapan F0-F2 & saran konsultan (+1,5 hari).** Layar percakapan sebelum G1: F0 bisnis, F1 tujuan, F2 spesifikasi per area (<= 6 giliran), bahasa awam. Saran konsultan tampil sebagai kartu dengan alasan singkat dan tombol **Terima / Ubah / Tolak** (-> `SARAN_DITERIMA` / ubah / tidak masuk draf). Ringkasan G5 menampilkan **dasar** tiap modul (kutipan narasi / jawaban / saran diterima). Wawancara opsional: tombol Lewati dan Terima semua tebakan selalu ada.
+- **AC:** dilihat dengan mata di tenant non-garment (~1280dp dan sempit); teks Latin-1 saja; saran yang belum dijawab tidak tampil seolah sudah masuk draf.
 
 ### Urutan & ketergantungan
 `A0 (G0) → [setelah B0] A1 → A2 → A3 → A4 ∥ A5 → [G2] A6`. A tidak menunggu C.

@@ -155,10 +155,10 @@ Dengan begitu konsultan membantu tanpa menggiring: pengetahuan konsultan memperk
 ## 5. Pertanyaan terbuka (asumsi bawaan di §12)
 
 1. ~~Sablon/bordir: pack sendiri atau bagian garment?~~ **DIPUTUSKAN 2026-10-07:** sablon dan bordir **tidak punya pack baku** — pack bergantung modul yang dihasilkan dari alur pengguna, dan modul yang bisa dipakai ulang dipakai ulang. Akibatnya sudah diterapkan (commit `1b4e7b8`): kata sablon/bordir/kain/tekstil/potong bukan lagi kebocoran konveksi, agent deterministik tidak mengarahkan sablon/bordir ke pack garment, kasus eval `sablon-bordir` dinilai dari kemampuan.
-2. **Wawancara wajib atau opsional?** Usul: opsional, dengan "terima semua tebakan".
-3. **Batas giliran** (usul ≤ 8) dan apakah tiap giliran boleh berisi beberapa keputusan sekaligus.
+2. ~~Wawancara wajib atau opsional?~~ **DIPUTUSKAN 2026-10-07:** opsional, dengan "lewati" dan "terima semua tebakan" (dicatat `SKIPPED`).
+3. ~~Batas giliran~~ **DIPUTUSKAN 2026-10-07:** ≤ 8 giliran **pada fase terjemahan (G1–G5)**; fase F0–F2 (§4.2) memakai batas sendiri ≤ 6 giliran; tiap giliran boleh berisi beberapa keputusan sekelompok.
 4. **Modul bersama (§3):** boleh mengubah invarian "pack bawaan identik" dan "id platform dilarang"?
-5. **Hasil wawancara ke tenant:** otomatis membuat `Department`/`DepartmentModuleAssignment` saat draf dibangun, atau hanya usulan yang ditinjau superadmin?
+5. ~~Hasil wawancara ke tenant~~ **DIPUTUSKAN 2026-10-07:** hanya **usulan yang ditinjau konsultan/superadmin**; tidak ada pembuatan otomatis `Department`/`DepartmentModuleAssignment` pada tahap ini.
 
 ---
 
@@ -187,6 +187,23 @@ fun InterviewSession.nextQuestion(draft: DiscoveryDraft): InterviewQuestion?   /
 - **Route:** `POST /api/discovery/drafts/{id}/interview` (kirim jawaban, terima ringkasan + pertanyaan berikutnya). **Fail-closed**; pemilik draf saja; tes 401/403.
 - **Pembuat tebakan (port):** `InterviewGuesser { suspend fun guess(step, pack, draft, narrative): Result<List<Guess>> }` — `DeterministicInterviewGuesser` (B, kamus pack) dan `AgentInterviewGuesser` (C, Koog). Keduanya hanya **usulan**; validator menegakkan.
 
+### 6.1 Tambahan kontrak (2026-10-07: berdasar cerita + persona konsultan; §4.1–4.2)
+
+```kotlin
+enum class Basis { NARASI, JAWABAN, SARAN_DITERIMA, SARAN_BELUM_DIJAWAB }   // kosakata tertutup; SARAN_BELUM_DIJAWAB ditolak validator
+data class BasisRef(val basis: Basis, val quote: String?, val answerId: String?)   // kutipan narasi atau id jawaban
+// RoleModuleLink, DivisionDraft, RoleDraft, ModuleHandoff masing-masing bertambah: val basisRef: BasisRef
+data class BusinessProfile(val summary: String, val goals: List<String>, val painPoints: List<String>)           // F0-F1
+data class RequirementSpec(val areaKey: String, val whoFills: String?, val whatRecorded: String?,
+                           val whoSees: String?, val doneWhen: String?, val basisRef: BasisRef)               // F2, satu per area
+// InterviewSession bertambah: val profile: BusinessProfile?, val specs: List<RequirementSpec>
+// InterviewStep bertambah di depan: F0_BISNIS, F1_TUJUAN, F2_SPEK (batas <= 6 giliran); G1..G5 tetap
+```
+
+- Validator: tiap divisi/peran/tautan/sambungan **wajib** `basisRef`; `SARAN_BELUM_DIJAWAB` ditolak berpath; `NARASI` wajib `quote` yang benar-benar substring narasi; `JAWABAN` wajib `answerId` yang ada di `answers`.
+- Draf lama (tanpa `profile`/`specs`/`basisRef`) tetap terbaca; wawancara lama dianggap `basis` tak berlaku (migrasi dibaca, bukan ditulis ulang).
+- Spesifikasi F2 dikirim ke Koog sebagai masukan terjemahan (C); B memilikinya.
+
 ## 7. Kepemilikan File (satu pemilik per file)
 
 | Agent | Jalur | Memiliki |
@@ -214,6 +231,19 @@ G4  Modul bersama (I5)      ── hanya setelah keputusan §5.4 dan bila G2 hij
 | **G1** | DoD jalur hijau di worktree sendiri |
 | **G2** | `:core:jvmTest`, `:server:test` (scratch DB), kompilasi 3 target klien; **layar wawancara tampil dan terisi dari ringkasan server untuk pack non-garment (bukan hanya lulus tes)** |
 | **G3** | skor tebakan terkonfirmasi per langkah (G1–G5) dilaporkan; keputusan eksplisit koordinator |
+
+### 8.1 Jadwal hari kerja (perkiraan 2026-10-07; AI ikut demo)
+
+| Hari | B (kontrak/server) | C (Koog) | A (UI) |
+|---|---|---|---|
+| 1-2 | **G0:** kontrak §6 + §6.1, validator, codec, kamus peran garment; merge | kasus eval wawancara (offline): bisnis kecil, bingung, negatif | spike layar konfirmasi dari fixture |
+| 3-5 | tebakan deterministik, route `interview` (401/403), ringkasan | prompt persona F0-F2, alat `interview_state`, `AgentInterviewGuesser`, eval sintetis | layar percakapan F0-F2 + UI G1-G5 |
+| 6-7 | tutup celah integrasi | spek F2 -> terjemahan, kriteria `berdasar_cerita`, skenario bingung | ringkasan + "terima semua tebakan" + tampil `basis` |
+| 8 | **G2** merge B -> C -> A, tes penuh, cek mata tenant non-garment | | |
+| 9-11 | perbaikan temuan | **G3** eval live + putaran akurasi | perbaikan dari cek mata |
+| 12-14 | cadangan | akurasi lanjutan, laporan eval | latihan demo dengan cerita rajut |
+
+Target latensi eval: tiap giliran Koog di bawah ~15-20 detik (baseline terburuk 108 detik); I5 (modul bersama) di luar demo pertama. Perkiraan, bukan jaminan.
 
 ## 9. Aturan Kerja Bersama (semua agent)
 
