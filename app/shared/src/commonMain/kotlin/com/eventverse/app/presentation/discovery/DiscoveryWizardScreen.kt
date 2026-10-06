@@ -242,7 +242,8 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                             busy = false
                         }
                     }
-                }
+                },
+                draft = draft
             )
             5 -> ClayCard(modifier = Modifier.fillMaxWidth(), outlineColor = WeMadeColors.Success) {
                 Text(

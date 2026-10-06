@@ -1,6 +1,9 @@
 package com.eventverse.app.presentation.discovery
 
+import com.eventverse.app.domain.discovery.proposal.ProposalSource
+import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.prototype.InteractiveScreen
+import com.eventverse.app.shared.discovery.ScreenProposalCodec
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.pack.InteractiveScreenCodec
 
@@ -35,7 +38,13 @@ data class DiscoveryScreenUi(
     val widget: String,
     val sampleRows: List<Map<String, String>>,
     /** Versi bisa dimainkan (TRD-PLAT-003); null = gambar statis dari [sampleRows]. */
-    val interactive: InteractiveScreen? = null
+    val interactive: InteractiveScreen? = null,
+    /** Usulan layar tervalidasi (kontrak ScreenProposal); null untuk draf lama tanpa proposal. */
+    val proposal: ScreenProposal? = null,
+    /** Alasan pemilihan jenis tampilan bahasa pemilik usaha ("Dipilih karena …"). */
+    val rationale: String? = null,
+    /** Asal usulan (Pack / Deterministik / Agent). */
+    val source: ProposalSource? = null
 )
 
 data class DiscoveryDraftUi(
@@ -110,13 +119,34 @@ data class DiscoveryDraftUi(
                 },
                 activeModuleCodes = arr("activeModuleCodes").mapNotNull { (it as? JsonValue.Str)?.value },
                 screens = arr("screens").mapNotNull { it as? JsonValue.Obj }.map { s ->
+                    val proposal = s.obj("proposal")?.let { raw ->
+                        runCatching { ScreenProposalCodec.decode(raw, "$.screens.proposal") }.getOrNull()
+                    }
+                    val source = s.obj("source")?.let { raw ->
+                        runCatching { ScreenProposalCodec.decodeSource(raw, "$.screens.source") }.getOrNull()
+                    } ?: s.string("source")?.let { str ->
+                        when {
+                            str.equals("PACK", ignoreCase = true) -> ProposalSource.Pack
+                            str.equals("DETERMINISTIC", ignoreCase = true) -> ProposalSource.Deterministic
+                            str.startsWith("AGENT", ignoreCase = true) -> {
+                                val ref = str.substringAfter(":", "").ifBlank { str }
+                                ProposalSource.Agent(ref)
+                            }
+                            else -> null
+                        }
+                    }
+                    val rationale = s.string("rationale") ?: proposal?.rationale
+
                     DiscoveryScreenUi(
                         screenId = s.string("screenId").orEmpty(),
                         moduleId = s.string("moduleId").orEmpty(),
                         title = s.string("title").orEmpty(),
                         widget = s.string("widget").orEmpty(),
                         sampleRows = arr2(s, "sampleRows"),
-                        interactive = s.obj("interactive")?.let { runCatching { InteractiveScreenCodec.decode(it) }.getOrNull() }
+                        interactive = s.obj("interactive")?.let { runCatching { InteractiveScreenCodec.decode(it) }.getOrNull() },
+                        proposal = proposal,
+                        rationale = rationale,
+                        source = source
                     )
                 },
                 portLabels = stringMap("portLabels"),
@@ -125,3 +155,15 @@ data class DiscoveryDraftUi(
         }
     }
 }
+
+/** Format label tampilan sumber untuk lencana UI. */
+val ProposalSource.displayName: String
+    get() = when (this) {
+        is ProposalSource.Pack -> "Pack"
+        is ProposalSource.Deterministic -> "Deterministik"
+        is ProposalSource.Agent -> {
+            val modelName = agentRef.substringAfterLast('/').ifBlank { agentRef }
+            "Agent · $modelName"
+        }
+    }
+

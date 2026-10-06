@@ -66,7 +66,9 @@ fun PrototypeRenderer(
                     widget = screen.widget,
                     moduleName = module?.displayName ?: screen.moduleId,
                     rows = screen.sampleRows,
-                    block = session.block(screen.screenId)
+                    block = session.block(screen.screenId),
+                    rationale = screen.rationale,
+                    source = screen.source
                 )
             }
         }
@@ -80,17 +82,32 @@ private fun PrototypeScreenCard(
     moduleName: String,
     rows: List<Map<String, String>>,
     modifier: Modifier = Modifier,
-    block: PlayableState? = null
+    block: PlayableState? = null,
+    rationale: String? = null,
+    source: com.eventverse.app.domain.discovery.proposal.ProposalSource? = null
 ) {
     ClayCard(modifier = modifier) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.Top
+        ) {
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(title, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    moduleName,
-                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
+                Row(
+                    modifier = Modifier.padding(top = ClaySpacing.Xs),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Text(
+                        moduleName,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = WeMadeColors.OnSurfaceMuted
+                    )
+                    if (source != null) {
+                        ProposalSourceBadge(source = source)
+                    }
+                }
             }
             val kind = WidgetKind.fromCode(widget)
             ClayBadge(
@@ -106,17 +123,18 @@ private fun PrototypeScreenCard(
             )
         }
 
+        if (!rationale.isNullOrBlank()) {
+            ProposalRationaleRow(
+                rationale = rationale,
+                modifier = Modifier.padding(top = ClaySpacing.Xs)
+            )
+        }
+
         // Layar berbinding Api tak punya baris contoh (datanya dari server) tetapi punya blok interaktif.
         if (rows.isEmpty() && block == null) {
-            // Satu-satunya jalan ke sini: modul layar tidak ada di pack, atau kode widget di luar
-            // kosakata v1 (validator menolaknya, tapi renderer tidak boleh menebak). Kalimat lama
-            // ("menyusul setelah pola Studio dipilih") menyesatkan begitu CUSTOM_SCREEN punya
-            // kerangka sendiri — ia menyalahkan prospek atas keadaan yang bukan salahnya.
-            Text(
-                "Layar ini belum bisa dipratinjau: \"$widget\" tidak punya contoh tata letak, " +
-                    "atau modulnya tidak ada di pak ini.",
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = WeMadeColors.OnSurfaceMuted,
+            ProposalIncompleteWarning(
+                widget = widget,
+                rationale = rationale,
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
             )
             return@ClayCard
