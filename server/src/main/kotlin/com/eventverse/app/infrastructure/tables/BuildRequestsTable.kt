@@ -14,5 +14,10 @@ object BuildRequestsTable : Table("builder.build_requests") {
     val deploymentId = varchar("deployment_id", 80).nullable()
     val createdAt = timestamp("created_at")
 
+    /** Brief beku (V94); NULL = permintaan lama / brief gagal disusun. */
+    val briefMarkdown = text("brief_markdown").nullable()
+    val briefJson = text("brief_json").nullable()
+    val briefAt = timestamp("brief_at").nullable()
+
     override val primaryKey = PrimaryKey(id)
 }

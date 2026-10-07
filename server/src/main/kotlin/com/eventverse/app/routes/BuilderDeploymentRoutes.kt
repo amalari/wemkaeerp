@@ -37,9 +37,11 @@ fun Route.builderDeploymentRoutes(
     buildRequests: BuilderBuildRequestRepository,
     tenants: com.eventverse.app.domain.tenant.TenantRepository,
     probe: TenantOperationalDataProbe,
-    auditLog: AuditLogRepository
+    auditLog: AuditLogRepository,
+    /** Riwayat chat: sumber konteks brief yang dibekukan pada tiap permintaan pembuatan (opsi B). */
+    chats: com.eventverse.app.domain.builder.BuilderChatRepository
 ) {
-    val deploy = DeployTenantUseCase(drafts, deployments, buildRequests, tenants)
+    val deploy = DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = com.eventverse.app.domain.builder.BuildRequestBriefs(chats))
     val rollback = RollbackDeploymentUseCase(deployments, probe)
 
     route("/api/builder/deployments") {

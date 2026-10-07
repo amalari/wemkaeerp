@@ -113,4 +113,18 @@ class BuilderChatThreadsTest {
         assertEquals(listOf("s1"), f.screens.map { it.screenId })
         assertEquals(2, draft.modules.size, "draf asal tidak berubah")
     }
+
+    @Test
+    fun `antrian pembuatan membaca hasBrief dan klien brief mengambil markdown`() = runTest {
+        val rows = parseBuildQueue(JsonParser.parse("""{"requests":[
+            {"id":"br-1","tenantId":"t","moduleId":"m1","status":"QUEUED","reason":"r","hasBrief":true},
+            {"id":"br-2","tenantId":"t","moduleId":"m2","status":"QUEUED","reason":"r"}]}"""))
+        assertEquals(listOf(true, false), rows.map { it.hasBrief }, "server lama tanpa kunci hasBrief = false")
+
+        val cap = Capture(HttpStatusCode.OK, """{"markdown":"# Brief","brief":{},"takenAt":"2026-10-08T01:00:00Z"}""")
+        assertEquals("# Brief", BuilderApiClient(cap.client(), "http://x", tokens).buildRequestBrief("br-1").getOrThrow())
+        assertEquals("http://x/api/builder/build-queue/br-1/brief", cap.urls.single())
+        val notFound = BuilderApiClient(Capture(HttpStatusCode.NotFound, "tidak punya brief").client(), "http://x", tokens).buildRequestBrief("br-2")
+        assertTrue(notFound.exceptionOrNull()?.message.orEmpty().contains("tidak punya brief"))
+    }
 }

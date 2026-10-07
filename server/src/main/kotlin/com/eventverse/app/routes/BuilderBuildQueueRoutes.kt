@@ -17,6 +17,7 @@ import io.ktor.server.routing.route
 /**
  * Antrian Pembuatan tipis (FR-M2-4, plan §6): dikelola superadmin, bukan self-service tenant.
  * - `GET  /api/builder/build-queue`             — seluruh request lintas tenant.
+ * - `GET  /api/builder/build-queue/{id}/brief`  — brief developer yang dibekukan saat permintaan lahir.
  * - `POST /api/builder/build-queue/{id}/status` — ubah status (`?status=IN_PROGRESS|SHIPPED|...`).
  *
  * Fail-closed: tanpa sesi → 401; selain [Role.PLATFORM_SUPERADMIN] → 403. Route ini sengaja
@@ -30,9 +31,28 @@ fun Route.builderBuildQueueRoutes(buildRequests: BuilderBuildRequestRepository) 
             call.respondText(
                 "{\"requests\":[" + queue.joinToString(",") { r ->
                     "{\"id\":\"${r.id.value}\",\"tenantId\":\"${r.tenantId.value}\",\"moduleId\":\"${r.moduleId}\"," +
-                        "\"status\":\"${r.status.name}\",\"reason\":\"${r.reason.replace("\"", "'")}\"" +
+                        "\"status\":\"${r.status.name}\",\"reason\":\"${r.reason.replace("\"", "'")}\",\"hasBrief\":${r.brief != null}" +
                         (r.quoteId?.let { ",\"quoteId\":\"$it\"" } ?: "") + "}"
                 } + "]}",
+                ContentType.Application.Json
+            )
+        }
+
+        // Brief developer yang dibekukan saat permintaan lahir. Khusus platform (sama dengan antrean); 404 bila tidak ada.
+        get("/{id}/brief") {
+            call.superadminGate() ?: return@get
+            val id = call.parameters["id"].orEmpty()
+            val brief = buildRequests.findAll().firstOrNull { it.id.value == id }?.brief
+            if (brief == null) {
+                call.respond(HttpStatusCode.NotFound, "Permintaan '$id' tidak ada atau tidak punya brief")
+                return@get
+            }
+            call.respondText(
+                com.eventverse.app.shared.json.jsonObjectOf(
+                    "markdown" to com.eventverse.app.shared.json.jsonOf(brief.markdown),
+                    "brief" to (runCatching { com.eventverse.app.shared.json.JsonParser.parse(brief.json) }.getOrNull() ?: com.eventverse.app.shared.json.JsonValue.Null),
+                    "takenAt" to com.eventverse.app.shared.json.jsonOf(brief.takenAt.toString())
+                ).encode(),
                 ContentType.Application.Json
             )
         }

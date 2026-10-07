@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.builder.BriefSnapshot
 import com.eventverse.app.domain.builder.BuildRequest
 import com.eventverse.app.domain.builder.BuildRequestId
 import com.eventverse.app.domain.builder.BuildRequestStatus
@@ -45,6 +46,9 @@ class PostgresBuilderBuildRequestRepository(private val clock: Clock = Clock.Sys
                 it[quoteId] = request.quoteId
                 it[deploymentId] = request.deploymentId
                 it[createdAt] = request.createdAt ?: clock.now()
+                it[briefMarkdown] = request.brief?.markdown
+                it[briefJson] = request.brief?.json
+                it[briefAt] = request.brief?.takenAt
             }
         } else {
             BuildRequestsTable.update({ BuildRequestsTable.id eq request.id.value }) {
@@ -63,6 +67,9 @@ class PostgresBuilderBuildRequestRepository(private val clock: Clock = Clock.Sys
         status = BuildRequestStatus.valueOf(row[BuildRequestsTable.status]),
         quoteId = row[BuildRequestsTable.quoteId],
         deploymentId = row[BuildRequestsTable.deploymentId],
-        createdAt = row[BuildRequestsTable.createdAt]
+        createdAt = row[BuildRequestsTable.createdAt],
+        brief = row[BuildRequestsTable.briefMarkdown]?.let { md ->
+            BriefSnapshot(md, row[BuildRequestsTable.briefJson].orEmpty(), requireNotNull(row[BuildRequestsTable.briefAt]) { "brief_at wajib bila brief ada" })
+        }
     )
 }

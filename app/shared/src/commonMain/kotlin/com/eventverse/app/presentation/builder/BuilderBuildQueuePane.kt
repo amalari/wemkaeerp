@@ -17,6 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.eventverse.app.infrastructure.api.BuilderApiClient
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import kotlinx.coroutines.launch
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
@@ -31,15 +34,17 @@ import com.eventverse.app.shared.json.JsonValue
  * tenant yang membukanya menerima 403 dan membaca "butuh wewenang superadmin", bukan daftar kosong
  * yang menyiratkan "tidak ada pekerjaan".
  */
-private data class BuildQueueRow(
+internal data class BuildQueueRow(
     val id: String,
     val tenantId: String,
     val moduleId: String,
     val status: String,
-    val reason: String
+    val reason: String,
+    /** Ada brief beku untuk permintaan ini; false untuk permintaan lama atau bila penyusunan brief gagal. */
+    val hasBrief: Boolean = false
 )
 
-private fun parseBuildQueue(raw: JsonValue): List<BuildQueueRow> =
+internal fun parseBuildQueue(raw: JsonValue): List<BuildQueueRow> =
     ((raw as? JsonValue.Obj)?.get("requests") as? JsonValue.Arr)?.items
         ?.filterIsInstance<JsonValue.Obj>()
         ?.map { r ->
@@ -48,7 +53,8 @@ private fun parseBuildQueue(raw: JsonValue): List<BuildQueueRow> =
                 tenantId = r.string("tenantId").orEmpty(),
                 moduleId = r.string("moduleId").orEmpty(),
                 status = r.string("status").orEmpty(),
-                reason = r.string("reason").orEmpty()
+                reason = r.string("reason").orEmpty(),
+                hasBrief = (r.get("hasBrief") as? JsonValue.Bool)?.value == true
             )
         }
         .orEmpty()
@@ -59,6 +65,11 @@ fun BuilderBuildQueuePane(modifier: Modifier = Modifier) {
     val typography = rememberClayTypography()
     var rows by remember { mutableStateOf(emptyList<BuildQueueRow>()) }
     var error by remember { mutableStateOf<String?>(null) }
+    // Brief yang sedang dilihat: (permintaan, isi markdown | galat); null = dialog tertutup.
+    var viewing by remember { mutableStateOf<BuildQueueRow?>(null) }
+    var briefText by remember { mutableStateOf<String?>(null) }
+    var briefError by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         client.buildQueue()
@@ -134,9 +145,32 @@ fun BuilderBuildQueuePane(modifier: Modifier = Modifier) {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        if (r.hasBrief) {
+                            ClayButton(
+                                text = "Lihat brief",
+                                style = ClayButtonStyle.Secondary,
+                                onClick = {
+                                    viewing = r; briefText = null; briefError = null
+                                    scope.launch {
+                                        client.buildRequestBrief(r.id).onSuccess { briefText = it }.onFailure { briefError = it.message ?: "Gagal memuat brief" }
+                                    }
+                                }
+                            )
+                        } else {
+                            Text("Tanpa brief", style = typography.bodySmall, color = WeMadeColors.OnSurfaceDisabled)
+                        }
                     }
                 }
             }
         }
+    }
+
+    viewing?.let { r ->
+        BriefViewerDialog(
+            title = "Brief ${r.moduleId} (${r.tenantId})",
+            markdown = briefText,
+            error = briefError,
+            onDismissRequest = { viewing = null }
+        )
     }
 }
