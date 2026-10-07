@@ -1,6 +1,6 @@
 # PLAN — Builder Chat Interview (alur penuh dulu, tanya per modul kemudian)
 
-**Tanggal**: 2026-10-07 · **Jalur**: B · **Status**: usulan, menunggu persetujuan
+**Tanggal**: 2026-10-07 · **Jalur**: B · **Status**: disetujui 2026-10-08, Fase A berjalan
 **Dasar**: [`PLAN-builder-console.md`](PLAN-builder-console.md), [`discovery-M1-builder-chat.md`](discovery-M1-builder-chat.md),
 [`PLAN-discovery-interview-role-module.md`](PLAN-discovery-interview-role-module.md); acuan perilaku: Hercules
 (chat di kiri, tampilan hasil di kanan).
@@ -76,6 +76,7 @@ Riwayat tetap sumber kebenaran; SSE hanya **progres**.
 5. Klien: `BuilderChatPane` memakai alur 202+SSE, menampilkan status/loading; panel kanan `ModuleTabs` (Semua + satu tab per modul draf); memilih tab memuat ulang riwayat dengan `?module=`. Pecah file bila `BuilderChatPane` melewati 400 baris.
 6. **Tes**: core (filter utas, follow-up murni, `kind`); server (202, SSE berurutan, `Last-Event-ID`, **403 tenant/peran tak berwenang**, run tenant lain 404, satu run aktif per utas); klien (state tab, loading, sambung ulang). **Tenant kedua**: fixture non-garment.
 7. **DoD**: 5 target terkompilasi; dijalankan dan **dilihat di browser** (login Superadmin); `scripts/audit-variability.sh` tanpa temuan baru.
+8. **Pengalihan wizard (K7)**: daftar kesenjangan fitur wizard vs Builder (ekspor brief, estimasi harga, pilih modul manual), lalu rute `/discovery` dialihkan ke Builder chat.
 
 ### Fase B — Alur penuh: bertanya dulu, lalu generate dengan model besar
 **Hasil**: pesan pertama → (bila bingung) pertanyaan di chat → jawaban → alur + modul di-generate dengan pro, **progres per modul** tampil, hasil muncul di tab.
@@ -119,8 +120,12 @@ Pengukuran 2026-10-07: satu sesi (draf pro ± 90 panggilan + perencana) menurunk
 | R5 | Nomor migrasi V93 bentrok | Cek `main` saat merge |
 | R6 | `BuilderChatPane` membengkak | Pecah per tanggung jawab (tab, daftar pesan, komposer) sebelum melewati 400 baris |
 
-## 7. Pertanyaan terbuka
+## 7. Keputusan atas pertanyaan terbuka (2026-10-08)
 
-1. **Arti "tanpa filter modul" pada utas Semua** (K4): saya mengartikannya sebagai riwayat dan follow-up utas Semua mencakup seluruh alur, tidak difilter. Mohon dikoreksi bila maksudnya lain.
-2. Apakah jawaban follow-up utas **modul** juga ikut tampil di utas **Semua**, atau hanya di utas modulnya? Usulan: hanya di utas modulnya, supaya utas Semua tidak ramai.
-3. Wizard lama dipertahankan sampai Builder setara (usulan), atau dialihkan segera?
+1. **Utas Semua = tanpa filter modul**: riwayat dan follow-up mencakup seluruh alur. Dikonfirmasi.
+2. Jawaban follow-up utas **modul hanya tampil di utas modulnya**. Disetujui.
+3. **Wizard lama dialihkan segera ke Builder** (bukan dibiarkan). Konsekuensi: Fase A menambahkan pengalihan
+   `/discovery` → Builder chat, dan jalur wizard (`DiscoveryWizardScreen` + `presentation/discovery/interview/*`) ditandai
+   usang. Penghapusan kode wizard **tidak** dilakukan di Fase A–C; hanya pengalihan rute, supaya mudah dibatalkan.
+   Fitur wizard yang belum ada padanannya di Builder (ekspor brief, estimasi harga, pilih modul manual) dicatat di
+   Fase A langkah 8 sebagai daftar kesenjangan sebelum pengalihan diaktifkan.

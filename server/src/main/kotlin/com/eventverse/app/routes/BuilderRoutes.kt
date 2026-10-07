@@ -11,6 +11,8 @@ import com.eventverse.app.domain.builder.ChatMessage
 import com.eventverse.app.domain.builder.ChatMessageId
 import com.eventverse.app.domain.builder.Deployment
 import com.eventverse.app.domain.builder.SendBuilderMessageUseCase
+import com.eventverse.app.domain.builder.inThread
+import com.eventverse.app.domain.builder.pendingFollowUps
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.tenant.TenantRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
@@ -71,7 +73,10 @@ fun Route.builderRoutes(
         },
     /** Gateway iPaymu (L1) — default dari env; `null` bila kredensial belum diisi. */
     ipaymuGateway: com.eventverse.app.domain.builder.PaymentGateway? =
-        com.eventverse.app.infrastructure.IpaymuClient.fromEnv()
+        com.eventverse.app.infrastructure.IpaymuClient.fromEnv(),
+    /** Run chat asinkron (SSE); satu per proses server supaya klien yang sambung ulang menemukan run-nya. */
+    runRegistry: com.eventverse.app.infrastructure.builder.BuilderRunRegistry =
+        com.eventverse.app.infrastructure.builder.BuilderRunRegistry()
 ) {
     val send = SendBuilderMessageUseCase(chats, agent, drafts)
     val apply = ApplyDraftPatchUseCase(chats, drafts)
@@ -116,6 +121,7 @@ fun Route.builderRoutes(
         auditLog = auditLog
     )
     route("/api/builder") {
+        builderChatStreamRoutes(send, chats, runRegistry)
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext
@@ -161,11 +167,15 @@ fun Route.builderRoutes(
         get("/chat") {
             call.gate() ?: return@get
             val conversation = chats.conversationFor(call.tenantContext.tenantId)
-            val messages = chats.messages(conversation.id)
+            // Utas (K4): tanpa ?module = Semua (tanpa filter); ?module=<id> = hanya modul itu. Follow-up dihitung dari
+            // riwayat setiap kali dimuat (K3), bukan disimpan terpisah.
+            val moduleId = call.request.queryParameters["module"]?.takeIf { it.isNotBlank() }
+            val all = chats.messages(conversation.id)
             call.respondText(
                 jsonObjectOf(
                     "conversationId" to jsonOf(conversation.id.value),
-                    "messages" to jsonArrayOf(messages.map(::messageJson))
+                    "messages" to jsonArrayOf(all.inThread(moduleId).map(::messageJson)),
+                    "followUp" to followUpJson(moduleId, all.pendingFollowUps(moduleId))
                 ).encode(),
                 ContentType.Application.Json
             )
@@ -210,6 +220,19 @@ fun Route.builderRoutes(
     }
 }
 
+/** Follow-up yang menunggu di utas: `scope` = `all` (tanpa filter) atau `module`. */
+internal fun followUpJson(moduleId: String?, pending: List<com.eventverse.app.domain.builder.PendingFollowUp>): com.eventverse.app.shared.json.JsonValue =
+    jsonObjectOf(
+        "scope" to jsonOf(if (moduleId == null) "all" else "module"),
+        "moduleId" to jsonOf(moduleId),
+        "questions" to jsonArrayOf(pending.map {
+            jsonObjectOf(
+                "id" to jsonOf(it.question.id), "question" to jsonOf(it.question.question),
+                "messageId" to jsonOf(it.messageId.value), "moduleId" to jsonOf(it.moduleId)
+            )
+        })
+    )
+
 /** Pesan chat sebagai JSON; patch usulan disisipkan apa adanya (sudah JSON sah). */
 private fun messageJson(m: ChatMessage): com.eventverse.app.shared.json.JsonValue {
     val patch = m.proposedDraftJson?.let { runCatching { JsonParser.parse(it) }.getOrNull() }
@@ -221,7 +244,10 @@ private fun messageJson(m: ChatMessage): com.eventverse.app.shared.json.JsonValu
         "proposedDraft" to (patch ?: com.eventverse.app.shared.json.JsonValue.Null),
         "hasPendingPatch" to jsonOf(m.hasPendingPatch),
         "appliedDraftId" to jsonOf(m.appliedDraftId),
-        "createdAt" to jsonOf(m.createdAt?.toString())
+        "createdAt" to jsonOf(m.createdAt?.toString()),
+        "moduleId" to jsonOf(m.moduleId),
+        "kind" to jsonOf(m.kind.name),
+        "questions" to com.eventverse.app.infrastructure.ChatQuestionsCodec.encode(m.questions)
     )
 }
 

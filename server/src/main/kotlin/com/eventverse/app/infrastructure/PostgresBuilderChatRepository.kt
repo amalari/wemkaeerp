@@ -5,6 +5,7 @@ import com.eventverse.app.domain.builder.BuilderConversation
 import com.eventverse.app.domain.builder.BuilderConversationId
 import com.eventverse.app.domain.builder.ChatMessage
 import com.eventverse.app.domain.builder.ChatMessageId
+import com.eventverse.app.domain.builder.ChatMessageKind
 import com.eventverse.app.domain.builder.ChatRole
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.tenant.TenantId
@@ -66,6 +67,9 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
             it[proposedSummary] = jsonArrayOf(message.proposedSummary.map(::jsonOf)).encode()
             it[appliedDraftId] = message.appliedDraftId
             it[createdAt] = message.createdAt ?: clock.now()
+            it[moduleId] = message.moduleId
+            it[kind] = message.kind.name
+            it[questions] = ChatQuestionsCodec.encode(message.questions).encode()
         }
         message
     }
@@ -89,7 +93,10 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
         proposedDraftJson = row[BuilderChatMessagesTable.proposedDraft],
         proposedSummary = summaryOf(row[BuilderChatMessagesTable.proposedSummary]),
         appliedDraftId = row[BuilderChatMessagesTable.appliedDraftId],
-        createdAt = row[BuilderChatMessagesTable.createdAt]
+        createdAt = row[BuilderChatMessagesTable.createdAt],
+        moduleId = row[BuilderChatMessagesTable.moduleId],
+        kind = ChatMessageKind.valueOf(row[BuilderChatMessagesTable.kind]),
+        questions = ChatQuestionsCodec.decode(row[BuilderChatMessagesTable.questions])
     )
 
     private fun summaryOf(raw: String): List<String> =

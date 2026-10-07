@@ -25,7 +25,7 @@ class SendBuilderMessageUseCase(
     private val drafts: DiscoveryDraftRepository,
     private val clock: Clock = Clock.System
 ) {
-    suspend operator fun invoke(tenantId: TenantId, userText: String): Result<List<ChatMessage>> = runCatching {
+    suspend operator fun invoke(tenantId: TenantId, userText: String, moduleId: String? = null): Result<List<ChatMessage>> = runCatching {
         require(userText.isNotBlank()) { "Pesan tidak boleh kosong" }
         val conversation = chats.conversationFor(tenantId)
 
@@ -36,7 +36,8 @@ class SendBuilderMessageUseCase(
                 tenantId = tenantId,
                 role = ChatRole.USER,
                 text = userText.trim(),
-                createdAt = clock.now()
+                createdAt = clock.now(),
+                moduleId = moduleId
             )
         )
 
@@ -52,7 +53,8 @@ class SendBuilderMessageUseCase(
                 text = reply.text,
                 proposedDraftJson = reply.proposedDraft?.let(DiscoveryDraftCodec::encodeToString),
                 proposedSummary = reply.summary,
-                createdAt = clock.now()
+                createdAt = clock.now(),
+                moduleId = moduleId
             )
         )
         chats.messages(conversation.id)

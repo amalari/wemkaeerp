@@ -203,6 +203,7 @@ fun Application.module(
     val authenticateWithGoogleUseCase = AuthenticateWithGoogleUseCase(userRepo, repository)
     val googleAuthService = GoogleAuthService()
     val jwtTokenService = JwtTokenService()
+    install(io.ktor.server.sse.SSE)
     install(TenantResolutionPlugin) {
         this.tenantRepository = repository
         this.jwtTokenService = jwtTokenService

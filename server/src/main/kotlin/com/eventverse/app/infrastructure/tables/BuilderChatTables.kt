@@ -29,5 +29,12 @@ object BuilderChatMessagesTable : Table("builder.chat_messages") {
     val appliedDraftId = varchar("applied_draft_id", 64).nullable()
     val createdAt = timestamp("created_at")
 
+    /** Utas: NULL = "Semua"; terisi = kode modul pack (V93). */
+    val moduleId = varchar("module_id", 80).nullable()
+    val kind = varchar("kind", 16)
+
+    /** Pertanyaan follow-up, teks JSON array `[{id,question,answer?}]` (V93). */
+    val questions = text("questions")
+
     override val primaryKey = PrimaryKey(id)
 }
