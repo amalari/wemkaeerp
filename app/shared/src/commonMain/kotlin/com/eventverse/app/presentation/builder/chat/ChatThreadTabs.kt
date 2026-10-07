@@ -38,6 +38,7 @@ internal fun runPhaseLabel(phase: String?): String = when (phase) {
     "drafting" -> "Menyusun draf..."
     "validating" -> "Memeriksa hasil..."
     "editing" -> "Mengubah modul..."
+    "waiting" -> "Menunggu jawaban Anda..."
     null, "" -> "Memproses..."
     else -> "$phase..."
 }

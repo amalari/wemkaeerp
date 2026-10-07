@@ -101,6 +101,12 @@ interface BuilderChatRepository {
 
     suspend fun append(message: ChatMessage): ChatMessage
 
+    /**
+     * Mengisi jawaban pertanyaan follow-up pada pesan QUESTION ([answers]: id pertanyaan → jawaban). Pertanyaan yang
+     * sudah berjawaban tidak ditimpa. `null` bila pesan tidak ada.
+     */
+    suspend fun markAnswered(messageId: ChatMessageId, answers: Map<String, String>): ChatMessage?
+
     /** Menandai pesan patch sudah diterapkan ke draf [draftId]. */
     suspend fun markApplied(messageId: ChatMessageId, draftId: DiscoveryDraftId): ChatMessage?
 }

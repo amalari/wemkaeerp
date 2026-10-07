@@ -83,6 +83,7 @@ class BuilderChatThreadsTest {
         assertEquals(listOf(null, "a", "b"), threadsOf(listOf("a" to "Modul A", "b" to "Modul B")).map { it.moduleId })
         assertEquals("Menyusun draf...", runPhaseLabel("drafting"))
         assertEquals("Memproses...", runPhaseLabel(null))
+        assertEquals("Menunggu jawaban Anda...", runPhaseLabel("waiting"))
         assertEquals("drafting", BuilderRunEvent(1, "status", """{"type":"status","phase":"drafting"}""").field("phase"))
         assertNull(BuilderRunEvent(1, "done", "bukan json").field("phase"))
     }

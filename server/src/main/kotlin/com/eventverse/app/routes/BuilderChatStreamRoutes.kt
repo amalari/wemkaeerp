@@ -52,10 +52,11 @@ fun Route.builderChatStreamRoutes(
         val tenantId = call.tenantContext.tenantId
         val run = try {
             registry.start(tenantId) { run ->
-                run.emit("status", "phase" to jsonOf("drafting"))
-                send(tenantId, text, moduleId).getOrThrow()
+                send(tenantId, text, moduleId) { phase -> run.emit("status", "phase" to jsonOf(phase)) }.getOrThrow()
                 val last = chats.messages(chats.conversationFor(tenantId).id).lastOrNull()
-                run.emit("message", "messageId" to jsonOf(last?.id?.value), "moduleId" to jsonOf(moduleId))
+                // Pesan QUESTION = agent bertanya dulu; klien menampilkannya dan menunggu jawaban pengguna.
+                val type = if (last?.kind == com.eventverse.app.domain.builder.ChatMessageKind.QUESTION) "question" else "message"
+                run.emit(type, "messageId" to jsonOf(last?.id?.value), "moduleId" to jsonOf(moduleId))
             }
         } catch (e: BuilderRunRegistry.RunAlreadyActiveException) {
             call.respond(HttpStatusCode.Conflict, e.message ?: "Masih ada proses yang berjalan")

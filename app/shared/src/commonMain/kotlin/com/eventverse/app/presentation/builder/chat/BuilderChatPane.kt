@@ -106,6 +106,7 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                         client.runEvents(runId).collect { ev ->
                             when (ev.type) {
                                 "status" -> runPhase = ev.field("phase")
+                                "question" -> runPhase = "waiting"
                                 "error" -> error = ev.field("message") ?: "Proses gagal"
                                 else -> Unit
                             }
@@ -174,7 +175,12 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                         Text(runPhaseLabel(runPhase), style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
                     }
                 }
-                ChatComposer(value = input, onValueChange = { input = it }, busy = busy, onSend = ::send)
+                ChatComposer(
+                    value = input, onValueChange = { input = it }, busy = busy, onSend = ::send,
+                    // Ada pertanyaan agent yang menunggu di utas ini: ketikan berikutnya adalah jawabannya.
+                    placeholder = if ((pendingByThread[thread] ?: 0) > 0) "Ketik jawaban Anda untuk pertanyaan di atas"
+                    else "Contoh: pabrik kaos FOB dengan tahap sablon"
+                )
             }
         }
         val panel: @Composable (Modifier) -> Unit = { m ->

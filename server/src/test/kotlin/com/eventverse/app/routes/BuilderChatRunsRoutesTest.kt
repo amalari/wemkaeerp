@@ -50,7 +50,7 @@ class BuilderChatRunsRoutesTest {
     private val chats = InMemoryBuilderChatRepository()
     private val story = "Kami klinik gigi: pasien mendaftar antrean per poli, ada stok obat, dan tagihan pembayaran kasir."
 
-    private fun install(builder: ApplicationTestBuilder) = with(builder) {
+    private fun install(builder: ApplicationTestBuilder, clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null) = with(builder) {
         val tenants = InMemoryTenantRepository().also { repo ->
             runBlocking { repo.save(Tenant(TenantId(tenantId), TenantSlug(slug), TenantName("WeMade Demo"), TenantStatus.ACTIVE, SubscriptionTier.PRO)) }
         }
@@ -66,6 +66,7 @@ class BuilderChatRunsRoutesTest {
                 domainPackRepository = com.eventverse.app.infrastructure.InMemoryDomainPackRepository(),
                 builderDeploymentRepository = com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository(),
                 builderChatRepository = chats,
+                builderClarifier = clarifier,
                 builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
                 builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
                 builderAuditLog = com.eventverse.app.infrastructure.InMemoryAuditLogRepository(),
@@ -187,5 +188,26 @@ class BuilderChatRunsRoutesTest {
         val m = ((JsonParser.parse(client.get("/api/builder/chat") { auth() }.bodyAsText()) as JsonValue.Obj).array("messages").single() as JsonValue.Obj)
         assertEquals("TEXT", m.string("kind"))
         assertTrue(m["moduleId"] == null || m["moduleId"] == JsonValue.Null)
+    }
+
+    @Test
+    fun `cerita kabur, run mengirim status planning lalu peristiwa question, dan jawaban berikutnya menyusun draf`() = testApplication {
+        install(this, clarifier = com.eventverse.app.domain.builder.NarrativeClarifier { _, _ ->
+            listOf(Clarification("c1", "Pasien dilayani per poli atau satu antrean?"))
+        })
+        val first = events(runIdOf(startRun("Kami klinik")))
+        assertEquals(listOf("status", "question", "done"), first.map { it.second })
+
+        val history = (JsonParser.parse(client.get("/api/builder/chat") { auth() }.bodyAsText()) as JsonValue.Obj)
+        val messages = history.array("messages").filterIsInstance<JsonValue.Obj>()
+        assertEquals(listOf("USER", "AGENT"), messages.map { it.string("role") })
+        assertEquals("QUESTION", messages.last().string("kind"))
+        assertEquals(listOf("c1"), history.obj("followUp")!!.array("questions").filterIsInstance<JsonValue.Obj>().map { it.string("id").orEmpty() })
+
+        // Jawaban pengguna: pertanyaan terjawab, tidak bertanya lagi, draf disusun.
+        val second = events(runIdOf(startRun("Satu antrean lalu dibagi ke poli")))
+        assertEquals(listOf("status", "message", "done"), second.map { it.second })
+        val after = (JsonParser.parse(client.get("/api/builder/chat") { auth() }.bodyAsText()) as JsonValue.Obj)
+        assertEquals(emptyList(), after.obj("followUp")!!.array("questions").toList(), "follow-up sudah terjawab")
     }
 }

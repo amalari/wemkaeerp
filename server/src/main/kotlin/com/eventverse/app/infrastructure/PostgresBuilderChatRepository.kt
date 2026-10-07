@@ -74,6 +74,20 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
         message
     }
 
+    override suspend fun markAnswered(messageId: ChatMessageId, answers: Map<String, String>): ChatMessage? =
+        DatabaseFactory.dbQuery {
+            val row = BuilderChatMessagesTable.selectAll()
+                .where { BuilderChatMessagesTable.id eq messageId.value }.firstOrNull() ?: return@dbQuery null
+            val updated = ChatQuestionsCodec.decode(row[BuilderChatMessagesTable.questions]).map { q ->
+                if (q.answer.isNullOrBlank()) q.copy(answer = answers[q.id] ?: q.answer) else q
+            }
+            BuilderChatMessagesTable.update({ BuilderChatMessagesTable.id eq messageId.value }) {
+                it[questions] = ChatQuestionsCodec.encode(updated).encode()
+            }
+            BuilderChatMessagesTable.selectAll()
+                .where { BuilderChatMessagesTable.id eq messageId.value }.firstOrNull()?.let(::toMessage)
+        }
+
     override suspend fun markApplied(messageId: ChatMessageId, draftId: DiscoveryDraftId): ChatMessage? =
         DatabaseFactory.dbQuery {
             BuilderChatMessagesTable.update({ BuilderChatMessagesTable.id eq messageId.value }) {

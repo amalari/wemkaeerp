@@ -77,9 +77,12 @@ fun Route.builderRoutes(
         com.eventverse.app.infrastructure.IpaymuClient.fromEnv(),
     /** Run chat asinkron (SSE); satu per proses server supaya klien yang sambung ulang menemukan run-nya. */
     runRegistry: com.eventverse.app.infrastructure.builder.BuilderRunRegistry =
-        com.eventverse.app.infrastructure.builder.BuilderRunRegistry()
+        com.eventverse.app.infrastructure.builder.BuilderRunRegistry(),
+    /** Penanya klarifikasi sebelum draf (Fase B); default dari env — `null` bila saklar mati. */
+    clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? =
+        com.eventverse.app.infrastructure.builder.BuilderClarifiers.fromEnv()
 ) {
-    val send = SendBuilderMessageUseCase(chats, agent, drafts)
+    val send = SendBuilderMessageUseCase(chats, agent, drafts, clarifier = clarifier)
     val apply = ApplyDraftPatchUseCase(chats, drafts)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
