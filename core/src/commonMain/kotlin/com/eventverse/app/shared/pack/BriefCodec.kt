@@ -10,7 +10,13 @@ import com.eventverse.app.shared.json.jsonOf
 object BriefCodec {
     fun encode(b: RequirementsBrief): JsonValue.Obj = encodeCore(b).let { core ->
         // Kunci `context` ditulis hanya bila ada: brief tanpa chat ter-encode byte-per-byte sama seperti sebelumnya.
-        b.context?.let { JsonValue.Obj(core.entries + ("context" to encodeContext(it))) } ?: core
+        val withContext = b.context?.let { JsonValue.Obj(core.entries + ("context" to encodeContext(it))) } ?: core
+        b.revision?.let { r ->
+            JsonValue.Obj(withContext.entries + ("revision" to jsonObjectOf(
+                "version" to jsonOf(r.version), "supersedes" to jsonOf(r.supersedes), "previousStatus" to jsonOf(r.previousStatus),
+                "added" to jsonArrayOf(r.added.map(::jsonOf)), "removed" to jsonArrayOf(r.removed.map(::jsonOf))
+            )))
+        } ?: withContext
     }
 
     private fun encodeContext(c: com.eventverse.app.domain.discovery.brief.BriefContext): JsonValue.Obj = jsonObjectOf(

@@ -49,11 +49,15 @@ class PostgresBuilderBuildRequestRepository(private val clock: Clock = Clock.Sys
                 it[briefMarkdown] = request.brief?.markdown
                 it[briefJson] = request.brief?.json
                 it[briefAt] = request.brief?.takenAt
+                it[briefVersion] = request.briefVersion
+                it[supersedes] = request.supersedes?.value
+                it[supersededBy] = request.supersededBy?.value
             }
         } else {
             BuildRequestsTable.update({ BuildRequestsTable.id eq request.id.value }) {
                 it[status] = request.status.name
                 it[quoteId] = request.quoteId
+                it[supersededBy] = request.supersededBy?.value
             }
         }
         request
@@ -68,6 +72,9 @@ class PostgresBuilderBuildRequestRepository(private val clock: Clock = Clock.Sys
         quoteId = row[BuildRequestsTable.quoteId],
         deploymentId = row[BuildRequestsTable.deploymentId],
         createdAt = row[BuildRequestsTable.createdAt],
+        briefVersion = row[BuildRequestsTable.briefVersion],
+        supersedes = row[BuildRequestsTable.supersedes]?.let(::BuildRequestId),
+        supersededBy = row[BuildRequestsTable.supersededBy]?.let(::BuildRequestId),
         brief = row[BuildRequestsTable.briefMarkdown]?.let { md ->
             BriefSnapshot(md, row[BuildRequestsTable.briefJson].orEmpty(), requireNotNull(row[BuildRequestsTable.briefAt]) { "brief_at wajib bila brief ada" })
         }

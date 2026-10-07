@@ -31,7 +31,9 @@ fun Route.builderBuildQueueRoutes(buildRequests: BuilderBuildRequestRepository) 
             call.respondText(
                 "{\"requests\":[" + queue.joinToString(",") { r ->
                     "{\"id\":\"${r.id.value}\",\"tenantId\":\"${r.tenantId.value}\",\"moduleId\":\"${r.moduleId}\"," +
-                        "\"status\":\"${r.status.name}\",\"reason\":\"${r.reason.replace("\"", "'")}\",\"hasBrief\":${r.brief != null}" +
+                        "\"status\":\"${r.status.name}\",\"reason\":\"${r.reason.replace("\"", "'")}\",\"hasBrief\":${r.brief != null},\"briefVersion\":${r.briefVersion}" +
+                        (r.supersedes?.let { ",\"supersedes\":\"${it.value}\"" } ?: "") +
+                        (r.supersededBy?.let { ",\"supersededBy\":\"${it.value}\"" } ?: "") +
                         (r.quoteId?.let { ",\"quoteId\":\"$it\"" } ?: "") + "}"
                 } + "]}",
                 ContentType.Application.Json
@@ -64,6 +66,10 @@ fun Route.builderBuildQueueRoutes(buildRequests: BuilderBuildRequestRepository) 
             val status = runCatching { BuildRequestStatus.valueOf(statusName.uppercase()) }.getOrNull()
             if (status == null) {
                 call.respond(HttpStatusCode.BadRequest, "status tidak dikenal: '$statusName'")
+                return@post
+            }
+            if (status == BuildRequestStatus.SUPERSEDED) {
+                call.respond(HttpStatusCode.BadRequest, "SUPERSEDED dikelola sistem (deploy ulang menggantikan permintaan); tidak bisa diatur manual")
                 return@post
             }
             val existing = buildRequests.findAll().firstOrNull { it.id.value == id }

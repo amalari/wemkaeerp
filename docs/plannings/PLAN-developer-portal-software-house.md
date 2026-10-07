@@ -14,7 +14,7 @@ developer — termasuk yang bukan karyawan — menerima, mengerjakan, dan menyer
 | Yang sudah ada | Keterangan | Batasnya untuk software house |
 |---|---|---|
 | **Antrian Pembuatan** | Daftar `BuildRequest` lintas tenant; status `QUEUED, QUOTED, APPROVED, IN_PROGRESS, SHIPPED, REJECTED`; hanya `PLATFORM_SUPERADMIN` | Tidak ada **penugasan** (siapa yang mengerjakan), tidak ada peran selain superadmin, UI hanya daftar |
-| **Brief beku** (opsi B) | Markdown + JSON yang dibekukan saat permintaan lahir; tombol "Lihat brief" | Satu snapshot; belum ada versi baru bila lingkup berubah, belum ada selisih |
+| **Brief beku + revisi** (opsi B + opsi 2, sudah jadi) | Markdown + JSON dibekukan saat permintaan lahir. Deploy ulang pack kustom **menggantikan** permintaan yang belum selesai (`SUPERSEDED`, penunjuk dua arah), brief versi baru memuat bagian **Revisi brief** dengan selisih isi; permintaan yang sudah `IN_PROGRESS` ditandai di alasan | Belum ada persetujuan ulang klien dan pemberitahuan ke developer saat permintaan yang sedang dikerjakan digantikan (masuk C2/C4) |
 | **Ledger pengerjaan modul** | `module_build_records` + entri effort per peran/fase + `discoveredScopeDelta`; API `/api/admin/module-dev/...` | Hanya superadmin; belum terhubung ke penugasan dan pembayaran developer |
 | **Penawaran harga** | `ModulePricingQuote`, estimator, katalog modul | Penawaran ke klien ada; **tarif dan pembayaran ke developer** tidak ada |
 | **Penagihan klien** | Tagihan platform + iPaymu | Sisi klien saja |
@@ -67,7 +67,7 @@ bahwa **alur ini belum pernah dipakai nyata** — Fase C0 menyertakan uji coba u
 
 ### C4 — Loop umpan balik developer ↔ klien
 - Developer mengajukan **pertanyaan** pada permintaan → muncul sebagai follow-up di **utas modul** pada chat Builder klien (mekanisme `QUESTION` yang sudah ada), jawabannya kembali ke developer.
-- Perubahan lingkup dari klien (chat berlanjut setelah deploy) memicu **brief versi baru** dan menandai permintaan `CHANGES_REQUESTED`/perlu persetujuan ulang.
+- Perubahan lingkup dari klien (chat berlanjut setelah deploy) memicu **brief versi baru** — *mekaniknya sudah ada* (deploy ulang → revisi, `SUPERSEDED`, selisih). Yang tersisa di C4: menandai permintaan `CHANGES_REQUESTED`/perlu persetujuan ulang dan **memberi tahu developer** bila permintaan yang sedang dikerjakan digantikan.
 - Perantara (PM) opsional: pertanyaan lewat PM dahulu bila klien tidak boleh dihubungi langsung oleh developer luar.
 
 ### C5 — Keuangan software house
@@ -130,3 +130,8 @@ Jalur tercepat menuju nilai: **C0 → C1 → C2 → C3** (developer bisa bekerja
 - Pembuatan kode otomatis oleh LLM (pendekatan "Hercules"): di luar tujuan; manusia yang membangun.
 - Marketplace publik developer: terlalu dini; mulai dari developer yang diundang.
 - Runtime data nyata untuk prototype: bukan bagian serah-terima (prototype tetap data memori).
+
+## 8. Keputusan yang sudah diambil (2026-10-08)
+- **Deploy ulang pack kustom = revisi (opsi 2)**, bukan penguncian draf dan bukan penolakan: klien memang terus beriterasi selagi developer bekerja.
+  Yang lama `SUPERSEDED` (modul yang tak lagi aktif digugurkan tanpa pengganti; yang sudah `SHIPPED`/`REJECTED` tidak disentuh), deployment tertahan lama
+  ikut `SUPERSEDED`, dan `SUPERSEDED` tidak bisa diatur manual lewat antrean. Migrasi V95.

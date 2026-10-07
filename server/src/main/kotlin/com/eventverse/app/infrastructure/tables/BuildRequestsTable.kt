@@ -19,5 +19,10 @@ object BuildRequestsTable : Table("builder.build_requests") {
     val briefJson = text("brief_json").nullable()
     val briefAt = timestamp("brief_at").nullable()
 
+    /** Revisi (V95): versi brief, permintaan yang digantikan, dan pengganti. */
+    val briefVersion = integer("brief_version")
+    val supersedes = varchar("supersedes", 140).nullable()
+    val supersededBy = varchar("superseded_by", 140).nullable()
+
     override val primaryKey = PrimaryKey(id)
 }

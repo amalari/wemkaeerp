@@ -120,6 +120,85 @@ class DeploymentUseCaseTest {
         assertTrue(buildRequests.rows.isEmpty())
     }
 
+    // ---- opsi 2: deploy ulang = REVISI (menggantikan permintaan tertunda), bukan duplikat -------------------
+
+    private fun redeployFixture(): Pair<InMemoryBuilderChatRepository, DeployTenantUseCase> {
+        seedKlinikDraft()
+        val chats = InMemoryBuilderChatRepository()
+        chatMsg(chats, ChatRole.USER, "Kami klinik gigi, pasien antre per poli.")
+        return chats to DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = BuildRequestBriefs(chats))
+    }
+
+    @Test
+    fun redeploy_customPack_supersedesPendingRequests_andWritesARevisionBriefWithDiff() = runTest {
+        val (chats, deployUc) = redeployFixture()
+        deployUc(demo).getOrThrow()
+        val firstIds = buildRequests.rows.associate { it.moduleId to it.id }
+        assertTrue(buildRequests.rows.all { it.briefVersion == 1 && it.supersedes == null })
+
+        // Klien terus beriterasi: keputusan baru pada modul poli, lalu deploy ulang.
+        chatMsg(chats, ChatRole.AGENT, "patch poli", module = "klinik_poli", applied = true, summary = listOf("Tambah isian: Nomor Rekam Medis (text)"))
+        val second = deployUc(demo).getOrThrow()
+
+        assertEquals(2, second.packVersion)
+        val byId = buildRequests.rows.associateBy { it.id }
+        val old = firstIds.mapValues { byId.getValue(it.value) }
+        val fresh = buildRequests.rows.filter { it.briefVersion == 2 }.associateBy { it.moduleId }
+        assertEquals(setOf("klinik_poli", "klinik_kasir"), fresh.keys)
+        assertTrue(old.values.all { it.status == BuildRequestStatus.SUPERSEDED }, "yang lama digantikan, bukan dibiarkan menggandakan antrean")
+        assertEquals(fresh.mapValues { it.value.id }, old.mapValues { it.value.supersededBy }, "tiap yang lama menunjuk penggantinya")
+        assertTrue(fresh.values.all { it.status == BuildRequestStatus.QUEUED && it.supersedes == firstIds[it.moduleId] })
+        assertTrue(fresh.getValue("klinik_poli").reason.startsWith("Merevisi ${firstIds.getValue("klinik_poli").value} (status sebelumnya QUEUED)"))
+
+        val poliMd = fresh.getValue("klinik_poli").brief!!.markdown
+        assertTrue(poliMd.contains("## Revisi brief") && poliMd.contains("Versi 2 — menggantikan `${firstIds.getValue("klinik_poli").value}`"))
+        assertTrue(poliMd.substringAfter("**Ditambahkan**").contains("Tambah isian: Nomor Rekam Medis (text)"), "selisih menyebut yang baru")
+        assertTrue(fresh.getValue("klinik_kasir").brief!!.markdown.contains("Isi tidak berubah dibanding versi sebelumnya."), "modul yang tak berubah dinyatakan eksplisit")
+        assertTrue(old.getValue("klinik_poli").brief!!.markdown.contains("Revisi brief").not(), "snapshot lama tetap beku, tidak ditulis ulang")
+
+        val deps = deployments.rows.associateBy { it.number.value }
+        assertEquals(DeploymentStatus.SUPERSEDED, deps.getValue(1).status, "deployment tertahan lama digantikan")
+        assertEquals(DeploymentStatus.BLOCKED_ON_BUILD, deps.getValue(2).status)
+    }
+
+    @Test
+    fun redeploy_keepsFinishedWork_flagsInProgress_andDropsModulesNoLongerActive() = runTest {
+        val (_, deployUc) = redeployFixture()
+        deployUc(demo).getOrThrow()
+        val poli = buildRequests.rows.first { it.moduleId == "klinik_poli" }
+        val kasir = buildRequests.rows.first { it.moduleId == "klinik_kasir" }
+        buildRequests.save(poli.copy(status = BuildRequestStatus.IN_PROGRESS))      // developer sedang mengerjakan
+        buildRequests.save(kasir.copy(status = BuildRequestStatus.SHIPPED))          // sudah selesai
+
+        // Blueprint kini hanya poli (kasir dibuang dari rencana).
+        val key = DiscoveryDraftId("draft-${demo.value}")
+        val stored = drafts.rows.getValue(key)
+        drafts.rows[key] = stored.copy(draft = stored.draft.copy(blueprint = stored.draft.blueprint.copy(
+            modules = listOf(com.eventverse.app.domain.blueprint.BlueprintModule("klinik_poli", true)))))
+        deployUc(demo).getOrThrow()
+
+        val now = buildRequests.rows.associateBy { it.id }
+        assertEquals(BuildRequestStatus.SUPERSEDED, now.getValue(poli.id).status)
+        val revised = buildRequests.rows.first { it.briefVersion == 2 }
+        assertTrue(revised.reason.contains("status sebelumnya IN_PROGRESS"), "operator tahu developer sudah mulai bekerja: ${revised.reason}")
+        assertEquals(BuildRequestStatus.SHIPPED, now.getValue(kasir.id).status, "yang sudah selesai tidak disentuh")
+        assertEquals(1, buildRequests.rows.count { it.moduleId == "klinik_kasir" }, "modul yang tak lagi aktif tidak dibuatkan permintaan baru")
+    }
+
+    @Test
+    fun redeploy_pendingRequestOfRemovedModule_isDroppedWithoutReplacement() = runTest {
+        val (_, deployUc) = redeployFixture()
+        deployUc(demo).getOrThrow()
+        val key = DiscoveryDraftId("draft-${demo.value}")
+        val stored = drafts.rows.getValue(key)
+        drafts.rows[key] = stored.copy(draft = stored.draft.copy(blueprint = stored.draft.blueprint.copy(
+            modules = listOf(com.eventverse.app.domain.blueprint.BlueprintModule("klinik_poli", true)))))
+        deployUc(demo).getOrThrow()
+        val kasir = buildRequests.rows.single { it.moduleId == "klinik_kasir" }
+        assertEquals(BuildRequestStatus.SUPERSEDED, kasir.status)
+        assertEquals(null, kasir.supersededBy, "digugurkan tanpa pengganti")
+    }
+
     private fun unlock() {
         val key = DiscoveryDraftId("draft-${demo.value}")
         drafts.rows[key] = drafts.rows.getValue(key).copy(status = DiscoveryDraftStatus.DRAFT)
@@ -285,6 +364,7 @@ class DeploymentUseCaseTest {
         override suspend fun findByTenant(tenantId: TenantId) = rows.filter { it.tenantId == tenantId }
         override suspend fun findAll() = rows.toList()
         override suspend fun save(request: BuildRequest): BuildRequest {
+            rows.removeAll { it.id == request.id }   // upsert per id, seperti Postgres
             rows.add(request)
             return request
         }

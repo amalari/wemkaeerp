@@ -3,6 +3,7 @@ package com.eventverse.app.domain.builder
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.brief.BriefCoverage
 import com.eventverse.app.domain.discovery.brief.BriefRenderer
+import com.eventverse.app.domain.discovery.brief.BriefRevision
 import com.eventverse.app.domain.discovery.brief.RequirementsBriefAssembler
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.pack.BriefCodec
@@ -18,12 +19,21 @@ class BuildRequestBriefs(
     private val chats: BuilderChatRepository,
     private val clock: Clock = Clock.System
 ) {
-    suspend operator fun invoke(tenantId: TenantId, draft: DiscoveryDraft, moduleId: String): BriefSnapshot {
+    /**
+     * [previous] = permintaan belum selesai untuk modul yang sama yang digantikan oleh yang baru: brief baru memuat bagian
+     * **Revisi brief** (versi, id yang digantikan, status sebelumnya, dan selisih isi) supaya developer tahu apa yang berubah.
+     */
+    suspend operator fun invoke(tenantId: TenantId, draft: DiscoveryDraft, moduleId: String, previous: BuildRequest? = null): BriefSnapshot {
         val included = setOf(moduleId)
         val name = draft.pack.modules.firstOrNull { it.id.value == moduleId }?.displayName ?: moduleId
         val coverage = listOf(BriefCoverage(moduleId, name, covered = false, monthlyIdr = null, gapLowIdr = null, gapHighIdr = null))
         val context = briefContextOf(chats.messages(chats.conversationFor(tenantId).id), included)
-        val brief = RequirementsBriefAssembler.assemble(draft, included, emptyList(), coverage, context)
+        val first = RequirementsBriefAssembler.assemble(draft, included, emptyList(), coverage, context)
+        val previousBrief = previous?.brief
+        val brief = if (previous == null || previousBrief == null) first else {
+            val (added, removed) = BriefRenderer.diff(previousBrief.markdown, BriefRenderer.markdown(first))
+            first.copy(revision = BriefRevision(previous.briefVersion + 1, previous.id.value, previous.status.name, added, removed))
+        }
         return BriefSnapshot(BriefRenderer.markdown(brief), BriefCodec.encode(brief).encode(), clock.now())
     }
 }

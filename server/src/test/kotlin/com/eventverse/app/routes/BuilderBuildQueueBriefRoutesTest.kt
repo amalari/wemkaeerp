@@ -19,6 +19,7 @@ import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -97,6 +98,22 @@ class BuilderBuildQueueBriefRoutesTest {
         assertTrue(json.string("markdown").orEmpty().contains("## Belum jelas"))
         assertEquals("klinik", json.obj("brief")!!.string("packCode"))
         assertEquals("2026-10-08T01:00:00Z", json.string("takenAt"))
+    }
+
+    @Test
+    fun `status SUPERSEDED tidak bisa diatur manual lewat antrean`() = testApplication {
+        install(this)
+        val res = client.post("/api/builder/build-queue/br-1/status?status=SUPERSEDED") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        assertEquals(400, res.status.value)
+        assertTrue(res.bodyAsText().contains("dikelola sistem"))
+        val ok = client.post("/api/builder/build-queue/br-1/status?status=IN_PROGRESS") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        assertEquals(200, ok.status.value, "status operasional tetap bisa diubah")
     }
 
     @Test
