@@ -32,7 +32,7 @@ object InterviewFixtures {
     private val IN = PortType("Permintaan")
     private val OUT = PortType("Catatan")
 
-    private fun operational(id: String, name: String, hierarchical: Boolean = true) = ModuleDefinition(
+    fun operational(id: String, name: String, hierarchical: Boolean = true) = ModuleDefinition(
         id = ModuleId(id), displayName = name, description = name, section = UTAMA, kind = ModuleKind.OPERATIONAL,
         iconKey = "clipboard",
         scopeCapability = if (hierarchical) ScopeCapability.HIERARCHICAL else ScopeCapability.GLOBAL_ONLY,
@@ -40,7 +40,7 @@ object InterviewFixtures {
         slot = SlotCode(id)
     )
 
-    private fun pack(code: String, name: String, vararg ops: ModuleDefinition): DomainPack {
+    fun pack(code: String, name: String, vararg ops: ModuleDefinition): DomainPack {
         val orgChart = requireNotNull(GarmentDomainPack.pack.module(GarmentModules.ORG_CHART)) { "org_chart hilang dari pack bawaan" }
         val govSection = requireNotNull(GarmentDomainPack.pack.sections.firstOrNull { it.code == orgChart.section })
         return DomainPack(
