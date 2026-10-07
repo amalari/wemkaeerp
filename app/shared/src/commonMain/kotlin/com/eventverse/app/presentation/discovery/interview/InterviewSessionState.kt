@@ -4,6 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.BasisRef
+import com.eventverse.app.domain.discovery.interview.BusinessProfile
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
@@ -14,6 +17,7 @@ import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.ItemSource
 import com.eventverse.app.domain.discovery.interview.ModuleHandoff
 import com.eventverse.app.domain.discovery.interview.ModuleOrigin
+import com.eventverse.app.domain.discovery.interview.RequirementSpec
 import com.eventverse.app.domain.discovery.interview.RoleDraft
 import com.eventverse.app.domain.discovery.interview.RoleKey
 import com.eventverse.app.domain.discovery.interview.RoleModuleLink
@@ -29,12 +33,13 @@ data class ConsultantSuggestion(
     val title: String,
     val rationale: String,
     val basisRef: String,
-    val status: ConsultantSuggestionStatus = ConsultantSuggestionStatus.PENDING
+    val status: ConsultantSuggestionStatus = ConsultantSuggestionStatus.PENDING,
+    val recommendedModuleId: ModuleId? = null
 )
 
 /**
  * State holder untuk sesi wawancara di UI.
- * Mengelola perubahan divisi, peran, modul, fitur, sambungan, dan jejak giliran secara reaktif.
+ * Mengelola perubahan divisi, peran, modul, fitur, sambungan, profil bisnis, dan jejak giliran secara reaktif.
  */
 class InterviewSessionState(
     initialSession: InterviewSession? = null,
@@ -47,6 +52,12 @@ class InterviewSessionState(
     var currentQuestion by mutableStateOf(initialQuestion)
     var busy by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
+    val version = initialSession?.version ?: InterviewSession.BASED_ON_STORY
+
+    var profile by mutableStateOf(initialSession?.profile)
+    val specs = mutableStateListOf<RequirementSpec>().apply {
+        addAll(initialSession?.specs.orEmpty())
+    }
 
     val divisions = mutableStateListOf<DivisionDraft>().apply {
         addAll(initialSession?.divisions.orEmpty())
@@ -75,11 +86,12 @@ class InterviewSessionState(
         if (narrative.isNotBlank() && consultantSuggestions.isEmpty()) {
             consultantSuggestions.add(
                 ConsultantSuggestion(
-                    id = "saran-1",
+                    id = "sug_qc",
                     title = "Otomasi Serah-Terima Antar Unit",
                     rationale = "Alur operasional akan lebih tertib bila dokumen serah-terima divalidasi langsung.",
                     basisRef = "Berdasarkan narasi kebutuhan Anda",
-                    status = ConsultantSuggestionStatus.PENDING
+                    status = ConsultantSuggestionStatus.PENDING,
+                    recommendedModuleId = ModuleId("qc_inspection")
                 )
             )
         }
@@ -111,7 +123,8 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val slug = toSlug(trimmed, "div")
         if (divisions.none { it.code.value == slug }) {
-            divisions.add(DivisionDraft(DivisionCode(slug), trimmed, ItemSource.ANSWER))
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            divisions.add(DivisionDraft(DivisionCode(slug), trimmed, ItemSource.ANSWER, ref))
         }
     }
 
@@ -120,7 +133,8 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val idx = divisions.indexOfFirst { it.code == code }
         if (idx >= 0) {
-            divisions[idx] = divisions[idx].copy(name = trimmed, source = ItemSource.ANSWER)
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            divisions[idx] = divisions[idx].copy(name = trimmed, source = ItemSource.ANSWER, basisRef = ref)
         }
     }
 
@@ -139,7 +153,8 @@ class InterviewSessionState(
                 // Pastikan hanya satu kepala divisi
                 setHeadOfDivision(divisionCode, null)
             }
-            roles.add(RoleDraft(RoleKey(key), trimmed, divisionCode, ItemSource.ANSWER, isHead))
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            roles.add(RoleDraft(RoleKey(key), trimmed, divisionCode, ItemSource.ANSWER, isHead, ref))
         }
     }
 
@@ -148,7 +163,8 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val idx = roles.indexOfFirst { it.roleKey == roleKey }
         if (idx >= 0) {
-            roles[idx] = roles[idx].copy(label = trimmed, source = ItemSource.ANSWER)
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            roles[idx] = roles[idx].copy(label = trimmed, source = ItemSource.ANSWER, basisRef = ref)
         }
     }
 
@@ -180,17 +196,20 @@ class InterviewSessionState(
     fun confirmLink(roleKey: RoleKey, moduleId: ModuleId) {
         val idx = links.indexOfFirst { it.roleKey == roleKey && it.moduleId == moduleId }
         if (idx >= 0) {
-            links[idx] = links[idx].copy(confirmed = Confirmation.CONFIRMED)
+            val currentRef = links[idx].basisRef ?: BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            links[idx] = links[idx].copy(confirmed = Confirmation.CONFIRMED, basisRef = currentRef)
         }
     }
 
     fun changeModuleForRole(roleKey: RoleKey, oldModuleId: ModuleId, newModuleId: ModuleId, newOrigin: ModuleOrigin) {
         val idx = links.indexOfFirst { it.roleKey == roleKey && it.moduleId == oldModuleId }
         if (idx >= 0) {
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
             links[idx] = links[idx].copy(
                 moduleId = newModuleId,
                 origin = newOrigin,
-                confirmed = Confirmation.CHANGED
+                confirmed = Confirmation.CHANGED,
+                basisRef = ref
             )
         }
     }
@@ -224,7 +243,8 @@ class InterviewSessionState(
     fun confirmHandoff(from: ModuleId, to: ModuleId, portType: PortType) {
         val idx = handoffs.indexOfFirst { it.from == from && it.to == to && it.portType == portType }
         if (idx >= 0) {
-            handoffs[idx] = handoffs[idx].copy(confirmed = Confirmation.CONFIRMED)
+            val currentRef = handoffs[idx].basisRef ?: BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            handoffs[idx] = handoffs[idx].copy(confirmed = Confirmation.CONFIRMED, basisRef = currentRef)
         }
     }
 
@@ -234,7 +254,8 @@ class InterviewSessionState(
 
     fun addHandoff(from: ModuleId, to: ModuleId, portType: PortType) {
         if (handoffs.none { it.from == from && it.to == to && it.portType == portType }) {
-            handoffs.add(ModuleHandoff(from, to, portType, Confirmation.CONFIRMED))
+            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            handoffs.add(ModuleHandoff(from, to, portType, Confirmation.CONFIRMED, ref))
         }
     }
 
@@ -242,7 +263,23 @@ class InterviewSessionState(
     fun acceptSuggestion(id: String) {
         val idx = consultantSuggestions.indexOfFirst { it.id == id }
         if (idx >= 0) {
-            consultantSuggestions[idx] = consultantSuggestions[idx].copy(status = ConsultantSuggestionStatus.ACCEPTED)
+            val sug = consultantSuggestions[idx]
+            consultantSuggestions[idx] = sug.copy(status = ConsultantSuggestionStatus.ACCEPTED)
+            sug.recommendedModuleId?.let { modId ->
+                val targetRole = roles.firstOrNull { it.isHead } ?: roles.firstOrNull()
+                if (targetRole != null && links.none { it.roleKey == targetRole.roleKey && it.moduleId == modId }) {
+                    val ref = BasisRef(Basis.SARAN_DITERIMA, answerId = "turn_$turnNumber")
+                    links.add(
+                        RoleModuleLink(
+                            roleKey = targetRole.roleKey,
+                            moduleId = modId,
+                            origin = ModuleOrigin.NEW,
+                            confirmed = Confirmation.CONFIRMED,
+                            basisRef = ref
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -316,6 +353,10 @@ class InterviewSessionState(
         roles = roles.toList(),
         links = links.toList(),
         handoffs = handoffs.toList(),
-        answers = answers.toList()
+        answers = answers.toList(),
+        version = version,
+        narrative = narrative.ifBlank { null },
+        profile = profile,
+        specs = specs.toList()
     )
 }

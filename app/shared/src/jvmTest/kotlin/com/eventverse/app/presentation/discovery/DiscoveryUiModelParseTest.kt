@@ -409,5 +409,134 @@ class DiscoveryUiModelParseTest {
         assertNull(ui.interview)
         assertNull(ui.nextQuestion)
     }
+
+    @Test
+    fun testDraftWithInterviewSessionB7BasisRefProfileAndSpecs() {
+        val draftJson = jsonObjectOf(
+            "id" to jsonOf("draft-b7-01"),
+            "status" to jsonOf("DRAFT"),
+            "packCode" to jsonOf("klinik"),
+            "packDisplayName" to jsonOf("Klinik"),
+            "blueprintCode" to jsonOf("klinik_starter"),
+            "blueprintDescription" to jsonOf("Alur Klinik"),
+            "modules" to jsonArrayOf(
+                listOf(
+                    jsonObjectOf(
+                        "id" to jsonOf("klinik_emr"),
+                        "displayName" to jsonOf("Rekam Medis"),
+                        "section" to jsonOf("UTAMA"),
+                        "kind" to jsonOf("OPERATIONAL"),
+                        "origin" to jsonOf("new"),
+                        "basis" to jsonObjectOf(
+                            "basis" to jsonOf("narasi"),
+                            "quote" to jsonOf("rekam medis elektronik")
+                        )
+                    )
+                )
+            ),
+            "activeModuleCodes" to jsonArrayOf(listOf(jsonOf("klinik_emr"))),
+            "screens" to jsonArrayOf(emptyList()),
+            "interview" to jsonObjectOf(
+                "version" to jsonOf(2),
+                "narrative" to jsonOf("Kami klinik yang butuh rekam medis elektronik."),
+                "profile" to jsonObjectOf(
+                    "summary" to jsonOf("Klinik Pratama 24 Jam"),
+                    "goals" to jsonArrayOf(listOf(jsonOf("Rekam medis paperless"))),
+                    "painPoints" to jsonArrayOf(listOf(jsonOf("Antrean panjang di loket")))
+                ),
+                "specs" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "areaKey" to jsonOf("resepsionis"),
+                            "whoFills" to jsonOf("Petugas loket"),
+                            "whatRecorded" to jsonOf("Data pasien"),
+                            "whoSees" to jsonOf("Dokter pemeriksa"),
+                            "doneWhen" to jsonOf("Pasien masuk antrean"),
+                            "basisRef" to jsonObjectOf(
+                                "basis" to jsonOf("narasi"),
+                                "quote" to jsonOf("rekam medis")
+                            )
+                        )
+                    )
+                ),
+                "step" to jsonOf("g1_divisi"),
+                "divisions" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "code" to jsonOf("pendaftaran"),
+                            "name" to jsonOf("Pendaftaran"),
+                            "source" to jsonOf("guess"),
+                            "basisRef" to jsonObjectOf(
+                                "basis" to jsonOf("jawaban"),
+                                "answerId" to jsonOf("turn_1")
+                            )
+                        )
+                    )
+                ),
+                "roles" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "roleKey" to jsonOf("resepsionis"),
+                            "label" to jsonOf("Resepsionis"),
+                            "divisionCode" to jsonOf("pendaftaran"),
+                            "source" to jsonOf("guess"),
+                            "isHead" to jsonOf(true),
+                            "basisRef" to jsonObjectOf(
+                                "basis" to jsonOf("jawaban"),
+                                "answerId" to jsonOf("turn_2")
+                            )
+                        )
+                    )
+                ),
+                "links" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "roleKey" to jsonOf("resepsionis"),
+                            "moduleId" to jsonOf("klinik_emr"),
+                            "origin" to jsonOf("new"),
+                            "features" to jsonArrayOf(listOf(jsonOf("Input Pasien"))),
+                            "confirmed" to jsonOf("confirmed"),
+                            "confidence" to jsonOf(90),
+                            "basisRef" to jsonObjectOf(
+                                "basis" to jsonOf("narasi"),
+                                "quote" to jsonOf("rekam medis elektronik")
+                            )
+                        )
+                    )
+                ),
+                "handoffs" to jsonArrayOf(emptyList()),
+                "answers" to jsonArrayOf(emptyList())
+            )
+        )
+
+        val ui = DiscoveryDraftUi.fromJson(draftJson)
+        val session = requireNotNull(ui.interview)
+        assertEquals(2, session.version)
+        assertEquals("Kami klinik yang butuh rekam medis elektronik.", session.narrative)
+
+        val profile = requireNotNull(session.profile)
+        assertEquals("Klinik Pratama 24 Jam", profile.summary)
+        assertEquals(listOf("Rekam medis paperless"), profile.goals)
+        assertEquals(listOf("Antrean panjang di loket"), profile.painPoints)
+
+        assertEquals(1, session.specs.size)
+        val spec = session.specs.first()
+        assertEquals("resepsionis", spec.areaKey.value)
+        assertEquals("Petugas loket", spec.whoFills)
+        assertEquals(com.eventverse.app.domain.discovery.interview.Basis.NARASI, spec.basisRef?.basis)
+
+        val div = session.divisions.first()
+        assertEquals(com.eventverse.app.domain.discovery.interview.Basis.JAWABAN, div.basisRef?.basis)
+        assertEquals("turn_1", div.basisRef?.answerId)
+
+        val link = session.links.first()
+        assertEquals(com.eventverse.app.domain.discovery.interview.Basis.NARASI, link.basisRef?.basis)
+        assertEquals("rekam medis elektronik", link.basisRef?.quote)
+
+        // Basis directly on module
+        val module = ui.modules.first()
+        assertEquals(com.eventverse.app.domain.discovery.interview.Basis.NARASI, module.basis?.basis)
+        assertEquals("rekam medis elektronik", module.basis?.quote)
+    }
 }
 

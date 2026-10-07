@@ -45,7 +45,8 @@ data class DiscoveryModuleUi(
     val slotInput: String?,
     val slotOutput: String?,
     val active: Boolean,
-    val origin: ModuleOrigin? = null
+    val origin: ModuleOrigin? = null,
+    val basis: com.eventverse.app.domain.discovery.interview.BasisRef? = null
 )
 
 data class DiscoveryScreenUi(
@@ -112,59 +113,7 @@ data class DiscoveryDraftUi(
             val interviewObj = o.obj("interview")
             val parsedInterview = interviewObj?.let { obj ->
                 runCatching {
-                    val stepStr = obj.string("step").orEmpty()
-                    val step = InterviewStep.fromCode(stepStr) ?: InterviewStep.G1_DIVISI
-                    val rawDivisions = (obj["divisions"] as? JsonValue.Arr)?.items.orEmpty()
-                    val divisions = rawDivisions.mapNotNull { it as? JsonValue.Obj }.mapNotNull { d ->
-                        val code = d.string("code") ?: return@mapNotNull null
-                        val name = d.string("name") ?: return@mapNotNull null
-                        val src = d.string("source")?.let { ItemSource.fromCode(it) } ?: ItemSource.GUESS
-                        runCatching { DivisionDraft(DivisionCode(code), name, src) }.getOrNull()
-                    }
-                    val rawRoles = (obj["roles"] as? JsonValue.Arr)?.items.orEmpty()
-                    val roles = rawRoles.mapNotNull { it as? JsonValue.Obj }.mapNotNull { r ->
-                        val roleKey = r.string("roleKey") ?: return@mapNotNull null
-                        val label = r.string("label") ?: return@mapNotNull null
-                        val divCode = r.string("divisionCode") ?: return@mapNotNull null
-                        val src = r.string("source")?.let { ItemSource.fromCode(it) } ?: ItemSource.GUESS
-                        val isHead = r.boolean("isHead") ?: false
-                        runCatching { RoleDraft(RoleKey(roleKey), label, DivisionCode(divCode), src, isHead) }.getOrNull()
-                    }
-                    val rawLinks = (obj["links"] as? JsonValue.Arr)?.items.orEmpty()
-                    val links = rawLinks.mapNotNull { it as? JsonValue.Obj }.mapNotNull { l ->
-                        val roleKey = l.string("roleKey") ?: return@mapNotNull null
-                        val moduleId = l.string("moduleId") ?: return@mapNotNull null
-                        val origin = l.string("origin")?.let { ModuleOrigin.fromCode(it) } ?: ModuleOrigin.NEW
-                        val features = (l["features"] as? JsonValue.Arr)?.items.orEmpty()
-                            .mapNotNull { (it as? JsonValue.Str)?.value }
-                        val confirmed = l.string("confirmed")?.let { Confirmation.fromCode(it) } ?: Confirmation.GUESSED
-                        val confidence = l.int("confidence")
-                        runCatching {
-                            RoleModuleLink(RoleKey(roleKey), ModuleId(moduleId), origin, features, confirmed, confidence)
-                        }.getOrNull()
-                    }
-                    val rawHandoffs = (obj["handoffs"] as? JsonValue.Arr)?.items.orEmpty()
-                    val handoffs = rawHandoffs.mapNotNull { it as? JsonValue.Obj }.mapNotNull { h ->
-                        val from = h.string("from") ?: return@mapNotNull null
-                        val to = h.string("to") ?: return@mapNotNull null
-                        val portType = h.string("portType") ?: return@mapNotNull null
-                        val confirmed = h.string("confirmed")?.let { Confirmation.fromCode(it) } ?: Confirmation.GUESSED
-                        runCatching {
-                            ModuleHandoff(ModuleId(from), ModuleId(to), PortType(portType), confirmed)
-                        }.getOrNull()
-                    }
-                    val rawAnswers = (obj["answers"] as? JsonValue.Arr)?.items.orEmpty()
-                    val answers = rawAnswers.mapNotNull { it as? JsonValue.Obj }.mapNotNull { a ->
-                        val turn = a.int("turn") ?: return@mapNotNull null
-                        val aStep = a.string("step")?.let { InterviewStep.fromCode(it) } ?: InterviewStep.G1_DIVISI
-                        val qId = a.string("questionId") ?: return@mapNotNull null
-                        val outcome = a.string("outcome")?.let { Confirmation.fromCode(it) } ?: Confirmation.CONFIRMED
-                        val text = a.string("text")
-                        runCatching {
-                            InterviewAnswer(turn, aStep, qId, outcome, text)
-                        }.getOrNull()
-                    }
-                    InterviewSession(step, divisions, roles, links, handoffs, answers)
+                    com.eventverse.app.shared.discovery.InterviewSessionCodec.decode(obj, "interview")
                 }.getOrNull()
             }
 
@@ -195,6 +144,11 @@ data class DiscoveryDraftUi(
                 blueprintCode = o.string("blueprintCode").orEmpty(),
                 blueprintDescription = o.string("blueprintDescription").orEmpty(),
                 modules = arr("modules").mapNotNull { it as? JsonValue.Obj }.map { m ->
+                    val basis = (m.obj("basis") ?: m.obj("basisRef"))?.let { v ->
+                        val code = v.string("basis") ?: return@let null
+                        val basisEnum = com.eventverse.app.domain.discovery.interview.Basis.fromCode(code) ?: return@let null
+                        com.eventverse.app.domain.discovery.interview.BasisRef(basisEnum, v.string("quote"), v.string("answerId"))
+                    }
                     DiscoveryModuleUi(
                         id = m.string("id").orEmpty(),
                         displayName = m.string("displayName").orEmpty(),
@@ -205,7 +159,8 @@ data class DiscoveryDraftUi(
                         slotInput = m.string("slotInput"),
                         slotOutput = m.string("slotOutput"),
                         active = m.string("id") in (arr("activeModuleCodes").mapNotNull { (it as? JsonValue.Str)?.value }),
-                        origin = m.string("origin")?.let { ModuleOrigin.fromCode(it) }
+                        origin = m.string("origin")?.let { ModuleOrigin.fromCode(it) },
+                        basis = basis
                     )
                 },
                 sectionsMetadata = arr("sections").mapNotNull { it as? JsonValue.Obj }.map { s ->

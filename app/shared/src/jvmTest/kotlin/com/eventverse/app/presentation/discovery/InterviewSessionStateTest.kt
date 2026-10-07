@@ -1,5 +1,8 @@
 package com.eventverse.app.presentation.discovery
 
+import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.BasisRef
+import com.eventverse.app.domain.discovery.interview.BusinessProfile
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
@@ -7,6 +10,7 @@ import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.ItemSource
 import com.eventverse.app.domain.discovery.interview.ModuleOrigin
+import com.eventverse.app.domain.discovery.interview.RequirementSpec
 import com.eventverse.app.domain.discovery.interview.RoleDraft
 import com.eventverse.app.domain.discovery.interview.RoleKey
 import com.eventverse.app.domain.discovery.interview.RoleModuleLink
@@ -164,6 +168,73 @@ class InterviewSessionStateTest {
     }
 
     @Test
+    fun testB7SessionStateCarriesProfileSpecsAndBasisRefOnAdditions() {
+        val profile = BusinessProfile(
+            summary = "Bengkel Motor Terpadu",
+            goals = listOf("Antrean servis teratur"),
+            painPoints = listOf("Sparepart sering selisih")
+        )
+        val spec = RequirementSpec(
+            areaKey = RoleKey("mekanik"),
+            whoFills = "Kepala Mekanik",
+            whatRecorded = "Sparepart terpakai",
+            whoSees = "Kasir & Gudang",
+            doneWhen = "Motor selesai diservis",
+            basisRef = BasisRef(Basis.NARASI, quote = "Sparepart sering selisih")
+        )
+        val sessionWithB7 = sampleSession().copy(
+            version = 2,
+            profile = profile,
+            specs = listOf(spec)
+        )
+
+        val state = InterviewSessionState(sessionWithB7, draftId = "draft-b7", narrative = "Bengkel motor terpadu butuh QC")
+        assertEquals(2, state.version)
+        assertEquals("Bengkel Motor Terpadu", state.profile?.summary)
+        assertEquals(1, state.specs.size)
+        assertEquals("mekanik", state.specs.first().areaKey.value)
+
+        // Tambah divisi di turn 1 -> harus punya basisRef JAWABAN
+        state.addDivision("Gudang Sparepart")
+        val addedDiv = state.divisions.last()
+        assertEquals("gudang_sparepart", addedDiv.code.value)
+        assertEquals(Basis.JAWABAN, addedDiv.basisRef?.basis)
+        assertEquals("turn_1", addedDiv.basisRef?.answerId)
+
+        // Tambah peran di turn 1 -> harus punya basisRef JAWABAN
+        state.addRole("Admin Gudang", addedDiv.code)
+        val addedRole = state.roles.last()
+        assertEquals("Admin Gudang", addedRole.label)
+        assertEquals(Basis.JAWABAN, addedRole.basisRef?.basis)
+        assertEquals("turn_1", addedRole.basisRef?.answerId)
+
+        // Tambah sambungan -> harus punya basisRef JAWABAN
+        state.addHandoff(ModuleId("klinik_pendaftaran"), ModuleId("klinik_poli"), PortType("Permintaan"))
+        val addedHandoff = state.handoffs.last()
+        assertEquals(Basis.JAWABAN, addedHandoff.basisRef?.basis)
+        assertEquals("turn_1", addedHandoff.basisRef?.answerId)
+
+        // Konfirmasi perubahan link modul -> basisRef JAWABAN
+        val oldLink = state.links.first()
+        state.changeModuleForRole(oldLink.roleKey, oldLink.moduleId, ModuleId("klinik_registrasi"), ModuleOrigin.EXTEND)
+        val changedLink = state.links.first()
+        assertEquals(Basis.JAWABAN, changedLink.basisRef?.basis)
+        assertEquals("turn_1", changedLink.basisRef?.answerId)
+
+        // Terima saran konsultan -> basisRef SARAN_DITERIMA
+        state.acceptSuggestion("sug_qc")
+        val qcLink = state.links.firstOrNull { it.moduleId.value == "qc_inspection" }
+        assertNotNull(qcLink)
+        assertEquals(Basis.SARAN_DITERIMA, qcLink.basisRef?.basis)
+
+        // Ekspor toSession
+        val exported = state.toSession()
+        assertEquals(2, exported.version)
+        assertEquals("Bengkel Motor Terpadu", exported.profile?.summary)
+        assertEquals(1, exported.specs.size)
+    }
+
+    @Test
     fun testAllStaticStringsAreLatin1() {
         // Verifikasi bahwa teks yang digunakan tidak memuat glyph di luar Latin-1 (Nunito-safe)
         val sampleTexts = listOf(
@@ -172,6 +243,14 @@ class InterviewSessionStateTest {
             "3. Modul & Fitur Kebutuhan",
             "4. Sambungan Alur Kerja",
             "5. Ringkasan Rancangan",
+            "Profil Usaha & Sasaran",
+            "Tujuan Operasional:",
+            "Kendala Saat Ini:",
+            "Spesifikasi Area Kerja",
+            "Dasar: Kutipan cerita",
+            "Dasar: Jawaban Anda pada pertanyaan wawancara",
+            "Dasar: Saran konsultan yang Anda terima",
+            "Dasar: Saran konsultan (belum dikonfirmasi)",
             "Terima Semua Tebakan",
             "Lewati Wawancara",
             "Kunci Usulan & Lanjut ke Draf Blueprint",
@@ -180,7 +259,9 @@ class InterviewSessionStateTest {
             "Kembangkan",
             "Baru",
             "->", // ascii arrow
-            "x"   // ascii close
+            "x",  // ascii close
+            " | ",
+            " - "
         )
 
         for (text in sampleTexts) {
