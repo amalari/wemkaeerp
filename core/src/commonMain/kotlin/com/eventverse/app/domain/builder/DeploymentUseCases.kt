@@ -46,7 +46,7 @@ class DeployTenantUseCase(
 
         val needsCode = DomainPackRegistry.shipped.none { it.code == stored.draft.pack.code }
         val number = deployments.nextNumber(tenantId)
-        val id = DeploymentId("dep-${tenantId.value}-$number")
+        val id = DeploymentId("dep-${tenantId.value}-${number.value}")
         // Versi pack dihitung SEBELUM cabang: deployment BLOCKED_ON_BUILD pun wajib membawa versi terkunci (invarian domain
         // dan CHECK SQL V81). Dulu hanya dihitung di jalur ACTIVE, sehingga deploy pack kustom selalu melempar.
         val nextVersion = deployments.findByTenant(tenantId)
@@ -68,7 +68,7 @@ class DeployTenantUseCase(
                 val brief = briefs?.let { runCatching { it(tenantId, stored.draft, moduleId) }.getOrNull() }
                 buildRequests.save(
                     BuildRequest(
-                        id = BuildRequestId("br-${tenantId.value}-$number-$moduleId"),
+                        id = BuildRequestId("br-${tenantId.value}-${number.value}-$moduleId"),
                         tenantId = tenantId,
                         moduleId = moduleId,
                         reason = "Pack kustom '${stored.draft.pack.code.value}' belum diimplementasi platform",
