@@ -8,7 +8,19 @@ import com.eventverse.app.shared.json.jsonOf
 
 /** Kawat JSON [RequirementsBrief] (kontrak v1; respons `POST /api/builder/draft/brief`). Hanya encode — klien tak mengirim brief. */
 object BriefCodec {
-    fun encode(b: RequirementsBrief): JsonValue.Obj = jsonObjectOf(
+    fun encode(b: RequirementsBrief): JsonValue.Obj = encodeCore(b).let { core ->
+        // Kunci `context` ditulis hanya bila ada: brief tanpa chat ter-encode byte-per-byte sama seperti sebelumnya.
+        b.context?.let { JsonValue.Obj(core.entries + ("context" to encodeContext(it))) } ?: core
+    }
+
+    private fun encodeContext(c: com.eventverse.app.domain.discovery.brief.BriefContext): JsonValue.Obj = jsonObjectOf(
+        "narrative" to jsonOf(c.narrative),
+        "answered" to jsonArrayOf(c.answered.map { jsonObjectOf("moduleId" to jsonOf(it.moduleId), "question" to jsonOf(it.question), "answer" to jsonOf(it.answer)) }),
+        "decisions" to jsonArrayOf(c.decisions.map { jsonObjectOf("moduleId" to jsonOf(it.moduleId), "at" to jsonOf(it.at), "summary" to jsonArrayOf(it.summary.map(::jsonOf))) }),
+        "open" to jsonArrayOf(c.open.map { jsonObjectOf("moduleId" to jsonOf(it.moduleId), "question" to jsonOf(it.question)) })
+    )
+
+    private fun encodeCore(b: RequirementsBrief): JsonValue.Obj = jsonObjectOf(
         "packCode" to jsonOf(b.packCode),
         "modules" to jsonArrayOf(b.modules.map { m ->
             jsonObjectOf(

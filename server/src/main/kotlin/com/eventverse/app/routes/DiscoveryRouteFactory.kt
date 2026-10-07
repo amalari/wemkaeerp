@@ -39,7 +39,8 @@ fun Route.discoveryPlatformRoutes(
     leadRepository: ProspectLeadRepository,
     agent: DiscoveryAgent,
     prototypePatterns: PrototypePatternRepository? = null,
-    discoveryDemands: DiscoveryDemandRepository? = null
+    discoveryDemands: DiscoveryDemandRepository? = null,
+    builderChats: com.eventverse.app.domain.builder.BuilderChatRepository? = null
 ) {
     val priceDraft = PriceDiscoveryDraftUseCase(
         billableCatalog = { catalogRepository.findBillable() },
@@ -53,7 +54,7 @@ fun Route.discoveryPlatformRoutes(
     // Harga draf kerja tenant untuk panel di /builder/prototype (gerbang builder, bukan pemilik draf).
     builderPriceRoutes(draftRepository, priceDraft)
     // C4/C6 (PLAN-proto-C): brief kebutuhan dan usulan operasi spec — keduanya baca-saja, di belakang gerbang builder.
-    builderBriefRoutes(draftRepository, priceDraft)
+    builderBriefRoutes(draftRepository, priceDraft, builderChats ?: com.eventverse.app.infrastructure.PostgresBuilderChatRepository())
     builderSpecOpRoutes()
     val demands = discoveryDemands ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
     discoveryInterviewRoutes(draftRepository, demands, com.eventverse.app.infrastructure.discovery.InterviewAgents.fromEnv(),

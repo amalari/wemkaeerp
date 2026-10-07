@@ -54,6 +54,7 @@ class BuilderBriefSpecOpRoutesTest {
     private val slug = "wemade-demo"
     private val tenantId = "ten-wemade-demo"
     private val draftRepo = InMemoryDiscoveryDraftRepository()
+    private val chats = com.eventverse.app.infrastructure.InMemoryBuilderChatRepository()
     private val briefPath = "/api/builder/draft/brief"
     private val specOpsPath = "/api/builder/draft/spec-ops"
 
@@ -72,7 +73,7 @@ class BuilderBriefSpecOpRoutesTest {
                 employeeRepository = com.eventverse.app.infrastructure.InMemoryEmployeeRepository(),
                 domainPackRepository = com.eventverse.app.infrastructure.InMemoryDomainPackRepository(),
                 builderDeploymentRepository = com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository(),
-                builderChatRepository = com.eventverse.app.infrastructure.InMemoryBuilderChatRepository(),
+                builderChatRepository = chats,
                 builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
                 builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
                 builderAuditLog = com.eventverse.app.infrastructure.InMemoryAuditLogRepository(),
@@ -212,5 +213,47 @@ class BuilderBriefSpecOpRoutesTest {
         assertEquals(listOf(sampling), brief.objectArray("modules").map { it.string("moduleId") })
         assertEquals(1, brief.objectArray("changes").size)
         assertTrue(brief.objectArray("coverage").single().boolean("covered") == true, "modul katalog = sudah ada, bukan karangan klien")
+    }
+
+    @Test
+    fun brief_withChatHistory_carriesContextDecisionsAndOpenQuestions_onScratchDatabaseOnly() = testApplication {
+        if (!System.getenv("DB_NAME").orEmpty().contains("scratch")) return@testApplication
+        DatabaseFactory.init()
+        seedDraft()
+        installModule(this)
+        val sampling = GarmentModules.SAMPLING_ORDER.value
+        val tenant = TenantId(tenantId)
+        val conv = runBlocking { chats.conversationFor(tenant) }
+        fun msg(role: com.eventverse.app.domain.builder.ChatRole, text: String, module: String? = null,
+                kind: com.eventverse.app.domain.builder.ChatMessageKind = com.eventverse.app.domain.builder.ChatMessageKind.TEXT,
+                qs: List<com.eventverse.app.domain.discovery.interview.Clarification> = emptyList(), applied: Boolean = false, summary: List<String> = emptyList()) =
+            com.eventverse.app.domain.builder.ChatMessage(com.eventverse.app.domain.builder.ChatMessageId("t-${text.hashCode()}"), conv.id, tenant, role, text,
+                moduleId = module, kind = kind, questions = qs, appliedDraftId = if (applied) "d1" else null, proposedSummary = summary)
+        runBlocking {
+            chats.append(msg(com.eventverse.app.domain.builder.ChatRole.USER, "Kami konveksi, sampel dulu baru produksi."))
+            chats.append(msg(com.eventverse.app.domain.builder.ChatRole.AGENT, "tanya", kind = com.eventverse.app.domain.builder.ChatMessageKind.QUESTION,
+                qs = listOf(com.eventverse.app.domain.discovery.interview.Clarification("c1", "Siapa pelanggan utama?", "Brand lokal"))))
+            chats.append(msg(com.eventverse.app.domain.builder.ChatRole.AGENT, "patch", module = sampling, applied = true, summary = listOf("Tambah isian: Tanggal Kirim (date)")))
+            chats.append(msg(com.eventverse.app.domain.builder.ChatRole.AGENT, "tanya modul", module = sampling, kind = com.eventverse.app.domain.builder.ChatMessageKind.QUESTION,
+                qs = listOf(com.eventverse.app.domain.discovery.interview.Clarification("gap:x", "Siapa yang mengisi?"))))
+        }
+        val body = JsonParser.parseObject(post(briefPath, """{"included":["$sampling"],"changes":[]}""").bodyAsText())
+        val markdown = body.string("markdown").orEmpty()
+        assertTrue("## Konteks & keputusan" in markdown && "Kami konveksi, sampel dulu baru produksi." in markdown)
+        assertTrue("Siapa pelanggan utama? — Brand lokal" in markdown)
+        assertTrue("Tambah isian: Tanggal Kirim (date)" in markdown)
+        assertTrue("## Belum jelas" in markdown && "Siapa yang mengisi?" in markdown, "pertanyaan tertunda ikut ke developer")
+        assertTrue(body.obj("brief")!!.obj("context") != null, "JSON brief membawa konteks")
+    }
+
+    @Test
+    fun brief_withoutChatHistory_hasNoContextSection_onScratchDatabaseOnly() = testApplication {
+        if (!System.getenv("DB_NAME").orEmpty().contains("scratch")) return@testApplication
+        DatabaseFactory.init()
+        seedDraft()
+        installModule(this)
+        val body = JsonParser.parseObject(post(briefPath, """{"included":["${GarmentModules.SAMPLING_ORDER.value}"],"changes":[]}""").bodyAsText())
+        assertTrue("Konteks & keputusan" !in body.string("markdown").orEmpty(), "tanpa chat, brief identik dengan sebelumnya")
+        assertTrue(body.obj("brief")!!["context"] == null)
     }
 }

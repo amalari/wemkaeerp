@@ -29,6 +29,28 @@ data class BriefCoverage(
     val gapHighIdr: Long?
 )
 
+/** Satu tanya-jawab klarifikasi. [moduleId] null = pertanyaan tingkat alur penuh. */
+data class BriefQa(val moduleId: String?, val question: String, val answer: String)
+
+/** Satu keputusan yang **sudah diterapkan** dari chat Builder: ringkasan perubahan beserta waktunya (ISO-8601, bila tercatat). */
+data class BriefDecision(val moduleId: String?, val at: String?, val summary: List<String>)
+
+/** Pertanyaan yang **belum terjawab** saat brief dibuat — hal yang masih belum jelas bagi developer. */
+data class BriefOpenQuestion(val moduleId: String?, val question: String)
+
+/**
+ * Konteks dari percakapan Builder (opsional): cerita asli, tanya-jawab, keputusan yang diterapkan, dan yang belum jelas.
+ * Tanpa ini developer hanya melihat hasil akhir, bukan *mengapa* — lalu bertanya ulang apa yang sudah dijawab di chat.
+ */
+data class BriefContext(
+    val narrative: String?,
+    val answered: List<BriefQa>,
+    val decisions: List<BriefDecision>,
+    val open: List<BriefOpenQuestion>
+) {
+    val isEmpty: Boolean get() = narrative.isNullOrBlank() && answered.isEmpty() && decisions.isEmpty() && open.isEmpty()
+}
+
 /**
  * Ringkasan kebutuhan hasil sesi prototype — bahan kerja tim developer (kontrak v1). Data murni;
  * susunan teks ada di [BriefRenderer]. [customNeeds] = kebutuhan di luar blok standar (CUSTOM_EXTENSION).
@@ -38,5 +60,7 @@ data class RequirementsBrief(
     val modules: List<BriefModule>,
     val changes: List<CaptureEntry>,
     val coverage: List<BriefCoverage>,
-    val customNeeds: List<String> = emptyList()
+    val customNeeds: List<String> = emptyList(),
+    /** Konteks dari chat Builder; null = brief lama/tanpa chat (keluaran Markdown & JSON identik dengan sebelumnya). */
+    val context: BriefContext? = null
 )
