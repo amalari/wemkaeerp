@@ -74,8 +74,7 @@ object GarmentReferenceInterview {
                 handoff(m.INVENTORY, m.PRODUCTION_MRP, "VerifiedMaterialStock"),
                 handoff(m.PRODUCTION_MRP, m.OPERATOR_EXEC, "CutPiecesBundle"),
                 handoff(m.OPERATOR_EXEC, m.QUALITY_CONTROL, "AssembledGarmentBundle"),
-                handoff(m.QUALITY_CONTROL, m.FULFILLMENT, "InspectedAndGradedUnit"),
-                handoff(m.FULFILLMENT, m.INVOICING, "DispatchedShipmentManifest")
+                handoff(m.QUALITY_CONTROL, m.FULFILLMENT, "InspectedAndGradedUnit")
             )
         )
     }

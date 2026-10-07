@@ -157,7 +157,8 @@ object GarmentDomainPack {
             vocabulary = GarmentVocabulary.terms,
             portLabels = GarmentPortTypes.labels,
             screenSuggestions = GarmentScreenSuggestions.all,
-            roleHints = GarmentRoleHints.all
+            roleHints = GarmentRoleHints.all,
+            reservedTerms = GarmentReservedTerms.terms
         )
     }
 }
