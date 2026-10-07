@@ -69,7 +69,7 @@ Baca [`references/codebase-map.md`](references/codebase-map.md). Tulis:
 ## Langkah 6 — Input/Output & kanvas Factory Flow
 
 - **Port masuk** (tipe data apa, dari modul/fitur mana) dan **port keluar** (ke mana).
-  Tipe wajib ada di `PortDataTypeRegistry` (`core/.../domain/contracts/ModulePortPayload.kt`).
+  Tipe wajib ada di kosakata pack (`DomainPack.portTypes`, dan `wiredPortTypes` bila menyambung; `core/.../domain/pack/`).
 - **Posisi di kanvas**: node modul (level 1), atau item di bawah node modul induk (level 2: tahap,
   proses, stasiun, alat).
 - **Telemetri** yang dihasilkan (`wipPieces`, `cycleTimeHours`, `healthStatus` — Kontrak 6), atau
