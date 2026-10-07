@@ -70,9 +70,9 @@ fun DiscoveryInterviewPane(
             }
         }
 
-        // Konten Langkah Aktif
+        // Konten Langkah Aktif. // Fase konsultan F0-F2 belum punya layar (milik A); sementara diperlakukan seperti G1 supaya wizard tetap jalan.
         when (state.step) {
-            InterviewStep.G1_DIVISI -> StepInterviewG1Divisions(
+            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> StepInterviewG1Divisions(
                 state = state,
                 onNext = { state.nextTurn() }
             )

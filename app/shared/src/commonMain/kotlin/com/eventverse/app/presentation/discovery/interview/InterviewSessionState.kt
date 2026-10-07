@@ -88,7 +88,7 @@ class InterviewSessionState(
 
     private fun syncTurnNumber() {
         turnNumber = when (step) {
-            InterviewStep.G1_DIVISI -> 1
+            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> 1
             InterviewStep.G2_PERAN -> 2
             InterviewStep.G3_MODUL -> 3
             InterviewStep.G4_SAMBUNGAN -> 4
@@ -284,6 +284,7 @@ class InterviewSessionState(
             )
         )
         step = when (step) {
+            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK -> InterviewStep.G1_DIVISI
             InterviewStep.G1_DIVISI -> InterviewStep.G2_PERAN
             InterviewStep.G2_PERAN -> InterviewStep.G3_MODUL
             InterviewStep.G3_MODUL -> InterviewStep.G4_SAMBUNGAN
@@ -295,7 +296,7 @@ class InterviewSessionState(
 
     fun previousTurn() {
         step = when (step) {
-            InterviewStep.G1_DIVISI -> InterviewStep.G1_DIVISI
+            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> InterviewStep.G1_DIVISI
             InterviewStep.G2_PERAN -> InterviewStep.G1_DIVISI
             InterviewStep.G3_MODUL -> InterviewStep.G2_PERAN
             InterviewStep.G4_SAMBUNGAN -> InterviewStep.G3_MODUL

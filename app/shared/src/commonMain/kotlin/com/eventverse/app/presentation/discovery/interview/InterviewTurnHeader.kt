@@ -32,7 +32,7 @@ fun InterviewTurnHeader(
     modifier: Modifier = Modifier
 ) {
     val stepTitle = when (step) {
-        InterviewStep.G1_DIVISI -> "1. Divisi Usaha"
+        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> "1. Divisi Usaha"
         InterviewStep.G2_PERAN -> "2. Peran & Kepala Divisi"
         InterviewStep.G3_MODUL -> "3. Modul & Fitur Kebutuhan"
         InterviewStep.G4_SAMBUNGAN -> "4. Sambungan Alur Kerja"
@@ -40,7 +40,7 @@ fun InterviewTurnHeader(
     }
 
     val stepDesc = when (step) {
-        InterviewStep.G1_DIVISI -> "Sistem menebak bagian atau divisi usaha Anda berdasarkan narasi. Sesuaikan jika ada yang kurang."
+        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> "Sistem menebak bagian atau divisi usaha Anda berdasarkan narasi. Sesuaikan jika ada yang kurang."
         InterviewStep.G2_PERAN -> "Tentukan siapa saja yang bekerja di tiap divisi dan siapa yang memimpin divisi tersebut."
         InterviewStep.G3_MODUL -> "Setiap peran dihubungkan ke modul kerja yang siap pakai atau perlu dirakit."
         InterviewStep.G4_SAMBUNGAN -> "Periksa serah-terima dokumen atau data antarbagian agar alur operasional tersambung rapi."
