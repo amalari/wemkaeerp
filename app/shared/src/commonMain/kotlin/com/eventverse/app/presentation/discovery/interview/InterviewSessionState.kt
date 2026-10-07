@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import com.eventverse.app.domain.discovery.interview.Basis
 import com.eventverse.app.domain.discovery.interview.BasisRef
 import com.eventverse.app.domain.discovery.interview.BusinessProfile
+import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
@@ -58,6 +59,9 @@ class InterviewSessionState(
     val version = initialSession?.version ?: InterviewSession.BASED_ON_STORY
 
     var profile by mutableStateOf(initialSession?.profile)
+    /** Pertanyaan klarifikasi perencana; selama ada yang belum dijawab, langkah wawancara menunggu. */
+    var clarifications by mutableStateOf(initialSession?.clarifications.orEmpty())
+    val awaitingClarification: Boolean get() = clarifications.any { it.answer.isNullOrBlank() }
     val specs = mutableStateListOf<RequirementSpec>().apply { addAll(initialSession?.specs.orEmpty()) }
     val divisions = mutableStateListOf<DivisionDraft>().apply { addAll(initialSession?.divisions.orEmpty()) }
     val roles = mutableStateListOf<RoleDraft>().apply { addAll(initialSession?.roles.orEmpty()) }
@@ -329,6 +333,7 @@ class InterviewSessionState(
     fun applyServer(d: DiscoveryDraftUi) {
         val s = d.interview ?: return
         profile = s.profile
+        clarifications = s.clarifications
         specs.clear(); specs.addAll(s.specs)
         divisions.clear(); divisions.addAll(s.divisions)
         roles.clear(); roles.addAll(s.roles)
@@ -351,6 +356,11 @@ class InterviewSessionState(
                 .onFailure { errorMessage = it.message ?: "Gagal menyimpan jawaban wawancara" }
             busy = false
         }
+    }
+
+    fun submitClarifications(answers: Map<String, String>) {
+        if (remote == null) return
+        sendToServer({ it.clarify(draftId, answers) })
     }
 
     fun acceptAllGuesses() {
@@ -429,6 +439,7 @@ class InterviewSessionState(
         version = version,
         narrative = narrative.ifBlank { null },
         profile = profile,
-        specs = specs.toList()
+        specs = specs.toList(),
+        clarifications = clarifications
     )
 }

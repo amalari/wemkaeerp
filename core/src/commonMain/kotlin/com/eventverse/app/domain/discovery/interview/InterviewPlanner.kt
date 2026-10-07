@@ -7,6 +7,10 @@ import com.eventverse.app.domain.discovery.DiscoveryDraft
  * dimulai, membaca seluruh narasi, lalu mengusulkan divisi, peran, tautan modul, dan sambungan (G1–G4) sekaligus
  * sebagai tebakan `GUESS`/`GUESSED` berdasar cerita. Pelaksananya agent AI model besar (server) atau tidak ada.
  *
+ * Perencana boleh **bertanya dulu** bila hal pokok tak bisa disimpulkan dari cerita: ia mengembalikan sesi dengan
+ * [InterviewSession.clarifications] terisi (tanpa rencana). Setelah dijawab ia dipanggil lagi dan **tidak boleh
+ * bertanya lagi** (tanda: [InterviewSession.clarifications] sudah berisi) — satu putaran tanya, lalu rencana.
+ *
  * Seperti [InterviewStepFiller]: port ini hanya **mengusulkan** — pemanggil memvalidasi hasilnya, dan galat apa
  * pun (timeout, usulan tak sah) berarti sesi tetap seperti sebelumnya. Wawancara tidak pernah gagal karena AI.
  */

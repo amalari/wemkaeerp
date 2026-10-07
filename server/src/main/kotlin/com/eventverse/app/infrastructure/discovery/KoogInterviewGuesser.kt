@@ -34,7 +34,9 @@ data class InterviewStepGuesses(
     /** Fase konsultan: hasil F0/F1 — profil bisnis (summary, tujuan, titik sakit). */
     val profile: BusinessProfile? = null,
     /** Fase konsultan: hasil F2 — spesifikasi per area (siapa isi, apa dicatat, siapa lihat, kapan selesai). */
-    val specs: List<RequirementSpec> = emptyList()
+    val specs: List<RequirementSpec> = emptyList(),
+    /** Perencana: pertanyaan klarifikasi (alih-alih rencana) bila hal pokok tak bisa disimpulkan dari cerita. */
+    val clarifications: List<com.eventverse.app.domain.discovery.interview.Clarification> = emptyList()
 )
 
 /**
@@ -167,6 +169,25 @@ class AgentInterviewGuesser(
                 feedback = listOf(issueOf(e))
                 continue
             }
+            if (plan && guesses.clarifications.isNotEmpty()) {
+                // Bertanya hanya sah sekali (belum pernah bertanya) dan tanpa rencana sekaligus.
+                val problem = when {
+                    base.clarifications.isNotEmpty() -> "Pertanyaan sudah pernah dijawab; jangan bertanya lagi, susun rencana"
+                    guesses.divisions.isNotEmpty() || guesses.roles.isNotEmpty() || guesses.links.isNotEmpty() -> "Balas pertanyaan SAJA atau rencana SAJA, jangan keduanya"
+                    else -> null
+                }
+                if (problem == null) {
+                    val asked = base.copy(clarifications = guesses.clarifications)
+                    val issues = InterviewValidator.validate(asked, pack)
+                    if (issues.isEmpty()) return guesses
+                    lastFailure = IllegalStateException(issues.joinToString("; ") { "${it.path}: ${it.message}" })
+                    feedback = issues
+                } else {
+                    lastFailure = IllegalStateException(problem)
+                    feedback = listOf(DiscoveryValidationIssue("$.interview.clarifications", problem))
+                }
+                continue
+            }
             val merged = if (plan) PLANNED_STEPS.fold(base) { s, st -> mergeStepGuesses(s, guesses.copy(step = st)) } else mergeStepGuesses(base, guesses)
             val issues = InterviewValidator.validate(merged, pack)
             if (issues.isEmpty()) return guesses
@@ -189,7 +210,8 @@ class AgentInterviewGuesser(
         links = if (plan || step == InterviewStep.G3_MODUL) session.links else emptyList(),
         handoffs = if (plan || step == InterviewStep.G4_SAMBUNGAN) session.handoffs else emptyList(),
         profile = if (step == InterviewStep.F0_BISNIS || step == InterviewStep.F1_TUJUAN) session.profile else null,
-        specs = if (step == InterviewStep.F2_SPEK) session.specs else emptyList()
+        specs = if (step == InterviewStep.F2_SPEK) session.specs else emptyList(),
+        clarifications = if (plan) session.clarifications else emptyList()
     )
 
     /** Satu percakapan Koog: prompt sistem konsultan + pesan pengguna, dengan dua alat wawancara. */
@@ -213,7 +235,7 @@ class AgentInterviewGuesser(
         )
         val input = KoogInterviewPrompt.userMessage(
             step, draft, narrative, feedback, previousAnswer, round,
-            instruction = if (plan) KoogInterviewPrompt.PLAN_INSTRUCTION else KoogInterviewPrompt.stepInstruction(step)
+            instruction = if (plan) KoogInterviewPrompt.PLAN_INSTRUCTION + (if (draft.interview?.clarifications.isNullOrEmpty()) KoogInterviewPrompt.PLAN_MAY_ASK else KoogInterviewPrompt.PLAN_MUST_ANSWER) else KoogInterviewPrompt.stepInstruction(step)
         )
         return agent.use { it.run(input) }
     }

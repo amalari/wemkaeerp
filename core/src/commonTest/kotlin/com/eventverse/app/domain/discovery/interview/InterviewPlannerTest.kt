@@ -73,4 +73,60 @@ class InterviewPlannerTest {
         InterviewDraftUseCases(r, null, InterviewPlanner { _, s, _ -> calls++; s }).start(id, owner, "  ").getOrThrow()
         assertEquals(0, calls)
     }
+
+    private val ask = listOf(Clarification("c1", "Pasien dilayani per poli atau satu antrean?"))
+
+    @Test
+    fun `perencana boleh bertanya dulu, wawancara menunggu jawaban dan pengisi per langkah tidak jalan`() = runTest {
+        val fills = mutableListOf<InterviewStep>()
+        val planner = InterviewPlanner { _, s, _ -> s.copy(clarifications = ask) }
+        val r = repo()
+        val uc = InterviewDraftUseCases(r, InterviewStepFiller { _, s, st, _ -> fills += st; s }, planner)
+        uc.start(id, owner, story).getOrThrow()
+        val s = requireNotNull(r.row.draft.interview)
+        assertTrue(s.awaitingClarification)
+        assertEquals(ask, s.clarifications)
+        assertTrue(fills.isEmpty())
+        val q = requireNotNull(s.nextQuestion(r.row.draft)).id
+        assertTrue(uc.answer(id, owner, q, Confirmation.CONFIRMED, null, null).isFailure, "giliran diblokir sampai klarifikasi dijawab")
+    }
+
+    @Test
+    fun `jawaban klarifikasi masuk ke cerita, rencana disusun ulang tanpa bertanya lagi`() = runTest {
+        var calls = 0
+        val seen = mutableListOf<List<Clarification>>()
+        val planner = InterviewPlanner { _, s, _ ->
+            calls++; seen += s.clarifications
+            if (s.clarifications.isEmpty()) s.copy(clarifications = ask) else s.mergingPlan(listOf(planned), emptyList(), emptyList(), emptyList())
+        }
+        val r = repo()
+        val uc = InterviewDraftUseCases(r, null, planner)
+        uc.start(id, owner, story).getOrThrow()
+        uc.clarify(id, owner, mapOf("c1" to "Satu antrean, lalu dibagi ke poli")).getOrThrow()
+        val s = requireNotNull(r.row.draft.interview)
+        assertEquals(2, calls)
+        assertEquals("Satu antrean, lalu dibagi ke poli", seen.last().single().answer)
+        assertTrue(!s.awaitingClarification)
+        assertTrue(s.narrative.orEmpty().contains("Jawaban: Satu antrean, lalu dibagi ke poli"))
+        assertTrue(s.narrative.orEmpty().startsWith(story), "cerita asli tetap, supaya kutipan lama masih sah")
+        assertTrue(s.divisions.any { it.code.value == "pemeriksaan" })
+    }
+
+    @Test
+    fun `klarifikasi tanpa jawaban atau tanpa pertanyaan ditolak`() = runTest {
+        val r = repo()
+        val uc = InterviewDraftUseCases(r, null, InterviewPlanner { _, s, _ -> if (s.clarifications.isEmpty()) s.copy(clarifications = ask) else s })
+        assertTrue(uc.clarify(id, owner, mapOf("c1" to "x")).isFailure, "belum dimulai")
+        uc.start(id, owner, story).getOrThrow()
+        assertTrue(uc.clarify(id, owner, mapOf("c1" to "  ")).isFailure, "jawaban kosong")
+        assertTrue(uc.clarify(id, UserId("lain"), mapOf("c1" to "ok")).isFailure, "bukan pemilik")
+    }
+
+    @Test
+    fun `validator menolak lebih dari tiga klarifikasi dan id ganda`() {
+        val many = (1..4).map { Clarification("c$it", "Tanya $it") }
+        val s = InterviewSession(InterviewStep.F0_BISNIS, clarifications = many + Clarification("c1", "ganda"))
+        val paths = InterviewValidator.validate(s, pack).map { it.path }
+        assertTrue(paths.count { it == "$.interview.clarifications" } >= 2)
+    }
 }

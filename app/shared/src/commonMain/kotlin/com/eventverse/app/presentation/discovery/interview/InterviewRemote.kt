@@ -20,6 +20,10 @@ interface InterviewRemote {
     suspend fun answer(draftId: String, questionId: String, outcome: Confirmation, text: String?, session: InterviewSession): Result<DiscoveryDraftUi>
 
     suspend fun acceptAll(draftId: String): Result<DiscoveryDraftUi>
+
+    /** Menjawab pertanyaan klarifikasi perencana (id → jawaban); server menyusun ulang rencana alur penuh. */
+    suspend fun clarify(draftId: String, answers: Map<String, String>): Result<DiscoveryDraftUi> =
+        Result.failure(UnsupportedOperationException("Klarifikasi butuh server"))
 }
 
 class ApiInterviewRemote(private val client: DiscoveryApiClient) : InterviewRemote {
@@ -39,6 +43,11 @@ class ApiInterviewRemote(private val client: DiscoveryApiClient) : InterviewRemo
         })
 
     override suspend fun acceptAll(draftId: String): Result<DiscoveryDraftUi> = send(draftId, mapOf("action" to jsonOf("accept_all")))
+
+    override suspend fun clarify(draftId: String, answers: Map<String, String>): Result<DiscoveryDraftUi> = send(draftId, mapOf(
+        "action" to jsonOf("clarify"),
+        "answers" to jsonObjectOf(*answers.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
+    ))
 
     private suspend fun send(draftId: String, fields: Map<String, JsonValue>): Result<DiscoveryDraftUi> =
         client.answerInterview(draftId, JsonValue.Obj(fields))

@@ -36,6 +36,14 @@ object InterviewValidator {
         tooMany("$at.roles", session.roles.size, InterviewLimits.ROLES, "peran")
         tooMany("$at.links", session.links.size, InterviewLimits.LINKS, "tautan peran-modul")
         tooMany("$at.handoffs", session.handoffs.size, InterviewLimits.HANDOFFS, "sambungan")
+        tooMany("$at.clarifications", session.clarifications.size, InterviewLimits.CLARIFICATIONS, "pertanyaan klarifikasi")
+        session.clarifications.groupBy { it.id }.filterValues { it.size > 1 }.keys.forEach {
+            add("$at.clarifications", "Id klarifikasi '$it' dipakai lebih dari sekali; id harus unik")
+        }
+        session.clarifications.forEachIndexed { i, c ->
+            if (c.question.length > InterviewLimits.TEXT) add("$at.clarifications[$i].question", "Pertanyaan maksimum ${InterviewLimits.TEXT} karakter")
+            if ((c.answer?.length ?: 0) > InterviewLimits.PROFILE_TEXT) add("$at.clarifications[$i].answer", "Jawaban maksimum ${InterviewLimits.PROFILE_TEXT} karakter")
+        }
         // Giliran G1–G5 dan fase konsultan F0–F2 dibatasi terpisah (PLAN induk §5).
         val consultantTurns = session.answers.count { it.step.isConsultant }
         tooMany("$at.answers", session.answers.size - consultantTurns, InterviewLimits.TURNS, "giliran terjemahan")

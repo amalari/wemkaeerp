@@ -1,5 +1,6 @@
 package com.eventverse.app.shared.discovery
 
+import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
@@ -36,6 +37,10 @@ object InterviewSessionCodec {
             s.narrative?.let { put("narrative", jsonOf(it)) }
             s.profile?.let { put("profile", InterviewBasisCodec.encodeProfile(it)) }
             if (s.specs.isNotEmpty()) put("specs", InterviewBasisCodec.encodeSpecs(s.specs))
+            if (s.clarifications.isNotEmpty()) put("clarifications", jsonArrayOf(s.clarifications.map { c ->
+                val base = jsonObjectOf("id" to jsonOf(c.id), "question" to jsonOf(c.question))
+                c.answer?.let { JsonValue.Obj(base.entries + ("answer" to jsonOf(it))) } ?: base
+            }))
         }
         if (extra.isEmpty()) core else JsonValue.Obj(core.entries + extra)
     }
@@ -82,6 +87,14 @@ object InterviewSessionCodec {
             else -> throw DiscoveryDraftDecodeException("$at.profile", "harus objek")
         },
         specs = InterviewBasisCodec.decodeSpecs(obj["specs"], "$at.specs"),
+        clarifications = when (val v = obj["clarifications"]) {
+            null, JsonValue.Null -> emptyList()
+            is JsonValue.Arr -> v.items.mapIndexed { i, item ->
+                val r = R(item as? JsonValue.Obj ?: throw DiscoveryDraftDecodeException("$at.clarifications[$i]", "harus objek"), "$at.clarifications[$i]")
+                r.build { Clarification(r.string("id"), r.string("question"), r.optString("answer")) }
+            }
+            else -> throw DiscoveryDraftDecodeException("$at.clarifications", "harus array")
+        },
         divisions = R(obj, at).items("divisions") { r ->
             r.build { DivisionDraft(r.value("code", ::DivisionCode), r.string("name"), r.enum("source", ItemSource::fromCode), r.ref()) }
         },

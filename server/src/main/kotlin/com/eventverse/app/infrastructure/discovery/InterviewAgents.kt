@@ -47,6 +47,7 @@ class AgentInterviewPlanner(
 
     override suspend fun plan(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
         val g = withTimeout(timeoutMillis) { guesser.plan(draft.pack, draft, narrative).getOrThrow() }
+        if (g.clarifications.isNotEmpty()) return session.copy(clarifications = g.clarifications)
         return session.mergingPlan(g.divisions, g.roles, g.links, g.handoffs)
     }
 

@@ -4,6 +4,7 @@ import ai.koog.prompt.executor.clients.deepseek.DeepSeekModels
 import com.eventverse.app.InterviewEvalPacks
 import com.eventverse.app.InterviewGoldenCases
 import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.discovery.interview.BasisRef
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
@@ -79,5 +80,32 @@ class AgentInterviewPlannerTest {
         val planner = AgentInterviewPlanner(AgentInterviewGuesser(executor, model = model))
         val base = InterviewSession(step = InterviewStep.F0_BISNIS, version = InterviewSession.BASED_ON_STORY, narrative = narasi)
         assertFailsWith<IllegalStateException> { planner.plan(draft, base, narasi) }
+    }
+
+    private val ask = Clarification("c1", "Pasien dilayani per poli atau satu antrean?")
+    private fun asking() = """{"interview":${InterviewSessionCodec.encode(InterviewSession(InterviewStep.G1_DIVISI, clarifications = listOf(ask))).encode()}}"""
+
+    @Test
+    fun `bila hal pokok tak jelas perencana bertanya dulu, tanpa rencana`() = runBlocking {
+        val executor = ScriptedPromptExecutor(listOf(asking()))
+        val planner = AgentInterviewPlanner(AgentInterviewGuesser(executor, model = model))
+        val base = InterviewSession(step = InterviewStep.F0_BISNIS, version = InterviewSession.BASED_ON_STORY, narrative = narasi)
+        val out = planner.plan(draft, base, narasi)
+        assertEquals(listOf(ask), out.clarifications)
+        assertTrue(out.divisions.isEmpty() && out.links.isEmpty())
+        assertTrue(out.awaitingClarification)
+        assertEquals(emptyList(), InterviewValidator.validate(out, pack))
+    }
+
+    @Test
+    fun `setelah dijawab perencana dilarang bertanya lagi dan harus menyusun rencana`() = runBlocking {
+        val executor = ScriptedPromptExecutor(listOf(asking(), answer(plan)))
+        val planner = AgentInterviewPlanner(AgentInterviewGuesser(executor, model = model))
+        val answered = InterviewSession(step = InterviewStep.F0_BISNIS, version = InterviewSession.BASED_ON_STORY,
+            narrative = narasi, clarifications = listOf(ask.copy(answer = "Satu antrean")))
+        val out = planner.plan(InterviewEvalPacks.draftOf(pack, answered), answered, narasi)
+        assertEquals(2, executor.calls, "putaran pertama bertanya lagi ditolak, koreksi menghasilkan rencana")
+        assertTrue(out.isPlanned)
+        assertTrue(!out.awaitingClarification)
     }
 }

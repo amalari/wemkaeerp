@@ -132,6 +132,19 @@ internal object KoogInterviewPrompt {
             "divisi yang kamu buat, tautan wajib menunjuk peran yang kamu buat."
 
     /**
+     * Tambahan bila perencana BOLEH bertanya (belum pernah): hal pokok yang tak bisa disimpulkan dari cerita
+     * ditanyakan dulu, bukan ditebak. Hanya satu putaran tanya; setelah itu rencana wajib disusun.
+     */
+    internal const val PLAN_MAY_ASK: String =
+        " JIKA hal pokok tak bisa disimpulkan dari narasi (mis. jenis usaha atau alur utamanya tidak jelas), JANGAN menebak: " +
+            "balas HANYA pertanyaan, maksimal 3, singkat, bahasa awam, tanpa divisions/roles/links, dengan bentuk persis: " +
+            "{\"interview\":{\"step\":\"g1_divisi\",\"divisions\":[],\"roles\":[],\"links\":[],\"handoffs\":[],\"answers\":[]," +
+            "\"clarifications\":[{\"id\":\"c1\",\"question\":\"...\"}]}}. Bertanya hanya bila sungguh perlu; bila narasi cukup, langsung susun rencana."
+
+    /** Setelah pertanyaan dijawab (jawaban sudah ada di narasi): tidak boleh bertanya lagi, rencana wajib disusun. */
+    internal const val PLAN_MUST_ANSWER: String = " Pertanyaan sudah dijawab dan jawabannya ada di narasi: jangan bertanya lagi, susun rencananya."
+
+    /**
      * Pesan pengguna satu giliran. [feedback] kosong = giliran pertama; kalau ada, jawaban sebelumnya
      * dikirim ulang bersama galat berpath supaya model mengoreksi **bagian yang salah** saja.
      */

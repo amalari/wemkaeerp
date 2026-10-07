@@ -295,6 +295,23 @@ class DiscoveryInterviewApiTest {
         // Modul milik pack klinik (bukan bawaan platform) → NEW; REUSE_PACK akan ditolak validator.
         assertTrue(modules.filter { it.string("id") in ops }.all { it.string("suggestedOrigin") == "new" })
     }
+
+    @Test
+    fun `klarifikasi fail-closed, bukan pemilik 403, tanpa jawaban 400, tanpa pertanyaan menunggu 400, draf tak berubah`() = testApplication {
+        DatabaseFactory.init()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(drafts) }
+        client.createDraft(drafts, "iv-cl")
+        client.interview("iv-cl", """{"action":"start"}""")
+        val before = client.get("/api/discovery/drafts/iv-cl") { asTenant(ownerSlug) }.bodyAsText()
+
+        val clarify = """{"action":"clarify","answers":{"c1":"Satu antrean"}}"""
+        assertEquals(HttpStatusCode.Forbidden, client.interview("iv-cl", clarify, slug = otherSlug).status)
+        assertEquals(HttpStatusCode.Unauthorized, client.interview("iv-cl", clarify, slug = null).status)
+        assertEquals(HttpStatusCode.BadRequest, client.interview("iv-cl", """{"action":"clarify"}""").status)
+        assertEquals(HttpStatusCode.BadRequest, client.interview("iv-cl", clarify).status, "tak ada pertanyaan yang menunggu")
+        assertEquals(before, client.get("/api/discovery/drafts/iv-cl") { asTenant(ownerSlug) }.bodyAsText())
+    }
 }
 
 private object InMemoryDraftsHolder { fun fresh() = InMemoryDiscoveryDraftRepository() }
