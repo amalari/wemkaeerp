@@ -103,6 +103,8 @@ class DomainRouteWiring(
     // Parameter opsional yang diteruskan dari Application.module (titik injeksi test).
     flowTranslator: FlowTranslator? = null,
     discoveryDemandRepository: DiscoveryDemandRepository? = null,
+    /** Riwayat chat Builder untuk konteks brief developer; default Postgres, test meng-inject in-memory. */
+    builderChatRepository: com.eventverse.app.domain.builder.BuilderChatRepository? = null,
     crmLeadRepository: CrmLeadRepository? = null,
     contactRepository: ContactRepository? = null,
     dealRepository: DealRepository? = null,
@@ -182,6 +184,7 @@ class DomainRouteWiring(
         System.getenv("WEMADE_DEFAULT_MARGIN_PERCENT")?.toDoubleOrNull() ?: 35.0
     )
     private val discoveryDemandRepo = discoveryDemandRepository ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
+    private val builderChats = builderChatRepository ?: com.eventverse.app.infrastructure.PostgresBuilderChatRepository()
 
     /** Panggil di dalam `routing { … }` dari `Application.module`. */
     fun registerIn(routing: Routing) = with(routing) {
@@ -202,7 +205,7 @@ class DomainRouteWiring(
             draftRepository = discoveryDraftRepo, tenantRepository = tenants, domainPackRepository = domainPackRepo,
             probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
-            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo,
+            blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo, builderChats = builderChats,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
         // Pilot Jalur C: modul pack data `layanan` (gerbang fail-closed; hanya tenant yang packnya memuat modul ini).
         layananChangeRequestRoutes(

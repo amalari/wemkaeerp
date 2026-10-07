@@ -17,6 +17,15 @@ value class BuildRequestId(val value: String) {
  * draf memakai pack kustom yang belum diimplementasi platform; dikelola superadmin (MVP tanpa
  * self-service). `quoteId` menaut ke ledger `moduledev` bila sudah dikutip.
  */
+/**
+ * Brief developer yang **dibekukan** saat permintaan lahir (opsi B, serah-terima): Markdown untuk dibaca dan JSON untuk
+ * mesin (portal developer kelak). Tidak pernah ditulis ulang — chat/draf yang berubah sesudahnya tidak mengubah apa yang
+ * dijanjikan kepada developer (prinsip "template disalin, dokumen membeku").
+ */
+data class BriefSnapshot(val markdown: String, val json: String, val takenAt: Instant) {
+    init { require(markdown.isNotBlank()) { "BriefSnapshot.markdown kosong" } }
+}
+
 data class BuildRequest(
     val id: BuildRequestId,
     val tenantId: TenantId,
@@ -25,7 +34,9 @@ data class BuildRequest(
     val status: BuildRequestStatus = BuildRequestStatus.QUEUED,
     val quoteId: String? = null,
     val deploymentId: String? = null,
-    val createdAt: Instant? = null
+    val createdAt: Instant? = null,
+    /** Brief beku saat dibuat; null untuk permintaan lama (sebelum V94) atau bila penyusunan brief gagal. */
+    val brief: BriefSnapshot? = null
 ) {
     init { require(moduleId.isNotBlank()) { "BuildRequest.moduleId kosong" } }
     init { require(reason.isNotBlank()) { "BuildRequest.reason kosong" } }

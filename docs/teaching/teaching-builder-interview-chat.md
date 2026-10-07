@@ -167,6 +167,21 @@ fun ScreenProposal.applyEdits(edits: List<ProposalEdit>, packModuleIds: Set<Stri
 - Galat validator bersifat *berpath* (`$.proposal.seed[0].tanggal: ...`), jadi bisa dikirim balik ke model sebagai umpan balik pada percobaan kedua (`MAX_ATTEMPTS = 2`).
 - Hasil akhirnya **patch usulan** yang menunggu tombol Terapkan: manusia tetap yang memutuskan.
 
+### Blok H — Serah-terima ke developer: brief membawa *mengapa*, bukan hanya *apa*
+
+```kotlin
+fun briefContextOf(messages: List<ChatMessage>, included: Set<String>, narrativeLimit: Int = 4000): BriefContext?
+// cerita asli | tanya-jawab terjawab | keputusan yang DITERAPKAN | pertanyaan yang BELUM jelas
+```
+
+**Mengapa begini?**
+- Tujuan fitur ini mempercepat **prototype**; pekerjaan akhirnya tetap dikerjakan manusia. Percepatan hilang bila developer hanya menerima hasil akhir
+  (field-field), lalu bertanya ulang apa yang sudah dijawab di chat. Brief lama berisi layar, entitas, harga, dan log prototype memori; ia **tidak** memuat
+  cerita, tanya-jawab, atau keputusan.
+- Hanya patch yang **sudah diterapkan** yang dihitung sebagai keputusan; usulan yang dibuang tidak boleh tampil sebagai kesepakatan.
+- Bagian **Belum jelas** (follow-up yang masih menunggu) paling berguna bagi developer: ia menunjukkan batas pengetahuan kita.
+- Kompatibel mundur: tanpa riwayat chat, `context` bernilai `null`, Markdown dan JSON identik byte-per-byte dengan sebelumnya (dikunci tes golden).
+
 ---
 
 ## ⚖️ 4. Teknologi & Pendekatan yang Dipilih: The "Why"

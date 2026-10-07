@@ -91,7 +91,7 @@ fun Route.builderRoutes(
     )
     val apply = ApplyDraftPatchUseCase(chats, drafts)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
-    builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
+    builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog, chats)
     builderBuildQueueRoutes(buildRequests)
     builderBillingRoutes(billingInvoices, billingPreview, auditLog, tenants, ipaymuGateway)
     // Callback iPaymu publik (tanpa JWT) — aktor mesin; terpasang di root path.

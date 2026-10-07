@@ -30,9 +30,15 @@ import io.ktor.server.routing.route
  * **Tidak menulis apa pun**: log perubahan tidak disimpan di server (state prototype = memori sesi klien),
  * klien mengirimnya tiap kali meminta brief; POST dipakai hanya karena membawa body. Gerbang builder yang
  * sama dengan `GET /api/builder/draft` (identitas tak terhitung = 403); 404 tanpa draf; 400 untuk body/entri/modul
- * yang tak sah — **ditolak, tidak diabaikan diam-diam**. Cakupan & harga memakai mesin yang sama dengan panel harga.
+ * yang tak sah — **ditolak, tidak diabaikan diam-diam**. Bila riwayat chat Builder ada, brief memuat `context` (cerita, tanya-jawab,
+ * keputusan terapan, **belum jelas**); tanpa chat, keluarannya identik dengan sebelumnya. Cakupan & harga memakai mesin yang sama dengan panel harga.
  */
-fun Route.builderBriefRoutes(drafts: DiscoveryDraftRepository, priceDraft: PriceDiscoveryDraftUseCase) {
+fun Route.builderBriefRoutes(
+    drafts: DiscoveryDraftRepository,
+    priceDraft: PriceDiscoveryDraftUseCase,
+    /** Riwayat chat Builder: sumber konteks (cerita, tanya-jawab, keputusan, yang belum jelas) untuk developer. */
+    chats: com.eventverse.app.domain.builder.BuilderChatRepository
+) {
     route("/api/builder/draft/brief") {
         post {
             call.gate() ?: return@post
@@ -63,7 +69,10 @@ fun Route.builderBriefRoutes(drafts: DiscoveryDraftRepository, priceDraft: Price
                 return@post call.respond(HttpStatusCode.BadRequest, it.message ?: "Gagal menghitung estimasi")
             }
             val coverage = pricing.lines.map { BriefCoverage(it.moduleId, it.displayName, it.covered, it.monthlyIdr, it.gapLowIdr, it.gapHighIdr) }
-            val brief = RequirementsBriefAssembler.assemble(stored.draft, included, changes, coverage)
+            // Konteks dari chat: tanpa ini developer hanya melihat hasil akhir, bukan keputusan di baliknya.
+            val tenantId = call.tenantContext.tenantId
+            val context = com.eventverse.app.domain.builder.briefContextOf(chats.messages(chats.conversationFor(tenantId).id), included)
+            val brief = RequirementsBriefAssembler.assemble(stored.draft, included, changes, coverage, context)
             call.respondText(
                 jsonObjectOf("markdown" to jsonOf(BriefRenderer.markdown(brief)), "brief" to BriefCodec.encode(brief)).encode(),
                 ContentType.Application.Json

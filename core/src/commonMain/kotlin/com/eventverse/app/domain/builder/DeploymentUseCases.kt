@@ -29,7 +29,9 @@ class DeployTenantUseCase(
     private val deployments: BuilderDeploymentRepository,
     private val buildRequests: BuilderBuildRequestRepository,
     private val tenants: TenantRepository,
-    private val clock: Clock = Clock.System
+    private val clock: Clock = Clock.System,
+    /** Pembeku brief per permintaan (opsi B); null = tanpa brief. Kegagalannya tidak pernah menggagalkan deploy. */
+    private val briefs: BuildRequestBriefs? = null
 ) {
     suspend operator fun invoke(tenantId: TenantId): Result<Deployment> = runCatching {
         val stored = drafts.findByTenant(tenantId)
@@ -45,6 +47,10 @@ class DeployTenantUseCase(
         val needsCode = DomainPackRegistry.shipped.none { it.code == stored.draft.pack.code }
         val number = deployments.nextNumber(tenantId)
         val id = DeploymentId("dep-${tenantId.value}-$number")
+        // Versi pack dihitung SEBELUM cabang: deployment BLOCKED_ON_BUILD pun wajib membawa versi terkunci (invarian domain
+        // dan CHECK SQL V81). Dulu hanya dihitung di jalur ACTIVE, sehingga deploy pack kustom selalu melempar.
+        val nextVersion = deployments.findByTenant(tenantId)
+            .maxOfOrNull { it.packVersion ?: 0 }?.plus(1) ?: 1
 
         if (needsCode) {
             val blocked = Deployment(
@@ -52,27 +58,27 @@ class DeployTenantUseCase(
                 tenantId = tenantId,
                 number = number,
                 packCode = stored.draft.pack.code,
+                packVersion = nextVersion,
                 blueprintRevision = 1,
                 status = DeploymentStatus.BLOCKED_ON_BUILD,
                 draftId = stored.id.value
             )
             deployments.save(blocked).getOrThrow()
             stored.draft.blueprint.activeModuleCodes.sorted().forEach { moduleId ->
+                val brief = briefs?.let { runCatching { it(tenantId, stored.draft, moduleId) }.getOrNull() }
                 buildRequests.save(
                     BuildRequest(
                         id = BuildRequestId("br-${tenantId.value}-$number-$moduleId"),
                         tenantId = tenantId,
                         moduleId = moduleId,
                         reason = "Pack kustom '${stored.draft.pack.code.value}' belum diimplementasi platform",
-                        deploymentId = id.value
+                        deploymentId = id.value,
+                        brief = brief
                     )
                 )
             }
             return Result.success(blocked)
         }
-
-        val nextVersion = deployments.findByTenant(tenantId)
-            .maxOfOrNull { it.packVersion ?: 0 }?.plus(1) ?: 1
 
         // Tepat satu aktif: nonaktifkan dulu (SUPERSEDED), baru aktifkan yang baru.
         // Snapshot IMPORTED pra-Builder tidak punya versi; saat digantikan ia mewarisi nomor versi

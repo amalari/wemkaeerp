@@ -18,6 +18,7 @@ import com.eventverse.app.domain.tenant.TenantStatus
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -42,6 +43,78 @@ class DeploymentUseCaseTest {
             draft = DiscoveryDraft(pack = GarmentDomainPack.pack, blueprint = GarmentBlueprints.DEFAULT),
             tenantId = demo
         )
+    }
+
+    // ---- opsi B: brief beku pada tiap permintaan pembuatan (pack kustom non-garment) -----------------
+
+    private val klinikPack = com.eventverse.app.domain.discovery.interview.InterviewFixtures.klinikPack
+
+    private fun seedKlinikDraft() = runTest {
+        val base = com.eventverse.app.domain.discovery.interview.InterviewFixtures.draftOf(klinikPack, null)
+        val blueprint = base.blueprint.copy(modules = listOf(
+            com.eventverse.app.domain.blueprint.BlueprintModule("klinik_poli", true),
+            com.eventverse.app.domain.blueprint.BlueprintModule("klinik_kasir", true)
+        ))
+        drafts.rows[DiscoveryDraftId("draft-${demo.value}")] = StoredDiscoveryDraft(
+            id = DiscoveryDraftId("draft-${demo.value}"), ownerUserId = UserId("usr-owner"),
+            draft = base.copy(blueprint = blueprint), tenantId = demo
+        )
+    }
+
+    private fun chatMsg(chats: InMemoryBuilderChatRepository, role: ChatRole, text: String, module: String? = null,
+                        applied: Boolean = false, summary: List<String> = emptyList()) = runTest {
+        val conv = chats.conversationFor(demo)
+        chats.append(ChatMessage(ChatMessageId("m-${text.hashCode()}"), conv.id, demo, role, text, moduleId = module,
+            appliedDraftId = if (applied) "d1" else null, proposedSummary = summary))
+    }
+
+    @Test
+    fun deploy_customPack_freezesAModuleScopedBriefWithChatContext_onEachBuildRequest() = runTest {
+        seedKlinikDraft()
+        val chats = InMemoryBuilderChatRepository()
+        chatMsg(chats, ChatRole.USER, "Kami klinik gigi, pasien antre per poli.")
+        chatMsg(chats, ChatRole.AGENT, "patch poli", module = "klinik_poli", applied = true, summary = listOf("Tambah isian: Nomor Rekam Medis (text)"))
+        chatMsg(chats, ChatRole.AGENT, "patch kasir", module = "klinik_kasir", applied = true, summary = listOf("Tambah isian: Metode Bayar (enum)"))
+        val withBriefs = DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = BuildRequestBriefs(chats))
+
+        val dep = withBriefs(demo).getOrThrow()
+
+        assertEquals(DeploymentStatus.BLOCKED_ON_BUILD, dep.status)
+        assertEquals(1, dep.packVersion, "regresi: deployment BLOCKED_ON_BUILD wajib membawa versi pack (dulu deploy pack kustom selalu melempar)")
+        val byModule = buildRequests.rows.associateBy { it.moduleId }
+        assertEquals(setOf("klinik_poli", "klinik_kasir"), byModule.keys)
+        val poli = requireNotNull(byModule.getValue("klinik_poli").brief) { "tiap permintaan membawa brief beku" }
+        assertTrue(poli.markdown.contains("Kami klinik gigi, pasien antre per poli."), "cerita ikut")
+        assertTrue(poli.markdown.contains("Nomor Rekam Medis"), "keputusan modul ini ikut")
+        assertFalse(poli.markdown.contains("Metode Bayar"), "keputusan modul LAIN tidak bocor ke brief modul ini")
+        assertTrue(poli.markdown.contains("perlu dibangun"), "modul kustom ditandai perlu dibangun")
+        assertTrue(poli.json.contains("\"context\""), "JSON untuk mesin ikut dibekukan")
+        assertTrue(byModule.getValue("klinik_kasir").brief!!.markdown.contains("Metode Bayar"))
+    }
+
+    @Test
+    fun deploy_customPack_withoutChat_stillGetsBrief_andFailingBriefNeverBlocksDeploy() = runTest {
+        seedKlinikDraft()
+        val noChat = DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = BuildRequestBriefs(InMemoryBuilderChatRepository()))
+        noChat(demo).getOrThrow()
+        val brief = requireNotNull(buildRequests.rows.first().brief)
+        assertFalse(brief.markdown.contains("Konteks & keputusan"), "tanpa chat tidak ada bagian konteks")
+
+        buildRequests.rows.clear(); deployments.rows.clear(); unlock()
+        val exploding = object : BuilderChatRepository by InMemoryBuilderChatRepository() {
+            override suspend fun conversationFor(tenantId: TenantId): BuilderConversation = error("DB chat mati")
+        }
+        val dep = DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = BuildRequestBriefs(exploding))(demo).getOrThrow()
+        assertEquals(DeploymentStatus.BLOCKED_ON_BUILD, dep.status, "deploy tetap jalan")
+        assertTrue(buildRequests.rows.isNotEmpty() && buildRequests.rows.all { it.brief == null }, "permintaan lahir tanpa brief, bukan gagal")
+    }
+
+    @Test
+    fun deploy_shippedPack_createsNoBuildRequestsAndNoBrief() = runTest {
+        seedDraft()
+        tenants.rows[demo] = tenant(status = TenantStatus.TRIAL)
+        DeployTenantUseCase(drafts, deployments, buildRequests, tenants, briefs = BuildRequestBriefs(InMemoryBuilderChatRepository()))(demo).getOrThrow()
+        assertTrue(buildRequests.rows.isEmpty())
     }
 
     private fun unlock() {

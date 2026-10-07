@@ -21,6 +21,7 @@ object BriefRenderer {
         appendLine("- Perubahan klien: ${brief.changes.size} ($ok diterapkan, ${brief.changes.size - ok} ditolak)")
         appendLine("- Kebutuhan kustom: ${brief.customNeeds.size}")
         appendLine()
+        brief.context?.let { renderContext(it, brief) }
         appendLine("## Modul & layar")
         if (brief.modules.isEmpty()) appendLine("_Belum ada modul dipilih._")
         brief.modules.forEach { m ->
@@ -70,6 +71,37 @@ object BriefRenderer {
         appendLine("## Kebutuhan kustom")
         if (brief.customNeeds.isEmpty()) appendLine("_Tidak ada._")
         brief.customNeeds.forEach { appendLine("- $it") }
+    }
+
+    /**
+     * Konteks dari chat Builder: cerita asli, tanya-jawab, keputusan terapan, lalu **Belum jelas** (yang masih menunggu
+     * jawaban). Hanya ditulis bila brief membawa konteks, sehingga brief tanpa chat tetap identik byte-per-byte.
+     */
+    private fun StringBuilder.renderContext(c: BriefContext, brief: RequirementsBrief) {
+        fun label(moduleId: String?) = moduleId?.let { id -> brief.modules.firstOrNull { it.moduleId == id }?.displayName ?: id } ?: "Seluruh alur"
+        appendLine("## Konteks & keputusan")
+        c.narrative?.takeIf { it.isNotBlank() }?.let {
+            appendLine("### Cerita pemilik usaha")
+            it.lines().forEach { line -> appendLine("> $line") }
+            appendLine()
+        }
+        if (c.answered.isNotEmpty()) {
+            appendLine("### Tanya-jawab")
+            c.answered.forEach { appendLine("- [${label(it.moduleId)}] ${it.question} — ${it.answer}") }
+            appendLine()
+        }
+        if (c.decisions.isNotEmpty()) {
+            appendLine("### Keputusan yang diterapkan")
+            c.decisions.forEach { d ->
+                val at = d.at?.let { "$it — " }.orEmpty()
+                appendLine("- $at[${label(d.moduleId)}] " + d.summary.joinToString("; ").ifEmpty { "(tanpa rincian)" })
+            }
+            appendLine()
+        }
+        appendLine("## Belum jelas")
+        if (c.open.isEmpty()) appendLine("_Tidak ada pertanyaan yang tertunda._")
+        c.open.forEach { appendLine("- [${label(it.moduleId)}] ${it.question}") }
+        appendLine()
     }
 
     /** Deskripsi operasi berbahasa pengguna — bukan nama kelas, supaya terbaca developer non-sesi. */

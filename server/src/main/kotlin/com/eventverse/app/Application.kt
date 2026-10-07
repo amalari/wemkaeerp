@@ -299,7 +299,7 @@ fun Application.module(
             empRepo = empRepo, catalogRepo = catalogRepo, buildRepo = buildRepo, quoteRepo = quoteRepo,
             auditLogRepo = auditLogRepo, domainPackRepo = domainPackRepo, discoveryDraftRepo = discoveryDraftRepo,
             embeddingProvider = embeddingProvider, flowTranslator = flowTranslator,
-            discoveryDemandRepository = discoveryDemandRepository, crmLeadRepository = crmLeadRepository,
+            discoveryDemandRepository = discoveryDemandRepository, builderChatRepository = builderChatRepository, crmLeadRepository = crmLeadRepository,
             contactRepository = contactRepository, dealRepository = dealRepository,
             poFileStorageOverride = poFileStorage, customFieldDefinitionRepository = customFieldDefinitionRepository,
             leadActivityRepository = leadActivityRepository, samplingOrderRepository = samplingOrderRepository, materialItemRepository = materialItemRepository,

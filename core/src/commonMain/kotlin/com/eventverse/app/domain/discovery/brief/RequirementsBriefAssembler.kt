@@ -14,7 +14,10 @@ import com.eventverse.app.domain.prototype.EntitySpec
  */
 object RequirementsBriefAssembler {
 
-    fun assemble(draft: DiscoveryDraft, included: Set<String>, changes: List<CaptureEntry>, coverage: List<BriefCoverage>): RequirementsBrief {
+    fun assemble(
+        draft: DiscoveryDraft, included: Set<String>, changes: List<CaptureEntry>, coverage: List<BriefCoverage>,
+        context: BriefContext? = null
+    ): RequirementsBrief {
         val modules = draft.pack.modules.filter { it.id.value in included }.map { m ->
             // Pasangan (layar, spec prototype-nya bila bisa dimainkan) — spec sama dengan yang dilihat klien.
             val perScreen = draft.screens.filter { it.moduleId == m.id }.map { s ->
@@ -29,7 +32,7 @@ object RequirementsBriefAssembler {
         }
         val gaps = coverage.filter { !it.covered && it.moduleId in included }
             .map { "Modul '${it.displayName}' belum ada di katalog — perlu dibangun (CUSTOM_EXTENSION)." }
-        return RequirementsBrief(draft.pack.code.value, modules, changes, coverage.filter { it.moduleId in included }, gaps)
+        return RequirementsBrief(draft.pack.code.value, modules, changes, coverage.filter { it.moduleId in included }, gaps, context?.takeUnless { it.isEmpty })
     }
 
     private fun entityOf(e: EntitySpec) = BriefEntity(

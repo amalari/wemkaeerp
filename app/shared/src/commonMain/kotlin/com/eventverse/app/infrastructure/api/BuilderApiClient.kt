@@ -146,6 +146,11 @@ class BuilderApiClient(
      */
     suspend fun buildQueue(): Result<JsonValue> = call(HttpMethod.Get, "/api/builder/build-queue")
 
+    /** GET /api/builder/build-queue/{id}/brief — brief developer yang dibekukan saat permintaan lahir (khusus platform). */
+    suspend fun buildRequestBrief(id: String): Result<String> =
+        call(HttpMethod.Get, "/api/builder/build-queue/$id/brief")
+            .mapCatching { (it as? JsonValue.Obj)?.string("markdown")?.takeIf(String::isNotBlank) ?: error("Respons brief tidak memuat markdown") }
+
     private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {
