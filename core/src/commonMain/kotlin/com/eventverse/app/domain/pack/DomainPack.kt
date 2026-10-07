@@ -173,7 +173,14 @@ data class DomainPack(
     /** Kamus peran → modul untuk wawancara (lihat [RoleHint]). Kosong = tidak ada tebakan, bukan kamus pack lain. */
     val roleHints: List<RoleHint> = emptyList(),
     /** Kosakata cadangan pack ini: istilah yang tidak boleh muncul di usulan pack **lain** (kemurnian vertikal). Kosong = tak ada. */
-    val reservedTerms: List<String> = emptyList()
+    val reservedTerms: List<String> = emptyList(),
+    /**
+     * Modul pack ini yang **ditawarkan sebagai modul bersama**: pack lain boleh merujuknya lewat `ModuleReference`
+     * (B6). Opt-in per modul, data pack bawaan — bukan semua modul operasional otomatis jadi bersama.
+     */
+    val sharedModules: Set<ModuleId> = emptySet(),
+    /** Rujukan ke modul bersama platform (B6, lihat [ModuleReference]); aturan di [ModuleReferenceRules]. Data saja, belum ke RBAC/kanvas. */
+    val moduleReferences: List<ModuleReference> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -203,11 +210,14 @@ data class DomainPack(
                 "Usulan layar menunjuk modul tak dikenal ${s.moduleId.value} di pack ${code.value}"
             }
         }
+        sharedModules.forEach { id ->
+            require(modules.any { it.id == id && it.slot != null }) { "Modul bersama ${id.value} harus modul operasional milik pack ${code.value}" }
+        }
         requireUnique("kamus peran", roleHints.map { it.word })
         reservedTerms.forEach { require(it.isNotBlank() && it == it.trim().lowercase()) { "Kosakata cadangan '$it' wajib terisi dan huruf kecil" } }
         requireUnique("kosakata cadangan", reservedTerms)
         roleHints.forEach { h ->
-            require(h.moduleId.value in moduleIds) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
+            require(h.moduleId.value in moduleIds || moduleReferences.any { it.platformModuleId == h.moduleId }) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
         }
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->

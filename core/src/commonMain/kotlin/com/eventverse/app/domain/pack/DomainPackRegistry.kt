@@ -40,8 +40,12 @@ object DomainPackRegistry {
         loaded = loaded - code
     }
 
-    /** Pelanggaran identitas global [pack] terhadap pack lain yang dikenal; kosong = sah. */
-    fun violations(pack: DomainPack): List<String> {
+    /** Pelanggaran [pack] untuk registri: identitas global **dan** rujukan modul bersama (B6). Kosong = sah. */
+    fun violations(pack: DomainPack): List<String> =
+        identityViolations(pack) + ModuleReferenceRules.validate(pack).map { "${it.path}: ${it.message}" }
+
+    /** Pelanggaran identitas global [pack] terhadap pack lain yang dikenal (tanpa rujukan); kosong = sah. */
+    fun identityViolations(pack: DomainPack): List<String> {
         if (isShipped(pack.code)) return listOf("Kode ${pack.code.value} milik pack bawaan platform")
         val others = all.filter { it.code != pack.code }
         val prefix = "${pack.code.value.lowercase()}_"

@@ -226,4 +226,32 @@ class DiscoveryInterviewApiTest {
         assertEquals("Klinik umum 40 pasien sehari", afterF0.obj("interview")!!.obj("profile")!!.string("summary"))
         assertEquals("f1_tujuan", afterF0.obj("nextQuestion")!!.string("step"))
     }
+
+    @Test
+    fun `ringkasan memuat modul bersama rujukan dengan label pack, dan draf tanpa rujukan tak berubah`() = testApplication {
+        DatabaseFactory.init()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(drafts) }
+        client.createDraft(drafts, "iv-7")
+        val before = client.get("/api/discovery/drafts/iv-7") { asTenant(ownerSlug) }.bodyAsText()
+        assertTrue(!obj(before).has("sharedModules"), "draf tanpa rujukan tak boleh memuat kunci baru")
+
+        val stored = requireNotNull(drafts.findById(DiscoveryDraftId("iv-7")))
+        val slot = GarmentDomainPack.pack.slot(com.eventverse.app.domain.pack.GarmentSlots.COSTING_HPP)!!
+        val ports = stored.draft.pack.portTypes.toList()
+        val ref = com.eventverse.app.domain.pack.ModuleReference(
+            com.eventverse.app.domain.pack.GarmentModules.COSTING_HPP, "Perhitungan Biaya",
+            mapOf(ports[0] to slot.defaultInput, ports[1] to slot.defaultOutput)
+        )
+        drafts.save(stored.copy(draft = stored.draft.copy(pack = stored.draft.pack.copy(moduleReferences = listOf(ref)))))
+
+        val after = obj(client.get("/api/discovery/drafts/iv-7") { asTenant(ownerSlug) }.bodyAsText())
+        val shared = after.array("sharedModules").filterIsInstance<JsonValue.Obj>().single()
+        assertEquals("costing_hpp", shared.string("id"))
+        assertEquals("Perhitungan Biaya", shared.string("displayName"))
+        assertEquals(ports[0].value, shared.string("slotInput"), "port dalam kosakata pack, bukan port platform")
+        assertEquals(2, shared.obj("portMapping")!!.entries.size)
+        // Modul rujukan belum masuk modul pack (RBAC/kanvas menunggu persetujuan).
+        assertTrue(after.array("modules").filterIsInstance<JsonValue.Obj>().none { it.string("id") == "costing_hpp" })
+    }
 }

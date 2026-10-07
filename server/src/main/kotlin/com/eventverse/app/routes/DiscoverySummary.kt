@@ -72,8 +72,8 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),
     "screens" to jsonArrayOf(stored.draft.screens.map { screenObj(it, samplePack) })
     )
-    // Kunci wawancara hanya muncul bila draf punya sesi: draf lama tidak berubah satu byte pun.
-    return withInterview(base, stored)
+    // Kunci wawancara/modul bersama hanya muncul bila draf punya sesi/rujukan: draf lama tidak berubah satu byte pun.
+    return withSharedModules(withInterview(base, stored), stored)
 }
 
 /**
