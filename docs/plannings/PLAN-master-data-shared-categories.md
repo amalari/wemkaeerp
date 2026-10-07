@@ -1,0 +1,125 @@
+# PLAN — Master Data Bersama: Kategori Material sebagai Data + Kategorisasi Otomatis
+
+**Status:** **disetujui 2026-10-07, keputusan §5 sudah dijawab**; implementasi belum dimulai · **Tanggal:** 2026-10-07 · **Penulis:** Agent B
+**Terkait:** [PROPOSAL-iv-B6](parallel4/PROPOSAL-iv-B6-shared-module.md) (modul bersama), `tenant-variability-rules.md` Kontrak 1, 5, 8
+
+> Tujuan satu kalimat: `master_data` menjadi modul **fondasi bersama** yang dipakai pack mana pun, dengan **kategori material berupa data** (template per pack, salinan per tenant), dan kategori **terisi otomatis** sehingga pengguna tidak perlu memahaminya.
+
+---
+
+## 1. Discovery Note
+
+### 1.1 Kebutuhan
+- **Siapa memakai:** admin gudang/pembelian (katalog bahan), staf costing dan teknik (lewat BOM/HPP), superadmin (kebijakan harga).
+- **Data milik:** tenant (katalog item, harga, riwayat harga); kategori = definisi per tenant.
+- **Berubah kapan:** kategori — sekali saat onboarding, jarang sesudahnya; item — terus-menerus.
+
+### 1.2 Fitur serupa
+- Perintah: `scripts/find-similar-feature.sh kategori category klasifikasi classify` dan graphify (`query_graph`).
+- **Kategorisasi AI belum ada.** Pola terdekat yang ditiru: port penebak `InterviewGuesser` (deterministik + agent, **validator menegakkan**), kamus `DomainPack.roleHints`, `customfield/` (`CustomAttributes`, `FieldType`), kill-switch `DiscoveryAgents.kt`/`HelpAgents.kt`.
+- Keputusan: **Mirip → tiru polanya**; kategori sebagai data = migrasi enum (Strangler Fig, Kontrak 8).
+
+### 1.3 Jenis
+**Foundation** (`master_data` sudah `ModuleKind.FOUNDATION`, `GLOBAL_ONLY`, tidak di kanvas). Tidak ada modul baru; kategori dan kategorisasi adalah **fitur dalam modul `master_data`**, mewarisi RBAC dan entitlement-nya.
+
+### 1.4 Uji Variabilitas
+| Konsep | Tenant? | Industri? | Admin ubah? | Kode/Data | Template & titik beku |
+|---|---|---|---|---|---|
+| Himpunan kategori material | ya | ya (benang vs obat) | ya | **Data** | template di pack → salinan per tenant; kategori yang sudah dipakai item tidak boleh dihapus |
+| Nama tampil kategori | ya | ya | ya | **Data** | boleh diganti kapan saja |
+| Satuan dasar bawaan kategori | ya | ya | ya | **Data** | hanya default; item menyimpan satuannya sendiri |
+| Awalan kode (`YRN`, `FAB`…) | ya | ya | jarang | **Data** | **beku setelah kode pertama terbit** (kode item tidak berubah) |
+| Kosakata kategorisasi (kata → kategori) | ya | ya | tidak langsung | **Data** | kamus pack + dipelajari dari konfirmasi tenant |
+| Daftar satuan ukur (`UnitOfMeasure`) | tidak | sebagian | tidak | Kode (besaran fisik milik sistem) | **celah:** dimensi yang ada hanya massa, panjang, hitungan; volume (liter, ml) belum ada |
+| `PriceSource`, status | tidak | tidak | tidak | Kode (milik sistem) | — |
+
+### 1.5 Core & extend
+- **Core:** `core/.../domain/masterdata/` (494 baris): `MaterialItem` (punya `customAttributes`), `MaterialCategory` (enum 7 nilai: kode, nama, satuan bawaan, awalan), `CreateMaterialItemUseCase`, repository.
+- **Titik extend:** `DomainPack` (kolom opsional kompatibel mundur, pola `roleHints`/`reservedTerms`), codec pack, tabel `master_data.*` (schema bernama kode modul, `ModuleSchemaMap`), pola konfigurasi per tenant (JSONB atau tabel, pola V71/V72).
+- **Fakta DB:** `material_items.category` dan `material_code_sequences.category_code` sudah **string**, jadi kategori sebagai data **tidak butuh ubah tipe kolom**.
+- **Pemakai `MaterialCategory` di luar paket masterdata (≥ 12 berkas):** UI master data & sampling, BOM tech pack (`BomLineEditorDialog`, `BomCostPreview`), kontrak (`MaterialRef`, `TechPackAndYieldData`, `SampleSpecToTechPackAdapter`), `ApprovedSampleSpecificationMapper`.
+- **Jangan disentuh:** file di tabel utang file-size; kelola ratchet tiap PR (`wc -l` sebelum/sesudah).
+
+### 1.6 I/O & kanvas
+- Port: **tidak ada** (fondasi, bukan node kanvas). Perlu dicek: `providedReferenceTypes` `master_data` di `FoundationModuleCatalog` (belum dibaca).
+- Telemetri: tidak berlaku.
+
+### 1.7 Governance
+| Operasi | Level minimum | Peran yang ditolak (dites 403) |
+|---|---|---|
+| Lihat katalog, kategori | VIEW (+ modul pemakai: costing, sampling, tech pack) | peran tanpa akses `MASTER_DATA` |
+| Tambah/ubah item, minta saran kategori | OPERATE | peran VIEW-only |
+| Kelola himpunan kategori (tambah/ubah/hapus) | MANAGE | OPERATE dan di bawahnya |
+| Kebijakan harga | MANAGE (sudah ada) | OPERATE ke bawah |
+| Kill-switch AI | superadmin platform | semua peran tenant |
+- Gate: `MASTER_DATA` (`moduleGate`, tulis fail-closed) · `ScopeCapability.GLOBAL_ONLY` · entitlement ikut modul.
+
+### 1.8 Ukuran → TRD?
+Agregat baru (definisi kategori per tenant), migrasi tabel dan backfill, ≥ 12 pemakai enum → **TRD perlu** (`TRD-MDATA-001`, dibuat di P0).
+
+---
+
+## 2. Rancangan inti
+
+### 2.1 Kategori sebagai data
+```kotlin
+@JvmInline value class MaterialCategoryCode(val value: String)          // slug, kunci tersimpan; parser tunggal, tolak bukan fallback
+data class MaterialCategoryDefinition(val code: MaterialCategoryCode, val displayName: String,
+                                      val defaultUom: UnitOfMeasure, val codePrefix: String)
+DomainPack.materialCategories: List<MaterialCategoryDefinition>          // template pack, opsional (kosong = tak ada template)
+TenantMaterialCategories                                                 // salinan per tenant, tabel master_data.material_categories (+RLS)
+```
+- Template garment = **tujuh kategori sekarang, identik** (kode, nama, satuan, awalan). Dikunci tes paritas yang **mengiterasi enum**.
+- Setiap tenant mendapat satu kategori sistem **"Belum dikategorikan"** supaya pengisian tidak pernah terblokir.
+- Tidak ada fallback senyap: kode kategori tak dikenal **ditolak** berpath.
+
+### 2.2 Kategorisasi otomatis — pendapat saya
+**Ya, dan itu pilihan yang benar**, dengan enam pagar:
+1. **Himpunan tertutup, bukan teks bebas.** AI memilih dari kategori tenant. Kategori baru hanya sebagai **usulan** yang dikonfirmasi sekali. Tanpa ini katalog pecah ("Benang", "benang jahit", "Thread").
+2. **Deterministik dulu, AI untuk sisanya.** Kamus kata→kategori per pack (pola `roleHints`) menangani kasus jelas secara gratis dan konsisten; AI hanya untuk yang tak dikenali. Lebih murah, cepat, dan bisa dites tanpa LLM.
+3. **Kategori bukan hiasan di sini**, ia menentukan awalan kode, satuan bawaan, dan filter. Karena itu hasil otomatis membawa `source` (`RULE` / `AI` / `USER`) dan `confidence`. Di atas ambang → terisi sendiri; di bawah → tetap terisi "Belum dikategorikan" lalu masuk antrean tinjau. **Tidak pernah memblokir pembuatan item.**
+4. **Konfirmasi mengajar sistem.** Koreksi pengguna masuk kamus tenant, jadi makin lama makin jarang memanggil AI (pola buku demand).
+5. **Kode terbit tidak berubah** bila kategori dikoreksi kemudian (awalan beku setelah dipakai); yang berubah hanya kategorinya.
+6. **Privasi dan biaya:** hanya nama dan deskripsi item yang dikirim (tanpa harga, pemasok, atau tenant); cache per nama ternormalisasi; kill-switch env; tes otomatis tidak memanggil LLM; eval live opt-in dengan estimasi biaya digandakan marginnya.
+
+Dua fungsi AI yang berbeda, jangan dicampur:
+- **A. Usulan himpunan kategori** untuk pack/tenant baru (dari cerita atau wawancara) — jarang, dikonfirmasi pemilik.
+- **B. Penentuan kategori item** (satu per satu dan impor massal) — sering, otomatis.
+
+Mutu diukur dengan **% tebakan yang diterima tanpa diubah** dan set emas per pack (garment, klinik, bengkel), bukan jumlah kategori.
+
+---
+
+## 3. Tahap pengerjaan
+| Tahap | Isi | Gerbang |
+|---|---|---|
+| **P0** | `TRD-MDATA-001`; periksa `providedReferenceTypes` `master_data` dan ukuran file yang akan disentuh | TRD disetujui |
+| **P1** | Katalog kategori sebagai data: tipe, `DomainPack.materialCategories` + codec, tabel + backfill 7 kategori ke tenant yang ada, template garment identik | tes paritas iterasi enum; pack lama terbaca |
+| **P2** | Pindahkan pembaca satu paket per PR: masterdata (domain + server) → BOM/tech pack → sampling → kontrak → UI | tiap PR: kode item, satuan bawaan, awalan **identik** untuk tenant garment; pemindai "jembatan yang bisa melempar" kosong |
+| **P3** | Tenant kedua: pack klinik/bengkel dengan kategorinya sendiri; tambah dimensi satuan volume (keputusan 3) | tes template non-default; **cek mata** di tenant non-garment |
+| **P4** | Netralkan teks `master_data` (satu teks untuk semua, keputusan 5), bagikan lewat salinan identik (pola invoicing) | paritas garment; tes salinan identik |
+| **P5** | Kategorisasi deterministik: kamus pack + kamus tenant, port `MaterialCategorizer`, endpoint saran (OPERATE), field kategori terisi otomatis di UI | deterministik byte-per-byte; antrean "Belum dikategorikan"; 403 peran VIEW |
+| **P6** | Agent AI (Koog) di belakang port yang sama + eval (set emas ≥ 10 kasus per pack) + kill-switch + impor massal | % diterima dilaporkan; validator menolak kategori di luar himpunan |
+| **P7** | Pembersihan: hapus enum, audit variabilitas, teaching doc | `scripts/audit-variability.sh` 0 temuan baru |
+
+Urutan P1→P2→P3 wajib berurutan (Strangler Fig); P5/P6 baru setelah P3 supaya kategorisasi tidak dibangun di atas enum.
+
+## 4. Verifikasi (setiap tahap)
+`./gradlew :core:jvmTest` · kompilasi server + `:app:shared` JVM/WasmJS/JS · tes server di DB scratch · tes **dokumen lama** (buang kolom baru, harus tetap sah — pelajaran regresi draf garment) · tes peran tak berwenang (403) · cek visual di tenant non-garment · teaching doc.
+
+## 5. Keputusan (DIJAWAB 2026-10-07)
+1. **Kategori tetap wajib di DB, tetapi selalu terisi otomatis.** Fallback kategori sistem "Belum dikategorikan".
+2. **Ambang auto-terapkan:** awal **0,8**, dapat diubah lewat konfigurasi. Itu angka tebakan awal, **wajib dikalibrasi dengan set emas di P6**, bukan dianggap benar. Hasil di bawah ambang diisi "Belum dikategorikan" lalu masuk antrean tinjau.
+3. **Perluasan satuan ukur (volume: liter, ml)** masuk plan ini, di P3.
+4. **Admin tenant (MANAGE) boleh mengubah himpunan kategorinya sendiri.** Kategori yang sudah dipakai item tidak boleh dihapus; awalan kode beku setelah dipakai.
+5. **Teks `master_data` setelah dibagikan: satu teks netral untuk semua pack** (opsi A), mis. "Master Data Barang & Harga" dengan deskripsi "Katalog barang atau bahan, satuan, dan tarif acuan harga." Label per pack (opsi B) ditunda sampai ada permintaan nyata, dan bila dibangun sebaiknya sekali untuk semua modul bersama (`invoicing`, `org_chart`, `vendor_contacts`, `master_data`), bukan khusus modul ini. Konsekuensi: nama modul berubah juga untuk tenant garment. Perubahan teks mengikuti prosedur netralisasi yang sama (pack + UI + paritas + migrasi katalog guarded + catatan `SupersededModuleText`).
+
+## 6. Risiko
+| Risiko | Mitigasi |
+|---|---|
+| Kode item/satuan tenant garment berubah diam-diam saat migrasi | template identik + tes paritas iterasi enum + backfill diverifikasi |
+| ≥ 12 pemakai enum: PR besar sulit direview | satu paket per PR; ratchet ukuran file; `wc -l` dicatat |
+| AI salah kategori → awalan/satuan keliru | `source`+`confidence`, ambang, antrean tinjau, kode tak berubah saat koreksi |
+| Biaya LLM tak terduga | deterministik dulu, cache, kill-switch, eval live opt-in dengan margin 2× |
+| Kategori menjamur/ganda | himpunan tertutup; kategori baru hanya via usulan terkonfirmasi |
+| Draf/pack lama tertolak "wajib identik" | kolom aditif opsional + tes dokumen lama |
