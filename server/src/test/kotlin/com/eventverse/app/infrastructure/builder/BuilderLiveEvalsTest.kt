@@ -32,6 +32,12 @@ import org.junit.Assume.assumeTrue
  *   ./gradlew :server:test --tests '*BuilderLiveEvalsTest'
  * ```
  *
+ * Suite sulit: tambahkan `BUILDER_LIVE_EVALS_SUITE=hard` (ulangan bawaan 2; `BUILDER_LIVE_EVALS_REPEAT=1..3`).
+ *
+ * **Jebakan Gradle**: variabel lingkungan tidak menjadi input tugas `test`, jadi mengubahnya saja membuat Gradle menganggap
+ * tes "sudah mutakhir" (tidak jalan, ~1 detik) atau memakai konfigurasi lama. Selalu jalankan dengan
+ * `--rerun --no-configuration-cache`.
+ *
  * Penilaian otomatis dan tegas (tanpa model penilai). Laporan ke `docs/plannings/eval-builder-<tanggal>.md` tanpa menimpa;
  * saldo API dicek sebelum/sesudah; kegagalan model (galat/timeout) dipisah dari kegagalan jawaban.
  */
@@ -48,8 +54,12 @@ class BuilderLiveEvalsTest {
         val apiKey = requireNotNull(key)
 
         val models = listOf("deepseek-flash", "deepseek-v4-pro")
-        val calls = (BuilderLiveEvalCases.clarify.size + BuilderLiveEvalCases.edit.size * 13 / 10) * models.size
-        println("estimasi | model=${models.size} kasus-penanya=${BuilderLiveEvalCases.clarify.size} kasus-penyunting=${BuilderLiveEvalCases.edit.size} panggilan-LLM-maks≈$calls token-maks≈${calls * 2500}")
+        val hard = System.getenv("BUILDER_LIVE_EVALS_SUITE") == "hard"
+        val reps = System.getenv("BUILDER_LIVE_EVALS_REPEAT")?.toIntOrNull()?.coerceIn(1, 3) ?: if (hard) 2 else 1
+        val clarifyCases = if (hard) BuilderLiveEvalCases.clarifyHard else BuilderLiveEvalCases.clarify
+        val editCases = if (hard) BuilderLiveEvalCases.editHard else BuilderLiveEvalCases.edit
+        val calls = (clarifyCases.size + editCases.size * 2) * models.size * reps
+        println("estimasi | suite=${if (hard) "sulit" else "dasar"} ulangan=$reps model=${models.size} kasus-penanya=${clarifyCases.size} kasus-penyunting=${editCases.size} panggilan-LLM-maks≈$calls token-maks≈${calls * 2500}")
         val balanceBefore = fetchBalance(apiKey)
         println("evals | saldo sebelum: ${balanceBefore ?: "-"}")
 
@@ -61,7 +71,7 @@ class BuilderLiveEvalsTest {
             val clarifier = KoogNarrativeClarifier(counting, model, timeoutMillis = 180_000)
             val editor = KoogModuleEditor(counting, model, timeoutMillis = 180_000)
 
-            for (c in BuilderLiveEvalCases.clarify) {
+            for (c in clarifyCases) for (rep in 1..reps) {
                 val before = counting.calls
                 val started = System.currentTimeMillis()
                 val result = runCatching { clarifier.clarify(c.narrative, c.existingModules) }
@@ -70,25 +80,25 @@ class BuilderLiveEvalsTest {
                 val row = result.fold(
                     onSuccess = { qs ->
                         val asked = qs.isNotEmpty()
-                        if (asked) questionsSeen += "[$modelId/${c.name}] " + qs.joinToString(" | ") { it.question }
-                        Row(modelId, "penanya", c.name, asked == c.shouldAsk && qs.size <= 3,
+                        if (asked) questionsSeen += "[$modelId/${c.name}${repTag(rep, reps)}] " + qs.joinToString(" | ") { it.question }
+                        Row(modelId, "penanya", c.name + repTag(rep, reps), asked == c.shouldAsk && qs.size <= 3,
                             (if (asked) "bertanya ${qs.size}" else "tidak bertanya") + " (seharusnya " + (if (c.shouldAsk) "bertanya" else "tidak") + ")", ms, tokens)
                     },
-                    onFailure = { Row(modelId, "penanya", c.name, false, "GALAT MODEL: ${it.message?.take(80)}", ms, tokens) }
+                    onFailure = { Row(modelId, "penanya", c.name + repTag(rep, reps), false, "GALAT MODEL: ${it.message?.take(80)}", ms, tokens) }
                 )
                 println("evals | ${row.model} | ${row.stage} | ${row.name} | ${if (row.pass) "LULUS" else "GAGAL"} | ${row.note} | ${row.ms}ms")
                 rows += row
             }
 
-            for (c in BuilderLiveEvalCases.edit) {
+            for (c in editCases) for (rep in 1..reps) {
                 val before = counting.calls
                 val started = System.currentTimeMillis()
                 val outcome = runCatching { runEdit(editor, c) }
                 val ms = System.currentTimeMillis() - started
                 val tokens = counting.snapshot().drop(before).sumOf { it.totalTokens ?: 0 }
                 val row = outcome.fold(
-                    onSuccess = { Row(modelId, "penyunting", c.name, it.first == null, it.first ?: it.second, ms, tokens, it.third) },
-                    onFailure = { Row(modelId, "penyunting", c.name, false, "GALAT MODEL: ${it.message?.take(80)}", ms, tokens) }
+                    onSuccess = { Row(modelId, "penyunting", c.name + repTag(rep, reps), it.first == null, it.first ?: it.second, ms, tokens, it.third) },
+                    onFailure = { Row(modelId, "penyunting", c.name + repTag(rep, reps), false, "GALAT MODEL: ${it.message?.take(80)}", ms, tokens) }
                 )
                 println("evals | ${row.model} | ${row.stage} | ${row.name} | ${if (row.pass) "LULUS" else "GAGAL"} | ${row.note} | ${row.ms}ms")
                 rows += row
@@ -97,7 +107,7 @@ class BuilderLiveEvalsTest {
 
         val balanceAfter = fetchBalance(apiKey)
         println("evals | saldo sesudah: ${balanceAfter ?: "-"}")
-        val report = buildReport(rows, questionsSeen, balanceBefore, balanceAfter)
+        val report = buildReport(rows, questionsSeen, balanceBefore, balanceAfter, if (hard) "SULIT" else "dasar")
         println(report)
         writeReport(report)
         assertTrue(rows.any { !it.note.startsWith("GALAT MODEL") }, "Semua kasus galat model - kunci API atau kontrak salah; lihat laporan")
@@ -105,11 +115,11 @@ class BuilderLiveEvalsTest {
 
     /** Meniru [com.eventverse.app.domain.builder.EditModuleFromChat]: maksimal 2 percobaan, galat sunting dikirim balik. Mengembalikan (alasan gagal | null, catatan, lolos percobaan pertama). */
     private suspend fun runEdit(editor: KoogModuleEditor, c: EditEvalCase): Triple<String?, String, Boolean> {
-        val base = BuilderLiveEvalCases.baseProposal
+        val base = c.base ?: BuilderLiveEvalCases.baseProposal
         var feedback: String? = null
         var firstOk = false
         repeat(2) { attempt ->
-            val reply = editor.edit(ModuleEditRequest("klinik_poli", "Poli", base, c.message, c.answered, feedback)).getOrThrow()
+            val reply = editor.edit(ModuleEditRequest(base.moduleId.value, "Modul uji", base, c.message, c.answered, feedback)).getOrThrow()
             if (c.expectNoChange) {
                 return if (reply.edits.isEmpty()) Triple(null, "tanpa sunting (benar)", true)
                 else Triple("melakukan ${reply.edits.size} sunting padahal di luar isian", "", false)
@@ -125,8 +135,8 @@ class BuilderLiveEvalsTest {
         return Triple("sunting ditolak validator dua kali: ${feedback?.take(100)}", "", false)
     }
 
-    private fun buildReport(rows: List<Row>, questions: List<String>, before: String?, after: String?): String = buildString {
-        appendLine("# Eval Live Builder - penanya klarifikasi & penyunting isian (flash vs pro)")
+    private fun buildReport(rows: List<Row>, questions: List<String>, before: String?, after: String?, suite: String): String = buildString {
+        appendLine("# Eval Live Builder ($suite) - penanya klarifikasi & penyunting isian (flash vs pro)")
         appendLine()
         appendLine("- Dibuat: ${Clock.System.now()} (UTC)")
         appendLine("- Penilaian: otomatis dan tegas (keputusan bertanya; keadaan field akhir setelah `applyEdits` + validator). Tidak ada model penilai.")
@@ -168,13 +178,16 @@ class BuilderLiveEvalsTest {
         val root = requireNotNull(dir) { "settings.gradle.kts tidak ditemukan dari cwd ke atas" }
         val date = Clock.System.now().toLocalDateTime(TimeZone.UTC).date.toString()
         val folder = root.resolve("docs").resolve("plannings")
-        var target = folder.resolve("eval-builder-$date.md")
+        val prefix = if (System.getenv("BUILDER_LIVE_EVALS_SUITE") == "hard") "eval-builder-sulit" else "eval-builder"
+        var target = folder.resolve("$prefix-$date.md")
         var round = 2
-        while (target.exists()) { target = folder.resolve("eval-builder-$date-ronde$round.md"); round++ }
+        while (target.exists()) { target = folder.resolve("$prefix-$date-ronde$round.md"); round++ }
         target.parent?.createDirectories()
         target.writeText(report)
         println("evals | laporan tertulis: $target")
     }
+
+    private fun repTag(rep: Int, reps: Int) = if (reps > 1) "#$rep" else ""
 
     private fun fetchBalance(apiKey: String): String? = runCatching {
         val request = HttpRequest.newBuilder().uri(URI.create("https://api.deepseek.com/user/balance"))
