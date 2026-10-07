@@ -10,7 +10,7 @@ Singkatan: `core/…` = `core/src/commonMain/kotlin/com/eventverse/app/`,
 |---|---|---|
 | Modul operasional baru | `core/…/domain/rbac/BusinessModule.kt`, `core/…/domain/pipeline/OperationalModuleCatalog.kt`, `ModuleArchetype` di `OperationalModuleContract.kt` | `QualityControlModule` di `OperationalModuleCatalog.kt`; migrasi `V27__register_master_data_module.sql`, `V64__create_vendor_contacts.sql` |
 | Modul governance | `BusinessModule` (`kind = GOVERNANCE`), `GovernanceModuleGate` di `App.kt` | `V18__add_governance_modules.sql`, `V19__backfill_governance_role_permissions.sql` |
-| Tipe port (I/O) | `core/…/domain/contracts/ModulePortPayload.kt` (`PortDataTypeRegistry`), `PortCompatibility.kt` | port `CutPiecesBundle` |
+| Tipe port (I/O) | `core/…/domain/pack/DomainPack.kt` (`portTypes`/`wiredPortTypes`; garment: `GarmentPortTypes`), `contracts/PortCompatibility.kt` | port `CutPiecesBundle` |
 | Kerangka tahap / template industri | `core/…/domain/stageflow/IndustryStageTemplates.kt`, `TenantStageFlow.kt` | template `EMBROIDERY`; editor `app/…/presentation/sampling/components/StageFlowEditorPanel.kt` |
 | Aturan yang mencari tahap berdasarkan peran | `core/…/domain/sampling/SamplingOrderStageFrame.kt` (`firstStageWith`, `stagesWith`) | `assemblyStage`, `finalQcStage`, `packingStage` |
 | Proses sisipan (bordir, sablon) | `core/…/domain/process/TenantProcessCatalog.kt`, `TenantOptionalProcess.kt`, `WorkStationCatalog.optionalStations()` | proses Bordir di panel Penentuan Alur |

@@ -126,7 +126,7 @@ baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
 1. `core/.../domain/rbac/BusinessModule.kt` — entri baru (`code`, `category`, `scopeCapability`, `iconKey`; `kind` default OPERATIONAL).
 2. `core/.../domain/pipeline/OperationalModuleContract.kt` — cabang `ModuleArchetype.forModule` (dipaksa kompilator); slot baru → entri `ModuleArchetype` + `representativeModule`/`defaultStage`.
 3. `core/.../domain/pipeline/OperationalModuleCatalog.kt` — objek spec + **masukkan ke `all` di posisi yang benar** (posisi = urutan kanvas & sisipan reconciler). Port = `upstreamPrerequisites` / `downstreamHandoffs`.
-4. `core/.../domain/contracts/ModulePortPayload.kt` — daftarkan tipe port baru di `PortDataTypeRegistry`.
+4. `core/.../domain/pack/` — daftarkan tipe port baru di **kosakata pack**: `DomainPack.portTypes`, dan `wiredPortTypes` bila port itu menyambung antarmodul (pack garment: `GarmentPortTypes`). Port yang dipakai spec katalog wajib ada di sana (dikunci `CatalogPortVocabularyTest`). *`PortDataTypeRegistry` sudah dihapus; port kini data pack.*
 5. Migrasi Flyway pola **V27/V64**: backfill entitlement (kunci **NAME** enum), baris `module_catalog_entries` (kunci **code**), backfill `custom_roles` per peran sistem.
    **Tabel modul di schema bernama kode modulnya** (`CREATE SCHEMA <kode>`, `Table("<kode>.<nama>")`, grant + `ALTER DEFAULT PRIVILEGES` untuk `wemade_app`, RLS lewat `apply_tenant_rls_in('<kode>', '<tabel>')`). Daftarkan di `ModuleSchemaMap` (pola V76, B8).
 6. `core/.../domain/rbac/CustomRole.kt` `createFactoryPresets` — akses per peran preset (Owner otomatis).
@@ -160,6 +160,6 @@ mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
 
 ### 5.5 Kontrak Input/Output
 
-- Port keluar modul A **harus sama** dengan port masuk modul B yang disambung; tipe port wajib terdaftar di `PortDataTypeRegistry`.
+- Port keluar modul A **harus sama** dengan port masuk modul B yang disambung; tipe port wajib terdaftar di kosakata pack (`DomainPack.portTypes`; yang menyambung juga di `wiredPortTypes`).
 - Kanvas menyambung node **dari port**, bukan dari daftar tulis tangan (target TRD-FLOW-002). Port yang tidak menyambung = node yatim di kanvas.
 - Kunci: entitlement, `custom_roles`, `department_module_assignments` memakai **NAME** enum (`QUALITY_CONTROL`); node pipeline & `module_catalog_entries` memakai **code** (`quality_control`). Jangan tertukar.
