@@ -235,6 +235,66 @@ class InterviewSessionStateTest {
     }
 
     @Test
+    fun testConsultantPhaseF0F2NavigationAndMutation() {
+        val session = sampleSession().copy(step = InterviewStep.F0_BISNIS)
+        val state = InterviewSessionState(session, draftId = "draft-f0", narrative = "Klinik 24 Jam")
+        assertEquals(InterviewStep.F0_BISNIS, state.step)
+        assertEquals(1, state.turnNumber)
+
+        // Mutasi F0: Profile Summary
+        state.updateProfileSummary("Klinik Pratama Rawat Inap")
+        assertEquals("Klinik Pratama Rawat Inap", state.profile?.summary)
+
+        // Navigasi ke F1
+        state.nextTurn()
+        assertEquals(InterviewStep.F1_TUJUAN, state.step)
+        assertEquals(2, state.turnNumber)
+
+        // Mutasi F1: Goals & Pain Points
+        state.addGoal("Rekam medis digital")
+        state.addGoal("Antrean cepat")
+        assertEquals(2, state.profile?.goals?.size)
+        state.removeGoal("Antrean cepat")
+        assertEquals(listOf("Rekam medis digital"), state.profile?.goals)
+
+        state.addPainPoint("Stok obat sering selisih")
+        assertEquals(listOf("Stok obat sering selisih"), state.profile?.painPoints)
+        state.removePainPoint("Stok obat sering selisih")
+        assertTrue(state.profile?.painPoints.isNullOrEmpty())
+
+        // Navigasi ke F2
+        state.nextTurn()
+        assertEquals(InterviewStep.F2_SPEK, state.step)
+        assertEquals(3, state.turnNumber)
+
+        // Mutasi F2: Specs
+        state.addOrUpdateSpec(
+            RequirementSpec(
+                areaKey = RoleKey("apoteker"),
+                whoFills = "Staf Farmasi",
+                whatRecorded = "Resep obat",
+                whoSees = "Kasir & Dokter",
+                doneWhen = "Obat diserahkan ke pasien"
+            )
+        )
+        assertEquals(1, state.specs.size)
+        assertEquals("apoteker", state.specs.first().areaKey.value)
+
+        // Navigasi ke G1
+        state.nextTurn()
+        assertEquals(InterviewStep.G1_DIVISI, state.step)
+        assertEquals(4, state.turnNumber)
+
+        // Mundur dari G1 kembali ke F2 -> F1 -> F0
+        state.previousTurn()
+        assertEquals(InterviewStep.F2_SPEK, state.step)
+        state.previousTurn()
+        assertEquals(InterviewStep.F1_TUJUAN, state.step)
+        state.previousTurn()
+        assertEquals(InterviewStep.F0_BISNIS, state.step)
+    }
+
+    @Test
     fun testAllStaticStringsAreLatin1() {
         // Verifikasi bahwa teks yang digunakan tidak memuat glyph di luar Latin-1 (Nunito-safe)
         val sampleTexts = listOf(

@@ -57,8 +57,8 @@ fun DiscoveryInterviewPane(
             }
         }
 
-        // Saran Konsultan (A7) jika ada saran pending di giliran G1 atau G2
-        if (state.step in listOf(InterviewStep.G1_DIVISI, InterviewStep.G2_PERAN)) {
+        // Saran Konsultan (A7) jika ada saran pending di giliran F0-F2 atau G1-G2
+        if (state.step.isConsultant || state.step in listOf(InterviewStep.G1_DIVISI, InterviewStep.G2_PERAN)) {
             val pendingSuggestions = state.consultantSuggestions.filter { it.status == ConsultantSuggestionStatus.PENDING }
             pendingSuggestions.forEach { suggestion ->
                 StepInterviewConsultantCard(
@@ -70,9 +70,23 @@ fun DiscoveryInterviewPane(
             }
         }
 
-        // Konten Langkah Aktif. // Fase konsultan F0-F2 belum punya layar (milik A); sementara diperlakukan seperti G1 supaya wizard tetap jalan.
+        // Konten Langkah Aktif
         when (state.step) {
-            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> StepInterviewG1Divisions(
+            InterviewStep.F0_BISNIS -> StepInterviewF0Bisnis(
+                state = state,
+                onNext = { state.nextTurn() }
+            )
+            InterviewStep.F1_TUJUAN -> StepInterviewF1Tujuan(
+                state = state,
+                onBack = { state.previousTurn() },
+                onNext = { state.nextTurn() }
+            )
+            InterviewStep.F2_SPEK -> StepInterviewF2Spek(
+                state = state,
+                onBack = { state.previousTurn() },
+                onNext = { state.nextTurn() }
+            )
+            InterviewStep.G1_DIVISI -> StepInterviewG1Divisions(
                 state = state,
                 onNext = { state.nextTurn() }
             )

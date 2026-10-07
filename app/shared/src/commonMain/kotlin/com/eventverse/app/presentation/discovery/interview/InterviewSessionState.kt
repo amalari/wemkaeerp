@@ -55,30 +55,12 @@ class InterviewSessionState(
     val version = initialSession?.version ?: InterviewSession.BASED_ON_STORY
 
     var profile by mutableStateOf(initialSession?.profile)
-    val specs = mutableStateListOf<RequirementSpec>().apply {
-        addAll(initialSession?.specs.orEmpty())
-    }
-
-    val divisions = mutableStateListOf<DivisionDraft>().apply {
-        addAll(initialSession?.divisions.orEmpty())
-    }
-
-    val roles = mutableStateListOf<RoleDraft>().apply {
-        addAll(initialSession?.roles.orEmpty())
-    }
-
-    val links = mutableStateListOf<RoleModuleLink>().apply {
-        addAll(initialSession?.links.orEmpty())
-    }
-
-    val handoffs = mutableStateListOf<ModuleHandoff>().apply {
-        addAll(initialSession?.handoffs.orEmpty())
-    }
-
-    val answers = mutableStateListOf<InterviewAnswer>().apply {
-        addAll(initialSession?.answers.orEmpty())
-    }
-
+    val specs = mutableStateListOf<RequirementSpec>().apply { addAll(initialSession?.specs.orEmpty()) }
+    val divisions = mutableStateListOf<DivisionDraft>().apply { addAll(initialSession?.divisions.orEmpty()) }
+    val roles = mutableStateListOf<RoleDraft>().apply { addAll(initialSession?.roles.orEmpty()) }
+    val links = mutableStateListOf<RoleModuleLink>().apply { addAll(initialSession?.links.orEmpty()) }
+    val handoffs = mutableStateListOf<ModuleHandoff>().apply { addAll(initialSession?.handoffs.orEmpty()) }
+    val answers = mutableStateListOf<InterviewAnswer>().apply { addAll(initialSession?.answers.orEmpty()) }
     val consultantSuggestions = mutableStateListOf<ConsultantSuggestion>()
 
     init {
@@ -99,12 +81,16 @@ class InterviewSessionState(
     }
 
     private fun syncTurnNumber() {
+        val consultantTurns = answers.count { it.step.isConsultant }
         turnNumber = when (step) {
-            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> 1
-            InterviewStep.G2_PERAN -> 2
-            InterviewStep.G3_MODUL -> 3
-            InterviewStep.G4_SAMBUNGAN -> 4
-            InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> 5
+            InterviewStep.F0_BISNIS -> 1
+            InterviewStep.F1_TUJUAN -> 2
+            InterviewStep.F2_SPEK -> 3
+            InterviewStep.G1_DIVISI -> 1 + consultantTurns
+            InterviewStep.G2_PERAN -> 2 + consultantTurns
+            InterviewStep.G3_MODUL -> 3 + consultantTurns
+            InterviewStep.G4_SAMBUNGAN -> 4 + consultantTurns
+            InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> 5 + consultantTurns
         }
     }
 
@@ -290,6 +276,45 @@ class InterviewSessionState(
         }
     }
 
+    // --- Aksi Konsultan F0-F2 Profil & Spek ---
+    fun updateProfileSummary(summary: String) {
+        val trimmed = summary.trim()
+        if (trimmed.isNotBlank()) profile = profile?.copy(summary = trimmed) ?: BusinessProfile(trimmed)
+    }
+
+    fun addGoal(goal: String) {
+        val trimmed = goal.trim()
+        if (trimmed.isNotBlank()) {
+            val curr = profile ?: BusinessProfile(narrative.ifBlank { "Usaha Pengguna" })
+            if (trimmed !in curr.goals) profile = curr.copy(goals = curr.goals + trimmed)
+        }
+    }
+
+    fun removeGoal(goal: String) {
+        profile?.let { profile = it.copy(goals = it.goals.filter { g -> g != goal }) }
+    }
+
+    fun addPainPoint(painPoint: String) {
+        val trimmed = painPoint.trim()
+        if (trimmed.isNotBlank()) {
+            val curr = profile ?: BusinessProfile(narrative.ifBlank { "Usaha Pengguna" })
+            if (trimmed !in curr.painPoints) profile = curr.copy(painPoints = curr.painPoints + trimmed)
+        }
+    }
+
+    fun removePainPoint(painPoint: String) {
+        profile?.let { profile = it.copy(painPoints = it.painPoints.filter { p -> p != painPoint }) }
+    }
+
+    fun addOrUpdateSpec(spec: RequirementSpec) {
+        val idx = specs.indexOfFirst { it.areaKey == spec.areaKey }
+        if (idx >= 0) specs[idx] = spec else specs.add(spec)
+    }
+
+    fun removeSpec(areaKey: RoleKey) {
+        specs.removeAll { it.areaKey == areaKey }
+    }
+
     // --- Alur Antar Giliran ---
     fun acceptAllGuesses() {
         for (i in links.indices) {
@@ -321,7 +346,9 @@ class InterviewSessionState(
             )
         )
         step = when (step) {
-            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK -> InterviewStep.G1_DIVISI
+            InterviewStep.F0_BISNIS -> InterviewStep.F1_TUJUAN
+            InterviewStep.F1_TUJUAN -> InterviewStep.F2_SPEK
+            InterviewStep.F2_SPEK -> InterviewStep.G1_DIVISI
             InterviewStep.G1_DIVISI -> InterviewStep.G2_PERAN
             InterviewStep.G2_PERAN -> InterviewStep.G3_MODUL
             InterviewStep.G3_MODUL -> InterviewStep.G4_SAMBUNGAN
@@ -333,7 +360,10 @@ class InterviewSessionState(
 
     fun previousTurn() {
         step = when (step) {
-            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> InterviewStep.G1_DIVISI
+            InterviewStep.F0_BISNIS -> InterviewStep.F0_BISNIS
+            InterviewStep.F1_TUJUAN -> InterviewStep.F0_BISNIS
+            InterviewStep.F2_SPEK -> InterviewStep.F1_TUJUAN
+            InterviewStep.G1_DIVISI -> if (answers.any { it.step.isConsultant }) InterviewStep.F2_SPEK else InterviewStep.G1_DIVISI
             InterviewStep.G2_PERAN -> InterviewStep.G1_DIVISI
             InterviewStep.G3_MODUL -> InterviewStep.G2_PERAN
             InterviewStep.G4_SAMBUNGAN -> InterviewStep.G3_MODUL

@@ -32,7 +32,10 @@ fun InterviewTurnHeader(
     modifier: Modifier = Modifier
 ) {
     val stepTitle = when (step) {
-        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> "1. Divisi Usaha"
+        InterviewStep.F0_BISNIS -> "F0. Profil Usaha"
+        InterviewStep.F1_TUJUAN -> "F1. Sasaran & Kendala"
+        InterviewStep.F2_SPEK -> "F2. Spesifikasi Area Kerja"
+        InterviewStep.G1_DIVISI -> "1. Divisi Usaha"
         InterviewStep.G2_PERAN -> "2. Peran & Kepala Divisi"
         InterviewStep.G3_MODUL -> "3. Modul & Fitur Kebutuhan"
         InterviewStep.G4_SAMBUNGAN -> "4. Sambungan Alur Kerja"
@@ -40,12 +43,17 @@ fun InterviewTurnHeader(
     }
 
     val stepDesc = when (step) {
-        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK, InterviewStep.G1_DIVISI -> "Sistem menebak bagian atau divisi usaha Anda berdasarkan narasi. Sesuaikan jika ada yang kurang."
+        InterviewStep.F0_BISNIS -> "Ceritakan atau konfirmasi ringkasan jenis usaha dan model operasional Anda."
+        InterviewStep.F1_TUJUAN -> "Tentukan apa yang ingin dicapai dan kendala operasional yang ingin diselesaikan."
+        InterviewStep.F2_SPEK -> "Tetapkan siapa yang mencatat, siapa yang melihat, dan tolok ukur penyelesaian pekerjaan."
+        InterviewStep.G1_DIVISI -> "Sistem menebak bagian atau divisi usaha Anda berdasarkan narasi. Sesuaikan jika ada yang kurang."
         InterviewStep.G2_PERAN -> "Tentukan siapa saja yang bekerja di tiap divisi dan siapa yang memimpin divisi tersebut."
         InterviewStep.G3_MODUL -> "Setiap peran dihubungkan ke modul kerja yang siap pakai atau perlu dirakit."
         InterviewStep.G4_SAMBUNGAN -> "Periksa serah-terima dokumen atau data antarbagian agar alur operasional tersambung rapi."
         InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> "Tinjau seluruh rancangan sistem sebelum melangkah ke draf blueprint."
     }
+
+    val maxTurns = if (turnNumber > 5 || step.isConsultant) 8 else 5
 
     ClayCard(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -58,7 +66,7 @@ fun InterviewTurnHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ClayBadge(
-                    text = "Giliran $turnNumber/8",
+                    text = "Giliran $turnNumber/$maxTurns",
                     tint = WeMadeColors.Primary,
                     dot = true
                 )
