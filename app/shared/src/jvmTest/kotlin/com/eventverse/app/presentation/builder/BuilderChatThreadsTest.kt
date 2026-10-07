@@ -120,6 +120,11 @@ class BuilderChatThreadsTest {
             {"id":"br-1","tenantId":"t","moduleId":"m1","status":"QUEUED","reason":"r","hasBrief":true},
             {"id":"br-2","tenantId":"t","moduleId":"m2","status":"QUEUED","reason":"r"}]}"""))
         assertEquals(listOf(true, false), rows.map { it.hasBrief }, "server lama tanpa kunci hasBrief = false")
+        val rev = parseBuildQueue(JsonParser.parse("""{"requests":[{"id":"br-3","tenantId":"t","moduleId":"m","status":"SUPERSEDED","reason":"r","hasBrief":true,"briefVersion":1,"supersededBy":"br-4"},
+            {"id":"br-4","tenantId":"t","moduleId":"m","status":"QUEUED","reason":"r","hasBrief":true,"briefVersion":2,"supersedes":"br-3"}]}"""))
+        assertEquals(listOf(1, 2), rev.map { it.briefVersion })
+        assertEquals(listOf("br-4", null), rev.map { it.supersededBy })
+        assertEquals(1, rows.first().briefVersion, "server lama tanpa briefVersion = 1")
 
         val cap = Capture(HttpStatusCode.OK, """{"markdown":"# Brief","brief":{},"takenAt":"2026-10-08T01:00:00Z"}""")
         assertEquals("# Brief", BuilderApiClient(cap.client(), "http://x", tokens).buildRequestBrief("br-1").getOrThrow())

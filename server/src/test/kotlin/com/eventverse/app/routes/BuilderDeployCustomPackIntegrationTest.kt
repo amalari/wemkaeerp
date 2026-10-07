@@ -129,5 +129,48 @@ class BuilderDeployCustomPackIntegrationTest {
         assertTrue(mine.all { !it.string("id").orEmpty().contains("DeploymentNumber") }, "id permintaan bersih: ${mine.map { it.string("id") }}")
         val stored = runBlocking { com.eventverse.app.infrastructure.PostgresBuilderDeploymentRepository().findByTenant(tenantId) }
         assertEquals(listOf("dep-${tenantId.value}-1"), stored.map { it.id.value }, "id deployment tersimpan bersih di Postgres")
+
+        // ---- Revisi (opsi 2): klien terus beriterasi lalu deploy ulang => yang lama DIGANTIKAN, bukan digandakan ----
+        runBlocking {
+            val chats = PostgresBuilderChatRepository()
+            val conv = chats.conversationFor(tenantId)
+            chats.append(ChatMessage(ChatMessageId("e2e-$suffix-2"), conv.id, tenantId, ChatRole.AGENT, "patch poli", moduleId = "klinik_poli",
+                appliedDraftId = "d1", proposedSummary = listOf("Tambah isian: Nomor Rekam Medis (text)")))
+        }
+        val again = client.post("/api/builder/deployments") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.tenantToken(slug, tenantId = tenantId.value)}")
+        }
+        assertEquals(200, again.status.value, "deploy ulang = revisi, bukan galat: ${again.bodyAsText()}")
+        assertEquals(2, ((JsonParser.parse(again.bodyAsText()) as JsonValue.Obj)["packVersion"] as JsonValue.Num).asInt)
+
+        val all = runBlocking { com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository().findByTenant(tenantId) }
+        assertEquals(4, all.size, "dua modul x dua revisi; bukan empat permintaan tertunda yang menggandakan")
+        val (oldOnes, newOnes) = all.partition { it.briefVersion == 1 }
+        assertTrue(oldOnes.all { it.status == com.eventverse.app.domain.builder.BuildRequestStatus.SUPERSEDED && it.supersededBy != null }, "yang lama SUPERSEDED dan menunjuk penggantinya (tersimpan di DB)")
+        assertTrue(newOnes.all { it.status == com.eventverse.app.domain.builder.BuildRequestStatus.QUEUED && it.supersedes != null })
+        assertEquals(setOf("dep-${tenantId.value}-1"), runBlocking { com.eventverse.app.infrastructure.PostgresBuilderDeploymentRepository().findByTenant(tenantId) }
+            .filter { it.status == com.eventverse.app.domain.builder.DeploymentStatus.SUPERSEDED }.map { it.id.value }.toSet(), "deployment tertahan lama digantikan")
+
+        val queue2 = client.get("/api/builder/build-queue") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        val rows = ((JsonParser.parse(queue2.bodyAsText()) as JsonValue.Obj).array("requests")).filterIsInstance<JsonValue.Obj>().filter { it.string("tenantId") == tenantId.value }
+        assertEquals(2, rows.count { it.string("status") == "SUPERSEDED" && it.string("supersededBy") != null })
+        val v2 = rows.first { it.string("moduleId") == "klinik_poli" && (it["briefVersion"] as JsonValue.Num).asInt == 2 }
+        val brief2 = client.get("/api/builder/build-queue/${v2.string("id")}/brief") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        val md2 = (JsonParser.parse(brief2.bodyAsText()) as JsonValue.Obj).string("markdown").orEmpty()
+        assertTrue("## Revisi brief" in md2 && "Tambah isian: Nomor Rekam Medis (text)" in md2, "brief versi 2 memuat selisih dari chat: $md2")
+
+        // Status SUPERSEDED dikelola sistem: operator tidak boleh mengaturnya manual.
+        val manual = client.post("/api/builder/build-queue/${v2.string("id")}/status?status=SUPERSEDED") {
+            header("Host", "$slug.wemakeerp.com")
+            header(HttpHeaders.Authorization, "Bearer ${TestAuth.superadminToken()}")
+        }
+        assertEquals(400, manual.status.value)
     }
 }

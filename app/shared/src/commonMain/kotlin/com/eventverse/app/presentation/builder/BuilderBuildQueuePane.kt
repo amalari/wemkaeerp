@@ -41,7 +41,11 @@ internal data class BuildQueueRow(
     val status: String,
     val reason: String,
     /** Ada brief beku untuk permintaan ini; false untuk permintaan lama atau bila penyusunan brief gagal. */
-    val hasBrief: Boolean = false
+    val hasBrief: Boolean = false,
+    /** Versi brief modul ini (naik tiap deploy ulang yang menggantikan permintaan sebelumnya). */
+    val briefVersion: Int = 1,
+    /** Pengganti bila SUPERSEDED; null = digugurkan tanpa pengganti (atau bukan SUPERSEDED). */
+    val supersededBy: String? = null
 )
 
 internal fun parseBuildQueue(raw: JsonValue): List<BuildQueueRow> =
@@ -54,7 +58,9 @@ internal fun parseBuildQueue(raw: JsonValue): List<BuildQueueRow> =
                 moduleId = r.string("moduleId").orEmpty(),
                 status = r.string("status").orEmpty(),
                 reason = r.string("reason").orEmpty(),
-                hasBrief = (r.get("hasBrief") as? JsonValue.Bool)?.value == true
+                hasBrief = (r.get("hasBrief") as? JsonValue.Bool)?.value == true,
+                briefVersion = (r.get("briefVersion") as? JsonValue.Num)?.asInt ?: 1,
+                supersededBy = r.string("supersededBy")
             )
         }
         .orEmpty()
@@ -137,8 +143,11 @@ fun BuilderBuildQueuePane(modifier: Modifier = Modifier) {
                                 else -> WeMadeColors.OnSurfaceMuted
                             }
                         )
+                        if (r.briefVersion > 1) ClayBadge(text = "v${r.briefVersion}", tint = WeMadeColors.Primary)
                         Text(
-                            text = "${r.tenantId} · ${r.reason}",
+                            text = "${r.tenantId} · ${r.reason}" + if (r.status == "SUPERSEDED") {
+                                r.supersededBy?.let { " · digantikan oleh $it" } ?: " · digugurkan (modul tak lagi aktif)"
+                            } else "",
                             style = typography.bodySmall,
                             color = WeMadeColors.OnSurfaceMuted,
                             modifier = Modifier.weight(1f, fill = false),

@@ -5,7 +5,16 @@ import kotlinx.datetime.Instant
 import kotlin.jvm.JvmInline
 
 /** Status sistem Antrian Pembuatan (FR-M2-4) — konsep platform, bukan kosakata vertikal. */
-enum class BuildRequestStatus { QUEUED, QUOTED, APPROVED, IN_PROGRESS, SHIPPED, REJECTED }
+/**
+ * [SUPERSEDED] dikelola **sistem**, bukan operator: sebuah deploy ulang pack kustom menggantikan permintaan yang belum selesai
+ * dengan permintaan baru (brief versi baru). Tidak bisa diatur manual lewat antrean.
+ */
+enum class BuildRequestStatus {
+    QUEUED, QUOTED, APPROVED, IN_PROGRESS, SHIPPED, REJECTED, SUPERSEDED;
+
+    /** Masih menunggu/sedang dikerjakan — yang digantikan bila tenant men-deploy ulang. */
+    val isPending: Boolean get() = this == QUEUED || this == QUOTED || this == APPROVED || this == IN_PROGRESS
+}
 
 @JvmInline
 value class BuildRequestId(val value: String) {
@@ -36,8 +45,15 @@ data class BuildRequest(
     val deploymentId: String? = null,
     val createdAt: Instant? = null,
     /** Brief beku saat dibuat; null untuk permintaan lama (sebelum V94) atau bila penyusunan brief gagal. */
-    val brief: BriefSnapshot? = null
+    val brief: BriefSnapshot? = null,
+    /** Versi brief untuk modul ini (1 = pertama; naik tiap deploy ulang yang menggantikan permintaan sebelumnya). */
+    val briefVersion: Int = 1,
+    /** Permintaan yang digantikan oleh yang ini (revisi); null untuk permintaan pertama. */
+    val supersedes: BuildRequestId? = null,
+    /** Permintaan pengganti bila ini [BuildRequestStatus.SUPERSEDED]; null bila digugurkan tanpa pengganti (modul tak lagi aktif). */
+    val supersededBy: BuildRequestId? = null
 ) {
+    init { require(briefVersion > 0) { "BuildRequest.briefVersion harus positif" } }
     init { require(moduleId.isNotBlank()) { "BuildRequest.moduleId kosong" } }
     init { require(reason.isNotBlank()) { "BuildRequest.reason kosong" } }
 }

@@ -13,6 +13,7 @@ object BriefRenderer {
     fun markdown(brief: RequirementsBrief): String = buildString {
         appendLine("# Brief Kebutuhan — ${brief.packCode}")
         appendLine()
+        brief.revision?.let { renderRevision(it) }
         appendLine("## Ringkasan")
         val covered = brief.coverage.count { it.covered }
         val ok = brief.changes.count { it.ok }
@@ -71,6 +72,46 @@ object BriefRenderer {
         appendLine("## Kebutuhan kustom")
         if (brief.customNeeds.isEmpty()) appendLine("_Tidak ada._")
         brief.customNeeds.forEach { appendLine("- $it") }
+    }
+
+    private const val REVISION_HEADING = "## Revisi brief"
+    private const val MAX_DIFF_LINES = 40
+
+    /** Bagian "Revisi brief": versi, permintaan yang digantikan, dan selisih isi (dipotong bila panjang). */
+    private fun StringBuilder.renderRevision(r: BriefRevision) {
+        appendLine(REVISION_HEADING)
+        appendLine("Versi ${r.version} — menggantikan `${r.supersedes}` (status sebelumnya: ${r.previousStatus}).")
+        fun section(title: String, lines: List<String>, sign: String) {
+            if (lines.isEmpty()) return
+            appendLine("**$title**")
+            lines.take(MAX_DIFF_LINES).forEach { appendLine("- $sign $it") }
+            if (lines.size > MAX_DIFF_LINES) appendLine("- ... dan ${lines.size - MAX_DIFF_LINES} baris lain")
+        }
+        if (r.added.isEmpty() && r.removed.isEmpty()) appendLine("_Isi tidak berubah dibanding versi sebelumnya._")
+        section("Ditambahkan", r.added, "+")
+        section("Dihapus", r.removed, "-")
+        appendLine()
+    }
+
+    /** Markdown tanpa bagian revisi — dasar pembanding selisih antar versi (agar revisi lama tidak mencemari selisih). */
+    fun withoutRevision(markdown: String): String {
+        val out = mutableListOf<String>()
+        var skipping = false
+        markdown.lines().forEach { line ->
+            when {
+                line == REVISION_HEADING -> skipping = true
+                skipping && line.startsWith("## ") -> { skipping = false; out += line }
+                !skipping -> out += line
+            }
+        }
+        return out.joinToString("\n")
+    }
+
+    /** Selisih isi dua Markdown brief: baris yang bertambah/hilang (tanpa judul dan baris kosong), urutan terjaga, tanpa duplikat. */
+    fun diff(previous: String, current: String): Pair<List<String>, List<String>> {
+        fun content(md: String) = md.lines().map { it.trimEnd() }.filter { it.isNotBlank() && !it.startsWith("#") }
+        val old = content(withoutRevision(previous)); val now = content(withoutRevision(current))
+        return now.filter { it !in old.toSet() }.distinct() to old.filter { it !in now.toSet() }.distinct()
     }
 
     /**

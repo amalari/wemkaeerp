@@ -29,6 +29,18 @@ data class BriefCoverage(
     val gapHighIdr: Long?
 )
 
+/**
+ * Revisi brief: brief ini **menggantikan** versi sebelumnya (deploy ulang saat permintaan belum selesai). [added]/[removed] =
+ * baris isi yang berubah dibanding versi sebelumnya (tanpa judul), supaya developer langsung tahu apa yang berubah.
+ */
+data class BriefRevision(
+    val version: Int,
+    val supersedes: String,
+    val previousStatus: String,
+    val added: List<String>,
+    val removed: List<String>
+)
+
 /** Satu tanya-jawab klarifikasi. [moduleId] null = pertanyaan tingkat alur penuh. */
 data class BriefQa(val moduleId: String?, val question: String, val answer: String)
 
@@ -62,5 +74,7 @@ data class RequirementsBrief(
     val coverage: List<BriefCoverage>,
     val customNeeds: List<String> = emptyList(),
     /** Konteks dari chat Builder; null = brief lama/tanpa chat (keluaran Markdown & JSON identik dengan sebelumnya). */
-    val context: BriefContext? = null
+    val context: BriefContext? = null,
+    /** Revisi atas brief sebelumnya; null = brief pertama (keluaran identik dengan sebelum fitur ini). */
+    val revision: BriefRevision? = null
 )

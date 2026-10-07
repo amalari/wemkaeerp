@@ -64,18 +64,34 @@ class DeployTenantUseCase(
                 draftId = stored.id.value
             )
             deployments.save(blocked).getOrThrow()
+            // Deploy ulang saat masih ada permintaan yang belum selesai = REVISI: yang lama digantikan (bukan digandakan),
+            // dan brief baru memuat selisih terhadap versi sebelumnya. Deployment BLOCKED_ON_BUILD lama pun digantikan.
+            deployments.findByTenant(tenantId)
+                .filter { it.id != id && it.status == DeploymentStatus.BLOCKED_ON_BUILD }
+                .forEach { deployments.save(it.copy(status = DeploymentStatus.SUPERSEDED)).getOrThrow() }
+            val pending = buildRequests.findByTenant(tenantId).filter { it.status.isPending }
+            val newIdByModule = mutableMapOf<String, BuildRequestId>()
             stored.draft.blueprint.activeModuleCodes.sorted().forEach { moduleId ->
-                val brief = briefs?.let { runCatching { it(tenantId, stored.draft, moduleId) }.getOrNull() }
-                buildRequests.save(
-                    BuildRequest(
-                        id = BuildRequestId("br-${tenantId.value}-${number.value}-$moduleId"),
-                        tenantId = tenantId,
-                        moduleId = moduleId,
-                        reason = "Pack kustom '${stored.draft.pack.code.value}' belum diimplementasi platform",
-                        deploymentId = id.value,
-                        brief = brief
-                    )
+                // Pembanding revisi = permintaan tertunda terbaru modul ini (versi tertinggi).
+                val previous = pending.filter { it.moduleId == moduleId }.maxByOrNull { it.briefVersion }
+                val brief = briefs?.let { runCatching { it(tenantId, stored.draft, moduleId, previous) }.getOrNull() }
+                val request = BuildRequest(
+                    id = BuildRequestId("br-${tenantId.value}-${number.value}-$moduleId"),
+                    tenantId = tenantId,
+                    moduleId = moduleId,
+                    reason = (previous?.let { "Merevisi ${it.id.value} (status sebelumnya ${it.status.name}). " } ?: "") +
+                        "Pack kustom '${stored.draft.pack.code.value}' belum diimplementasi platform",
+                    deploymentId = id.value,
+                    brief = brief,
+                    briefVersion = (previous?.briefVersion ?: 0) + 1,
+                    supersedes = previous?.id
                 )
+                buildRequests.save(request)
+                newIdByModule[moduleId] = request.id
+            }
+            // Semua yang tertunda digantikan; modul yang tak lagi aktif digugurkan tanpa pengganti.
+            pending.forEach { old ->
+                buildRequests.save(old.copy(status = BuildRequestStatus.SUPERSEDED, supersededBy = newIdByModule[old.moduleId]))
             }
             return Result.success(blocked)
         }

@@ -16,7 +16,8 @@ object RequirementsBriefAssembler {
 
     fun assemble(
         draft: DiscoveryDraft, included: Set<String>, changes: List<CaptureEntry>, coverage: List<BriefCoverage>,
-        context: BriefContext? = null
+        context: BriefContext? = null,
+        revision: BriefRevision? = null
     ): RequirementsBrief {
         val modules = draft.pack.modules.filter { it.id.value in included }.map { m ->
             // Pasangan (layar, spec prototype-nya bila bisa dimainkan) — spec sama dengan yang dilihat klien.
@@ -32,7 +33,7 @@ object RequirementsBriefAssembler {
         }
         val gaps = coverage.filter { !it.covered && it.moduleId in included }
             .map { "Modul '${it.displayName}' belum ada di katalog — perlu dibangun (CUSTOM_EXTENSION)." }
-        return RequirementsBrief(draft.pack.code.value, modules, changes, coverage.filter { it.moduleId in included }, gaps, context?.takeUnless { it.isEmpty })
+        return RequirementsBrief(draft.pack.code.value, modules, changes, coverage.filter { it.moduleId in included }, gaps, context?.takeUnless { it.isEmpty }, revision)
     }
 
     private fun entityOf(e: EntitySpec) = BriefEntity(
