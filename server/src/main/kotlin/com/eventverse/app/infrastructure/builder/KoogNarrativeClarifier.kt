@@ -92,12 +92,18 @@ class KoogNarrativeClarifier(
 }
 
 /**
- * Saklar penanya klarifikasi (pola `HelpAgents`): `BUILDER_CLARIFIER=koog` + `DEEPSEEK_API_KEY` → LLM; selain itu `null`
- * (chat langsung menyusun draf). Model: `BUILDER_CLARIFIER_MODEL`, lalu `DISCOVERY_AGENT_MODEL_PLAN`, lalu `DISCOVERY_AGENT_MODEL`.
+ * Saklar penanya klarifikasi (pola `HelpAgents`). **Mengikuti `DISCOVERY_AGENT`** — bertanya sebelum draf adalah bagian dari
+ * alur menyusun draf, jadi `DISCOVERY_AGENT=koog` + `DEEPSEEK_API_KEY` otomatis menyalakannya. `BUILDER_CLARIFIER` hanya
+ * pengecualian eksplisit (mis. `off` untuk mematikan fitur ini saja). Selain koog → `null` (chat langsung menyusun draf).
+ * Model: `BUILDER_CLARIFIER_MODEL`, lalu `DISCOVERY_AGENT_MODEL_PLAN`, lalu `DISCOVERY_AGENT_MODEL`.
  */
 object BuilderClarifiers {
+    /** Saklar sendiri bila diisi; kosong → mewarisi saklar agent induknya. */
+    internal fun resolveSwitch(own: String?, inherited: String?): String? =
+        own?.takeIf { it.isNotBlank() } ?: inherited?.takeIf { it.isNotBlank() }
+
     fun fromEnv(): NarrativeClarifier? = from(
-        configured = EnvLoader.get("BUILDER_CLARIFIER").takeIf { it.isNotBlank() },
+        configured = resolveSwitch(EnvLoader.get("BUILDER_CLARIFIER"), EnvLoader.get("DISCOVERY_AGENT")),
         apiKey = EnvLoader.get("DEEPSEEK_API_KEY").takeIf { it.isNotBlank() },
         modelId = listOf("BUILDER_CLARIFIER_MODEL", "DISCOVERY_AGENT_MODEL_PLAN", "DISCOVERY_AGENT_MODEL")
             .firstNotNullOfOrNull { EnvLoader.get(it).takeIf(String::isNotBlank) },
@@ -108,7 +114,7 @@ object BuilderClarifiers {
     fun from(configured: String?, apiKey: String?, modelId: String? = null, timeoutMillis: Long = KoogNarrativeClarifier.DEFAULT_TIMEOUT_MILLIS): NarrativeClarifier? {
         if (configured?.lowercase() != DiscoveryAgents.KOOG) return null
         if (apiKey.isNullOrBlank()) {
-            logger.warn("BUILDER_CLARIFIER=koog tetapi DEEPSEEK_API_KEY kosong — chat langsung menyusun draf")
+            logger.warn("Penanya klarifikasi diminta aktif (koog) tetapi DEEPSEEK_API_KEY kosong — chat langsung menyusun draf")
             return null
         }
         val model = DiscoveryAgents.resolveModel(modelId)

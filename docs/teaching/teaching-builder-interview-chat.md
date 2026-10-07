@@ -180,15 +180,17 @@ fun ScreenProposal.applyEdits(edits: List<ProposalEdit>, packModuleIds: Set<Stri
 | **Model besar sekali, model kecil berulang** | Satu model untuk semuanya | Keputusan struktur (mahal bila salah) pakai pro; interaksi kecil pakai flash | Semua pro: lambat dan mahal. Semua flash: alur awal kurang matang |
 | **Gagal = tidak bertanya / balasan jujur** | Melempar galat ke pengguna | Komponen AI adalah *peningkat*, bukan prasyarat | Chat macet saat provider LLM bermasalah |
 
-**Pengaturan model (env):**
+**Pengaturan model (env)** — kedua fitur baru *mengikuti* saklar agent yang sudah ada (tidak perlu saklar baru):
 
-| Tahap | Saklar | Model |
+| Tahap | Menyala bila | Model |
 |---|---|---|
-| Penanya klarifikasi (pro) | `BUILDER_CLARIFIER=koog` | `BUILDER_CLARIFIER_MODEL` → `DISCOVERY_AGENT_MODEL_PLAN` → `DISCOVERY_AGENT_MODEL` |
+| Penanya klarifikasi (pro) | `DISCOVERY_AGENT=koog` | `BUILDER_CLARIFIER_MODEL` → `DISCOVERY_AGENT_MODEL_PLAN` → `DISCOVERY_AGENT_MODEL` |
 | Penyusun draf | `DISCOVERY_AGENT=koog` | `DISCOVERY_AGENT_MODEL` |
-| Penyunting modul (flash) | `BUILDER_MODULE_EDITOR=koog` | `BUILDER_MODULE_EDITOR_MODEL` → `INTERVIEW_AGENT_MODEL` |
+| Penyunting modul (flash) | `INTERVIEW_AGENT=koog` | `BUILDER_MODULE_EDITOR_MODEL` → `INTERVIEW_AGENT_MODEL` |
 
-Semua bawaannya **mati**; tanpa kunci API atau saklar, chat tetap jalan lewat jalur deterministik.
+`BUILDER_CLARIFIER=off` / `BUILDER_MODULE_EDITOR=off` hanya pengecualian untuk mematikan satu fitur.
+
+Tanpa kunci API atau saklar agent induk, chat tetap jalan lewat jalur deterministik.
 
 ---
 

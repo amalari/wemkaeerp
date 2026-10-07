@@ -54,4 +54,13 @@ class KoogNarrativeClarifierTest {
         assertNull(BuilderClarifiers.from(configured = "koog", apiKey = " "))
         assertTrue(BuilderClarifiers.from(configured = "KOOG", apiKey = "kunci-uji") is KoogNarrativeClarifier)
     }
+
+    @Test
+    fun `saklar mengikuti DISCOVERY_AGENT, dan saklar sendiri hanya pengecualian eksplisit`() {
+        assertEquals("koog", BuilderClarifiers.resolveSwitch(own = null, inherited = "koog"))
+        assertEquals("koog", BuilderClarifiers.resolveSwitch(own = "  ", inherited = "koog"), "kosong = mewarisi")
+        assertEquals("off", BuilderClarifiers.resolveSwitch(own = "off", inherited = "koog"), "pengecualian eksplisit menang")
+        assertNull(BuilderClarifiers.resolveSwitch(own = null, inherited = null))
+        assertNull(BuilderClarifiers.from(configured = BuilderClarifiers.resolveSwitch("off", "koog"), apiKey = "k"), "off mematikan fitur ini saja")
+    }
 }
