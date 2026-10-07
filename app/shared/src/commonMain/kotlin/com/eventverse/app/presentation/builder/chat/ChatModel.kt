@@ -10,8 +10,24 @@ internal data class BuilderChatEntry(
     val text: String,
     val summary: List<String>,
     val hasPendingPatch: Boolean,
-    val applied: Boolean
+    val applied: Boolean,
+    /** Utas pesan: null = Semua. */
+    val moduleId: String? = null,
+    /** Pertanyaan follow-up pesan QUESTION (id, pertanyaan, sudah dijawab?). */
+    val questions: List<ChatQuestion> = emptyList()
 )
+
+/** Satu pertanyaan follow-up dalam pesan QUESTION. */
+internal data class ChatQuestion(val id: String, val text: String, val answered: Boolean)
+
+/** Follow-up yang menunggu di utas (hasil hitung server saat riwayat dimuat). */
+internal data class PendingQuestion(val id: String, val text: String, val moduleId: String?)
+
+internal fun parseFollowUp(raw: JsonValue): List<PendingQuestion> =
+    (((raw as? JsonValue.Obj)?.get("followUp") as? JsonValue.Obj)?.get("questions") as? JsonValue.Arr)?.items
+        ?.filterIsInstance<JsonValue.Obj>()
+        ?.map { PendingQuestion(it.string("id").orEmpty(), it.string("question").orEmpty(), it.string("moduleId")) }
+        .orEmpty()
 
 internal fun parseMessages(raw: JsonValue): List<BuilderChatEntry> =
     ((raw as? JsonValue.Obj)?.get("messages") as? JsonValue.Arr)?.items
@@ -24,7 +40,11 @@ internal fun parseMessages(raw: JsonValue): List<BuilderChatEntry> =
                 summary = (m.get("summary") as? JsonValue.Arr)?.items
                     ?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty(),
                 hasPendingPatch = (m.get("hasPendingPatch") as? JsonValue.Bool)?.value == true,
-                applied = (m.get("appliedDraftId") as? JsonValue.Str)?.value != null
+                applied = (m.get("appliedDraftId") as? JsonValue.Str)?.value != null,
+                moduleId = m.string("moduleId"),
+                questions = (m.get("questions") as? JsonValue.Arr)?.items?.filterIsInstance<JsonValue.Obj>()
+                    ?.map { ChatQuestion(it.string("id").orEmpty(), it.string("question").orEmpty(), !it.string("answer").isNullOrBlank()) }
+                    .orEmpty()
             )
         }.orEmpty()
 

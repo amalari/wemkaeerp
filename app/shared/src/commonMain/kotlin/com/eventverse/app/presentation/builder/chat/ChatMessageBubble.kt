@@ -57,6 +57,13 @@ internal fun ChatMessageBubble(
                         style = typography.bodyMedium,
                         color = WeMadeColors.OnSurface
                     )
+                    entry.questions.forEach { q ->
+                        Text(
+                            text = (if (q.answered) "[x] " else "[ ] ") + q.text,
+                            style = typography.bodySmall,
+                            color = if (q.answered) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
+                        )
+                    }
                     entry.summary.forEach { line ->
                         Text(
                             text = "• $line",
