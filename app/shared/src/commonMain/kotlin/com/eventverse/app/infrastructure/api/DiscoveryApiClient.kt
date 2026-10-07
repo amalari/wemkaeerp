@@ -71,6 +71,13 @@ class DiscoveryApiClient(
             setBody("{\"companyName\":${JsonValue.Str(companyName).encode()}}")
         }
 
+    /** POST /api/discovery/drafts/{id}/interview — kirim jawaban wawancara (plan §6). */
+    suspend fun answerInterview(id: String, body: JsonValue.Obj): Result<JsonValue> =
+        call(HttpMethod.Post, "/api/discovery/drafts/$id/interview") {
+            contentType(ContentType.Application.Json)
+            setBody(body.encode())
+        }
+
     /**
      * URL PDF blueprint (Fase D) untuk dibuka di tab browser.
      *
