@@ -1,6 +1,10 @@
 package com.eventverse.app.presentation.discovery
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.interview.Confirmation
+import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.discovery.interview.ItemSource
+import com.eventverse.app.domain.discovery.interview.ModuleOrigin
 import com.eventverse.app.domain.discovery.proposal.EntityProposal
 import com.eventverse.app.domain.discovery.proposal.FieldProposal
 import com.eventverse.app.domain.discovery.proposal.ProposalSource
@@ -216,4 +220,194 @@ class DiscoveryUiModelParseTest {
         assertEquals(ProposalSource.Agent("koog/claude-3-7-sonnet"), screen.source)
         assertEquals("Agent · claude-3-7-sonnet", screen.source?.displayName)
     }
+
+    @Test
+    fun testOldDraftWithoutInterviewParsesIdentically() {
+        val oldJson = jsonObjectOf(
+            "id" to jsonOf("draft-no-interview"),
+            "status" to jsonOf("DRAFT"),
+            "packCode" to jsonOf("garment"),
+            "packDisplayName" to jsonOf("Konveksi"),
+            "blueprintCode" to jsonOf("fob"),
+            "blueprintDescription" to jsonOf("FOB"),
+            "modules" to jsonArrayOf(
+                listOf(
+                    jsonObjectOf(
+                        "id" to jsonOf("sewing_kanban"),
+                        "displayName" to jsonOf("Kanban Jahit"),
+                        "section" to jsonOf("PRODUKSI"),
+                        "kind" to jsonOf("OPERATIONAL")
+                    )
+                )
+            ),
+            "activeModuleCodes" to jsonArrayOf(listOf(jsonOf("sewing_kanban"))),
+            "screens" to jsonArrayOf(emptyList())
+        )
+
+        val uiModel = DiscoveryDraftUi.fromJson(oldJson)
+        assertEquals("draft-no-interview", uiModel.id)
+        assertNull(uiModel.interview)
+        assertNull(uiModel.nextQuestion)
+        assertEquals(1, uiModel.modules.size)
+        assertNull(uiModel.modules.first().origin)
+    }
+
+    @Test
+    fun testDraftWithInterviewSessionAndNextQuestion() {
+        val draftJson = jsonObjectOf(
+            "id" to jsonOf("draft-klinik-01"),
+            "status" to jsonOf("DRAFT"),
+            "packCode" to jsonOf("klinik"),
+            "packDisplayName" to jsonOf("Klinik"),
+            "blueprintCode" to jsonOf("klinik_starter"),
+            "blueprintDescription" to jsonOf("Alur Klinik"),
+            "modules" to jsonArrayOf(
+                listOf(
+                    jsonObjectOf(
+                        "id" to jsonOf("klinik_pendaftaran"),
+                        "displayName" to jsonOf("Pendaftaran"),
+                        "section" to jsonOf("UTAMA"),
+                        "kind" to jsonOf("OPERATIONAL"),
+                        "origin" to jsonOf("new")
+                    ),
+                    jsonObjectOf(
+                        "id" to jsonOf("org_chart"),
+                        "displayName" to jsonOf("Bagan Organisasi"),
+                        "section" to jsonOf("TATA_KELOLA"),
+                        "kind" to jsonOf("GOVERNANCE"),
+                        "origin" to jsonOf("reuse_platform")
+                    )
+                )
+            ),
+            "activeModuleCodes" to jsonArrayOf(listOf(jsonOf("klinik_pendaftaran"))),
+            "screens" to jsonArrayOf(emptyList()),
+            "interview" to jsonObjectOf(
+                "step" to jsonOf("g1_divisi"),
+                "divisions" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf("code" to jsonOf("pendaftaran"), "name" to jsonOf("Pendaftaran"), "source" to jsonOf("guess")),
+                        jsonObjectOf("code" to jsonOf("poli"), "name" to jsonOf("Poli"), "source" to jsonOf("guess"))
+                    )
+                ),
+                "roles" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "roleKey" to jsonOf("resepsionis"),
+                            "label" to jsonOf("Resepsionis"),
+                            "divisionCode" to jsonOf("pendaftaran"),
+                            "source" to jsonOf("guess"),
+                            "isHead" to jsonOf(true)
+                        )
+                    )
+                ),
+                "links" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "roleKey" to jsonOf("resepsionis"),
+                            "moduleId" to jsonOf("klinik_pendaftaran"),
+                            "origin" to jsonOf("new"),
+                            "features" to jsonArrayOf(listOf(jsonOf("Antrean Pasien"))),
+                            "confirmed" to jsonOf("confirmed"),
+                            "confidence" to jsonOf(85)
+                        )
+                    )
+                ),
+                "handoffs" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "from" to jsonOf("klinik_pendaftaran"),
+                            "to" to jsonOf("klinik_poli"),
+                            "portType" to jsonOf("Permintaan"),
+                            "confirmed" to jsonOf("confirmed")
+                        )
+                    )
+                ),
+                "answers" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "turn" to jsonOf(1),
+                            "step" to jsonOf("g1_divisi"),
+                            "questionId" to jsonOf("q-1"),
+                            "outcome" to jsonOf("confirmed"),
+                            "text" to jsonOf("Semua divisi cocok")
+                        )
+                    )
+                )
+            ),
+            "nextQuestion" to jsonObjectOf(
+                "id" to jsonOf("q-2"),
+                "step" to jsonOf("g2_peran"),
+                "prompt" to jsonOf("Siapa saja yang bertugas di Poli?"),
+                "guesses" to jsonArrayOf(
+                    listOf(
+                        jsonObjectOf(
+                            "key" to jsonOf("perawat"),
+                            "label" to jsonOf("Perawat Poli"),
+                            "confidence" to jsonOf(75)
+                        )
+                    )
+                )
+            )
+        )
+
+        val ui = DiscoveryDraftUi.fromJson(draftJson)
+        val session = requireNotNull(ui.interview)
+        assertEquals(InterviewStep.G1_DIVISI, session.step)
+        assertEquals(2, session.divisions.size)
+        assertEquals("pendaftaran", session.divisions.first().code.value)
+        assertEquals(ItemSource.GUESS, session.divisions.first().source)
+
+        assertEquals(1, session.roles.size)
+        val role = session.roles.first()
+        assertEquals("resepsionis", role.roleKey.value)
+        assertEquals(true, role.isHead)
+
+        assertEquals(1, session.links.size)
+        val link = session.links.first()
+        assertEquals(ModuleOrigin.NEW, link.origin)
+        assertEquals(listOf("Antrean Pasien"), link.features)
+        assertEquals(Confirmation.CONFIRMED, link.confirmed)
+        assertEquals(85, link.confidence)
+
+        assertEquals(1, session.handoffs.size)
+        assertEquals(1, session.answers.size)
+
+        // Module origins
+        assertEquals(ModuleOrigin.NEW, ui.modules[0].origin)
+        assertEquals("Baru", ui.modules[0].origin?.displayName)
+        assertEquals(ModuleOrigin.REUSE_PLATFORM, ui.modules[1].origin)
+        assertEquals("Pakai Ulang Platform", ui.modules[1].origin?.displayName)
+
+        // Next Question
+        val nextQ = requireNotNull(ui.nextQuestion)
+        assertEquals("q-2", nextQ.id)
+        assertEquals(InterviewStep.G2_PERAN, nextQ.step)
+        assertEquals("Siapa saja yang bertugas di Poli?", nextQ.prompt)
+        assertEquals(1, nextQ.guesses.size)
+        assertEquals("perawat", nextQ.guesses.first().key)
+        assertEquals(75, nextQ.guesses.first().confidence)
+    }
+
+    @Test
+    fun testDraftWithMalformedInterviewHandlesGracefully() {
+        val brokenJson = jsonObjectOf(
+            "id" to jsonOf("draft-broken-01"),
+            "status" to jsonOf("DRAFT"),
+            "packCode" to jsonOf("klinik"),
+            "packDisplayName" to jsonOf("Klinik"),
+            "blueprintCode" to jsonOf("k"),
+            "blueprintDescription" to jsonOf("d"),
+            "modules" to jsonArrayOf(emptyList()),
+            "activeModuleCodes" to jsonArrayOf(emptyList()),
+            "screens" to jsonArrayOf(emptyList()),
+            "interview" to jsonOf("this is not an object, it is a string!"),
+            "nextQuestion" to jsonOf(12345)
+        )
+
+        val ui = DiscoveryDraftUi.fromJson(brokenJson)
+        assertEquals("draft-broken-01", ui.id)
+        assertNull(ui.interview)
+        assertNull(ui.nextQuestion)
+    }
 }
+
