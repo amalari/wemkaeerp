@@ -49,7 +49,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 
 /**
- * Layar "Kontak Vendor & Makloon" — shell: toolbar, tab, dan perakitan dialog.
+ * Layar "Kontak Vendor" — shell: toolbar, tab, dan perakitan dialog.
  *
  * [canManage] mengikuti level `MANAGE` karena server menggerbang semua penulisan di level itu;
  * memakai `canWrite` (OPERATE) di sini akan menampilkan tombol yang pasti berakhir 403.

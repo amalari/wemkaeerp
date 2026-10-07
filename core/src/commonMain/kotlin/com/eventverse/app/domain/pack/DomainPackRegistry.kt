@@ -52,7 +52,7 @@ object DomainPackRegistry {
         val out = mutableListOf<String>()
         pack.modules.forEach { m ->
             val existing = others.firstNotNullOfOrNull { it.module(m.id) }
-            if (existing != null && existing != m) out += "Modul ${m.id.value} sudah dipakai pack lain dengan definisi berbeda"
+            if (existing != null && SupersededModuleText.normalized(existing) != SupersededModuleText.normalized(m)) out += "Modul ${m.id.value} sudah dipakai pack lain dengan definisi berbeda"
             if (existing == null && !m.id.value.startsWith(prefix)) out += "Modul baru ${m.id.value} wajib berprefiks '$prefix'"
         }
         pack.slots.forEach { s ->

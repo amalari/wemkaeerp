@@ -156,7 +156,7 @@ enum class AppNavScreen(
     ),
     VENDOR_CONTACTS(
         route = "/vendors",
-        title = "Kontak Vendor & Makloon",
+        title = "Kontak Vendor",
         aliases = listOf("/vendor", "/kontak-vendor", "/makloon-vendor"),
         businessModule = GarmentModules.VENDOR_CONTACTS
     ),

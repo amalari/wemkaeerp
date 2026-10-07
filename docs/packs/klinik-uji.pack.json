@@ -85,7 +85,7 @@
     {
       "id": "org_chart",
       "displayName": "Bagan Struktur Organisasi & Karyawan",
-      "description": "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
+      "description": "Struktur divisi, jenjang jabatan, dan data karyawan.",
       "section": "GOVERNANCE",
       "kind": "GOVERNANCE",
       "iconKey": "users",

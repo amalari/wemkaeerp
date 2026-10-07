@@ -144,7 +144,7 @@ fun InvoiceWorkspaceScreen(
                 }
                 Spacer(modifier = Modifier.height(ClaySpacing.Xs))
                 Text(
-                    text = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas A4.",
+                    text = "Penerbitan faktur tagihan, termin uang muka (DP), dan pelunasan.",
                     fontSize = 12.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

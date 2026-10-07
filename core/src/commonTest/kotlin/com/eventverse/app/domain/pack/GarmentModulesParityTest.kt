@@ -56,11 +56,11 @@ class GarmentModulesParityTest {
     )
 
     private val LEGACY_MODULES = listOf(
-        "org_chart|Bagan Struktur Organisasi & Karyawan|GOVERNANCE|GOVERNANCE|users|GLOBAL_ONLY|ALL_TENANT_DATA|-|Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
+        "org_chart|Bagan Struktur Organisasi & Karyawan|GOVERNANCE|GOVERNANCE|users|GLOBAL_ONLY|ALL_TENANT_DATA|-|Struktur divisi, jenjang jabatan, dan data karyawan.",
         "dynamic_rbac|Hak Akses & Jabatan (RBAC)|GOVERNANCE|GOVERNANCE|shield|GLOBAL_ONLY|ALL_TENANT_DATA|-|Matriks wewenang per jabatan, penugasan modul ke divisi, dan pengujian persona.",
         "factory_flow|Alur Pabrik (Pipeline)|GOVERNANCE|GOVERNANCE|flow_graph|GLOBAL_ONLY|ALL_TENANT_DATA|-|Kanvas alur operasional tenant: urutan modul, penggantian nama, dan bypass.",
         "master_data|Master Data Bahan & Harga|FOUNDATION|FOUNDATION|database|GLOBAL_ONLY|ALL_TENANT_DATA|-|Katalog benang, kain, aksesoris, satuan kemasan, dan tarif acuan HPP point-in-time.",
-        "vendor_contacts|Kontak Vendor & Makloon|FOUNDATION|FOUNDATION|truck|GLOBAL_ONLY|ALL_TENANT_DATA|-|Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.",
+        "vendor_contacts|Kontak Vendor|FOUNDATION|FOUNDATION|truck|GLOBAL_ONLY|ALL_TENANT_DATA|-|Buku kontak vendor, daftar harga layanan per vendor, dan penunjukan vendor ke proses yang dikerjakan di luar.",
         "crm_sales|Pelanggan & Prospek Sales|SALES|OPERATIONAL|handshake|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|order_ingestion|Pencatatan prospek, riwayat follow-up negosiasi, dan kontak pelanggan konveksi.",
         "sampling_order|Pola & Sampling Order|SALES|OPERATIONAL|ruler|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|order_ingestion|Pembuatan SPK sampling prototipe baju, pola potong awal, dan persetujuan sample.",
         "inventory|Bahan Baku & Stok Kain|LOGISTICS|OPERATIONAL|package|GLOBAL_ONLY|ALL_TENANT_DATA|raw_material|Penerimaan kain rol, stok benang, kancing, zipper, dan multi-satuan (Yard/Kg/Pcs).",
@@ -70,7 +70,7 @@ class GarmentModulesParityTest {
         "operator_exec|Catatan Kerja Operator|PRODUCTION|OPERATIONAL|activity|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|sewing|Antarmuka ringkas operator jahit untuk input output potong, jahit, dan progres harian.",
         "quality_control|Inspeksi QC & Defect|QUALITY|OPERATIONAL|check_circle|GLOBAL_ONLY|ALL_TENANT_DATA|quality_control|Pencatatan baju cacat (reject/scrap), cetak label barcode lolos inspeksi, dan grading.",
         "fulfillment|Packing & Surat Jalan|LOGISTICS|OPERATIONAL|truck|GLOBAL_ONLY|ALL_TENANT_DATA|fulfillment|Finishing setrika uap, verifikasi kuantitas per karton, dan cetak Surat Jalan ekspedisi.",
-        "invoicing|Invoice & Penagihan|FINANCE|FOUNDATION|receipt|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|-|Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas."
+        "invoicing|Invoice & Penagihan|FINANCE|FOUNDATION|receipt|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|-|Penerbitan faktur tagihan, termin uang muka (DP), dan pelunasan."
     )
 
     private val pack = GarmentDomainPack.pack
