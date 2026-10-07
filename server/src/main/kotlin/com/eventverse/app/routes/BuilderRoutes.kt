@@ -2,6 +2,7 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.auth.Permission
 import com.eventverse.app.domain.auth.Role
+import com.eventverse.app.domain.auth.canOpenBuilder
 import com.eventverse.app.domain.builder.ApplyDraftPatchUseCase
 import com.eventverse.app.domain.builder.BuilderBuildRequestRepository
 import com.eventverse.app.domain.builder.BuilderAgent
@@ -281,5 +282,4 @@ internal suspend fun ApplicationCall.gate(): ApplicationCall? {
 }
 
 /** Aturan fail-closed, teruji tanpa HTTP (pola `mayEditWithoutDecision`). */
-internal fun mayOpenBuilder(role: Role?): Boolean =
-    role != null && (role == Role.PLATFORM_SUPERADMIN || role.defaultPermissions.contains(Permission.MANAGE_BUILDER))
+internal fun mayOpenBuilder(role: Role?): Boolean = role.canOpenBuilder()

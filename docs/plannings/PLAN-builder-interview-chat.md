@@ -129,3 +129,25 @@ Pengukuran 2026-10-07: satu sesi (draf pro ± 90 panggilan + perencana) menurunk
    usang. Penghapusan kode wizard **tidak** dilakukan di Fase A–C; hanya pengalihan rute, supaya mudah dibatalkan.
    Fitur wizard yang belum ada padanannya di Builder (ekspor brief, estimasi harga, pilih modul manual) dicatat di
    Fase A langkah 8 sebagai daftar kesenjangan sebelum pengalihan diaktifkan.
+
+## 8. Pengalihan wizard (K7) — kesenjangan dan pelaksanaan (2026-10-08)
+
+**Dilakukan** (`DiscoveryEntry`): `/discovery` dialihkan ke `/builder/chat` bila sesi **punya tenant** dan perannya
+`canOpenBuilder()` (aturan tunggal di core, dipakai juga gerbang server). **Prospek tanpa tenant tetap memakai wizard**,
+karena Builder butuh konteks tenant + `MANAGE_BUILDER` (server membalas 404/403 selain itu). Kode wizard tidak dihapus.
+
+**Kesenjangan wizard → Builder** (dibaca dari kode):
+
+| Fitur wizard | Padanan di Builder | Status |
+|---|---|---|
+| 1 Narasi (cerita + industri) | Pesan pertama di chat | Ada (agent menyusun patch) |
+| 2 Wawancara F0–G5 (UI `presentation/discovery/interview/*`) | **Belum ada** | Fase B (bertanya di chat) + Fase C (per modul) |
+| 3 Draf (modul, alur data, prototype) | `ChatResultPanel` (Modul/Fitur/Alur Data/Prototype) | Ada |
+| 4 Estimasi harga (`PrototypePricePanel`) | `BuilderDesignPanes` memakai komponen yang sama | Ada |
+| 5 Bangun / deploy | Pane Deployments + Build queue Builder | Ada |
+| Ekspor brief (`PrototypeExportBriefDialog`) | `BuilderDesignPanes` | Ada |
+| Terima semua tebakan / lewati wawancara | — | Tidak diperlukan (tidak ada wizard) |
+
+**Konsekuensi yang harus diketahui**: sampai Fase B selesai, pengguna bertenant **tidak lagi punya UI wawancara
+terstruktur** (F0–G5) — hanya chat. Wawancara terstruktur wizard masih tersedia untuk prospek tanpa tenant. Pengalihan
+bisa dibatalkan dengan mengembalikan satu baris di `App.kt` (`DiscoveryEntry(redirectToBuilder = false)`).
