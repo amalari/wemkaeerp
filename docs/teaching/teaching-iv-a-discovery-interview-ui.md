@@ -162,6 +162,30 @@ val basisText = when (ref?.basis) {
 }
 ```
 
+### 3.4 Layar Percakapan Konsultan F0-F2 (`StepInterviewF0F1Profile.kt` & `StepInterviewF2Specs.kt`)
+Untuk mendukung jalur percakapan konsultan mendalam (F0-F2) sebelum masuk ke struktur modul teknis (G1-G5), kami membangun layar interaktif terdedikasi:
+1. **F0 Profil Usaha & Model Bisnis (`StepInterviewF0Bisnis`)**:
+   - Menampilkan formulir ringkasan model bisnis (`businessSummary`) dengan badge model (misal FOB/CMT/D2C).
+   - Pengguna dapat menyunting ringkasan secara langsung di kartu Claymorphism.
+2. **F1 Sasaran & Titik Sakit Operasional (`StepInterviewF1Tujuan`)**:
+   - Memisahkan dua daftar dinamis: **Sasaran Operasional** (Goal) dan **Titik Sakit/Kendala** (Pain Point).
+   - Dilengkapi input cepat (`OutlinedTextField` + tombol `+ Tambah`) serta tombol hapus per butir.
+3. **F2 Spesifikasi Area Kebutuhan (`StepInterviewF2Spek`)**:
+   - Mengelola `RequirementSpec` per area kerja (misalnya: Gudang Bahan, Lantai Potong, Jahit).
+   - Memetakan 4 dimensi operasional utama:
+     - `whoFills`: Siapa yang mencatat data di lapangan.
+     - `whatRecorded`: Apa informasi/transaksi yang dicatat.
+     - `whoSees`: Siapa yang membutuhkan dan memantau datanya.
+     - `doneWhen`: Kriteria selesai / serah terima pekerjaan.
+   - Dilengkapi dialog modal pop-up clay untuk menambah atau mengedit spesifikasi area secara mendalam.
+
+**Pemecahan File Sesuai Batas Ukuran (Aturan 14)**:
+Awalnya implementasi F0, F1, dan F2 digabung dalam satu file `StepInterviewConsultantPhases.kt` yang mencapai 452 baris (melebihi batas lunak 400 baris). Kami memecahnya secara elegan menurut batas tanggung jawab:
+- `StepInterviewF0F1Profile.kt` (270 baris): Bertanggung jawab pada profil usaha, sasaran, dan kendala (`BusinessProfile`).
+- `StepInterviewF2Specs.kt` (205 baris): Bertanggung jawab penuh pada spesifikasi area kerja (`RequirementSpec`).
+Keduanya tetap jauh di bawah batas 400 baris dan mudah dipelihara!
+
+
 ---
 
 ## 🛡️ 4. Jebakan Umum yang Dihindari
