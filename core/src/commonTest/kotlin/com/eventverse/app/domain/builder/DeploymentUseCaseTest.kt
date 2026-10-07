@@ -81,6 +81,9 @@ class DeploymentUseCaseTest {
 
         assertEquals(DeploymentStatus.BLOCKED_ON_BUILD, dep.status)
         assertEquals(1, dep.packVersion, "regresi: deployment BLOCKED_ON_BUILD wajib membawa versi pack (dulu deploy pack kustom selalu melempar)")
+        assertEquals("dep-${demo.value}-1", dep.id.value, "id deployment bersih, bukan hasil toString kelas bernilai")
+        assertEquals(setOf("br-${demo.value}-1-klinik_poli", "br-${demo.value}-1-klinik_kasir"), buildRequests.rows.map { it.id.value }.toSet(),
+            "regresi: id permintaan dulu berbunyi br-<tenant>-DeploymentNumber(value=1)-<modul>")
         val byModule = buildRequests.rows.associateBy { it.moduleId }
         assertEquals(setOf("klinik_poli", "klinik_kasir"), byModule.keys)
         val poli = requireNotNull(byModule.getValue("klinik_poli").brief) { "tiap permintaan membawa brief beku" }
