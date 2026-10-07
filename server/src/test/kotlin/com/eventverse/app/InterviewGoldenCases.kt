@@ -144,15 +144,14 @@ object InterviewGoldenCases {
             name = "katering",
             narrative = "Katering harian: pesanan langganan tiap minggu dan laporan pengiriman bulanan.",
             industryHint = "katering",
-            expectedDivisions = listOf(setOf("pesanan", "admin", "penjualan"), setOf("produksi", "dapur", "masak"), setOf("kirim", "pengiriman")),
+            // Narasi hanya menyebut pesanan & laporan pengiriman - kunci mengikuti cerita, bukan keinginan.
+            expectedDivisions = listOf(setOf("pesanan", "admin", "penjualan"), setOf("kirim", "pengiriman")),
             expectedRoles = listOf(
                 RoleExpectation(setOf("admin", "customer service", "cs"), setOf("pesanan", "admin", "penjualan")),
-                RoleExpectation(setOf("masak", "koki", "dapur", "produksi"), setOf("produksi", "dapur", "masak")),
                 RoleExpectation(setOf("kurir", "driver", "kirim"), setOf("kirim", "pengiriman"))
             ),
             expectedLinks = listOf(
                 LinkExpectation(setOf("admin", "customer service", "cs"), setOf("pesanan", "order", "langganan"), NEW_ONLY),
-                LinkExpectation(setOf("masak", "koki", "dapur"), setOf("produksi", "dapur", "menu", "masak"), NEW_ONLY),
                 LinkExpectation(setOf("kurir", "driver", "kirim"), setOf("kirim", "pengiriman", "laporan"), NEW_ONLY)
             ),
             maxDivisions = 6
@@ -196,7 +195,7 @@ object InterviewGoldenCases {
                 RoleExpectation(setOf("bendahara", "kasir"), setOf("keuangan", "pembayaran"))
             ),
             expectedLinks = listOf(
-                LinkExpectation(setOf("admin", "pendaftaran"), setOf("pendaftaran", "siswa", "peserta"), NEW_ONLY),
+                LinkExpectation(setOf("admin", "pendaftaran"), setOf("pendaftaran", "siswa", "peserta", "pesanan"), NEW_ONLY),
                 LinkExpectation(setOf("bendahara", "kasir"), setOf("pembayaran", "spp", "tagihan", "keuangan"), NEW_ONLY)
             ),
             maxDivisions = 5

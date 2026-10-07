@@ -165,6 +165,20 @@ class KoogInterviewGuesserTest {
     }
 
     @Test
+    fun `adapter port core memproyeksikan usulan ke Guess berkunci B`() = runBlocking {
+        val executor = ScriptedPromptExecutor(listOf(g3Answer("klinik_pendaftaran")))
+        val guesser = AgentInterviewGuesser(executor, model = model)
+
+        // Port tipis core: Result<List<Guess>> dengan kunci persis pelaksana B (role:module).
+        val guesses = guesser.asInterviewGuesser().guess(InterviewStep.G3_MODUL, pack, g3Draft, narasi).getOrThrow()
+
+        assertEquals(1, guesses.size)
+        assertEquals("resepsionis:klinik_pendaftaran", guesses.single().key)
+        assertEquals(com.eventverse.app.domain.discovery.interview.ModuleOrigin.NEW, guesses.single().origin)
+        assertEquals(90, guesses.single().confidence)
+    }
+
+    @Test
     fun `provenance menempel tanpa memandang klaim model`() {
         // confidence > 100 ditolak lebih awal oleh konstruktor/codec; clamp di sini pertahanan lapis kedua.
         val stamped = stampGuessProvenance(

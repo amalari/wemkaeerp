@@ -3,6 +3,8 @@ package com.eventverse.app.infrastructure.discovery
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
 import com.eventverse.app.domain.discovery.interview.Confirmation
+import com.eventverse.app.domain.discovery.interview.Guess
+import com.eventverse.app.domain.discovery.interview.InterviewGuesser
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
 import com.eventverse.app.domain.discovery.interview.ModuleHandoff
 import com.eventverse.app.domain.discovery.interview.RoleDraft
@@ -189,4 +191,24 @@ class AgentInterviewGuesser(
         /** Rendah, bukan nol: tebakan harus patuh katalog, variasi nama divisi tetap diinginkan. */
         private const val TEMPERATURE = 0.2
     }
+}
+
+/**
+ * Proyeksi usulan satu langkah ke port core plan induk §6 (`InterviewGuesser` → `List<Guess>`), dengan
+ * kunci yang sama dengan pelaksana B: divisi = kode, peran = roleKey, tautan = `role:moduleId`,
+ * sambungan = `from>to`. [AgentInterviewGuesser] sendiri tetap mengembalikan bentuk kaya
+ * [InterviewStepGuesses] (itu yang dipakai eval dan penggabungan); adapter ini untuk pemanggil yang
+ * berbicara lewat port tipis.
+ */
+fun InterviewStepGuesses.toGuesses(defaultConfidence: Int = 70): List<Guess> = buildList {
+    divisions.forEach { add(Guess(it.code.value, it.name, defaultConfidence)) }
+    roles.forEach { add(Guess(it.roleKey.value, it.label, defaultConfidence)) }
+    links.forEach { add(Guess("${it.roleKey.value}:${it.moduleId.value}", "${it.roleKey.value} -> ${it.moduleId.value}", it.confidence ?: defaultConfidence, it.origin)) }
+    handoffs.forEach { add(Guess("${it.from.value}>${it.to.value}", "${it.from.value} -> ${it.to.value}", 60)) }
+}
+
+/** Melihat [AgentInterviewGuesser] dari port tipis core — inilah sambungan ke dunia B. */
+fun AgentInterviewGuesser.asInterviewGuesser(): InterviewGuesser = object : InterviewGuesser {
+    override suspend fun guess(step: InterviewStep, pack: DomainPack, draft: DiscoveryDraft, narrative: String): Result<List<Guess>> =
+        this@asInterviewGuesser.guess(step, pack, draft, narrative).map { it.toGuesses() }
 }

@@ -117,7 +117,7 @@ object InterviewLiveEvalReport {
         appendLine()
         appendLine("## Keputusan koordinator (G3)")
         appendLine()
-        appendLine("- Skor LLM: ${results.sumOf { it.passCount }} dari ${results.sumOf { it.repetitions }} ulangan; baseline deterministik: menunggu B1.")
+        appendLine("- Skor LLM: ${results.sumOf { it.passCount }} dari ${results.sumOf { it.repetitions }} ulangan; baseline deterministik: lihat bagian perbandingan (wajib 100%).")
         appendLine("- Keputusan (Koog untuk tebakan / hanya bila deterministik gagal / belum layak): _")
     }
 }

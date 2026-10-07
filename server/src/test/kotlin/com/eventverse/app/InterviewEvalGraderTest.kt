@@ -52,11 +52,14 @@ class InterviewEvalGraderTest {
 
     @Test
     fun `tambahan yang masuk akal tidak menghukum - penilai tidak kaku pada ejaan`() {
+        // Aturan DONE (B4): tiap divisi wajib berperan, tiap peran wajib bertaut — tambahan pun patuh.
         val richer = InterviewEvalPacks.klinikSession.copy(
             divisions = InterviewEvalPacks.klinikSession.divisions +
                 DivisionDraft(DivisionCode("gudang_obat"), "Gudang Obat", ItemSource.ANSWER),
             roles = InterviewEvalPacks.klinikSession.roles +
-                RoleDraft(RoleKey("apoteker"), "Apoteker", DivisionCode("gudang_obat"), ItemSource.ANSWER)
+                RoleDraft(RoleKey("apoteker"), "Apoteker", DivisionCode("gudang_obat"), ItemSource.ANSWER),
+            links = InterviewEvalPacks.klinikSession.links +
+                RoleModuleLink(RoleKey("apoteker"), ModuleId("klinik_poli"), ModuleOrigin.NEW, listOf("Stok obat"), Confirmation.CONFIRMED)
         )
         val verdict = gradeKlinik(richer)
         assertTrue(verdict.passed, "Butir tambahan yang masuk akal tetap lulus: ${verdict.failedCriteria}")
@@ -113,7 +116,9 @@ class InterviewEvalGraderTest {
 
     @Test
     fun `peran di divisi yang salah gagal kriteria peran_ke_divisi`() {
+        // Sesi G2 (belum DONE): aturan kelengkapan B4 tidak berlaku, jadi salah tempat murni masalah makna.
         val misplaced = InterviewEvalPacks.klinikSession.copy(
+            step = InterviewStep.G2_PERAN,
             roles = InterviewEvalPacks.klinikSession.roles.map { r ->
                 if (r.roleKey.value == "kasir") r.copy(divisionCode = DivisionCode("poli")) else r
             }

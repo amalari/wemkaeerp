@@ -202,6 +202,10 @@ object InterviewEvalGrader {
         )
     }
 
+    /** Modul pertama di pack yang cocok sinonim kunci — dipakai kriteria dan simulasi pengguna kooperatif. */
+    internal fun matchingModule(pack: DomainPack, synonyms: Set<String>): ModuleId? =
+        pack.modules.firstOrNull { m -> moduleMatches(pack, m.id, synonyms) }?.id
+
     /** Cocokkan modul dari id **atau** nama tampilnya — sinonim kunci ditulis untuk keduanya. */
     private fun moduleMatches(pack: DomainPack, id: ModuleId, synonyms: Set<String>): Boolean = synonyms.any { syn ->
         id.value.lowercase().contains(syn) || pack.module(id)?.displayName?.lowercase()?.contains(syn) == true

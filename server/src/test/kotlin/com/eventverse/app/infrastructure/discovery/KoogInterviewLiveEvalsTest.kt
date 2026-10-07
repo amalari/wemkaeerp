@@ -104,6 +104,11 @@ class KoogInterviewLiveEvalsTest {
             results += InterviewLiveCaseResult(case.name, reps, pass, modelFails, graderFails, turnsUsed, turnDurations, tokens)
         }
 
+        // Baseline deterministik (offline) ikut dilaporkan agar perbandingannya nyata, bukan janji.
+        val baselineLines = cases.map { case ->
+            runInterviewFlow(case, guessFn = deterministicKamusSeam()).verdict.logLine("deterministik/kamus-v1")
+        }
+
         val balanceAfter = fetchBalance(key)
         println("evals | saldo sesudah: " + (balanceAfter ?: "-"))
 
@@ -114,8 +119,7 @@ class KoogInterviewLiveEvalsTest {
             maxCorrectionRounds = rounds,
             balanceBefore = balanceBefore,
             balanceAfter = balanceAfter,
-            baselineNote = "Baseline deterministik (`DeterministicInterviewGuesser`, B1) belum tersedia — " +
-                "pelari alur sudah siap; baseline wajib 100% sebelum skor LLM dibandingkan.",
+            baselineNote = baselineLines.joinToString("\n") { "`$it`  " },
             results = results
         )
         println(report)

@@ -1,6 +1,14 @@
 package com.eventverse.app
 
+import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.discovery.interview.DeterministicInterviewGuesser
+import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.infrastructure.discovery.InterviewStepGuesses
+import com.eventverse.app.infrastructure.discovery.deterministicKamusSeam
+import com.eventverse.app.infrastructure.discovery.runInterviewFlow
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -61,5 +69,36 @@ class InterviewEvalsTest {
         )
         println(bengkel.logLine("kunci-jawaban"))
         assertTrue(bengkel.passed, "Kunci bengkel wajib lulus: ${bengkel.failedCriteria}")
+    }
+
+    @Test
+    fun `baseline deterministik lulus 100 persen pada semua kasus emas`() = runBlocking {
+        var passed = 0
+        for (case in InterviewGoldenCases.all) {
+            val flow = runInterviewFlow(case, guessFn = deterministicKamusSeam())
+            println(flow.verdict.logLine("deterministik/kamus-v1"))
+            assertTrue(flow.verdict.passed, "Baseline deterministik wajib 100% - kalau tidak, penilainya yang rusak: ${flow.verdict.failedCriteria}")
+            passed++
+        }
+        println("evals | skor: $passed/${InterviewGoldenCases.all.size} (deterministik/kamus-v1, baseline)")
+        assertEquals(InterviewGoldenCases.all.size, passed)
+    }
+
+    @Test
+    fun `pack tanpa kamus tidak menebak dan pack berkamus menebak`() = runBlocking {
+        // Skenario plan induk §11.3: tanpa kamus ⇒ pertanyaan terbuka, bukan tebakan karangan.
+        val tanpaKamus = DeterministicInterviewGuesser.guess(
+            InterviewStep.G1_DIVISI, InterviewEvalPacks.klinikPack,
+            InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, null), "Kami klinik gigi."
+        ).getOrThrow()
+        assertTrue(tanpaKamus.isEmpty(), "Pack klinik tanpa roleHints wajib tidak menebak: $tanpaKamus")
+
+        // Pack garment punya kamus (B2) ⇒ tebakan G1 tidak kosong.
+        val berkamus = DeterministicInterviewGuesser.guess(
+            InterviewStep.G1_DIVISI, GarmentDomainPack.pack,
+            DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.FOB_FULL_PACKAGE),
+            "Kami konveksi: admin gudang mengurus kain, kepala potong membagi kerja potong, operator jahit mengerjakan, qc memeriksa, dan packing mengirim."
+        ).getOrThrow()
+        assertTrue(berkamus.isNotEmpty(), "Pack garment berkamus wajib menebak divisi")
     }
 }

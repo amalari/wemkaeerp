@@ -51,7 +51,9 @@ koreksi diri menyasar bagian yang benar (mis. `$.interview.links[0].moduleId`).
 ## 3. Penilaian (C0) — yang bikin skornya bisa dipercaya
 
 - **Kunci jawaban per langkah**: 11 kasus emas (`InterviewGoldenCases`), termasuk sablon/bordir yang
-  sejak keputusan 2026-10-07 dinilai dari *kemampuan & asal modul*, bukan pack baku.
+  sejak keputusan 2026-10-07 dinilai dari *kemampuan & asal modul*, bukan pack baku. Kunci mengikuti
+  **narasi** — jangan mengharapkan modul yang tidak disebut cerita (pelajaran: kunci katering pernah
+  mengharapkan modul "produksi" padahal pack hasil narasi hanya punya pesanan & laporan).
 - **Tujuh kriteria**: `valid`, `divisi_masuk_akal`, `peran_ke_divisi`, `tautan_modul`, `asal_modul`,
   `kemurnian_vertikal`, `jumlah_giliran` (+ batas `maxDivisions` sebagai kasus negatif C6:
   cerita kecil → draf kecil).
@@ -73,11 +75,11 @@ koreksi diri menyasar bagian yang benar (mis. `$.interview.links[0].moduleId`).
 
 ## 5. Menyambungkan yang masih terbuka
 
-| Terbuka | Pemilik | Titik sambung yang sudah disiapkan |
+| Butir | Status | Catatan sambungan |
 |---|---|---|
-| Port `InterviewGuesser` di core | B (plan §6) | `AgentInterviewGuesser.guess(step, pack, draft, narrative)` sudah bertanda tangan sama; adapter = satu baris |
-| `DeterministicInterviewGuesser` + baseline 100% | B1 | pasang ke `InterviewGuessFn` di `runInterviewFlow` — pelari tidak berubah |
-| `basisRef` / `Basis` / F0-F2 di kontrak | B (induk §6.1) | prompt sudah mengajarkan F0→F2; grader sudah punya lubang `berdasar_cerita` |
+| Port `InterviewGuesser` di core (B) | ✅ merge di main | adapter `AgentInterviewGuesser.asInterviewGuesser()` + `InterviewStepGuesses.toGuesses()` (kunci sama dengan pelaksana B: `role:moduleId`, `from>to`) |
+| `DeterministicInterviewGuesser` + baseline 100% (B1) | ✅ merge; baseline terpasang | `deterministicKamusSeam()` di pelari alur; `InterviewEvalsTest` wajibkan 100% di 11 kasus — pengguna kooperatif melengkapi kunci sebagai `ANSWER`, mutu tebakan diukur sebelum suplemen |
+| `basisRef` / `Basis` / F0-F2 di kontrak | ⏳ belum di main (induk §6.1) | prompt sudah mengajarkan F0→F2; grader sudah punya lubang `berdasar_cerita` |
 
 ## 6. Kontrak yang C butuhkan dari B (laporan, bukan suntingan)
 
