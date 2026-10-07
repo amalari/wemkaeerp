@@ -45,7 +45,7 @@ object GarmentModules {
             ModuleDefinition(
                 id = ORG_CHART,
                 displayName = "Bagan Struktur Organisasi & Karyawan",
-                description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.",
+                description = "Struktur divisi, jenjang jabatan, dan data karyawan.",
                 section = ModuleSectionCode("GOVERNANCE"),
                 kind = ModuleKind.GOVERNANCE,
                 iconKey = "users",
@@ -88,8 +88,8 @@ object GarmentModules {
             ),
             ModuleDefinition(
                 id = VENDOR_CONTACTS,
-                displayName = "Kontak Vendor & Makloon",
-                description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.",
+                displayName = "Kontak Vendor",
+                description = "Buku kontak vendor, daftar harga layanan per vendor, dan penunjukan vendor ke proses yang dikerjakan di luar.",
                 section = ModuleSectionCode("FOUNDATION"),
                 kind = ModuleKind.FOUNDATION,
                 iconKey = "truck",

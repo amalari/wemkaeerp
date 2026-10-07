@@ -11,9 +11,8 @@ package com.eventverse.app.domain.pack
  * rujukan modul) **tidak** termasuk dan tetap harus identik.
  */
 fun DomainPack.matchesShipped(shipped: DomainPack): Boolean {
-    // Deskripsi modul yang pernah diganti platform (teks lama tercatat di [SupersededModuleText]) tetap diterima.
-    val modules = modules.map { m -> if (m.description in SupersededModuleText.descriptions[m.id].orEmpty()) m.copy(description = shipped.module(m.id)?.description ?: m.description) else m }
-    val current = copy(modules = modules)
+    // Nama/deskripsi modul yang pernah diganti platform (teks lama tercatat di [SupersededModuleText]) tetap diterima.
+    val current = copy(modules = modules.map(SupersededModuleText::normalized))
     return current.matchesShippedAdditive(shipped)
 }
 
@@ -26,12 +25,27 @@ private fun DomainPack.matchesShippedAdditive(shipped: DomainPack): Boolean {
 }
 
 /**
- * Deskripsi modul bawaan yang **pernah diganti** platform. Draf yang tersimpan sebelum penggantian membawa teks lama;
- * tanpa catatan ini ia ditolak "wajib identik". Hanya teks yang tercatat di sini yang ditoleransi — deskripsi lain
- * yang berbeda tetap dianggap penulisan ulang. Tambahkan teks lama setiap kali deskripsi modul bawaan diubah.
+ * Nama dan deskripsi modul bawaan yang **pernah diganti** platform. Dokumen yang tersimpan sebelum penggantian
+ * (draf garment, pack non-garment yang menyalin modul bersama) membawa teks lama; tanpa catatan ini ia ditolak
+ * "wajib identik" / "definisi berbeda". Hanya teks yang tercatat di sini yang ditoleransi — teks lain yang berbeda
+ * tetap dianggap penulisan ulang. **Tambahkan teks lama setiap kali nama/deskripsi modul bawaan diubah.**
  */
 internal object SupersededModuleText {
     val descriptions: Map<ModuleId, Set<String>> = mapOf(
-        GarmentModules.INVOICING to setOf("Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas.")
+        GarmentModules.INVOICING to setOf("Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas."),
+        GarmentModules.ORG_CHART to setOf("Struktur divisi, jenjang jabatan, dan data karyawan pabrik."),
+        GarmentModules.VENDOR_CONTACTS to setOf("Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
     )
+    val names: Map<ModuleId, Set<String>> = mapOf(
+        GarmentModules.VENDOR_CONTACTS to setOf("Kontak Vendor & Makloon")
+    )
+
+    /** [m] dengan nama/deskripsi lama yang tercatat diganti teks bakunya sekarang; selain itu apa adanya. */
+    fun normalized(m: ModuleDefinition): ModuleDefinition {
+        val current = DomainPackRegistry.shipped.firstNotNullOfOrNull { it.module(m.id) } ?: return m
+        return m.copy(
+            displayName = if (m.displayName in names[m.id].orEmpty()) current.displayName else m.displayName,
+            description = if (m.description in descriptions[m.id].orEmpty()) current.description else m.description
+        )
+    }
 }
