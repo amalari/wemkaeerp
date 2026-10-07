@@ -75,3 +75,14 @@ internal fun openingEntryFor(draft: DiscoveryDraftUi): BuilderChatEntry = Builde
     hasPendingPatch = false,
     applied = true
 )
+
+/**
+ * Draf yang difokuskan ke satu modul (utas modul dipilih): hanya modul itu dan layarnya yang tersisa, sehingga panel hasil
+ * menampilkan **modul yang sedang dibahas**. `null` = utas Semua, draf utuh. Murni; draf asal tidak berubah.
+ */
+internal fun DiscoveryDraftUi.focusedOn(moduleId: String?): DiscoveryDraftUi =
+    if (moduleId == null) this else copy(
+        modules = modules.filter { it.id == moduleId },
+        activeModuleCodes = activeModuleCodes.filter { it == moduleId },
+        screens = screens.filter { it.moduleId == moduleId }
+    )

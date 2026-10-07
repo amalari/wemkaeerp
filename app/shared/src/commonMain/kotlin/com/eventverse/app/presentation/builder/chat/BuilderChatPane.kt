@@ -185,10 +185,11 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         }
         val panel: @Composable (Modifier) -> Unit = { m ->
             ChatResultPanel(
-                draft = draft,
+                draft = draft?.focusedOn(thread),
                 patchPreview = previewSummary,
                 onClose = if (wide) null else ({ panelOpen = false }),
-                modifier = m
+                modifier = m,
+                focusModuleId = thread
             )
         }
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
@@ -201,7 +202,11 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                     if (!busy && picked != thread) {
                         thread = picked
                         messages = emptyList()
-                        scope.launch { reloadChat() }
+                        scope.launch {
+                            // Membuka tab modul: server menghitung celah modul itu dan membuat pertanyaan bila ada (idempoten).
+                            if (picked != null) client.requestFollowUps(picked)
+                            reloadChat()
+                        }
                     }
                 }
             )

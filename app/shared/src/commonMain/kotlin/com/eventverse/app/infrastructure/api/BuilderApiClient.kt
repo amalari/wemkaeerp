@@ -68,6 +68,11 @@ class BuilderApiClient(
     suspend fun chat(module: String? = null): Result<JsonValue> =
         call(HttpMethod.Get, "/api/builder/chat" + (module?.let { "?module=$it" } ?: ""))
 
+    /** POST /api/builder/chat/followups — minta server memeriksa celah modul [module]; true bila pertanyaan baru dibuat. */
+    suspend fun requestFollowUps(module: String): Result<Boolean> =
+        call(HttpMethod.Post, "/api/builder/chat/followups", """{"module":${JsonValue.Str(module).encode()}}""")
+            .map { ((it as? JsonValue.Obj)?.get("created") as? JsonValue.Bool)?.value == true }
+
     /** POST /api/builder/chat/runs — mulai run asinkron (202); mengembalikan `runId`. 409 bila masih ada run aktif. */
     suspend fun startRun(text: String, module: String? = null): Result<String> =
         call(

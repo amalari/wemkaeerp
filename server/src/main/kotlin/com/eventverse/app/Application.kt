@@ -175,6 +175,7 @@ fun Application.module(
     builderChatRepository: com.eventverse.app.domain.builder.BuilderChatRepository? = null,
     builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null,
     builderClarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null,
+    builderModuleEditor: com.eventverse.app.domain.builder.ModuleEditor? = null,
     builderBuildRequests: com.eventverse.app.domain.builder.BuilderBuildRequestRepository? = null,
     builderProbe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe? = null,
     builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null,
@@ -272,6 +273,7 @@ fun Application.module(
                 com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv()
             ),
             clarifier = builderClarifier ?: com.eventverse.app.infrastructure.builder.BuilderClarifiers.fromEnv(),
+            moduleEditor = builderModuleEditor ?: com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
             drafts = discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
             probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
             auditLog = builderAuditLog ?: com.eventverse.app.infrastructure.PostgresAuditLogRepository(),

@@ -26,7 +26,9 @@ class SendBuilderMessageUseCase(
     private val drafts: DiscoveryDraftRepository,
     private val clock: Clock = Clock.System,
     /** Penanya klarifikasi sebelum draf (Fase B); null = langsung menyusun draf. Kegagalannya = tidak bertanya. */
-    private val clarifier: NarrativeClarifier? = null
+    private val clarifier: NarrativeClarifier? = null,
+    /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
+    private val moduleEditing: EditModuleFromChat? = null
 ) {
     /**
      * Satu giliran chat. [onProgress] menerima fase kerja (`planning` saat memeriksa kejelasan cerita, `drafting` saat
@@ -63,6 +65,15 @@ class SendBuilderMessageUseCase(
         val waiting = chats.messages(conversation.id).pendingFollowUps(moduleId).filter { it.moduleId == moduleId }
         waiting.groupBy { it.messageId }.forEach { (messageId, qs) ->
             chats.markAnswered(messageId, qs.associate { it.question.id to userText.trim() })
+        }
+
+        // Utas modul: pesan (dan jawaban follow-up) ditafsirkan menjadi sunting isian modul itu, bukan menyusun ulang draf.
+        val editing = moduleEditing
+        if (editing != null && moduleId != null) {
+            val answered = waiting.map { it.question.question to userText.trim() }
+            if (editing.handle(tenantId, conversation, moduleId, userText.trim(), answered, onProgress)) {
+                return@runCatching chats.messages(conversation.id)
+            }
         }
 
         val current = drafts.findByTenant(tenantId)?.draft

@@ -38,7 +38,8 @@ import com.eventverse.app.infrastructure.builder.BuilderRun
 fun Route.builderChatStreamRoutes(
     send: SendBuilderMessageUseCase,
     chats: BuilderChatRepository,
-    registry: BuilderRunRegistry
+    registry: BuilderRunRegistry,
+    askFollowUps: com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase
 ) {
     post("/chat/runs") {
         call.gate() ?: return@post
@@ -63,6 +64,20 @@ fun Route.builderChatStreamRoutes(
             return@post
         }
         call.respondText(jsonObjectOf("runId" to jsonOf(run.id)).encode(), ContentType.Application.Json, HttpStatusCode.Accepted)
+    }
+
+    // Follow-up per modul saat tab modul dibuka: celah dihitung dari data (tanpa model), idempoten, cepat.
+    post("/chat/followups") {
+        call.gate() ?: return@post
+        val module = (runCatching { JsonParser.parse(call.receiveText()) as? JsonValue.Obj }.getOrNull())?.string("module")?.takeIf { it.isNotBlank() }
+        if (module == null) {
+            call.respond(HttpStatusCode.BadRequest, "Body wajib {\"module\":\"<kode modul>\"}")
+            return@post
+        }
+        askFollowUps(call.tenantContext.tenantId, module).fold(
+            onSuccess = { created -> call.respondText(jsonObjectOf("created" to jsonOf(created)).encode(), ContentType.Application.Json) },
+            onFailure = { e -> call.respond(HttpStatusCode.InternalServerError, "Gagal memeriksa follow-up: ${e.message}") }
+        )
     }
 
     // Gerbang dijalankan SEBELUM aliran dimulai: respons 403/404 baru bisa dikirim selagi header belum terkirim.

@@ -50,7 +50,12 @@ class BuilderChatRunsRoutesTest {
     private val chats = InMemoryBuilderChatRepository()
     private val story = "Kami klinik gigi: pasien mendaftar antrean per poli, ada stok obat, dan tagihan pembayaran kasir."
 
-    private fun install(builder: ApplicationTestBuilder, clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null) = with(builder) {
+    private fun install(
+        builder: ApplicationTestBuilder,
+        clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null,
+        moduleEditor: com.eventverse.app.domain.builder.ModuleEditor? = null,
+        drafts: InMemoryDiscoveryDraftRepository = InMemoryDiscoveryDraftRepository()
+    ) = with(builder) {
         val tenants = InMemoryTenantRepository().also { repo ->
             runBlocking { repo.save(Tenant(TenantId(tenantId), TenantSlug(slug), TenantName("WeMade Demo"), TenantStatus.ACTIVE, SubscriptionTier.PRO)) }
         }
@@ -67,6 +72,7 @@ class BuilderChatRunsRoutesTest {
                 builderDeploymentRepository = com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository(),
                 builderChatRepository = chats,
                 builderClarifier = clarifier,
+                builderModuleEditor = moduleEditor,
                 builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
                 builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
                 builderAuditLog = com.eventverse.app.infrastructure.InMemoryAuditLogRepository(),
@@ -74,7 +80,7 @@ class BuilderChatRunsRoutesTest {
                 builderBillingPreview = com.eventverse.app.domain.builder.TenantBillingPreviewSource {
                     Result.failure(IllegalStateException("tidak dipakai di test ini"))
                 },
-                discoveryDraftRepository = InMemoryDiscoveryDraftRepository()
+                discoveryDraftRepository = drafts
             )
         }
     }
@@ -209,5 +215,75 @@ class BuilderChatRunsRoutesTest {
         assertEquals(listOf("status", "message", "done"), second.map { it.second })
         val after = (JsonParser.parse(client.get("/api/builder/chat") { auth() }.bodyAsText()) as JsonValue.Obj)
         assertEquals(emptyList(), after.obj("followUp")!!.array("questions").toList(), "follow-up sudah terjawab")
+    }
+
+    // ---- Fase C: follow-up per modul + sunting isian ---------------------------------------------
+
+    private fun seedDraft(withProposal: Boolean): InMemoryDiscoveryDraftRepository {
+        val pack = com.eventverse.app.domain.pack.GarmentDomainPack.pack
+        val moduleId = com.eventverse.app.domain.pack.ModuleId("sampling_order")
+        val screens = if (!withProposal) emptyList() else {
+            val fields = listOf(
+                com.eventverse.app.domain.discovery.proposal.FieldProposal("nama", "Nama", com.eventverse.app.domain.prototype.FieldType.TEXT, true),
+                com.eventverse.app.domain.discovery.proposal.FieldProposal("warna", "Warna", com.eventverse.app.domain.prototype.FieldType.TEXT)
+            )
+            val p = com.eventverse.app.domain.discovery.proposal.ScreenProposal(
+                "s_sampling", moduleId, "Sampling", com.eventverse.app.domain.discovery.WidgetKind.TABLE, "karena uji",
+                com.eventverse.app.domain.discovery.proposal.EntityProposal("sampel", "Sampel", fields),
+                com.eventverse.app.domain.discovery.proposal.ViewProposal.Table(fields.map { it.key })
+            )
+            listOf(com.eventverse.app.domain.discovery.PrototypeScreen("s_sampling", moduleId, "Sampling", "TABLE", p, com.eventverse.app.domain.discovery.proposal.ProposalSource.Deterministic))
+        }
+        return InMemoryDiscoveryDraftRepository().also { repo ->
+            runBlocking {
+                repo.save(com.eventverse.app.domain.discovery.StoredDiscoveryDraft(
+                    com.eventverse.app.domain.discovery.DiscoveryDraftId("draft-$tenantId"), com.eventverse.app.domain.auth.UserId("usr-pemilik"),
+                    com.eventverse.app.domain.discovery.DiscoveryDraft(pack, com.eventverse.app.domain.pack.GarmentBlueprints.DEFAULT, screens),
+                    tenantId = TenantId(tenantId)
+                ))
+            }
+        }
+    }
+
+    private suspend fun ApplicationTestBuilder.followUps(module: String?, role: Role? = null, withToken: Boolean = true): HttpResponse =
+        client.post("/api/builder/chat/followups") {
+            auth(role, withToken = withToken)
+            contentType(ContentType.Application.Json)
+            setBody(if (module == null) "{}" else """{"module":"$module"}""")
+        }
+
+    @Test
+    fun `tab modul dibuka, follow-up dibuat sekali di utas modul dan gerbang fail-closed`() = testApplication {
+        install(this, drafts = seedDraft(withProposal = true))
+        assertEquals(401, followUps("sampling_order", withToken = false).status.value)
+        assertEquals(403, followUps("sampling_order", role = Role.SALES).status.value)
+        assertEquals(400, followUps(null).status.value)
+
+        val first = JsonParser.parse(followUps("sampling_order").bodyAsText()) as JsonValue.Obj
+        assertEquals(true, (first["created"] as JsonValue.Bool).value)
+        val again = JsonParser.parse(followUps("sampling_order").bodyAsText()) as JsonValue.Obj
+        assertEquals(false, (again["created"] as JsonValue.Bool).value, "idempoten: masih menunggu jawaban")
+
+        val module = JsonParser.parse(client.get("/api/builder/chat?module=sampling_order") { auth() }.bodyAsText()) as JsonValue.Obj
+        assertEquals(listOf("QUESTION"), module.array("messages").filterIsInstance<JsonValue.Obj>().map { it.string("kind") })
+        assertTrue(module.obj("followUp")!!.array("questions").size >= 1)
+        val other = JsonParser.parse(client.get("/api/builder/chat?module=quality_control") { auth() }.bodyAsText()) as JsonValue.Obj
+        assertEquals(0, other.array("messages").size, "utas modul lain tidak melihatnya")
+    }
+
+    @Test
+    fun `permintaan di utas modul lewat run menjadi patch isian dari penyunting, tanpa menyusun ulang draf`() = testApplication {
+        val editor = com.eventverse.app.domain.builder.ModuleEditor { _ ->
+            Result.success(com.eventverse.app.domain.builder.ModuleEditReply("", listOf(
+                com.eventverse.app.domain.discovery.proposal.ProposalEdit.AddField(
+                    com.eventverse.app.domain.discovery.proposal.FieldProposal("tanggal_kirim", "Tanggal Kirim", com.eventverse.app.domain.prototype.FieldType.DATE)))))
+        }
+        install(this, moduleEditor = editor, drafts = seedDraft(withProposal = true))
+        val ev = events(runIdOf(startRun("tambah input tanggal kirim", module = "sampling_order")))
+        assertEquals(listOf("status", "message", "done"), ev.map { it.second })
+        val msgs = ((JsonParser.parse(client.get("/api/builder/chat?module=sampling_order") { auth() }.bodyAsText()) as JsonValue.Obj).array("messages")).filterIsInstance<JsonValue.Obj>()
+        assertEquals(listOf("USER", "AGENT"), msgs.map { it.string("role") })
+        assertEquals(true, (msgs.last()["hasPendingPatch"] as JsonValue.Bool).value)
+        assertTrue((msgs.last().array("summary").first() as JsonValue.Str).value.startsWith("Tambah isian"))
     }
 }

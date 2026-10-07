@@ -42,10 +42,13 @@ internal fun ChatResultPanel(
     draft: DiscoveryDraftUi?,
     patchPreview: List<String>,
     onClose: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Modul yang sedang dibahas di chat (null = Semua): panel menampilkan modul itu saja, langsung di tab Prototype. */
+    focusModuleId: String? = null
 ) {
     val typography = rememberClayTypography()
     var tab by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(focusModuleId) { tab = if (focusModuleId != null) 3 else 0 }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
         Row(
@@ -71,6 +74,11 @@ internal fun ChatResultPanel(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
+            if (focusModuleId != null) {
+                draft?.modules?.firstOrNull { it.id == focusModuleId }?.let {
+                    Text("Fokus: ${it.displayName}", style = typography.bodySmall, fontWeight = FontWeight.Bold, color = WeMadeColors.Primary)
+                }
+            }
             if (patchPreview.isNotEmpty()) {
                 ClayCard(containerColor = WeMadeColors.SurfaceMuted, outlineColor = WeMadeColors.Warning) {
                     Text("Usulan belum diterapkan", style = typography.bodySmall, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)

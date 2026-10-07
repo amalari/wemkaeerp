@@ -80,9 +80,15 @@ fun Route.builderRoutes(
         com.eventverse.app.infrastructure.builder.BuilderRunRegistry(),
     /** Penanya klarifikasi sebelum draf (Fase B); default dari env — `null` bila saklar mati. */
     clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? =
-        com.eventverse.app.infrastructure.builder.BuilderClarifiers.fromEnv()
+        com.eventverse.app.infrastructure.builder.BuilderClarifiers.fromEnv(),
+    /** Penyunting isian per modul (Fase C, model kecil); default dari env — `null` bila saklar mati. */
+    moduleEditor: com.eventverse.app.domain.builder.ModuleEditor? =
+        com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv()
 ) {
-    val send = SendBuilderMessageUseCase(chats, agent, drafts, clarifier = clarifier)
+    val send = SendBuilderMessageUseCase(
+        chats, agent, drafts, clarifier = clarifier,
+        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) }
+    )
     val apply = ApplyDraftPatchUseCase(chats, drafts)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog)
@@ -125,7 +131,7 @@ fun Route.builderRoutes(
         auditLog = auditLog
     )
     route("/api/builder") {
-        builderChatStreamRoutes(send, chats, runRegistry)
+        builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext

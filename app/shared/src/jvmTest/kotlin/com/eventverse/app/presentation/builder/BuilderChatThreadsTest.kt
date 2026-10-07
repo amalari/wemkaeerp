@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.builder
 import com.eventverse.app.infrastructure.api.BuilderApiClient
 import com.eventverse.app.infrastructure.api.BuilderRunEvent
 import com.eventverse.app.infrastructure.api.SessionTokenProvider
+import com.eventverse.app.presentation.builder.chat.focusedOn
 import com.eventverse.app.presentation.builder.chat.parseFollowUp
 import com.eventverse.app.presentation.builder.chat.parseMessages
 import com.eventverse.app.presentation.builder.chat.runPhaseLabel
@@ -86,5 +87,30 @@ class BuilderChatThreadsTest {
         assertEquals("Menunggu jawaban Anda...", runPhaseLabel("waiting"))
         assertEquals("drafting", BuilderRunEvent(1, "status", """{"type":"status","phase":"drafting"}""").field("phase"))
         assertNull(BuilderRunEvent(1, "done", "bukan json").field("phase"))
+    }
+
+    @Test
+    fun `requestFollowUps mengirim kode modul dan membaca flag created`() = runTest {
+        val cap = Capture(HttpStatusCode.OK, """{"created":true}""")
+        val api = BuilderApiClient(cap.client(), "http://x", tokens)
+        assertEquals(true, api.requestFollowUps("klinik_poli").getOrThrow())
+        assertEquals("http://x/api/builder/chat/followups", cap.urls.single())
+        assertEquals("klinik_poli", (JsonParser.parse(cap.bodies.single()) as com.eventverse.app.shared.json.JsonValue.Obj).string("module"))
+        assertEquals(false, BuilderApiClient(Capture(HttpStatusCode.OK, """{"created":false}""").client(), "http://x", tokens).requestFollowUps("a").getOrThrow())
+    }
+
+    @Test
+    fun `fokus modul menyisakan modul dan layarnya saja, utas Semua tidak mengubah draf`() {
+        val draft = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(JsonParser.parseObject(
+            """{"id":"d","status":"DRAFT","schemaVersion":1,"packCode":"p","packDisplayName":"P","blueprintCode":"b","blueprintDescription":"","moduleCount":2,"activeModuleCount":2,"screenCount":2,
+               "modules":[{"id":"a","displayName":"A","section":"S","active":true},{"id":"b","displayName":"B","section":"S","active":true}],"sections":[],"activeModuleCodes":["a","b"],
+               "screens":[{"screenId":"s1","moduleId":"a","title":"T1","widget":"TABLE"},{"screenId":"s2","moduleId":"b","title":"T2","widget":"FORM"}],"portLabels":{},"slotLabels":{}}"""
+        ))
+        assertEquals(draft, draft.focusedOn(null))
+        val f = draft.focusedOn("a")
+        assertEquals(listOf("a"), f.modules.map { it.id })
+        assertEquals(listOf("a"), f.activeModuleCodes)
+        assertEquals(listOf("s1"), f.screens.map { it.screenId })
+        assertEquals(2, draft.modules.size, "draf asal tidak berubah")
     }
 }
