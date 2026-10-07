@@ -143,6 +143,25 @@ Row(
   - `EXTEND`: Kuning/Amber (`Warning`)
   - `NEW`: Oranye (`Accent`)
 
+### 3.3 Integrasi B7: Prinsip "Berdasar Cerita" (`BasisRef`) & Profil Konsultan
+Pada tahap B7, wawancara berevolusi menjadi versi 2 (`BASED_ON_STORY`). Prinsip utamanya: **setiap usulan sistem harus bisa ditelusuri ke cerita atau jawaban pengguna**:
+- `Basis.NARASI`: Mengutip kalimat langsung dari narasi (`BasisRef.quote`).
+- `Basis.JAWABAN`: Berasal dari jawaban pengguna di giliran wawancara (`BasisRef.answerId`).
+- `Basis.SARAN_DITERIMA`: Usulan konsultan yang disetujui pengguna (`sug_qc`, dll.).
+- `BusinessProfile` & `RequirementSpec`: Menyimpan ringkasan profil usaha, sasaran operasional, titik sakit, dan spesifikasi per area kerja (siapa mengisi, apa dicatat, siapa melihat, kapan selesai).
+
+Di UI (`StepInterviewG5Summary.kt`), dasar ini dirender secara dinamis di bawah tiap modul:
+```kotlin
+val ref = link.basisRef
+val basisText = when (ref?.basis) {
+    Basis.NARASI -> "Dasar: Kutipan cerita \"${ref.quote.orEmpty()}\""
+    Basis.JAWABAN -> "Dasar: Jawaban Anda pada pertanyaan wawancara (${ref.answerId ?: "wawancara"})"
+    Basis.SARAN_DITERIMA -> "Dasar: Saran konsultan yang Anda terima"
+    Basis.SARAN_BELUM_DIJAWAB -> "Dasar: Saran konsultan (belum dikonfirmasi)"
+    null -> "Dasar: Terhubung dari narasi kebutuhan dan peran operasional Anda"
+}
+```
+
 ---
 
 ## 🛡️ 4. Jebakan Umum yang Dihindari
@@ -152,10 +171,12 @@ Row(
    - Kode dilarang keras menggunakan simbol UTF non-ASCII. Digunakan representasi ASCII standar (`->`, `x`, `+`) agar teks tidak berubah menjadi kotak tanda tanya di browser.
 2. **Jebakan God File di Presentation**:
    - Menaruh kelima giliran wawancara dalam satu file layar akan membuat panjang file membengkak di atas 1000 baris.
-   - Dengan memecah menjadi `StepInterviewG1Divisions.kt`, `StepInterviewG2Roles.kt`, `StepInterviewG3Modules.kt`, `StepInterviewG4Handoffs.kt`, dan `StepInterviewG5Summary.kt`, setiap file rata-rata hanya 150–290 baris (jauh di bawah batas soft limit 400).
+   - Dengan memecah menjadi `StepInterviewG1Divisions.kt`, `StepInterviewG2Roles.kt`, `StepInterviewG3Modules.kt`, `StepInterviewG4Handoffs.kt`, dan `StepInterviewG5Summary.kt`, setiap file rata-rata hanya 150–390 baris (di bawah batas soft limit 400).
 3. **Jebakan Deadlock Wawancara**:
    - Jika endpoint server wawancara mengalami kendala atau gagal menjawab, pengguna tidak boleh terkunci di layar kosong.
    - Tombol *"Lewati Wawancara"* dan *"Terima Semua Tebakan"* selalu tersedia di setiap giliran sehingga prospek tetap dapat menyelesaikan funnel pendaftaran draf.
+4. **Jebakan Smart-Cast Properti Modul Lain di Kotlin**:
+   - Properti public API dari modul lain (seperti `link.basisRef` dari `:core`) tidak dapat di-smart-cast langsung karena kompiler tidak dapat menjamin immutabilitasnya di modul lain. Selalu salin ke variabel lokal (`val ref = link.basisRef`) sebelum melakukan pencocokan pola atau evaluasi nullability.
 
 ---
 
@@ -163,5 +184,8 @@ Row(
 
 1. **Eksplorasi Mutasi Fitur**:
    Buka `InterviewSessionStateTest.kt`, tambahkan skenario uji untuk memastikan fitur yang diduplikasi dengan nama sama tidak dimasukkan dua kali ke dalam `RoleModuleLink.features`.
-2. **Uji Lebar Layar Responsif**:
+2. **Uji Penelusuran Dasar (Basis Traceability)**:
+   Periksa bagaimana `BasisRef` otomatis diikutsertakan saat pengguna menambahkan divisi baru lewat `state.addDivision()` atau menerima saran konsultan lewat `state.acceptSuggestion()`.
+3. **Uji Lebar Layar Responsif**:
    Jalankan preview Compose di resolusi ponsel (lebar ~360dp) dan desktop (lebar ~1280dp). Periksa apakah teks tombol navigasi di `StepInterviewG5Summary` tetap sejajar dan mudah disentuh.
+
