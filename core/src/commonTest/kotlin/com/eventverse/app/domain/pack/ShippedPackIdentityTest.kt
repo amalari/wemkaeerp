@@ -47,4 +47,13 @@ class ShippedPackIdentityTest {
         assertEquals(setOf(GarmentModules.COSTING_HPP), garment.sharedModules)
         assertEquals(garment, com.eventverse.app.shared.pack.DomainPackCodec.decode(com.eventverse.app.shared.pack.DomainPackCodec.encodeToString(garment)))
     }
+
+    @Test
+    fun `draf garment lama dengan deskripsi invoicing yang sudah diganti tetap sah, deskripsi lain tidak`() {
+        val oldText = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas."
+        fun withInvoicingText(text: String) = garment.copy(modules = garment.modules.map { if (it.id == GarmentModules.INVOICING) it.copy(description = text) else it })
+        assertEquals(emptyList(), DiscoveryDraftValidator.validate(draftWith(withInvoicingText(oldText))))
+        assertTrue(DiscoveryDraftValidator.validate(draftWith(withInvoicingText("Teks karangan"))).any { it.path == "$.pack" })
+        assertTrue(garment.module(GarmentModules.INVOICING)!!.description != oldText)
+    }
 }

@@ -199,7 +199,7 @@ object GarmentModules {
             ModuleDefinition(
                 id = INVOICING,
                 displayName = "Invoice & Penagihan",
-                description = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas.",
+                description = "Penerbitan faktur tagihan, termin uang muka (DP), dan pelunasan.",
                 section = ModuleSectionCode("FINANCE"),
                 kind = ModuleKind.FOUNDATION,
                 iconKey = "receipt",

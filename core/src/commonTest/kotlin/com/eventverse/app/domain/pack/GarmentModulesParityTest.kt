@@ -70,7 +70,7 @@ class GarmentModulesParityTest {
         "operator_exec|Catatan Kerja Operator|PRODUCTION|OPERATIONAL|activity|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|sewing|Antarmuka ringkas operator jahit untuk input output potong, jahit, dan progres harian.",
         "quality_control|Inspeksi QC & Defect|QUALITY|OPERATIONAL|check_circle|GLOBAL_ONLY|ALL_TENANT_DATA|quality_control|Pencatatan baju cacat (reject/scrap), cetak label barcode lolos inspeksi, dan grading.",
         "fulfillment|Packing & Surat Jalan|LOGISTICS|OPERATIONAL|truck|GLOBAL_ONLY|ALL_TENANT_DATA|fulfillment|Finishing setrika uap, verifikasi kuantitas per karton, dan cetak Surat Jalan ekspedisi.",
-        "invoicing|Invoice & Penagihan|FINANCE|FOUNDATION|receipt|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|-|Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas."
+        "invoicing|Invoice & Penagihan|FINANCE|FOUNDATION|receipt|HIERARCHICAL|ALL_TENANT_DATA,OWN_DATA_ONLY,SUBORDINATE_DATA|-|Penerbitan faktur tagihan, termin uang muka (DP), dan pelunasan."
     )
 
     private val pack = GarmentDomainPack.pack
