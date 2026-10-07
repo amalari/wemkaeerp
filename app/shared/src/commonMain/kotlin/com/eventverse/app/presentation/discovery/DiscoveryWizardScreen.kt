@@ -100,7 +100,7 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
     ) {
         Text("Studio Discovery", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            listOf("1 Narasi", "2 Draf", "3 Estimasi", "4 Bangun").forEachIndexed { i, label ->
+            listOf("1 Narasi", "2 Wawancara", "3 Draf", "4 Estimasi", "5 Bangun").forEachIndexed { i, label ->
                 ClayBadge(
                     text = label,
                     tint = when {
@@ -131,15 +131,14 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                         narrative = it
                         PlatformLocalStorage.setItem(NARRATIVE_DRAFT_KEY, it)
                     }
-                    draft = d; draftId = d.id; step = 2
+                    draft = d; draftId = d.id
+                    step = if (d.interview != null && d.interview.step != com.eventverse.app.domain.discovery.interview.InterviewStep.DONE) 2 else 3
                     busy = false
                 }
             )
         }
 
-        // Cabang per langkah **eksplisit** — dulu `else` dipakai untuk pesan "terima kasih", sehingga
-        // langkah 1 (narasi) tidak pernah tampil dan prospek langsung diberi tahu ia sudah mengirim
-        // permintaan. Ketahuan lewat pengecekan mata di peramban, bukan lewat test mana pun.
+        // Cabang per langkah eksplisit (plan §5, R16)
         when (step) {
             1 -> StepNarrative(
                 narrative = narrative,
@@ -168,11 +167,11 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                                     )
                                 }
                                 .onSuccess { d ->
-                                    // Narasi kini hidup di server (buku demand) — simpanan lokal
-                                    // pensiun; dua salinan hidup = resep data bertentangan.
                                     PlatformLocalStorage.removeItem(NARRATIVE_DRAFT_KEY)
                                     PlatformLocalStorage.removeItem(HINT_DRAFT_KEY)
-                                    draft = d; draftId = d.id; step = 2
+                                    draft = d; draftId = d.id
+                                    // Jika ada sesi wawancara aktif, buka langkah 2; jika tidak, langsung langkah 3
+                                    step = if (d.interview != null && d.interview.step != com.eventverse.app.domain.discovery.interview.InterviewStep.DONE) 2 else 3
                                 }
                                 .onFailure { error = it.message ?: "Gagal menyusun draf" }
                             busy = false
@@ -181,6 +180,22 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 }
             )
             2 -> draft?.let { d ->
+                val interviewState = remember(d.id) {
+                    com.eventverse.app.presentation.discovery.interview.InterviewSessionState(
+                        initialSession = d.interview,
+                        initialQuestion = d.nextQuestion,
+                        draftId = d.id,
+                        narrative = narrative
+                    )
+                }
+                com.eventverse.app.presentation.discovery.interview.DiscoveryInterviewPane(
+                    state = interviewState,
+                    draft = d,
+                    onComplete = { step = 3 },
+                    onSkip = { step = 3 }
+                )
+            }
+            3 -> draft?.let { d ->
                 ClayCard(modifier = Modifier.fillMaxWidth()) {
                     Text(d.packDisplayName, fontWeight = FontWeight.Bold)
                     Text(
@@ -202,9 +217,14 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 DataFlowPane(draft = d)
                 Text("Pratinjau Layar", style = androidx.compose.material3.MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 PrototypeRenderer(draft = d)
-                StepActions(onBack = { step = 1 }, onBackLabel = "Ubah Narasi", onNext = { step = 3 }, onNextLabel = "Lihat Estimasi")
+                StepActions(
+                    onBack = { step = if (d.interview != null) 2 else 1 },
+                    onBackLabel = if (d.interview != null) "Kembali ke Wawancara" else "Ubah Narasi",
+                    onNext = { step = 4 },
+                    onNextLabel = "Lihat Estimasi"
+                )
             }
-            3 -> draftId?.let { id ->
+            4 -> draftId?.let { id ->
                 if (price == null && !busy) {
                     busy = true
                     scope.launch {
@@ -216,14 +236,14 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                     ClayCard(modifier = Modifier.fillMaxWidth()) { EstimasiPrice(p) }
                 }
                 StepActions(
-                    onBack = { step = 2 }, onBackLabel = "Kembali ke Draf",
-                    onNext = { step = 4 }, onNextLabel = "Lanjut ke Pemesanan"
+                    onBack = { step = 3 }, onBackLabel = "Kembali ke Draf",
+                    onNext = { step = 5 }, onNextLabel = "Lanjut ke Pemesanan"
                 )
             }
-            4 -> StepBuild(
+            5 -> StepBuild(
                 companyName = companyName, busy = busy,
                 onNameChange = { companyName = it },
-                onBack = { step = 3 },
+                onBack = { step = 4 },
                 onSubmit = {
                     val id = draftId
                     if (id == null) {
@@ -232,12 +252,8 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                         busy = true; error = null
                         scope.launch {
                             client.lock(id)
-                                // Tanpa `ifBlank { … }`: nama kosong pernah menjadi data "Prospek Baru"
-                                // di ledger prospek — fallback diam yang membuat laporan tim menyebut
-                                // perusahaan yang tidak pernah ada. Endpoint memang menolak nama kosong,
-                                // jadi gerbangnya di sini (lihat StepBuild: tombol mati saat nama kosong).
                                 .mapCatching { client.submit(id, companyName.trim()).getOrThrow() }
-                                .onSuccess { step = 5 }
+                                .onSuccess { step = 6 }
                                 .onFailure { error = it.message }
                             busy = false
                         }
@@ -245,7 +261,7 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 },
                 draft = draft
             )
-            5 -> ClayCard(modifier = Modifier.fillMaxWidth(), outlineColor = WeMadeColors.Success) {
+            6 -> ClayCard(modifier = Modifier.fillMaxWidth(), outlineColor = WeMadeColors.Success) {
                 Text(
                     "Terima kasih! Tim kami akan menghubungi Anda untuk membangun sistem ini.",
                     fontWeight = FontWeight.Bold,
