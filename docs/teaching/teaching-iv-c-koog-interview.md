@@ -60,8 +60,8 @@ koreksi diri menyasar bagian yang benar (mis. `$.interview.links[0].moduleId`).
 - **Grader dites sendiri** (`InterviewEvalGraderTest`): sesi emas wajib lulus 100% (kalau tidak,
   penilainya yang rusak); setiap sesi rusak gagal di kriteria yang tepat.
 - **Kalibrasi terbuka**: pencocokan `contains` longgar — salah positif mungkin; naikkan ke pencocokan
-  kata bila eval live menunjukkan salah positif. Kriteria `berdasar_cerita` (C6) **menunggu kontrak
-  `basisRef` dari B** (induk §6.1) — belum dinilai, jangan mengaku menilai.
+  kata bila eval live menunjukkan salah positif. Kriteria `berdasar_cerita` (C6) **sudah aktif** sejak kontrak
+  `basisRef` B7 masuk (sembilan kriteria; lihat `InterviewEvalGrader`).
 
 ## 4. Disiplin biaya eval live (C4) — jangan ringankan
 

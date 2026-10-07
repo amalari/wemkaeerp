@@ -66,7 +66,7 @@ object DeterministicInterviewGuesser : InterviewGuesser {
             val key = RoleKey(slug(h.label, "r"))
             if (key in roles) return@forEach
             roles[key] = RoleDraft(key, h.label, division, ItemSource.GUESS, isHead = headTaken.add(division), basisRef = basis)
-            links += RoleModuleLink(key, module.id, originOf(module, pack), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE, basis)
+            links += RoleModuleLink(key, module.id, pack.suggestedOrigin(module), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE, basis)
         }
         return InterviewSession(
             InterviewStep.G1_DIVISI, divisions.values.toList(), roles.values.toList(), links, handoffsOf(pack, links),
@@ -82,12 +82,6 @@ object DeterministicInterviewGuesser : InterviewGuesser {
         }
         return found.filter { (_, r, _) -> found.none { (_, o, _) -> o.first <= r.first && o.last >= r.last && o != r } }
             .sortedBy { it.second.first }.map { it.first to it.third }
-    }
-
-    private fun originOf(m: ModuleDefinition, pack: DomainPack): ModuleOrigin {
-        if (pack.isReferenced(m.id)) return ModuleOrigin.REUSE_PLATFORM
-        val shipped = DomainPackRegistry.shipped.firstNotNullOfOrNull { it.module(m.id) } ?: return ModuleOrigin.NEW
-        return if (shipped.kind == ModuleKind.OPERATIONAL) ModuleOrigin.REUSE_PACK else ModuleOrigin.REUSE_PLATFORM
     }
 
     private fun handoffsOf(pack: DomainPack, links: List<RoleModuleLink>): List<ModuleHandoff> {

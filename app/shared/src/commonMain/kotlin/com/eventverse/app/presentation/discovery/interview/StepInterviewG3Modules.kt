@@ -49,7 +49,34 @@ fun StepInterviewG3Modules(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
-        if (state.links.isEmpty()) {
+        // Peran tanpa modul (tak ada tebakan): pengguna memilih modul dari pack; asal dihitung server (suggestedOrigin).
+        val unlinkedRoles = state.roles.filter { r -> state.links.none { it.roleKey == r.roleKey } }
+        val pickable = availableModules.filter { it.slot != null }
+        if (unlinkedRoles.isNotEmpty()) {
+            ClayCard(modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Hubungkan peran ke modul", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (pickable.isEmpty()) "Pack ini belum punya modul kerja untuk dipilih." else "Pilih modul yang dipegang tiap peran.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WeMadeColors.OnSurfaceMuted
+                )
+                unlinkedRoles.forEach { role ->
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                        Text(text = "Peran: ${role.label}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                            pickable.take(4).forEach { mod ->
+                                ClayButton(
+                                    text = mod.displayName.ifBlank { mod.id },
+                                    onClick = { state.addLink(role.roleKey, ModuleId(mod.id), mod.suggestedOrigin ?: ModuleOrigin.NEW) },
+                                    style = ClayButtonStyle.Secondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (state.links.isEmpty() && unlinkedRoles.isEmpty()) {
             ClayCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Belum ada kaitan peran ke modul.",
@@ -84,7 +111,7 @@ fun StepInterviewG3Modules(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Modul: ${link.moduleId.value}",
+                                text = "Modul: ${availableModules.firstOrNull { it.id == link.moduleId.value }?.displayName?.ifBlank { null } ?: link.moduleId.value}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -131,7 +158,7 @@ fun StepInterviewG3Modules(
                                                 link.roleKey,
                                                 link.moduleId,
                                                 ModuleId(mod.id),
-                                                mod.origin ?: ModuleOrigin.REUSE_PACK
+                                                mod.origin ?: mod.suggestedOrigin ?: ModuleOrigin.NEW
                                             )
                                             movingTargetKey = null
                                         },

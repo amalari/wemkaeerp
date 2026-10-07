@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDemandRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.interview.Confirmation
+import com.eventverse.app.domain.discovery.interview.InterviewStepFiller
 import com.eventverse.app.domain.discovery.usecases.InterviewDraftUseCases
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
 import com.eventverse.app.plugins.callerPrincipalOrNull
@@ -26,8 +27,13 @@ import io.ktor.server.routing.route
  * membawa `questionId`, `outcome` (`confirmed|changed|skipped`), `text?`, dan `session?` (hasil suntingan klien).
  * Balasan = ringkasan draf yang sama dengan `GET`, sudah memuat `interview` dan `nextQuestion`.
  */
-fun Route.discoveryInterviewRoutes(repository: DiscoveryDraftRepository, demands: DiscoveryDemandRepository) {
-    val interviews = InterviewDraftUseCases(repository)
+fun Route.discoveryInterviewRoutes(
+    repository: DiscoveryDraftRepository,
+    demands: DiscoveryDemandRepository,
+    /** Pengisi tebakan langkah (agent AI); null = tebakan deterministik saja. */
+    filler: InterviewStepFiller? = null
+) {
+    val interviews = InterviewDraftUseCases(repository, filler)
 
     route("/api/discovery/drafts") {
         post("/{id}/interview") {
@@ -54,7 +60,7 @@ fun Route.discoveryInterviewRoutes(repository: DiscoveryDraftRepository, demands
                     } catch (e: DiscoveryDraftDecodeException) {
                         return@post badRequest("Sesi wawancara tidak sah (${e.path}): ${e.message}")
                     }
-                    interviews.answer(id, caller, questionId, outcome, body.string("text"), revised)
+                    interviews.answer(id, caller, questionId, outcome, body.string("text"), revised, narrative)
                 }
                 else -> return@post badRequest("Field 'action' wajib: start, answer, atau accept_all (dapat '$action')")
             }
