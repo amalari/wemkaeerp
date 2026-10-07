@@ -22,7 +22,7 @@ import io.ktor.server.routing.route
 /**
  * `POST /api/discovery/drafts/{id}/interview` (PLAN-iv-B B4) — file sendiri supaya `DiscoveryRoutes.kt` tidak
  * bertambah. **Fail-closed, pemilik draf saja**: tanpa login 401, bukan pemilik 403 (superadmin pun tidak menjawab
- * atas nama prospek), draf terkunci 409. Body: `{"action": "start" | "answer" | "accept_all", ...}`; `answer`
+ * atas nama prospek), draf terkunci 409. Body: `{"action": "start" | "answer" | "accept_all", ...}`; `start` boleh membawa `mode: "konsultan"` (buka dengan fase F0–F2); `answer`
  * membawa `questionId`, `outcome` (`confirmed|changed|skipped`), `text?`, dan `session?` (hasil suntingan klien).
  * Balasan = ringkasan draf yang sama dengan `GET`, sudah memuat `interview` dan `nextQuestion`.
  */
@@ -41,7 +41,7 @@ fun Route.discoveryInterviewRoutes(repository: DiscoveryDraftRepository, demands
             val narrative = demands.findByDraftId(id)?.narrative.orEmpty()
 
             val result = when (val action = body.string("action")) {
-                "start" -> interviews.start(id, caller, narrative)
+                "start" -> interviews.start(id, caller, narrative, consultant = body.string("mode") == "konsultan")
                 "accept_all" -> interviews.acceptAll(id, caller, narrative)
                 "answer" -> {
                     val outcome = Confirmation.fromCode(body.string("outcome").orEmpty())

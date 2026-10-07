@@ -8,6 +8,7 @@ import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DeterministicInterviewGuesser
 import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.acceptAll
 import com.eventverse.app.domain.discovery.interview.answer
 
@@ -21,10 +22,14 @@ class InterviewDraftUseCases(private val repository: DiscoveryDraftRepository) {
 
     private val update = UpdateDiscoveryDraftUseCase(repository)
 
-    /** Memulai wawancara dari tebakan deterministik atas [narrative]. Idempoten: sesi yang sudah ada tidak ditimpa. */
-    suspend fun start(id: DiscoveryDraftId, caller: UserId, narrative: String): Result<StoredDiscoveryDraft> =
+    /**
+     * Memulai wawancara dari tebakan deterministik atas [narrative]; [consultant] membuka dengan fase F0–F2 (bisnis →
+     * tujuan → spesifikasi) sebelum G1. Idempoten: sesi yang sudah ada tidak ditimpa.
+     */
+    suspend fun start(id: DiscoveryDraftId, caller: UserId, narrative: String, consultant: Boolean = false): Result<StoredDiscoveryDraft> =
         mutate(id, caller) { draft ->
             draft.interview ?: DeterministicInterviewGuesser.propose(draft.pack, narrative)
+                .let { if (consultant) it.copy(step = InterviewStep.F0_BISNIS) else it }
         }
 
     suspend fun answer(

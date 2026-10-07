@@ -29,21 +29,32 @@ import com.eventverse.app.shared.json.jsonOf
  */
 object InterviewSessionCodec {
 
-    fun encode(s: InterviewSession): JsonValue.Obj = jsonObjectOf(
+    fun encode(s: InterviewSession): JsonValue.Obj = encodeCore(s).let { core ->
+        // Kunci berdasar-cerita ditulis hanya bila ada: wawancara lama ter-encode byte-per-byte sama.
+        val extra = buildMap<String, JsonValue> {
+            if (s.version != 1) put("version", jsonOf(s.version))
+            s.narrative?.let { put("narrative", jsonOf(it)) }
+            s.profile?.let { put("profile", InterviewBasisCodec.encodeProfile(it)) }
+            if (s.specs.isNotEmpty()) put("specs", InterviewBasisCodec.encodeSpecs(s.specs))
+        }
+        if (extra.isEmpty()) core else JsonValue.Obj(core.entries + extra)
+    }
+
+    private fun encodeCore(s: InterviewSession): JsonValue.Obj = jsonObjectOf(
         "step" to jsonOf(s.step.code),
-        "divisions" to jsonArrayOf(s.divisions.map { jsonObjectOf("code" to jsonOf(it.code.value), "name" to jsonOf(it.name), "source" to jsonOf(it.source.code)) }),
+        "divisions" to jsonArrayOf(s.divisions.map { jsonObjectOf("code" to jsonOf(it.code.value), "name" to jsonOf(it.name), "source" to jsonOf(it.source.code)).let { o -> InterviewBasisCodec.withRef(o, it.basisRef) } }),
         "roles" to jsonArrayOf(s.roles.map { r ->
             val base = jsonObjectOf("roleKey" to jsonOf(r.roleKey.value), "label" to jsonOf(r.label), "divisionCode" to jsonOf(r.divisionCode.value), "source" to jsonOf(r.source.code))
-            if (r.isHead) JsonValue.Obj(base.entries + ("isHead" to jsonOf(true))) else base
+            InterviewBasisCodec.withRef(if (r.isHead) JsonValue.Obj(base.entries + ("isHead" to jsonOf(true))) else base, r.basisRef)
         }),
         "links" to jsonArrayOf(s.links.map { l ->
             val base = jsonObjectOf(
                 "roleKey" to jsonOf(l.roleKey.value), "moduleId" to jsonOf(l.moduleId.value), "origin" to jsonOf(l.origin.code),
                 "features" to jsonArrayOf(l.features.map { jsonOf(it) }), "confirmed" to jsonOf(l.confirmed.code)
             )
-            l.confidence?.let { JsonValue.Obj(base.entries + ("confidence" to jsonOf(it))) } ?: base
+            InterviewBasisCodec.withRef(l.confidence?.let { JsonValue.Obj(base.entries + ("confidence" to jsonOf(it))) } ?: base, l.basisRef)
         }),
-        "handoffs" to jsonArrayOf(s.handoffs.map { jsonObjectOf("from" to jsonOf(it.from.value), "to" to jsonOf(it.to.value), "portType" to jsonOf(it.portType.value), "confirmed" to jsonOf(it.confirmed.code)) }),
+        "handoffs" to jsonArrayOf(s.handoffs.map { jsonObjectOf("from" to jsonOf(it.from.value), "to" to jsonOf(it.to.value), "portType" to jsonOf(it.portType.value), "confirmed" to jsonOf(it.confirmed.code)).let { o -> InterviewBasisCodec.withRef(o, it.basisRef) } }),
         "answers" to jsonArrayOf(s.answers.map { a ->
             val base = jsonObjectOf("turn" to jsonOf(a.turn), "step" to jsonOf(a.step.code), "questionId" to jsonOf(a.questionId), "outcome" to jsonOf(a.outcome.code))
             a.text?.let { JsonValue.Obj(base.entries + ("text" to jsonOf(it))) } ?: base
@@ -61,22 +72,32 @@ object InterviewSessionCodec {
 
     fun decode(obj: JsonValue.Obj, at: String): InterviewSession = InterviewSession(
         step = R(obj, at).enum("step", InterviewStep::fromCode),
+        version = R(obj, at).optInt("version")?.also { v ->
+            if (v != 1 && v != InterviewSession.BASED_ON_STORY) throw DiscoveryDraftDecodeException("$at.version", "versi $v tidak dikenal (1 atau ${InterviewSession.BASED_ON_STORY})")
+        } ?: 1,
+        narrative = R(obj, at).optString("narrative"),
+        profile = when (val v = obj["profile"]) {
+            null, JsonValue.Null -> null
+            is JsonValue.Obj -> InterviewBasisCodec.decodeProfile(v, "$at.profile")
+            else -> throw DiscoveryDraftDecodeException("$at.profile", "harus objek")
+        },
+        specs = InterviewBasisCodec.decodeSpecs(obj["specs"], "$at.specs"),
         divisions = R(obj, at).items("divisions") { r ->
-            r.build { DivisionDraft(r.value("code", ::DivisionCode), r.string("name"), r.enum("source", ItemSource::fromCode)) }
+            r.build { DivisionDraft(r.value("code", ::DivisionCode), r.string("name"), r.enum("source", ItemSource::fromCode), r.ref()) }
         },
         roles = R(obj, at).items("roles") { r ->
-            r.build { RoleDraft(r.value("roleKey", ::RoleKey), r.string("label"), r.value("divisionCode", ::DivisionCode), r.enum("source", ItemSource::fromCode), r.optBoolean("isHead") ?: false) }
+            r.build { RoleDraft(r.value("roleKey", ::RoleKey), r.string("label"), r.value("divisionCode", ::DivisionCode), r.enum("source", ItemSource::fromCode), r.optBoolean("isHead") ?: false, r.ref()) }
         },
         links = R(obj, at).items("links") { r ->
             r.build {
                 RoleModuleLink(
                     r.value("roleKey", ::RoleKey), r.value("moduleId", ::ModuleId), r.enum("origin", ModuleOrigin::fromCode),
-                    r.strings("features"), r.enum("confirmed", Confirmation::fromCode), r.optInt("confidence")
+                    r.strings("features"), r.enum("confirmed", Confirmation::fromCode), r.optInt("confidence"), r.ref()
                 )
             }
         },
         handoffs = R(obj, at).items("handoffs") { r ->
-            r.build { ModuleHandoff(r.value("from", ::ModuleId), r.value("to", ::ModuleId), r.value("portType", ::PortType), r.enum("confirmed", Confirmation::fromCode)) }
+            r.build { ModuleHandoff(r.value("from", ::ModuleId), r.value("to", ::ModuleId), r.value("portType", ::PortType), r.enum("confirmed", Confirmation::fromCode), r.ref()) }
         },
         answers = R(obj, at).items("answers") { r ->
             r.build { InterviewAnswer(r.int("turn"), r.enum("step", InterviewStep::fromCode), r.string("questionId"), r.enum("outcome", Confirmation::fromCode), r.optString("text")) }
@@ -84,6 +105,8 @@ object InterviewSessionCodec {
     )
 
     private class R(private val obj: JsonValue.Obj, val path: String) {
+        fun ref(): com.eventverse.app.domain.discovery.interview.BasisRef? = InterviewBasisCodec.optRef(obj, path)
+
         fun fail(key: String?, message: String): Nothing = throw DiscoveryDraftDecodeException(if (key == null) path else "$path.$key", message)
 
         fun <T> build(block: () -> T): T = try { block() } catch (e: DiscoveryDraftDecodeException) { throw e } catch (e: IllegalArgumentException) { fail(null, e.message ?: "tidak sah") }

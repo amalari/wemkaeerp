@@ -12,8 +12,9 @@ import com.eventverse.app.domain.pack.DomainPack
  * [InterviewGuesser]; di sini hanya prompt netral tanpa kosakata industri apa pun.
  */
 fun InterviewSession.nextQuestion(draft: DiscoveryDraft, guesses: List<Guess>? = null): InterviewQuestion? {
-    if (answers.size >= InterviewLimits.TURNS) return null
     val step = effectiveStep(draft.pack) ?: return null
+    // Batas giliran G1–G5; fase konsultan F0–F2 satu giliran per langkah sehingga tak mungkin melampaui batasnya.
+    if (!step.isConsultant && answers.count { !it.step.isConsultant } >= InterviewLimits.TURNS) return null
     val shown = guesses ?: pendingGuesses(step, draft.pack)
     return InterviewQuestion("${step.code}_t${answers.size + 1}", step, promptFor(step, shown.isNotEmpty()), shown)
 }
@@ -32,6 +33,7 @@ fun InterviewSession.pendingGuesses(step: InterviewStep, pack: DomainPack): List
             .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} → ${moduleName(it.moduleId)}", it.confidence ?: 70, it.origin) }
         InterviewStep.G4_SAMBUNGAN -> handoffs.filter { it.confirmed == Confirmation.GUESSED }
             .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} → ${moduleName(it.to)}", 60) }
+        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
         InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> emptyList()
     }
 }
@@ -40,6 +42,10 @@ internal fun InterviewSession.effectiveStep(pack: DomainPack): InterviewStep? {
     var s = step
     while (true) {
         val skip = when (s) {
+            InterviewStep.F0_BISNIS -> !profile?.summary.isNullOrBlank()
+            InterviewStep.F1_TUJUAN -> profile?.let { it.goals.isNotEmpty() || it.painPoints.isNotEmpty() } == true
+            // Area spesifikasi muncul dari titik sakit; tanpa titik sakit atau bila spek sudah ada, tak ada yang ditanya.
+            InterviewStep.F2_SPEK -> profile?.painPoints.isNullOrEmpty() || specs.isNotEmpty()
             InterviewStep.G2_PERAN -> divisions.isEmpty()
             InterviewStep.G3_MODUL -> roles.isEmpty()
             InterviewStep.G4_SAMBUNGAN -> links.map { it.moduleId }.distinct().count { pack.module(it)?.slot != null } < 2
@@ -51,6 +57,9 @@ internal fun InterviewSession.effectiveStep(pack: DomainPack): InterviewStep? {
 }
 
 private fun promptFor(step: InterviewStep, hasGuesses: Boolean): String = when (step) {
+    InterviewStep.F0_BISNIS -> "Ceritakan usahanya: apa yang dijual atau dikerjakan, siapa pelanggannya, dan sebesar apa skalanya?"
+    InterviewStep.F1_TUJUAN -> "Sistem seperti apa yang ingin Anda buat, dan apa yang paling merepotkan saat ini?"
+    InterviewStep.F2_SPEK -> "Untuk hal yang merepotkan tadi: siapa yang mengisi, apa yang dicatat, siapa yang perlu melihat, dan kapan dianggap selesai?"
     InterviewStep.G1_DIVISI ->
         if (hasGuesses) "Dari cerita Anda, saya menebak divisi berikut. Benar, ada yang perlu ditambah, dihapus, atau diganti nama?"
         else "Divisi atau bagian apa saja yang ada di usaha Anda?"
