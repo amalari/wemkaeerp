@@ -2,6 +2,7 @@ package com.eventverse.app.domain.discovery
 
 import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.blueprint.Blueprint
+import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.pack.DomainPack
@@ -55,7 +56,13 @@ data class PrototypeScreen(
 data class DiscoveryDraft(
     val pack: DomainPack,
     val blueprint: Blueprint,
-    val screens: List<PrototypeScreen> = emptyList()
+    val screens: List<PrototypeScreen> = emptyList(),
+    /**
+     * Wawancara peran → modul (PLAN-iv-B §6). Opsional & kompatibel mundur: draf lama tanpa kunci `interview`
+     * terbaca dan ter-encode byte-per-byte sama. Aturannya milik `InterviewValidator`, bukan konstruktor ini,
+     * supaya tebakan tak sah bisa dikembalikan ke agent dengan path.
+     */
+    val interview: InterviewSession? = null
 ) {
     init {
         require(blueprint.pack == pack.code) {

@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.discovery
 
+import com.eventverse.app.domain.discovery.interview.InterviewValidator
 import com.eventverse.app.domain.discovery.proposal.CrossScreenRules
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.discovery.proposal.ScreenProposalValidator
@@ -73,6 +74,7 @@ object DiscoveryDraftValidator {
             draft.screens.mapIndexedNotNull { i, s -> s.proposal?.let { "$.screens[$i].proposal" to it } },
             screenIds = false
         ).map { DiscoveryValidationIssue(it.path, it.message) }
+        draft.interview?.let { issues += InterviewValidator.validate(it, draft.pack) }
         return issues
     }
 
