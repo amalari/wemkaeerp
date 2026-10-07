@@ -1,0 +1,69 @@
+package com.eventverse.app.domain.discovery.proposal
+
+import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.prototype.FieldType
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class ProposalEditTest {
+
+    private fun f(key: String, type: FieldType = FieldType.TEXT, required: Boolean = false) = FieldProposal(key, key.replaceFirstChar { it.uppercase() }, type, required)
+
+    private val table = ScreenProposal(
+        "s1", ModuleId("klinik_poli"), "Antrean Poli", WidgetKind.TABLE, "karena uji",
+        EntityProposal("pasien", "Pasien", listOf(f("nama", required = true), f("keluhan"), f("tgl", FieldType.DATE))),
+        ViewProposal.Table(columns = listOf("nama", "keluhan", "tgl"), editableFields = listOf("keluhan")),
+        seed = listOf(mapOf("nama" to "Budi", "keluhan" to "ngilu", "tgl" to "2026-10-01"))
+    )
+
+    @Test
+    fun `tambah field ikut tampil di tabel, dan lolos validator`() {
+        val out = table.applyEdits(listOf(ProposalEdit.AddField(f("tanggal_kirim", FieldType.DATE)))).getOrThrow()
+        assertEquals(listOf("nama", "keluhan", "tgl", "tanggal_kirim"), out.entity!!.fields.map { it.key })
+        assertEquals(listOf("nama", "keluhan", "tgl", "tanggal_kirim"), (out.view as ViewProposal.Table).columns)
+        assertEquals(listOf("keluhan", "tanggal_kirim"), (out.view as ViewProposal.Table).editableFields)
+    }
+
+    @Test
+    fun `kurangi field dibersihkan dari tabel dan seed, objek asal tidak berubah`() {
+        val out = table.applyEdits(listOf(ProposalEdit.RemoveField("keluhan"))).getOrThrow()
+        assertEquals(listOf("nama", "tgl"), out.entity!!.fields.map { it.key })
+        assertEquals(listOf("nama", "tgl"), (out.view as ViewProposal.Table).columns)
+        assertEquals(emptyList(), (out.view as ViewProposal.Table).editableFields)
+        assertEquals(setOf("nama", "tgl"), out.seed.single().keys)
+        assertEquals(3, table.entity!!.fields.size, "usulan asal tidak dimutasi")
+    }
+
+    @Test
+    fun `ganti field mengubah tipe dan wajib tanpa mengubah kunci`() {
+        val enum = FieldProposal("keluhan", "Keluhan", FieldType.ENUM, true, listOf("ngilu", "bengkak"))
+        val out = table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", enum))).getOrThrow()
+        assertEquals(FieldType.ENUM, out.entity!!.fields.first { it.key == "keluhan" }.type)
+        assertTrue(out.entity!!.fields.first { it.key == "keluhan" }.required)
+    }
+
+    @Test
+    fun `sunting tak sah ditolak dengan pesan jelas, bukan disaring diam-diam`() {
+        fun msg(e: ProposalEdit) = table.applyEdits(listOf(e)).exceptionOrNull()?.message.orEmpty()
+        assertTrue(msg(ProposalEdit.AddField(f("nama"))).contains("sudah ada"))
+        assertTrue(msg(ProposalEdit.RemoveField("hantu")).contains("tidak ada"))
+        assertTrue(msg(ProposalEdit.ReplaceField("nama", f("lain"))).contains("tidak boleh mengubah kuncinya"))
+        assertTrue(msg(ProposalEdit.AddField(f("Kunci Salah"))).contains("tidak sah"), "kunci mengikuti aturan validator tunggal")
+        val noEntity = table.copy(widget = WidgetKind.CUSTOM_SCREEN, entity = null, view = ViewProposal.None, seed = emptyList())
+        assertTrue(noEntity.applyEdits(listOf(ProposalEdit.AddField(f("x")))).exceptionOrNull()!!.message!!.contains("tidak punya isian"))
+    }
+
+    @Test
+    fun `field status tidak boleh dibuang atau diganti tipenya`() {
+        val status = FieldProposal("status", "Status", FieldType.ENUM, true, listOf("baru", "selesai"))
+        val kanban = ScreenProposal(
+            "s2", ModuleId("klinik_poli"), "Papan", WidgetKind.KANBAN, "karena uji",
+            EntityProposal("pasien", "Pasien", listOf(f("nama", required = true), status), statusField = "status"),
+            ViewProposal.Kanban()
+        )
+        assertTrue(kanban.applyEdits(listOf(ProposalEdit.RemoveField("status"))).exceptionOrNull()!!.message!!.contains("tidak boleh dibuang"))
+        assertTrue(kanban.applyEdits(listOf(ProposalEdit.ReplaceField("status", status.copy(type = FieldType.TEXT, options = emptyList())))).isFailure)
+    }
+}
