@@ -6,14 +6,14 @@ import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.InterviewStepFiller
-import com.eventverse.app.domain.discovery.interview.replacingGuessesOf
+import com.eventverse.app.domain.discovery.interview.mergingGuessesOf
 import com.eventverse.app.infrastructure.EnvLoader
 import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
 
 /**
  * Pengisi langkah wawancara berbasis agent Koog ([AgentInterviewGuesser]). Dipanggil **hanya saat langkah G1–G4
- * mulai ditanyakan**; usulan agent menggantikan tebakan deterministik langkah itu (butir milik pengguna tetap),
+ * mulai ditanyakan**; usulan agent **digabung** dengan tebakan deterministik langkah itu (hybrid: kamus tetap, agent mengisi celah; kunci sama → agent menang; butir milik pengguna tetap),
  * butir yang menggantung dipangkas, dan pemanggil memvalidasi hasilnya. Galat atau timeout → [fill] melempar dan
  * use case mempertahankan tebakan deterministik: wawancara tidak pernah gagal karena AI.
  */
@@ -24,7 +24,7 @@ class AgentStepFiller(
 
     override suspend fun fill(draft: DiscoveryDraft, session: InterviewSession, step: InterviewStep, narrative: String): InterviewSession {
         val guesses = withTimeout(timeoutMillis) { guesser.guess(step, draft.pack, draft, narrative).getOrThrow() }
-        return session.replacingGuessesOf(step, guesses.divisions, guesses.roles, guesses.links, guesses.handoffs)
+        return session.mergingGuessesOf(step, guesses.divisions, guesses.roles, guesses.links, guesses.handoffs)
     }
 
     companion object {

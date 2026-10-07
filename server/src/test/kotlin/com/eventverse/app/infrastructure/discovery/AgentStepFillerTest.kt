@@ -56,12 +56,12 @@ class AgentStepFillerTest {
     """.trimIndent()
 
     @Test
-    fun `usulan agent menggantikan tebakan G1, peran yang menggantung dipangkas, hasil lolos validator`() = runBlocking {
+    fun `usulan agent digabung dengan tebakan deterministik, kamus tidak hilang, hasil lolos validator`() = runBlocking {
         val executor = ScriptedPromptExecutor(listOf(g1Answer("antrean_poli", "Antrean Poli")))
         val filler = AgentStepFiller(AgentInterviewGuesser(executor, model = model))
         val out = filler.fill(draft, baseline, InterviewStep.G1_DIVISI, narasi)
-        assertEquals(listOf("antrean_poli"), out.divisions.map { it.code.value })
-        assertTrue(out.roles.isEmpty(), "peran tebakan lama menunjuk divisi yang sudah diganti ⇒ dipangkas")
+        assertEquals(listOf("pendaftaran", "antrean_poli"), out.divisions.map { it.code.value })
+        assertEquals(listOf("resepsionis"), out.roles.map { it.roleKey.value }, "peran deterministik tetap menempel di divisinya")
         assertEquals(emptyList(), InterviewValidator.validate(out, pack))
         assertEquals(1, executor.calls)
     }
