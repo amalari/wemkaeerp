@@ -37,37 +37,46 @@ object DeterministicInterviewGuesser : InterviewGuesser {
                 .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} → ${moduleName(it.moduleId)}", CONFIDENCE_ROLE, it.origin) }
             InterviewStep.G4_SAMBUNGAN -> p.handoffs.filter { h -> known?.handoffs?.none { it.from == h.from && it.to == h.to } != false }
                 .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} → ${moduleName(it.to)}", CONFIDENCE_HANDOFF) }
+            InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
             InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> emptyList()
         }
     }
 
-    /** Sesi usulan penuh (semua `GUESSED`, langkah G1) dari [narrative]; kosong bila pack tanpa kamus / tak ada yang cocok. */
+    /**
+     * Sesi usulan penuh (semua `GUESSED`, langkah G1) dari [narrative]; kosong bila pack tanpa kamus / tak ada yang cocok.
+     * Setiap butir membawa dasar `NARASI` berupa **kutipan persis dari cerita** (bagian yang dikenali kamus) —
+     * tebakan tanpa kutipan tidak dibuat. Sesi bertanda [InterviewSession.BASED_ON_STORY].
+     */
     fun propose(pack: DomainPack, narrative: String): InterviewSession {
-        val hints = matchedHints(pack, narrative)
+        val story = narrative.take(InterviewLimits.NARRATIVE)
         val divisions = linkedMapOf<DivisionCode, DivisionDraft>()
         val roles = linkedMapOf<RoleKey, RoleDraft>()
         val links = mutableListOf<RoleModuleLink>()
         val headTaken = mutableSetOf<DivisionCode>()
-        hints.forEach { h ->
+        matchedHints(pack, story).forEach { (h, quote) ->
             val module = pack.module(h.moduleId) ?: return@forEach
+            val basis = BasisRef(Basis.NARASI, quote = quote)
             val division = DivisionCode(slug(module.displayName, "d"))
-            divisions.getOrPut(division) { DivisionDraft(division, module.displayName, ItemSource.GUESS) }
+            divisions.getOrPut(division) { DivisionDraft(division, module.displayName, ItemSource.GUESS, basis) }
             val key = RoleKey(slug(h.label, "r"))
             if (key in roles) return@forEach
-            roles[key] = RoleDraft(key, h.label, division, ItemSource.GUESS, isHead = headTaken.add(division))
-            links += RoleModuleLink(key, module.id, originOf(module), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE)
+            roles[key] = RoleDraft(key, h.label, division, ItemSource.GUESS, isHead = headTaken.add(division), basisRef = basis)
+            links += RoleModuleLink(key, module.id, originOf(module), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE, basis)
         }
-        return InterviewSession(InterviewStep.G1_DIVISI, divisions.values.toList(), roles.values.toList(), links, handoffsOf(pack, links))
+        return InterviewSession(
+            InterviewStep.G1_DIVISI, divisions.values.toList(), roles.values.toList(), links, handoffsOf(pack, links),
+            version = InterviewSession.BASED_ON_STORY, narrative = story.ifBlank { null }
+        )
     }
 
-    /** Hint yang muncul di narasi, urut posisi pertama muncul; hint yang terkandung frasa lebih panjang dibuang. */
-    private fun matchedHints(pack: DomainPack, narrative: String): List<RoleHint> {
-        val text = narrative.lowercase()
+    /** Hint yang muncul di narasi + kutipan aslinya, urut posisi pertama muncul; hint yang terkandung frasa lebih panjang dibuang. */
+    private fun matchedHints(pack: DomainPack, narrative: String): List<Pair<RoleHint, String>> {
         val found = pack.roleHints.mapNotNull { h ->
-            Regex("(?<![\\p{L}\\p{N}])${Regex.escape(h.word)}(?![\\p{L}\\p{N}])").find(text)?.let { Triple(h, it.range.first, it.range.last) }
+            Regex("(?<![\\p{L}\\p{N}])${Regex.escape(h.word)}(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE).find(narrative)
+                ?.let { Triple(h, it.range, it.value) }
         }
-        return found.filter { (_, s, e) -> found.none { (o, os, oe) -> os <= s && oe >= e && (os != s || oe != e) } }
-            .sortedBy { it.second }.map { it.first }
+        return found.filter { (_, r, _) -> found.none { (_, o, _) -> o.first <= r.first && o.last >= r.last && o != r } }
+            .sortedBy { it.second.first }.map { it.first to it.third }
     }
 
     private fun originOf(m: ModuleDefinition): ModuleOrigin {
@@ -79,7 +88,7 @@ object DeterministicInterviewGuesser : InterviewGuesser {
         val flow = links.map { it.moduleId }.distinct().mapNotNull { id -> pack.module(id)?.takeIf { it.slot != null } }
         return flow.zipWithNext().mapNotNull { (a, b) ->
             val port = pack.slot(requireNotNull(a.slot))?.defaultOutput ?: return@mapNotNull null
-            if (port in pack.wiredPortTypes) ModuleHandoff(a.id, b.id, port) else null
+            if (port in pack.wiredPortTypes) ModuleHandoff(a.id, b.id, port, basisRef = links.firstOrNull { it.moduleId == b.id }?.basisRef) else null
         }
     }
 

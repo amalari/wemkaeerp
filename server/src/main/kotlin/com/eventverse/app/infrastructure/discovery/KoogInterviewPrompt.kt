@@ -92,6 +92,9 @@ internal object KoogInterviewPrompt {
 
     /** Instruksi per langkah — satu giliran = satu kelompok keputusan (plan induk §1). */
     internal fun stepInstruction(step: InterviewStep): String = when (step) {
+        // Fase konsultan F0–F2 belum punya prompt (C6): protokol "tidak ada perubahan" supaya tak ada tebakan liar.
+        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK ->
+            "Langkah konsultan (F0-F2) belum ditebak oleh agent ini. Balas {\"interview\":{\"useCurrent\":true}}."
         InterviewStep.G1_DIVISI ->
             "Tebak G1 (divisi): kelompok kerja yang terdengar dari cerita (\"potong, jahit, QC\" berarti divisi Potong, Jahit, QC). Isi divisions saja."
         InterviewStep.G2_PERAN ->

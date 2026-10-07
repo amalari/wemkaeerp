@@ -79,7 +79,7 @@ class DeterministicInterviewGuesserTest {
     @Test
     fun `pack tanpa kamus tidak menebak, bahkan untuk narasi bernada garment`() {
         val noHints = InterviewFixtures.klinikPack
-        assertEquals(InterviewSession(InterviewStep.G1_DIVISI), DeterministicInterviewGuesser.propose(noHints, "operator jahit lalu qc"))
+        assertEquals(InterviewSession(InterviewStep.G1_DIVISI, version = InterviewSession.BASED_ON_STORY, narrative = "operator jahit lalu qc"), DeterministicInterviewGuesser.propose(noHints, "operator jahit lalu qc"))
         InterviewStep.entries.forEach { assertEquals(emptyList(), DeterministicInterviewGuesser.guessNow(it, noHints, draftOf(noHints, null), "kasir")) }
         val q = InterviewSession(InterviewStep.G1_DIVISI).nextQuestion(draftOf(noHints, null))
         assertNotNull(q); assertTrue(q.guesses.isEmpty())

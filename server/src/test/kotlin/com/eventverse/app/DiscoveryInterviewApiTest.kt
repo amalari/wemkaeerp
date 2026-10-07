@@ -207,4 +207,23 @@ class DiscoveryInterviewApiTest {
         assertEquals(HttpStatusCode.BadRequest, r2.status)
         assertTrue(r2.bodyAsText().contains("$.session.step"))
     }
+
+    @Test
+    fun `mode konsultan membuka F0 dan ringkasan membawa basis per modul dan profil lewat jawaban`() = testApplication {
+        DatabaseFactory.init()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(drafts) }
+        val ops = client.createDraft(drafts, "iv-6")
+
+        val started = obj(client.interview("iv-6", """{"action":"start","mode":"konsultan"}""").bodyAsText())
+        assertEquals("f0_bisnis", started.obj("nextQuestion")!!.string("step"))
+        val withBasis = started.array("modules").filterIsInstance<JsonValue.Obj>().filter { it.has("basis") }
+        assertEquals(ops.toSet(), withBasis.map { it.string("id") }.toSet())
+        assertTrue(withBasis.all { it.obj("basis")!!.string("basis") == "narasi" && narrative.contains(it.obj("basis")!!.string("quote")!!) })
+        assertEquals(2, started.obj("interview")!!.int("version"))
+
+        val afterF0 = obj(client.interview("iv-6", """{"action":"answer","questionId":"f0_bisnis_t1","outcome":"confirmed","text":"Klinik umum 40 pasien sehari"}""").bodyAsText())
+        assertEquals("Klinik umum 40 pasien sehari", afterF0.obj("interview")!!.obj("profile")!!.string("summary"))
+        assertEquals("f1_tujuan", afterF0.obj("nextQuestion")!!.string("step"))
+    }
 }

@@ -24,6 +24,10 @@ value class RoleKey(val value: String) {
  * bukan `name`, supaya mengganti nama konstanta tidak mengubah dokumen tersimpan).
  */
 enum class InterviewStep(val code: String) {
+    /** Fase konsultan (PLAN induk §4.2): bisnis → tujuan/titik sakit → spesifikasi per area. Opsional; mode "konsultan". */
+    F0_BISNIS("f0_bisnis"),
+    F1_TUJUAN("f1_tujuan"),
+    F2_SPEK("f2_spek"),
     G1_DIVISI("g1_divisi"),
     G2_PERAN("g2_peran"),
     G3_MODUL("g3_modul"),
@@ -34,6 +38,9 @@ enum class InterviewStep(val code: String) {
     companion object {
         fun fromCode(code: String): InterviewStep? = entries.firstOrNull { it.code == code }
     }
+
+    /** Fase konsultan (F0–F2); selain itu giliran terjemahan G1–G5 / DONE. */
+    val isConsultant: Boolean get() = this == F0_BISNIS || this == F1_TUJUAN || this == F2_SPEK
 }
 
 /**
@@ -79,6 +86,12 @@ object InterviewLimits {
     const val ROLES = 40
     const val LINKS = 60
     const val TURNS = 8
+    /** Batas giliran fase konsultan F0–F2 (terpisah dari [TURNS] giliran G1–G5). */
+    const val CONSULTANT_TURNS = 6
+    const val NARRATIVE = 8000
+    const val PROFILE_TEXT = 1000
+    const val GOALS = 6
+    const val SPECS = 12
     const val FEATURES_PER_LINK = 10
     const val HANDOFFS = 60
     const val TEXT = 200

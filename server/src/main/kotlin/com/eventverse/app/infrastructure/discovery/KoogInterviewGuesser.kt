@@ -47,6 +47,8 @@ internal fun mergeStepGuesses(session: InterviewSession, guesses: InterviewStepG
     InterviewStep.G4_SAMBUNGAN -> session.copy(
         handoffs = mergeByKey(session.handoffs, guesses.handoffs) { "${it.from.value}->${it.to.value}:${it.portType.value}" }
     )
+    // Fase konsultan F0–F2 bukan tebakan G1–G5: tidak ada yang digabung (persona konsultan = C6).
+    InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
     InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> session
 }
 
