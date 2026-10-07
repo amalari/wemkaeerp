@@ -169,7 +169,9 @@ data class DomainPack(
      * layar apa pun — pane prototype tetap jujur menampilkan keadaan kosong, tanpa fallback ke
      * kosakata pack lain.
      */
-    val screenSuggestions: List<ScreenSuggestion> = emptyList()
+    val screenSuggestions: List<ScreenSuggestion> = emptyList(),
+    /** Kamus peran → modul untuk wawancara (lihat [RoleHint]). Kosong = tidak ada tebakan, bukan kamus pack lain. */
+    val roleHints: List<RoleHint> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -198,6 +200,10 @@ data class DomainPack(
             require(s.moduleId.value in moduleIds) {
                 "Usulan layar menunjuk modul tak dikenal ${s.moduleId.value} di pack ${code.value}"
             }
+        }
+        requireUnique("kamus peran", roleHints.map { it.word })
+        roleHints.forEach { h ->
+            require(h.moduleId.value in moduleIds) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
         }
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->

@@ -70,7 +70,10 @@ object DomainPackCodec {
         "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value }),
         "portLabels" to jsonStringMapOf(pack.portLabels),
         "screenSuggestions" to ScreenSuggestionCodec.encode(pack.screenSuggestions)
-    )
+    ).let { root ->
+        // Kunci baru ditulis hanya bila ada: pack tanpa kamus ter-encode byte-per-byte sama seperti dulu.
+        if (pack.roleHints.isEmpty()) root else JsonValue.Obj(root.entries + ("roleHints" to RoleHintCodec.encode(pack.roleHints)))
+    }
 
     fun encodeToString(pack: DomainPack): String = encode(pack).encode()
 
@@ -114,6 +117,7 @@ object DomainPackCodec {
         // belum mengusulkan layar, bukan fallback ke usulan pack lain. Decode ketatnya kini milik
         // ScreenSuggestionCodec (dipecah dari file ini, batas ukuran file).
         val screenSuggestions = ScreenSuggestionCodec.decode(root["screenSuggestions"])
+        val roleHints = RoleHintCodec.decode(root["roleHints"], "$.roleHints")
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -127,7 +131,8 @@ object DomainPackCodec {
                 actions = actions,
                 vocabulary = vocabulary,
                 portLabels = r.stringMapOrNull("portLabels"),
-                screenSuggestions = screenSuggestions
+                screenSuggestions = screenSuggestions,
+                roleHints = roleHints
             )
         }
     }
