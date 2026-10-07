@@ -6,6 +6,7 @@ import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.discovery.proposal.ScreenProposalValidator
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.matchesShipped
 
 /** Satu pelanggaran dengan **path** ke bagian dokumen yang salah (`$.pack.modules[2].id`). */
 data class DiscoveryValidationIssue(val path: String, val message: String)
@@ -31,7 +32,7 @@ object DiscoveryDraftValidator {
             shipped == null -> DomainPackRegistry.violations(draft.pack).map { it.toPathedIssue(draft) }
             // Pack bawaan platform (garment) tidak boleh "draft" ulang dengan isi berbeda: draf garment
             // sah hanya bila dokumennya identik dengan pack yang dikirim.
-            shipped != draft.pack -> listOf(
+            !draft.pack.matchesShipped(shipped) -> listOf(
                 DiscoveryValidationIssue(
                     "$.pack",
                     "Kode ${draft.pack.code.value} milik pack bawaan platform; dokumen wajib identik, bukan ditulis ulang"

@@ -75,6 +75,7 @@ object DomainPackCodec {
         val extra = buildMap<String, JsonValue> {
             if (pack.roleHints.isNotEmpty()) put("roleHints", RoleHintCodec.encode(pack.roleHints))
             if (pack.reservedTerms.isNotEmpty()) put("reservedTerms", jsonArrayOf(pack.reservedTerms.map { jsonOf(it) }))
+            if (pack.sharedModules.isNotEmpty()) put("sharedModules", jsonArrayOf(pack.sharedModules.map { jsonOf(it.value) }))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -127,6 +128,14 @@ object DomainPackCodec {
             is JsonValue.Arr -> v.items.mapIndexed { i, t -> (t as? JsonValue.Str)?.value ?: throw DomainPackDecodeException("$.reservedTerms[$i]", "harus string") }
             else -> throw DomainPackDecodeException("$.reservedTerms", "harus array")
         }
+        val sharedModules = when (val v = root["sharedModules"]) {
+            null, JsonValue.Null -> emptySet()
+            is JsonValue.Arr -> v.items.mapIndexed { i, t ->
+                val raw = (t as? JsonValue.Str)?.value ?: throw DomainPackDecodeException("$.sharedModules[$i]", "harus string")
+                try { ModuleId(raw) } catch (e: IllegalArgumentException) { throw DomainPackDecodeException("$.sharedModules[$i]", e.message ?: "tidak sah") }
+            }.toSet()
+            else -> throw DomainPackDecodeException("$.sharedModules", "harus array")
+        }
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -142,7 +151,8 @@ object DomainPackCodec {
                 portLabels = r.stringMapOrNull("portLabels"),
                 screenSuggestions = screenSuggestions,
                 roleHints = roleHints,
-                reservedTerms = reservedTerms
+                reservedTerms = reservedTerms,
+                sharedModules = sharedModules
             )
         }
     }

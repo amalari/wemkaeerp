@@ -158,7 +158,8 @@ object GarmentDomainPack {
             portLabels = GarmentPortTypes.labels,
             screenSuggestions = GarmentScreenSuggestions.all,
             roleHints = GarmentRoleHints.all,
-            reservedTerms = GarmentReservedTerms.terms
+            reservedTerms = GarmentReservedTerms.terms,
+            sharedModules = setOf(GarmentModules.COSTING_HPP)
         )
     }
 }
