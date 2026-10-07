@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val client = remember { DiscoveryApiClient() }
+    val interviewRemote = remember(client) { com.eventverse.app.presentation.discovery.interview.ApiInterviewRemote(client) }
 
     var step by remember { mutableStateOf(1) }
     // Autosave narasi (plan §6 Fase E): cerita yang belum dikirim dipulihkan dari perangkat ini,
@@ -166,9 +167,14 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                                             ?: throw IllegalStateException("Respons draf tidak dikenali")
                                     )
                                 }
-                                .onSuccess { d ->
+                                .onSuccess { created ->
                                     PlatformLocalStorage.removeItem(NARRATIVE_DRAFT_KEY)
                                     PlatformLocalStorage.removeItem(HINT_DRAFT_KEY)
+                                    // Wawancara konsultan dimulai di server (opsional: gagal ⇒ lanjut tanpa wawancara, dengan pesan).
+                                    val d = interviewRemote.start(created.id).getOrElse {
+                                        error = "Wawancara tidak bisa dimulai (${it.message ?: "galat tak dikenal"}); lanjut tanpa wawancara."
+                                        created
+                                    }
                                     draft = d; draftId = d.id
                                     // Jika ada sesi wawancara aktif, buka langkah 2; jika tidak, langsung langkah 3
                                     step = if (d.interview != null && d.interview.step != com.eventverse.app.domain.discovery.interview.InterviewStep.DONE) 2 else 3
@@ -186,7 +192,11 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                         initialQuestion = d.nextQuestion,
                         draftId = d.id,
                         narrative = narrative
-                    )
+                    ).also {
+                        it.remote = interviewRemote
+                        it.scope = scope
+                        it.onServerDraft = { updated -> draft = updated }
+                    }
                 }
                 com.eventverse.app.presentation.discovery.interview.DiscoveryInterviewPane(
                     state = interviewState,

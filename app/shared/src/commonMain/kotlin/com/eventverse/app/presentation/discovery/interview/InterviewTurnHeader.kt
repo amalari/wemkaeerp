@@ -53,7 +53,10 @@ fun InterviewTurnHeader(
         InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> "Tinjau seluruh rancangan sistem sebelum melangkah ke draf blueprint."
     }
 
-    val maxTurns = if (turnNumber > 5 || step.isConsultant) 8 else 5
+    // Penyebut mengikuti jalur: fase konsultan (3) + G1–G5 = 8; tanpa fase konsultan G1–G5 saja = 5.
+    // Indeks G dihitung dari langkah; nomor giliran yang lebih besar darinya berarti fase konsultan sudah dilewati.
+    val gIndex = (step.ordinal - InterviewStep.G1_DIVISI.ordinal + 1).coerceIn(1, 5)
+    val maxTurns = if (step.isConsultant || turnNumber > gIndex) 8 else 5
 
     ClayCard(modifier = modifier.fillMaxWidth()) {
         Row(

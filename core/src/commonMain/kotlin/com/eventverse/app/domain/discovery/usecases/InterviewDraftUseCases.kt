@@ -8,6 +8,9 @@ import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DeterministicInterviewGuesser
 import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewStepFiller
+import com.eventverse.app.domain.discovery.interview.InterviewValidator
+import com.eventverse.app.domain.discovery.interview.effectiveStep
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.acceptAll
 import com.eventverse.app.domain.discovery.interview.answer
@@ -18,7 +21,11 @@ import com.eventverse.app.domain.discovery.interview.answer
  * lewat `UpdateDiscoveryDraftUseCase`, jadi LOCKED ditolak dan validator draf (termasuk `InterviewValidator`)
  * selalu berjalan: sesi yang gagal tidak pernah tersimpan.
  */
-class InterviewDraftUseCases(private val repository: DiscoveryDraftRepository) {
+class InterviewDraftUseCases(
+    private val repository: DiscoveryDraftRepository,
+    /** Pengisi tebakan langkah (agent AI); null = hanya tebakan deterministik. Kegagalannya tidak pernah menggagalkan giliran. */
+    private val filler: InterviewStepFiller? = null
+) {
 
     private val update = UpdateDiscoveryDraftUseCase(repository)
 
@@ -30,13 +37,16 @@ class InterviewDraftUseCases(private val repository: DiscoveryDraftRepository) {
         mutate(id, caller) { draft ->
             draft.interview ?: DeterministicInterviewGuesser.propose(draft.pack, narrative)
                 .let { if (consultant) it.copy(step = InterviewStep.F0_BISNIS) else it }
+                .let { fillCurrentStep(draft, it, narrative) }
         }
 
     suspend fun answer(
-        id: DiscoveryDraftId, caller: UserId, questionId: String, outcome: Confirmation, text: String?, revised: InterviewSession?
+        id: DiscoveryDraftId, caller: UserId, questionId: String, outcome: Confirmation, text: String?, revised: InterviewSession?,
+        narrative: String = ""
     ): Result<StoredDiscoveryDraft> = mutate(id, caller) { draft ->
         val current = requireNotNull(draft.interview) { "Wawancara belum dimulai; mulai dulu" }
-        current.answer(draft, questionId, outcome, text, revised).getOrThrow()
+        val advanced = current.answer(draft, questionId, outcome, text, revised).getOrThrow()
+        fillCurrentStep(draft, advanced, narrative.ifBlank { advanced.narrative.orEmpty() })
     }
 
     /** "Terima semua tebakan": menutup wawancara, tebakan dicatat `SKIPPED`. Memulai sesi dulu bila belum ada. */
@@ -45,8 +55,20 @@ class InterviewDraftUseCases(private val repository: DiscoveryDraftRepository) {
             (draft.interview ?: DeterministicInterviewGuesser.propose(draft.pack, narrative)).acceptAll()
         }
 
+    /**
+     * Langkah G1–G4 yang akan ditanyakan berikutnya diisi [filler] (agent AI) bila ada. Hasil dipakai **hanya bila
+     * sesi hasilnya lolos validator**; selain itu (galat, timeout, usulan tak sah) sesi dikembalikan apa adanya.
+     */
+    private suspend fun fillCurrentStep(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
+        val agent = filler ?: return session
+        val step = session.effectiveStep(draft.pack) ?: return session
+        if (step.isConsultant || step == InterviewStep.G5_RINGKASAN) return session
+        val filled = runCatching { agent.fill(draft.copy(interview = session), session, step, narrative) }.getOrNull() ?: return session
+        return if (InterviewValidator.validate(filled, draft.pack).isEmpty()) filled else session
+    }
+
     private suspend fun mutate(
-        id: DiscoveryDraftId, caller: UserId, change: (DiscoveryDraft) -> InterviewSession
+        id: DiscoveryDraftId, caller: UserId, change: suspend (DiscoveryDraft) -> InterviewSession
     ): Result<StoredDiscoveryDraft> = runCatching {
         val stored = repository.findById(id) ?: error("Draf ${id.value} tidak ditemukan")
         if (stored.ownerUserId != caller) throw UpdateDiscoveryDraftUseCase.NotOwnerException("Draf ${id.value} bukan milik Anda")

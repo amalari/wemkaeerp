@@ -23,6 +23,9 @@ import com.eventverse.app.domain.discovery.interview.RoleKey
 import com.eventverse.app.domain.discovery.interview.RoleModuleLink
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.PortType
+import com.eventverse.app.presentation.discovery.DiscoveryDraftUi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** Status saran konsultan (fase F0-F2). */
 enum class ConsultantSuggestionStatus { PENDING, ACCEPTED, REJECTED, MODIFIED }
@@ -47,7 +50,7 @@ class InterviewSessionState(
     val draftId: String = "",
     val narrative: String = ""
 ) {
-    var step by mutableStateOf(initialSession?.step ?: InterviewStep.G1_DIVISI)
+    var step by mutableStateOf(initialQuestion?.step ?: initialSession?.step ?: InterviewStep.G1_DIVISI)
     var turnNumber by mutableStateOf(1)
     var currentQuestion by mutableStateOf(initialQuestion)
     var busy by mutableStateOf(false)
@@ -63,22 +66,15 @@ class InterviewSessionState(
     val answers = mutableStateListOf<InterviewAnswer>().apply { addAll(initialSession?.answers.orEmpty()) }
     val consultantSuggestions = mutableStateListOf<ConsultantSuggestion>()
 
-    init {
-        // Inisialisasi saran konsultan awal bila belum ada
-        if (narrative.isNotBlank() && consultantSuggestions.isEmpty()) {
-            consultantSuggestions.add(
-                ConsultantSuggestion(
-                    id = "sug_qc",
-                    title = "Otomasi Serah-Terima Antar Unit",
-                    rationale = "Alur operasional akan lebih tertib bila dokumen serah-terima divalidasi langsung.",
-                    basisRef = "Berdasarkan narasi kebutuhan Anda",
-                    status = ConsultantSuggestionStatus.PENDING,
-                    recommendedModuleId = ModuleId("qc_inspection")
-                )
-            )
-        }
-        syncTurnNumber()
-    }
+    /** Sambungan ke server; null = mode lokal (tes/pratinjau). Dengan remote, tiap giliran disimpan di server. */
+    var remote: InterviewRemote? = null
+    var scope: CoroutineScope? = null
+    /** Dipanggil dengan ringkasan draf terbaru setiap balasan server (wizard menyimpannya). */
+    var onServerDraft: (DiscoveryDraftUi) -> Unit = {}
+    /** Langkah yang sedang ditanyakan server; [step] bisa lebih awal saat pengguna meninjau ulang. */
+    var serverStep by mutableStateOf(initialQuestion?.step ?: initialSession?.step ?: InterviewStep.G1_DIVISI)
+
+    init { syncTurnNumber() }
 
     private fun syncTurnNumber() {
         val consultantTurns = answers.count { it.step.isConsultant }
@@ -93,6 +89,12 @@ class InterviewSessionState(
             InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> 5 + consultantTurns
         }
     }
+
+    /**
+     * Butir baru dari jawaban pengguna **tidak** membawa `basisRef` dari klien: server membubuhkan dasar `JAWABAN`
+     * dengan `answerId` = id pertanyaan yang nyata (id lokal rekaan akan ditolak validator).
+     */
+    private fun answerRef(): BasisRef? = null
 
     /** Menghasilkan slug aman untuk DivisionCode dan RoleKey. */
     fun toSlug(raw: String, prefix: String = "item"): String {
@@ -109,7 +111,7 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val slug = toSlug(trimmed, "div")
         if (divisions.none { it.code.value == slug }) {
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             divisions.add(DivisionDraft(DivisionCode(slug), trimmed, ItemSource.ANSWER, ref))
         }
     }
@@ -119,7 +121,7 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val idx = divisions.indexOfFirst { it.code == code }
         if (idx >= 0) {
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             divisions[idx] = divisions[idx].copy(name = trimmed, source = ItemSource.ANSWER, basisRef = ref)
         }
     }
@@ -139,7 +141,7 @@ class InterviewSessionState(
                 // Pastikan hanya satu kepala divisi
                 setHeadOfDivision(divisionCode, null)
             }
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             roles.add(RoleDraft(RoleKey(key), trimmed, divisionCode, ItemSource.ANSWER, isHead, ref))
         }
     }
@@ -149,7 +151,7 @@ class InterviewSessionState(
         if (trimmed.isBlank()) return
         val idx = roles.indexOfFirst { it.roleKey == roleKey }
         if (idx >= 0) {
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             roles[idx] = roles[idx].copy(label = trimmed, source = ItemSource.ANSWER, basisRef = ref)
         }
     }
@@ -182,7 +184,7 @@ class InterviewSessionState(
     fun confirmLink(roleKey: RoleKey, moduleId: ModuleId) {
         val idx = links.indexOfFirst { it.roleKey == roleKey && it.moduleId == moduleId }
         if (idx >= 0) {
-            val currentRef = links[idx].basisRef ?: BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val currentRef = links[idx].basisRef ?: answerRef()
             links[idx] = links[idx].copy(confirmed = Confirmation.CONFIRMED, basisRef = currentRef)
         }
     }
@@ -190,13 +192,20 @@ class InterviewSessionState(
     fun changeModuleForRole(roleKey: RoleKey, oldModuleId: ModuleId, newModuleId: ModuleId, newOrigin: ModuleOrigin) {
         val idx = links.indexOfFirst { it.roleKey == roleKey && it.moduleId == oldModuleId }
         if (idx >= 0) {
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             links[idx] = links[idx].copy(
                 moduleId = newModuleId,
                 origin = newOrigin,
                 confirmed = Confirmation.CHANGED,
                 basisRef = ref
             )
+        }
+    }
+
+    /** Menghubungkan peran ke modul pilihan pengguna (untuk peran yang belum punya tebakan). Asal dari server. */
+    fun addLink(roleKey: RoleKey, moduleId: ModuleId, origin: ModuleOrigin) {
+        if (links.none { it.roleKey == roleKey && it.moduleId == moduleId }) {
+            links.add(RoleModuleLink(roleKey, moduleId, origin, emptyList(), Confirmation.CONFIRMED, null, answerRef()))
         }
     }
 
@@ -229,7 +238,7 @@ class InterviewSessionState(
     fun confirmHandoff(from: ModuleId, to: ModuleId, portType: PortType) {
         val idx = handoffs.indexOfFirst { it.from == from && it.to == to && it.portType == portType }
         if (idx >= 0) {
-            val currentRef = handoffs[idx].basisRef ?: BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val currentRef = handoffs[idx].basisRef ?: answerRef()
             handoffs[idx] = handoffs[idx].copy(confirmed = Confirmation.CONFIRMED, basisRef = currentRef)
         }
     }
@@ -240,7 +249,7 @@ class InterviewSessionState(
 
     fun addHandoff(from: ModuleId, to: ModuleId, portType: PortType) {
         if (handoffs.none { it.from == from && it.to == to && it.portType == portType }) {
-            val ref = BasisRef(Basis.JAWABAN, answerId = "turn_$turnNumber")
+            val ref = answerRef()
             handoffs.add(ModuleHandoff(from, to, portType, Confirmation.CONFIRMED, ref))
         }
     }
@@ -254,7 +263,7 @@ class InterviewSessionState(
             sug.recommendedModuleId?.let { modId ->
                 val targetRole = roles.firstOrNull { it.isHead } ?: roles.firstOrNull()
                 if (targetRole != null && links.none { it.roleKey == targetRole.roleKey && it.moduleId == modId }) {
-                    val ref = BasisRef(Basis.SARAN_DITERIMA, answerId = "turn_$turnNumber")
+                    val ref = answerRef()
                     links.add(
                         RoleModuleLink(
                             roleKey = targetRole.roleKey,
@@ -316,46 +325,79 @@ class InterviewSessionState(
     }
 
     // --- Alur Antar Giliran ---
+    /** Mengganti seluruh isi dengan ringkasan server: langkah, butir, jejak giliran, dan pertanyaan berikutnya. */
+    fun applyServer(d: DiscoveryDraftUi) {
+        val s = d.interview ?: return
+        profile = s.profile
+        specs.clear(); specs.addAll(s.specs)
+        divisions.clear(); divisions.addAll(s.divisions)
+        roles.clear(); roles.addAll(s.roles)
+        links.clear(); links.addAll(s.links)
+        handoffs.clear(); handoffs.addAll(s.handoffs)
+        answers.clear(); answers.addAll(s.answers)
+        currentQuestion = d.nextQuestion
+        serverStep = d.nextQuestion?.step ?: s.step
+        step = serverStep
+        errorMessage = null
+        syncTurnNumber()
+    }
+
+    private fun sendToServer(call: suspend (InterviewRemote) -> Result<DiscoveryDraftUi>, after: () -> Unit = {}) {
+        val r = remote ?: return
+        val sc = scope ?: return
+        busy = true; errorMessage = null
+        sc.launch {
+            call(r).onSuccess { applyServer(it); onServerDraft(it); after() }
+                .onFailure { errorMessage = it.message ?: "Gagal menyimpan jawaban wawancara" }
+            busy = false
+        }
+    }
+
     fun acceptAllGuesses() {
+        if (remote != null) { sendToServer({ it.acceptAll(draftId) }); return }
         for (i in links.indices) {
             links[i] = links[i].copy(confirmed = Confirmation.SKIPPED)
         }
         for (i in handoffs.indices) {
             handoffs[i] = handoffs[i].copy(confirmed = Confirmation.SKIPPED)
         }
-        answers.add(
-            InterviewAnswer(
-                turn = turnNumber,
-                step = step,
-                questionId = "terima_semua",
-                outcome = Confirmation.SKIPPED,
-                text = "Terima semua tebakan"
-            )
-        )
+        answers.add(InterviewAnswer(turn = turnNumber, step = step, questionId = "terima_semua", outcome = Confirmation.SKIPPED, text = "Terima semua tebakan"))
         step = InterviewStep.G5_RINGKASAN
         syncTurnNumber()
     }
 
+    private fun following(s: InterviewStep): InterviewStep = when (s) {
+        InterviewStep.F0_BISNIS -> InterviewStep.F1_TUJUAN
+        InterviewStep.F1_TUJUAN -> InterviewStep.F2_SPEK
+        InterviewStep.F2_SPEK -> InterviewStep.G1_DIVISI
+        InterviewStep.G1_DIVISI -> InterviewStep.G2_PERAN
+        InterviewStep.G2_PERAN -> InterviewStep.G3_MODUL
+        InterviewStep.G3_MODUL -> InterviewStep.G4_SAMBUNGAN
+        InterviewStep.G4_SAMBUNGAN -> InterviewStep.G5_RINGKASAN
+        InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> InterviewStep.DONE
+    }
+
+    /**
+     * Maju satu giliran. Dengan [remote], giliran yang sedang ditanyakan server dikirim (butir hasil suntingan ikut
+     * sebagai `session`); meninjau ulang langkah sebelumnya hanya berpindah layar tanpa menyentuh server.
+     */
     fun nextTurn() {
-        answers.add(
-            InterviewAnswer(
-                turn = turnNumber,
-                step = step,
-                questionId = "turn_$turnNumber",
-                outcome = Confirmation.CONFIRMED
-            )
-        )
-        step = when (step) {
-            InterviewStep.F0_BISNIS -> InterviewStep.F1_TUJUAN
-            InterviewStep.F1_TUJUAN -> InterviewStep.F2_SPEK
-            InterviewStep.F2_SPEK -> InterviewStep.G1_DIVISI
-            InterviewStep.G1_DIVISI -> InterviewStep.G2_PERAN
-            InterviewStep.G2_PERAN -> InterviewStep.G3_MODUL
-            InterviewStep.G3_MODUL -> InterviewStep.G4_SAMBUNGAN
-            InterviewStep.G4_SAMBUNGAN -> InterviewStep.G5_RINGKASAN
-            InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> InterviewStep.DONE
+        val q = currentQuestion
+        if (remote != null) {
+            if (q != null && step == serverStep) sendToServer({ it.answer(draftId, q.id, Confirmation.CONFIRMED, null, toSession()) })
+            else { step = following(step); syncTurnNumber() }
+            return
         }
+        answers.add(InterviewAnswer(turn = turnNumber, step = step, questionId = "turn_$turnNumber", outcome = Confirmation.CONFIRMED))
+        step = following(step)
         syncTurnNumber()
+    }
+
+    /** Menutup wawancara dari ringkasan: giliran G5 dikirim ke server dulu (bila perlu), baru [onDone]. */
+    fun complete(onDone: () -> Unit) {
+        val q = currentQuestion
+        if (remote != null && q != null && step == serverStep) sendToServer({ it.answer(draftId, q.id, Confirmation.CONFIRMED, null, toSession()) }, onDone)
+        else onDone()
     }
 
     fun previousTurn() {

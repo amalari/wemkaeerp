@@ -46,6 +46,8 @@ data class DiscoveryModuleUi(
     val slotOutput: String?,
     val active: Boolean,
     val origin: ModuleOrigin? = null,
+    /** Asal yang sah bila modul ini dipilih pengguna (dihitung server). */
+    val suggestedOrigin: ModuleOrigin? = null,
     val basis: com.eventverse.app.domain.discovery.interview.BasisRef? = null
 )
 
@@ -160,6 +162,7 @@ data class DiscoveryDraftUi(
                         slotOutput = m.string("slotOutput"),
                         active = m.string("id") in (arr("activeModuleCodes").mapNotNull { (it as? JsonValue.Str)?.value }),
                         origin = m.string("origin")?.let { ModuleOrigin.fromCode(it) },
+                        suggestedOrigin = m.string("suggestedOrigin")?.let { ModuleOrigin.fromCode(it) },
                         basis = basis
                     )
                 },

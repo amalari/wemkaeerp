@@ -110,7 +110,7 @@ fun DiscoveryInterviewPane(
             InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> StepInterviewG5Summary(
                 state = state,
                 onJumpToStep = { state.goToStep(it) },
-                onLockAndProceed = onComplete
+                onLockAndProceed = { state.complete(onComplete) }
             )
         }
     }

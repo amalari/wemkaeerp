@@ -254,4 +254,47 @@ class DiscoveryInterviewApiTest {
         // Modul rujukan belum masuk modul pack (RBAC/kanvas menunggu persetujuan).
         assertTrue(after.array("modules").filterIsInstance<JsonValue.Obj>().none { it.string("id") == "costing_hpp" })
     }
+
+    @Test
+    fun `muatan UI dengan butir baru tanpa basisRef diterima dan server membubuhkan JAWABAN dengan id pertanyaan nyata`() = testApplication {
+        DatabaseFactory.init()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        application { app(drafts) }
+        client.createDraft(drafts, "iv-8")
+        val started = obj(client.interview("iv-8", """{"action":"start"}""").bodyAsText())
+        val qid = started.obj("nextQuestion")!!.string("id")!!
+        assertEquals("g1_divisi_t1", qid)
+
+        // Persis bentuk yang dikirim UI: sesi hasil suntingan, divisi baru dengan source=answer dan TANPA basisRef.
+        val newDivision = JsonValue.Obj(mapOf("code" to JsonValue.Str("farmasi"), "name" to JsonValue.Str("Farmasi"), "source" to JsonValue.Str("answer")))
+        val session = started.obj("interview")!!
+        val edited = JsonValue.Obj(session.entries + ("divisions" to JsonValue.Arr(session.array("divisions") + newDivision)))
+        val reply = client.interview("iv-8", """{"action":"answer","questionId":"$qid","outcome":"confirmed","session":${edited.encode()}}""")
+        assertEquals(HttpStatusCode.OK, reply.status, reply.bodyAsText())
+        val farmasi = obj(reply.bodyAsText()).obj("interview")!!.array("divisions").filterIsInstance<JsonValue.Obj>().single { it.string("code") == "farmasi" }
+        assertEquals("jawaban", farmasi.obj("basisRef")!!.string("basis"))
+        assertEquals(qid, farmasi.obj("basisRef")!!.string("answerId"))
+
+        // Dasar rekaan lokal ("turn_1") ditolak: itulah yang diperbaiki di klien.
+        val bad = JsonValue.Obj(edited.entries + ("divisions" to JsonValue.Arr(session.array("divisions") + JsonValue.Obj(newDivision.entries + ("basisRef" to JsonValue.Obj(mapOf("basis" to JsonValue.Str("jawaban"), "answerId" to JsonValue.Str("turn_1"))))))))
+        val next = obj(client.get("/api/discovery/drafts/iv-8") { asTenant(ownerSlug) }.bodyAsText()).obj("nextQuestion")!!.string("id")!!
+        val rejected = client.interview("iv-8", """{"action":"answer","questionId":"$next","outcome":"confirmed","session":${bad.encode()}}""")
+        assertEquals(HttpStatusCode.BadRequest, rejected.status)
+        assertTrue(rejected.bodyAsText().contains("answerId"), rejected.bodyAsText())
+    }
+
+    @Test
+    fun `ringkasan memuat suggestedOrigin tiap modul pack dan asalnya sah untuk dipilih pengguna`() = testApplication {
+        DatabaseFactory.init()
+        val drafts = InMemoryDraftsHolder.fresh()
+        application { app(drafts) }
+        val ops = client.createDraft(drafts, "iv-9")
+        val started = obj(client.interview("iv-9", """{"action":"start"}""").bodyAsText())
+        val modules = started.array("modules").filterIsInstance<JsonValue.Obj>()
+        assertTrue(modules.all { it.has("suggestedOrigin") }, "setiap modul pack membawa asal yang sah bila dipilih")
+        // Modul milik pack klinik (bukan bawaan platform) → NEW; REUSE_PACK akan ditolak validator.
+        assertTrue(modules.filter { it.string("id") in ops }.all { it.string("suggestedOrigin") == "new" })
+    }
 }
+
+private object InMemoryDraftsHolder { fun fresh() = InMemoryDiscoveryDraftRepository() }

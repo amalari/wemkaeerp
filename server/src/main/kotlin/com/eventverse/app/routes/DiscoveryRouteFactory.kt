@@ -56,7 +56,7 @@ fun Route.discoveryPlatformRoutes(
     builderBriefRoutes(draftRepository, priceDraft)
     builderSpecOpRoutes()
     val demands = discoveryDemands ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
-    discoveryInterviewRoutes(draftRepository, demands)
+    discoveryInterviewRoutes(draftRepository, demands, com.eventverse.app.infrastructure.discovery.InterviewAgents.fromEnv())
     discoveryRoutes(
         repository = draftRepository,
         agent = agent,

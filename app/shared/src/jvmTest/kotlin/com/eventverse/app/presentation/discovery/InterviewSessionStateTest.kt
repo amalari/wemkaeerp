@@ -16,6 +16,7 @@ import com.eventverse.app.domain.discovery.interview.RoleKey
 import com.eventverse.app.domain.discovery.interview.RoleModuleLink
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.PortType
+import com.eventverse.app.presentation.discovery.interview.ConsultantSuggestion
 import com.eventverse.app.presentation.discovery.interview.ConsultantSuggestionStatus
 import com.eventverse.app.presentation.discovery.interview.InterviewSessionState
 import kotlin.test.Test
@@ -156,7 +157,9 @@ class InterviewSessionStateTest {
     @Test
     fun testConsultantSuggestionsAcceptReject() {
         val state = InterviewSessionState(sampleSession(), draftId = "draft-1", narrative = "Klinik umum 24 jam")
-        assertEquals(1, state.consultantSuggestions.size)
+        // Tidak ada saran rekaan: saran hanya muncul bila ada sumbernya (bukan dikodekan tetap untuk narasi apa pun).
+        assertTrue(state.consultantSuggestions.isEmpty())
+        state.consultantSuggestions.add(ConsultantSuggestion("sug_uji", "Catat hasil harian", "Anda menyebut sering salah hitung", "Narasi", recommendedModuleId = null))
         val suggestion = state.consultantSuggestions.first()
         assertEquals(ConsultantSuggestionStatus.PENDING, suggestion.status)
 
@@ -194,38 +197,28 @@ class InterviewSessionStateTest {
         assertEquals(1, state.specs.size)
         assertEquals("mekanik", state.specs.first().areaKey.value)
 
-        // Tambah divisi di turn 1 -> harus punya basisRef JAWABAN
+        // Tambah divisi -> tanpa basisRef dari klien (server membubuhkan JAWABAN dengan id pertanyaan nyata)
         state.addDivision("Gudang Sparepart")
         val addedDiv = state.divisions.last()
         assertEquals("gudang_sparepart", addedDiv.code.value)
-        assertEquals(Basis.JAWABAN, addedDiv.basisRef?.basis)
-        assertEquals("turn_1", addedDiv.basisRef?.answerId)
+        assertNull(addedDiv.basisRef, "id lokal rekaan akan ditolak validator server")
 
-        // Tambah peran di turn 1 -> harus punya basisRef JAWABAN
+        // Tambah peran -> idem
         state.addRole("Admin Gudang", addedDiv.code)
         val addedRole = state.roles.last()
         assertEquals("Admin Gudang", addedRole.label)
-        assertEquals(Basis.JAWABAN, addedRole.basisRef?.basis)
-        assertEquals("turn_1", addedRole.basisRef?.answerId)
+        assertNull(addedRole.basisRef, "id lokal rekaan akan ditolak validator server")
 
-        // Tambah sambungan -> harus punya basisRef JAWABAN
+        // Tambah sambungan -> idem
         state.addHandoff(ModuleId("klinik_pendaftaran"), ModuleId("klinik_poli"), PortType("Permintaan"))
         val addedHandoff = state.handoffs.last()
-        assertEquals(Basis.JAWABAN, addedHandoff.basisRef?.basis)
-        assertEquals("turn_1", addedHandoff.basisRef?.answerId)
+        assertNull(addedHandoff.basisRef, "id lokal rekaan akan ditolak validator server")
 
-        // Konfirmasi perubahan link modul -> basisRef JAWABAN
+        // Ubah modul tautan -> idem
         val oldLink = state.links.first()
         state.changeModuleForRole(oldLink.roleKey, oldLink.moduleId, ModuleId("klinik_registrasi"), ModuleOrigin.EXTEND)
         val changedLink = state.links.first()
-        assertEquals(Basis.JAWABAN, changedLink.basisRef?.basis)
-        assertEquals("turn_1", changedLink.basisRef?.answerId)
-
-        // Terima saran konsultan -> basisRef SARAN_DITERIMA
-        state.acceptSuggestion("sug_qc")
-        val qcLink = state.links.firstOrNull { it.moduleId.value == "qc_inspection" }
-        assertNotNull(qcLink)
-        assertEquals(Basis.SARAN_DITERIMA, qcLink.basisRef?.basis)
+        assertNull(changedLink.basisRef, "id lokal rekaan akan ditolak validator server")
 
         // Ekspor toSession
         val exported = state.toSession()
@@ -332,5 +325,88 @@ class InterviewSessionStateTest {
                 )
             }
         }
+    }
+}
+
+/** Sambungan server (B4/B7): state diganti oleh balasan server, tidak menghitung langkah sendiri. */
+class InterviewSessionStateRemoteTest {
+
+    private class FakeRemote(private val replies: ArrayDeque<Result<com.eventverse.app.presentation.discovery.DiscoveryDraftUi>>) :
+        com.eventverse.app.presentation.discovery.interview.InterviewRemote {
+        val sent = mutableListOf<String>()
+        override suspend fun start(draftId: String, consultant: Boolean) = replies.removeFirst()
+        override suspend fun answer(draftId: String, questionId: String, outcome: Confirmation, text: String?, session: InterviewSession): Result<com.eventverse.app.presentation.discovery.DiscoveryDraftUi> {
+            sent += "answer:$questionId:${outcome.code}"; return replies.removeFirst()
+        }
+        override suspend fun acceptAll(draftId: String): Result<com.eventverse.app.presentation.discovery.DiscoveryDraftUi> { sent += "accept_all"; return replies.removeFirst() }
+    }
+
+    private fun draftJson(sessionStep: String, questionId: String?, questionStep: String?, divisions: List<String> = listOf("poli")): com.eventverse.app.shared.json.JsonValue.Obj {
+        val divs = divisions.joinToString(",") { """{"code":"$it","name":"${it.replaceFirstChar(Char::uppercase)}","source":"guess"}""" }
+        val q = if (questionId == null) "null" else """{"id":"$questionId","step":"$questionStep","prompt":"p","guesses":[]}"""
+        return com.eventverse.app.shared.json.JsonParser.parseObject(
+            """{"id":"d1","status":"DRAFT","schemaVersion":1,"packCode":"klinik","packDisplayName":"Klinik","blueprintCode":"b","blueprintDescription":"","moduleCount":0,"activeModuleCount":0,"screenCount":0,
+               "modules":[],"sections":[],"activeModuleCodes":[],"screens":[],"portLabels":{},"slotLabels":{},
+               "interview":{"step":"$sessionStep","version":2,"divisions":[$divs],"roles":[],"links":[],"handoffs":[],"answers":[]},
+               "nextQuestion":$q}"""
+        )
+    }
+
+    private fun ui(o: com.eventverse.app.shared.json.JsonValue.Obj) = Result.success(com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(o))
+
+    @Test
+    fun nextTurnMengirimIdPertanyaanNyataDanMengikutiBalasanServer() = kotlinx.coroutines.test.runTest {
+        val first = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(draftJson("g1_divisi", "g1_divisi_t1", "g1_divisi"))
+        val remote = FakeRemote(ArrayDeque(listOf(ui(draftJson("g5_ringkasan", "g5_ringkasan_t2", "g5_ringkasan", listOf("poli", "kasir"))))))
+        val state = InterviewSessionState(first.interview, first.nextQuestion, "d1", "cerita").also {
+            it.remote = remote; it.scope = this; it.onServerDraft = { }
+        }
+        assertEquals(InterviewStep.G1_DIVISI, state.step)
+        state.nextTurn()
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("answer:g1_divisi_t1:confirmed"), remote.sent)
+        assertEquals(InterviewStep.G5_RINGKASAN, state.step, "server melewati G2-G4: klien mengikuti, tidak menghitung sendiri")
+        assertEquals(listOf("poli", "kasir"), state.divisions.map { it.code.value })
+        assertEquals("g5_ringkasan_t2", state.currentQuestion?.id)
+    }
+
+    @Test
+    fun galatServerMenjadiPesanDanStateTidakBerubah() = kotlinx.coroutines.test.runTest {
+        val first = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(draftJson("g1_divisi", "g1_divisi_t1", "g1_divisi"))
+        val remote = FakeRemote(ArrayDeque(listOf(Result.failure(IllegalStateException("Pertanyaan sudah berganti")))))
+        val state = InterviewSessionState(first.interview, first.nextQuestion, "d1", "cerita").also { it.remote = remote; it.scope = this }
+        state.nextTurn()
+        testScheduler.advanceUntilIdle()
+        assertEquals(InterviewStep.G1_DIVISI, state.step)
+        assertEquals("Pertanyaan sudah berganti", state.errorMessage)
+        assertFalse(state.busy)
+    }
+
+    @Test
+    fun meninjauUlangLangkahSebelumnyaTidakMemanggilServer() = kotlinx.coroutines.test.runTest {
+        val first = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(draftJson("g5_ringkasan", "g5_ringkasan_t1", "g5_ringkasan"))
+        val remote = FakeRemote(ArrayDeque())
+        val state = InterviewSessionState(first.interview, first.nextQuestion, "d1", "cerita").also { it.remote = remote; it.scope = this }
+        state.goToStep(InterviewStep.G2_PERAN)
+        state.nextTurn()
+        testScheduler.advanceUntilIdle()
+        assertEquals(InterviewStep.G3_MODUL, state.step)
+        assertTrue(remote.sent.isEmpty())
+    }
+
+    @Test
+    fun terimaSemuaDanSelesaiLewatServer() = kotlinx.coroutines.test.runTest {
+        val first = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(draftJson("g1_divisi", "g1_divisi_t1", "g1_divisi"))
+        val remote = FakeRemote(ArrayDeque(listOf(ui(draftJson("done", null, null)), ui(draftJson("done", null, null)))))
+        val state = InterviewSessionState(first.interview, first.nextQuestion, "d1", "cerita").also { it.remote = remote; it.scope = this }
+        state.acceptAllGuesses()
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("accept_all"), remote.sent)
+        assertEquals(InterviewStep.DONE, state.step)
+        var done = false
+        state.complete { done = true }
+        testScheduler.advanceUntilIdle()
+        assertTrue(done, "pertanyaan sudah tidak ada: langsung selesai tanpa panggilan server")
+        assertEquals(listOf("accept_all"), remote.sent)
     }
 }

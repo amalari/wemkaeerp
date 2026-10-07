@@ -2,6 +2,8 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.nextQuestion
+import com.eventverse.app.domain.discovery.interview.suggestedOrigin
+import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.shared.discovery.InterviewBasisCodec
 import com.eventverse.app.shared.discovery.InterviewSessionCodec
 import com.eventverse.app.shared.json.JsonValue
@@ -21,6 +23,8 @@ internal fun withInterview(base: JsonValue.Obj, stored: StoredDiscoveryDraft): J
         val obj = m as? JsonValue.Obj ?: return@map m
         val id = obj.string("id") ?: return@map m
         val extra = buildMap<String, JsonValue> {
+            // Asal yang sah bila pengguna memilih modul ini (klien tidak menebak; tebakan keliru ditolak validator).
+            stored.draft.pack.module(ModuleId(id))?.let { put("suggestedOrigin", jsonOf(stored.draft.pack.suggestedOrigin(it).code)) }
             origins[id]?.let { put("origin", jsonOf(it)) }
             bases[id]?.let { put("basis", InterviewBasisCodec.encodeRef(it)) }
         }
