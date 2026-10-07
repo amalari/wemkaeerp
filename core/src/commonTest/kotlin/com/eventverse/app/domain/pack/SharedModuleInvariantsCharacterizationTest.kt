@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * B6 langkah 1 — **karakterisasi** perilaku invarian modul platform *saat ini* (PROPOSAL-iv-B6). Tes ini hijau dan
+ * B6 langkah 1 — **karakterisasi** perilaku invarian modul platform *sebelum rujukan* (PROPOSAL-iv-B6); tetap benar sesudah B6 untuk pack yang tidak memakai `moduleReferences`. Tes ini hijau dan
  * mengunci fakta yang jadi dasar usulan; bila aturannya kelak diubah sengaja, tes yang berubah menunjukkan persis
  * invarian mana yang bergeser.
  */

@@ -75,6 +75,7 @@ object DomainPackCodec {
         val extra = buildMap<String, JsonValue> {
             if (pack.roleHints.isNotEmpty()) put("roleHints", RoleHintCodec.encode(pack.roleHints))
             if (pack.reservedTerms.isNotEmpty()) put("reservedTerms", jsonArrayOf(pack.reservedTerms.map { jsonOf(it) }))
+            if (pack.moduleReferences.isNotEmpty()) put("moduleReferences", ModuleReferenceCodec.encode(pack.moduleReferences))
             if (pack.sharedModules.isNotEmpty()) put("sharedModules", jsonArrayOf(pack.sharedModules.map { jsonOf(it.value) }))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
@@ -152,7 +153,8 @@ object DomainPackCodec {
                 screenSuggestions = screenSuggestions,
                 roleHints = roleHints,
                 reservedTerms = reservedTerms,
-                sharedModules = sharedModules
+                sharedModules = sharedModules,
+                moduleReferences = ModuleReferenceCodec.decode(root["moduleReferences"], "$.moduleReferences")
             )
         }
     }

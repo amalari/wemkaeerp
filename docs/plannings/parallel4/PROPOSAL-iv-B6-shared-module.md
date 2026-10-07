@@ -1,10 +1,8 @@
 # USULAN B6 — Modul Bersama: `ModuleReference` + adaptor port
 
-**Status:** usulan, **menunggu keputusan** · **Tanggal:** 2026-10-07 · **Penulis:** Agent B · **Induk:** [PLAN-iv-B-contract](PLAN-iv-B-contract.md) butir B6, plan induk §3
+**Status:** **DISETUJUI opsi (a) 2026-10-07 dan diimplementasikan** (lihat §6) · **Tanggal:** 2026-10-07 · **Penulis:** Agent B · **Induk:** [PLAN-iv-B-contract](PLAN-iv-B-contract.md) butir B6, plan induk §3
 
-Tidak ada kode produksi yang berubah. Dua berkas tes mengunci usulan ini:
-- `SharedModuleInvariantsCharacterizationTest` — perilaku **sekarang** (hijau, 4 tes).
-- `SharedModuleReferenceProposalTest` — aturan **usulan**, ditulis sebagai fungsi murni di berkas tes itu sendiri (hijau, 6 tes). Belum menyentuh `DiscoveryDraftValidator` maupun `DomainPackRegistry`.
+Tes yang mengunci: `SharedModuleInvariantsCharacterizationTest` (perilaku sebelum B6) dan `ModuleReferenceTest` (aturan B6 pada tipe asli).
 
 ## 1. Fakta hari ini (terbukti tes karakterisasi)
 1. **Id platform tidak bisa direbut.** Modul yang sudah ada di pack lain wajib berdefinisi identik; modul baru wajib berawalan `<kode pack>_`.
@@ -45,3 +43,11 @@ Yang berubah di kode bila disetujui: `DomainPack` (+1 field), `DomainPackCodec`,
 2. **Apakah `costing_hpp` pantas jadi modul bersama?** Namanya "HPP" masuk kosakata cadangan garment; modul bersama yang dipakai pack lain perlu nama dan deskripsi netral.
 3. **Cakupan konsumen:** cukup wawancara + validator draf dulu (usulan), atau langsung kanvas/RBAC?
 4. Aturan rules `module-integration-rules.md` §5.1 menyebut `PortDataTypeRegistry`, yang **sudah tidak ada** (port kini data pack). Dokumen rules perlu diperbarui oleh koordinator.
+
+## 6. Keputusan dan implementasi (2026-10-07)
+- **(a)** rujukan hanya untuk modul berslot; `invoicing` menjadi modul operasional = langkah terpisah kelak. **Cakupan:** wawancara + validator draf; data `moduleReferences` **tersimpan** di dokumen pack, tetapi **tidak** dihubungkan ke RBAC, entitlement, kuota, atau kanvas sampai disetujui.
+- **Penyimpangan dari usulan awal (dua):**
+  1. **`sharedModules` (opt-in per modul)** di pack bawaan, bukan "semua modul operasional bawaan": hanya `costing_hpp` yang ditawarkan. Modul garment lain (mis. `crm_sales`, `operator_exec`) tidak bisa dirujuk.
+  2. **`ModuleReference.label`** (nama modul di pack ini): nama platform bisa berisi istilah vertikal lain ("Costing HPP"), dan validator kemurnian akan menolak divisi hasil tebakan. Tampilan dan tebakan memakai label pack.
+- **Regresi yang ditemukan di tengah jalan** (dari B2/B5, bukan B6): draf garment tersimpan sebelum kolom aditif (`roleHints`, `reservedTerms`) ditambahkan ditolak "dokumen wajib identik". Diperbaiki di commit terpisah: kolom aditif boleh sama dengan pack bawaan **atau kosong**; nilai lain tetap ditolak (`ShippedPackIdentity.kt`).
+- Ringkasan server membawa `sharedModules` (label pack, port dalam kosakata pack, `origin`, `basis`) terpisah dari `modules`.

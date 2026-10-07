@@ -5,6 +5,9 @@ import com.eventverse.app.domain.discovery.proposal.VerticalPurity
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.pack.isReferenced
+import com.eventverse.app.domain.pack.resolveModule
+import com.eventverse.app.domain.pack.slotPorts
 import com.eventverse.app.domain.rbac.ModuleKind
 
 /**
@@ -59,13 +62,13 @@ object InterviewValidator {
             } ?: run { headByDivision[r.divisionCode] = i }
         }
 
-        val packModules = pack.modules.associateBy { it.id }
+        val packModules = (pack.modules + pack.moduleReferences.mapNotNull { pack.resolveModule(it.platformModuleId) }).associateBy { it.id }
         val shipped = DomainPackRegistry.shipped.flatMap { it.modules }.associateBy { it.id }
         session.links.forEachIndexed { i, l ->
             val p = "$at.links[$i]"
             if (l.roleKey !in roleIndex) add("$p.roleKey", "Peran '${l.roleKey.value}' tidak ada di $at.roles")
             if (l.moduleId !in packModules) add("$p.moduleId", "Modul '${l.moduleId.value}' tidak ada di pack ${pack.code.value}")
-            originIssue(l, shipped[l.moduleId]?.kind, shipped.containsKey(l.moduleId)).forEach { add("$p.origin", it) }
+            originIssue(l, shipped[l.moduleId]?.kind, shipped.containsKey(l.moduleId), pack.isReferenced(l.moduleId)).forEach { add("$p.origin", it) }
             if (l.features.size > InterviewLimits.FEATURES_PER_LINK) add("$p.features", "Terlalu banyak fitur (${l.features.size}); maksimum ${InterviewLimits.FEATURES_PER_LINK}")
             if (l.features.distinct().size != l.features.size) add("$p.features", "Ada fitur yang kembar")
             l.features.forEachIndexed { j, f ->
@@ -86,12 +89,12 @@ object InterviewValidator {
             if (h.to !in packModules) add("$p.to", "Modul '${h.to.value}' tidak ada di pack ${pack.code.value}")
             if (h.from == h.to) add("$p.to", "Modul tidak boleh menyerahkan ke dirinya sendiri")
             if (h.portType !in pack.wiredPortTypes) add("$p.portType", "Port '${h.portType.value}' bukan port tersambung di pack ${pack.code.value}: ${pack.wiredPortTypes.joinToString { it.value }}")
-            val fromSlot = packModules[h.from]?.slot?.let(pack::slot)
-            val toSlot = packModules[h.to]?.slot?.let(pack::slot)
+            val fromPorts = pack.slotPorts(h.from)   // kosakata pack; modul rujukan lewat portMapping
+            val toPorts = pack.slotPorts(h.to)
             if (h.from in packModules && h.to in packModules) {
-                if (fromSlot == null || toSlot == null) add(p, "Hanya modul operasional yang bisa disambung; '${(if (fromSlot == null) h.from else h.to).value}' tidak punya slot kanvas")
-                else if (h.portType != fromSlot.defaultOutput && h.portType != toSlot.defaultInput)
-                    add("$p.portType", "Port '${h.portType.value}' tidak cocok: '${h.from.value}' mengeluarkan '${fromSlot.defaultOutput.value}' dan '${h.to.value}' menerima '${toSlot.defaultInput.value}'. Pakai salah satunya")
+                if (fromPorts == null || toPorts == null) add(p, "Hanya modul operasional yang bisa disambung; '${(if (fromPorts == null) h.from else h.to).value}' tidak punya slot kanvas")
+                else if (h.portType != fromPorts.second && h.portType != toPorts.first)
+                    add("$p.portType", "Port '${h.portType.value}' tidak cocok: '${h.from.value}' mengeluarkan '${fromPorts.second.value}' dan '${h.to.value}' menerima '${toPorts.first.value}'. Pakai salah satunya")
             }
             val key = Triple(h.from, h.to, h.portType.value)
             handoffSeen[key]?.let { add(p, "Sambungan sama sudah ada di $at.handoffs[$it]") } ?: run { handoffSeen[key] = i }
@@ -126,7 +129,8 @@ object InterviewValidator {
     }
 
     /** Asal vs kenyataan registri: modul bawaan hanya boleh diklaim dipakai-ulang/dikembangkan, modul baru tak boleh sudah ada. */
-    private fun originIssue(l: RoleModuleLink, shippedKind: ModuleKind?, inShipped: Boolean): List<String> = when (l.origin) {
+    private fun originIssue(l: RoleModuleLink, shippedKind: ModuleKind?, inShipped: Boolean, referenced: Boolean): List<String> =
+        if (referenced) referencedOriginIssue(l) else when (l.origin) {
         ModuleOrigin.REUSE_PLATFORM ->
             if (!inShipped || shippedKind == ModuleKind.OPERATIONAL) listOf("REUSE_PLATFORM hanya untuk modul tata kelola/fondasi bawaan platform; '${l.moduleId.value}' bukan. Pakai REUSE_PACK, EXTEND, atau NEW")
             else emptyList()
@@ -140,5 +144,13 @@ object InterviewValidator {
         ModuleOrigin.NEW ->
             if (inShipped) listOf("Modul '${l.moduleId.value}' sudah ada di pack bawaan; pakai REUSE_PACK atau EXTEND, bukan NEW")
             else emptyList()
+    }
+
+    /** Modul rujukan = modul bersama platform: dipakai apa adanya (`REUSE_PLATFORM`) atau dikembangkan (`EXTEND` + fitur). */
+    private fun referencedOriginIssue(l: RoleModuleLink): List<String> = when (l.origin) {
+        ModuleOrigin.REUSE_PLATFORM -> emptyList()
+        ModuleOrigin.EXTEND -> if (l.features.isEmpty()) listOf("EXTEND wajib menyebut fitur tambahan di features") else emptyList()
+        ModuleOrigin.REUSE_PACK, ModuleOrigin.NEW ->
+            listOf("'${l.moduleId.value}' modul bersama platform yang dirujuk pack ini; pakai REUSE_PLATFORM (atau EXTEND dengan fitur), bukan ${l.origin}")
     }
 }

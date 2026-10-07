@@ -5,6 +5,10 @@ import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.RoleHint
+import com.eventverse.app.domain.pack.isReferenced
+import com.eventverse.app.domain.pack.moduleLabel
+import com.eventverse.app.domain.pack.resolveModule
+import com.eventverse.app.domain.pack.slotPorts
 import com.eventverse.app.domain.rbac.ModuleKind
 
 /**
@@ -26,7 +30,7 @@ object DeterministicInterviewGuesser : InterviewGuesser {
     fun guessNow(step: InterviewStep, pack: DomainPack, draft: DiscoveryDraft, narrative: String): List<Guess> {
         val p = propose(pack, narrative)
         val known = draft.interview
-        val moduleName = { id: com.eventverse.app.domain.pack.ModuleId -> pack.module(id)?.displayName ?: id.value }
+        val moduleName = { id: com.eventverse.app.domain.pack.ModuleId -> pack.moduleLabel(id) ?: id.value }
         val roleLabel = p.roles.associate { it.roleKey to it.label }
         return when (step) {
             InterviewStep.G1_DIVISI -> p.divisions.filter { d -> known?.divisions?.none { it.code == d.code } != false }
@@ -54,14 +58,15 @@ object DeterministicInterviewGuesser : InterviewGuesser {
         val links = mutableListOf<RoleModuleLink>()
         val headTaken = mutableSetOf<DivisionCode>()
         matchedHints(pack, story).forEach { (h, quote) ->
-            val module = pack.module(h.moduleId) ?: return@forEach
+            val module = pack.resolveModule(h.moduleId) ?: return@forEach
             val basis = BasisRef(Basis.NARASI, quote = quote)
-            val division = DivisionCode(slug(module.displayName, "d"))
-            divisions.getOrPut(division) { DivisionDraft(division, module.displayName, ItemSource.GUESS, basis) }
+            val name = pack.moduleLabel(module.id) ?: module.displayName   // label pack untuk modul rujukan
+            val division = DivisionCode(slug(name, "d"))
+            divisions.getOrPut(division) { DivisionDraft(division, name, ItemSource.GUESS, basis) }
             val key = RoleKey(slug(h.label, "r"))
             if (key in roles) return@forEach
             roles[key] = RoleDraft(key, h.label, division, ItemSource.GUESS, isHead = headTaken.add(division), basisRef = basis)
-            links += RoleModuleLink(key, module.id, originOf(module), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE, basis)
+            links += RoleModuleLink(key, module.id, originOf(module, pack), emptyList(), Confirmation.GUESSED, CONFIDENCE_ROLE, basis)
         }
         return InterviewSession(
             InterviewStep.G1_DIVISI, divisions.values.toList(), roles.values.toList(), links, handoffsOf(pack, links),
@@ -79,15 +84,16 @@ object DeterministicInterviewGuesser : InterviewGuesser {
             .sortedBy { it.second.first }.map { it.first to it.third }
     }
 
-    private fun originOf(m: ModuleDefinition): ModuleOrigin {
+    private fun originOf(m: ModuleDefinition, pack: DomainPack): ModuleOrigin {
+        if (pack.isReferenced(m.id)) return ModuleOrigin.REUSE_PLATFORM
         val shipped = DomainPackRegistry.shipped.firstNotNullOfOrNull { it.module(m.id) } ?: return ModuleOrigin.NEW
         return if (shipped.kind == ModuleKind.OPERATIONAL) ModuleOrigin.REUSE_PACK else ModuleOrigin.REUSE_PLATFORM
     }
 
     private fun handoffsOf(pack: DomainPack, links: List<RoleModuleLink>): List<ModuleHandoff> {
-        val flow = links.map { it.moduleId }.distinct().mapNotNull { id -> pack.module(id)?.takeIf { it.slot != null } }
+        val flow = links.map { it.moduleId }.distinct().mapNotNull { id -> pack.resolveModule(id)?.takeIf { it.slot != null } }
         return flow.zipWithNext().mapNotNull { (a, b) ->
-            val port = pack.slot(requireNotNull(a.slot))?.defaultOutput ?: return@mapNotNull null
+            val port = pack.slotPorts(a.id)?.second ?: return@mapNotNull null
             if (port in pack.wiredPortTypes) ModuleHandoff(a.id, b.id, port, basisRef = links.firstOrNull { it.moduleId == b.id }?.basisRef) else null
         }
     }

@@ -178,7 +178,9 @@ data class DomainPack(
      * Modul pack ini yang **ditawarkan sebagai modul bersama**: pack lain boleh merujuknya lewat `ModuleReference`
      * (B6). Opt-in per modul, data pack bawaan — bukan semua modul operasional otomatis jadi bersama.
      */
-    val sharedModules: Set<ModuleId> = emptySet()
+    val sharedModules: Set<ModuleId> = emptySet(),
+    /** Rujukan ke modul bersama platform (B6, lihat [ModuleReference]); aturan di [ModuleReferenceRules]. Data saja, belum ke RBAC/kanvas. */
+    val moduleReferences: List<ModuleReference> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -215,7 +217,7 @@ data class DomainPack(
         reservedTerms.forEach { require(it.isNotBlank() && it == it.trim().lowercase()) { "Kosakata cadangan '$it' wajib terisi dan huruf kecil" } }
         requireUnique("kosakata cadangan", reservedTerms)
         roleHints.forEach { h ->
-            require(h.moduleId.value in moduleIds) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
+            require(h.moduleId.value in moduleIds || moduleReferences.any { it.platformModuleId == h.moduleId }) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
         }
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->

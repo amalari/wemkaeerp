@@ -2,6 +2,8 @@ package com.eventverse.app.domain.discovery.interview
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.moduleLabel
+import com.eventverse.app.domain.pack.resolveModule
 
 /**
  * Pertanyaan berikutnya (PLAN-iv-B §6): **murni** — hanya bergantung pada keadaan sesi dan pack draf.
@@ -24,7 +26,7 @@ fun InterviewSession.nextQuestion(draft: DiscoveryDraft, guesses: List<Guess>? =
  * `GUESS` / `GUESSED`). Itu yang digambar klien; dikonfirmasi satu giliran, lalu langkah maju.
  */
 fun InterviewSession.pendingGuesses(step: InterviewStep, pack: DomainPack): List<Guess> {
-    val moduleName = { id: com.eventverse.app.domain.pack.ModuleId -> pack.module(id)?.displayName ?: id.value }
+    val moduleName = { id: com.eventverse.app.domain.pack.ModuleId -> pack.moduleLabel(id) ?: id.value }
     val roleLabel = roles.associate { it.roleKey to it.label }
     return when (step) {
         InterviewStep.G1_DIVISI -> divisions.filter { it.source == ItemSource.GUESS }.map { Guess(it.code.value, it.name, 70) }
@@ -48,7 +50,7 @@ internal fun InterviewSession.effectiveStep(pack: DomainPack): InterviewStep? {
             InterviewStep.F2_SPEK -> profile?.painPoints.isNullOrEmpty() || specs.isNotEmpty()
             InterviewStep.G2_PERAN -> divisions.isEmpty()
             InterviewStep.G3_MODUL -> roles.isEmpty()
-            InterviewStep.G4_SAMBUNGAN -> links.map { it.moduleId }.distinct().count { pack.module(it)?.slot != null } < 2
+            InterviewStep.G4_SAMBUNGAN -> links.map { it.moduleId }.distinct().count { pack.resolveModule(it)?.slot != null } < 2
             else -> false
         }
         if (!skip) return if (s == InterviewStep.DONE) null else s
