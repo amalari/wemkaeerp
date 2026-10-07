@@ -66,4 +66,25 @@ class ProposalEditTest {
         assertTrue(kanban.applyEdits(listOf(ProposalEdit.RemoveField("status"))).exceptionOrNull()!!.message!!.contains("tidak boleh dibuang"))
         assertTrue(kanban.applyEdits(listOf(ProposalEdit.ReplaceField("status", status.copy(type = FieldType.TEXT, options = emptyList())))).isFailure)
     }
+
+    @Test
+    fun `tambah field wajib mengisi baris contoh sesuai tipenya sehingga lolos validator`() {
+        val out = table.applyEdits(listOf(ProposalEdit.AddField(f("tanggal_kirim", FieldType.DATE, required = true)))).getOrThrow()
+        assertEquals("2026-01-01", out.seed.single()["tanggal_kirim"])
+        val enum = FieldProposal("prioritas", "Prioritas", FieldType.ENUM, true, listOf("tinggi", "rendah"))
+        assertEquals("tinggi", table.applyEdits(listOf(ProposalEdit.AddField(enum))).getOrThrow().seed.single()["prioritas"])
+        val noRequired = table.applyEdits(listOf(ProposalEdit.AddField(f("catatan")))).getOrThrow()
+        assertEquals(setOf("nama", "keluhan", "tgl"), noRequired.seed.single().keys, "field tak wajib tidak mengisi baris contoh")
+    }
+
+    @Test
+    fun `ganti tipe menjaga baris contoh sah, nilai yang tak sesuai dibuang atau diganti contoh bila wajib`() {
+        val toDate = FieldProposal("keluhan", "Keluhan", FieldType.DATE, required = false)
+        val out = table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", toDate))).getOrThrow()
+        assertEquals(setOf("nama", "tgl"), out.seed.single().keys, "'ngilu' bukan tanggal dan field tak wajib → nilai dibuang")
+        val toRequiredNumber = FieldProposal("keluhan", "Keluhan", FieldType.NUMBER, required = true)
+        assertEquals("0", table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", toRequiredNumber))).getOrThrow().seed.single()["keluhan"])
+        val sameType = FieldProposal("keluhan", "Keluhan Utama", FieldType.TEXT, required = true)
+        assertEquals("ngilu", table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", sameType))).getOrThrow().seed.single()["keluhan"], "nilai yang masih sah dipertahankan")
+    }
 }

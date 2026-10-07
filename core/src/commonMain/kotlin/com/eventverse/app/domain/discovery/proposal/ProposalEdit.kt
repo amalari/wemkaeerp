@@ -35,7 +35,7 @@ private fun ScreenProposal.applyOne(edit: ProposalEdit): ScreenProposal {
         is ProposalEdit.AddField -> {
             if (e.fields.any { it.key == edit.field.key }) throw ProposalEditException("Field '${edit.field.key}' sudah ada")
             if (e.fields.size >= ProposalLimits.FIELDS) throw ProposalEditException("Terlalu banyak field (maksimum ${ProposalLimits.FIELDS})")
-            copy(entity = e.copy(fields = e.fields + edit.field), view = view.withField(edit.field.key))
+            copy(entity = e.copy(fields = e.fields + edit.field), view = view.withField(edit.field.key), seed = seed.reconcileFor(edit.field))
         }
         is ProposalEdit.RemoveField -> {
             if (e.fields.none { it.key == edit.key }) throw ProposalEditException("Field '${edit.key}' tidak ada")
@@ -52,7 +52,7 @@ private fun ScreenProposal.applyOne(edit: ProposalEdit): ScreenProposal {
             if (e.statusField == edit.key && edit.field.type != e.fields.first { it.key == edit.key }.type) {
                 throw ProposalEditException("Tipe field status '${edit.key}' tidak boleh diganti")
             }
-            copy(entity = e.copy(fields = e.fields.map { if (it.key == edit.key) edit.field else it }))
+            copy(entity = e.copy(fields = e.fields.map { if (it.key == edit.key) edit.field else it }), seed = seed.reconcileFor(edit.field))
         }
     }
 }
@@ -71,4 +71,35 @@ private fun ViewProposal.withoutField(key: String): ViewProposal = when (this) {
     is ViewProposal.Print -> copy(fields = fields - key)
     is ViewProposal.Kanban -> copy(detailFormFields = detailFormFields - key)
     else -> this
+}
+
+/**
+ * Menjaga baris contoh (seed) tetap sah setelah sebuah field ditambah/diganti — validator mewajibkan field wajib terisi di
+ * **setiap** baris dan nilai sesuai tipenya. Nilai yang masih sah dibiarkan; yang tak sesuai tipe baru dibuang bila field
+ * tidak wajib, atau diganti nilai contoh bertipe sama bila wajib. Hanya baris contoh yang tersentuh, bukan data pengguna.
+ */
+private fun List<Map<String, String>>.reconcileFor(f: FieldProposal): List<Map<String, String>> = map { row ->
+    val v = row[f.key]
+    when {
+        v != null && v.isNotEmpty() && f.accepts(v) -> row
+        f.required -> row + (f.key to f.sampleValue())
+        v != null -> row - f.key
+        else -> row
+    }
+}
+
+private fun FieldProposal.accepts(v: String): Boolean = when (type) {
+    com.eventverse.app.domain.prototype.FieldType.ENUM -> v in options
+    com.eventverse.app.domain.prototype.FieldType.NUMBER -> v.toDoubleOrNull() != null
+    com.eventverse.app.domain.prototype.FieldType.BOOL -> v == "ya" || v == "tidak"
+    com.eventverse.app.domain.prototype.FieldType.DATE -> runCatching { kotlinx.datetime.LocalDate.parse(v) }.isSuccess
+    com.eventverse.app.domain.prototype.FieldType.TEXT -> true
+}
+
+private fun FieldProposal.sampleValue(): String = when (type) {
+    com.eventverse.app.domain.prototype.FieldType.ENUM -> options.firstOrNull() ?: "contoh"
+    com.eventverse.app.domain.prototype.FieldType.NUMBER -> "0"
+    com.eventverse.app.domain.prototype.FieldType.BOOL -> "tidak"
+    com.eventverse.app.domain.prototype.FieldType.DATE -> "2026-01-01"
+    com.eventverse.app.domain.prototype.FieldType.TEXT -> "contoh"
 }

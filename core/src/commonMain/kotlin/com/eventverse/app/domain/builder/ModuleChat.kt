@@ -95,7 +95,7 @@ class EditModuleFromChat(
                 lastError = issues.joinToString("; ") { "${it.path}: ${it.message}" }; feedback = lastError
             }
         }
-        return reply(tenantId, conversation, moduleId, "Belum bisa menerapkan perubahan itu ($lastError). Coba jelaskan dengan cara lain.")
+        return reply(tenantId, conversation, moduleId, "Belum bisa menerapkan perubahan itu (${lastError.take(MAX_ERROR_CHARS)}). Coba jelaskan dengan cara lain.")
     }
 
     private suspend fun reply(tenantId: TenantId, conversation: BuilderConversation, moduleId: String, text: String): Boolean {
@@ -112,11 +112,13 @@ class EditModuleFromChat(
     private fun describe(e: ProposalEdit): String = when (e) {
         is ProposalEdit.AddField -> "Tambah isian: ${e.field.label} (${e.field.type.name.lowercase()}${if (e.field.required) ", wajib" else ""})"
         is ProposalEdit.RemoveField -> "Hapus isian: ${e.key}"
-        is ProposalEdit.ReplaceField -> "Ganti isian: ${e.key} → ${e.field.label} (${e.field.type.name.lowercase()}${if (e.field.required) ", wajib" else ""})"
+        is ProposalEdit.ReplaceField -> "Ganti isian: ${e.key} jadi ${e.field.label} (${e.field.type.name.lowercase()}${if (e.field.required) ", wajib" else ""})"
     }
 
     companion object {
         const val MAX_ATTEMPTS = 2
+        /** Galat validator dipotong supaya pesan ke pengguna tetap ringkas; rinciannya ada di umpan balik ke model. */
+        const val MAX_ERROR_CHARS = 160
         const val AGENT_REF = "builder-module-edit/v1"
     }
 }
