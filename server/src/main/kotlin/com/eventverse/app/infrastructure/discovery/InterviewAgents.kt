@@ -74,12 +74,14 @@ object InterviewAgents {
 
     /**
      * Perencana alur penuh: aktif di bawah saklar yang sama dengan [fromEnv]. Modelnya `DISCOVERY_AGENT_MODEL_PLAN`
-     * (mis. `deepseek-v4-pro`); kosong → model bawaan. Timeout: `INTERVIEW_PLAN_TIMEOUT_MS`.
+     * (mis. `deepseek-v4-pro`); kosong → `DISCOVERY_AGENT_MODEL`, lalu model bawaan. Timeout: `INTERVIEW_PLAN_TIMEOUT_MS`.
      */
     fun plannerFromEnv(): InterviewPlanner? {
         if (EnvLoader.get("INTERVIEW_AGENT").lowercase() != DiscoveryAgents.KOOG) return null
         val apiKey = EnvLoader.get("DEEPSEEK_API_KEY").takeIf { it.isNotBlank() } ?: return null
-        val model = DiscoveryAgents.resolveModel(EnvLoader.get("DISCOVERY_AGENT_MODEL_PLAN").takeIf { it.isNotBlank() })
+        val model = DiscoveryAgents.resolveModel(
+            EnvLoader.get("DISCOVERY_AGENT_MODEL_PLAN").takeIf { it.isNotBlank() } ?: EnvLoader.get("DISCOVERY_AGENT_MODEL").takeIf { it.isNotBlank() }
+        )
         val timeout = EnvLoader.get("INTERVIEW_PLAN_TIMEOUT_MS").toLongOrNull()?.takeIf { it > 0 } ?: AgentInterviewPlanner.DEFAULT_TIMEOUT_MILLIS
         logger.info("Perencana wawancara aktif: koog (model {}), timeout {} ms", model.id, timeout)
         return AgentInterviewPlanner(AgentInterviewGuesser(MultiLLMPromptExecutor(DeepSeekLLMClient(apiKey)), model), timeout)
