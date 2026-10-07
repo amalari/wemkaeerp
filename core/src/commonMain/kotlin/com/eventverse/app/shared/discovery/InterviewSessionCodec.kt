@@ -4,6 +4,7 @@ import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
 import com.eventverse.app.domain.discovery.interview.InterviewAnswer
+import com.eventverse.app.domain.discovery.interview.InterviewQuestion
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.ItemSource
@@ -26,7 +27,7 @@ import com.eventverse.app.shared.json.jsonOf
  * tidak ada fallback ke nilai bawaan. Kunci opsional (`confidence`, `text`, `isHead`, `features`) ditulis hanya bila
  * berisi, sehingga round-trip stabil.
  */
-internal object InterviewSessionCodec {
+object InterviewSessionCodec {
 
     fun encode(s: InterviewSession): JsonValue.Obj = jsonObjectOf(
         "step" to jsonOf(s.step.code),
@@ -46,6 +47,15 @@ internal object InterviewSessionCodec {
         "answers" to jsonArrayOf(s.answers.map { a ->
             val base = jsonObjectOf("turn" to jsonOf(a.turn), "step" to jsonOf(a.step.code), "questionId" to jsonOf(a.questionId), "outcome" to jsonOf(a.outcome.code))
             a.text?.let { JsonValue.Obj(base.entries + ("text" to jsonOf(it))) } ?: base
+        })
+    )
+
+    /** Pertanyaan untuk klien: tebakan membawa `origin` (kode) hanya untuk giliran modul. */
+    fun encodeQuestion(q: InterviewQuestion): JsonValue.Obj = jsonObjectOf(
+        "id" to jsonOf(q.id), "step" to jsonOf(q.step.code), "prompt" to jsonOf(q.prompt),
+        "guesses" to jsonArrayOf(q.guesses.map { g ->
+            val base = jsonObjectOf("key" to jsonOf(g.key), "label" to jsonOf(g.label), "confidence" to jsonOf(g.confidence))
+            g.origin?.let { JsonValue.Obj(base.entries + ("origin" to jsonOf(it.code))) } ?: base
         })
     )
 

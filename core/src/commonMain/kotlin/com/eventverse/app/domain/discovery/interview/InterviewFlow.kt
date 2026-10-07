@@ -11,10 +11,29 @@ import com.eventverse.app.domain.pack.DomainPack
  * ada peran, sambungan tak ditanya bila kurang dari dua modul operasional tertaut. Tebakan isinya milik
  * [InterviewGuesser]; di sini hanya prompt netral tanpa kosakata industri apa pun.
  */
-fun InterviewSession.nextQuestion(draft: DiscoveryDraft, guesses: List<Guess> = emptyList()): InterviewQuestion? {
+fun InterviewSession.nextQuestion(draft: DiscoveryDraft, guesses: List<Guess>? = null): InterviewQuestion? {
     if (answers.size >= InterviewLimits.TURNS) return null
     val step = effectiveStep(draft.pack) ?: return null
-    return InterviewQuestion("${step.code}_t${answers.size + 1}", step, promptFor(step, guesses.isNotEmpty()), guesses)
+    val shown = guesses ?: pendingGuesses(step, draft.pack)
+    return InterviewQuestion("${step.code}_t${answers.size + 1}", step, promptFor(step, shown.isNotEmpty()), shown)
+}
+
+/**
+ * Tebakan sistem yang **menunggu konfirmasi** di [step], dibaca dari sesi itu sendiri (sesi usulan memuat tebakan
+ * `GUESS` / `GUESSED`). Itu yang digambar klien; dikonfirmasi satu giliran, lalu langkah maju.
+ */
+fun InterviewSession.pendingGuesses(step: InterviewStep, pack: DomainPack): List<Guess> {
+    val moduleName = { id: com.eventverse.app.domain.pack.ModuleId -> pack.module(id)?.displayName ?: id.value }
+    val roleLabel = roles.associate { it.roleKey to it.label }
+    return when (step) {
+        InterviewStep.G1_DIVISI -> divisions.filter { it.source == ItemSource.GUESS }.map { Guess(it.code.value, it.name, 70) }
+        InterviewStep.G2_PERAN -> roles.filter { it.source == ItemSource.GUESS }.map { Guess(it.roleKey.value, it.label, 70) }
+        InterviewStep.G3_MODUL -> links.filter { it.confirmed == Confirmation.GUESSED }
+            .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} → ${moduleName(it.moduleId)}", it.confidence ?: 70, it.origin) }
+        InterviewStep.G4_SAMBUNGAN -> handoffs.filter { it.confirmed == Confirmation.GUESSED }
+            .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} → ${moduleName(it.to)}", 60) }
+        InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> emptyList()
+    }
 }
 
 internal fun InterviewSession.effectiveStep(pack: DomainPack): InterviewStep? {
