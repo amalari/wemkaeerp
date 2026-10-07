@@ -4,7 +4,6 @@ import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
 import com.eventverse.app.domain.discovery.proposal.VerticalPurity
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
-import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.rbac.ModuleKind
 
@@ -21,9 +20,10 @@ object InterviewValidator {
     fun validate(session: InterviewSession, pack: DomainPack, at: String = "$.interview"): List<DiscoveryValidationIssue> {
         val out = mutableListOf<DiscoveryValidationIssue>()
         fun add(path: String, message: String) { out += DiscoveryValidationIssue(path, message) }
-        val purity = pack.code != GarmentDomainPack.CODE
+        // Kemurnian vertikal = data: kosakata cadangan pack LAIN yang dikenal registri (bukan daftar kode).
+        val reserved = DomainPackRegistry.all.filter { it.code != pack.code }.flatMap { it.reservedTerms }.distinct()
         fun pure(path: String, text: String) {
-            if (purity) VerticalPurity.leak(text)?.let { add(path, "Istilah '$it' khas konveksi; pack ${pack.code.value} bukan garment. Pakai istilah usaha ini sendiri") }
+            VerticalPurity.leak(text, reserved)?.let { add(path, "Istilah '$it' khas pack lain; pack ${pack.code.value} punya kosakatanya sendiri. Pakai istilah usaha ini") }
         }
         fun tooMany(path: String, size: Int, max: Int, what: String) {
             if (size > max) add(path, "Terlalu banyak $what ($size); maksimum $max. Ringkas ke yang utama")
@@ -83,6 +83,13 @@ object InterviewValidator {
             if (h.to !in packModules) add("$p.to", "Modul '${h.to.value}' tidak ada di pack ${pack.code.value}")
             if (h.from == h.to) add("$p.to", "Modul tidak boleh menyerahkan ke dirinya sendiri")
             if (h.portType !in pack.wiredPortTypes) add("$p.portType", "Port '${h.portType.value}' bukan port tersambung di pack ${pack.code.value}: ${pack.wiredPortTypes.joinToString { it.value }}")
+            val fromSlot = packModules[h.from]?.slot?.let(pack::slot)
+            val toSlot = packModules[h.to]?.slot?.let(pack::slot)
+            if (h.from in packModules && h.to in packModules) {
+                if (fromSlot == null || toSlot == null) add(p, "Hanya modul operasional yang bisa disambung; '${(if (fromSlot == null) h.from else h.to).value}' tidak punya slot kanvas")
+                else if (h.portType != fromSlot.defaultOutput && h.portType != toSlot.defaultInput)
+                    add("$p.portType", "Port '${h.portType.value}' tidak cocok: '${h.from.value}' mengeluarkan '${fromSlot.defaultOutput.value}' dan '${h.to.value}' menerima '${toSlot.defaultInput.value}'. Pakai salah satunya")
+            }
             val key = Triple(h.from, h.to, h.portType.value)
             handoffSeen[key]?.let { add(p, "Sambungan sama sudah ada di $at.handoffs[$it]") } ?: run { handoffSeen[key] = i }
         }
@@ -92,7 +99,18 @@ object InterviewValidator {
             if (!turns.add(a.turn)) add("$at.answers[$i].turn", "Giliran ${a.turn} tercatat dua kali")
             if ((a.text?.length ?: 0) > InterviewLimits.TEXT) add("$at.answers[$i].text", "Jawaban bebas maksimum ${InterviewLimits.TEXT} karakter")
         }
+        session.answers.forEachIndexed { i, a ->
+            if (a.questionId.length > InterviewLimits.TEXT) add("$at.answers[$i].questionId", "questionId maksimum ${InterviewLimits.TEXT} karakter")
+        }
         if (session.step == InterviewStep.DONE) {
+            val withRole = session.roles.map { it.divisionCode }.toSet()
+            session.divisions.forEachIndexed { i, d ->
+                if (d.code !in withRole) add("$at.divisions[$i]", "Wawancara selesai tetapi divisi '${d.code.value}' belum punya peran; tambahkan peran atau hapus divisinya")
+            }
+            val withLink = session.links.map { it.roleKey }.toSet()
+            session.roles.forEachIndexed { i, r ->
+                if (r.roleKey !in withLink) add("$at.roles[$i]", "Wawancara selesai tetapi peran '${r.roleKey.value}' belum punya modul; tautkan ke modul atau hapus perannya")
+            }
             session.links.forEachIndexed { i, l ->
                 if (l.confirmed == Confirmation.GUESSED) add("$at.links[$i].confirmed", "Wawancara selesai tetapi tautan masih GUESSED; tandai CONFIRMED, CHANGED, atau SKIPPED (terima semua)")
             }

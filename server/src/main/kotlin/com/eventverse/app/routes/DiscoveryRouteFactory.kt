@@ -55,6 +55,8 @@ fun Route.discoveryPlatformRoutes(
     // C4/C6 (PLAN-proto-C): brief kebutuhan dan usulan operasi spec — keduanya baca-saja, di belakang gerbang builder.
     builderBriefRoutes(draftRepository, priceDraft)
     builderSpecOpRoutes()
+    val demands = discoveryDemands ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
+    discoveryInterviewRoutes(draftRepository, demands)
     discoveryRoutes(
         repository = draftRepository,
         agent = agent,
@@ -65,7 +67,7 @@ fun Route.discoveryPlatformRoutes(
         // Default di sini, bukan di Application.kt: file itu sudah di atas hard limit (ratchet),
         // dan test meng-inject in-memory lewat parameter supaya tidak menulis ke DB pengembang.
         prototypePatterns = prototypePatterns ?: com.eventverse.app.infrastructure.PostgresPrototypePatternRepository(),
-        demands = discoveryDemands ?: com.eventverse.app.infrastructure.PostgresDiscoveryDemandRepository()
+        demands = demands
     )
     // Cetakan blueprint (Fase D) terdaftar terpisah karena gerbangnya berbeda: ia menerima tiket
     // pendek `?ticket=` di samping Bearer, agar PDF bisa dibuka di tab browser.

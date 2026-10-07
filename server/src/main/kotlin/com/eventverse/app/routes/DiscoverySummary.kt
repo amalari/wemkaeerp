@@ -21,7 +21,7 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     // boleh ditimpa (Kontrak 5 tenant-variability-rules) — pelajaran yang sama dengan backfill di
     // EnsureTenantWorkingDraftUseCase. Pack yang belum terdaftar tetap memakai snapshot-nya sendiri.
     val samplePack = DomainPackRegistry.find(stored.draft.pack.code) ?: stored.draft.pack
-    return jsonObjectOf(
+    val base = jsonObjectOf(
     "id" to jsonOf(stored.id.value),
     // Narasi asli (E1/E2): dipulihkan dari buku demand supaya prospek yang kembali melihat
     // ceritanya sendiri, bukan mulai dari kosong. Demand lahir sebelum V80 → null.
@@ -72,6 +72,8 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     "activeModuleCodes" to jsonArrayOf(stored.draft.blueprint.activeModuleCodes.map(::jsonOf)),
     "screens" to jsonArrayOf(stored.draft.screens.map { screenObj(it, samplePack) })
     )
+    // Kunci wawancara hanya muncul bila draf punya sesi: draf lama tidak berubah satu byte pun.
+    return withInterview(base, stored)
 }
 
 /**
