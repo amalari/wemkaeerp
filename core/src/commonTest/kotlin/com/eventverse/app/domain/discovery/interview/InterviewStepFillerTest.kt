@@ -106,4 +106,22 @@ class InterviewStepFillerTest {
         ))
         assertEquals(listOf(true, false), s.withoutDangling().roles.map { it.isHead })
     }
+
+    @Test
+    fun `mergingGuessesOf menambah usulan tanpa membuang tebakan lama, kunci sama diganti, jawaban pengguna tetap`() {
+        val user = DivisionDraft(DivisionCode("kasir"), "Kasir", ItemSource.ANSWER, null)
+        val old = DivisionDraft(DivisionCode("pendaftaran"), "Pendaftaran", ItemSource.GUESS, null)
+        val s = InterviewSession(step = InterviewStep.G1_DIVISI, divisions = listOf(user, old))
+        val out = s.mergingGuessesOf(
+            InterviewStep.G1_DIVISI,
+            newDivisions = listOf(
+                DivisionDraft(DivisionCode("pendaftaran"), "Pendaftaran Pasien", ItemSource.GUESS, null),
+                DivisionDraft(DivisionCode("kasir"), "Kasir Agent", ItemSource.GUESS, null),
+                DivisionDraft(DivisionCode("poli"), "Poli", ItemSource.GUESS, null)
+            )
+        )
+        assertEquals(listOf("kasir", "pendaftaran", "poli"), out.divisions.map { it.code.value })
+        assertEquals("Kasir", out.divisions.first { it.code.value == "kasir" }.name, "jawaban pengguna tidak ditimpa")
+        assertEquals("Pendaftaran Pasien", out.divisions.first { it.code.value == "pendaftaran" }.name)
+    }
 }

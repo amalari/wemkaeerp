@@ -61,6 +61,18 @@ data class InterviewAnswer(
 }
 
 /**
+ * Pertanyaan klarifikasi dari perencana alur penuh: hal pokok yang tak bisa disimpulkan dari cerita sehingga
+ * **ditanyakan dulu** alih-alih ditebak. [answer] null = belum dijawab. Jawabannya ditambahkan ke cerita
+ * ([InterviewSession.narrative]) sebelum rencana disusun ulang, sehingga tetap bisa dikutip sebagai `basisRef`.
+ */
+data class Clarification(val id: String, val question: String, val answer: String? = null) {
+    init {
+        require(id.isNotBlank()) { "Clarification.id kosong" }
+        require(question.isNotBlank()) { "Clarification.question kosong" }
+    }
+}
+
+/**
  * Keadaan wawancara satu draf (kontrak plan §6). Murni data: **bukan** aturan — aturan milik [InterviewValidator].
  *
  * **Kode vs data:** isi divisi, peran, dan modul berbeda per usaha ⇒ data. Hanya [InterviewStep], [ModuleOrigin],
@@ -85,7 +97,12 @@ data class InterviewSession(
     /** Cerita pengguna (terpotong [InterviewLimits.NARRATIVE]) — disalin ke sesi supaya `Basis.NARASI` bisa diperiksa tanpa buku demand. */
     val narrative: String? = null,
     val profile: BusinessProfile? = null,
-    val specs: List<RequirementSpec> = emptyList()
+    val specs: List<RequirementSpec> = emptyList(),
+    /** Pertanyaan klarifikasi perencana (opsional; kosong = tidak ada). */
+    val clarifications: List<Clarification> = emptyList()
 ) {
+    /** Ada pertanyaan klarifikasi yang belum dijawab — rencana alur penuh menunggu jawabannya. */
+    val awaitingClarification: Boolean get() = clarifications.any { it.answer.isNullOrBlank() }
+
     companion object { const val BASED_ON_STORY = 2 }
 }

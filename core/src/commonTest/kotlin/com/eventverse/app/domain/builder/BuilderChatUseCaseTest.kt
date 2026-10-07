@@ -150,6 +150,16 @@ class InMemoryBuilderChatRepository : BuilderChatRepository {
         return stamped
     }
 
+    override suspend fun markAnswered(messageId: ChatMessageId, answers: Map<String, String>): ChatMessage? {
+        val index = messages.indexOfFirst { it.id == messageId }
+        if (index < 0) return null
+        val updated = messages[index].copy(
+            questions = messages[index].questions.map { q -> if (q.answer.isNullOrBlank()) q.copy(answer = answers[q.id] ?: q.answer) else q }
+        )
+        messages[index] = updated
+        return updated
+    }
+
     override suspend fun markApplied(messageId: ChatMessageId, draftId: DiscoveryDraftId): ChatMessage? {
         val index = messages.indexOfFirst { it.id == messageId }
         if (index < 0) return null

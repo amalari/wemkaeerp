@@ -70,6 +70,16 @@ fun DiscoveryInterviewPane(
             }
         }
 
+        // Klarifikasi perencana: selama ada pertanyaan menunggu, alur belum disusun dan langkah ditahan.
+        if (state.awaitingClarification) {
+            StepInterviewClarification(
+                questions = state.clarifications,
+                busy = state.busy,
+                onSubmit = { state.submitClarifications(it) }
+            )
+            return@Column
+        }
+
         // Konten Langkah Aktif
         when (state.step) {
             InterviewStep.F0_BISNIS -> StepInterviewF0Bisnis(

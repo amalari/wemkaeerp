@@ -174,6 +174,8 @@ fun Application.module(
     builderDeploymentRepository: com.eventverse.app.domain.builder.BuilderDeploymentRepository? = null,
     builderChatRepository: com.eventverse.app.domain.builder.BuilderChatRepository? = null,
     builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null,
+    builderClarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null,
+    builderModuleEditor: com.eventverse.app.domain.builder.ModuleEditor? = null,
     builderBuildRequests: com.eventverse.app.domain.builder.BuilderBuildRequestRepository? = null,
     builderProbe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe? = null,
     builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null,
@@ -203,6 +205,7 @@ fun Application.module(
     val authenticateWithGoogleUseCase = AuthenticateWithGoogleUseCase(userRepo, repository)
     val googleAuthService = GoogleAuthService()
     val jwtTokenService = JwtTokenService()
+    install(io.ktor.server.sse.SSE)
     install(TenantResolutionPlugin) {
         this.tenantRepository = repository
         this.jwtTokenService = jwtTokenService
@@ -269,6 +272,8 @@ fun Application.module(
             agent = builderAgent ?: com.eventverse.app.infrastructure.builder.DiscoveryBackedBuilderAgent(
                 com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv()
             ),
+            clarifier = builderClarifier ?: com.eventverse.app.infrastructure.builder.BuilderClarifiers.fromEnv(),
+            moduleEditor = builderModuleEditor ?: com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
             drafts = discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
             probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
             auditLog = builderAuditLog ?: com.eventverse.app.infrastructure.PostgresAuditLogRepository(),

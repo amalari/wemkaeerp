@@ -95,4 +95,5 @@ object InterviewLimits {
     const val FEATURES_PER_LINK = 10
     const val HANDOFFS = 60
     const val TEXT = 200
+    const val CLARIFICATIONS = 3
 }

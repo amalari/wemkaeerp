@@ -23,7 +23,8 @@ internal fun ChatComposer(
     onValueChange: (String) -> Unit,
     busy: Boolean,
     onSend: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    placeholder: String = "Contoh: pabrik kaos FOB dengan tahap sablon"
 ) {
     val canSend = !busy && value.isNotBlank()
     Row(
@@ -34,7 +35,7 @@ internal fun ChatComposer(
         ClayTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = "Contoh: pabrik kaos FOB dengan tahap sablon",
+            placeholder = placeholder,
             singleLine = false,
             minLines = 1,
             maxLines = 6,

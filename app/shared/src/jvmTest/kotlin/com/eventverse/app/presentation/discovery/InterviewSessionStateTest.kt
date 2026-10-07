@@ -339,6 +339,9 @@ class InterviewSessionStateRemoteTest {
             sent += "answer:$questionId:${outcome.code}"; return replies.removeFirst()
         }
         override suspend fun acceptAll(draftId: String): Result<com.eventverse.app.presentation.discovery.DiscoveryDraftUi> { sent += "accept_all"; return replies.removeFirst() }
+        override suspend fun clarify(draftId: String, answers: Map<String, String>): Result<com.eventverse.app.presentation.discovery.DiscoveryDraftUi> {
+            sent += "clarify:" + answers.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }; return replies.removeFirst()
+        }
     }
 
     private fun draftJson(sessionStep: String, questionId: String?, questionStep: String?, divisions: List<String> = listOf("poli")): com.eventverse.app.shared.json.JsonValue.Obj {
@@ -408,5 +411,25 @@ class InterviewSessionStateRemoteTest {
         testScheduler.advanceUntilIdle()
         assertTrue(done, "pertanyaan sudah tidak ada: langsung selesai tanpa panggilan server")
         assertEquals(listOf("accept_all"), remote.sent)
+    }
+
+    @Test
+    fun klarifikasiMenahanWawancaraLaluDijawabLewatServerDanRencanaMasuk() = kotlinx.coroutines.test.runTest {
+        val asking = com.eventverse.app.shared.json.JsonParser.parseObject(
+            """{"id":"d1","status":"DRAFT","schemaVersion":1,"packCode":"klinik","packDisplayName":"Klinik","blueprintCode":"b","blueprintDescription":"","moduleCount":0,"activeModuleCount":0,"screenCount":0,
+               "modules":[],"sections":[],"activeModuleCodes":[],"screens":[],"portLabels":{},"slotLabels":{},
+               "interview":{"step":"g1_divisi","version":2,"divisions":[],"roles":[],"links":[],"handoffs":[],"answers":[],
+                 "clarifications":[{"id":"c1","question":"Satu antrean atau per poli?"}]},
+               "nextQuestion":null}"""
+        )
+        val first = com.eventverse.app.presentation.discovery.DiscoveryDraftUi.fromJson(asking)
+        val remote = FakeRemote(ArrayDeque(listOf(ui(draftJson("g1_divisi", "g1_divisi_t1", "g1_divisi", listOf("poli", "kasir"))))))
+        val state = InterviewSessionState(first.interview, first.nextQuestion, "d1", "cerita").also { it.remote = remote; it.scope = this }
+        assertTrue(state.awaitingClarification)
+        state.submitClarifications(mapOf("c1" to "Satu antrean"))
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("clarify:c1=Satu antrean"), remote.sent)
+        assertFalse(state.awaitingClarification, "balasan server tidak lagi membawa pertanyaan menunggu")
+        assertEquals(listOf("poli", "kasir"), state.divisions.map { it.code.value }, "rencana dari server masuk ke state")
     }
 }

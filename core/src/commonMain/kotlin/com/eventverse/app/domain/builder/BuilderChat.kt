@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.builder
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
@@ -8,6 +9,12 @@ import kotlin.jvm.JvmInline
 
 /** Peran pesan chat Builder. Status sistem — milik platform, bukan kosakata vertikal (Uji Variabilitas). */
 enum class ChatRole { USER, AGENT, SYSTEM }
+
+/**
+ * Jenis pesan. Mekanik chat milik platform (bukan kosakata industri): [TEXT] biasa, [QUESTION] = pesan agent yang
+ * membawa pertanyaan follow-up ([ChatMessage.questions]) yang menunggu jawaban pengguna.
+ */
+enum class ChatMessageKind { TEXT, QUESTION }
 
 @JvmInline
 value class BuilderConversationId(val value: String) {
@@ -40,9 +47,23 @@ data class ChatMessage(
     val proposedDraftJson: String? = null,
     val proposedSummary: List<String> = emptyList(),
     val appliedDraftId: String? = null,
-    val createdAt: Instant? = null
+    val createdAt: Instant? = null,
+    /**
+     * Utas pesan: `null` = utas **Semua** (alur penuh, tanpa filter modul); terisi = kode modul pack — pesan hanya
+     * tampil di utas modul itu. Data (kode modul pack), bukan enum.
+     */
+    val moduleId: String? = null,
+    val kind: ChatMessageKind = ChatMessageKind.TEXT,
+    /** Pertanyaan follow-up (hanya [ChatMessageKind.QUESTION]); [Clarification.answer] null = belum dijawab. */
+    val questions: List<Clarification> = emptyList()
 ) {
-    init { require(text.isNotBlank()) { "Teks pesan kosong" } }
+    init {
+        require(text.isNotBlank()) { "Teks pesan kosong" }
+        require(kind == ChatMessageKind.QUESTION || questions.isEmpty()) { "Pertanyaan follow-up hanya untuk pesan QUESTION" }
+        require(kind != ChatMessageKind.QUESTION || (role == ChatRole.AGENT && questions.isNotEmpty())) {
+            "Pesan QUESTION wajib dari AGENT dan membawa minimal satu pertanyaan"
+        }
+    }
 
     val hasPendingPatch: Boolean get() = proposedDraftJson != null && appliedDraftId == null
 }
@@ -79,6 +100,12 @@ interface BuilderChatRepository {
     suspend fun messages(conversationId: BuilderConversationId): List<ChatMessage>
 
     suspend fun append(message: ChatMessage): ChatMessage
+
+    /**
+     * Mengisi jawaban pertanyaan follow-up pada pesan QUESTION ([answers]: id pertanyaan → jawaban). Pertanyaan yang
+     * sudah berjawaban tidak ditimpa. `null` bila pesan tidak ada.
+     */
+    suspend fun markAnswered(messageId: ChatMessageId, answers: Map<String, String>): ChatMessage?
 
     /** Menandai pesan patch sudah diterapkan ke draf [draftId]. */
     suspend fun markApplied(messageId: ChatMessageId, draftId: DiscoveryDraftId): ChatMessage?

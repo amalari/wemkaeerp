@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.logback)
     implementation(libs.ktor.serverCore)
     implementation(libs.ktor.serverNetty)
+    implementation(libs.ktor.serverSse)
     implementation(libs.ktor.clientApache5)
 
     // Database & Migrations

@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.builder.chat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,9 +57,17 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     var panelOpen by remember { mutableStateOf(false) }
     var previewSummary by remember { mutableStateOf<List<String>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
+    // Utas aktif (null = Semua), label fase run (SSE) untuk indikator memuat, dan follow-up menunggu per utas.
+    var thread by remember { mutableStateOf<String?>(null) }
+    var runPhase by remember { mutableStateOf<String?>(null) }
+    var pendingByThread by remember { mutableStateOf<Map<String?, Int>>(emptyMap()) }
 
     suspend fun reloadChat() {
-        client.chat().onSuccess { messages = parseMessages(it) }.onFailure { error = it.message }
+        client.chat(thread).onSuccess { raw ->
+            messages = parseMessages(raw)
+            // Follow-up dihitung server setiap riwayat dimuat; utas Semua mencakup semua utas.
+            pendingByThread = pendingByThread + (thread to parseFollowUp(raw).size)
+        }.onFailure { error = it.message }
     }
     suspend fun reloadDraft() {
         client.draft().onSuccess { raw ->
@@ -72,9 +81,9 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     }
 
     // Riwayat kosong tetapi draf tenant ada → satu pesan pembuka lokal supaya chat tidak kosong.
-    val shown = remember(messages, draft, loaded) {
+    val shown = remember(messages, draft, loaded, thread) {
         val d = draft
-        if (loaded && messages.isEmpty() && d != null) listOf(openingEntryFor(d)) else messages
+        if (loaded && messages.isEmpty() && d != null && thread == null) listOf(openingEntryFor(d)) else messages
     }
     LaunchedEffect(shown.size) {
         if (shown.isNotEmpty()) listState.animateScrollToItem(shown.lastIndex)
@@ -86,16 +95,35 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         scope.launch {
             busy = true
             error = null
-            // POST mengembalikan array telanjang, GET mengembalikan envelope — baca ulang lewat GET.
-            client.sendMessage(text)
-                .onSuccess { input = ""; reloadChat() }
+            runPhase = null
+            // Run asinkron: 202 + SSE progres. Riwayat di DB tetap sumber kebenaran, jadi SSE yang putus tidak
+            // menghilangkan hasil — setelah selesai (atau putus) riwayat dimuat ulang.
+            client.startRun(text, thread)
+                .onSuccess { runId ->
+                    input = ""
+                    reloadChat()   // tampilkan pesan pengguna segera
+                    runCatching {
+                        client.runEvents(runId).collect { ev ->
+                            when (ev.type) {
+                                "status" -> runPhase = ev.field("phase")
+                                "question" -> runPhase = "waiting"
+                                "error" -> error = ev.field("message") ?: "Proses gagal"
+                                else -> Unit
+                            }
+                        }
+                    }.onFailure { e -> error = e.message ?: "Koneksi progres terputus; memuat ulang riwayat" }
+                    reloadChat()
+                    reloadDraft()
+                }
                 .onFailure { e -> error = e.message }
+            runPhase = null
             busy = false
         }
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val wide = maxWidth >= ClayBreakpoints.MasterDetail
+        val threads = remember(draft) { threadsOf(draft?.activeModules.orEmpty().map { it.id to it.displayName }) }
                 val chat: @Composable (Modifier) -> Unit = { m ->
             Column(modifier = m, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Row(
@@ -144,27 +172,54 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                         )
                     }
                     if (busy) item(key = "typing") {
-                        Text("Agent mengetik…", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
+                        Text(runPhaseLabel(runPhase), style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
                     }
                 }
-                ChatComposer(value = input, onValueChange = { input = it }, busy = busy, onSend = ::send)
+                ChatComposer(
+                    value = input, onValueChange = { input = it }, busy = busy, onSend = ::send,
+                    // Ada pertanyaan agent yang menunggu di utas ini: ketikan berikutnya adalah jawabannya.
+                    placeholder = if ((pendingByThread[thread] ?: 0) > 0) "Ketik jawaban Anda untuk pertanyaan di atas"
+                    else "Contoh: pabrik kaos FOB dengan tahap sablon"
+                )
             }
         }
         val panel: @Composable (Modifier) -> Unit = { m ->
             ChatResultPanel(
-                draft = draft,
+                draft = draft?.focusedOn(thread),
                 patchPreview = previewSummary,
                 onClose = if (wide) null else ({ panelOpen = false }),
-                modifier = m
+                modifier = m,
+                focusModuleId = thread
             )
         }
-        when {
-            wide -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
-                chat(Modifier.weight(0.42f).fillMaxHeight())
-                panel(Modifier.weight(0.58f).fillMaxHeight())
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+            // Tab utas: "Semua" (tanpa filter) + satu tab per modul; memilih tab memuat ulang riwayat utas itu.
+            if (threads.size > 1) ChatThreadTabs(
+                threads = threads,
+                selected = thread,
+                pending = pendingByThread,
+                onSelect = { picked ->
+                    if (!busy && picked != thread) {
+                        thread = picked
+                        messages = emptyList()
+                        scope.launch {
+                            // Membuka tab modul: server menghitung celah modul itu dan membuat pertanyaan bila ada (idempoten).
+                            if (picked != null) client.requestFollowUps(picked)
+                            reloadChat()
+                        }
+                    }
+                }
+            )
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                when {
+                    wide -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
+                        chat(Modifier.weight(0.42f).fillMaxHeight())
+                        panel(Modifier.weight(0.58f).fillMaxHeight())
+                    }
+                    panelOpen -> panel(Modifier.fillMaxSize())
+                    else -> chat(Modifier.fillMaxSize())
+                }
             }
-            panelOpen -> panel(Modifier.fillMaxSize())
-            else -> chat(Modifier.fillMaxSize())
         }
     }
 }

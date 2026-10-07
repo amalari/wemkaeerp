@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.auth.Role
+import com.eventverse.app.domain.auth.canOpenBuilder
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.auth.AuthViewModel
 import com.eventverse.app.presentation.auth.LoginScreen
@@ -69,7 +70,7 @@ import com.eventverse.app.presentation.designsystem.IconEdit
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconLock
 import com.eventverse.app.presentation.designsystem.IconMenu
-import com.eventverse.app.presentation.discovery.DiscoveryWizardScreen
+import com.eventverse.app.presentation.discovery.DiscoveryEntry
 import com.eventverse.app.presentation.discovery.studio.DemandLedgerScreen
 import com.eventverse.app.presentation.discovery.studio.PrototypeStudioScreen
 import com.eventverse.app.domain.rbac.AccessDecision
@@ -401,7 +402,7 @@ fun App() {
                                         PrototypeStudioScreen(canWrite = isSuperadmin)
                                     AppNavScreen.DISCOVERY_DEMANDS ->
                                         DemandLedgerScreen(isSuperadmin = isSuperadmin)
-                                    else -> DiscoveryWizardScreen()
+                                    else -> DiscoveryEntry(session.tenantSlug != null && session.user.role.canOpenBuilder()) { goShell("/builder/chat") }
                                 }
                             } else {
                                 AuthGuardCard(

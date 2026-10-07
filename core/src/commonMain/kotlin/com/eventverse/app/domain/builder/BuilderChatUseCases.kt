@@ -7,6 +7,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.discovery.interview.InterviewLimits
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.Clock
@@ -23,9 +24,28 @@ class SendBuilderMessageUseCase(
     private val chats: BuilderChatRepository,
     private val agent: BuilderAgent,
     private val drafts: DiscoveryDraftRepository,
-    private val clock: Clock = Clock.System
+    private val clock: Clock = Clock.System,
+    /** Penanya klarifikasi sebelum draf (Fase B); null = langsung menyusun draf. Kegagalannya = tidak bertanya. */
+    private val clarifier: NarrativeClarifier? = null,
+    /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
+    private val moduleEditing: EditModuleFromChat? = null
 ) {
-    suspend operator fun invoke(tenantId: TenantId, userText: String): Result<List<ChatMessage>> = runCatching {
+    /**
+     * Satu giliran chat. [onProgress] menerima fase kerja (`planning` saat memeriksa kejelasan cerita, `drafting` saat
+     * agent menyusun draf) untuk indikator memuat. Urutan:
+     *
+     * 1. pesan USER dicatat;
+     * 2. follow-up yang menunggu **di utas ini** dijawab oleh pesan ini (tercatat di pertanyaannya);
+     * 3. sekali per utas Semua, bila belum pernah bertanya, penanya boleh mengajukan pertanyaan → pesan QUESTION dan
+     *    giliran berhenti (draf menunggu jawaban);
+     * 4. selain itu agent menyusun patch dari **narasi gabungan** utas ([composeNarrative]).
+     */
+    suspend operator fun invoke(
+        tenantId: TenantId,
+        userText: String,
+        moduleId: String? = null,
+        onProgress: suspend (String) -> Unit = {}
+    ): Result<List<ChatMessage>> = runCatching {
         require(userText.isNotBlank()) { "Pesan tidak boleh kosong" }
         val conversation = chats.conversationFor(tenantId)
 
@@ -36,12 +56,55 @@ class SendBuilderMessageUseCase(
                 tenantId = tenantId,
                 role = ChatRole.USER,
                 text = userText.trim(),
-                createdAt = clock.now()
+                createdAt = clock.now(),
+                moduleId = moduleId
             )
         )
 
+        // Follow-up yang menunggu di utas persis ini dijawab oleh pesan ini; pertanyaan utas lain tidak tersentuh.
+        val waiting = chats.messages(conversation.id).pendingFollowUps(moduleId).filter { it.moduleId == moduleId }
+        waiting.groupBy { it.messageId }.forEach { (messageId, qs) ->
+            chats.markAnswered(messageId, qs.associate { it.question.id to userText.trim() })
+        }
+
+        // Utas modul: pesan (dan jawaban follow-up) ditafsirkan menjadi sunting isian modul itu, bukan menyusun ulang draf.
+        val editing = moduleEditing
+        if (editing != null && moduleId != null) {
+            val answered = waiting.map { it.question.question to userText.trim() }
+            if (editing.handle(tenantId, conversation, moduleId, userText.trim(), answered, onProgress)) {
+                return@runCatching chats.messages(conversation.id)
+            }
+        }
+
         val current = drafts.findByTenant(tenantId)?.draft
-        val reply = agent.proposePatch(current, chats.messages(conversation.id), userText.trim()).getOrThrow()
+        val thread = chats.messages(conversation.id).inThread(moduleId)
+
+        val asker = clarifier
+        if (asker != null && moduleId == null && waiting.isEmpty() && thread.none { it.kind == ChatMessageKind.QUESTION }) {
+            onProgress("planning")
+            val questions = runCatching {
+                asker.clarify(composeNarrative(thread), current?.blueprint?.activeModuleCodes?.toList().orEmpty())
+            }.getOrDefault(emptyList()).take(InterviewLimits.CLARIFICATIONS)
+            if (questions.isNotEmpty()) {
+                chats.append(
+                    ChatMessage(
+                        id = ChatMessageId("msg-${conversation.id.value}-a-${clock.now().epochSeconds}"),
+                        conversationId = conversation.id,
+                        tenantId = tenantId,
+                        role = ChatRole.AGENT,
+                        text = "Sebelum saya menyusun alur dan modulnya, ada yang ingin saya pastikan. Jawab singkat saja di chat:",
+                        createdAt = clock.now(),
+                        moduleId = moduleId,
+                        kind = ChatMessageKind.QUESTION,
+                        questions = questions
+                    )
+                )
+                return@runCatching chats.messages(conversation.id)
+            }
+        }
+
+        onProgress("drafting")
+        val reply = agent.proposePatch(current, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
 
         chats.append(
             ChatMessage(
@@ -52,7 +115,8 @@ class SendBuilderMessageUseCase(
                 text = reply.text,
                 proposedDraftJson = reply.proposedDraft?.let(DiscoveryDraftCodec::encodeToString),
                 proposedSummary = reply.summary,
-                createdAt = clock.now()
+                createdAt = clock.now(),
+                moduleId = moduleId
             )
         )
         chats.messages(conversation.id)

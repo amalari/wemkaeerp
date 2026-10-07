@@ -31,9 +31,11 @@ fun Route.discoveryInterviewRoutes(
     repository: DiscoveryDraftRepository,
     demands: DiscoveryDemandRepository,
     /** Pengisi tebakan langkah (agent AI); null = tebakan deterministik saja. */
-    filler: InterviewStepFiller? = null
+    filler: InterviewStepFiller? = null,
+    /** Perencana alur penuh (model besar, sekali di awal); null = tanpa rencana. */
+    planner: com.eventverse.app.domain.discovery.interview.InterviewPlanner? = null
 ) {
-    val interviews = InterviewDraftUseCases(repository, filler)
+    val interviews = InterviewDraftUseCases(repository, filler, planner)
 
     route("/api/discovery/drafts") {
         post("/{id}/interview") {
@@ -49,6 +51,12 @@ fun Route.discoveryInterviewRoutes(
             val result = when (val action = body.string("action")) {
                 "start" -> interviews.start(id, caller, narrative, consultant = body.string("mode") == "konsultan")
                 "accept_all" -> interviews.acceptAll(id, caller, narrative)
+                "clarify" -> {
+                    val answers = body.obj("answers")?.entries
+                        ?.mapNotNull { (k, v) -> (v as? com.eventverse.app.shared.json.JsonValue.Str)?.let { k to it.value } }?.toMap()
+                        ?.takeIf { it.isNotEmpty() } ?: return@post badRequest("Field 'answers' wajib: objek id pertanyaan → jawaban")
+                    interviews.clarify(id, caller, answers)
+                }
                 "answer" -> {
                     val outcome = Confirmation.fromCode(body.string("outcome").orEmpty())
                         ?.takeIf { it != Confirmation.GUESSED }
@@ -62,7 +70,7 @@ fun Route.discoveryInterviewRoutes(
                     }
                     interviews.answer(id, caller, questionId, outcome, body.string("text"), revised, narrative)
                 }
-                else -> return@post badRequest("Field 'action' wajib: start, answer, atau accept_all (dapat '$action')")
+                else -> return@post badRequest("Field 'action' wajib: start, answer, clarify, atau accept_all (dapat '$action')")
             }
             result.onSuccess { call.respondText(summaryObj(it, narrative.ifBlank { null }).encode(), ContentType.Application.Json) }
                 .onFailure {
