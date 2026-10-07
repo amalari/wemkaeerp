@@ -74,4 +74,12 @@ class KoogModuleEditorTest {
         assertNull(BuilderModuleEditors.from(configured = "koog", apiKey = " "))
         assertTrue(BuilderModuleEditors.from(configured = "KOOG", apiKey = "kunci-uji") is KoogModuleEditor)
     }
+
+    @Test
+    fun `saklar mengikuti INTERVIEW_AGENT, dan saklar sendiri hanya pengecualian eksplisit`() {
+        assertEquals("koog", BuilderModuleEditors.resolveSwitch(own = null, inherited = "koog"))
+        assertEquals("off", BuilderModuleEditors.resolveSwitch(own = "off", inherited = "koog"))
+        assertNull(BuilderModuleEditors.from(configured = BuilderModuleEditors.resolveSwitch("off", "koog"), apiKey = "k"))
+        assertTrue(BuilderModuleEditors.from(configured = BuilderModuleEditors.resolveSwitch(null, "koog"), apiKey = "k") is KoogModuleEditor)
+    }
 }

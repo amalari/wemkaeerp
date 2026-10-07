@@ -118,10 +118,18 @@ class KoogModuleEditor(
     }
 }
 
-/** Saklar penyunting modul: `BUILDER_MODULE_EDITOR=koog` + `DEEPSEEK_API_KEY` → LLM (model kecil); selain itu `null`. */
+/**
+ * Saklar penyunting modul: **mengikuti `INTERVIEW_AGENT`** (agent model kecil untuk interaksi kecil), jadi
+ * `INTERVIEW_AGENT=koog` + `DEEPSEEK_API_KEY` otomatis menyalakannya. `BUILDER_MODULE_EDITOR` hanya pengecualian eksplisit
+ * (mis. `off`). Selain koog → `null` (utas modul memakai agent penyusun draf).
+ */
 object BuilderModuleEditors {
+    /** Saklar sendiri bila diisi; kosong → mewarisi saklar agent induknya. */
+    internal fun resolveSwitch(own: String?, inherited: String?): String? =
+        own?.takeIf { it.isNotBlank() } ?: inherited?.takeIf { it.isNotBlank() }
+
     fun fromEnv(): ModuleEditor? = from(
-        configured = EnvLoader.get("BUILDER_MODULE_EDITOR").takeIf { it.isNotBlank() },
+        configured = resolveSwitch(EnvLoader.get("BUILDER_MODULE_EDITOR"), EnvLoader.get("INTERVIEW_AGENT")),
         apiKey = EnvLoader.get("DEEPSEEK_API_KEY").takeIf { it.isNotBlank() },
         modelId = listOf("BUILDER_MODULE_EDITOR_MODEL", "INTERVIEW_AGENT_MODEL").firstNotNullOfOrNull { EnvLoader.get(it).takeIf(String::isNotBlank) },
         timeoutMillis = EnvLoader.get("BUILDER_MODULE_EDITOR_TIMEOUT_MS").toLongOrNull()?.takeIf { it > 0 } ?: KoogModuleEditor.DEFAULT_TIMEOUT_MILLIS
@@ -130,7 +138,7 @@ object BuilderModuleEditors {
     fun from(configured: String?, apiKey: String?, modelId: String? = null, timeoutMillis: Long = KoogModuleEditor.DEFAULT_TIMEOUT_MILLIS): ModuleEditor? {
         if (configured?.lowercase() != DiscoveryAgents.KOOG) return null
         if (apiKey.isNullOrBlank()) {
-            logger.warn("BUILDER_MODULE_EDITOR=koog tetapi DEEPSEEK_API_KEY kosong — utas modul memakai agent penyusun draf")
+            logger.warn("Penyunting modul diminta aktif (koog) tetapi DEEPSEEK_API_KEY kosong — utas modul memakai agent penyusun draf")
             return null
         }
         val model = DiscoveryAgents.resolveModel(modelId)
