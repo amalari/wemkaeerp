@@ -1,6 +1,6 @@
 # PLAN — Master Data Bersama: Kategori Material sebagai Data + Kategorisasi Otomatis
 
-**Status:** usulan, menunggu persetujuan · **Tanggal:** 2026-10-07 · **Penulis:** Agent B
+**Status:** **disetujui 2026-10-07, keputusan §5 sudah dijawab**; implementasi belum dimulai · **Tanggal:** 2026-10-07 · **Penulis:** Agent B
 **Terkait:** [PROPOSAL-iv-B6](parallel4/PROPOSAL-iv-B6-shared-module.md) (modul bersama), `tenant-variability-rules.md` Kontrak 1, 5, 8
 
 > Tujuan satu kalimat: `master_data` menjadi modul **fondasi bersama** yang dipakai pack mana pun, dengan **kategori material berupa data** (template per pack, salinan per tenant), dan kategori **terisi otomatis** sehingga pengguna tidak perlu memahaminya.
@@ -93,11 +93,11 @@ Mutu diukur dengan **% tebakan yang diterima tanpa diubah** dan set emas per pac
 ## 3. Tahap pengerjaan
 | Tahap | Isi | Gerbang |
 |---|---|---|
-| **P0** | Persetujuan plan, `TRD-MDATA-001`, keputusan §5 | keputusan terbuka terjawab |
+| **P0** | `TRD-MDATA-001`; periksa `providedReferenceTypes` `master_data` dan ukuran file yang akan disentuh | TRD disetujui |
 | **P1** | Katalog kategori sebagai data: tipe, `DomainPack.materialCategories` + codec, tabel + backfill 7 kategori ke tenant yang ada, template garment identik | tes paritas iterasi enum; pack lama terbaca |
 | **P2** | Pindahkan pembaca satu paket per PR: masterdata (domain + server) → BOM/tech pack → sampling → kontrak → UI | tiap PR: kode item, satuan bawaan, awalan **identik** untuk tenant garment; pemindai "jembatan yang bisa melempar" kosong |
-| **P3** | Tenant kedua: pack klinik/bengkel dengan kategorinya sendiri; putuskan celah satuan (volume) | tes template non-default; **cek mata** di tenant non-garment |
-| **P4** | Netralkan teks `master_data`, bagikan lewat salinan identik (pola B6/invoicing) | paritas garment; tes salinan identik |
+| **P3** | Tenant kedua: pack klinik/bengkel dengan kategorinya sendiri; tambah dimensi satuan volume (keputusan 3) | tes template non-default; **cek mata** di tenant non-garment |
+| **P4** | Netralkan teks `master_data` (satu teks untuk semua, keputusan 5), bagikan lewat salinan identik (pola invoicing) | paritas garment; tes salinan identik |
 | **P5** | Kategorisasi deterministik: kamus pack + kamus tenant, port `MaterialCategorizer`, endpoint saran (OPERATE), field kategori terisi otomatis di UI | deterministik byte-per-byte; antrean "Belum dikategorikan"; 403 peran VIEW |
 | **P6** | Agent AI (Koog) di belakang port yang sama + eval (set emas ≥ 10 kasus per pack) + kill-switch + impor massal | % diterima dilaporkan; validator menolak kategori di luar himpunan |
 | **P7** | Pembersihan: hapus enum, audit variabilitas, teaching doc | `scripts/audit-variability.sh` 0 temuan baru |
@@ -107,12 +107,12 @@ Urutan P1→P2→P3 wajib berurutan (Strangler Fig); P5/P6 baru setelah P3 supay
 ## 4. Verifikasi (setiap tahap)
 `./gradlew :core:jvmTest` · kompilasi server + `:app:shared` JVM/WasmJS/JS · tes server di DB scratch · tes **dokumen lama** (buang kolom baru, harus tetap sah — pelajaran regresi draf garment) · tes peran tak berwenang (403) · cek visual di tenant non-garment · teaching doc.
 
-## 5. Keputusan yang dibutuhkan
-1. **Kategori wajib atau opsional?** Usul: tetap wajib di DB, tapi **selalu terisi otomatis** (fallback "Belum dikategorikan").
-2. **Ambang auto-terapkan** (confidence) dan apakah di bawah ambang masuk antrean tinjau atau tetap "Belum dikategorikan" saja.
-3. **Satuan ukur:** perluasan dimensi (volume) masuk plan ini (P3) atau plan terpisah? Dimensi yang terlihat hanya massa, panjang, hitungan.
-4. **Admin tenant boleh mengubah himpunan kategori sendiri** (MANAGE), atau hanya pemilik pack/superadmin?
-5. **Kebijakan teks `master_data`:** setelah dibagikan, nama/deskripsi tunggal untuk semua pack, atau label per pack seperti `ModuleReference.label`?
+## 5. Keputusan (DIJAWAB 2026-10-07)
+1. **Kategori tetap wajib di DB, tetapi selalu terisi otomatis.** Fallback kategori sistem "Belum dikategorikan".
+2. **Ambang auto-terapkan:** awal **0,8**, dapat diubah lewat konfigurasi. Itu angka tebakan awal, **wajib dikalibrasi dengan set emas di P6**, bukan dianggap benar. Hasil di bawah ambang diisi "Belum dikategorikan" lalu masuk antrean tinjau.
+3. **Perluasan satuan ukur (volume: liter, ml)** masuk plan ini, di P3.
+4. **Admin tenant (MANAGE) boleh mengubah himpunan kategorinya sendiri.** Kategori yang sudah dipakai item tidak boleh dihapus; awalan kode beku setelah dipakai.
+5. **Teks `master_data` setelah dibagikan: satu teks netral untuk semua pack** (opsi A), mis. "Master Data Barang & Harga" dengan deskripsi "Katalog barang atau bahan, satuan, dan tarif acuan harga." Label per pack (opsi B) ditunda sampai ada permintaan nyata, dan bila dibangun sebaiknya sekali untuk semua modul bersama (`invoicing`, `org_chart`, `vendor_contacts`, `master_data`), bukan khusus modul ini. Konsekuensi: nama modul berubah juga untuk tenant garment. Perubahan teks mengikuti prosedur netralisasi yang sama (pack + UI + paritas + migrasi katalog guarded + catatan `SupersededModuleText`).
 
 ## 6. Risiko
 | Risiko | Mitigasi |
