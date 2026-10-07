@@ -6,6 +6,8 @@ import com.eventverse.app.domain.blueprint.BlueprintModule
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
+import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.BasisRef
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
@@ -92,44 +94,51 @@ object InterviewEvalPacks {
         interview = session
     )
 
-    /** Sesi klinik emas & sah — kunci jawaban kasus `klinik`; grader wajib memberinya 100%. */
+    /** Narasi kasus — satu sumber kebenaran untuk kutipan basis sesi emas (harus substring cerita). */
+    private fun caseNarrative(name: String): String = InterviewGoldenCases.all.first { it.name == name }.narrative
+
+    /** Sesi klinik emas & sah versi berdasar-cerita — kunci jawaban kasus `klinik`; grader wajib memberinya 100%. */
     val klinikSession = InterviewSession(
         step = InterviewStep.DONE,
         divisions = listOf(
-            DivisionDraft(DivisionCode("pendaftaran"), "Pendaftaran", ItemSource.GUESS),
-            DivisionDraft(DivisionCode("poli"), "Poli", ItemSource.GUESS),
-            DivisionDraft(DivisionCode("kasir"), "Kasir", ItemSource.ANSWER)
+            DivisionDraft(DivisionCode("pendaftaran"), "Pendaftaran", ItemSource.GUESS, BasisRef(Basis.NARASI, quote = "pasien mendaftar antrean per poli")),
+            DivisionDraft(DivisionCode("poli"), "Poli", ItemSource.GUESS, BasisRef(Basis.NARASI, quote = "antrean per poli")),
+            DivisionDraft(DivisionCode("kasir"), "Kasir", ItemSource.ANSWER, BasisRef(Basis.NARASI, quote = "tagihan pembayaran kasir"))
         ),
         roles = listOf(
-            RoleDraft(RoleKey("resepsionis"), "Resepsionis", DivisionCode("pendaftaran"), ItemSource.GUESS, isHead = true),
-            RoleDraft(RoleKey("perawat"), "Perawat", DivisionCode("poli"), ItemSource.GUESS),
-            RoleDraft(RoleKey("kasir"), "Kasir", DivisionCode("kasir"), ItemSource.ANSWER)
+            RoleDraft(RoleKey("resepsionis"), "Resepsionis", DivisionCode("pendaftaran"), ItemSource.GUESS, isHead = true, basisRef = BasisRef(Basis.NARASI, quote = "pasien mendaftar")),
+            RoleDraft(RoleKey("perawat"), "Perawat", DivisionCode("poli"), ItemSource.GUESS, basisRef = BasisRef(Basis.NARASI, quote = "stok obat")),
+            RoleDraft(RoleKey("kasir"), "Kasir", DivisionCode("kasir"), ItemSource.ANSWER, basisRef = BasisRef(Basis.NARASI, quote = "pembayaran kasir"))
         ),
         links = listOf(
-            RoleModuleLink(RoleKey("resepsionis"), ModuleId("klinik_pendaftaran"), ModuleOrigin.NEW, listOf("Nomor antrean"), Confirmation.CONFIRMED, 80),
-            RoleModuleLink(RoleKey("perawat"), ModuleId("klinik_poli"), ModuleOrigin.NEW, emptyList(), Confirmation.SKIPPED, 70),
-            RoleModuleLink(RoleKey("kasir"), ModuleId("klinik_kasir"), ModuleOrigin.NEW, emptyList(), Confirmation.CHANGED),
-            RoleModuleLink(RoleKey("resepsionis"), ModuleId("org_chart"), ModuleOrigin.REUSE_PLATFORM, emptyList(), Confirmation.CONFIRMED)
+            RoleModuleLink(RoleKey("resepsionis"), ModuleId("klinik_pendaftaran"), ModuleOrigin.NEW, listOf("Nomor antrean"), Confirmation.CONFIRMED, 80, BasisRef(Basis.NARASI, quote = "mendaftar antrean")),
+            RoleModuleLink(RoleKey("perawat"), ModuleId("klinik_poli"), ModuleOrigin.NEW, emptyList(), Confirmation.SKIPPED, 70, BasisRef(Basis.NARASI, quote = "antrean per poli")),
+            RoleModuleLink(RoleKey("kasir"), ModuleId("klinik_kasir"), ModuleOrigin.NEW, emptyList(), Confirmation.CHANGED, null, BasisRef(Basis.NARASI, quote = "tagihan pembayaran kasir")),
+            RoleModuleLink(RoleKey("resepsionis"), ModuleId("org_chart"), ModuleOrigin.REUSE_PLATFORM, emptyList(), Confirmation.CONFIRMED, null, BasisRef(Basis.JAWABAN, answerId = "g2"))
         ),
-        handoffs = listOf(ModuleHandoff(ModuleId("klinik_pendaftaran"), ModuleId("klinik_poli"), PortType("Permintaan"), Confirmation.CONFIRMED)),
+        handoffs = listOf(ModuleHandoff(ModuleId("klinik_pendaftaran"), ModuleId("klinik_poli"), PortType("Permintaan"), Confirmation.CONFIRMED, basisRef = BasisRef(Basis.NARASI, quote = "mendaftar antrean per poli"))),
         answers = listOf(
             InterviewAnswer(1, InterviewStep.G1_DIVISI, "g1", Confirmation.CONFIRMED),
             InterviewAnswer(2, InterviewStep.G2_PERAN, "g2", Confirmation.SKIPPED, "terima semua"),
             InterviewAnswer(3, InterviewStep.G3_MODUL, "g3", Confirmation.CONFIRMED),
             InterviewAnswer(4, InterviewStep.G4_SAMBUNGAN, "g4", Confirmation.CONFIRMED)
-        )
+        ),
+        version = InterviewSession.BASED_ON_STORY,
+        narrative = caseNarrative("klinik")
     )
 
-    /** Sesi bengkel emas: satu divisi, satu peran, satu tautan — cerita kecil, draf kecil (kasus negatif C6). */
+    /** Sesi bengkel emas versi berdasar-cerita: satu divisi, satu peran, satu tautan — cerita kecil, draf kecil (kasus negatif C6). */
     val bengkelSession = InterviewSession(
         step = InterviewStep.G3_MODUL,
-        divisions = listOf(DivisionDraft(DivisionCode("servis"), "Servis", ItemSource.GUESS)),
-        roles = listOf(RoleDraft(RoleKey("mekanik"), "Mekanik", DivisionCode("servis"), ItemSource.GUESS, isHead = true)),
-        links = listOf(RoleModuleLink(RoleKey("mekanik"), ModuleId("bengkel_servis"), ModuleOrigin.NEW, emptyList(), Confirmation.CONFIRMED, 75)),
+        divisions = listOf(DivisionDraft(DivisionCode("servis"), "Servis", ItemSource.GUESS, BasisRef(Basis.NARASI, quote = "Bengkel servis motor"))),
+        roles = listOf(RoleDraft(RoleKey("mekanik"), "Mekanik", DivisionCode("servis"), ItemSource.GUESS, isHead = true, basisRef = BasisRef(Basis.NARASI, quote = "Bengkel servis motor"))),
+        links = listOf(RoleModuleLink(RoleKey("mekanik"), ModuleId("bengkel_servis"), ModuleOrigin.NEW, emptyList(), Confirmation.CONFIRMED, 75, BasisRef(Basis.NARASI, quote = "booking pesanan servis"))),
         answers = listOf(
             InterviewAnswer(1, InterviewStep.G1_DIVISI, "g1", Confirmation.CONFIRMED),
             InterviewAnswer(2, InterviewStep.G2_PERAN, "g2", Confirmation.CONFIRMED)
-        )
+        ),
+        version = InterviewSession.BASED_ON_STORY,
+        narrative = caseNarrative("bengkel")
     )
 }
 
@@ -142,15 +151,25 @@ fun interface InterviewGuessFn {
     suspend fun guess(step: InterviewStep, pack: DomainPack, draft: DiscoveryDraft, narrative: String): Result<InterviewStepGuesses>
 }
 
-/** Draf awal wawancara satu kasus: klinik/bengkel memakai pack fixture; lainnya dari agent deterministik SP. */
-fun draftFor(case: InterviewEvalCase): DiscoveryDraft = when (case.name) {
-    "klinik" -> InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, InterviewSession(step = InterviewStep.G1_DIVISI))
-    "bengkel" -> InterviewEvalPacks.draftOf(InterviewEvalPacks.bengkelPack, InterviewSession(step = InterviewStep.G1_DIVISI))
-    "garment-fob" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.FOB_FULL_PACKAGE, interview = InterviewSession(step = InterviewStep.G1_DIVISI))
-    "garment-cmt" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.CMT_MAKLOON, interview = InterviewSession(step = InterviewStep.G1_DIVISI))
-    "garment-d2c" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.BRAND_D2C, interview = InterviewSession(step = InterviewStep.G1_DIVISI))
-    else -> runBlocking {
-        val draft = DeterministicDiscoveryAgent().draft(DiscoveryRequest(case.narrative, case.industryHint)).getOrThrow()
-        draft.copy(interview = InterviewSession(step = InterviewStep.G1_DIVISI))
+/**
+ * Draf awal wawancara satu kasus: sesi kosong **versi berdasar-cerita** di F0 dengan narasi kasus —
+ * titik start alur produksi sejak C6. Klinik/bengkel memakai pack fixture; lainnya dari agent deterministik SP.
+ */
+fun draftFor(case: InterviewEvalCase): DiscoveryDraft {
+    val start = InterviewSession(
+        step = InterviewStep.F0_BISNIS,
+        version = InterviewSession.BASED_ON_STORY,
+        narrative = case.narrative
+    )
+    return when (case.name) {
+        "klinik" -> InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, start)
+        "bengkel" -> InterviewEvalPacks.draftOf(InterviewEvalPacks.bengkelPack, start)
+        "garment-fob" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.FOB_FULL_PACKAGE, interview = start)
+        "garment-cmt" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.CMT_MAKLOON, interview = start)
+        "garment-d2c" -> DiscoveryDraft(GarmentDomainPack.pack, GarmentBlueprints.BRAND_D2C, interview = start)
+        else -> runBlocking {
+            val draft = DeterministicDiscoveryAgent().draft(DiscoveryRequest(case.narrative, case.industryHint)).getOrThrow()
+            draft.copy(interview = start)
+        }
     }
 }

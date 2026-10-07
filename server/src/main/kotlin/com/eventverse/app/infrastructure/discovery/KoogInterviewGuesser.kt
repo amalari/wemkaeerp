@@ -5,6 +5,9 @@ import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.Guess
 import com.eventverse.app.domain.discovery.interview.InterviewGuesser
+import com.eventverse.app.domain.discovery.interview.BusinessProfile
+import com.eventverse.app.domain.discovery.interview.InterviewLimits
+import com.eventverse.app.domain.discovery.interview.RequirementSpec
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
 import com.eventverse.app.domain.discovery.interview.ModuleHandoff
 import com.eventverse.app.domain.discovery.interview.RoleDraft
@@ -18,15 +21,19 @@ import ai.koog.utils.io.use
 
 /**
  * Usulan penebak untuk satu langkah wawancara — keluaran [AgentInterviewGuesser] dan seam eval.
- * Hanya butir langkah [step] yang berisi; sisanya kosong. Hasil ini **usulan**: pemanggil menggabungkannya
- * ([mergeStepGuesses]) dan validator yang menegakkan.
+ * Hanya butir langkah [step] yang berisi; sisanya kosong (F0/F1 mengisi [profile], F2 mengisi [specs]).
+ * Hasil ini **usulan**: pemanggil menggabungkannya ([mergeStepGuesses]) dan validator yang menegakkan.
  */
 data class InterviewStepGuesses(
     val step: InterviewStep,
     val divisions: List<DivisionDraft> = emptyList(),
     val roles: List<RoleDraft> = emptyList(),
     val links: List<RoleModuleLink> = emptyList(),
-    val handoffs: List<ModuleHandoff> = emptyList()
+    val handoffs: List<ModuleHandoff> = emptyList(),
+    /** Fase konsultan: hasil F0/F1 — profil bisnis (summary, tujuan, titik sakit). */
+    val profile: BusinessProfile? = null,
+    /** Fase konsultan: hasil F2 — spesifikasi per area (siapa isi, apa dicatat, siapa lihat, kapan selesai). */
+    val specs: List<RequirementSpec> = emptyList()
 )
 
 /**
@@ -35,6 +42,13 @@ data class InterviewStepGuesses(
  * tanpa mengubah langkah — langkah dimajukan oleh pemanggil (route/alur), bukan oleh penebak.
  */
 internal fun mergeStepGuesses(session: InterviewSession, guesses: InterviewStepGuesses): InterviewSession = when (guesses.step) {
+    // Fase konsultan (C6): model mengembalikan dokumen utuh tiap putaran, jadi profil diganti bila diusulkan
+    // (validator mewajibkan summary terisi), dan spesifikasi digabung per area.
+    InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN -> session.copy(profile = guesses.profile ?: session.profile)
+    InterviewStep.F2_SPEK -> session.copy(
+        profile = guesses.profile ?: session.profile,
+        specs = mergeByKey(session.specs, guesses.specs) { it.areaKey.value }
+    )
     InterviewStep.G1_DIVISI -> session.copy(
         divisions = mergeByKey(session.divisions, guesses.divisions, { it.code.value })
     )
@@ -47,8 +61,7 @@ internal fun mergeStepGuesses(session: InterviewSession, guesses: InterviewStepG
     InterviewStep.G4_SAMBUNGAN -> session.copy(
         handoffs = mergeByKey(session.handoffs, guesses.handoffs) { "${it.from.value}->${it.to.value}:${it.portType.value}" }
     )
-    // Fase konsultan F0–F2 bukan tebakan G1–G5: tidak ada yang digabung (persona konsultan = C6).
-    InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
+    // Fase konsultan F0–F2 ditangani cabang di atas; G5/DONE tidak ada yang digabung.
     InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> session
 }
 
@@ -107,8 +120,8 @@ class AgentInterviewGuesser(
         require(maxToolIterations > 0) { "maxToolIterations harus positif" }
     }
 
-    /** `interview-v1` = bentuk keluaran dokumen interview saat ini; naikkan bila kontrak keluaran berubah. */
-    val agentRef: String = "koog/${model.id}/interview-v1"
+    /** `interview-v2` = keluaran dokumen berdasar-cerita (basisRef wajib, F0–F2); v1 = pra-B7/C6. */
+    val agentRef: String = "koog/${model.id}/interview-v2"
 
     suspend fun guess(
         step: InterviewStep,
@@ -127,6 +140,13 @@ class AgentInterviewGuesser(
         var feedback: List<DiscoveryValidationIssue> = emptyList()
         var previousAnswer: String? = null
         var lastFailure: Throwable? = null
+        // Sesi dasar penggabungan: sesi tersimpan dihormati versinya (dokumen lama pra-B7 tetap v1,
+        // basis opsional); draf tanpa wawancara memulai versi **berdasar-cerita** dengan narasi giliran ini.
+        val stored = draft.interview
+        val base = (stored ?: InterviewSession(step = step)).copy(
+            version = stored?.version ?: InterviewSession.BASED_ON_STORY,
+            narrative = stored?.narrative ?: narrative.trim().take(InterviewLimits.NARRATIVE).ifBlank { null }
+        )
 
         for (round in 1..maxCorrectionRounds) {
             val answer = askAgent(step, draft, narrative, feedback, previousAnswer, round)
@@ -138,7 +158,7 @@ class AgentInterviewGuesser(
                 feedback = listOf(issueOf(e))
                 continue
             }
-            val merged = mergeStepGuesses(draft.interview ?: InterviewSession(step = step), guesses)
+            val merged = mergeStepGuesses(base, guesses)
             val issues = InterviewValidator.validate(merged, pack)
             if (issues.isEmpty()) return guesses
             lastFailure = IllegalStateException(issues.joinToString("; ") { "${it.path}: ${it.message}" })
@@ -158,7 +178,9 @@ class AgentInterviewGuesser(
         divisions = if (step == InterviewStep.G1_DIVISI) session.divisions else emptyList(),
         roles = if (step == InterviewStep.G2_PERAN) session.roles else emptyList(),
         links = if (step == InterviewStep.G3_MODUL) session.links else emptyList(),
-        handoffs = if (step == InterviewStep.G4_SAMBUNGAN) session.handoffs else emptyList()
+        handoffs = if (step == InterviewStep.G4_SAMBUNGAN) session.handoffs else emptyList(),
+        profile = if (step == InterviewStep.F0_BISNIS || step == InterviewStep.F1_TUJUAN) session.profile else null,
+        specs = if (step == InterviewStep.F2_SPEK) session.specs else emptyList()
     )
 
     /** Satu percakapan Koog: prompt sistem konsultan + pesan pengguna, dengan dua alat wawancara. */

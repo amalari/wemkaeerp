@@ -11,13 +11,14 @@ import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
-import com.eventverse.app.domain.discovery.interview.ItemSource
 import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.discovery.interview.ItemSource
 import com.eventverse.app.domain.discovery.interview.RoleDraft
 import com.eventverse.app.domain.discovery.interview.RoleKey
 import com.eventverse.app.domain.discovery.interview.RoleModuleLink
-import com.eventverse.app.domain.discovery.interview.InterviewAnswer
-import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.discovery.interview.answer
+import com.eventverse.app.domain.discovery.interview.nextQuestion
 
 /** Mutu tebakan satu giliran: berapa usulan diberikan dan berapa kunci langkah itu tercakup. */
 data class InterviewTurnResult(
@@ -33,13 +34,16 @@ data class InterviewTurnResult(
 data class InterviewFlowResult(val finalDraft: DiscoveryDraft, val turns: List<InterviewTurnResult>, val verdict: InterviewEvalVerdict)
 
 /**
- * Pelari alur wawancara untuk eval (plan IV-C4) - mensimulasikan **pengguna kooperatif**: menerima
- * usulan yang sah, menambah yang kurang dari kunci kasus sebagai jawaban pengguna (`ANSWER`), lalu
- * maju ke langkah berikutnya. Mutu tebakan per langkah diukur **sebelum** suplemen pengguna supaya
- * suplemen tidak menaikkan skor tebakan.
+ * Pelari alur wawancara untuk eval (plan IV-C4 + C6) - memakai fungsi giliran **produksi** core
+ * (`nextQuestion` + `answer`), jadi fase konsultan F0-F2, pelengkapan dasar JAWABAN pada butir
+ * pengguna, penyelesaian `GUESSED`, dan pelompatan langkah (`effectiveStep`) berperilaku identik
+ * dengan route. Sesi berjalan penuh versi **berdasar-cerita** (v2): tebakan tanpa `basisRef` ditolak
+ * validator; suplemen pengguna diberi dasar `JAWABAN` oleh `answer()`.
  *
- * Dipakai baseline deterministik (B1, wajib 100%) dan eval live (C4) tanpa perubahan, lewat seam
- * [InterviewGuessFn].
+ * Pengguna kooperatif disimulasikan lewat `revised`: butir kunci yang tak tertebak ditambahkan
+ * sebagai jawaban pengguna (`ANSWER`/`CONFIRMED`); mutu tebakan diukur **sebelum** suplemen supaya
+ * suplemen tidak menaikkan skor tebakan. Dipakai baseline deterministik (wajib 100%) dan eval live
+ * (C4) tanpa perubahan, lewat seam [InterviewGuessFn].
  */
 suspend fun runInterviewFlow(
     case: InterviewEvalCase,
@@ -48,34 +52,47 @@ suspend fun runInterviewFlow(
 ): InterviewFlowResult {
     var draft = draftFor(case)
     val turns = mutableListOf<InterviewTurnResult>()
+    var guard = 0
 
-    for (step in listOf(InterviewStep.G1_DIVISI, InterviewStep.G2_PERAN, InterviewStep.G3_MODUL, InterviewStep.G4_SAMBUNGAN)) {
+    while (guard++ < 16) {
+        val session = draft.interview ?: break
+        val question = session.nextQuestion(draft) ?: break
         val before = callsBefore()
         val started = System.currentTimeMillis()
-        val guesses = guessFn.guess(step, draft.pack, draft, case.narrative).getOrThrow()
+        val guesses = guessFn.guess(question.step, draft.pack, draft, case.narrative).getOrThrow()
         val duration = System.currentTimeMillis() - started
 
-        val merged = mergeStepGuesses(draft.interview ?: InterviewSession(step = step), stampGuessProvenance(guesses))
+        val merged = mergeStepGuesses(session, stampGuessProvenance(guesses))
+        val guessCount = guesses.divisions.size + guesses.roles.size + guesses.links.size +
+            guesses.handoffs.size + guesses.specs.size + (if (guesses.profile != null) 1 else 0)
 
-        // Mutu tebakan diukur SEBELUM suplemen pengguna.
-        val (keyTotal, keyCovered) = keyCoverage(case, step, merged, draft.pack)
-
-        val supplemented = completeFromKey(case, step, merged, draft.pack)
-        val session = supplemented.copy(
-            step = nextStep(step),
-            answers = supplemented.answers + InterviewAnswer(supplemented.answers.size + 1, step, "g${'$'}{step.ordinal}", Confirmation.CONFIRMED)
-        )
-        draft = draft.copy(interview = session)
-
-        turns += InterviewTurnResult(
-            step,
-            guesses.divisions.size + guesses.roles.size + guesses.links.size + guesses.handoffs.size,
-            keyTotal, keyCovered, duration, callsBefore() - before
-        )
+        if (question.step.isConsultant) {
+            // Jawaban bebas pengguna pada F0/F1 (narasi usaha / cerita tujuan) menjadi isi profil lewat
+            // `withProfileFrom` di core - jalur persis sama dengan produksi.
+            turns += InterviewTurnResult(question.step, guessCount, 0, 0, duration, callsBefore() - before)
+            draft = draft.copy(
+                interview = session.answer(draft, question.id, Confirmation.CONFIRMED, consultantText(case, question.step), merged).getOrThrow()
+            )
+        } else {
+            // Mutu tebakan diukur SEBELUM suplemen pengguna.
+            val (keyTotal, keyCovered) = keyCoverage(case, question.step, merged, draft.pack)
+            val revised = completeFromKey(case, question.step, merged, draft.pack)
+            turns += InterviewTurnResult(question.step, guessCount, keyTotal, keyCovered, duration, callsBefore() - before)
+            draft = draft.copy(
+                interview = session.answer(draft, question.id, Confirmation.CONFIRMED, null, revised).getOrThrow()
+            )
+        }
     }
 
     val verdict = InterviewEvalGrader.grade(case, draft)
     return InterviewFlowResult(draft, turns, verdict)
+}
+
+/** Jawaban bebas pengguna pada fase konsultan: F0 = narasi usaha, F1 = cerita tujuan/titik sakit (opsional). */
+private fun consultantText(case: InterviewEvalCase, step: InterviewStep): String? = when (step) {
+    InterviewStep.F0_BISNIS -> case.narrative
+    InterviewStep.F1_TUJUAN -> case.goalStory
+    else -> null
 }
 
 private fun keyCoverage(case: InterviewEvalCase, step: InterviewStep, session: InterviewSession, pack: DomainPack): Pair<Int, Int> = when (step) {
@@ -136,14 +153,6 @@ private fun completeFromKey(case: InterviewEvalCase, step: InterviewStep, sessio
         session.copy(links = session.links + additions)
     }
     else -> session
-}
-
-private fun nextStep(step: InterviewStep): InterviewStep = when (step) {
-    InterviewStep.G1_DIVISI -> InterviewStep.G2_PERAN
-    InterviewStep.G2_PERAN -> InterviewStep.G3_MODUL
-    InterviewStep.G3_MODUL -> InterviewStep.G4_SAMBUNGAN
-    InterviewStep.G4_SAMBUNGAN -> InterviewStep.G5_RINGKASAN
-    else -> InterviewStep.DONE
 }
 
 /**

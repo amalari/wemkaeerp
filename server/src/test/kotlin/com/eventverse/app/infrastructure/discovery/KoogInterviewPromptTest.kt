@@ -1,6 +1,7 @@
 package com.eventverse.app.infrastructure.discovery
 
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
+import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.InterviewValidator
 import kotlin.test.Test
@@ -36,7 +37,7 @@ class KoogInterviewPromptTest {
     @Test
     fun `prompt sistem memuat persona konsultan dan aturan keras`() {
         val system = KoogInterviewPrompt.system.lowercase()
-        for (must in listOf("f0", "f1", "f2", "konsultan", "2-3 pilihan", "interview_catalog", "usecurrent", "asal jujur", "lewati")) {
+        for (must in listOf("f0", "f1", "f2", "konsultan", "2-3 pilihan", "interview_catalog", "usecurrent", "asal jujur", "lewati", "basisref")) {
             assertTrue(system.contains(must), "Prompt sistem wajib menyebut '$must'")
         }
         assertTrue("g1" in system && "g5" in system, "Terjemahan G1-G5 disebut")
@@ -67,6 +68,29 @@ class KoogInterviewPromptTest {
         assertTrue(message.contains("$.interview.links[2].origin"))
         assertTrue(message.contains("asal tidak jujur"))
         assertTrue(message.contains("jawaban-lama"))
+    }
+
+    @Test
+    fun `instruksi fase konsultan mengarahkan profil dan spesifikasi bukan tebakan`() {
+        assertTrue(KoogInterviewPrompt.stepInstruction(InterviewStep.F0_BISNIS).contains("profile"))
+        assertTrue(KoogInterviewPrompt.stepInstruction(InterviewStep.F1_TUJUAN).contains("painPoints"))
+        assertTrue(KoogInterviewPrompt.stepInstruction(InterviewStep.F2_SPEK).contains("specs"))
+        assertTrue(
+            KoogInterviewPrompt.stepInstruction(InterviewStep.F0_BISNIS).contains("Divisi/peran/tautan belum"),
+            "Fase konsultan bukan tempat menebak G1-G4"
+        )
+    }
+
+    @Test
+    fun `contoh sesi berdasar-cerita - semua butir membawa basis dan versi dua`() {
+        val session = KoogInterviewPrompt.exampleSession()
+        assertEquals(2, session.version)
+        assertTrue(!session.narrative.isNullOrBlank())
+        val tanpaBasis = session.divisions.count { it.basisRef == null } + session.roles.count { it.basisRef == null } +
+            session.links.count { it.basisRef == null } + session.handoffs.count { it.basisRef == null } +
+            session.specs.count { it.basisRef == null }
+        assertEquals(0, tanpaBasis, "Contoh mengajarkan basis di setiap butir")
+        assertTrue(session.specs.isNotEmpty() && session.profile != null, "Contoh memuat bentuk fase konsultan")
     }
 
     @Test

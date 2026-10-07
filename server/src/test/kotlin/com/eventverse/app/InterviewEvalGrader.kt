@@ -1,6 +1,8 @@
 package com.eventverse.app
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.BasisRef
 import com.eventverse.app.domain.discovery.interview.InterviewLimits
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewValidator
@@ -39,11 +41,13 @@ data class InterviewEvalVerdict(val caseName: String, val criteria: List<Intervi
  * `asal_modul`, `kemurnian_vertikal`, `jumlah_giliran`. Prinsipnya sama dengan `DiscoveryEvalGrader`:
  * **kunci jawaban (sesi emas) wajib lulus 100% — kalau tidak, penilainya yang rusak.**
  *
- * Kalibrasi terbuka (utang tercatat, plan IV-C5):
- * - Kecocokan memakai *contains* huruf kecil pada nama/label/id — longgar; salah positif mungkin,
- *   salah negatif pada ejaan berbeda tidak. Naikkan ke pencocokan kata saat eval live menunjukkan
- *   salah positif.
- * - Kriteria `berdasar_cerita` (C6) menunggu kontrak `basisRef` dari B (induk §6.1) — belum dinilai.
+ * Kalibrasi terbuka (utang tercatat, plan IV-C5): kecocokan memakai *contains* huruf kecil pada
+ * nama/label/id — longgar; salah positif mungkin, salah negatif pada ejaan berbeda tidak. Naikkan ke
+ * pencocokan kata saat eval live menunjukkan salah positif.
+ *
+ * Sejak C6 ada sembilan kriteria: tujuh semula + `berdasar_cerita` (kontrak `basisRef` B7 — tiap
+ * butir tertelusur ke kutipan cerita atau jawaban pengguna) + `tanpa_modul_tak_disebut` (kasus
+ * negatif — pengetahuan modul lazim tidak boleh bocor jadi tebakan).
  */
 object InterviewEvalGrader {
 
@@ -68,7 +72,9 @@ object InterviewEvalGrader {
             links(case, session, draft.pack),
             origins(case, session, draft.pack),
             verticalPurity(case, session),
-            turns(case, session)
+            turns(case, session),
+            basedOnStory(session),
+            noForbiddenModule(case, session, draft.pack)
         )
         return InterviewEvalVerdict(case.name, criteria)
     }
@@ -190,10 +196,62 @@ object InterviewEvalGrader {
         )
     }
 
-    /** Kriteria 7 — jumlah giliran: jejak giliran tidak melewati batas kasus maupun batas platform. */
+    /**
+     * Kriteria 8 — berdasar cerita (C6): sesi versi 2, menyimpan cerita, dan **setiap** butir
+     * (divisi/peran/tautan/sambungan/spesifikasi) membawa dasar yang sah — kutipan NARASI yang benar-
+     * benar substring cerita, atau JAWABAN/SARAN_DITERIMA yang menunjuk jejak giliran. Dinilai
+     * independen dari validator supaya penilaiannya bisa dipercaya sendirinya.
+     */
+    private fun basedOnStory(session: InterviewSession): InterviewCriterionResult {
+        if (session.version < InterviewSession.BASED_ON_STORY)
+            return InterviewCriterionResult("berdasar_cerita", false, "sesi version=${session.version}, wajib >= ${InterviewSession.BASED_ON_STORY}")
+        val narrative = session.narrative
+            ?: return InterviewCriterionResult("berdasar_cerita", false, "sesi tidak menyimpan cerita (narrative kosong)")
+        val answerIds = session.answers.map { it.questionId }.toSet()
+        val items = buildList {
+            session.divisions.forEachIndexed { i, d -> add("divisions[$i]" to d.basisRef) }
+            session.roles.forEachIndexed { i, r -> add("roles[$i]" to r.basisRef) }
+            session.links.forEachIndexed { i, l -> add("links[$i]" to l.basisRef) }
+            session.handoffs.forEachIndexed { i, h -> add("handoffs[$i]" to h.basisRef) }
+            session.specs.forEachIndexed { i, sp -> add("specs[$i]" to sp.basisRef) }
+        }
+        val problems = items.mapNotNull { (label, ref) ->
+            when {
+                ref == null -> "$label tanpa basisRef"
+                ref.basis == Basis.SARAN_BELUM_DIJAWAB -> "$label saran belum dijawab pengguna"
+                ref.basis == Basis.NARASI && (ref.quote?.let { q -> q.isNotBlank() && narrative.contains(q) } != true) ->
+                    "$label kutipan tidak ada di cerita: '${ref.quote?.take(40)}'"
+                (ref.basis == Basis.JAWABAN || ref.basis == Basis.SARAN_DITERIMA) && (ref.answerId == null || ref.answerId !in answerIds) ->
+                    "$label answerId '${ref.answerId}' tidak ada di jejak giliran"
+                else -> null
+            }
+        }
+        val detail = if (problems.isEmpty()) "${items.size}/${items.size} butir tertelusur ke cerita/jawaban"
+        else "${items.size - problems.size}/${items.size} tertelusur; ${problems.take(3).joinToString()}"
+        return InterviewCriterionResult("berdasar_cerita", problems.isEmpty(), detail)
+    }
+
+    /**
+     * Kriteria 9 — tanpa modul yang tak disebut (C6, kasus negatif): pada kasus dengan daftar
+     * larangan, tidak ada tautan ke modul yang cocok sinonim larangan. Kosong = kriteria lulus tanpa dinilai.
+     */
+    private fun noForbiddenModule(case: InterviewEvalCase, session: InterviewSession, pack: DomainPack): InterviewCriterionResult {
+        if (case.forbiddenModuleSynonyms.isEmpty())
+            return InterviewCriterionResult("tanpa_modul_tak_disebut", true, "tanpa daftar larangan")
+        val leaked = session.links.filter { moduleMatches(pack, it.moduleId, case.forbiddenModuleSynonyms) }
+            .map { "${it.roleKey.value}->${it.moduleId.value}" }
+        return InterviewCriterionResult(
+            "tanpa_modul_tak_disebut",
+            leaked.isEmpty(),
+            if (leaked.isEmpty()) "tidak ada modul larangan (${case.forbiddenModuleSynonyms.size} sinonim dicek)"
+            else "modul lazim bocor tanpa disebut cerita: $leaked"
+        )
+    }
+
+    /** Kriteria 7 — jumlah giliran: jejak giliran terjemahan (G1–G5) tidak melewati batas kasus maupun platform; fase konsultan F0–F2 tidak dihitung karena gilirannya milik platform. */
     private fun turns(case: InterviewEvalCase, session: InterviewSession): InterviewCriterionResult {
         val limit = minOf(case.maxTurns, InterviewLimits.TURNS)
-        val used = session.answers.size
+        val used = session.answers.count { !it.step.isConsultant }
         val ok = used <= limit
         return InterviewCriterionResult(
             "jumlah_giliran",

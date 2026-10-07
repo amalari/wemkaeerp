@@ -13,7 +13,8 @@ class InterviewLiveEvalReportTest {
     fun `estimasi biaya memakai margin ganda`() {
         val estimate = InterviewLiveEvalReport.costEstimate(cases = 11, repetitions = 1, maxCorrectionRounds = 3)
         assertTrue(estimate.contains("margin ganda"), "plan IV-C4: margin estimasi digandakan")
-        assertTrue(estimate.contains("token-maks≈2112000"), "11 kasus x 1 ulangan x 4 giliran x 4 putaran x 12.000 = 2.112.000: $estimate")
+        assertTrue(estimate.contains("giliran-per-kasus=6"), "sejak C6 fase konsultan ikut dihitung: $estimate")
+        assertTrue(estimate.contains("token-maks≈3168000"), "11 kasus x 1 ulangan x 6 giliran x 4 putaran x 12.000 = 3.168.000: $estimate")
     }
 
     @Test
@@ -21,7 +22,7 @@ class InterviewLiveEvalReportTest {
         val report = InterviewLiveEvalReport.build(
             agentRef = "koog/uji/interview-v1", modelId = "uji", generatedAt = "2026-10-07T00:00:00Z",
             maxCorrectionRounds = 3, balanceBefore = "100", balanceAfter = "95",
-            baselineNote = "baseline menunggu B1",
+            baselineNote = "baseline deterministik/kamus-v2 lulus 100%",
             results = listOf(
                 InterviewLiveCaseResult(
                     caseName = "klinik", repetitions = 1, passCount = 0,
@@ -34,7 +35,7 @@ class InterviewLiveEvalReportTest {
         assertTrue(report.contains("Gagal model** (1)"))
         assertTrue(report.contains("Gagal penilai** (1)"))
         assertTrue(report.contains("LAMBAT"), "latensi 25 detik melewati target 20 detik wajib ditandai")
-        assertTrue(report.contains("baseline menunggu B1"))
+        assertTrue(report.contains("baseline deterministik/kamus-v2 lulus 100%"), "baseline nyata ikut tertulis di laporan")
     }
 
     @Test

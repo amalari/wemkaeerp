@@ -79,13 +79,45 @@ koreksi diri menyasar bagian yang benar (mis. `$.interview.links[0].moduleId`).
 |---|---|---|
 | Port `InterviewGuesser` di core (B) | ✅ merge di main | adapter `AgentInterviewGuesser.asInterviewGuesser()` + `InterviewStepGuesses.toGuesses()` (kunci sama dengan pelaksana B: `role:moduleId`, `from>to`) |
 | `DeterministicInterviewGuesser` + baseline 100% (B1) | ✅ merge; baseline terpasang | `deterministicKamusSeam()` di pelari alur; `InterviewEvalsTest` wajibkan 100% di 11 kasus — pengguna kooperatif melengkapi kunci sebagai `ANSWER`, mutu tebakan diukur sebelum suplemen |
-| `basisRef` / `Basis` / F0-F2 di kontrak | ⏳ belum di main (induk §6.1) | prompt sudah mengajarkan F0→F2; grader sudah punya lubang `berdasar_cerita` |
+| `basisRef` / `Basis` / F0-F2 di kontrak (B7) | ✅ merge di main | C6 terpasang: `berdasar_cerita` dinilai, F0–F2 berfungsi, skenario bingung/menolak dites |
+| C6 — persona konsultan penuh | ✅ selesai (cabang ini) | lihat bagian 5a di bawah |
+
+## 5a. C6 — persona konsultan penuh (berdasar cerita, F0–F2, saran & penolakan)
+
+C6 dikerjakan setelah B7 (basisRef + F0–F2 + profil/spek) merge ke main. Prinsipnya: **C tidak
+mengarang aturan baru — ia menaati aturan yang validator B7 tegakkan, dan mengejarnya lewat prompt.**
+
+Yang dipasang:
+
+1. **Sesi dasar berdasar-cerita** (`AgentInterviewGuesser.generate`): draf tanpa wawancara memulai
+   `version = BASED_ON_STORY` dengan narasi giliran; sesi tersimpan dihormati versinya (dokumen lama
+   pra-B7 tetap v1 — basis opsional). Efeknya: validator menolak tebakan tanpa `basisRef`, dan pesan
+   koreksi berpath (`$.interview.links[0].basisRef`) yang mengajari model.
+2. **Butir konsultan di usulan**: `InterviewStepGuesses` kawa `profile` (F0/F1) dan `specs` (F2);
+   `mergeStepGuesses` mengganti profil bila diusulkan dan menggabung spesifikasi per `areaKey`.
+3. **Prompt**: aturan keras basis (narasi=kutipan persis, jawaban/saran_diterima=answerId), instruksi
+   per langkah F0/F1/F2 yang eksplisit "isi profile/specs saja", dan **contoh dokumen ikut versi 2** —
+   dibangun dari kode, dites wajib lolos validator penuh, jadi bentuk `basisRef` diajarkan lewat contoh
+   yang dijamin sah, bukan tempelan teks.
+4. **Pelari alur memakai fungsi giliran produksi** (`nextQuestion` + `answer` dari core): F0–F2,
+   pelengkapan dasar `JAWABAN` pada suplemen pengguna, penyelesaian `GUESSED`, dan pelompatan langkah
+   berperilaku identik dengan route — eval mengukur jalur yang benar-benar dipakai pengguna.
+5. **Dua kriteria grader baru**: `berdasar_cerita` (versi 2, cerita tersimpan, semua butir berbasis sah;
+   dinilai independen dari validator supaya penilaiannya bisa dipercaya sendirian) dan
+   `tanpa_modul_tak_disebut` (kasus negatif — pengetahuan modul lazim hanya boleh jadi pertanyaan).
+6. **Skenario dites tanpa LLM**: tebakan tanpa dasar → koreksi berkutipan; `SARAN_BELUM_DIJAWAB` →
+   dikosongkan (pengguna menolak saran); F0 mengisi profil; F2 menggabung spesifikasi per area.
+
+Pelajaran teknis: smart cast Kotlin menolak `narrative.contains(ref.quote)` setelah `isNullOrBlank()`
+karena properti lintas modul — pola amannya `ref.quote?.let { it.isNotBlank() && narrative.contains(it) } != true`.
 
 ## 6. Kontrak yang C butuhkan dari B (laporan, bukan suntingan)
 
-1. Port `InterviewGuesser` (plan §6) supaya `AgentInterviewGuesser` resmi menempel di belakangnya.
-2. Perluasan kontrak induk §6.1 (`basisRef`, `BusinessProfile`, `RequirementSpec`, langkah F0–F2)
-   untuk kriteria `berdasar_cerita` dan skenario pengguna bingung/menolak saran.
+1. ~~Port `InterviewGuesser` (plan §6)~~ ✅ terpenuhi; adapter `asInterviewGuesser()` menempel.
+2. ~~Perluasan kontrak induk §6.1 (`basisRef`, `BusinessProfile`, `RequirementSpec`, F0–F2)~~ ✅ B7.
+3. Yang masih terbuka: keputusan **G3** (eval live) dan penggunaan `berdasar_cerita` pada keyakinan
+   akhir — saran baru tetap masuk setelah diterima (`SARAN_DITERIMA`) sudah didukung kontrak, sisanya
+   keputusan produk di route ringkasan.
 
 ## 7. Verifikasi (yang dijalankan di mesin pengajar)
 

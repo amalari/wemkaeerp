@@ -40,7 +40,7 @@ class InterviewEvalGraderTest {
     fun `sesi emas klinik lulus 100 persen - kunci jawaban wajib lulus penilainya sendiri`() {
         val verdict = gradeKlinik(InterviewEvalPacks.klinikSession)
         assertTrue(verdict.passed, "Sesi emas wajib lulus: ${verdict.failedCriteria}")
-        assertEquals(7, verdict.criteria.size, "Tujuh kriteria plan IV-C0")
+        assertEquals(9, verdict.criteria.size, "Sembilan kriteria: tujuh plan IV-C0 + dua C6")
     }
 
     @Test
@@ -53,13 +53,16 @@ class InterviewEvalGraderTest {
     @Test
     fun `tambahan yang masuk akal tidak menghukum - penilai tidak kaku pada ejaan`() {
         // Aturan DONE (B4): tiap divisi wajib berperan, tiap peran wajib bertaut — tambahan pun patuh.
+        val dasar = com.eventverse.app.domain.discovery.interview.BasisRef(
+            com.eventverse.app.domain.discovery.interview.Basis.JAWABAN, answerId = "g1"
+        )
         val richer = InterviewEvalPacks.klinikSession.copy(
             divisions = InterviewEvalPacks.klinikSession.divisions +
-                DivisionDraft(DivisionCode("gudang_obat"), "Gudang Obat", ItemSource.ANSWER),
+                DivisionDraft(DivisionCode("gudang_obat"), "Gudang Obat", ItemSource.ANSWER, dasar),
             roles = InterviewEvalPacks.klinikSession.roles +
-                RoleDraft(RoleKey("apoteker"), "Apoteker", DivisionCode("gudang_obat"), ItemSource.ANSWER),
+                RoleDraft(RoleKey("apoteker"), "Apoteker", DivisionCode("gudang_obat"), ItemSource.ANSWER, basisRef = dasar),
             links = InterviewEvalPacks.klinikSession.links +
-                RoleModuleLink(RoleKey("apoteker"), ModuleId("klinik_poli"), ModuleOrigin.NEW, listOf("Stok obat"), Confirmation.CONFIRMED)
+                RoleModuleLink(RoleKey("apoteker"), ModuleId("klinik_poli"), ModuleOrigin.NEW, listOf("Stok obat"), Confirmation.CONFIRMED, null, dasar)
         )
         val verdict = gradeKlinik(richer)
         assertTrue(verdict.passed, "Butir tambahan yang masuk akal tetap lulus: ${verdict.failedCriteria}")
@@ -200,6 +203,59 @@ class InterviewEvalGraderTest {
         val divisions = verdict.criteria.first { it.criterion == "divisi_masuk_akal" }
         assertFalse(divisions.passed, "cerita kecil tidak boleh memunculkan 4 divisi: ${divisions.detail}")
         assertTrue(divisions.detail.contains("maxDivisions=3"))
+    }
+
+    // --- kriteria C6: berdasar_cerita --------------------------------------------------
+
+    @Test
+    fun `sesi versi lama gagal kriteria berdasar_cerita`() {
+        val legacy = InterviewEvalPacks.klinikSession.copy(version = 1)
+        val verdict = gradeKlinik(legacy)
+        val basis = verdict.criteria.first { it.criterion == "berdasar_cerita" }
+        assertFalse(basis.passed)
+        assertTrue(basis.detail.contains("version=1"))
+    }
+
+    @Test
+    fun `butir tanpa dasar gagal kriteria berdasar_cerita`() {
+        val tanpaDasar = InterviewEvalPacks.klinikSession.copy(
+            divisions = InterviewEvalPacks.klinikSession.divisions.map { it.copy(basisRef = null) }
+        )
+        val verdict = gradeKlinik(tanpaDasar)
+        val basis = verdict.criteria.first { it.criterion == "berdasar_cerita" }
+        assertFalse(basis.passed)
+        assertTrue(basis.detail.contains("tanpa basisRef"))
+    }
+
+    @Test
+    fun `kutipan palsu gagal kriteria berdasar_cerita`() {
+        val palsu = InterviewEvalPacks.klinikSession.copy(
+            links = InterviewEvalPacks.klinikSession.links.map {
+                it.copy(basisRef = it.basisRef?.copy(quote = "narasi yang tidak pernah dikatakan pengguna"))
+            }
+        )
+        val verdict = gradeKlinik(palsu)
+        val basis = verdict.criteria.first { it.criterion == "berdasar_cerita" }
+        assertFalse(basis.passed)
+        assertTrue(basis.detail.contains("kutipan tidak ada di cerita"))
+    }
+
+    // --- kriteria C6: tanpa_modul_tak_disebut ------------------------------------------
+
+    @Test
+    fun `modul larangan yang bocor gagal tanpa_modul_tak_disebut`() {
+        val kasus = klinik.copy(forbiddenModuleSynonyms = setOf("kasir"))
+        val verdict = InterviewEvalGrader.grade(kasus, InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, InterviewEvalPacks.klinikSession))
+        val forbidden = verdict.criteria.first { it.criterion == "tanpa_modul_tak_disebut" }
+        assertFalse(forbidden.passed, "klinik_kasir cocok sinonim larangan: ${forbidden.detail}")
+    }
+
+    @Test
+    fun `kasus tanpa daftar larangan melewati kriteria tanpa_modul_tak_disebut`() {
+        val tanpaLarangan = klinik.copy(forbiddenModuleSynonyms = emptySet())
+        val verdict = InterviewEvalGrader.grade(tanpaLarangan, InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, InterviewEvalPacks.klinikSession))
+        val forbidden = verdict.criteria.first { it.criterion == "tanpa_modul_tak_disebut" }
+        assertTrue(forbidden.passed && forbidden.detail.contains("tanpa daftar larangan"))
     }
 
     @Test

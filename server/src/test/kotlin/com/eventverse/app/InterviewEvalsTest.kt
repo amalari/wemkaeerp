@@ -18,10 +18,9 @@ import kotlin.test.assertTrue
  * [InterviewEvalGrader]. Sesi emas (kunci jawaban) wajib lulus **100%** — kalau tidak, penilainya yang
  * rusak, bukan kuncinya.
  *
- * Baseline deterministik penuh (menggerakkan `DeterministicInterviewGuesser` B1 melalui alur G1–G5)
- * menyusul begitu port `InterviewGuesser` merge — pelari [InterviewGuessFn]-nya sudah siap dan
- * tidak berubah. Yang dijalankan sekarang adalah setengah deterministik dari janji itu: kunci
- * jawaban statis dinilai penilai yang sama dengan yang akan menilai agent LLM.
+ * Baseline deterministik (C6): `DeterministicInterviewGuesser` B1 digerakkan lewat alur produksi
+ * F0–F2 + G1–G5 di [runInterviewFlow] dan wajib lulus **100%** di semua kasus — termasuk kriteria
+ * berdasar-cerita (tiap tebakan kamus membawa kutipan) dan kasus negatif (larangan modul).
  */
 class InterviewEvalsTest {
 
@@ -76,11 +75,11 @@ class InterviewEvalsTest {
         var passed = 0
         for (case in InterviewGoldenCases.all) {
             val flow = runInterviewFlow(case, guessFn = deterministicKamusSeam())
-            println(flow.verdict.logLine("deterministik/kamus-v1"))
+            println(flow.verdict.logLine("deterministik/kamus-v2"))
             assertTrue(flow.verdict.passed, "Baseline deterministik wajib 100% - kalau tidak, penilainya yang rusak: ${flow.verdict.failedCriteria}")
             passed++
         }
-        println("evals | skor: $passed/${InterviewGoldenCases.all.size} (deterministik/kamus-v1, baseline)")
+        println("evals | skor: $passed/${InterviewGoldenCases.all.size} (deterministik/kamus-v2, baseline berdasar-cerita)")
         assertEquals(InterviewGoldenCases.all.size, passed)
     }
 
