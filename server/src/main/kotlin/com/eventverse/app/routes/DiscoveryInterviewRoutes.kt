@@ -31,9 +31,11 @@ fun Route.discoveryInterviewRoutes(
     repository: DiscoveryDraftRepository,
     demands: DiscoveryDemandRepository,
     /** Pengisi tebakan langkah (agent AI); null = tebakan deterministik saja. */
-    filler: InterviewStepFiller? = null
+    filler: InterviewStepFiller? = null,
+    /** Perencana alur penuh (model besar, sekali di awal); null = tanpa rencana. */
+    planner: com.eventverse.app.domain.discovery.interview.InterviewPlanner? = null
 ) {
-    val interviews = InterviewDraftUseCases(repository, filler)
+    val interviews = InterviewDraftUseCases(repository, filler, planner)
 
     route("/api/discovery/drafts") {
         post("/{id}/interview") {

@@ -6,7 +6,9 @@ import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.InterviewStepFiller
+import com.eventverse.app.domain.discovery.interview.InterviewPlanner
 import com.eventverse.app.domain.discovery.interview.mergingGuessesOf
+import com.eventverse.app.domain.discovery.interview.mergingPlan
 import com.eventverse.app.infrastructure.EnvLoader
 import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
@@ -34,19 +36,53 @@ class AgentStepFiller(
 }
 
 /**
+ * Perencana alur penuh berbasis agent Koog: **satu** panggilan model besar membaca narasi lalu mengusulkan
+ * divisi, peran, tautan modul, dan sambungan sekaligus. Usulan **digabung** ke sesi (tebakan deterministik dan butir
+ * pengguna tetap); galat atau timeout → [plan] melempar dan use case mempertahankan sesi apa adanya.
+ */
+class AgentInterviewPlanner(
+    private val guesser: AgentInterviewGuesser,
+    private val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS
+) : InterviewPlanner {
+
+    override suspend fun plan(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
+        val g = withTimeout(timeoutMillis) { guesser.plan(draft.pack, draft, narrative).getOrThrow() }
+        return session.mergingPlan(g.divisions, g.roles, g.links, g.handoffs)
+    }
+
+    companion object {
+        /** Model besar lebih lambat dan ini sekali per proyek — lebih longgar dari batas per giliran. */
+        const val DEFAULT_TIMEOUT_MILLIS = 90_000L
+    }
+}
+
+/**
  * Pemilihan agent wawancara — **kill-switch terpisah** dari agent discovery supaya biaya wawancara dikendalikan
  * sendiri: `INTERVIEW_AGENT=koog` **dan** `DEEPSEEK_API_KEY` terisi → [AgentStepFiller]; selain itu `null`
  * (hanya tebakan deterministik). Kunci kosong tidak menggagalkan start server. `INTERVIEW_AGENT_TIMEOUT_MS`
- * mengatur batas waktu per giliran; `DISCOVERY_AGENT_MODEL` dipakai bersama agar satu pengaturan model.
+ * mengatur batas waktu per giliran; model pengisi per langkah = `INTERVIEW_AGENT_MODEL`, bila kosong `DISCOVERY_AGENT_MODEL`.
  */
 object InterviewAgents {
 
     fun fromEnv(): InterviewStepFiller? = from(
         configured = EnvLoader.get("INTERVIEW_AGENT").takeIf { it.isNotBlank() },
         apiKey = EnvLoader.get("DEEPSEEK_API_KEY").takeIf { it.isNotBlank() },
-        modelId = EnvLoader.get("DISCOVERY_AGENT_MODEL").takeIf { it.isNotBlank() },
+        modelId = (EnvLoader.get("INTERVIEW_AGENT_MODEL").takeIf { it.isNotBlank() } ?: EnvLoader.get("DISCOVERY_AGENT_MODEL").takeIf { it.isNotBlank() }),
         timeoutMillis = EnvLoader.get("INTERVIEW_AGENT_TIMEOUT_MS").toLongOrNull()?.takeIf { it > 0 } ?: AgentStepFiller.DEFAULT_TIMEOUT_MILLIS
     )
+
+    /**
+     * Perencana alur penuh: aktif di bawah saklar yang sama dengan [fromEnv]. Modelnya `DISCOVERY_AGENT_MODEL_PLAN`
+     * (mis. `deepseek-v4-pro`); kosong → model bawaan. Timeout: `INTERVIEW_PLAN_TIMEOUT_MS`.
+     */
+    fun plannerFromEnv(): InterviewPlanner? {
+        if (EnvLoader.get("INTERVIEW_AGENT").lowercase() != DiscoveryAgents.KOOG) return null
+        val apiKey = EnvLoader.get("DEEPSEEK_API_KEY").takeIf { it.isNotBlank() } ?: return null
+        val model = DiscoveryAgents.resolveModel(EnvLoader.get("DISCOVERY_AGENT_MODEL_PLAN").takeIf { it.isNotBlank() })
+        val timeout = EnvLoader.get("INTERVIEW_PLAN_TIMEOUT_MS").toLongOrNull()?.takeIf { it > 0 } ?: AgentInterviewPlanner.DEFAULT_TIMEOUT_MILLIS
+        logger.info("Perencana wawancara aktif: koog (model {}), timeout {} ms", model.id, timeout)
+        return AgentInterviewPlanner(AgentInterviewGuesser(MultiLLMPromptExecutor(DeepSeekLLMClient(apiKey)), model), timeout)
+    }
 
     fun from(configured: String?, apiKey: String?, modelId: String? = null, timeoutMillis: Long = AgentStepFiller.DEFAULT_TIMEOUT_MILLIS): InterviewStepFiller? {
         if (configured?.lowercase() != DiscoveryAgents.KOOG) return null

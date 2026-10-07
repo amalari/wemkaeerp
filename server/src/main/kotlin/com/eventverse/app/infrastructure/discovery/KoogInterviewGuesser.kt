@@ -15,6 +15,7 @@ import com.eventverse.app.domain.discovery.interview.RoleModuleLink
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
 import com.eventverse.app.domain.discovery.interview.InterviewValidator
+import com.eventverse.app.domain.discovery.interview.PLANNED_STEPS
 import com.eventverse.app.domain.discovery.interview.ItemSource
 import com.eventverse.app.domain.pack.DomainPack
 import ai.koog.utils.io.use
@@ -130,12 +131,20 @@ class AgentInterviewGuesser(
         narrative: String
     ): Result<InterviewStepGuesses> = runCatching { generate(step, pack, draft, narrative) }
 
+    /**
+     * Rencana alur penuh dalam **satu** percakapan: G1–G4 sekaligus ([KoogInterviewPrompt.PLAN_INSTRUCTION]),
+     * divalidasi setelah digabung seperti langkah tunggal. Hasilnya `step = G1_DIVISI` dengan keempat daftar terisi.
+     */
+    suspend fun plan(pack: DomainPack, draft: DiscoveryDraft, narrative: String): Result<InterviewStepGuesses> =
+        runCatching { generate(InterviewStep.G1_DIVISI, pack, draft, narrative, plan = true) }
+
     /** Putaran koreksi: jawaban → dekode → bubuh → gabung → validasi; galat berpath ke putaran berikut. */
     private suspend fun generate(
         step: InterviewStep,
         pack: DomainPack,
         draft: DiscoveryDraft,
-        narrative: String
+        narrative: String,
+        plan: Boolean = false
     ): InterviewStepGuesses {
         var feedback: List<DiscoveryValidationIssue> = emptyList()
         var previousAnswer: String? = null
@@ -149,16 +158,16 @@ class AgentInterviewGuesser(
         )
 
         for (round in 1..maxCorrectionRounds) {
-            val answer = askAgent(step, draft, narrative, feedback, previousAnswer, round)
+            val answer = askAgent(step, draft, narrative, feedback, previousAnswer, round, plan)
             previousAnswer = answer
             val guesses = try {
-                stampGuessProvenance(stepGuessesOf(step, KoogInterviewBridge.decodeInterviewAnswer(answer, draft)))
+                stampGuessProvenance(stepGuessesOf(step, KoogInterviewBridge.decodeInterviewAnswer(answer, draft), plan))
             } catch (e: Exception) {
                 lastFailure = e
                 feedback = listOf(issueOf(e))
                 continue
             }
-            val merged = mergeStepGuesses(base, guesses)
+            val merged = if (plan) PLANNED_STEPS.fold(base) { s, st -> mergeStepGuesses(s, guesses.copy(step = st)) } else mergeStepGuesses(base, guesses)
             val issues = InterviewValidator.validate(merged, pack)
             if (issues.isEmpty()) return guesses
             lastFailure = IllegalStateException(issues.joinToString("; ") { "${it.path}: ${it.message}" })
@@ -173,12 +182,12 @@ class AgentInterviewGuesser(
     }
 
     /** Ambil butir langkah [step] saja dari dokumen sesi yang dibalas model — langkah dikendalikan pemanggil. */
-    private fun stepGuessesOf(step: InterviewStep, session: InterviewSession) = InterviewStepGuesses(
+    private fun stepGuessesOf(step: InterviewStep, session: InterviewSession, plan: Boolean = false) = InterviewStepGuesses(
         step = step,
-        divisions = if (step == InterviewStep.G1_DIVISI) session.divisions else emptyList(),
-        roles = if (step == InterviewStep.G2_PERAN) session.roles else emptyList(),
-        links = if (step == InterviewStep.G3_MODUL) session.links else emptyList(),
-        handoffs = if (step == InterviewStep.G4_SAMBUNGAN) session.handoffs else emptyList(),
+        divisions = if (plan || step == InterviewStep.G1_DIVISI) session.divisions else emptyList(),
+        roles = if (plan || step == InterviewStep.G2_PERAN) session.roles else emptyList(),
+        links = if (plan || step == InterviewStep.G3_MODUL) session.links else emptyList(),
+        handoffs = if (plan || step == InterviewStep.G4_SAMBUNGAN) session.handoffs else emptyList(),
         profile = if (step == InterviewStep.F0_BISNIS || step == InterviewStep.F1_TUJUAN) session.profile else null,
         specs = if (step == InterviewStep.F2_SPEK) session.specs else emptyList()
     )
@@ -190,7 +199,8 @@ class AgentInterviewGuesser(
         narrative: String,
         feedback: List<DiscoveryValidationIssue>,
         previousAnswer: String?,
-        round: Int
+        round: Int,
+        plan: Boolean = false
     ): String {
         val agent = ai.koog.agents.core.agent.AIAgent(
             promptExecutor = executor,
@@ -201,7 +211,10 @@ class AgentInterviewGuesser(
             temperature = TEMPERATURE,
             maxIterations = maxToolIterations
         )
-        val input = KoogInterviewPrompt.userMessage(step, draft, narrative, feedback, previousAnswer, round)
+        val input = KoogInterviewPrompt.userMessage(
+            step, draft, narrative, feedback, previousAnswer, round,
+            instruction = if (plan) KoogInterviewPrompt.PLAN_INSTRUCTION else KoogInterviewPrompt.stepInstruction(step)
+        )
         return agent.use { it.run(input) }
     }
 

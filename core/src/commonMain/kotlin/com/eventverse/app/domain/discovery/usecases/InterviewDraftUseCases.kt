@@ -8,7 +8,9 @@ import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.Confirmation
 import com.eventverse.app.domain.discovery.interview.DeterministicInterviewGuesser
 import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewPlanner
 import com.eventverse.app.domain.discovery.interview.InterviewStepFiller
+import com.eventverse.app.domain.discovery.interview.isPlanned
 import com.eventverse.app.domain.discovery.interview.InterviewValidator
 import com.eventverse.app.domain.discovery.interview.effectiveStep
 import com.eventverse.app.domain.discovery.interview.InterviewStep
@@ -24,7 +26,9 @@ import com.eventverse.app.domain.discovery.interview.answer
 class InterviewDraftUseCases(
     private val repository: DiscoveryDraftRepository,
     /** Pengisi tebakan langkah (agent AI); null = hanya tebakan deterministik. Kegagalannya tidak pernah menggagalkan giliran. */
-    private val filler: InterviewStepFiller? = null
+    private val filler: InterviewStepFiller? = null,
+    /** Perencana alur penuh (model besar, sekali di awal); null = tidak ada. Kegagalannya tidak pernah menggagalkan giliran. */
+    private val planner: InterviewPlanner? = null
 ) {
 
     private val update = UpdateDiscoveryDraftUseCase(repository)
@@ -37,6 +41,7 @@ class InterviewDraftUseCases(
         mutate(id, caller) { draft ->
             draft.interview ?: DeterministicInterviewGuesser.propose(draft.pack, narrative)
                 .let { if (consultant) it.copy(step = InterviewStep.F0_BISNIS) else it }
+                .let { planWhole(draft, it, narrative) }
                 .let { fillCurrentStep(draft, it, narrative) }
         }
 
@@ -61,10 +66,19 @@ class InterviewDraftUseCases(
      */
     private suspend fun fillCurrentStep(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
         val agent = filler ?: return session
+        if (planner != null && session.isPlanned) return session   // rencana sudah mencakup G1–G4; pengguna meninjau
         val step = session.effectiveStep(draft.pack) ?: return session
         if (step.isConsultant || step == InterviewStep.G5_RINGKASAN) return session
         val filled = runCatching { agent.fill(draft.copy(interview = session), session, step, narrative) }.getOrNull() ?: return session
         return if (InterviewValidator.validate(filled, draft.pack).isEmpty()) filled else session
+    }
+
+    /** Rencana alur penuh sekali di awal; dipakai hanya bila lolos validator, selain itu sesi apa adanya. */
+    private suspend fun planWhole(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
+        val agent = planner ?: return session
+        if (narrative.isBlank()) return session
+        val planned = runCatching { agent.plan(draft.copy(interview = session), session, narrative) }.getOrNull() ?: return session
+        return if (InterviewValidator.validate(planned, draft.pack).isEmpty()) planned else session
     }
 
     private suspend fun mutate(

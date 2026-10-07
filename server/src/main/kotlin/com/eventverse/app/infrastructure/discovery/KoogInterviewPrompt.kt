@@ -122,6 +122,16 @@ internal object KoogInterviewPrompt {
     }
 
     /**
+     * Rencana alur penuh (satu panggilan): seluruh G1–G4 dari narasi. Alur dan modul ditentukan DULU; pertanyaan
+     * per modul menyusul dan hanya untuk yang belum jelas dari cerita.
+     */
+    internal const val PLAN_INSTRUCTION: String =
+        "RENCANA ALUR PENUH: dari narasi, susun SEKALIGUS divisions, roles, links, dan handoffs - seluruh alur kerja " +
+            "dan modul yang dipakai, urut sesuai cerita. Setiap butir wajib punya basisRef dengan kutipan PERSIS dari narasi. " +
+            "Pakai hanya modul di katalog (alat interview_catalog); yang tak disebut cerita jangan diisi. Peran wajib menunjuk " +
+            "divisi yang kamu buat, tautan wajib menunjuk peran yang kamu buat."
+
+    /**
      * Pesan pengguna satu giliran. [feedback] kosong = giliran pertama; kalau ada, jawaban sebelumnya
      * dikirim ulang bersama galat berpath supaya model mengoreksi **bagian yang salah** saja.
      */
@@ -131,7 +141,8 @@ internal object KoogInterviewPrompt {
         narrative: String,
         feedback: List<DiscoveryValidationIssue>,
         previousAnswer: String?,
-        round: Int
+        round: Int,
+        instruction: String = stepInstruction(step)
     ): String = buildString {
         appendLine("Narasi pemilik usaha:")
         appendLine("\"\"\"")
@@ -141,7 +152,7 @@ internal object KoogInterviewPrompt {
         appendLine("Keadaan wawancara sekarang (sama dengan alat interview_state):")
         appendLine(KoogInterviewBridge.interviewStateJson(draft))
         appendLine()
-        appendLine(stepInstruction(step))
+        appendLine(instruction)
         appendLine("Daftar modul & aturan asal lihat alat interview_catalog.")
         appendLine()
         appendLine("Contoh dokumen interview yang sah (pack 'contoh' — jangan dipakai apa adanya):")
