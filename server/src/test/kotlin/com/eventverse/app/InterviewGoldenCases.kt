@@ -35,7 +35,14 @@ data class InterviewEvalCase(
     val expectedRoles: List<RoleExpectation> = emptyList(),
     val expectedLinks: List<LinkExpectation> = emptyList(),
     val maxTurns: Int = InterviewLimits.TURNS,
-    val maxDivisions: Int? = null
+    val maxDivisions: Int? = null,
+    /** Cerita tujuan/titik sakit untuk giliran F1 pelari alur (C6); null = pengguna melewati F1. */
+    val goalStory: String? = null,
+    /**
+     * Kasus negatif (C6): modul yang cocok sinonim ini **tidak boleh** muncul di draf — pengetahuan
+     * modul lazim (mis. konveksi pada cerita klinik) hanya boleh jadi pertanyaan, tidak pernah tebakan.
+     */
+    val forbiddenModuleSynonyms: Set<String> = emptySet()
 )
 
 object InterviewGoldenCases {
@@ -59,7 +66,8 @@ object InterviewGoldenCases {
                 LinkExpectation(setOf("penjahit", "operator jahit"), setOf("operator_exec", "mrp", "production", "produksi", "jahit"), REUSE),
                 LinkExpectation(setOf("qc", "inspektur", "mutu"), setOf("quality_control", "qc", "mutu"), REUSE)
             ),
-            maxDivisions = 8
+            maxDivisions = 8,
+            goalStory = "Tujuan kami pesanan tidak lagi tercatat manual; yang paling repot kain sering tidak cocok antara gudang dan meja potong."
         ),
         InterviewEvalCase(
             name = "garment-cmt",
@@ -126,7 +134,9 @@ object InterviewGoldenCases {
                 LinkExpectation(setOf("resepsionis", "pendaftaran"), setOf("org_chart"), setOf(ModuleOrigin.REUSE_PLATFORM))
             ),
             maxTurns = 6,
-            maxDivisions = 6
+            maxDivisions = 6,
+            goalStory = "Tujuan kami antrean dan tagihan tidak tercatat manual lagi; paling repot uang kasir sering tidak cocok dengan catatan.",
+            forbiddenModuleSynonyms = setOf("jahit", "potong", "cutting", "sewing", "qc", "quality")
         ),
         InterviewEvalCase(
             name = "bengkel",
@@ -138,7 +148,8 @@ object InterviewGoldenCases {
             expectedRoles = listOf(RoleExpectation(setOf("mekanik"), setOf("servis"))),
             expectedLinks = listOf(LinkExpectation(setOf("mekanik"), setOf("servis"), NEW_ONLY)),
             maxTurns = 4,
-            maxDivisions = 3
+            maxDivisions = 3,
+            forbiddenModuleSynonyms = setOf("jahit", "potong", "cutting", "sewing", "qc", "quality")
         ),
         InterviewEvalCase(
             name = "katering",

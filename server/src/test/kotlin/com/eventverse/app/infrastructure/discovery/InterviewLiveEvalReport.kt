@@ -48,7 +48,8 @@ object InterviewLiveEvalReport {
     /** Margin ganda atas `DiscoveryLiveEvalReport.EST_TOKENS_PER_ROUND` (6.000) — plan IV-C4. */
     const val EST_TOKENS_PER_ROUND = 12_000
 
-    fun costEstimate(cases: Int, repetitions: Int, maxCorrectionRounds: Int, turnsPerCase: Int = 4): String {
+    /** Giliran per kasus sejak C6: F0-F1 (+F2 bila titik sakit terisi) + G1-G4 (+G5). */
+    fun costEstimate(cases: Int, repetitions: Int, maxCorrectionRounds: Int, turnsPerCase: Int = 6): String {
         val maxRounds = maxCorrectionRounds + 1
         val maxCalls = cases * repetitions * turnsPerCase * maxRounds
         return "estimasi (margin ganda) | kasus=$cases ulangan=$repetitions giliran-per-kasus=$turnsPerCase " +

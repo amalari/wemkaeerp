@@ -5,7 +5,11 @@ import com.eventverse.app.domain.discovery.DiscoveryValidationIssue
 import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.blueprint.BlueprintModule
+import com.eventverse.app.domain.discovery.interview.Basis
+import com.eventverse.app.domain.discovery.interview.BasisRef
+import com.eventverse.app.domain.discovery.interview.BusinessProfile
 import com.eventverse.app.domain.discovery.interview.Confirmation
+import com.eventverse.app.domain.discovery.interview.RequirementSpec
 import com.eventverse.app.domain.discovery.interview.DivisionCode
 import com.eventverse.app.domain.discovery.interview.DivisionDraft
 import com.eventverse.app.domain.discovery.interview.InterviewAnswer
@@ -83,6 +87,9 @@ internal object KoogInterviewPrompt {
         - Divisi, peran, dan modul hanya dari cerita atau dari katalog (alat interview_catalog). Jangan mengarang di luar katalog.
         - Tautan hanya menunjuk modul di katalog. Asal jujur: reuse_platform/reuse_pack/extend hanya untuk modul bertanda
           shipped=true, extend wajib menyebut fitur tambahan; modul kustom pakai new.
+        - BERDASAR CERITA: setiap divisions/roles/links/handoffs/specs WAJIB membawa basisRef -
+          {"basis":"narasi","quote":"kutipan PERSIS dari cerita"} atau {"basis":"jawaban","answerId":"id giliran"} /
+          {"basis":"saran_diterima","answerId":"..."}. Tebakan tanpa dasar ditolak validator; profile tidak perlu basisRef.
         - Tidak perlu menulis source atau answers — server yang membubuhkannya. confirmed dan confidence pada tebakan baru juga dibubuhkan server, jadi tidak masalah kalau ditulis atau tidak.
         - Tidak ada yang perlu diubah pada langkah ini? Balas {"interview":{"useCurrent":true}}.
 
@@ -92,9 +99,16 @@ internal object KoogInterviewPrompt {
 
     /** Instruksi per langkah — satu giliran = satu kelompok keputusan (plan induk §1). */
     internal fun stepInstruction(step: InterviewStep): String = when (step) {
-        // Fase konsultan F0–F2 belum punya prompt (C6): protokol "tidak ada perubahan" supaya tak ada tebakan liar.
-        InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK ->
-            "Langkah konsultan (F0-F2) belum ditebak oleh agent ini. Balas {\"interview\":{\"useCurrent\":true}}."
+        InterviewStep.F0_BISNIS ->
+            "Fase konsultan F0 (bisnis): baca narasinya, lalu isi profile saja - summary ringkas usaha pengguna " +
+                "(apa dijual/dikerjakan, siapa pelanggannya, sebesar apa skalanya). Divisi/peran/tautan belum; balas dokumen dengan profile terisi."
+        InterviewStep.F1_TUJUAN ->
+            "Fase konsultan F1 (tujuan & titik sakit): lengkapi profile.goals (maks 6) dan profile.painPoints dari narasi, " +
+                "pertahankan summary yang sudah ada. Belum saatnya menebak divisi/peran/tautan."
+        InterviewStep.F2_SPEK ->
+            "Fase konsultan F2 (spesifikasi per area): untuk area yang merepotkan, isi specs - areaKey = roleKey peran " +
+                "terkait, lalu whoFills/whatRecorded/whoSees/doneWhen sesuai cerita (yang tak disebut biarkan kosong) " +
+                "dengan basisRef NARASI berikut kutipannya. Bidang kosong tidak wajib diisi."
         InterviewStep.G1_DIVISI ->
             "Tebak G1 (divisi): kelompok kerja yang terdengar dari cerita (\"potong, jahit, QC\" berarti divisi Potong, Jahit, QC). Isi divisions saja."
         InterviewStep.G2_PERAN ->
@@ -183,27 +197,49 @@ internal object KoogInterviewPrompt {
         )
     }
 
-    /** Sesi contoh pada G3: paling kaya (divisi+peran+tautan+sambungan) — mengajarkan bentuk, bukan jawaban. */
+    /**
+     * Sesi contoh pada G3: paling kaya (profil, divisi+peran+tautan+sambungan+spesifikasi, semuanya berdasar) —
+     * mengajarkan bentuk dokumen berdasar-cerita, bukan jawaban. Wajib lolos validator penuh (dites).
+     */
     internal fun exampleSession(): InterviewSession {
+        val narrative = "Kami studio contoh: admin CS mencatat pesanan pelanggan tiap hari, lalu operator mengerjakannya di ruang produksi."
+        val dasarPesanan = BasisRef(Basis.NARASI, quote = "admin CS mencatat pesanan pelanggan")
+        val dasarProduksi = BasisRef(Basis.NARASI, quote = "operator mengerjakannya di ruang produksi")
         return InterviewSession(
             step = InterviewStep.G3_MODUL,
             divisions = listOf(
-                DivisionDraft(DivisionCode("pesanan"), "Pesanan", ItemSource.GUESS),
-                DivisionDraft(DivisionCode("produksi"), "Produksi", ItemSource.ANSWER)
+                DivisionDraft(DivisionCode("pesanan"), "Pesanan", ItemSource.GUESS, dasarPesanan),
+                DivisionDraft(DivisionCode("produksi"), "Produksi", ItemSource.ANSWER, dasarProduksi)
             ),
             roles = listOf(
-                RoleDraft(RoleKey("admin_cs"), "Admin CS", DivisionCode("pesanan"), ItemSource.GUESS, isHead = true),
-                RoleDraft(RoleKey("operator"), "Operator", DivisionCode("produksi"), ItemSource.GUESS)
+                RoleDraft(RoleKey("admin_cs"), "Admin CS", DivisionCode("pesanan"), ItemSource.GUESS, isHead = true, basisRef = dasarPesanan),
+                RoleDraft(RoleKey("operator"), "Operator", DivisionCode("produksi"), ItemSource.GUESS, basisRef = dasarProduksi)
             ),
             links = listOf(
-                RoleModuleLink(RoleKey("admin_cs"), ModuleId("contoh_pesanan"), ModuleOrigin.NEW, listOf("Catatan pesanan harian"), Confirmation.CONFIRMED, 80),
-                RoleModuleLink(RoleKey("admin_cs"), ModuleId("org_chart"), ModuleOrigin.REUSE_PLATFORM, emptyList(), Confirmation.CONFIRMED),
-                RoleModuleLink(RoleKey("operator"), ModuleId("contoh_produksi"), ModuleOrigin.NEW, emptyList(), Confirmation.CONFIRMED, 70)
+                RoleModuleLink(RoleKey("admin_cs"), ModuleId("contoh_pesanan"), ModuleOrigin.NEW, listOf("Catatan pesanan harian"), Confirmation.CONFIRMED, 80, dasarPesanan),
+                RoleModuleLink(RoleKey("admin_cs"), ModuleId("org_chart"), ModuleOrigin.REUSE_PLATFORM, emptyList(), Confirmation.CONFIRMED, null, dasarPesanan),
+                RoleModuleLink(RoleKey("operator"), ModuleId("contoh_produksi"), ModuleOrigin.NEW, emptyList(), Confirmation.CONFIRMED, 70, dasarProduksi)
             ),
             handoffs = listOf(
-                ModuleHandoff(ModuleId("contoh_pesanan"), ModuleId("contoh_produksi"), PortType("Permintaan"), Confirmation.CONFIRMED)
+                ModuleHandoff(ModuleId("contoh_pesanan"), ModuleId("contoh_produksi"), PortType("Permintaan"), Confirmation.CONFIRMED, basisRef = dasarProduksi)
             ),
-            answers = listOf(InterviewAnswer(1, InterviewStep.G3_MODUL, "g3", Confirmation.CONFIRMED))
+            answers = listOf(InterviewAnswer(1, InterviewStep.G3_MODUL, "g3_modul_t1", Confirmation.CONFIRMED)),
+            version = InterviewSession.BASED_ON_STORY,
+            narrative = narrative,
+            profile = BusinessProfile(
+                "Studio contoh yang mengerjakan pesanan pelanggan tiap hari.",
+                goals = listOf("Pencatatan pesanan yang rapi")
+            ),
+            specs = listOf(
+                RequirementSpec(
+                    RoleKey("admin_cs"),
+                    whoFills = "Admin CS",
+                    whatRecorded = "Pesanan pelanggan harian",
+                    whoSees = "Pemilik studio",
+                    doneWhen = "Pesanan tercatat di sistem",
+                    basisRef = dasarPesanan
+                )
+            )
         )
     }
 
