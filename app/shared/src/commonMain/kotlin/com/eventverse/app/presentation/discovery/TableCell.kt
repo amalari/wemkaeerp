@@ -21,6 +21,7 @@ import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.discovery.fields.FieldInput
+import com.eventverse.app.presentation.discovery.fields.displayValue
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -74,7 +75,7 @@ fun TableCell(
                     }
             )
         } else {
-            val cellText = row[column].ifEmpty { "—" }
+            val cellText = (state.fieldSpec(column)?.displayValue(row[column]) ?: row[column]).ifEmpty { "—" }
             Text(
                 text = cellText,
                 style = MaterialTheme.typography.bodySmall,
