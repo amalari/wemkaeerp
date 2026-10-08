@@ -46,7 +46,16 @@ data class FieldHint(
     val key: String,
     val type: FieldType,
     val required: Boolean = false,
-    val options: List<String> = emptyList()
+    val options: List<String> = emptyList(),
+    /**
+     * Parameter field yang dideklarasikan **pack** (Irisan 2): sumber data sah satu-satunya — usulan tidak menebak dari
+     * nama field. Bawaan = perilaku lama. Invarian yang sama dengan [FieldSpec] (mis. `format` hanya NUMBER, CURRENCY wajib
+     * kode, `withTime` hanya DATE, `validation` hanya TEXT) ditegakkan saat pack dibangun, bukan saat dipakai.
+     */
+    val format: NumberFormat = NumberFormat.PLAIN,
+    val currencyCode: String? = null,
+    val withTime: Boolean = false,
+    val validation: TextValidation = TextValidation.NONE
 ) {
     init {
         require(key.isNotBlank()) { "FieldHint.key kosong" }
@@ -55,10 +64,11 @@ data class FieldHint(
         } else {
             require(options.isEmpty()) { "FieldHint '$key' bukan ENUM tapi punya opsi" }
         }
+        toFieldSpec() // invarian parameter (format/withTime/validation) = satu sumber: FieldSpec
     }
 
     /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. */
-    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required)
+    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation)
 }
 
 /**

@@ -17,3 +17,9 @@ fun JsonValue.Obj.strictOptString(key: String): String? = when (val v = this[key
     is JsonValue.Str -> v.value
     else -> throw IllegalArgumentException("Bidang '$key' harus string.")
 }
+
+/** Boolean **wajib**: kunci absen/`null` atau bertipe salah ditolak (untuk operasi suntingan yang tak bermakna tanpa nilainya). */
+fun JsonValue.Obj.strictRequiredBoolean(key: String): Boolean = when (val v = this[key]) {
+    is JsonValue.Bool -> v.value
+    else -> throw IllegalArgumentException("Bidang '$key' wajib diisi dengan boolean (true/false).")
+}

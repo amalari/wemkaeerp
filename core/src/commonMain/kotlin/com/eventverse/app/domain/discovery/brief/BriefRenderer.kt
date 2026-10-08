@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.discovery.brief
 
 import com.eventverse.app.domain.prototype.SpecOp
+import com.eventverse.app.domain.prototype.TextValidation
 
 /**
  * Menyusun [RequirementsBrief] menjadi Markdown **deterministik** (masukan sama -> keluaran sama,
@@ -155,6 +156,12 @@ object BriefRenderer {
         is SpecOp.ShowFieldOnCard -> "tampilkan '${op.field}' di kartu"
         is SpecOp.ChangeWidget -> "ubah tampilan layar '${op.screenId}' menjadi ${if (op.widget == com.eventverse.app.domain.discovery.WidgetKind.KANBAN) "papan (kanban)" else op.widget.code.lowercase()}"
         is SpecOp.SetFieldFormat -> "ubah format angka '${op.field}' menjadi ${op.format.name.lowercase()}${op.currencyCode?.let { " ($it)" }.orEmpty()}"
+        is SpecOp.SetFieldWithTime -> "ubah '${op.field}' menjadi ${if (op.withTime) "tanggal dan jam" else "tanggal saja"}"
+        is SpecOp.SetFieldValidation -> "ubah validasi '${op.field}' menjadi ${when (op.validation) {
+            TextValidation.NONE -> "tanpa validasi"
+            TextValidation.EMAIL -> "alamat email"
+            TextValidation.PHONE -> "nomor telepon"
+        }}"
         is SpecOp.SetFieldRequired -> "jadikan '${op.field}' ${if (op.required) "wajib diisi" else "boleh dikosongkan"}"
     }
 

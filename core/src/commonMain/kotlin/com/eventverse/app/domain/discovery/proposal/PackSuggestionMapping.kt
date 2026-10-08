@@ -42,7 +42,7 @@ internal object PackSuggestionMapping {
             entity = null, view = ViewProposal.None, binding = s.dataBinding
         )
 
-    private fun FieldHint.toProposal() = FieldProposal(key, key, type, required, options)
+    private fun FieldHint.toProposal() = FieldProposal(key, key, type, required, options, format, currencyCode, withTime, validation)
     private fun text(key: String) = FieldProposal(key, key, FieldType.TEXT)
     private fun Map<String, Set<String>>.asLists() = mapValues { (_, v) -> v.toList() }
 
