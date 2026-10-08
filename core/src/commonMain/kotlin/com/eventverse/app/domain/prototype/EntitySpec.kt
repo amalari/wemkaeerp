@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prototype
 
+import kotlinx.datetime.LocalDate
+
 /**
  * Tipe field prototype: kosakata **tertutup milik sistem** (lolos Uji Variabilitas — renderer harus
  * bisa menggambar tiap tipe di semua vertikal). Nama field, opsi enum, dan transisi tetap data.
@@ -28,12 +30,16 @@ data class FieldSpec(
     }
 
     /** Nilai [value] sah untuk field ini? Kosong selalu sah (belum diisi). */
-    fun accepts(value: String): Boolean = when {
-        value.isEmpty() -> true
-        type == FieldType.ENUM -> value in options
-        type == FieldType.NUMBER -> value.toDoubleOrNull() != null
-        type == FieldType.BOOL -> value == "ya" || value == "tidak"
-        else -> true
+    fun accepts(value: String): Boolean {
+        if (value.isEmpty()) return true
+        return when (type) {
+            FieldType.TEXT -> true
+            FieldType.NUMBER -> value.toDoubleOrNull() != null
+            // Sama dengan `ProposalEntityRules`: tanggal kalender ISO (TTTT-BB-HH), bukan teks bebas.
+            FieldType.DATE -> runCatching { LocalDate.parse(value) }.isSuccess
+            FieldType.ENUM -> value in options
+            FieldType.BOOL -> value == "ya" || value == "tidak"
+        }
     }
 }
 

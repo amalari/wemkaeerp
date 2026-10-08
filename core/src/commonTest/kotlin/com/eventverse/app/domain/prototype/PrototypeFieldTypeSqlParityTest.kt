@@ -15,7 +15,6 @@ import com.eventverse.app.domain.prototype.PrototypeFieldTypeSampleFields.validV
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -121,20 +120,14 @@ class PrototypeFieldTypeSqlParityTest {
         assertFalse(fieldFor(FieldType.ENUM).accepts("Tidak Ada"))
     }
 
-    /**
-     * TEMUAN: `FieldSpec.accepts` ditulis sebagai `when { type == ... else -> true }` (bukan `when (type)`), jadi DATE
-     * jatuh ke `else -> true` dan menerima teks apa pun, sementara usulan layar (`ProposalEntityRules`) mensyaratkan
-     * ISO `YYYY-MM-DD`. Tipe baru juga akan lolos validasi senyap lewat `else`.
-     */
-    @Ignore // TEMUAN: FieldSpec.accepts tak memvalidasi DATE (else -> true); perbaikan produksi di luar Track A.
+    /** DATE wajib tanggal kalender ISO — sama dengan `ProposalEntityRules`, bukan teks bebas. */
     @Test
     fun accepts_dateField_rejectsNonIsoText() {
-        assertFalse(fieldFor(FieldType.DATE).accepts("besok pagi"))
-    }
-
-    @Test
-    fun accepts_dateField_currentlyAcceptsAnyText_documentedGap() {
-        assertTrue(fieldFor(FieldType.DATE).accepts("besok pagi"))
+        val date = fieldFor(FieldType.DATE)
+        assertFalse(date.accepts("besok pagi"))
+        assertFalse(date.accepts("2026-13-40"))
+        assertFalse(date.accepts("08/10/2026"))
+        assertTrue(date.accepts("2026-10-08"))
     }
 
     // ---- invarian konstruksi ----------------------------------------------------------------

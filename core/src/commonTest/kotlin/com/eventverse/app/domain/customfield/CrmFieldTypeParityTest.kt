@@ -5,7 +5,6 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import kotlinx.datetime.LocalDate
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -92,11 +91,7 @@ class CrmFieldTypeParityTest {
         samples.forEach { assertNotNull(CustomAttributesCodec.decodeDefinition(tenant, CustomAttributesCodec.encodeDefinition(def(it)))) }
     }
 
-    /**
-     * TEMUAN D4: `decodeNumberFormat` memakai `else -> Plain`, jadi format tak dikenal ("euro") dibaca diam-diam
-     * sebagai angka polos, dan "currency" tanpa kode mata uang juga jatuh ke Plain. Kontrak 8 menuntut penolakan.
-     */
-    @Ignore // TEMUAN: fallback senyap ke NumberFormat.Plain di CustomAttributesCodec.decodeNumberFormat; perbaikan produksi di luar Track A.
+    /** Format tak dikenal, atau currency tanpa kode, ditolak — bukan dibaca diam-diam sebagai Plain (Kontrak 8, D4). */
     @Test
     fun decodeFieldType_numberWithUnknownFormat_isRejectedNotPlain() {
         val unknown = jsonObjectOf("format" to jsonOf("euro"), "decimals" to jsonOf(0))
@@ -105,11 +100,11 @@ class CrmFieldTypeParityTest {
         assertNull(CustomAttributesCodec.decodeFieldType("NUMBER", currencyWithoutCode))
     }
 
-    /** Karakterisasi perilaku saat ini (bukan target): fallback senyap itu nyata, supaya perbaikannya terlihat di diff tes. */
+    /** Baris lama tanpa kunci `format` tetap terbaca sebagai angka polos: kunci hilang bukan nilai tak dikenal. */
     @Test
-    fun decodeFieldType_numberWithUnknownFormat_currentlyFallsBackToPlain_documentedGap() {
-        val unknown = jsonObjectOf("format" to jsonOf("euro"), "decimals" to jsonOf(2))
-        assertEquals(FieldType.Number(NumberFormat.Plain, 2), CustomAttributesCodec.decodeFieldType("NUMBER", unknown))
+    fun decodeFieldType_numberWithoutFormatKey_isPlain() {
+        val legacy = jsonObjectOf("decimals" to jsonOf(2))
+        assertEquals(FieldType.Number(NumberFormat.Plain, 2), CustomAttributesCodec.decodeFieldType("NUMBER", legacy))
     }
 
     // ---- validasi nilai per tipe ----------------------------------------------------------------

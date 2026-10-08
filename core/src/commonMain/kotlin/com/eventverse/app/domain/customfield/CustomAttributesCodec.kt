@@ -59,10 +59,9 @@ object CustomAttributesCodec {
         FieldType.LongText.code -> FieldType.LongText
         FieldType.Checkbox.code -> FieldType.Checkbox
 
-        "NUMBER" -> FieldType.Number(
-            format = decodeNumberFormat(config),
-            decimals = config.int(KEY_DECIMALS) ?: 0
-        )
+        "NUMBER" -> decodeNumberFormat(config)?.let { format ->
+            FieldType.Number(format = format, decimals = config.int(KEY_DECIMALS) ?: 0)
+        }
 
         "SINGLE_SELECT" -> FieldType.SingleSelect(
             options = config.objectArray(KEY_OPTIONS).mapNotNull(::decodeOption)
@@ -81,10 +80,16 @@ object CustomAttributesCodec {
         is NumberFormat.Currency -> "currency"
     }
 
-    private fun decodeNumberFormat(config: JsonValue.Obj): NumberFormat = when (config.string(KEY_FORMAT)) {
+    /**
+     * Format tak dikenal, atau `currency` tanpa kode mata uang, mengembalikan null — **bukan** `Plain`: membacanya
+     * sebagai angka polos mengubah data tanpa jejak. Kunci `format` yang tidak ada = baris lama sebelum format
+     * dikenal, tetap `Plain`.
+     */
+    private fun decodeNumberFormat(config: JsonValue.Obj): NumberFormat? = when (config.string(KEY_FORMAT)) {
+        null, "plain" -> NumberFormat.Plain
         "percent" -> NumberFormat.Percent
-        "currency" -> config.string(KEY_CURRENCY_CODE)?.let { NumberFormat.Currency(it) } ?: NumberFormat.Plain
-        else -> NumberFormat.Plain
+        "currency" -> config.string(KEY_CURRENCY_CODE)?.let { NumberFormat.Currency(it) }
+        else -> null
     }
 
     private fun encodeOption(option: SelectOption): JsonValue.Obj = jsonObjectOf(

@@ -29,7 +29,7 @@ Dibuat 2026-10-08. Aturan pendaftaran: [`.claude/rules/field-component-rules.md`
 | C3 | `LONG_TEXT` (teks panjang) | Tipe baru di prototype (CRM sudah punya) | prototype | Kecil | 2 |
 | C4 | **Mata uang / persen** | Varian: parameter `format` pada `NUMBER` (bukan tipe baru) | prototype (CRM sudah) | Sedang | 2 |
 | C5 | `MULTI_SELECT` | Tipe baru (penyimpanan beda: larik) | keduanya | Sedang | 3 |
-| C6 | `TIME` / tanggal-waktu | Parameter `withTime` pada `DATE` (CRM sudah punya) | prototype | Kecil–sedang | 3 |
+| C6 | **Time picker & Date-time picker** (`TIME` / tanggal-waktu) | Kontrol baru di `designsystem/` + parameter `withTime` pada `DATE` (CRM sudah punya) | keduanya (kontrol di `designsystem/`, prototype + CRM) | Sedang | 3 |
 | C7 | `RELATION` (rujukan antar entitas) | Tipe baru, referensial | keduanya | **Besar** | 4 |
 | C8 | `FILE` (unggah) | Tipe baru, butuh penyimpanan objek | keduanya | **Besar** | 4 |
 | C9 | Format tervalidasi (email, telepon) | Parameter validasi pada `TEXT` | prototype | Kecil | 3 |
@@ -81,11 +81,11 @@ Satu tipe/parameter per PR, masing-masing dengan A0. Prasyarat: Irisan 1 Track A
 
 | Track | Isi (per tipe) | Direktori |
 |---|---|---|
-| **A** | **A0:** entri tipe/parameter + validasi `FieldSpec` + tanda tangan format simpan (mis. `LONG_TEXT` = string; `NUMBER(format = Currency/Percent)`; `DATE(withTime)`; `TEXT(validation = Email/Phone)`). **Sisa A:** `SpecOp`/`SpecOpApplier`, `ProposalEntityRules`, `ProposalEdit`, `DeterministicScreenProposer`, codec (`InteractiveScreenCodec`, `SpecOpCodec`, `ScreenProposalCodec` menolak nilai tak dikenal), `SpecColumns`/`SpecPostgresWriter`/`SpecRoutesWriter`, tes paritas | `core/commonMain`, `core/commonTest` |
+| **A** | **A0:** entri tipe/parameter + validasi `FieldSpec` + tanda tangan format simpan (mis. `LONG_TEXT` = string; `NUMBER(format = Currency/Percent)`; `DATE(withTime = true)` = format ISO string `TTTT-BB-HH'T'JJ:MM`; `TEXT(validation = Email/Phone)`). **Sisa A:** `SpecOp`/`SpecOpApplier`, `ProposalEntityRules`, `ProposalEdit`, `DeterministicScreenProposer`, codec (`InteractiveScreenCodec`, `SpecOpCodec`, `ScreenProposalCodec` menolak nilai tak dikenal), `SpecColumns`/`SpecPostgresWriter`/`SpecRoutesWriter` (`TIMESTAMP WITH TIME ZONE` bila `withTime == true` vs `DATE`), tes paritas | `core/commonMain`, `core/commonTest` |
 | **B** | `screen_catalog` memuat tipe baru dan aturan pemakaiannya, `KoogDiscoveryPrompt` dan `KoogModuleEditor` tidak menyebut daftar tipe basi, evaluasi agent deterministik (tanpa LLM berbayar), codec sisi server bila ada | `server/.../infrastructure/discovery`, `.../builder` |
-| **C** | Kontrol di `FieldInput` + `TableCell`, `InlineRowEditor`, `KanbanDetailDialog`, `InteractiveFormState`, `InteractiveTableState`; komponen dasar di `designsystem/` bila perlu (mis. area teks, input format); cek visual di dua konteks dan pack non-garment | `app/shared/presentation/discovery/fields`, `.../designsystem` |
+| **C** | Kontrol di `FieldInput` + `TableCell`, `InlineRowEditor`, `KanbanDetailDialog`, `InteractiveFormState`, `InteractiveTableState`, serta CRM (`LeadCustomFieldControls`); komponen dasar di `designsystem/`: **`ClayTimePicker`** (format waktu `JJ:MM`, dialog spinner/grid jam & menit) dan **`ClayDateTimePicker`** (format `TTTT-BB-HH'T'JJ:MM`, menyatukan kalender + waktu); area teks untuk `LONG_TEXT`; input format mata uang/persen; cek visual di dua konteks dan pack non-garment | `app/shared/presentation/discovery/fields`, `.../designsystem`, `.../crm` |
 
-Urutan pipa: A0(C3) → [A(C3) ‖ B(C3) ‖ C(C3) ‖ A0(C4)] → … Tipe C4 (mata uang/persen) paling besar di Track C karena format tampil dan parsing masukan.
+Urutan pipa: A0(C3) → [A(C3) ‖ B(C3) ‖ C(C3) ‖ A0(C4)] → … Tipe C4 (mata uang/persen) paling besar di Track C karena format tampil dan parsing masukan. Tipe C6 mencakup penyediaan komponen pemilih waktu `ClayTimePicker` dan pemilih tanggal-waktu `ClayDateTimePicker` di `designsystem/` yang seragam di 5 target KMP dan dipakai bila `withTime == true` di CRM maupun Prototype.
 
 ### Irisan 3 — `MULTI_SELECT` (C5)
 **Gerbang awal (bukan track):** TRD ringkas yang memutuskan penyimpanan — kolom larik vs tabel tautan — dan bentuk nilai di codec. Tanpa keputusan ini A0 tidak boleh dimulai.
@@ -136,6 +136,7 @@ Pengecualian Kontrak 8: bila TRD belum selesai, tipe ini **ditolak**, tidak dipe
 | **D4** | Kontrak 8 (komponen belum ada ≠ dipalsukan jadi `TEXT`) berlaku untuk codec yang ada | **Ya**; periksa dulu apakah ada fallback senyap saat ini | Mencegah data berubah tanpa jejak |
 | **D5** | Kerangka kustom: label bebas atau petunjuk dari daftar tertutup | **Petunjuk tertutup** (mis. `TABEL`, `FORM`, `KARTU_ANGKA`, `AKSI`) + label singkat | Label bebas mengarah ke "UI bebas" yang sengaja dihindari; petunjuk menandai blok mana yang kelak bisa menjadi blok sungguhan |
 | **D6** | Kerangka tetap non-interaktif | **Ya** | Ia sketsa untuk dinilai prospek; interaktif berarti jadi blok sungguhan lewat jalur biasa |
+| **D7** | Time picker & DateTime picker: komponen terpisah atau menyatu | **`ClayTimePicker` mandiri (format `JJ:MM`) dan `ClayDateTimePicker` terpadu (format ISO-8601 `YYYY-MM-DDTHH:mm`) di `designsystem/`** | Memungkinkan pemilihan waktu murni (mis. jam operasional) dan tanggal-waktu terpadu (mis. deadline deal, jadwal inspeksi QC, `withTime = true`); buta domain; bebas dependensi platform |
 
 ## 4. Risiko
 - Date picker lintas target: perilaku fokus/keyboard di Wasm/JS vs Android berbeda → cek visual di minimal Wasm dan JVM.
