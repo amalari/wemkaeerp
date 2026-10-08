@@ -2,6 +2,7 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
+import com.eventverse.app.domain.fulfillment.HandoverRoute
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.FormHints
@@ -180,7 +181,9 @@ data class DomainPack(
      */
     val sharedModules: Set<ModuleId> = emptySet(),
     /** Rujukan ke modul bersama platform (B6, lihat [ModuleReference]); aturan di [ModuleReferenceRules]. Data saja, belum ke RBAC/kanvas. */
-    val moduleReferences: List<ModuleReference> = emptyList()
+    val moduleReferences: List<ModuleReference> = emptyList(),
+    /** Template rute serah terima karung (TRD-FLOW-003). Kosong = pack tanpa rute bawaan, bukan rute pack lain. */
+    val handoverRouteTemplate: List<HandoverRoute> = emptyList()
 ) {
     init {
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
@@ -219,6 +222,7 @@ data class DomainPack(
         roleHints.forEach { h ->
             require(h.moduleId.value in moduleIds || moduleReferences.any { it.platformModuleId == h.moduleId }) { "Kamus peran '${h.word}' menunjuk modul tak dikenal ${h.moduleId.value} di pack ${code.value}" }
         }
+        requireUnique("rute serah terima", handoverRouteTemplate.map { it.code.value })
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->
             require(word.isNotBlank()) { "Istilah ${key.name} pack ${code.value} kosong" }

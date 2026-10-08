@@ -77,6 +77,7 @@ object DomainPackCodec {
             if (pack.reservedTerms.isNotEmpty()) put("reservedTerms", jsonArrayOf(pack.reservedTerms.map { jsonOf(it) }))
             if (pack.moduleReferences.isNotEmpty()) put("moduleReferences", ModuleReferenceCodec.encode(pack.moduleReferences))
             if (pack.sharedModules.isNotEmpty()) put("sharedModules", jsonArrayOf(pack.sharedModules.map { jsonOf(it.value) }))
+            if (pack.handoverRouteTemplate.isNotEmpty()) put("handoverRouteTemplate", HandoverRouteCodec.encode(pack.handoverRouteTemplate))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -154,7 +155,8 @@ object DomainPackCodec {
                 roleHints = roleHints,
                 reservedTerms = reservedTerms,
                 sharedModules = sharedModules,
-                moduleReferences = ModuleReferenceCodec.decode(root["moduleReferences"], "$.moduleReferences")
+                moduleReferences = ModuleReferenceCodec.decode(root["moduleReferences"], "$.moduleReferences"),
+                handoverRouteTemplate = HandoverRouteCodec.decode(root["handoverRouteTemplate"], "$.handoverRouteTemplate")
             )
         }
     }
