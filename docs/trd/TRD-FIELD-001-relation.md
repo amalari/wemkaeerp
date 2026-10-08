@@ -3,12 +3,13 @@
 ## 1. Document Context and Administration
 
 - **Title & Unique ID**: TRD-FIELD-001 — Tipe Field `RELATION` (rujukan antar entitas lintas modul)
-- **Status**: **Draf untuk keputusan** — gerbang awal Irisan 4a sebelum A0 boleh dimulai (wajib sesuai `PLAN-field-component-gaps.md` §2, Kontrak 8 `field-component-rules.md`)
+- **Status**: **Disetujui — gerbang lewat, A0 boleh dimulai** (R1–R4 ditutup oleh user 2026-10-08; gerbang TRD wajib sesuai `PLAN-field-component-gaps.md` §2, Kontrak 8 `field-component-rules.md`)
 - **Revision History**:
 
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Kilo (riset dari kode) | TRD gerbang; belum ada kode; semua temuan dari bacaan file |
+| 0.2 | 2026-10-08 | User | R1–R4 disetujui dengan opsi default dokumen; gerbang Irisan 4a dinyatakan lewat |
 
 - **Summary & Business Context**: Kosakata field belum punya cara menyatakan rujukan antar entitas
   (mis. SPK merujuk PO; lead merujuk record modul lain). Plan menandai C7 ukuran **Besar** karena
@@ -266,8 +267,8 @@ Urutan merge: A0(4a) → A0(4b) → [A‖B‖C per sub-irisan] (plan §2 aturan 
 - Kebingungan label target (field `TEXT` pertama bukan label bermakna) → parametrisasi label field ditunda; dicatat sebagai keputusan terbuka R3.
 - Agent memilih `RELATION` padahal `ENUM` cukup → catatan katalog memandu; tes paritas menutup celah catatan kosong.
 
-## Keputusan terbuka (menunggu user/integrator)
-- **R1**: penomoran file — konvensi repo memakai seri per domain (`TRD-FIELD-001/002`), bukan `004a/004b` sesuai nomor irisan. Dipakai di dokumen ini; konfirmasi bila ingin lain.
-- **R2**: v1 membatasi seed `RELATION` = kosong (baris seed belum punya id). Terima ketidakpraktisan ini?
-- **R3**: penentu label opsi (v1: field `TEXT` pertama; fallback id) — perlu konfirmasi UX.
-- **R4**: CRM v1: apakah `targetResource` mencakup resource modul prototype (lintas kosakata) atau hanya resource CRM/employee? Rekomendasi: resource yang terekspos resolver saja; lintas kosakata penuh ditunda.
+## Keputusan (disetujui user, 2026-10-08)
+- **R1** ✅: penomoran seri per domain (`TRD-FIELD-001/002`) dipertahankan; tidak mengikuti nomor irisan.
+- **R2** ✅: terima — seed `RELATION` = kosong di v1; pengisian seed otomatis ditunda tanpa kontrak baru.
+- **R3** ✅: terima v1 — label opsi = field `TEXT` pertama baris target, fallback id; parametrisasi label field ditunda (additive).
+- **R4** ✅: `targetResource` hanya resource yang terekspos `RelationTargetResolver`; relasi lintas kosakata penuh ditunda.

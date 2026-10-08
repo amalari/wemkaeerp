@@ -3,14 +3,16 @@
 ## 1. Document Context and Administration
 
 - **Title & Unique ID**: TRD-FIELD-002 — Tipe Field `FILE` (unggah berkas, nilai = referensi objek)
-- **Status**: **Draf untuk keputusan** — gerbang awal Irisan 4b sebelum A0 boleh dimulai
-  (`PLAN-field-component-gaps.md` §2; Kontrak 8 `field-component-rules.md`: tanpa TRD, tipe `FILE`
+- **Status**: **Disetujui — gerbang lewat, A0 boleh dimulai setelah A0 4a merge** (R1–R3 ditutup
+  oleh user 2026-10-08; R4 tetap terbuka dan diputuskan Track C. Gerbang TRD wajib sesuai
+  `PLAN-field-component-gaps.md` §2; Kontrak 8 `field-component-rules.md`: tanpa TRD, tipe `FILE`
   **ditolak** di semua jalur, tidak dipalsukan jadi `TEXT`)
 - **Revision History**:
 
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Kilo (riset dari kode) | Verifikasi jalur unggah selesai: **server SUDAH punya object storage** (bukti §4.1) |
+| 0.2 | 2026-10-08 | User | R1–R3 disetujui dengan opsi default dokumen; R4 dititipkan ke Track C; gerbang Irisan 4b dinyatakan lewat |
 
 - **Summary & Business Context**: Kosakata field belum punya tipe berkas (scan PO, foto, lampiran).
   C8 ditandai **Besar** karena butuh penyimpanan objek dan keputusan gate unduh. Pertanyaan plan
@@ -288,8 +290,10 @@ Tanpa perubahan (verifikasi): `NumberFormatting.kt`, `KoogDiscoveryNumberFormatV
 - **Kompresi/ukuran gambar di klien** belum ada — foto kamera HP bisa 8 MB langsung; Track C wajib
   menampilkan sisa batas + error jelas; kompresi gambar di luar cakupan v1 (dicatat).
 
-## Keputusan terbuka (menunggu user/integrator)
-- **R1**: penomoran file — `TRD-FIELD-001/002` mengikuti konvensi seri per domain (bukan `004a/004b`); konfirmasi.
-- **R2**: allowlist v1 (pdf/png/jpeg/webp/txt/csv) dan batas 10 MB — setuju atau ada kebutuhan tipe lain sejak hari pertama?
-- **R3**: bucket terpisah `wemade-files` (rekomendasi) vs satu bucket dengan prefiks — konfirmasi Ops.
-- **R4**: metadata tampilan prototype (nama berkas/ukuran) via route meta vs disimpan di state sesi klien — diputuskan Track C, kontraknya: peta nilai sel tetap murni ref.
+## Keputusan (disetujui user, 2026-10-08)
+- **R1** ✅: penomoran seri per domain (`TRD-FIELD-001/002`) dipertahankan; konsisten dengan keputusan R1 TRD-FIELD-001.
+- **R2** ✅: terima v1 — allowlist `pdf/png/jpeg/webp/txt/csv`, batas **10 MB**; melonggarkan belakangan = satu perubahan konstanta + tes.
+- **R3** ✅: terima bucket terpisah `S3_BUCKET_FILES` (default `wemade-files`); isolasi sweep/retensi dari berkas PO, biaya nol.
+
+## Keputusan terbuka (diputuskan Track C)
+- **R4**: metadata tampilan prototype (nama berkas/ukuran) via route meta vs disimpan di state sesi klien — kontraknya sudah terkunci: peta nilai sel tetap murni ref.

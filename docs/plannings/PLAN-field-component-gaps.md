@@ -1,7 +1,8 @@
 # PLAN: Celah Komponen Input & Tipe Field — Daftar, Prioritas, dan Cara Menambahkannya
 
 Dibuat 2026-10-08. Aturan pendaftaran: [`.claude/rules/field-component-rules.md`](../../.claude/rules/field-component-rules.md).
-**Status: usulan.** Temuan §0 dibaca dari kode; yang belum diverifikasi ditandai. Belum ada TRD dan belum ada kode.
+**Status: usulan.** Temuan §0 dibaca dari kode; yang belum diverifikasi ditandai. Belum ada kode.
+Gerbang TRD Irisan 4 sudah ada dan **disetujui** (2026-10-08): [TRD-FIELD-001](../trd/TRD-FIELD-001-relation.md) (`RELATION`, 4a) dan [TRD-FIELD-002](../trd/TRD-FIELD-002-file.md) (`FILE`, 4b; R4-nya diputuskan Track C).
 
 ## 0. Temuan terverifikasi
 
