@@ -126,7 +126,7 @@ fun FieldInput(
                     isError = errorMessage != null
                 )
             }
-            FieldType.TEXT -> {
+            FieldType.TEXT, FieldType.LONG_TEXT -> {
                 ClayTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -134,7 +134,9 @@ fun FieldInput(
                     placeholder = if (compact) field.label else "Isi ${field.label.lowercase()}...",
                     enabled = enabled,
                     isError = errorMessage != null,
-                    singleLine = true,
+                    // A0(C3) Irisan 2: LONG_TEXT = area teks multibaris; komponen khusus designsystem
+                    // (bila diperlukan) menjadi pekerjaan lanjutan Track C.
+                    singleLine = field.type != FieldType.LONG_TEXT,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     keyboardActions = keyboardActions
                 )

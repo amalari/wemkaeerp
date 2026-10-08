@@ -96,7 +96,7 @@ internal object ProposalEntityRules {
             FieldType.NUMBER -> if (v.toDoubleOrNull() == null) sink.add(at, "'$v' bukan angka untuk field '${f.key}'")
             FieldType.BOOL -> if (v != "ya" && v != "tidak") sink.add(at, "Field BOOL '${f.key}' hanya menerima 'ya' atau 'tidak', dapat '$v'")
             FieldType.DATE -> if (runCatching { LocalDate.parse(v) }.isFailure) sink.add(at, "'$v' bukan tanggal ISO (YYYY-MM-DD) untuk field '${f.key}'")
-            FieldType.TEXT -> Unit
+            FieldType.TEXT, FieldType.LONG_TEXT -> Unit
         }
     }
 }

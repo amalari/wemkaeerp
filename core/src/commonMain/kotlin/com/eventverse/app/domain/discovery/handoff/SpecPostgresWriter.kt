@@ -104,7 +104,7 @@ internal object SpecPostgresWriter {
     private fun exposedColumn(c: SpecColumn): String {
         val n = SpecNaming.kString(c.name)
         val base = when (c.field.type) {
-            FieldType.TEXT -> "text($n)"
+            FieldType.TEXT, FieldType.LONG_TEXT -> "text($n)"
             FieldType.NUMBER -> "decimal($n, 18, 4)"
             FieldType.DATE -> "date($n)"
             FieldType.ENUM -> "varchar($n, 120)"
@@ -118,7 +118,7 @@ internal object SpecPostgresWriter {
         val raw = "row[${SpecNaming.kString(c.field.key)}]"
         val optional = !c.field.required
         return when (c.field.type) {
-            FieldType.TEXT, FieldType.ENUM -> if (optional) "$raw.ifBlank { null }" else raw
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM -> if (optional) "$raw.ifBlank { null }" else raw
             FieldType.NUMBER -> if (optional) "$raw.takeIf { it.isNotBlank() }?.toBigDecimal()" else "$raw.toBigDecimal()"
             FieldType.DATE -> if (optional) "$raw.takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) }" else "LocalDate.parse($raw)"
             FieldType.BOOL -> "$raw == \"ya\""
@@ -128,7 +128,7 @@ internal object SpecPostgresWriter {
     private fun readExpr(c: SpecColumn, tbl: String): String {
         val cell = "r[$tbl.${c.prop}]"
         return when (c.field.type) {
-            FieldType.TEXT, FieldType.ENUM -> if (c.field.required) cell else "($cell ?: \"\")"
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM -> if (c.field.required) cell else "($cell ?: \"\")"
             FieldType.NUMBER -> if (c.field.required) "$cell.stripTrailingZeros().toPlainString()" else "($cell?.stripTrailingZeros()?.toPlainString() ?: \"\")"
             FieldType.DATE -> if (c.field.required) "$cell.toString()" else "($cell?.toString() ?: \"\")"
             FieldType.BOOL -> "(if ($cell) \"ya\" else \"tidak\")"

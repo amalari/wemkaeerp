@@ -5,8 +5,16 @@ import kotlinx.datetime.LocalDate
 /**
  * Tipe field prototype: kosakata **tertutup milik sistem** (lolos Uji Variabilitas — renderer harus
  * bisa menggambar tiap tipe di semua vertikal). Nama field, opsi enum, dan transisi tetap data.
+ *
+ * Tanda tangan format simpan per tipe (A0 Irisan 2, lihat `docs/plannings/PLAN-field-component-gaps.md` §2):
+ * - [TEXT], [LONG_TEXT]: string bebas, kolom SQL `TEXT`; [LONG_TEXT] untuk isi panjang/multibaris
+ *   (padanan CRM `FieldType.LongText`; per keputusan D2 kosakatanya tetap terpisah).
+ * - [NUMBER]: string angka desimal, kolom `NUMERIC(18,4)`.
+ * - [DATE]: tanggal kalender ISO `TTTT-BB-HH`, kolom `DATE`.
+ * - [ENUM]: salah satu opsi di [FieldSpec.options].
+ * - [BOOL]: `ya` / `tidak`, kolom `BOOLEAN`.
  */
-enum class FieldType { TEXT, NUMBER, DATE, ENUM, BOOL }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL }
 
 data class FieldSpec(
     val key: String,
@@ -34,6 +42,7 @@ data class FieldSpec(
         if (value.isEmpty()) return true
         return when (type) {
             FieldType.TEXT -> true
+            FieldType.LONG_TEXT -> true
             FieldType.NUMBER -> value.toDoubleOrNull() != null
             // Sama dengan `ProposalEntityRules`: tanggal kalender ISO (TTTT-BB-HH), bukan teks bebas.
             FieldType.DATE -> runCatching { LocalDate.parse(value) }.isSuccess

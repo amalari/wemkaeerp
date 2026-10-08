@@ -30,7 +30,7 @@ class PrototypeFieldTypeSqlParityTest {
 
     /** Awalan SQL yang diharapkan; `when` tanpa `else` = pagar kompilator. */
     private fun expectedSql(type: FieldType): String = when (type) {
-        FieldType.TEXT -> "TEXT"
+        FieldType.TEXT, FieldType.LONG_TEXT -> "TEXT"
         FieldType.NUMBER -> "NUMERIC(18,4)"
         FieldType.DATE -> "DATE"
         FieldType.ENUM -> "VARCHAR(120)"
@@ -38,7 +38,7 @@ class PrototypeFieldTypeSqlParityTest {
     }
 
     private fun expectedExposed(type: FieldType): String = when (type) {
-        FieldType.TEXT -> "text("
+        FieldType.TEXT, FieldType.LONG_TEXT -> "text("
         FieldType.NUMBER -> "decimal("
         FieldType.DATE -> "date("
         FieldType.ENUM -> "varchar("
