@@ -2,7 +2,9 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.discovery.proposal.toInteractiveScreen
+import com.eventverse.app.domain.discovery.proposal.toSampleRow
 import com.eventverse.app.domain.discovery.WidgetRegistry
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackRegistry
@@ -93,7 +95,8 @@ private fun screenObj(s: PrototypeScreen, samplePack: DomainPack): JsonValue.Obj
         "rationale" to jsonOf(proposal.rationale),
         "source" to (s.source?.let(ScreenProposalCodec::encodeSource) ?: JsonValue.Null),
         "proposal" to ScreenProposalCodec.encode(proposal),
-        "sampleRows" to jsonArrayOf(proposal.seed.map { jsonStringMapOf(it) }),
+        // Kerangka CUSTOM_SCREEN (Irisan 3b): baris contoh = blok (kosakata Blok/Lebar/Petunjuk), sama dengan jalur lama.
+        "sampleRows" to jsonArrayOf(((proposal.view as? ViewProposal.Skeleton)?.blocks?.map { it.toSampleRow() } ?: proposal.seed).map { jsonStringMapOf(it) }),
         "interactive" to (proposal.toInteractiveScreen(s.source).getOrNull()?.let(InteractiveScreenCodec::encode) ?: JsonValue.Null)
     )
 }

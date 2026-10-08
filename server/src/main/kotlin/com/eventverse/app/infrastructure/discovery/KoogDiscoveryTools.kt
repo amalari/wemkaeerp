@@ -113,7 +113,7 @@ private fun viewShape(widget: WidgetKind): String = when (widget) {
         "{\"tiles\":[{\"label\":\"…\",\"value\":\"…\",\"count\":{\"moduleId\":\"…\",\"field\":\"…\",\"equals\":\"…\"}}]} " +
             "(maksimal 8 ubin; count menunjuk modul di pack)"
     WidgetKind.PRINT -> "{\"fields\":[kunci]}"
-    WidgetKind.CUSTOM_SCREEN -> "null"
+    WidgetKind.CUSTOM_SCREEN -> KoogDiscoverySkeletonVocabulary.viewShape
 }
 
 private fun widgetNote(widget: WidgetKind): String = when (widget) {
@@ -123,7 +123,7 @@ private fun widgetNote(widget: WidgetKind): String = when (widget) {
     WidgetKind.CHECKLIST -> "untuk langkah kerja yang dicentang"
     WidgetKind.DASHBOARD -> "untuk ringkasan angka tanpa daftar"
     WidgetKind.PRINT -> "untuk dokumen yang diserahkan dalam bentuk cetak"
-    WidgetKind.CUSTOM_SCREEN -> "hanya bila tak ada jenis yang cocok"
+    WidgetKind.CUSTOM_SCREEN -> KoogDiscoverySkeletonVocabulary.widgetNote
 }
 
 /**
@@ -160,6 +160,7 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
         }
     ),
     "cardStyles" to jsonArrayOf(CardStyle.entries.map { jsonOf(it.name) }),
+    "skeleton" to KoogDiscoverySkeletonVocabulary.catalogJson(),
     "limits" to jsonObjectOf(
         "fields" to jsonOf(ProposalLimits.FIELDS),
         "options" to jsonOf(ProposalLimits.OPTIONS),

@@ -114,7 +114,7 @@ internal object KoogDiscoveryPrompt {
             kolom = kunci field; KANBAN {card:[{field,style}], columnMeta, detailFormFields} dengan kolom
             papan = opsi statusField; FORM {fields, submitLabel} yang memuat semua field wajib;
             CHECKLIST {labelField, doneField BOOL}; DASHBOARD {tiles:[{label,value?,count?}]} maksimal 8
-            ubin; PRINT {fields}; CUSTOM_SCREEN null. Kunci `view` tidak boleh dikarang.
+            ubin; PRINT {fields}; ${KoogDiscoverySkeletonVocabulary.promptRule}. Kunci `view` tidak boleh dikarang.
         13. `rationale` satu kalimat bahasa pemilik usaha (maksimal 200 karakter), pola "Dipilih karena …".
             Pilih widget dari watak kerja modul, bukan selera: antrean/alur kerja → KANBAN, daftar/ledger
             → TABLE, pencatatan satu-per-satu → FORM, langkah bercentang → CHECKLIST, ringkasan angka →
