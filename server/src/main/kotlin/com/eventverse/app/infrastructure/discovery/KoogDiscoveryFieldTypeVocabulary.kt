@@ -17,12 +17,13 @@ internal object KoogDiscoveryFieldTypeVocabulary {
 
     /** Catatan per tipe untuk `screen_catalog.fieldTypes` (wajib ada tiap tipe). */
     fun note(type: FieldType): String = when (type) {
-        FieldType.TEXT -> "teks satu baris: nama, kode, judul, nomor, telepon"
+        FieldType.TEXT -> "teks satu baris: nama, kode, judul, nomor, alamat surel, telepon; parameter `validation` " +
+            "(EMAIL/PHONE) untuk surel/telepon, lihat fieldParams"
         FieldType.LONG_TEXT -> "teks panjang multibaris (catatan, keluhan, deskripsi, instruksi, alamat lengkap); " +
             "pilih ini bila isinya biasanya sekalimat atau lebih; nama/kode/judul tetap TEXT; " +
             "di seed ditulis sebagai teks biasa"
         FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
-        FieldType.DATE -> "tanggal ISO YYYY-MM-DD"
+        FieldType.DATE -> "tanggal ISO YYYY-MM-DD; parameter `withTime` true untuk waktu bermenit YYYY-MM-DDTHH:MM, lihat fieldParams"
         FieldType.ENUM -> "wajib options 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk status kerja"
         FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
     }
@@ -32,5 +33,5 @@ internal object KoogDiscoveryFieldTypeVocabulary {
         get() = "`fields` bertipe {$names} (ENUM wajib `options` 2–${ProposalLimits.OPTIONS} pilihan; tipe lain tanpa " +
             "`options`; ${FieldType.LONG_TEXT} untuk isi sekalimat atau lebih seperti catatan/keluhan/deskripsi, " +
             "${FieldType.TEXT} untuk nama/kode/judul satu baris); " +
-            KoogDiscoveryNumberFormatVocabulary.promptRule
+            KoogDiscoveryNumberFormatVocabulary.promptRule + "; " + KoogDiscoveryDateTimeValidationVocabulary.promptRule
 }
