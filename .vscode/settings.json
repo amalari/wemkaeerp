@@ -9,7 +9,7 @@
     "java.import.gradle.wrapper.enabled": true,
     "gradle.wrapperScript": "./gradlew",
     "gradle.useGradleDaemon": true,
-    "java.jdt.ls.vmargs": "-XX:+UseG1GC -XX:+UseStringDeduplication -Dsun.zip.disableMemoryMapping=true -Xmx3G -Xms256m -Xlog:disable",
+    "java.jdt.ls.vmargs": "-XX:+UseG1GC -XX:+UseStringDeduplication -Dsun.zip.disableMemoryMapping=true -Xmx4G -Xms256m -Xlog:disable",
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
@@ -20,9 +20,9 @@
     },
     "java.project.resourceFilters": [
         "node_modules",
-        ".git",
-        "**/build",
-        "**/.gradle",
-        "**/.kotlin"
+        "\\.git",
+        "build",
+        "\\.gradle",
+        "\\.kotlin"
     ]
 }
