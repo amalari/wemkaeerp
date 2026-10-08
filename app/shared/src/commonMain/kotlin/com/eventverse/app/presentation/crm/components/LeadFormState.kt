@@ -77,7 +77,13 @@ class LeadFormState(initialStage: LeadStage) {
         val hasIdentifier = brandName.isNotBlank() || contactPerson.isNotBlank() || phone.isNotBlank()
         val customOk = schema.filter { supportsInput(it.type) }.all { f ->
             val raw = custom[CustomFieldId(f.fieldId)].orEmpty().trim()
-            (!f.isRequired || raw.isNotEmpty()) && (raw.isEmpty() || f.type !is FieldType.Number || raw.replace(",", ".").toDoubleOrNull() != null)
+            (!f.isRequired || raw.isNotEmpty()) && when (f.type) {
+                is FieldType.Number -> raw.isEmpty() || raw.replace(",", ".").toDoubleOrNull() != null
+                is FieldType.DateField -> isBlankOrIsoDate(raw)
+                is FieldType.Text, is FieldType.LongText, is FieldType.SingleSelect -> true
+                // Tidak dirender di dialog lead baru (supportsInput) — tidak ada nilai untuk divalidasi.
+                is FieldType.Checkbox, is FieldType.UserRef -> true
+            }
         }
         return hasIdentifier && isPhoneValid && isEmailValid && customOk
     }
@@ -103,8 +109,19 @@ class LeadFormState(initialStage: LeadStage) {
     }
 
     companion object {
-        /** Field kustom yang punya input di dialog (TRD-HELP-002 K4). */
-        fun supportsInput(type: FieldType): Boolean =
-            type is FieldType.Text || type is FieldType.LongText || type is FieldType.Number || type is FieldType.SingleSelect
+        /** Kontrol yang dirender di dialog lead baru. UserRef butuh daftar karyawan; Checkbox & tanggal berwaktu menyusul. */
+        private val CREATE_FORM_CONTROLS = setOf(
+            LeadFieldControl.TEXT,
+            LeadFieldControl.NUMBER,
+            LeadFieldControl.SINGLE_SELECT,
+            LeadFieldControl.DATE_PICKER
+        )
+
+        /**
+         * Field kustom yang punya input di dialog (TRD-HELP-002 K4). Rute lewat [leadFieldControl]
+         * supaya paritas tipe→kontrol satu sumber kebenaran; tanggal tanpa waktu masuk lewat
+         * `ClayDatePicker` (Irisan 1 Track C), tanggal berwaktu (`DATE_TIME_TEXT`) belum.
+         */
+        fun supportsInput(type: FieldType): Boolean = leadFieldControl(type) in CREATE_FORM_CONTROLS
     }
 }

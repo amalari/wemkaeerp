@@ -12,14 +12,16 @@ import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
+import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
- * Input field kustom tenant di form lead baru (TRD-HELP-002 K4): Teks, Teks panjang, Angka, Pilihan.
- * Dirender dari skema tenant — tidak ada nama kolom yang tertulis di kode.
+ * Input field kustom tenant di form lead baru (TRD-HELP-002 K4): Teks, Teks panjang, Angka, Pilihan,
+ * dan Tanggal tanpa waktu (lewat `ClayDatePicker`, Irisan 1 Track C). Dirender dari skema tenant —
+ * tidak ada nama kolom yang tertulis di kode.
  */
 @Composable
 internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: LeadFormState) {
@@ -40,13 +42,29 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                     }
                 }
             }
-            else -> ClayTextField(
+            is FieldType.DateField -> ClayDatePicker(
                 value = value,
                 onValueChange = { form.update(f.fieldId, it) },
                 label = label,
-                singleLine = t !is FieldType.LongText,
+                modifier = Modifier.fillMaxWidth(),
+                isError = value.isNotBlank() && !isBlankOrIsoDate(value)
+            )
+            is FieldType.LongText -> ClayTextField(
+                value = value,
+                onValueChange = { form.update(f.fieldId, it) },
+                label = label,
+                singleLine = false,
                 modifier = Modifier.fillMaxWidth()
             )
+            is FieldType.Text, is FieldType.Number -> ClayTextField(
+                value = value,
+                onValueChange = { form.update(f.fieldId, it) },
+                label = label,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            // Difilter oleh LeadFormState.supportsInput: belum punya input di dialog lead baru.
+            is FieldType.Checkbox, is FieldType.UserRef -> Unit
         }
     }
 }
