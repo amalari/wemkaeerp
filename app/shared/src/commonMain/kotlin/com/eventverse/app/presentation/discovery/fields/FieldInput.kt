@@ -31,7 +31,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * Pemetaan [FieldType]:
  * - TEXT -> [ClayTextField] standar
  * - LONG_TEXT -> [ClayTextArea] area teks multi-baris
- * - NUMBER -> [ClayTextField] dengan [KeyboardType.Number]
+ * - NUMBER -> [ClayTextField] dengan prefix/suffix format (Rp/kode, %; lihat NumberFormatting.kt); nilai simpan tetap angka polos
  * - DATE -> [ClayDatePicker] pemilih tanggal berformat TTTT-BB-HH
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
@@ -101,20 +101,25 @@ fun FieldInput(
                 }
             }
             FieldType.NUMBER -> {
+                val affix = numberAffix(field.format, field.currencyCode)
                 ClayTextField(
                     value = value,
                     onValueChange = { input ->
-                        // Hanya terima karakter angka / desimal
-                        if (input.all { it.isDigit() || it == '.' || it == '-' || it == ',' }) {
-                            onValueChange(input)
-                        }
+                        // Kirim string simpan (titik desimal, tanpa ribuan/simbol); ketikan tak sah ditolak.
+                        normalizeNumberTyping(input, field.format)?.let(onValueChange)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Contoh: 100",
+                    leadingIcon = if (affix.prefix.isEmpty()) null else {
+                        { NumberAffixText(affix.prefix) }
+                    },
+                    trailingIcon = if (affix.suffix.isEmpty()) null else {
+                        { NumberAffixText(affix.suffix) }
+                    },
                     enabled = enabled,
                     isError = errorMessage != null,
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     keyboardActions = keyboardActions
                 )
             }
@@ -164,4 +169,14 @@ fun FieldInput(
             )
         }
     }
+}
+
+/** Prefix/suffix format angka (Rp, USD, %) sebagai bagian kontrol masukan. */
+@Composable
+private fun NumberAffixText(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = WeMadeColors.OnSurfaceMuted
+    )
 }

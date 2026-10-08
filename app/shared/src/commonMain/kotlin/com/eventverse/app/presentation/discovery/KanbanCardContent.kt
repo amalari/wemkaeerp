@@ -31,6 +31,7 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.discovery.fields.displayValue
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -120,8 +121,8 @@ private fun RenderRichCardElements(
     var hasRenderedDelete = false
 
     elements.forEachIndexed { index, elem ->
-        val rawValue = card[elem.field]
         val fieldSpec = state.spec.entity(state.entityId)?.field(elem.field)
+        val rawValue = fieldSpec?.displayValue(card[elem.field]) ?: card[elem.field]
         val fieldLabel = fieldSpec?.label ?: elem.field
 
         when (elem.style) {
