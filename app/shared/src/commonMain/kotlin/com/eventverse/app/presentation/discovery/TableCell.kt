@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -58,12 +59,12 @@ fun TableCell(
                     .width(columnWidth)
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown) {
-                            when (event.key) {
-                                Key.Enter -> {
+                            when {
+                                event.key == Key.Enter && (field.type != FieldType.LONG_TEXT || !event.isShiftPressed) -> {
                                     state.submitCellEdit(row.id, column)
                                     true
                                 }
-                                Key.Escape -> {
+                                event.key == Key.Escape -> {
                                     state.cancelCellEdit()
                                     true
                                 }

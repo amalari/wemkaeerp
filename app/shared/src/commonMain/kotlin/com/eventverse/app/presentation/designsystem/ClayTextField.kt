@@ -154,3 +154,45 @@ fun ClayTextField(
         }
     }
 }
+
+/**
+ * Varian area teks multi-baris khas Claymorphism (TRD-PLAT-003, Irisan 2 Track C).
+ * Nyaman untuk field teks panjang ([com.eventverse.app.domain.prototype.FieldType.LONG_TEXT]
+ * dan [com.eventverse.app.domain.customfield.FieldType.LongText]).
+ */
+@Composable
+fun ClayTextArea(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    minLines: Int = 3,
+    maxLines: Int = Int.MAX_VALUE,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    isError: Boolean = false,
+    errorMessage: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    focusRequester: FocusRequester? = null
+) {
+    ClayTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        label = label,
+        placeholder = placeholder,
+        singleLine = false,
+        minLines = minLines,
+        maxLines = maxLines,
+        enabled = enabled,
+        readOnly = readOnly,
+        isError = isError,
+        errorMessage = errorMessage,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        focusRequester = focusRequester
+    )
+}
+

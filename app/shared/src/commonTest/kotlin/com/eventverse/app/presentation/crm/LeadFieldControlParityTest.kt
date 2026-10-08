@@ -38,6 +38,12 @@ class LeadFieldControlParityTest {
     }
 
     @Test
+    fun textAndLongText_useDistinctControls() {
+        assertEquals(LeadFieldControl.TEXT, leadFieldControl(FieldType.Text))
+        assertEquals(LeadFieldControl.LONG_TEXT, leadFieldControl(FieldType.LongText))
+    }
+
+    @Test
     fun dateField_withoutTime_usesDatePicker() {
         assertEquals(LeadFieldControl.DATE_PICKER, leadFieldControl(FieldType.DateField(withTime = false)))
     }

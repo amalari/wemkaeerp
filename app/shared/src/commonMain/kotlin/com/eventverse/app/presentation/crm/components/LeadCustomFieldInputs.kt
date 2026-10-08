@@ -15,6 +15,7 @@ import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -49,11 +50,11 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                 modifier = Modifier.fillMaxWidth(),
                 isError = value.isNotBlank() && !isBlankOrIsoDate(value)
             )
-            is FieldType.LongText -> ClayTextField(
+            is FieldType.LongText -> ClayTextArea(
                 value = value,
                 onValueChange = { form.update(f.fieldId, it) },
                 label = label,
-                singleLine = false,
+                minLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )
             is FieldType.Text, is FieldType.Number -> ClayTextField(

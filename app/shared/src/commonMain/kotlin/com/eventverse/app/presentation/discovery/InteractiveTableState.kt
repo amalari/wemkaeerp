@@ -98,7 +98,7 @@ class InteractiveTableState(
             inlineValues[col] = when (f?.type) {
                 FieldType.BOOL -> "tidak"
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
-                else -> ""
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, null -> ""
             }
         }
         inlineErrorMessage = null

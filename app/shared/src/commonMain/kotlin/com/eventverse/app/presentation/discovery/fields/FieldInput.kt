@@ -19,6 +19,7 @@ import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -29,6 +30,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  *
  * Pemetaan [FieldType]:
  * - TEXT -> [ClayTextField] standar
+ * - LONG_TEXT -> [ClayTextArea] area teks multi-baris
  * - NUMBER -> [ClayTextField] dengan [KeyboardType.Number]
  * - DATE -> [ClayDatePicker] pemilih tanggal berformat TTTT-BB-HH
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
@@ -126,7 +128,7 @@ fun FieldInput(
                     isError = errorMessage != null
                 )
             }
-            FieldType.TEXT, FieldType.LONG_TEXT -> {
+            FieldType.TEXT -> {
                 ClayTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -134,9 +136,20 @@ fun FieldInput(
                     placeholder = if (compact) field.label else "Isi ${field.label.lowercase()}...",
                     enabled = enabled,
                     isError = errorMessage != null,
-                    // A0(C3) Irisan 2: LONG_TEXT = area teks multibaris; komponen khusus designsystem
-                    // (bila diperlukan) menjadi pekerjaan lanjutan Track C.
-                    singleLine = field.type != FieldType.LONG_TEXT,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardActions = keyboardActions
+                )
+            }
+            FieldType.LONG_TEXT -> {
+                ClayTextArea(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = if (compact) field.label else "Isi ${field.label.lowercase()}...",
+                    enabled = enabled,
+                    isError = errorMessage != null,
+                    minLines = if (compact) 2 else 3,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     keyboardActions = keyboardActions
                 )
