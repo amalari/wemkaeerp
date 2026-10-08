@@ -452,6 +452,24 @@ Repo ini punya knowledge graph di `graphify-out/` dan MCP server `graphify` (lih
 
 ---
 
+### 17. Komponen Input Bersama & Tipe Field (Pendaftaran Wajib)
+
+Saat membuat komponen input bersama atau tipe field baru (date picker, mata uang, pilihan ganda, unggah file, …), baca dan
+patuhi **[`.claude/rules/field-component-rules.md`](.claude/rules/field-component-rules.md)**. Ringkasan kontraknya:
+
+1. **Komponen common tidak berdiri sendiri** — wajib didaftarkan ke kosakata tipe field **dalam PR yang sama**
+   (domain, codec, usulan layar, generator SQL, katalog agent `screen_catalog`, dan UI).
+2. Ada **dua kosakata** yang terpisah: enum prototype (`domain/prototype/EntitySpec.kt`) dan sealed interface CRM
+   (`domain/customfield/FieldType.kt`). Menambah ke satu tidak otomatis menambah ke yang lain.
+3. **Varian ≠ tipe baru**: beda format/tampilan (mata uang) = parameter pada tipe yang ada.
+4. Satu pintu kontrol input (`FieldInput`); dilarang `else ->` pada `when (FieldType)`; codec menolak nilai tak dikenal,
+   **tidak** jatuh ke `TEXT`.
+5. Komponen yang belum ada **tidak dipalsukan** jadi `TEXT`: tolak, pakai `CUSTOM_SCREEN`, atau ajukan lewat antrean build.
+
+Celah dan prioritas saat ini: `docs/plannings/PLAN-field-component-gaps.md`.
+
+---
+
 ## Anti-Patterns yang Dilarang
 
 - Anemic Domain Model — Entity hanya data, logika di service
