@@ -75,7 +75,7 @@ object ScreenProposalCodec {
             jsonObjectOf(
                 "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
                 "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
-                "format" to jsonOf(f.format.name)
+                "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode)
             )
         }),
         "statusField" to jsonOf(e.statusField),
@@ -97,7 +97,8 @@ object ScreenProposalCodec {
                 options = f.strings("options"),
                 format = if (formatName == null) NumberFormat.PLAIN
                 else NumberFormat.entries.firstOrNull { it.name == formatName }
-                    ?: f.fail("format", "Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
+                    ?: f.fail("format", "Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}"),
+                currencyCode = f.optString("currencyCode")
             )
         },
         statusField = r.optString("statusField"),

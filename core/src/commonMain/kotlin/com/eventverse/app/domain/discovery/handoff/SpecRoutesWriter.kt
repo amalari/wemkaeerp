@@ -139,7 +139,8 @@ internal object SpecRoutesWriter {
         append(e.fields.joinToString(", ") { f ->
             "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", listOf(" +
                 f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
-                (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name) + ")"
+                (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
+                    (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

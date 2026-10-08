@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.discovery.proposal
 
+import com.eventverse.app.domain.prototype.CurrencyCode
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
 import kotlinx.datetime.LocalDate
@@ -24,6 +25,14 @@ internal object ProposalEntityRules {
             // C4 Irisan 2 (keputusan D3): format adalah varian NUMBER, bukan tipe lain.
             if (f.type != FieldType.NUMBER && f.format != NumberFormat.PLAIN) {
                 sink.add("$at.format", "Field '${f.key}' bertipe ${f.type.name}, bukan NUMBER, jadi tidak boleh punya format ${f.format.name}")
+            }
+            val code = f.currencyCode
+            if (f.type == FieldType.NUMBER && f.format == NumberFormat.CURRENCY) {
+                if (code == null || !CurrencyCode.isValid(code)) {
+                    sink.add("$at.currencyCode", "Field '${f.key}' berformat CURRENCY wajib punya kode mata uang tiga huruf besar (mis. IDR)")
+                }
+            } else if (code != null) {
+                sink.add("$at.currencyCode", "Field '${f.key}' tidak berformat CURRENCY, jadi tidak boleh punya kode mata uang")
             }
         }
         checkStatus(entity, sink)

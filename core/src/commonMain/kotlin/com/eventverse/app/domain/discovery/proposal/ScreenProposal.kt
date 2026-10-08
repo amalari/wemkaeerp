@@ -62,7 +62,9 @@ data class FieldProposal(
      * C4 Irisan 2: varian tampilan angka, wajib [NumberFormat.PLAIN] untuk tipe selain [FieldType.NUMBER]
      * (divalidasi [ScreenProposalValidator], bukan konstruktor — dokumen usulan tidak melempar).
      */
-    val format: NumberFormat = NumberFormat.PLAIN
+    val format: NumberFormat = NumberFormat.PLAIN,
+    /** Wajib tepat bila [format] = CURRENCY (divalidasi [ScreenProposalValidator], bukan konstruktor). */
+    val currencyCode: String? = null
 )
 
 /**

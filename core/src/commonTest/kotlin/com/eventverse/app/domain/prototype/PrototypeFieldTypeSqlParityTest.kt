@@ -163,9 +163,27 @@ class PrototypeFieldTypeSqlParityTest {
             val result = runCatching { FieldSpec("k", "K", type, format = NumberFormat.CURRENCY) }
             assertTrue(result.isFailure, "$type dengan format harus ditolak")
         }
-        val number = FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY)
+        val number = FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR")
         assertEquals(NumberFormat.CURRENCY, number.format)
         assertEquals(NumberFormat.PLAIN, FieldSpec("x", "X", FieldType.NUMBER).format, "default PLAIN")
+    }
+
+    /** Keputusan mata uang per field: CURRENCY wajib berkode tiga huruf besar; format lain wajib tanpa kode. */
+    @Test
+    fun fieldSpec_currencyCode_isRequiredExactlyForCurrency() {
+        listOf(null, "", "idr", "RP", "RUPIAH", "ID1").forEach { bad ->
+            assertTrue(
+                runCatching { FieldSpec("k", "K", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = bad) }.isFailure,
+                "kode '$bad' harus ditolak, tidak diam-diam jadi IDR"
+            )
+        }
+        assertEquals("USD", FieldSpec("k", "K", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "USD").currencyCode)
+        NumberFormat.entries.filter { it != NumberFormat.CURRENCY }.forEach { format ->
+            assertTrue(
+                runCatching { FieldSpec("k", "K", FieldType.NUMBER, format = format, currencyCode = "IDR") }.isFailure,
+                "$format tidak boleh membawa kode mata uang"
+            )
+        }
     }
 
     @Test

@@ -35,7 +35,12 @@ data class FieldSpec(
      * C4 Irisan 2: varian tampilan angka; wajib [NumberFormat.PLAIN] untuk tipe selain [FieldType.NUMBER].
      * Tanda tangan simpan tidak berubah — tetap string angka polos di kolom `NUMERIC(18,4)`.
      */
-    val format: NumberFormat = NumberFormat.PLAIN
+    val format: NumberFormat = NumberFormat.PLAIN,
+    /**
+     * Kode mata uang per field ([CurrencyCode]); wajib terisi **tepat** bila [format] = [NumberFormat.CURRENCY],
+     * dan wajib `null` selain itu. Metadata tampilan: tidak masuk kolom SQL.
+     */
+    val currencyCode: String? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
@@ -49,6 +54,13 @@ data class FieldSpec(
         }
         require(type == FieldType.NUMBER || format == NumberFormat.PLAIN) {
             "Field '$key' bertipe ${type.name}, bukan NUMBER, jadi tidak boleh punya format ${format.name}"
+        }
+        if (format == NumberFormat.CURRENCY) {
+            require(currencyCode != null && CurrencyCode.isValid(currencyCode)) {
+                "Field '$key' berformat CURRENCY wajib punya kode mata uang tiga huruf besar (mis. IDR), bukan '$currencyCode'"
+            }
+        } else {
+            require(currencyCode == null) { "Field '$key' berformat ${format.name}, jadi tidak boleh punya kode mata uang" }
         }
     }
 

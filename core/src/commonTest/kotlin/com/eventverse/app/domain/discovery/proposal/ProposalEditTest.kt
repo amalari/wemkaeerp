@@ -105,7 +105,11 @@ class ProposalEditTest {
     fun `format angka hanya sah pada field NUMBER - C4 Irisan 2`() {
         val kotor = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.TEXT, format = NumberFormat.CURRENCY))))
         assertTrue(kotor.exceptionOrNull()!!.message!!.contains("bukan NUMBER"), "format pada non-NUMBER ditolak validator")
-        val sah = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY)))).getOrThrow()
+        val sah = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR")))).getOrThrow()
         assertEquals(NumberFormat.CURRENCY, sah.entity!!.fields.first { it.key == "tarif" }.format)
+        val tanpaKode = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY))))
+        assertTrue(tanpaKode.exceptionOrNull()!!.message!!.contains("kode mata uang"), "CURRENCY tanpa kode ditolak validator")
+        val kodeLiar = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.PERCENT, currencyCode = "IDR"))))
+        assertTrue(kodeLiar.exceptionOrNull()!!.message!!.contains("tidak boleh punya kode mata uang"), "kode pada non-CURRENCY ditolak")
     }
 }

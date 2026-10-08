@@ -179,17 +179,26 @@ class PrototypeFieldTypeCodecParityTest {
     @Test
     fun interactiveScreenCodec_numberFormat_roundTrips_andUnknownIsRejected() {
         val spec = PrototypeSpec(
-            listOf(EntitySpec("e", "E", listOf(FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY)))),
+            listOf(EntitySpec("e", "E", listOf(FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR")))),
             listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf("harga"))))
         )
         val screen = InteractiveScreen(spec, mapOf("e" to listOf(PrototypeRow("r1", mapOf("harga" to "12000")))))
         val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(screen))
         assertEquals(NumberFormat.CURRENCY, decoded.spec.entities.single().fields.single().format)
+        assertEquals("IDR", decoded.spec.entities.single().fields.single().currencyCode)
+        val noCode = InteractiveScreenCodec.encode(screen).encode().replace("\"currencyCode\":\"IDR\"", "\"currencyCode\":null")
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(noCode) as JsonValue.Obj) }.isFailure, "CURRENCY tanpa kode ditolak, tidak jadi IDR")
         val tampered = InteractiveScreenCodec.encode(screen).encode().replace("\"format\":\"CURRENCY\"", "\"format\":\"RUPIAH\"")
         assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(tampered) as JsonValue.Obj) }.isFailure, "format 'RUPIAH' harus ditolak, tidak diam-diam jadi PLAIN")
     }
 
     /** C4 Irisan 2: AddField membawa `format` utuh lewat kawat SpecOp. */
+    @Test
+    fun specOpCodec_addFieldWithCurrency_keepsCode() {
+        val op = SpecOp.AddField("e", FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "EUR"))
+        assertEquals(op, SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow())
+    }
+
     @Test
     fun specOpCodec_addFieldWithNumberFormat_roundTrips() {
         val op = SpecOp.AddField("e", FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.PERCENT))
@@ -203,7 +212,7 @@ class PrototypeFieldTypeCodecParityTest {
     fun screenProposalCodec_numberFormat_roundTripsThroughDraftDocument_andUnknownIsRejected() {
         val base = ScreenProposalFixtures.kanbanAntrean()
         val extras = listOf(
-            FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY),
+            FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "USD"),
             FieldProposal("diskon", "Diskon", FieldType.NUMBER, format = NumberFormat.PERCENT)
         )
         val entity = ScreenProposalFixtures.pasien
@@ -211,6 +220,8 @@ class PrototypeFieldTypeCodecParityTest {
         val raw = DiscoveryDraftCodec.encodeToString(draft(screenOf(proposal)))
         val fields = DiscoveryDraftCodec.decode(raw).screens.single().proposal?.entity?.fields.orEmpty()
         assertEquals(NumberFormat.CURRENCY, fields.first { it.key == "tarif" }.format)
+        assertEquals("USD", fields.first { it.key == "tarif" }.currencyCode)
+        assertEquals(null, fields.first { it.key == "diskon" }.currencyCode)
         assertEquals(NumberFormat.PERCENT, fields.first { it.key == "diskon" }.format)
         assertEquals(raw, DiscoveryDraftCodec.encodeToString(DiscoveryDraftCodec.decode(raw)), "dokumen draf byte-stabil")
         val tampered = raw.replace("\"format\":\"CURRENCY\"", "\"format\":\"RUPIAH\"")
