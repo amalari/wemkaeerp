@@ -31,5 +31,6 @@ internal object KoogDiscoveryFieldTypeVocabulary {
     val promptRule: String
         get() = "`fields` bertipe {$names} (ENUM wajib `options` 2–${ProposalLimits.OPTIONS} pilihan; tipe lain tanpa " +
             "`options`; ${FieldType.LONG_TEXT} untuk isi sekalimat atau lebih seperti catatan/keluhan/deskripsi, " +
-            "${FieldType.TEXT} untuk nama/kode/judul satu baris)"
+            "${FieldType.TEXT} untuk nama/kode/judul satu baris); " +
+            KoogDiscoveryNumberFormatVocabulary.promptRule
 }
