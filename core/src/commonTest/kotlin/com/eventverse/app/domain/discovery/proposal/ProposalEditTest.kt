@@ -87,4 +87,15 @@ class ProposalEditTest {
         val sameType = FieldProposal("keluhan", "Keluhan Utama", FieldType.TEXT, required = true)
         assertEquals("ngilu", table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", sameType))).getOrThrow().seed.single()["keluhan"], "nilai yang masih sah dipertahankan")
     }
+
+    /** C3 Irisan 2: LONG_TEXT mengalir lewat suntingsan usulan dan lolos validator penuh. */
+    @Test
+    fun `LONG_TEXT ikut sunting usulan - tak wajib tak mengisi seed, wajib menjaga nilai bebas tetap sah`() {
+        val added = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("riwayat", "Riwayat", FieldType.LONG_TEXT)))).getOrThrow()
+        assertEquals(FieldType.LONG_TEXT, added.entity!!.fields.first { it.key == "riwayat" }.type)
+        assertEquals(setOf("nama", "keluhan", "tgl"), added.seed.single().keys, "LONG_TEXT tak wajib tidak mengisi baris contoh")
+        val toLongRequired = FieldProposal("keluhan", "Keluhan", FieldType.LONG_TEXT, required = true)
+        val replaced = table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", toLongRequired))).getOrThrow()
+        assertEquals("ngilu", replaced.seed.single()["keluhan"], "teks bebas tetap sah sebagai LONG_TEXT — validator lolos")
+    }
 }
