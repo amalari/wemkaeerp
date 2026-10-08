@@ -36,17 +36,24 @@ object HandoverRouteSettingsCodec {
         })
     )
 
-    /** Body `PUT route-settings`: `{ "routes": [ { "route": "CODE", "mode": "DIRECT" } ] }`. */
+    /**
+     * Body `PUT route-settings`: `{ "routes": [ { "route": "CODE", "mode": "DIRECT", "isExplicit"?: true } ] }`.
+     * Baris `isExplicit: false` tidak disimpan (paritas dengan decoder lama), tetapi tetap divalidasi.
+     */
     fun decodeModes(body: JsonValue.Obj): Map<HandoverRouteCode, HandoverMode> {
         val rows = body["routes"] as? JsonValue.Arr ?: throw IllegalArgumentException("\$.routes: harus array")
         val modes = LinkedHashMap<HandoverRouteCode, HandoverMode>()
+        val seen = HashSet<HandoverRouteCode>()
         rows.items.forEachIndexed { i, item ->
             val at = "\$.routes[$i]"
             val row = item as? JsonValue.Obj ?: throw IllegalArgumentException("$at: harus objek")
             val code = HandoverRouteCode.parse(row.string("route")).getOrElse { throw IllegalArgumentException("$at.route: ${it.message}") }
             val mode = HandoverMode.entries.firstOrNull { it.name == row.string("mode") }
                 ?: throw IllegalArgumentException("$at.mode: tidak dikenal '${row.string("mode")}'")
-            require(modes.put(code, mode) == null) { "$at.route: kode ganda '${code.value}'" }
+            require(seen.add(code)) { "$at.route: kode ganda '${code.value}'" }
+            // Klien mengirim balik seluruh daftar; baris yang bukan setelan sengaja (isExplicit=false) sah
+            // diabaikan — tetapi hanya SETELAH kode dan modenya lolos validasi.
+            if (row.boolean("isExplicit") != false) modes[code] = mode
         }
         return modes
     }

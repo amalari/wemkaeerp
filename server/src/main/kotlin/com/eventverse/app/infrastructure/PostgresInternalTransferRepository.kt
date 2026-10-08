@@ -5,7 +5,7 @@ import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
 import com.eventverse.app.domain.fulfillment.SackTransferId
-import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
@@ -115,7 +115,7 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
         this[FulfillmentTransfersTable.sizeLabel] = t.sizeLabel
         this[FulfillmentTransfersTable.colorway] = t.colorway
         this[FulfillmentTransfersTable.declaredPcs] = t.declaredPcs
-        this[FulfillmentTransfersTable.leg] = t.leg.name
+        this[FulfillmentTransfersTable.leg] = t.route.value
         this[FulfillmentTransfersTable.handoverMode] = t.handoverMode.name
         this[FulfillmentTransfersTable.status] = t.status.name
         this[FulfillmentTransfersTable.dispatchWeightKg] = t.dispatchWeightKg?.value
@@ -181,8 +181,8 @@ class PostgresInternalTransferRepository : InternalTransferRepository {
             sizeLabel = row[FulfillmentTransfersTable.sizeLabel],
             colorway = row[FulfillmentTransfersTable.colorway],
             declaredPcs = row[FulfillmentTransfersTable.declaredPcs],
-            leg = SackRoute.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.leg] }
-                ?: SackRoute.QC_RAJUT_TO_FINISHING,
+            // Tanpa fallback ke rute lain (TRD-FLOW-003 A5): kolom ini hanya ditulis dari kode yang sudah divalidasi.
+            route = HandoverRouteCode.parse(row[FulfillmentTransfersTable.leg]).getOrThrow(),
             status = SackTransferStatus.entries.firstOrNull { it.name == row[FulfillmentTransfersTable.status] }
                 ?: SackTransferStatus.MENUNGGU_ACC,
             // Baris pra-V61 tidak punya kolom ini; DEFAULT migrasi sudah mengisinya ADMIN_HUB,

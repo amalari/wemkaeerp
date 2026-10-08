@@ -39,6 +39,8 @@ import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
 import com.eventverse.app.domain.fulfillment.SackTransferId
 import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.legacySackRoutes
+import com.eventverse.app.domain.fulfillment.toRouteCode
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.fulfillment.usecases.ApproveTransferUseCase
@@ -146,7 +148,7 @@ fun Route.fulfillmentTransferRoutes(
             submit(
                 tenantId = tenant.tenantId,
                 rawSackPayload = body.string("sackCode").orEmpty(),
-                leg = leg,
+                route = leg.toRouteCode(),
                 dispatchWeightKg = weight,
                 dispatchScalePhotoKey = photoKey,
                 requestedBy = body.string("requestedBy").orEmpty(),
@@ -295,7 +297,11 @@ fun Route.fulfillmentTransferRoutes(
                     ?: return@put call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
 
                 // tenantId diambil dari sesi, bukan dari payload — payload hanya membawa rutenya.
-                val config = FulfillmentRouteConfigCodec.decode(body, tenant.tenantId)
+                // Isi tak sah (kode, mode, baris ganda) dan kode di luar rute tenant → 400, bukan dilewati diam-diam.
+                val config = runCatching {
+                    FulfillmentRouteConfigCodec.decode(body, tenant.tenantId)
+                        .validatedAgainst(legacySackRoutes(tenant.tenantId))
+                }.getOrElse { return@put call.respond(HttpStatusCode.BadRequest, it.message ?: "Konfigurasi rute tidak sah") }
 
                 runCatching { routeConfigRepository.save(config) }
                     .onSuccess { call.respondJson(FulfillmentRouteConfigCodec.encode(config).encode()) }

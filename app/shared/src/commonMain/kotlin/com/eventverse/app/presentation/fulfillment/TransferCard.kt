@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.fulfillment.legacyRouteLabel
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.InternalTransfer
@@ -130,7 +131,7 @@ private fun TransferHeader(transfer: InternalTransfer) {
                 // Mode disebut di sini supaya kartu DIRECT tidak terbaca sebagai kartu yang
                 // "lupa di-ACC" — dua hal yang kalau tertukar menuntun admin mencari tombol
                 // persetujuan yang memang tidak pernah ada.
-                text = "${transfer.leg.displayName} · ${transfer.handoverMode.displayName}",
+                text = "${legacyRouteLabel(transfer.route)} · ${transfer.handoverMode.displayName}",
                 fontSize = 11.sp,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,

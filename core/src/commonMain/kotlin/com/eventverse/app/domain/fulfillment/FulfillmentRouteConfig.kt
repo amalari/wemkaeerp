@@ -18,24 +18,48 @@ import com.eventverse.app.domain.tenant.TenantId
  */
 data class FulfillmentRouteConfig(
     val tenantId: TenantId,
-    val modes: Map<SackRoute, HandoverMode> = emptyMap()
+    /** Mode yang **sengaja disetel**, per kode rute (TRD-FLOW-003 A3). Rute tanpa entri tidak ada di sini. */
+    val modes: Map<HandoverRouteCode, HandoverMode> = emptyMap()
 ) {
-    /** Rute tanpa entri memakai [HandoverMode.ADMIN_HUB] — perilaku tenant yang sudah jalan. */
-    fun modeFor(route: SackRoute): HandoverMode = modes[route] ?: HandoverMode.ADMIN_HUB
-
     /**
-     * Apakah ada satu pun rute yang masih melewati meja admin.
+     * Rute dikenal tanpa entri memakai [HandoverMode.ADMIN_HUB] — perilaku tenant yang sudah jalan.
      *
-     * Dipakai UI untuk memutuskan menampilkan antrean ACC atau tidak: di pabrik yang seluruh
-     * rutenya langsung, penghitung "Menunggu ACC" selamanya nol dan hanya membuat orang
-     * menduga ada yang rusak.
+     * Config ini **tidak tahu rute apa saja milik tenant**, jadi kode yang salah ketik pun jatuh ke
+     * ADMIN_HUB di sini. Kekakuan "kode tak dikenal = galat" ditegakkan di [validatedAgainst] dan
+     * [HandoverRouteSettingsView.of], yang membawa daftar rute tenant.
      */
+    fun modeFor(code: HandoverRouteCode): HandoverMode = modes[code] ?: HandoverMode.ADMIN_HUB
+
+    /** Menolak mode yang disetel untuk kode yang tidak dikenal [routes]; bukan mengabaikannya. */
+    fun validatedAgainst(routes: TenantHandoverRoutes): FulfillmentRouteConfig = also {
+        modes.keys.firstOrNull { routes.find(it) == null }?.let {
+            throw IllegalArgumentException("Mode disetel untuk rute '${it.value}' yang tidak dikenal tenant ${tenantId.value}")
+        }
+    }
+
+    /** Apakah ada rute **aktif** milik tenant yang masih lewat meja admin (menentukan antrean ACC tampil). */
+    fun hasAdminHubRoute(routes: TenantHandoverRoutes): Boolean =
+        routes.active.any { modeFor(it.code) == HandoverMode.ADMIN_HUB }
+
+    /** Rute aktif yang sah untuk wadah yang baru dipindai, dipakai UI untuk meredupkan sisanya. */
+    fun routesAccepting(routes: TenantHandoverRoutes, isClosedSack: Boolean): List<HandoverRoute> =
+        routes.active.filter { isClosedSack || modeFor(it.code) == HandoverMode.DIRECT }
+
+    // ── Jembatan Strangler Fig (S0–S2), dihapus di S3 bersama SackRoute ─────────────────────────────
+
+    fun modeFor(route: SackRoute): HandoverMode = modeFor(route.toRouteCode())
+
     val hasAdminHubRoute: Boolean
         get() = SackRoute.entries.any { modeFor(it) == HandoverMode.ADMIN_HUB }
 
-    /** Rute yang sah untuk wadah yang baru dipindai, dipakai UI untuk meredupkan sisanya. */
     fun routesAccepting(isClosedSack: Boolean): List<SackRoute> =
         SackRoute.entries.filter { isClosedSack || modeFor(it) == HandoverMode.DIRECT }
+
+    companion object {
+        /** Pemanggil lama yang masih memegang `Map<SackRoute, HandoverMode>`. */
+        operator fun invoke(tenantId: TenantId, modes: Map<SackRoute, HandoverMode>): FulfillmentRouteConfig =
+            FulfillmentRouteConfig(tenantId, modes.mapKeys { it.key.toRouteCode() })
+    }
 }
 
 /**

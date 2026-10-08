@@ -53,12 +53,12 @@ class GarmentHandoverRoutesParityTest {
         val old = FulfillmentRouteConfig(tenant, modes = mapOf(explicit to HandoverMode.DIRECT))
         val view = HandoverRouteSettingsView.of(
             TenantHandoverRoutes.resolve(tenant, stored = null, template = template),
-            old.modes.mapKeys { it.key.toRouteCode() }
+            old.modes
         )
         SackRoute.entries.forEach { route ->
             val setting = view.settings.single { it.route.code == route.toRouteCode() }
             assertEquals(old.modeFor(route), setting.mode, "mode ${route.name}")
-            assertEquals(route in old.modes, setting.isExplicit, "isExplicit ${route.name}")
+            assertEquals(route.toRouteCode() in old.modes, setting.isExplicit, "isExplicit ${route.name}")
         }
         assertEquals(old.hasAdminHubRoute, view.hasAdminHubRoute)
     }
@@ -68,7 +68,7 @@ class GarmentHandoverRoutesParityTest {
         val old = FulfillmentRouteConfig(tenant, modes = mapOf(SackRoute.QC_RAJUT_TO_FINISHING to HandoverMode.DIRECT))
         val new = HandoverRouteSettingsView.of(
             TenantHandoverRoutes.resolve(tenant, null, template),
-            old.modes.mapKeys { it.key.toRouteCode() }
+            old.modes
         )
         val oldJson = JsonParser.parseObject(FulfillmentRouteConfigCodec.encode(old).encode())
         val newJson = JsonParser.parseObject(HandoverRouteSettingsCodec.encode(new).encode())

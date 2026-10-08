@@ -7,7 +7,9 @@ import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
 import com.eventverse.app.domain.fulfillment.SackTransferId
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
-import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
+import com.eventverse.app.domain.fulfillment.TenantHandoverRoutes
+import com.eventverse.app.domain.fulfillment.legacySackRoutes
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.traceability.TraceCodec
@@ -31,12 +33,14 @@ import kotlinx.datetime.Instant
 class SubmitTransferUseCase(
     private val transfers: InternalTransferRepository,
     private val containers: TraceContainerRepository,
-    private val routeConfig: FulfillmentRouteConfigRepository
+    private val routeConfig: FulfillmentRouteConfigRepository,
+    /** Rute yang sah untuk tenant. Bawaan = isi `SackRoute` (jembatan S0–S2); Track B memasang rute per tenant. */
+    private val knownRoutes: suspend (TenantId) -> TenantHandoverRoutes = { legacySackRoutes(it) }
 ) {
     suspend operator fun invoke(
         tenantId: TenantId,
         rawSackPayload: String,
-        leg: SackRoute,
+        route: HandoverRouteCode,
         dispatchWeightKg: WeightKg?,
         dispatchScalePhotoKey: String?,
         requestedBy: String,
@@ -44,7 +48,10 @@ class SubmitTransferUseCase(
         notes: String = "",
         declaredPcsOverride: Int? = null
     ): Result<InternalTransfer> = runCatching {
-        val mode = (routeConfig.findByTenantId(tenantId) ?: FulfillmentRouteConfig(tenantId)).modeFor(leg)
+        val known = requireNotNull(knownRoutes(tenantId).find(route)?.takeIf { it.active }) {
+            "Rute '${route.value}' tidak dikenal atau sudah dinonaktifkan untuk tenant ini."
+        }
+        val mode = (routeConfig.findByTenantId(tenantId) ?: FulfillmentRouteConfig(tenantId)).modeFor(route)
 
         val code = TraceCodec.fromScanPayload(rawSackPayload)
             ?: error("Kode wadah tidak dikenali. Pindai QR atau ketik kodenya dengan benar.")
@@ -54,7 +61,7 @@ class SubmitTransferUseCase(
         when (mode) {
             HandoverMode.ADMIN_HUB -> {
                 require(container.isSack) {
-                    "Rute ${leg.displayName} lewat meja admin, jadi yang dikirim harus karung — " +
+                    "Rute ${known.label} lewat meja admin, jadi yang dikirim harus karung — " +
                         "${TraceCodec.grouped(code)} adalah kartu bundel. Tuang dulu ke karung."
                 }
                 require(container.state == TraceContainerState.CLOSED) {
@@ -89,7 +96,7 @@ class SubmitTransferUseCase(
             sizeLabel = container.sizeLabel,
             colorway = container.colorway,
             declaredPcs = declaredPcs,
-            leg = leg,
+            route = route,
             handoverMode = mode,
             status = when (mode) {
                 HandoverMode.ADMIN_HUB -> SackTransferStatus.MENUNGGU_ACC
@@ -105,7 +112,7 @@ class SubmitTransferUseCase(
         )
         transfers.save(transfer)
         transfers.recordEvent(
-            tenantId, transfer.id, "SUBMITTED", requestedBy, "leg=${leg.name} mode=${mode.name}", now
+            tenantId, transfer.id, "SUBMITTED", requestedBy, "route=${route.value} mode=${mode.name}", now
         )
         transfer
     }
