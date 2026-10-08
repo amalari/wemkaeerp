@@ -16,7 +16,9 @@ Dibuat 2026-10-08. Aturan pendaftaran: [`.claude/rules/field-component-rules.md`
 | G7 | Tidak ada tes yang mengiterasi `FieldType.entries` di `core/commonTest` | grep |
 | G8 | Tidak ada kontrak "komponen belum ada → bagaimana": baru ada pesan "gambar statis" untuk blok tanpa bentuk interaktif | `ScreenProposalConversion.kt` |
 
-**Belum diverifikasi**: apakah semua `when (FieldType)` bebas `else`; jalur unggah file/penyimpanan objek yang sudah ada di server (diperlukan tipe `FILE`); apakah `FieldInput` dipakai juga di luar tiga konteks yang disebut KDoc-nya; perilaku `DATE` di tabel/kanban saat nilai tidak sah.
+| G9 | Bentuk usulan `CUSTOM_SCREEN` = `ViewProposal.None` (`ProposalViewRules` mewajibkannya); kerangkanya selalu **tiga blok generik** dari `WidgetRegistry.sampleRowsFor` ("Ringkasan {modul}" penuh, "Daftar {modul}" separuh, "Panel aksi" separuh). Agent tidak punya tempat menyebut blok kustom. Sampel dibaca server (`DiscoverySummary`) dan dikirim ke klien; batas ukuran usulan ada di `ProposalLimits` (`FIELDS`, `TEXT`, `TILES`, `SCREENS`, …) | `WidgetRegistry.kt`, `ProposalViewRules.kt`, `DiscoverySummary.kt`, `ScreenProposal.kt` |
+
+**Belum diverifikasi**: apakah ada pembaca sampel `CUSTOM_SCREEN` selain renderer klien dan `DiscoverySummary` (di `core` hanya `WidgetRegistry` yang ditemukan); apakah semua `when (FieldType)` bebas `else`; jalur unggah file/penyimpanan objek yang sudah ada di server (diperlukan tipe `FILE`); apakah `FieldInput` dipakai juga di luar tiga konteks yang disebut KDoc-nya; perilaku `DATE` di tabel/kanban saat nilai tidak sah.
 
 ## 1. Daftar celah dan prioritas
 
@@ -31,6 +33,7 @@ Dibuat 2026-10-08. Aturan pendaftaran: [`.claude/rules/field-component-rules.md`
 | C7 | `RELATION` (rujukan antar entitas) | Tipe baru, referensial | keduanya | **Besar** | 4 |
 | C8 | `FILE` (unggah) | Tipe baru, butuh penyimpanan objek | keduanya | **Besar** | 4 |
 | C9 | Format tervalidasi (email, telepon) | Parameter validasi pada `TEXT` | prototype | Kecil | 3 |
+| C10 | **Kerangka `CUSTOM_SCREEN` yang dinyatakan agent** (daftar blok: label, lebar, petunjuk jenis) | Kosakata **tingkat layar**, bukan tipe field | prototype | Sedang | 3 |
 
 Alasan urutan: C1 dan C2 tidak mengubah kosakata sehingga tidak butuh keputusan besar dan menyiapkan pagar. C3–C6 dan C9 adalah
 tipe/parameter sederhana. C7 dan C8 melibatkan integritas referensial dan penyimpanan objek, dan bersinggungan dengan
@@ -55,6 +58,18 @@ generator SQL → katalog agent → `FieldInput` → tes paritas. Satu tipe per 
 ### Irisan 3 — `MULTI_SELECT` (C5)
 Butuh keputusan penyimpanan (kolom larik vs tabel tautan) dan dampak ke generator; TRD ringkas.
 
+### Irisan 3b — Kerangka layar kustom (C10)
+Masalah: agent tidak bisa menyebut "Keranjang" atau "Pembayaran" pada layar kustom; pratinjau selalu tiga kotak generik (G9).
+
+| Track | Isi | Direktori |
+|---|---|---|
+| **A** | `ViewProposal.Skeleton(blocks)` menggantikan `None` **hanya** untuk `CUSTOM_SCREEN`; tiap blok `{label, lebar, petunjuk}`; batas baru di `ProposalLimits` (jumlah blok, panjang label, lebar ∈ {penuh, separuh}); `ProposalViewRules` dan codec (`ViewProposalCodec`) diperbarui, nilai tak sah **ditolak**; tes round-trip dan validator dengan pack non-garment | `core/domain/discovery/proposal`, `core/shared/discovery` |
+| **B** | `WidgetRegistry.sampleRowsFor` memakai blok dari usulan bila ada, jatuh ke tiga blok generik bila tidak (draf lama tetap hidup); `viewShape`/`widgetNote` di `screen_catalog` dan aturan prompt Koog menjelaskan bentuk baru dengan batas yang sama dengan validator; evaluasi agent deterministik | `core`, `server/infrastructure/discovery` |
+| **C** | Renderer menggambar blok dari data, tampil sebagai sketsa (bukan interaktif); cek visual di dua pack | `app/shared/presentation/discovery` |
+
+Bukan tipe field, jadi aturan `field-component-rules.md` hanya berlaku sebagian (katalog agent dan codec menolak nilai tak dikenal); aturan itu
+perlu mencatat pengecualian ini agar tidak dianggap terlupa. **Tetap non-interaktif** (keputusan D5).
+
 ### Irisan 4 — `RELATION`, `FILE` (C7, C8)
 TRD sendiri; prasyarat: keputusan tentang rujukan lintas modul (hanya lewat port, TRD-PLAT-004 P4) dan penyimpanan objek.
 
@@ -66,6 +81,8 @@ TRD sendiri; prasyarat: keputusan tentang rujukan lintas modul (hanya lewat port
 | **D2** | Menyatukan dua kosakata (prototype vs CRM) | **Tidak sekarang**; aturan berlaku per kosakata, tulis keputusan di tiap irisan | Menyentuh CRM yang berjalan; manfaat penyatuan baru terasa setelah tipe ke-6 |
 | **D3** | Mata uang sebagai parameter `format` pada `NUMBER` (prototype) | **Ya** | Sejalan KDoc CRM: penyimpanan identik, hanya render yang beda |
 | **D4** | Kontrak 8 (komponen belum ada ≠ dipalsukan jadi `TEXT`) berlaku untuk codec yang ada | **Ya**; periksa dulu apakah ada fallback senyap saat ini | Mencegah data berubah tanpa jejak |
+| **D5** | Kerangka kustom: label bebas atau petunjuk dari daftar tertutup | **Petunjuk tertutup** (mis. `TABEL`, `FORM`, `KARTU_ANGKA`, `AKSI`) + label singkat | Label bebas mengarah ke "UI bebas" yang sengaja dihindari; petunjuk menandai blok mana yang kelak bisa menjadi blok sungguhan |
+| **D6** | Kerangka tetap non-interaktif | **Ya** | Ia sketsa untuk dinilai prospek; interaktif berarti jadi blok sungguhan lewat jalur biasa |
 
 ## 4. Risiko
 - Date picker lintas target: perilaku fokus/keyboard di Wasm/JS vs Android berbeda → cek visual di minimal Wasm dan JVM.
