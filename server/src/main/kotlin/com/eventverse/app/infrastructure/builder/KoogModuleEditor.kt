@@ -105,7 +105,7 @@ class KoogModuleEditor(
 
             ATURAN:
             - key: huruf kecil, angka, garis bawah, diawali huruf, maksimum 41 karakter (mis. tanggal_kirim). label: nama tampil bahasa Indonesia.
-            - type salah satu: TEXT, NUMBER, DATE, ENUM, BOOL. ENUM wajib punya options (maksimum ${ProposalLimits.OPTIONS}); tipe lain tanpa options.
+            - type salah satu: ${FieldType.entries.joinToString { it.name }}. ENUM wajib punya options (maksimum ${ProposalLimits.OPTIONS}); tipe lain tanpa options. LONG_TEXT untuk isi sekalimat atau lebih (catatan, keluhan, deskripsi); TEXT untuk nama/kode/judul satu baris.
             - Maksimum $MAX_EDITS sunting per jawaban. Jangan membuang atau mengganti tipe field status. Jangan menambah field yang sudah ada.
             - Hanya lakukan yang diminta atau yang jelas tersirat dari jawaban pengguna. Jawaban "sudah cukup" atau permintaan di luar isian
               berarti tidak ada sunting: balas edits kosong dan jelaskan singkat di reply.
