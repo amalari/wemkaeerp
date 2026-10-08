@@ -3,12 +3,13 @@
 ## 1. Document Context and Administration
 
 - **Title & Unique ID**: TRD-PLAT-004 — Jalur Kepemilikan Modul
-- **Status**: **Draf usulan.** Bagian "Temuan terverifikasi" berasal dari kode; bagian "Usulan" butuh keputusan.
+- **Status**: **P1–P6 diputuskan 2026-10-08** (sesuai rekomendasi). Bagian "Temuan terverifikasi" berasal dari kode; U1 selesai (TRD-PLAT-005); U2–U6 belum dikerjakan, lihat `PLAN-module-ownership-lanes.md`.
 - **Revision History**:
 
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Claude (draf) + Achmad Jamaludin | Dari diskusi TRD-FLOW-003: bagaimana modul builder, modul spesialis yang dipakai ulang, dan modul khusus satu tenant tidak bercampur |
+| 0.2 | 2026-10-08 | Claude + Achmad Jamaludin | P1–P6 diputuskan sesuai rekomendasi. P1 dikerjakan di TRD-PLAT-005 (sudah di `main`). P2–P6 diturunkan ke `PLAN-module-ownership-lanes.md` |
 
 - **Summary & Business Context**: Platform akan punya tiga jenis modul yang lahir dari proses berbeda
   (mesin platform; modul spesialis yang dipakai ulang; modul khusus satu tenant) dan dua cara berjalan
@@ -141,7 +142,9 @@ Kedua mode ──► port bertipe / moduleReferences ──► modul lain   (tid
 Pindah dari DATA_DRIVEN ke CODE_BACKED **tidak mengubah id modul** dan karena itu tidak mengubah schema,
 RBAC, atau entitlement; yang berubah hanya siapa yang melayaninya.
 
-### 4.5 Keputusan yang diperlukan
+### 4.5 Keputusan
+
+> **Diputuskan 2026-10-08: P1–P6 mengikuti rekomendasi.** P1 selesai lewat TRD-PLAT-005. P5 saat ini hanya berupa **kebijakan** (salin ke pack baru, jangan ganti nama); field `derivedFrom` baru dibuat ketika promosi pertama benar-benar terjadi, bukan sebelumnya.
 
 | # | Keputusan | Rekomendasi | Alasan |
 |---|---|---|---|
