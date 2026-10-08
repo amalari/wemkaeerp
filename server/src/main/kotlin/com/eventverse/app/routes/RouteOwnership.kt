@@ -30,7 +30,6 @@ import com.eventverse.app.domain.rbac.name
 import com.eventverse.app.domain.rbac.code
 
 import com.eventverse.app.domain.pack.GarmentModules
-import com.eventverse.app.domain.pack.LayananPilotPack
 
 import com.eventverse.app.domain.pipeline.ModuleFeatureRegistry
 import com.eventverse.app.domain.rbac.BusinessModule
@@ -74,10 +73,8 @@ object RouteOwnership {
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
         "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform"),
-        "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)"),
-        // Pilot Jalur C: modul pack data `layanan` (hasil generator handoff dari spec).
-        "/api/tenant/modules/layanan_change_request" to RouteOwner.Module(LayananPilotPack.CHANGE_REQUEST)
-    )
+        "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)")
+    ) + com.eventverse.app.tenant.TenantPackContributions.routePrefixes.map { (prefix, module) -> prefix to RouteOwner.Module(module) }
 
     fun ownerOf(path: String): RouteOwner? {
         if (path == "/api/tenant") return RouteOwner.Platform("info tenant")

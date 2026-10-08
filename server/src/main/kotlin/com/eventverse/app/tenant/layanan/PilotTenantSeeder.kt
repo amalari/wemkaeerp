@@ -1,5 +1,6 @@
-package com.eventverse.app.cli
+package com.eventverse.app.tenant.layanan
 
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.domain.auth.EmailAddress
 import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.auth.User
@@ -16,7 +17,6 @@ import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.pack.DomainPackRepository
 import com.eventverse.app.domain.pack.DomainPackStatus
-import com.eventverse.app.domain.pack.LayananPilotPack
 import com.eventverse.app.domain.pack.StoredDomainPack
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.Tenant

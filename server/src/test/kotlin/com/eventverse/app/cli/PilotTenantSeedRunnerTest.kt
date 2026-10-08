@@ -1,6 +1,7 @@
 package com.eventverse.app.cli
 
-import com.eventverse.app.domain.pack.LayananPilotPack
+import com.eventverse.app.tenant.layanan.PilotTenantSeeder
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.DatabaseFactory
 import com.eventverse.app.infrastructure.PostgresDiscoveryDraftRepository

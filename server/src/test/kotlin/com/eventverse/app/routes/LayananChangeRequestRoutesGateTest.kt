@@ -1,5 +1,6 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.asStaff
 import com.eventverse.app.asTenant
 import com.eventverse.app.domain.pack.DomainPackCode
@@ -42,7 +43,7 @@ import kotlin.test.assertTrue
 
 /** KANDIDAT PR (hasil generator) — gerbang RBAC modul "layanan_change_request". Tanpa Postgres. */
 class LayananChangeRequestRoutesGateTest {
-    private val pack = com.eventverse.app.domain.pack.LayananPilotPack.pack
+    private val pack = LayananPilotPack.pack
     private val module = ModuleId("layanan_change_request")
     private val slug = "gerbang-uji"
     private val tenantId = TenantId("ten-gerbang-uji")

@@ -84,3 +84,16 @@ Track C: C1 ─ (pakai awalan `layanan_` dulu) → C2 → C3 → C4
 
 **A1–A4 selesai.** A1: pertanyaan "Mungkin dipakai tenant lain?" di Langkah 3 skill Discovery dan di §3 template Discovery Note. A2/A3: §5.6 baru di `module-integration-rules.md` (jalur kepemilikan, promosi = salin, kode tenant satu binary selama pagar hijau, batasan migrasi modul tenant, pack berpemilik). A4: `scripts/sync-agent-config.sh` lalu `--check` keluar 0.
 Dokumen saja; tidak ada kode yang dikompilasi atau dites. Pagar yang dijanjikan di §5.6 (impor dan migrasi) **belum ada** — itu Track B dan C.
+
+## Status Track B (2026-10-08, branch `feat/plat-004-track-b-j3-registry`, worktree `../wemkaeerp-wt-j3`)
+
+**B1–B5 selesai.**
+- B1: J3 `layanan` dikumpulkan — core: `domain/pack/tenant/layanan/LayananPilotPack.kt`; server: `tenant/layanan/` (routes, repository, tables, `PilotTenantSeeder`). Hanya pindah paket: kode pack `layanan`, id modul, schema, dan V90 tidak berubah.
+- B2: registri `server/.../tenant/TenantPackContributions.kt` (pack, tabel per modul, awalan route, pendaftaran route).
+- B3: `RouteOwnership`, `ModuleSchemaMap`, dan `DomainRouteWiring` membaca registri; tiga impor langsung `LayananPilotPack` dan satu panggilan `layananChangeRequestRoutes` hilang dari mesin.
+- B4: `TenantCodeBoundaryTest` (memblokir). Terbukti: fixture pelanggar terdeteksi (impor langsung dan nama lengkap), paket J3 dan registri dibiarkan, dan **mutasi nyata** (menyisipkan referensi J3 ke `RouteOwnership.kt`) membuat tes GAGAL; file dipulihkan sesudahnya.
+- B5: `RouteOwnershipTest`, `ModuleSchemaOwnershipTest`, tes gerbang `layanan`, `PilotTenantSeeder*`, dan `BuilderDataPackDraftTest` hijau.
+
+**Bukti** (segar, ±13:07): `:core:jvmTest` 1617/0; `:app:shared:jvmTest` 268/0; `:server:test` terarah 38/0; kompilasi core JS/Wasm, `app:shared` JS/Wasm, `server` main+test bersih; `scripts/audit-variability.sh main` 0 temuan.
+
+**Batas**: pagar menangkap sebutan nama paket di sumber (impor/nama lengkap), bukan refleksi atau susunan string. Tes `*Layanan*` mungkin tidak menyentuh Postgres nyata; migrasi V90 tidak diubah. `:server:test` penuh tidak dijalankan.

@@ -1,5 +1,7 @@
-package com.eventverse.app.routes
+package com.eventverse.app.tenant.layanan
 
+import com.eventverse.app.routes.requireModuleAccess
+import com.eventverse.app.routes.moduleDecision
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.ModuleId

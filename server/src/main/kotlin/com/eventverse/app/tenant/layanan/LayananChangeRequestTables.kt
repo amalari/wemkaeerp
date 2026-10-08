@@ -1,5 +1,6 @@
-package com.eventverse.app.infrastructure.tables
+package com.eventverse.app.tenant.layanan
 
+import com.eventverse.app.infrastructure.tables.TenantsTable
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.date
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
