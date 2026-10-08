@@ -46,7 +46,7 @@
 | **J3 Khusus tenant** | Modul satu tenant (`layanan_*`, `klinik_*`) | Data (builder), lalu permintaan pembuatan bila perlu kode | J0, serta J1/J2 hanya lewat `moduleReferences` |
 
 **Mode implementasi** (atribut terpisah dari jalur):
-- **DATA_DRIVEN**: didefinisikan `ModuleDefinition` di pack; dilayani runtime generik (`/m/{code}`); baris di
+- **DATA_DRIVEN** *(koreksi 2026-10-08: runtime generik `/m/{code}` yang semula disebut di sini **tidak ditemukan di kode**; hari ini data-driven hanya berarti prototype interaktif, pack kustom selalu butuh kode — lihat PLAN-builder-next-three-tracks F1/F4)*: didefinisikan `ModuleDefinition` di pack; dilayani runtime generik (`/m/{code}`, **belum ada**); baris di
   penyimpanan generik.
 - **CODE_BACKED**: punya route, layar, dan tabel sendiri yang terdaftar di `RouteOwnership` dan `ModuleSchemaMap`.
 
@@ -132,7 +132,7 @@ flowchart TB
 ```
 Narasi/brief ─► draf pack (DRAFT, domain_packs, owner = tenant)
                     │ LOCKED + dipin ke tenant (domain_pack_version)
-                    ├─ modul DATA_DRIVEN ──► runtime generik /m/{code}   (siap pakai)
+                    ├─ modul DATA_DRIVEN ──► prototype interaktif saja (runtime generik /m/{code} BELUM ADA; koreksi 2026-10-08)
                     └─ modul butuh kode ───► builder.build_requests QUEUED ─► brief beku
                                               ─► kandidat PR (ditinjau manusia) ─► rilis ─► SHIPPED
                                               ─► modul pindah ke CODE_BACKED tanpa mengubah ModuleDefinition
