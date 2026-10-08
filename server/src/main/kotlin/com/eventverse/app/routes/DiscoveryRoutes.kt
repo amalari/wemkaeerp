@@ -28,6 +28,8 @@ import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
 import com.eventverse.app.domain.moduledev.Percentage
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.tenant.TenantRepository
+import com.eventverse.app.domain.audit.AuditAction
+import com.eventverse.app.domain.audit.AuditLogRepository
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.discovery.DiscoveryDraftDecodeException
@@ -70,7 +72,8 @@ fun Route.discoveryRoutes(
     submitDraft: SubmitDiscoveryDraftUseCase,
     handoffDraft: HandoffDiscoveryDraftUseCase,
     prototypePatterns: PrototypePatternRepository,
-    demands: DiscoveryDemandRepository
+    demands: DiscoveryDemandRepository,
+    auditLogRepository: AuditLogRepository
 ) {
     val create = CreateDiscoveryDraftUseCase(agent, repository)
     val update = UpdateDiscoveryDraftUseCase(repository)
@@ -304,13 +307,23 @@ fun Route.discoveryRoutes(
             val companyName = body.string("companyName")?.trim()?.takeIf { it.isNotBlank() } ?: tenantSlug
             handoffDraft(id, isPlatformSuperadmin = true, tenantSlug = tenantSlug, companyName = companyName)
                 .onSuccess {
+                    // Pelepasan pack menjadi bersama mengubah kepemilikan: wajib berjejak (TRD-PLAT-005 FR-4). Kegagalan menulis
+                    // audit tidak boleh membuat handoff yang sudah berhasil terlihat gagal, jadi tidak dilempar ke pemanggil.
+                    if (it.packBecameShared) {
+                        runCatching {
+                            call.recordAudit(
+                                auditLogRepository, principal, it.tenant, AuditAction.TENANT_DOMAIN_PACK_SHARED,
+                                "Handoff tenant '${it.tenant.slug.value}' memakai ulang pack '${it.packCode.value}' milik tenant lain; pack dilepas menjadi bersama"
+                            )
+                        }
+                    }
                     call.respondText(
                         jsonObjectOf(
                             "tenantSlug" to jsonOf(it.tenant.slug.value),
                             "packCode" to jsonOf(it.packCode.value),
                             "packVersion" to (it.packVersion?.let { v -> jsonOf(v) } ?: com.eventverse.app.shared.json.JsonValue.Null),
                             "blueprintCode" to jsonOf(it.tenant.businessPreset.code.value),
-                            // true = pack milik tenant lain baru dilepas menjadi bersama oleh handoff ini (TRD-PLAT-004 P1).
+                            // true = pack milik tenant lain baru dilepas menjadi bersama oleh handoff ini (TRD-PLAT-005).
                             "packBecameShared" to jsonOf(it.packBecameShared)
                         ).encode(),
                         ContentType.Application.Json, HttpStatusCode.Created

@@ -73,3 +73,18 @@ segar; tes server `*DomainPack*`, `*Discovery*`, `*RouteOwnership*`, `*ModuleSch
 **Bukti** (segar, ±11:54): `:core:jvmTest` 1617 tes / 0 gagal; kompilasi core JS+Wasm, `app:shared` JVM/JS/Wasm, `server` main+test bersih.
 
 **Sudah masuk dari Track B karena kompilasi menuntut atau murah**: `DomainPackRoutes` memakai konstruktor baru (wajib); `DiscoveryRoutes` memancarkan `packBecameShared` (B1). **Belum**: audit (B2), tes server 409/200/403 (B3), tes respons handoff (B4), kueri produksi (B5). `:server:test` dan `:app:shared:jvmTest` tidak dijalankan di worktree ini.
+
+## 7. Status Track B (2026-10-08, worktree yang sama)
+
+**B1–B4 selesai.**
+- B2: `DiscoveryRoutes` mencatat `TENANT_DOMAIN_PACK_SHARED` saat `packBecameShared`; kegagalan menulis audit tidak membuat handoff yang berhasil terlihat gagal (`runCatching`). `auditLogRepository` dialirkan lewat `DiscoveryRouteFactory` dan `DomainRouteWiring` (satu baris diubah, tanpa menambah baris).
+- B3: `DomainPackApiTest` — pack milik tenant lain → 409 (pesan tanpa id/slug pemilik, tenant tidak berubah); non-superadmin → 403; pemilik → 200; revisi tanpa `ownerSlug` mempertahankan pemilik.
+- B4: `DiscoveryApiTest` — handoff pertama `packBecameShared=false`; kedua oleh tenant lain `true` + satu entri audit (ringkasan tidak menyebut pemilik lama); ketiga `false` tanpa audit baru.
+
+**Koreksi desain yang ditemukan tes**: `SaveDomainPackDraftUseCase` mempertahankan pemilik lama (`ownerTenantId ?: latest?.ownerTenantId`). TRD D4/FR-5 semula salah menulis "revisi tanpa ownerSlug = bersama"; sudah dikoreksi. Satu-satunya jalan menuju pack bersama adalah handoff.
+
+**Bukti** (segar, ±12:01): `:core:jvmTest` 1617/0; `:app:shared:jvmTest` 264/0; `:server:test` untuk `*DiscoveryApiTest*`, `*DomainPackApiTest*`, `*RouteOwnership*` 15/0; kompilasi core JS/Wasm, `app:shared` JS/Wasm, `server` main+test bersih.
+
+**Tidak hijau, bukan dari perubahan ini**: `ModuleSchemaOwnershipTest` gagal karena membaca Postgres dev bersama yang kini memuat `fulfillment.fulfillment_routes` (migrasi Track B agent lain, worktree `wemkaeerp-track-b`); tabel itu tidak ada di pohon ini. `:server:test` penuh tidak dijalankan.
+
+**Sisa**: B5 — kueri pemeriksaan di DB **produksi** sebelum rilis (belum dijalankan; DB dev bersih).

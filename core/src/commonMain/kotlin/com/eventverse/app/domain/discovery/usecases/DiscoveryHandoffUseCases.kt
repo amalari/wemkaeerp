@@ -99,7 +99,7 @@ class HandoffDiscoveryDraftUseCase(
 ) {
 
     /**
-     * [packBecameShared] benar bila handoff ini memakai ulang pack **milik tenant lain** (TRD-PLAT-004 P1): pack itu
+     * [packBecameShared] benar bila handoff ini memakai ulang pack **milik tenant lain** (TRD-PLAT-005): pack itu
      * kini bersama (`ownerTenantId = null`). Dibawa ke hasil supaya pemanggil bisa mencatat audit.
      */
     data class HandoffResult(val tenant: Tenant, val packCode: DomainPackCode, val packVersion: Int?, val packBecameShared: Boolean = false)

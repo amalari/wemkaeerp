@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** TRD-PLAT-004 P1: `owner_tenant_id` ditegakkan saat tenant dipasangi pack — dua arah, plus pack bersama dan bawaan. */
+/** TRD-PLAT-005: `owner_tenant_id` ditegakkan saat tenant dipasangi pack — dua arah, plus pack bersama dan bawaan. */
 class AssignTenantDomainPackOwnerTest {
 
     private val klinik = DomainPackCodec.decode(DomainPackCodecTest.KLINIK_JSON)
@@ -72,7 +72,7 @@ class AssignTenantDomainPackOwnerTest {
         val result = assign(lain, klinik.code)
         assertTrue(result.isFailure)
         assertFalse(result.exceptionOrNull()!!.message!!.contains(pemilik.value), "pesan tidak boleh membocorkan pemilik")
-        assertEquals(GarmentDomainPackCodeForTest, tenants.rows.getValue(lain).domainPack)
+        assertEquals(GarmentDomainPack.CODE, tenants.rows.getValue(lain).domainPack)
     }
 
     @Test
@@ -100,9 +100,5 @@ class AssignTenantDomainPackOwnerTest {
     @Test
     fun `pack bawaan garment tidak terpengaruh`() = runTest {
         assertTrue(assign(lain, GarmentDomainPack.CODE).isSuccess)
-    }
-
-    private companion object {
-        val GarmentDomainPackCodeForTest = GarmentDomainPack.CODE
     }
 }

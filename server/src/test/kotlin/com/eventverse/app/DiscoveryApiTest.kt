@@ -2,6 +2,7 @@ package com.eventverse.app
 
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
+import com.eventverse.app.domain.audit.AuditAction
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.tenant.SubscriptionTier
@@ -173,6 +174,40 @@ class DiscoveryApiTest {
         assertEquals(HttpStatusCode.OK, pack.status)
         assertEquals("klinik", JsonParser.parseObject(pack.bodyAsText()).string("code"))
         // Bersihkan registry pack data hasil handoff agar tes lain mulai dari kondisi bawaan.
+        DomainPackRegistry.unregister(com.eventverse.app.domain.pack.DomainPackCode("klinik"))
+    }
+
+    @Test
+    fun `handoff kedua dengan pack identik oleh tenant lain melepas pack menjadi bersama dan tercatat audit`() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        val drafts = InMemoryDiscoveryDraftRepository()
+        val audit = InMemoryAuditLogRepository()
+        application { app(tenants, drafts, audit = audit) }
+        val narrative = "Kami klinik dengan jadwal dokter dan tagihan."
+
+        suspend fun handoff(draftId: String, slug: String) = client.run {
+            post("/api/discovery/drafts") { asTenant(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"id":"$draftId","narrative":"$narrative","industryHint":"klinik"}""") }
+            post("/api/discovery/drafts/$draftId/lock") { asTenant(garmentSlug) }
+            post("/api/discovery/drafts/$draftId/handoff") { asSuperadminActingAs(garmentSlug); contentType(ContentType.Application.Json); setBody("""{"tenantSlug":"$slug","companyName":"$slug"}""") }
+        }
+
+        val pertama = handoff("draft-p-1", "klinik-satu")
+        assertEquals(HttpStatusCode.Created, pertama.status, pertama.bodyAsText())
+        assertEquals(false, JsonParser.parseObject(pertama.bodyAsText()).boolean("packBecameShared"))
+        assertTrue(audit.findByTenant(TenantId("ten-klinik-satu"), 10).none { it.action == AuditAction.TENANT_DOMAIN_PACK_SHARED })
+
+        val kedua = handoff("draft-p-2", "klinik-dua")
+        assertEquals(HttpStatusCode.Created, kedua.status, kedua.bodyAsText())
+        assertEquals(true, JsonParser.parseObject(kedua.bodyAsText()).boolean("packBecameShared"))
+        val entri = audit.findByTenant(TenantId("ten-klinik-dua"), 10).single { it.action == AuditAction.TENANT_DOMAIN_PACK_SHARED }
+        assertTrue(entri.summary.contains("klinik-dua"))
+        assertTrue(!entri.summary.contains("klinik-satu") && !entri.summary.contains("ten-klinik-satu"), "audit tidak menyebut pemilik lama: ${entri.summary}")
+
+        // Tenant ketiga: pack sudah bersama, tidak ada pelepasan baru dan tidak ada audit baru.
+        val ketiga = handoff("draft-p-3", "klinik-tiga")
+        assertEquals(false, JsonParser.parseObject(ketiga.bodyAsText()).boolean("packBecameShared"))
+        assertTrue(audit.findByTenant(TenantId("ten-klinik-tiga"), 10).none { it.action == AuditAction.TENANT_DOMAIN_PACK_SHARED })
         DomainPackRegistry.unregister(com.eventverse.app.domain.pack.DomainPackCode("klinik"))
     }
 
@@ -396,11 +431,12 @@ class DiscoveryApiTest {
     private fun io.ktor.server.application.Application.app(
         tenants: InMemoryTenantRepository,
         drafts: InMemoryDiscoveryDraftRepository,
-        demands: InMemoryDiscoveryDemandRepository = InMemoryDiscoveryDemandRepository()
+        demands: InMemoryDiscoveryDemandRepository = InMemoryDiscoveryDemandRepository(),
+        audit: InMemoryAuditLogRepository = InMemoryAuditLogRepository()
     ) = module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),
         entitlementRepository = InMemoryTenantEntitlementRepository(), roleRepository = InMemoryRoleRepository(),
         moduleAssignmentRepository = InMemoryModuleAssignmentRepository(), departmentRepository = InMemoryDepartmentRepository(),
-        employeeRepository = InMemoryEmployeeRepository(), auditLogRepository = InMemoryAuditLogRepository(),
+        employeeRepository = InMemoryEmployeeRepository(), auditLogRepository = audit,
         domainPackRepository = InMemoryDomainPackRepository(), discoveryDraftRepository = drafts,
         discoveryDemandRepository = demands)
 

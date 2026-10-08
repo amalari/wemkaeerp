@@ -49,8 +49,9 @@ terjadi pada reuse yang identik.
 **FR-4 Pelaporan.** Respons handoff memuat `packBecameShared`. Pelepasan dicatat audit
 (`TENANT_DOMAIN_PACK_SHARED`, tenant pemicu, kode pack), tanpa membocorkan id pemilik lama ke pemanggil non-superadmin.
 
-**FR-5 Revisi pack.** Pemilik dibaca dari versi tertinggi; draf revisi yang disimpan lewat `PUT /api/admin/domain-packs/{code}`
-mengikuti `ownerSlug` yang dikirim superadmin (tanpa `ownerSlug` = bersama). Konsekuensinya didokumentasikan di D4.
+**FR-5 Revisi pack.** Pemilik dibaca dari versi tertinggi. Draf revisi yang disimpan lewat `PUT /api/admin/domain-packs/{code}`
+**mempertahankan pemilik** versi sebelumnya bila `ownerSlug` tidak dikirim (`SaveDomainPackDraftUseCase`: `ownerTenantId ?: latest?.ownerTenantId`);
+dengan `ownerSlug` pemilik **dialihkan** ke tenant itu. `PUT` tidak punya cara menjadikan pack bersama — itu hanya lewat handoff (FR-2).
 
 ## 3. Non-Functional Requirements (NFRs)
 
@@ -104,7 +105,7 @@ Tidak ada. `domain_packs.owner_tenant_id VARCHAR(64) NULL REFERENCES tenants(id)
 | **D1** | Reuse identik melepas pack menjadi bersama; **tidak** fork per tenant | Pack = kosakata + modul; konten identik berarti tenant B tidak mempelajari apa pun dari A. Fork menulis ulang 23+ file referensi `ModuleId`, mengubah id modul, schema, RBAC | Fork per tenant: biaya besar tanpa manfaat isolasi nyata di kasus ini. Tolak reuse: mematikan alur handoff yang disengaja |
 | **D2** | Pemilik dibaca dari versi tertinggi | `assign` memakai `findLatest`; revisi draf tidak melepas kepemilikan | Membaca versi efektif: draf revisi bisa dilewati |
 | **D3** | Tidak menegakkan pada request-time sekarang | Tenant sandbox pratinjau (`DiscoveryPreviewUseCases`) sengaja memakai kode pack milik tenant lain; menolaknya merusak pratinjau. Perlu pengecualian yang dirancang, bukan konvensi prefiks id | Menegakkan di `TenantResolutionPlugin` dengan pengecualian id `ten-sandbox-*`: rapuh |
-| **D4** | Pelepasan satu arah; `PUT ... ?ownerSlug=` dapat memprivatkan kembali | Tidak ada kasus bisnis "tarik kembali" yang diminta; superadmin yang menulis ulang kepemilikan harus sadar efeknya | UI kelola kepemilikan: di luar scope |
+| **D4** | Pelepasan hanya lewat handoff dan satu arah. `PUT ... ?ownerSlug=` dapat **mengalihkan** pemilik ke tenant lain (bukan memprivatkan kembali pack yang sudah bersama: pemilik `null` + `ownerSlug` = pemilik baru, dan itu memang memprivatkan). Tidak ada jalur API untuk mengosongkan pemilik | Tidak ada kasus bisnis "tarik kembali" yang diminta; pengalihan pemilik adalah tindakan superadmin yang sadar. *Koreksi 2026-10-08: draf awal menulis bahwa revisi tanpa `ownerSlug` = bersama; itu salah, dibuktikan tes `revisionWithoutOwnerSlug_keepsOwner…`* | UI kelola kepemilikan: di luar scope |
 | **D5** | Pelepasan hanya menulis versi tertinggi | Repository tidak punya daftar versi; `assign` hanya membaca versi tertinggi | Menulis semua versi: butuh perluasan port |
 
 ### 4.6 Assumptions, Constraints, & Dependencies
