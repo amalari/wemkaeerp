@@ -88,7 +88,8 @@ fun LeadCustomField(
             // Kontrol dipilih lewat pemeta murni agar paritas tipe->kontrol bisa dites (LeadFieldControl).
             val datePicker = leadFieldControl(descriptor.type) == LeadFieldControl.DATE_PICKER
             when (val type = descriptor.type) {
-                is FieldType.Text, is FieldType.LongText -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
+                is FieldType.Text -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
+                is FieldType.LongText -> TextEditor(cell, editable, onCommit, singleLine = false, minLines = 3) { CustomAttributes.textCell(it) }
                 is FieldType.Number -> TextEditor(cell, editable, onCommit) { CustomAttributes.numberCell(it) }
                 is FieldType.Checkbox -> CheckboxEditor(cell, editable, onCommit)
                 is FieldType.DateField -> if (datePicker) {
@@ -124,6 +125,8 @@ private fun TextEditor(
     editable: Boolean,
     onCommit: ((JsonValue.Obj?) -> Unit)?,
     placeholder: String? = null,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
     input: (@Composable (text: String, onChange: (String) -> Unit) -> Unit)? = null,
     buildCell: (String) -> JsonValue.Obj
 ) {
@@ -138,7 +141,8 @@ private fun TextEditor(
                 value = text,
                 onValueChange = { text = it },
                 placeholder = placeholder,
-                singleLine = true,
+                singleLine = singleLine,
+                minLines = minLines,
                 modifier = Modifier.fillMaxWidth()
             )
         }

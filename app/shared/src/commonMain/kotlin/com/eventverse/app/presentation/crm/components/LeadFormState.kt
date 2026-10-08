@@ -112,6 +112,7 @@ class LeadFormState(initialStage: LeadStage) {
         /** Kontrol yang dirender di dialog lead baru. UserRef butuh daftar karyawan; Checkbox & tanggal berwaktu menyusul. */
         private val CREATE_FORM_CONTROLS = setOf(
             LeadFieldControl.TEXT,
+            LeadFieldControl.LONG_TEXT,
             LeadFieldControl.NUMBER,
             LeadFieldControl.SINGLE_SELECT,
             LeadFieldControl.DATE_PICKER

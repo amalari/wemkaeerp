@@ -12,6 +12,8 @@ import com.eventverse.app.shared.common.DateTimeCodec
  */
 internal enum class LeadFieldControl {
     TEXT,
+    /** `ClayTextArea` / isian teks multi-baris (FieldType.LongText). */
+    LONG_TEXT,
     NUMBER,
     CHECKBOX,
 
@@ -28,7 +30,8 @@ internal enum class LeadFieldControl {
 }
 
 internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
-    is FieldType.Text, is FieldType.LongText -> LeadFieldControl.TEXT
+    is FieldType.Text -> LeadFieldControl.TEXT
+    is FieldType.LongText -> LeadFieldControl.LONG_TEXT
     is FieldType.Number -> LeadFieldControl.NUMBER
     is FieldType.Checkbox -> LeadFieldControl.CHECKBOX
     is FieldType.DateField -> if (type.withTime) LeadFieldControl.DATE_TIME_TEXT else LeadFieldControl.DATE_PICKER
