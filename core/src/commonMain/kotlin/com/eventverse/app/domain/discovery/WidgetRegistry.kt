@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.discovery
 
+import com.eventverse.app.domain.discovery.proposal.ViewProposal
+import com.eventverse.app.domain.discovery.proposal.toSampleRow
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.InteractiveScreen
@@ -32,6 +34,8 @@ object WidgetRegistry {
 
     /** Satu baris contoh: judul kolom → isi. Renderer memutuskan bagaimana menampilkannya. */
     fun sampleRowsFor(screen: PrototypeScreen, pack: DomainPack): List<Map<String, String>> {
+        // Kerangka CUSTOM_SCREEN yang dinyatakan agent (Irisan 3b): sampelnya adalah blok-blok itu sendiri.
+        (screen.proposal?.view as? ViewProposal.Skeleton)?.let { sk -> return sk.blocks.map { it.toSampleRow() } }
         // v2: isi layar bawaan pack dipakai **apa adanya** bila watak widget layar cocok dengan
         // usulannya — ini data vertikal dari pack, bukan karangan mesin. Layar dengan widget lain
         // (mis. usulan agent LLM) jatuh ke penanda struktural generik di bawah, karena baris pack

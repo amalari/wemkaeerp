@@ -8,7 +8,7 @@ package com.eventverse.app.domain.discovery.proposal
  * dapat menjadi blok sungguhan lewat jalur biasa.
  *
  * [label] adalah teks bebas dari model, jadi wajib lewat batas `ProposalLimits` dan pemeriksaan kemurnian
- * vertikal seperti teks usulan lain (dikerjakan Track A sisa; A0 hanya menetapkan bentuk).
+ * vertikal seperti teks usulan lain (`ProposalSkeletonRules`, `ProposalPurityRules`).
  */
 data class SkeletonBlock(
     val label: String,
@@ -27,3 +27,21 @@ enum class SkeletonWidth { FULL, HALF }
  * domain. Nilai tak dikenal **ditolak** oleh codec, tidak jatuh ke nilai bawaan.
  */
 enum class SkeletonHint { TABLE, FORM, METRIC_CARDS, ACTIONS }
+
+/**
+ * Satu baris sampel untuk renderer statis (kosakata struktural "Blok"/"Lebar"/"Petunjuk", sama dengan sampel
+ * generik `WidgetRegistry`). Murni dan deterministik; `when` tanpa `else` supaya nilai baru memaksa pembaruan.
+ */
+fun SkeletonBlock.toSampleRow(): Map<String, String> = mapOf(
+    "Blok" to label,
+    "Lebar" to when (width) {
+        SkeletonWidth.FULL -> "penuh"
+        SkeletonWidth.HALF -> "separuh"
+    },
+    "Petunjuk" to when (hint) {
+        SkeletonHint.TABLE -> "tabel"
+        SkeletonHint.FORM -> "formulir"
+        SkeletonHint.METRIC_CARDS -> "kartu angka"
+        SkeletonHint.ACTIONS -> "aksi"
+    }
+)

@@ -1,6 +1,9 @@
 package com.eventverse.app.shared.discovery
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.discovery.proposal.SkeletonBlock
+import com.eventverse.app.domain.discovery.proposal.SkeletonHint
+import com.eventverse.app.domain.discovery.proposal.SkeletonWidth
 import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.prototype.TileSpec
 import com.eventverse.app.shared.json.JsonValue
@@ -37,13 +40,14 @@ internal object ViewProposalCodec {
         }))
         is ViewProposal.Print -> jsonObjectOf("fields" to jsonArrayOf(v.fields.map(::jsonOf)))
         ViewProposal.None -> JsonValue.Null
-        // A0: belum ada kawat untuk Skeleton; melempar lebih baik daripada menulis `null` dan menghilangkan blok.
-        is ViewProposal.Skeleton -> error("Kawat ViewProposal.Skeleton belum didefinisikan (Irisan 3b, Track A sisa)")
+        is ViewProposal.Skeleton -> jsonObjectOf("blocks" to jsonArrayOf(v.blocks.map { b ->
+            jsonObjectOf("label" to jsonOf(b.label), "width" to jsonOf(b.width.name), "hint" to jsonOf(b.hint.name))
+        }))
     }
 
     /** [parent] = pembaca proposal; `view` dibaca darinya menurut [widget]. */
     fun decode(widget: WidgetKind, parent: ProposalJsonReader): ViewProposal {
-        if (widget == WidgetKind.CUSTOM_SCREEN) return ViewProposal.None
+        if (widget == WidgetKind.CUSTOM_SCREEN) return decodeCustomScreen(parent)
         val r = parent.obj("view")
         return when (widget) {
             WidgetKind.KANBAN -> {
@@ -67,7 +71,25 @@ internal object ViewProposalCodec {
                 }
             })
             WidgetKind.PRINT -> ViewProposal.Print(r.strings("fields"))
-            WidgetKind.CUSTOM_SCREEN -> ViewProposal.None
+            WidgetKind.CUSTOM_SCREEN -> decodeCustomScreen(parent)
         }
+    }
+
+    /** Tanpa `view` / null = [ViewProposal.None] (draf lama); `view.blocks` = [ViewProposal.Skeleton]. */
+    private fun decodeCustomScreen(parent: ProposalJsonReader): ViewProposal {
+        val r = parent.optObject("view") ?: return ViewProposal.None
+        return ViewProposal.Skeleton(r.objects("blocks").map { b ->
+            SkeletonBlock(
+                label = b.string("label"),
+                width = b.optString("width")?.let { raw ->
+                    SkeletonWidth.entries.firstOrNull { it.name == raw }
+                        ?: b.fail("width", "Lebar '$raw' bukan kosakata tertutup: ${SkeletonWidth.entries.joinToString { it.name }}")
+                } ?: SkeletonWidth.FULL,
+                hint = b.optString("hint")?.let { raw ->
+                    SkeletonHint.entries.firstOrNull { it.name == raw }
+                        ?: b.fail("hint", "Petunjuk '$raw' bukan kosakata tertutup: ${SkeletonHint.entries.joinToString { it.name }}")
+                } ?: SkeletonHint.TABLE
+            )
+        })
     }
 }
