@@ -4,7 +4,8 @@ import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackTransferId
-import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
+import com.eventverse.app.domain.fulfillment.legacyRouteLabel
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.tenant.TenantId
@@ -35,8 +36,8 @@ object InternalTransferCodec {
         "sizeLabel" to jsonOf(transfer.sizeLabel),
         "colorway" to jsonOf(transfer.colorway),
         "declaredPcs" to jsonOf(transfer.declaredPcs),
-        "leg" to jsonOf(transfer.leg.name),
-        "legLabel" to jsonOf(transfer.leg.displayName),
+        "leg" to jsonOf(transfer.route.value),
+        "legLabel" to jsonOf(legacyRouteLabel(transfer.route)),
         "status" to jsonOf(transfer.status.name),
         "statusLabel" to jsonOf(transfer.status.displayName),
         "handoverMode" to jsonOf(transfer.handoverMode.name),
@@ -67,7 +68,10 @@ object InternalTransferCodec {
             sizeLabel = obj.string("sizeLabel") ?: "",
             colorway = obj.string("colorway") ?: "",
             declaredPcs = obj.int("declaredPcs") ?: 0,
-            leg = enumOrNull<SackRoute>(obj.string("leg")) ?: SackRoute.QC_RAJUT_TO_FINISHING,
+            // Rute tak sah ditolak — tidak lagi jatuh diam-diam ke QC_RAJUT_TO_FINISHING (TRD-FLOW-003 A5).
+            route = HandoverRouteCode.parse(obj.string("leg")).getOrElse {
+                throw IllegalArgumentException("Perjalanan karung: ${it.message}", it)
+            },
             status = enumOrNull<SackTransferStatus>(obj.string("status")) ?: SackTransferStatus.MENUNGGU_ACC,
             // Payload lama tidak punya field ini. ADMIN_HUB adalah satu-satunya pola yang ada
             // saat mereka ditulis, jadi itulah tafsir yang jujur — bukan sekadar default aman.

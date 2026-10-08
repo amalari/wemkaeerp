@@ -20,7 +20,7 @@ data class TransferSubmitted(
     override val transferId: SackTransferId,
     override val sackCode: TraceCode,
     val requestedBy: String,
-    val leg: SackRoute,
+    val route: HandoverRouteCode,
     val dispatchWeightKg: WeightKg,
     override val occurredAt: Instant
 ) : InternalTransferEvent

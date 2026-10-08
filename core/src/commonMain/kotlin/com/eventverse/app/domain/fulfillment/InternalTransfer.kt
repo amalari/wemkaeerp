@@ -41,7 +41,7 @@ data class InternalTransfer(
     val sizeLabel: String,
     val colorway: String = "",
     val declaredPcs: Int,
-    val leg: SackRoute,
+    val route: HandoverRouteCode,
     /**
      * Pola serah terima yang berlaku saat perjalanan ini dibuat — **snapshot**, bukan dibaca
      * ulang dari konfigurasi.

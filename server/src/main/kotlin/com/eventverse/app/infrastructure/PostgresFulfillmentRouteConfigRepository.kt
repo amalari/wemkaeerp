@@ -3,7 +3,7 @@ package com.eventverse.app.infrastructure
 import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
 import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfigRepository
 import com.eventverse.app.domain.fulfillment.HandoverMode
-import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.tables.FulfillmentRouteSettingsTable
 import kotlinx.datetime.Clock
@@ -35,8 +35,9 @@ class PostgresFulfillmentRouteConfigRepository : FulfillmentRouteConfigRepositor
                 // Baris yang rute atau modenya tak dikenali dilewati satu per satu, bukan
                 // menjatuhkan seluruh konfigurasi: enum bisa menyusut antar rilis, dan rute
                 // usang harus jatuh ke ADMIN_HUB — bukan membuat layar kerja gagal dibuka.
-                val route = SackRoute.entries
-                    .firstOrNull { it.name == row[FulfillmentRouteSettingsTable.route] }
+                // TRD-FLOW-003: kunci kini kode rute. Baris dengan kode tak sah masih dilewati di sini;
+                // Track B2 menggantinya dengan penolakan bersama repositori rute per tenant.
+                val route = HandoverRouteCode.parse(row[FulfillmentRouteSettingsTable.route]).getOrNull()
                     ?: return@mapNotNull null
                 val mode = HandoverMode.entries
                     .firstOrNull { it.name == row[FulfillmentRouteSettingsTable.handoverMode] }
@@ -57,7 +58,7 @@ class PostgresFulfillmentRouteConfigRepository : FulfillmentRouteConfigRepositor
     override suspend fun save(config: FulfillmentRouteConfig) {
         DatabaseFactory.dbQuery(config.tenantId) {
             val now = Clock.System.now()
-            val keep = config.modes.keys.map { it.name }.toSet()
+            val keep = config.modes.keys.map { it.value }.toSet()
 
             FulfillmentRouteSettingsTable.deleteWhere {
                 (FulfillmentRouteSettingsTable.tenantId eq config.tenantId.value) and
@@ -68,7 +69,7 @@ class PostgresFulfillmentRouteConfigRepository : FulfillmentRouteConfigRepositor
                 val updated = FulfillmentRouteSettingsTable.update(
                     where = {
                         (FulfillmentRouteSettingsTable.tenantId eq config.tenantId.value) and
-                            (FulfillmentRouteSettingsTable.route eq route.name)
+                            (FulfillmentRouteSettingsTable.route eq route.value)
                     }
                 ) {
                     it[handoverMode] = mode.name
@@ -78,7 +79,7 @@ class PostgresFulfillmentRouteConfigRepository : FulfillmentRouteConfigRepositor
                 if (updated == 0) {
                     FulfillmentRouteSettingsTable.insert {
                         it[tenantId] = config.tenantId.value
-                        it[FulfillmentRouteSettingsTable.route] = route.name
+                        it[FulfillmentRouteSettingsTable.route] = route.value
                         it[handoverMode] = mode.name
                         it[updatedAt] = now
                     }

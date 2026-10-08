@@ -104,3 +104,31 @@ tes server `*DomainPack*`, `RouteOwnershipTest`, `ModuleSchemaOwnershipTest` 5/0
 **Belum / bukan klaim**: `:server:test` penuh tidak dijalankan. `TechPackApiTest` (5 tes) timeout 1 menit
 saat `--tests '*Pack*'`; tidak menyentuh kode ini, tetapi saya **belum membuktikan** bahwa ia gagal juga di
 `main`. Tidak ada cek visual (PR-0 tanpa UI). `DomainPack.kt` kini 274 baris (soft 250, hard 400; +4).
+
+## 6. Status Track A (2026-10-08, branch `feat/flow-003-track-a-garment-template`)
+
+**A1 + A2 selesai**: `GarmentHandoverRoutes.template` (data literal, dua rute = `SackRoute`), dipasang di
+`GarmentDomainPack`; `GarmentHandoverRoutesParityTest` mengiterasi `SackRoute.entries` (kode, label, urutan),
+memastikan tidak ada pack lain yang meminjam rute garment, membandingkan mode efektif dan JSON dengan
+`FulfillmentRouteConfig`/`FulfillmentRouteConfigCodec` lama. **Belum**: A3–A5 (config berkunci kode,
+`InternalTransfer.route`, codec ketat) — `SackRoute` masih dipakai semua pembaca.
+
+**A3–A5 selesai (2026-10-08, branch yang sama)**: `FulfillmentRouteConfig.modes` berkunci `HandoverRouteCode`
+(+ `validatedAgainst`, `hasAdminHubRoute(routes)`, `routesAccepting(routes, …)`); `InternalTransfer.route`
+menggantikan `leg` (pembacaan lama `transfer.leg` tinggal ekstensi di `HandoverRouteLegacyBridge.kt` yang
+**melempar** untuk rute non-`SackRoute`); `TransferSubmitted.route`; `SubmitTransferUseCase` menerima kode rute dan
+menolak yang tak dikenal/nonaktif lewat penyedia rute tenant (bawaan = isi `SackRoute` sampai Track B memasang
+yang sungguhan); `InternalTransferCodec` dan decoder mode **menolak** isi tak sah (fallback ke
+`QC_RAJUT_TO_FINISHING` hilang dari core). 12 tes baru (`HandoverRouteConfigTest`, `SubmitTransferRouteTest`).
+
+**Titik panggil di luar `core/` yang terpaksa disentuh agar kompilasi tetap hijau** (batas track dilanggar secara
+minimal; B/C tidak boleh bergantung pada bentuknya): `PostgresInternalTransferRepository` (tulis `route.value`,
+baca dengan `HandoverRouteCode.parse(...).getOrThrow()`), `PostgresFulfillmentRouteConfigRepository` (kunci
+`.value`; baris berkode tak sah **masih dilewati** — B2 menggantinya), `FulfillmentTransferRoutes` (`route =
+leg.toRouteCode()`; `PUT /route-settings` kini **400** untuk isi tak sah atau kode di luar rute tenant, sebelumnya
+baris itu dilewati diam-diam), `TransferCard` (label lewat `legacyRouteLabel`).
+
+**Pembaca `SackRoute` yang tersisa = ruang lingkup B dan C**: server `FulfillmentTransferRoutes:127` (parse `leg`
+dari body), `FulfillmentRouteConfigCodec.encode` (masih memancarkan `SackRoute.entries`), app
+`FulfillmentTransferApiClient`, `FulfillmentViewModel`, `TransferForms`. Belum ada tes HTTP server untuk fulfillment
+(tidak ada sebelumnya); tes 403/400 menjadi B4.

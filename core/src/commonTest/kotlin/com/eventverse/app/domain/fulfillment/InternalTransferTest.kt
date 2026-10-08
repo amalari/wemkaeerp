@@ -27,7 +27,7 @@ class InternalTransferTest {
             sizeLabel = "M",
             colorway = "Hitam",
             declaredPcs = declaredPcs,
-            leg = SackRoute.QC_RAJUT_TO_FINISHING,
+            route = SackRoute.QC_RAJUT_TO_FINISHING.toRouteCode(),
             handoverMode = handoverMode,
             status = status,
             dispatchWeightKg = if (lewatMejaAdmin) WeightKg(8.40) else null,
