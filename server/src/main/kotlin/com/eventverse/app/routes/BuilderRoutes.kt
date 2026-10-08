@@ -214,7 +214,13 @@ fun Route.builderRoutes(
                 call.respond(HttpStatusCode.BadRequest, "Body wajib {\"messageId\":\"…\"}")
                 return@post
             }
-            apply(call.tenantContext.tenantId, ChatMessageId(messageId)).fold(
+            // Pemilik draf baru = pemanggil nyata (fail-closed bila identitas tak bisa dihitung, seperti GET /draft).
+            val callerId = call.callerPrincipalOrNull?.userId?.let { com.eventverse.app.domain.auth.UserId(it) }
+            if (callerId == null) {
+                call.respond(HttpStatusCode.Forbidden, "Identitas pemanggil tidak bisa dihitung.")
+                return@post
+            }
+            apply(call.tenantContext.tenantId, ChatMessageId(messageId), callerId).fold(
                 onSuccess = { stored ->
                     call.respondText(
                         jsonObjectOf(
