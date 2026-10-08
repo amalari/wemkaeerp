@@ -242,7 +242,7 @@ class FulfillmentViewModelTest {
                 id = SackTransferId("TR-FAKE-1"),
                 tenantId = TenantId(tenantSlug),
                 sackCode = TraceCode(sackPayload),
-                leg = SackRoute.entries.firstOrNull { it.name == routeCode.value } ?: SackRoute.QC_RAJUT_TO_FINISHING,
+                route = routeCode,
                 handoverMode = initialView?.settings?.firstOrNull { it.route.code == routeCode }?.mode ?: HandoverMode.DIRECT,
                 status = SackTransferStatus.DIANTAR,
                 declaredPcs = declaredPcs ?: 10,
