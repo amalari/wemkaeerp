@@ -89,7 +89,8 @@ fun FulfillmentWorkspaceScreen(
         HeaderCard(
             state = state,
             canApprove = canApprove,
-            onNavigateToSuratJalan = { navigator(AppNavScreen.SURAT_JALAN) }
+            onNavigateToSuratJalan = { navigator(AppNavScreen.SURAT_JALAN) },
+            onNavigateToRouteSettings = { navigator(AppNavScreen.FULFILLMENT_ROUTE_SETTINGS) }
         )
 
         state.error?.let { message ->
@@ -120,11 +121,11 @@ fun FulfillmentWorkspaceScreen(
                     sackPayload = sackPayload,
                     isSubmitting = state.isSubmitting,
                     state = state,
-                    onSubmit = { leg, weight, photoKey, requestedBy, declaredPcs ->
+                    onSubmit = { routeCode, weight, photoKey, requestedBy, declaredPcs ->
                         viewModel.onEvent(
                             FulfillmentUiEvent.SubmitTransfer(
                                 sackPayload = sackPayload,
-                                leg = leg,
+                                routeCode = routeCode,
                                 dispatchWeightKg = weight,
                                 dispatchScalePhotoKey = photoKey,
                                 requestedBy = requestedBy,
@@ -171,7 +172,8 @@ fun FulfillmentWorkspaceScreen(
 private fun HeaderCard(
     state: FulfillmentUiState,
     canApprove: Boolean,
-    onNavigateToSuratJalan: () -> Unit = {}
+    onNavigateToSuratJalan: () -> Unit = {},
+    onNavigateToRouteSettings: () -> Unit = {}
 ) {
     ClayCard {
         Row(
@@ -213,6 +215,13 @@ private fun HeaderCard(
                     text = if (canApprove) "Anda bisa ACC" else "Wewenang kerja",
                     tint = if (canApprove) WeMadeColors.Primary else WeMadeColors.Info
                 )
+                if (canApprove) {
+                    ClayButton(
+                        text = "Atur Rute",
+                        style = ClayButtonStyle.Secondary,
+                        onClick = onNavigateToRouteSettings
+                    )
+                }
                 ClayButton(
                     text = "Surat Jalan",
                     style = ClayButtonStyle.Secondary,

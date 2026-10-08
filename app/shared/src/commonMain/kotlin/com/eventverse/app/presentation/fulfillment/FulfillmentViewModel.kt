@@ -1,5 +1,16 @@
 package com.eventverse.app.presentation.fulfillment
 
+import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
+import com.eventverse.app.domain.fulfillment.HandoverMode
+import com.eventverse.app.domain.fulfillment.HandoverProof
+import com.eventverse.app.domain.fulfillment.HandoverRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
+import com.eventverse.app.domain.fulfillment.HandoverRouteSetting
+import com.eventverse.app.domain.fulfillment.HandoverRouteSettingsView
+import com.eventverse.app.domain.fulfillment.InternalTransfer
+import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.SackTransferStatus
+import com.eventverse.app.domain.fulfillment.toRouteCode
 import com.eventverse.app.infrastructure.api.FulfillmentTransferApiClient
 import com.eventverse.app.infrastructure.api.FulfillmentTransferRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
@@ -10,13 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
-import com.eventverse.app.domain.fulfillment.HandoverMode
-import com.eventverse.app.domain.fulfillment.HandoverProof
-import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.SackRoute
-import com.eventverse.app.domain.fulfillment.SackTransferStatus
-
 data class FulfillmentUiState(
     val transfers: List<InternalTransfer> = emptyList(),
     val isLoading: Boolean = false,
@@ -24,37 +28,48 @@ data class FulfillmentUiState(
     val error: String? = null,
     /** Payload karung hasil scan/ketik yang sedang diproses di form pengajuan. */
     val scannedSack: String? = null,
-    /**
-     * Pola serah terima tiap rute, atau `null` selama belum dimuat.
-     *
-     * Sengaja nullable alih-alih diisi objek kosong: [FulfillmentRouteConfig] menuntut
-     * [TenantId] yang sah (3–64 karakter), dan menyodorkan placeholder seperti `TenantId("-")`
-     * membuatnya melempar tepat di konstruktor state — seluruh layar mati sebelum sempat
-     * menggambar. Value class ada justru supaya nilai tidak sah tidak bisa dibuat; placeholder
-     * adalah nilai tidak sah yang sedang dipaksa masuk.
-     *
-     * Selama null, [effectiveRouteConfig] jatuh ke ADMIN_HUB, jadi formulir yang tampil sebelum
-     * muatan selesai adalah formulir lengkap. Meminta bukti lalu melonggarkannya lebih jujur
-     * daripada sebaliknya.
-     */
-    val routeConfig: FulfillmentRouteConfig? = null
+    /** Konfigurasi rute lama (backward compatible). */
+    val routeConfig: FulfillmentRouteConfig? = null,
+    /** Tampilan konfigurasi rute serah terima berbasis data (TRD-FLOW-003). */
+    val routeSettingsView: HandoverRouteSettingsView? = null
 ) {
-    // Perbandingan enum, bukan string: mode baru menambah cabang, dan `status.name == "..."`
-    // membuat salah ketik lolos diam-diam tanpa satu pun keluhan compiler.
     val pendingApproval get() = transfers.filter { it.status == SackTransferStatus.MENUNGGU_ACC }
     val inTransit get() = transfers.filter { it.status == SackTransferStatus.DIANTAR }
     val done get() = transfers.filter { it.status.isFinal }
 
+    /** Daftar rute serah terima aktif milik tenant ini. Kosong bila tenant memang tidak memiliki rute. */
+    val effectiveRoutes: List<HandoverRouteSetting>
+        get() = routeSettingsView?.settings?.filter { it.route.active }?.sortedBy { it.route.sortOrder }
+            ?: SackRoute.entries.map {
+                HandoverRouteSetting(
+                    route = HandoverRoute(it.toRouteCode(), it.displayName),
+                    mode = modeFor(it),
+                    isExplicit = false
+                )
+            }
+
+    fun modeFor(routeCode: HandoverRouteCode): HandoverMode =
+        routeSettingsView?.settings?.firstOrNull { it.route.code == routeCode }?.mode
+            ?: (SackRoute.entries.firstOrNull { it.name == routeCode.value }?.let { modeFor(it) } ?: HandoverMode.ADMIN_HUB)
+
     fun modeFor(route: SackRoute): HandoverMode =
-        routeConfig?.modeFor(route) ?: HandoverMode.ADMIN_HUB
+        routeConfig?.modeFor(route)
+            ?: (routeSettingsView?.settings?.firstOrNull { it.route.code.value == route.name }?.mode ?: HandoverMode.ADMIN_HUB)
 
     /** Rute yang masih lewat meja admin; true selama konfigurasi belum dimuat. */
-    val hasAdminHubRoute: Boolean get() = routeConfig?.hasAdminHubRoute ?: true
+    val hasAdminHubRoute: Boolean
+        get() = routeSettingsView?.hasAdminHubRoute
+            ?: (routeConfig?.hasAdminHubRoute ?: true)
 
-    /** Rute yang sah untuk wadah yang dipindai. Sebelum dimuat, hanya karung tertutup. */
-    fun routesAccepting(isClosedSack: Boolean): List<SackRoute> =
-        routeConfig?.routesAccepting(isClosedSack)
-            ?: if (isClosedSack) SackRoute.entries.toList() else emptyList()
+    /** Rute yang sah untuk wadah yang dipindai (berbasis data). */
+    fun routesAccepting(isClosedSack: Boolean): List<HandoverRouteSetting> =
+        effectiveRoutes.filter { isClosedSack || it.mode == HandoverMode.DIRECT }
+
+    /** Rute yang sah untuk wadah yang dipindai (backward compatible enum). */
+    fun routesAcceptingSackRoute(isClosedSack: Boolean): List<SackRoute> =
+        routesAccepting(isClosedSack).mapNotNull { s ->
+            SackRoute.entries.firstOrNull { it.name == s.route.code.value }
+        }
 }
 
 sealed interface FulfillmentUiEvent {
@@ -63,14 +78,33 @@ sealed interface FulfillmentUiEvent {
     data object DismissScan : FulfillmentUiEvent
     data class SubmitTransfer(
         val sackPayload: String,
-        val leg: SackRoute,
-        /** Null pada [HandoverMode.DIRECT] — di sana hitungan pcs yang dipakai. */
+        val routeCode: HandoverRouteCode,
         val dispatchWeightKg: String?,
         val dispatchScalePhotoKey: String?,
         val requestedBy: String,
         val declaredPcs: Int? = null,
-        val notes: String = ""
-    ) : FulfillmentUiEvent
+        val notes: String = "",
+        val leg: SackRoute? = SackRoute.entries.firstOrNull { it.name == routeCode.value }
+    ) : FulfillmentUiEvent {
+        constructor(
+            sackPayload: String,
+            leg: SackRoute,
+            dispatchWeightKg: String?,
+            dispatchScalePhotoKey: String?,
+            requestedBy: String,
+            declaredPcs: Int? = null,
+            notes: String = ""
+        ) : this(
+            sackPayload = sackPayload,
+            routeCode = leg.toRouteCode(),
+            dispatchWeightKg = dispatchWeightKg,
+            dispatchScalePhotoKey = dispatchScalePhotoKey,
+            requestedBy = requestedBy,
+            declaredPcs = declaredPcs,
+            notes = notes,
+            leg = leg
+        )
+    }
 
     data class Approve(val transferId: String, val approverName: String, val signatureKey: String) : FulfillmentUiEvent
     data class Reject(val transferId: String, val reason: String, val approverName: String) : FulfillmentUiEvent
@@ -89,12 +123,17 @@ sealed interface FulfillmentUiEvent {
         val recordedBy: String
     ) : FulfillmentUiEvent
 
-    /** Unggah bukti; hasilnya dikembalikan lewat callback supaya form tetap satu tempat. */
     data class UploadEvidence(
         val fileName: String,
         val contentType: String,
         val bytes: ByteArray,
         val onUploaded: (Result<String>) -> Unit
+    ) : FulfillmentUiEvent
+
+    /** Mengubah mode rute serah terima (PUT /route-settings). */
+    data class UpdateRouteModes(
+        val modes: Map<HandoverRouteCode, HandoverMode>,
+        val onDone: (Result<Unit>) -> Unit = {}
     ) : FulfillmentUiEvent
 }
 
@@ -119,7 +158,7 @@ class FulfillmentViewModel(
                 remoteDataSource.submit(
                     tenantSlug = tenantSlug,
                     sackPayload = event.sackPayload,
-                    leg = event.leg,
+                    routeCode = event.routeCode,
                     dispatchWeightKg = event.dispatchWeightKg,
                     dispatchScalePhotoKey = event.dispatchScalePhotoKey,
                     requestedBy = event.requestedBy,
@@ -156,18 +195,32 @@ class FulfillmentViewModel(
                 )
                 event.onUploaded(result)
             }
+
+            is FulfillmentUiEvent.UpdateRouteModes -> scope.launch {
+                _uiState.update { it.copy(isSubmitting = true, error = null) }
+                val result = remoteDataSource.updateRouteModes(tenantSlug, event.modes)
+                result.onSuccess {
+                    load()
+                }.onFailure { err ->
+                    _uiState.update { it.copy(isSubmitting = false, error = err.message) }
+                }
+                event.onDone(result)
+            }
         }
     }
 
     private fun load() {
         _uiState.update { it.copy(isLoading = true, error = null) }
         scope.launch {
-            // Konfigurasi rute dimuat lebih dulu dan kegagalannya sengaja tidak dinaikkan jadi
-            // error layar: tanpa konfigurasi, seluruh rute jatuh ke ADMIN_HUB dan operator
-            // masih bisa bekerja dengan formulir lengkap. Pesan merah di sini hanya akan
-            // membuat dia mengira modulnya rusak padahal jalurnya masih utuh.
-            remoteDataSource.routeSettings(tenantSlug)
-                .onSuccess { config -> _uiState.update { it.copy(routeConfig = config) } }
+            remoteDataSource.routeSettingsView(tenantSlug)
+                .onSuccess { view ->
+                    _uiState.update { it.copy(routeSettingsView = view) }
+                }
+                .onFailure {
+                    // Fallback bila server lama belum menyediakan routeSettingsView
+                    remoteDataSource.routeSettings(tenantSlug)
+                        .onSuccess { config -> _uiState.update { it.copy(routeConfig = config) } }
+                }
 
             remoteDataSource.transfers(tenantSlug)
                 .onSuccess { rows ->

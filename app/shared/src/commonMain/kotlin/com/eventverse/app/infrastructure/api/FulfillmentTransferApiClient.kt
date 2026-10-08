@@ -1,14 +1,23 @@
 package com.eventverse.app.infrastructure.api
 
 import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
+import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
+import com.eventverse.app.domain.fulfillment.HandoverRoute
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
+import com.eventverse.app.domain.fulfillment.HandoverRouteSetting
+import com.eventverse.app.domain.fulfillment.HandoverRouteSettingsView
 import com.eventverse.app.domain.fulfillment.InternalTransfer
 import com.eventverse.app.domain.fulfillment.SackRoute
+import com.eventverse.app.domain.fulfillment.toRouteCode
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.domain.transfer.FlowNodeRef
 import com.eventverse.app.shared.fulfillment.FulfillmentRouteConfigCodec
+import com.eventverse.app.shared.fulfillment.HandoverRouteSettingsCodec
 import com.eventverse.app.shared.fulfillment.InternalTransferCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import io.ktor.client.*
@@ -20,8 +29,37 @@ interface FulfillmentTransferRemoteDataSource {
 
     suspend fun transfers(tenantSlug: String): Result<List<InternalTransfer>>
 
-    /** Pola serah terima tiap rute. Menentukan bentuk formulir sebelum operator mengisi apa pun. */
+    /** Pola serah terima tiap rute (backward compatible). */
     suspend fun routeSettings(tenantSlug: String): Result<FulfillmentRouteConfig>
+
+    /** Pola serah terima tiap rute berbasis data (TRD-FLOW-003). */
+    suspend fun routeSettingsView(tenantSlug: String): Result<HandoverRouteSettingsView>
+
+    /** Mengubah mode serah terima per rute (PUT /route-settings). */
+    suspend fun updateRouteModes(
+        tenantSlug: String,
+        modes: Map<HandoverRouteCode, HandoverMode>
+    ): Result<Unit>
+
+    /** Memuat seluruh rute serah terima milik tenant (GET /routes). */
+    suspend fun routes(tenantSlug: String): Result<List<HandoverRoute>>
+
+    /** Memperbarui daftar rute tenant (PUT /routes). */
+    suspend fun updateRoutes(
+        tenantSlug: String,
+        routes: List<HandoverRoute>
+    ): Result<Unit>
+
+    suspend fun submit(
+        tenantSlug: String,
+        sackPayload: String,
+        routeCode: HandoverRouteCode,
+        dispatchWeightKg: String?,
+        dispatchScalePhotoKey: String?,
+        requestedBy: String,
+        notes: String,
+        declaredPcs: Int?
+    ): Result<InternalTransfer>
 
     suspend fun submit(
         tenantSlug: String,
@@ -32,7 +70,16 @@ interface FulfillmentTransferRemoteDataSource {
         requestedBy: String,
         notes: String,
         declaredPcs: Int?
-    ): Result<InternalTransfer>
+    ): Result<InternalTransfer> = submit(
+        tenantSlug = tenantSlug,
+        sackPayload = sackPayload,
+        routeCode = leg.toRouteCode(),
+        dispatchWeightKg = dispatchWeightKg,
+        dispatchScalePhotoKey = dispatchScalePhotoKey,
+        requestedBy = requestedBy,
+        notes = notes,
+        declaredPcs = declaredPcs
+    )
 
     suspend fun approve(
         tenantSlug: String,
@@ -93,6 +140,16 @@ class FulfillmentTransferApiClient(
         parsed.items.filterIsInstance<JsonValue.Obj>().map(InternalTransferCodec::decode)
     }
 
+    override suspend fun routeSettingsView(tenantSlug: String): Result<HandoverRouteSettingsView> = runCatching {
+        val response = httpClient.get(resolveUrl("$BASE_PATH/route-settings")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        val parsed = JsonParser.parse(response.requireBody("memuat pola serah terima")) as? JsonValue.Obj
+            ?: return@runCatching HandoverRouteSettingsView(TenantId(tenantSlug), emptyList())
+        decodeRouteSettingsView(parsed, TenantId(tenantSlug))
+    }
+
     override suspend fun routeSettings(tenantSlug: String): Result<FulfillmentRouteConfig> = runCatching {
         val response = httpClient.get(resolveUrl("$BASE_PATH/route-settings")) {
             tenantRequest(tenantSlug, tokenProvider)
@@ -103,10 +160,55 @@ class FulfillmentTransferApiClient(
         FulfillmentRouteConfigCodec.decode(parsed, TenantId(tenantSlug))
     }
 
+    override suspend fun updateRouteModes(
+        tenantSlug: String,
+        modes: Map<HandoverRouteCode, HandoverMode>
+    ): Result<Unit> = runCatching {
+        val body = jsonObjectOf(
+            "routes" to jsonArrayOf(
+                modes.map { (code, mode) ->
+                    jsonObjectOf(
+                        "route" to jsonOf(code.value),
+                        "mode" to jsonOf(mode.name)
+                    )
+                }
+            )
+        )
+        val response = httpClient.put(resolveUrl("$BASE_PATH/route-settings")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(body.encode())
+        }
+        response.requireBody("memperbarui pola serah terima")
+    }
+
+    override suspend fun routes(tenantSlug: String): Result<List<HandoverRoute>> = runCatching {
+        val response = httpClient.get(resolveUrl("$BASE_PATH/routes")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        val parsed = JsonParser.parse(response.requireBody("memuat daftar rute")) as? JsonValue.Obj
+            ?: return@runCatching emptyList()
+        HandoverRouteSettingsCodec.decodeRoutes(parsed)
+    }
+
+    override suspend fun updateRoutes(
+        tenantSlug: String,
+        routes: List<HandoverRoute>
+    ): Result<Unit> = runCatching {
+        val body = HandoverRouteSettingsCodec.encodeRoutes(routes)
+        val response = httpClient.put(resolveUrl("$BASE_PATH/routes")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            contentType(ContentType.Application.Json)
+            setBody(body.encode())
+        }
+        response.requireBody("memperbarui daftar rute")
+    }
+
     override suspend fun submit(
         tenantSlug: String,
         sackPayload: String,
-        leg: SackRoute,
+        routeCode: HandoverRouteCode,
         dispatchWeightKg: String?,
         dispatchScalePhotoKey: String?,
         requestedBy: String,
@@ -115,7 +217,7 @@ class FulfillmentTransferApiClient(
     ): Result<InternalTransfer> = postTransfer(
         tenantSlug, "$BASE_PATH/transfers", jsonObjectOf(
             "sackCode" to jsonOf(sackPayload),
-            "leg" to jsonOf(leg.name),
+            "leg" to jsonOf(routeCode.value),
             "dispatchWeightKg" to (dispatchWeightKg?.let(::jsonOf) ?: JsonValue.Null),
             "dispatchScalePhotoKey" to (dispatchScalePhotoKey?.let(::jsonOf) ?: JsonValue.Null),
             "declaredPcs" to (declaredPcs?.let(::jsonOf) ?: JsonValue.Null),
@@ -234,7 +336,39 @@ class FulfillmentTransferApiClient(
         return body
     }
 
-    private companion object {
-        const val BASE_PATH = "/api/tenant/fulfillment"
+    companion object {
+        private const val BASE_PATH = "/api/tenant/fulfillment"
+
+        /** Dekode payload route-settings menjadi [HandoverRouteSettingsView]. */
+        internal fun decodeRouteSettingsView(parsed: JsonValue.Obj, tenantId: TenantId): HandoverRouteSettingsView {
+            val rows = parsed["routes"] as? JsonValue.Arr
+                ?: return HandoverRouteSettingsView(tenantId, emptyList())
+            val settings = rows.items.mapNotNull { item ->
+                val row = item as? JsonValue.Obj ?: return@mapNotNull null
+                val rawCode = row.string("route") ?: return@mapNotNull null
+                val code = HandoverRouteCode.parse(rawCode).getOrNull() ?: return@mapNotNull null
+                val label = row.string("routeLabel") ?: code.value
+                val modeName = row.string("mode") ?: HandoverMode.ADMIN_HUB.name
+                val mode = HandoverMode.entries.firstOrNull { it.name == modeName } ?: HandoverMode.ADMIN_HUB
+                val isExplicit = row.boolean("isExplicit") ?: false
+                val active = row.boolean("active") ?: true
+                val sortOrder = row.int("sortOrder") ?: 0
+                val fromRef = row.string("from")?.let(FlowNodeRef::parse)
+                val toRef = row.string("to")?.let(FlowNodeRef::parse)
+                HandoverRouteSetting(
+                    route = HandoverRoute(
+                        code = code,
+                        label = label,
+                        from = fromRef,
+                        to = toRef,
+                        sortOrder = sortOrder,
+                        active = active
+                    ),
+                    mode = mode,
+                    isExplicit = isExplicit
+                )
+            }
+            return HandoverRouteSettingsView(tenantId, settings)
+        }
     }
 }
