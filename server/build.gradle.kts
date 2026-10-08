@@ -85,7 +85,13 @@ tasks.register<JavaExec>("importHistoricalCosting") {
  * dev yang menyalakan `DISCOVERY_AGENT=koog` membuat `DiscoveryApiTest` memanggil DeepSeek (lambat, berbiaya, dan
  * melewati batas 60 detik). Env sistem mengalahkan `.env`, jadi agent dikunci deterministik untuk semua task test.
  * Eval live memakai gerbang tersendiri (`DISCOVERY_LIVE_EVALS`) dan membangun agennya sendiri — tidak terpengaruh.
+ *
+ * Agent wawancara punya saklar **terpisah** (`INTERVIEW_AGENT`, lihat `InterviewAgents`) dan sempat terlewat: dengan
+ * `INTERVIEW_AGENT=koog` + `DEEPSEEK_API_KEY` di `.env`, `DiscoveryInterviewApiTest` memanggil `api.deepseek.com`
+ * sungguhan (tiap giliran sampai 20 dtk, perencana sampai 90 dtk) sehingga tes berganti-ganti gagal di batas 60 dtk
+ * `runTest`. Dikunci `off` di sini; `from(...)`/`plannerFromEnv()` hanya mengaktifkan agent bila nilainya `koog`.
  */
 tasks.withType<Test>().configureEach {
     environment("DISCOVERY_AGENT", "deterministic")
+    environment("INTERVIEW_AGENT", "off")
 }
