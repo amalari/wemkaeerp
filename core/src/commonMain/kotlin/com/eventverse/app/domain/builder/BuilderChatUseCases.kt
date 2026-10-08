@@ -127,6 +127,10 @@ class SendBuilderMessageUseCase(
  * Menerapkan patch usulan dari satu pesan AGENT (FR-M1-3): validator menilai dokumen, draf kerja
  * tenant dibuat/diganti di tempat (DRAFT), pesan ditandai `appliedDraftId`. Draf terkunci ditolak
  * (Kontrak 5 — revisi pasca-lock adalah versi baru lewat deploy, bukan edit di tempat).
+ *
+ * **Pemilik draf baru = pemanggil yang menekan Terapkan** (`ownerUserId`), sama dengan bootstrap `GET /draft`. Draf yang sudah ada
+ * mempertahankan pemiliknya. Pemilik wajib pengguna nyata (FK `ops.discovery_drafts.owner_user_id` → `users`); dulu dikarang
+ * (`usr-builder-<tenant>`) sehingga tenant tanpa draf kerja tak pernah bisa menerapkan patch pertamanya.
  */
 class ApplyDraftPatchUseCase(
     private val chats: BuilderChatRepository,
@@ -135,7 +139,7 @@ class ApplyDraftPatchUseCase(
 ) {
     class DraftLockedException(message: String) : IllegalStateException(message)
 
-    suspend operator fun invoke(tenantId: TenantId, messageId: ChatMessageId): Result<StoredDiscoveryDraft> =
+    suspend operator fun invoke(tenantId: TenantId, messageId: ChatMessageId, ownerUserId: UserId): Result<StoredDiscoveryDraft> =
         runCatching {
             val conversation = chats.conversationFor(tenantId)
             val message = chats.messages(conversation.id).firstOrNull { it.id == messageId }
@@ -156,8 +160,7 @@ class ApplyDraftPatchUseCase(
             val stored = drafts.save(
                 StoredDiscoveryDraft(
                     id = existing?.id ?: DiscoveryDraftId("draft-${tenantId.value}"),
-                    ownerUserId = existing?.ownerUserId
-                        ?: UserId("usr-builder-${tenantId.value.takeLast(8)}"),
+                    ownerUserId = existing?.ownerUserId ?: ownerUserId,
                     draft = draft,
                     tenantId = tenantId,
                     createdAt = existing?.createdAt ?: clock.now(),

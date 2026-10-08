@@ -23,6 +23,7 @@ class BuilderChatUseCaseTest {
 
     private val demo = TenantId("ten-wemade-demo")
     private val bordir = TenantId("ten-bordir-uji")
+    private val owner = com.eventverse.app.domain.auth.UserId("usr-pemilik")
 
     private val chats = InMemoryBuilderChatRepository()
     private val drafts = FakeTenantDrafts()
@@ -47,16 +48,31 @@ class BuilderChatUseCaseTest {
     }
 
     @Test
+    fun apply_existingDraftKeepsItsOwner_whenAnotherUserApplies() = runTest {
+        agent.nextReply = BuilderAgentReply("Usulan pertama.", proposedDraft = garmentDraft())
+        send(demo, "Alur awal").getOrThrow()
+        apply(demo, chats.messages(chats.conversationFor(demo).id).last().id, owner).getOrThrow()
+        agent.nextReply = BuilderAgentReply("Usulan kedua.", proposedDraft = garmentDraft())
+        send(demo, "Revisi").getOrThrow()
+        val other = com.eventverse.app.domain.auth.UserId("usr-lain")
+
+        val stored = apply(demo, chats.messages(chats.conversationFor(demo).id).last().id, other).getOrThrow()
+
+        assertEquals(owner, stored.ownerUserId, "pemilik draf yang sudah ada tidak berpindah ke penerap berikutnya")
+    }
+
+    @Test
     fun apply_savesTenantDraft_andMarksMessageApplied() = runTest {
         agent.nextReply = BuilderAgentReply("Usulan draf pertama.", proposedDraft = garmentDraft())
         send(demo, "Buatkan alur awal").getOrThrow()
         val pending = chats.messages(chats.conversationFor(demo).id).last()
 
-        val stored = apply(demo, pending.id).getOrThrow()
+        val stored = apply(demo, pending.id, owner).getOrThrow()
         assertEquals(demo, stored.tenantId, "draf kerja milik tenant, bukan pribadi pemanggil")
+        assertEquals(owner, stored.ownerUserId, "draf baru dimiliki pemanggil yang menekan Terapkan (pengguna nyata), bukan pemilik karangan")
         assertTrue(chats.messages(chats.conversationFor(demo).id).last().appliedDraftId != null)
 
-        val reapplied = apply(demo, pending.id)
+        val reapplied = apply(demo, pending.id, owner)
         assertTrue(reapplied.isFailure, "patch yang sudah diterapkan tidak bisa diterapkan dua kali")
     }
 
@@ -87,7 +103,7 @@ class BuilderChatUseCaseTest {
         agent.nextReply = BuilderAgentReply("Usulan.", proposedDraft = garmentDraft())
         send(demo, "Usulkan").getOrThrow()
         val first = chats.messages(chats.conversationFor(demo).id).last()
-        apply(demo, first.id).getOrThrow()
+        apply(demo, first.id, owner).getOrThrow()
 
         send(demo, "Revisi lagi").getOrThrow()
         val second = chats.messages(chats.conversationFor(demo).id).last()
@@ -95,7 +111,7 @@ class BuilderChatUseCaseTest {
         drafts.findByTenant(demo)?.let {
             drafts.save(it.copy(status = DiscoveryDraftStatus.LOCKED))
         }
-        val result = apply(demo, second.id)
+        val result = apply(demo, second.id, owner)
         assertFailsWith<ApplyDraftPatchUseCase.DraftLockedException> { result.getOrThrow() }
     }
 
