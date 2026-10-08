@@ -1,9 +1,10 @@
-package com.eventverse.app.infrastructure
+package com.eventverse.app.tenant.layanan
 
+import com.eventverse.app.infrastructure.DatabaseFactory
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.tenant.TenantId
-import com.eventverse.app.infrastructure.tables.LayananChangeRequestChangeRequestsTable
+
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.ResultRow

@@ -1,5 +1,21 @@
-package com.eventverse.app.domain.pack
+package com.eventverse.app.domain.pack.tenant.layanan
 
+import com.eventverse.app.domain.pack.ScreenSuggestion
+import com.eventverse.app.domain.pack.ModuleAction
+import com.eventverse.app.domain.pack.ModuleActionCode
+import com.eventverse.app.domain.pack.VocabularyKey
+import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.DomainPackCode
+import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.pack.ModuleDefinition
+import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.pack.ModuleSection
+import com.eventverse.app.domain.pack.ModuleSectionCode
+import com.eventverse.app.domain.pack.PhaseCode
+import com.eventverse.app.domain.pack.PhaseDefinition
+import com.eventverse.app.domain.pack.PortType
+import com.eventverse.app.domain.pack.SlotCode
+import com.eventverse.app.domain.pack.SlotDefinition
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.prototype.CardElement
 import com.eventverse.app.domain.prototype.CardStyle

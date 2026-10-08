@@ -1,7 +1,7 @@
 package com.eventverse.app.domain.discovery.handoff
 
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
-import com.eventverse.app.domain.pack.LayananPilotPack
 import java.io.File
 import kotlin.test.Test
 
@@ -17,7 +17,7 @@ class ScaffoldDumpTool {
         val out = System.getenv("PILOT_SCAFFOLD_OUT")?.takeIf { it.isNotBlank() } ?: return
         val version = System.getenv("PILOT_MIGRATION_VERSION")?.toIntOrNull() ?: 90
         val scaffold = HandoffScaffoldGenerator().generateFromSpec(
-            LayananPilotPack.spec, LayananPilotPack.module, version, "com.eventverse.app.domain.pack.LayananPilotPack.pack"
+            LayananPilotPack.spec, LayananPilotPack.module, version, "com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack.pack"
         )
         scaffold.files.forEach { f -> File(out, f.path).apply { parentFile.mkdirs(); writeText(f.content) } }
     }

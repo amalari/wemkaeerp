@@ -1,8 +1,8 @@
 package com.eventverse.app.domain.discovery.handoff
 
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
 import com.eventverse.app.domain.discovery.WidgetKind
-import com.eventverse.app.domain.pack.LayananPilotPack
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSectionCode
@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
  */
 class SpecScaffoldGeneratorTest {
     private val generator = HandoffScaffoldGenerator()
-    private val packExpr = "com.eventverse.app.domain.pack.LayananPilotPack.pack"
+    private val packExpr = "com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack.pack"
 
     private fun pilot(version: Int = 90) = generator.generateFromSpec(LayananPilotPack.spec, LayananPilotPack.module, version, packExpr)
     private fun HandoffScaffoldGenerator.Scaffold.file(suffix: String) = files.single { it.path.endsWith(suffix) }.content

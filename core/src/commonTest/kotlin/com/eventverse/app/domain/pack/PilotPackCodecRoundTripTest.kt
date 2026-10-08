@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
 import com.eventverse.app.shared.pack.DomainPackCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
