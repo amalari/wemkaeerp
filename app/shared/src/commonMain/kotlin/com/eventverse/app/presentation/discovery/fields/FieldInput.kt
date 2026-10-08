@@ -17,6 +17,7 @@ import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
+import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
@@ -29,10 +30,10 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * dan Dialog Form Detail Kanban ([KanbanDetailDialog]).
  *
  * Pemetaan [FieldType]:
- * - TEXT -> [ClayTextField] standar
+ * - TEXT -> [ClayTextField]; bila [FieldSpec.validation] EMAIL/PHONE: keyboard sesuai + galat bentuk (tanpa normalisasi)
  * - LONG_TEXT -> [ClayTextArea] area teks multi-baris
  * - NUMBER -> [ClayTextField] dengan prefix/suffix format (Rp/kode, %; lihat NumberFormatting.kt); nilai simpan tetap angka polos
- * - DATE -> [ClayDatePicker] pemilih tanggal berformat TTTT-BB-HH
+ * - DATE -> [ClayDatePicker] (TTTT-BB-HH); dengan [FieldSpec.withTime] -> [ClayDateTimePicker] (TTTT-BB-HHTJJ:MM)
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
  */
@@ -68,6 +69,9 @@ fun FieldInput(
                 }
             }
         }
+
+        // Galat dari pemanggil menang; bila tidak ada, galat bentuk (email/telepon) dari aturan core `accepts`.
+        val shownError = errorMessage ?: field.validationMessageFor(value)
 
         when (field.type) {
             FieldType.BOOL -> {
@@ -124,14 +128,25 @@ fun FieldInput(
                 )
             }
             FieldType.DATE -> {
-                ClayDatePicker(
-                    value = value,
-                    onValueChange = onValueChange,
-                    label = "",
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = enabled,
-                    isError = errorMessage != null
-                )
+                if (field.withTime) {
+                    ClayDateTimePicker(
+                        value = value,
+                        onValueChange = onValueChange,
+                        label = "",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = enabled,
+                        isError = errorMessage != null
+                    )
+                } else {
+                    ClayDatePicker(
+                        value = value,
+                        onValueChange = onValueChange,
+                        label = "",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = enabled,
+                        isError = errorMessage != null
+                    )
+                }
             }
             FieldType.TEXT -> {
                 ClayTextField(
@@ -140,9 +155,9 @@ fun FieldInput(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Isi ${field.label.lowercase()}...",
                     enabled = enabled,
-                    isError = errorMessage != null,
+                    isError = shownError != null,
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboardTypeFor(field.validation)),
                     keyboardActions = keyboardActions
                 )
             }
@@ -161,9 +176,9 @@ fun FieldInput(
             }
         }
 
-        if (errorMessage != null) {
+        if (shownError != null) {
             Text(
-                text = errorMessage,
+                text = shownError,
                 style = MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.Defect
             )
