@@ -147,16 +147,7 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
         FieldType.entries.map { t ->
             jsonObjectOf(
                 "name" to jsonOf(t.name),
-                "note" to jsonOf(
-                    when (t) {
-                        FieldType.TEXT -> "teks bebas"
-                        FieldType.LONG_TEXT -> "teks panjang/multibaris (catatan, deskripsi, instruksi)"
-                        FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
-                        FieldType.DATE -> "tanggal ISO YYYY-MM-DD"
-                        FieldType.ENUM -> "wajib options 2-8 pilihan; dipakai untuk status kerja"
-                        FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
-                    }
-                )
+                "note" to jsonOf(KoogDiscoveryFieldTypeVocabulary.note(t))
             )
         }
     ),
