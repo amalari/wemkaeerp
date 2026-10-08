@@ -33,6 +33,10 @@ object SpecOpCodec {
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
         is SpecOp.ShowFieldOnCard -> jsonObjectOf("type" to jsonOf("ShowFieldOnCard"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "style" to jsonOf(op.style.name))
         is SpecOp.SetFieldRequired -> jsonObjectOf("type" to jsonOf("SetFieldRequired"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "required" to jsonOf(op.required))
+        is SpecOp.SetFieldFormat -> jsonObjectOf(
+            "type" to jsonOf("SetFieldFormat"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field),
+            "format" to jsonOf(op.format.name), "currencyCode" to jsonOf(op.currencyCode)
+        )
         is SpecOp.ChangeWidget -> jsonObjectOf("type" to jsonOf("ChangeWidget"), "screenId" to jsonOf(op.screenId), "widget" to jsonOf(op.widget.code))
     }
 
@@ -45,10 +49,7 @@ object SpecOpCodec {
             "AddField" -> {
                 val f = requireNotNull(o.obj("field")) { "Bidang 'field' wajib diisi." }
                 val ft = FieldType.entries.firstOrNull { it.name == f.string("fieldType") }
-                val formatName = f.string("format")
-                val format = if (formatName == null || formatName == "PLAIN") NumberFormat.PLAIN
-                else NumberFormat.entries.firstOrNull { it.name == formatName }
-                    ?: throw IllegalArgumentException("Format angka '${formatName}' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
+                val format = decodeFormat(f.string("format"), required = false)
                 SpecOp.AddField(
                     str("entityId"),
                     FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"))
@@ -63,12 +64,20 @@ object SpecOpCodec {
                 str("entityId"), str("field"),
                 requireNotNull(o.boolean("required")) { "Bidang 'required' wajib diisi." }
             )
+            "SetFieldFormat" -> SpecOp.SetFieldFormat(str("entityId"), str("field"), decodeFormat(o.string("format"), required = true), o.string("currencyCode"))
             "ChangeWidget" -> SpecOp.ChangeWidget(
                 str("screenId"),
                 requireNotNull(WidgetKind.fromCode(o.string("widget").orEmpty())) { "Jenis tampilan '${o.string("widget").orEmpty()}' tidak dikenal." }
             )
             else -> throw IllegalArgumentException("Jenis operasi '${type.orEmpty()}' tidak dikenal.")
         }
+    }
+
+    /** Nama format tak dikenal ditolak (bukan jatuh ke PLAIN); `AddField` boleh tanpa format (dokumen lama = PLAIN). */
+    private fun decodeFormat(name: String?, required: Boolean): NumberFormat = when {
+        name == null && !required -> NumberFormat.PLAIN
+        else -> NumberFormat.entries.firstOrNull { it.name == name }
+            ?: throw IllegalArgumentException("Format angka '${name.orEmpty()}' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
     }
 
     fun encode(e: CaptureEntry): JsonValue.Obj =

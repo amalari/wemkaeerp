@@ -20,6 +20,14 @@ enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL }
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
  * koersi **identik** dengan angka polos (`NUMERIC(18,4)`) — hanya render dan parsing masukan yang beda.
  * Ini parameter, bukan tipe baru; padanan CRM `Number(format = Currency)`.
+ *
+ * Arti nilai tersimpan (sama untuk semua format; hanya render/parsing masukan yang beda):
+ * - [PLAIN]: angka apa adanya.
+ * - [CURRENCY]: jumlah dalam **satuan utama** mata uang field ([FieldSpec.currencyCode]), bukan sen/satuan terkecil;
+ *   kode **tidak** ikut tersimpan di kolom.
+ * - [PERCENT]: angka persen **apa adanya** — `12.5` berarti 12,5%, **bukan** pecahan `0.125`. Tidak ada skala
+ *   tersembunyi di penyimpanan, jadi filter/urutan/agregat SQL tidak perlu tahu formatnya. (Padanan CRM
+ *   `NumberFormat.Percent` belum mendefinisikan skala di kodenya; aturan ini berlaku untuk kosakata prototype.)
  */
 enum class NumberFormat { PLAIN, CURRENCY, PERCENT }
 

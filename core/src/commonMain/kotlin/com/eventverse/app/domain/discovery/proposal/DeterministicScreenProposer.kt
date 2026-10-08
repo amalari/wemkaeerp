@@ -46,7 +46,7 @@ object DeterministicScreenProposer : ScreenProposer {
         val name = module.displayName
         val label = document ?: name
         val statuses = slot.defaultStatuses
-        val extras = DeterministicScreenRoles.extrasFor(slot.code.value)
+        val extras = DeterministicScreenRoles.extrasFor(slot.code.value, pack.defaultCurrencyCode)
         val moduleKey = module.id.value
         val fields = listOf(FieldProposal(TITLE, document ?: "Judul", FieldType.TEXT, required = true)) +
             extras +
@@ -113,7 +113,7 @@ object DeterministicScreenProposer : ScreenProposer {
         FieldType.DATE -> CardElement(f.key, CardStyle.DATE)
         FieldType.NUMBER -> CardElement(f.key, CardStyle.NUMBER)
         FieldType.BOOL -> CardElement(f.key, CardStyle.FLAG)
-        else -> null
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM -> null
     }
 
     /** Satu ubin per modul lain yang slotnya punya status: jumlah baris berstatus **awal** (antrean yang menunggu). */

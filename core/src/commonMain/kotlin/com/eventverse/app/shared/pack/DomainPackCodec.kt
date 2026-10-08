@@ -78,6 +78,7 @@ object DomainPackCodec {
             if (pack.moduleReferences.isNotEmpty()) put("moduleReferences", ModuleReferenceCodec.encode(pack.moduleReferences))
             if (pack.sharedModules.isNotEmpty()) put("sharedModules", jsonArrayOf(pack.sharedModules.map { jsonOf(it.value) }))
             if (pack.handoverRouteTemplate.isNotEmpty()) put("handoverRouteTemplate", HandoverRouteCodec.encode(pack.handoverRouteTemplate))
+            if (pack.defaultCurrencyCode != DomainPack.DEFAULT_CURRENCY_CODE) put("defaultCurrencyCode", jsonOf(pack.defaultCurrencyCode))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -156,7 +157,9 @@ object DomainPackCodec {
                 reservedTerms = reservedTerms,
                 sharedModules = sharedModules,
                 moduleReferences = ModuleReferenceCodec.decode(root["moduleReferences"], "$.moduleReferences"),
-                handoverRouteTemplate = HandoverRouteCodec.decode(root["handoverRouteTemplate"], "$.handoverRouteTemplate")
+                handoverRouteTemplate = HandoverRouteCodec.decode(root["handoverRouteTemplate"], "$.handoverRouteTemplate"),
+                // Kunci absen/null = pack belum menyebut mata uangnya → bawaan global; nilai tak sah ditolak oleh DomainPack.init.
+                defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE
             )
         }
     }
