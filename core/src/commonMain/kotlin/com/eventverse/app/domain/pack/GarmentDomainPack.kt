@@ -159,7 +159,8 @@ object GarmentDomainPack {
             screenSuggestions = GarmentScreenSuggestions.all,
             roleHints = GarmentRoleHints.all,
             reservedTerms = GarmentReservedTerms.terms,
-            sharedModules = setOf(GarmentModules.COSTING_HPP)
+            sharedModules = setOf(GarmentModules.COSTING_HPP),
+            handoverRouteTemplate = GarmentHandoverRoutes.template
         )
     }
 }

@@ -89,7 +89,7 @@ class HandoverRouteSettingsCodecTest {
         val withTemplate = GarmentDomainPack.pack.copy(handoverRouteTemplate = routes)
         val raw = DomainPackCodec.encodeToString(withTemplate)
         assertEquals(routes, DomainPackCodec.decode(raw).handoverRouteTemplate)
-        assertFalse("handoverRouteTemplate" in DomainPackCodec.encodeToString(GarmentDomainPack.pack))
+        assertFalse("handoverRouteTemplate" in DomainPackCodec.encodeToString(GarmentDomainPack.pack.copy(handoverRouteTemplate = emptyList())))
     }
 
     @Test

@@ -104,3 +104,11 @@ tes server `*DomainPack*`, `RouteOwnershipTest`, `ModuleSchemaOwnershipTest` 5/0
 **Belum / bukan klaim**: `:server:test` penuh tidak dijalankan. `TechPackApiTest` (5 tes) timeout 1 menit
 saat `--tests '*Pack*'`; tidak menyentuh kode ini, tetapi saya **belum membuktikan** bahwa ia gagal juga di
 `main`. Tidak ada cek visual (PR-0 tanpa UI). `DomainPack.kt` kini 274 baris (soft 250, hard 400; +4).
+
+## 6. Status Track A (2026-10-08, branch `feat/flow-003-track-a-garment-template`)
+
+**A1 + A2 selesai**: `GarmentHandoverRoutes.template` (data literal, dua rute = `SackRoute`), dipasang di
+`GarmentDomainPack`; `GarmentHandoverRoutesParityTest` mengiterasi `SackRoute.entries` (kode, label, urutan),
+memastikan tidak ada pack lain yang meminjam rute garment, membandingkan mode efektif dan JSON dengan
+`FulfillmentRouteConfig`/`FulfillmentRouteConfigCodec` lama. **Belum**: A3–A5 (config berkunci kode,
+`InternalTransfer.route`, codec ketat) — `SackRoute` masih dipakai semua pembaca.
