@@ -112,4 +112,17 @@ class SpecOpApplierTest {
         assertEquals("No. SPK", applied.screen.spec.entity("item")!!.field("Kartu")!!.label)
         assertEquals(listOf("Baru", "Dikerjakan", "Selesai", "Pressing"), applied.screen.spec.screens.single().kanban!!.columns)
     }
+
+    /** C3 Irisan 2: LONG_TEXT tipe satu kelarga — sah lewat SpecOp.AddField, label bisa diganti. */
+    @Test
+    fun addField_longText_typePreserved_labelRenameable_duplicateStillRejected() {
+        val next = SpecOpApplier.apply(ticket, SpecOp.AddField("tiket", FieldSpec("riwayat_perbaikan", "Riwayat perbaikan", FieldType.LONG_TEXT))).getOrThrow()
+        assertEquals(FieldType.LONG_TEXT, assertNotNull(next.spec.entity("tiket")!!.field("riwayat_perbaikan")).type)
+        val renamed = SpecOpApplier.apply(next, SpecOp.RenameFieldLabel("tiket", "riwayat_perbaikan", "Catatan teknisi")).getOrThrow()
+        assertEquals("Catatan teknisi", renamed.spec.entity("tiket")!!.field("riwayat_perbaikan")!!.label)
+        assertTrue(
+            SpecOpApplier.apply(ticket, SpecOp.AddField("tiket", FieldSpec("Judul", "Judul", FieldType.LONG_TEXT))).isFailure,
+            "field ganda tetap ditolak lintas tipe"
+        )
+    }
 }

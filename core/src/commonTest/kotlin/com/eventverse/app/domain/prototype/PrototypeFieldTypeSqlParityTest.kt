@@ -130,6 +130,22 @@ class PrototypeFieldTypeSqlParityTest {
         assertTrue(date.accepts("2026-10-08"))
     }
 
+    /** C3 Irisan 2: LONG_TEXT sebebas TEXT — multibaris dan isi panjang sah, kosong tetap sah. */
+    @Test
+    fun accepts_longTextField_allowsMultilineAndLongContent() {
+        val f = fieldFor(FieldType.LONG_TEXT)
+        assertTrue(f.accepts("Lapis 1\nLapis 2\nLapis 3"), "multibaris sah")
+        assertTrue(f.accepts("instruksi ".repeat(400)), "isi panjang sah")
+        assertTrue(f.accepts(""), "kosong tetap sah (belum diisi)")
+    }
+
+    /** C3 Irisan 2: kolom LONG_TEXT = TEXT (tanda tangan simpan A0); required tetap NOT NULL + trim. */
+    @Test
+    fun sqlDefinition_requiredLongText_keepsNotNullAndTrimCheck() {
+        val sql = table(fieldFor(FieldType.LONG_TEXT, required = true)).columns.single().sqlDefinition()
+        assertTrue("NOT NULL" in sql && "btrim" in sql, sql)
+    }
+
     // ---- invarian konstruksi ----------------------------------------------------------------
 
     @Test

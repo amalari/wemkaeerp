@@ -57,4 +57,32 @@ class PrototypeReducerTest {
             PrototypeStore.seeded(spec, mapOf("tiket" to listOf(PrototypeRow("t9", mapOf("status" to "Hantu")))))
         }
     }
+
+    /** C3 Irisan 2: LONG_TEXT menerima isi multibaris lewat reducer — tidak ada pemangkasan diam-diam. */
+    @Test
+    fun setField_longText_menerimaMultiline() {
+        val catatan = FieldSpec("catatan", "Catatan", FieldType.LONG_TEXT)
+        val specCatatan = PrototypeSpec(
+            listOf(EntitySpec("tiket", "Tiket", listOf(FieldSpec("judul", "Judul", FieldType.TEXT), catatan))),
+            emptyList()
+        )
+        val storeCatatan = PrototypeStore.seeded(specCatatan, mapOf("tiket" to listOf(PrototypeRow("t1", mapOf("judul" to "AC mati")))))
+        val multiline = "Lapis 1: kain diperiksa.\nLapis 2: jahit manual, benang polyester."
+        val next = PrototypeReducer.reduce(specCatatan, storeCatatan, PrototypeAction.SetField("tiket", "t1", "catatan", multiline)).getOrThrow()
+        assertEquals(multiline, next.rowsOf("tiket").single()["catatan"])
+    }
+
+    /** C3 Irisan 2: kewajiban isi LONG_TEXT ditegakkan `Create` sama seperti tipe lain. */
+    @Test
+    fun create_requiredLongTextKosong_ditolak() {
+        val wajib = FieldSpec("catatan", "Catatan", FieldType.LONG_TEXT, required = true)
+        val specWajib = PrototypeSpec(listOf(EntitySpec("tiket", "Tiket", listOf(wajib))), emptyList())
+        val result = PrototypeReducer.reduce(
+            specWajib,
+            PrototypeStore(mapOf("tiket" to emptyList())),
+            PrototypeAction.Create("tiket", PrototypeRow("t2", mapOf("catatan" to "")))
+        )
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("wajib diisi"))
+    }
 }
