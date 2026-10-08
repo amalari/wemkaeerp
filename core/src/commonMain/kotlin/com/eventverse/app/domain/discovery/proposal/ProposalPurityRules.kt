@@ -22,7 +22,8 @@ internal object ProposalPurityRules {
             is ViewProposal.Form -> at(".view.submitLabel", v.submitLabel)
             is ViewProposal.Kanban -> at(".view.detailFormSubmitLabel", v.detailFormSubmitLabel)
             is ViewProposal.Dashboard -> v.tiles.forEachIndexed { i, t -> at(".view.tiles[$i].label", t.label); at(".view.tiles[$i].value", t.value) }
-            else -> Unit
+            is ViewProposal.Skeleton -> v.blocks.forEachIndexed { i, b -> at(".view.blocks[$i].label", b.label) }
+            is ViewProposal.Table, is ViewProposal.Checklist, is ViewProposal.Print, ViewProposal.None -> Unit
         }
     }
 }

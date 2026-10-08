@@ -56,8 +56,7 @@ internal object ProposalViewRules {
                 if (entity != null) existAll(".view.fields", view.fields, "Field cetak")
             }
             ViewProposal.None -> Unit
-            // A0: tak terjangkau — `matches` hanya meloloskan None untuk CUSTOM_SCREEN. Track A sisa mengisinya.
-            is ViewProposal.Skeleton -> Unit
+            is ViewProposal.Skeleton -> ProposalSkeletonRules.check(view, sink)
         }
     }
 
@@ -99,7 +98,7 @@ internal object ProposalViewRules {
         WidgetKind.CHECKLIST -> view is ViewProposal.Checklist
         WidgetKind.DASHBOARD -> view is ViewProposal.Dashboard
         WidgetKind.PRINT -> view is ViewProposal.Print
-        WidgetKind.CUSTOM_SCREEN -> view is ViewProposal.None
+        WidgetKind.CUSTOM_SCREEN -> view is ViewProposal.None || view is ViewProposal.Skeleton
     }
 
     private fun expected(widget: WidgetKind): String = when (widget) {
@@ -109,6 +108,6 @@ internal object ProposalViewRules {
         WidgetKind.CHECKLIST -> "Checklist"
         WidgetKind.DASHBOARD -> "Dashboard"
         WidgetKind.PRINT -> "Print"
-        WidgetKind.CUSTOM_SCREEN -> "None"
+        WidgetKind.CUSTOM_SCREEN -> "None atau Skeleton"
     }
 }

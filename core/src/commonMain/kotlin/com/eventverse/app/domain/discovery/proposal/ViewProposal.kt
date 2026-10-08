@@ -7,7 +7,7 @@ import com.eventverse.app.domain.prototype.TileSpec
 /**
  * Konfigurasi tampilan per jenis widget. Varian **harus** cocok dengan `ScreenProposal.widget`
  * (KANBAN↔[Kanban], TABLE↔[Table], FORM↔[Form], CHECKLIST↔[Checklist], DASHBOARD↔[Dashboard],
- * PRINT↔[Print], CUSTOM_SCREEN↔[None]) — ketidakcocokan dilaporkan validator, tidak ditebak.
+ * PRINT↔[Print], CUSTOM_SCREEN↔[None] atau [Skeleton]) — ketidakcocokan dilaporkan validator, tidak ditebak.
  *
  * Merujuk field lewat **kunci** (string) agar mudah ditulis LLM; validator memastikan kunci itu ada.
  * Kolom kanban bukan dikonfigurasi di sini: ia **diturunkan** dari opsi `statusField` entitas, sehingga
@@ -42,8 +42,7 @@ sealed interface ViewProposal {
     /**
      * Kerangka `CUSTOM_SCREEN` bernama blok (Irisan 3b, C10). Sketsa non-interaktif (D6).
      *
-     * **A0 hanya menetapkan bentuk.** Belum ada yang memproduksinya: validator masih mewajibkan [None] untuk
-     * `CUSTOM_SCREEN` dan codec belum membacanya, jadi nilai ini ditolak sampai Track A sisa menggantinya.
+     * Hanya sah untuk `CUSTOM_SCREEN` (aturannya di `ProposalSkeletonRules`); [None] tetap sah untuk draf lama.
      */
     data class Skeleton(val blocks: List<SkeletonBlock>) : ViewProposal
 }

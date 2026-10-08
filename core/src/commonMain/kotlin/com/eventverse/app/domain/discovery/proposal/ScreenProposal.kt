@@ -80,6 +80,9 @@ object ProposalLimits {
     const val TEXT = 200
     const val TILES = 8
 
+    /** Blok pada kerangka `CUSTOM_SCREEN` ([ViewProposal.Skeleton]); panjang label blok memakai [TEXT]. */
+    const val BLOCKS = 8
+
     /** Batas layar per draf — satu draf bukan tempat membuang ratusan layar (anti-bengkak, anti-penyalahgunaan). */
     const val SCREENS = 40
     val KEY = Regex("[a-z][a-z0-9_]{0,40}")
