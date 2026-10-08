@@ -98,8 +98,10 @@ fun LeadCustomField(
                             ClayDatePicker(
                                 value = text,
                                 onValueChange = onChange,
-                                label = descriptor.label,
-                                modifier = Modifier.fillMaxWidth()
+                                // Label sudah dirender pada header baris; dikosongkan agar tidak dobel.
+                                label = "",
+                                modifier = Modifier.fillMaxWidth(),
+                                isError = text.isNotBlank() && !isBlankOrIsoDate(text)
                             )
                         }
                     ) { CustomAttributes.textCell(it) }

@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.crm.components
 
 import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.shared.common.DateTimeCodec
 
 /**
  * Jenis kontrol yang dipakai CRM untuk mengedit satu [FieldType] di inspektur lead.
@@ -34,3 +35,11 @@ internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
     is FieldType.SingleSelect -> LeadFieldControl.SINGLE_SELECT
     is FieldType.UserRef -> LeadFieldControl.USER_REF
 }
+
+/**
+ * Nilai field tanggal sah untuk disimpan/dikirim: kosong berarti *belum diisi* (sah untuk field
+ * opsional), selain itu harus tanggal kalender ISO `YYYY-MM-DD` yang nyata — bukan sekadar bentuk.
+ * Parsing lewat `DateTimeCodec` yang aman di Wasm/JS (tanpa boxing `Result`).
+ */
+internal fun isBlankOrIsoDate(value: String): Boolean =
+    value.isBlank() || DateTimeCodec.parseLocalDateOrNull(value) != null
