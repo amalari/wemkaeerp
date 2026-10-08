@@ -1,5 +1,6 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.audit.AuditLogRepository
 import com.eventverse.app.domain.discovery.DiscoveryAgent
 import com.eventverse.app.domain.discovery.DiscoveryDemandRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
@@ -38,6 +39,7 @@ fun Route.discoveryPlatformRoutes(
     blendedHourlyRate: MoneyIdr,
     leadRepository: ProspectLeadRepository,
     agent: DiscoveryAgent,
+    auditLogRepository: AuditLogRepository,
     prototypePatterns: PrototypePatternRepository? = null,
     discoveryDemands: DiscoveryDemandRepository? = null,
     builderChats: com.eventverse.app.domain.builder.BuilderChatRepository? = null
@@ -69,7 +71,8 @@ fun Route.discoveryPlatformRoutes(
         // Default di sini, bukan di Application.kt: file itu sudah di atas hard limit (ratchet),
         // dan test meng-inject in-memory lewat parameter supaya tidak menulis ke DB pengembang.
         prototypePatterns = prototypePatterns ?: com.eventverse.app.infrastructure.PostgresPrototypePatternRepository(),
-        demands = demands
+        demands = demands,
+        auditLogRepository = auditLogRepository
     )
     // Cetakan blueprint (Fase D) terdaftar terpisah karena gerbangnya berbeda: ia menerima tiket
     // pendek `?ticket=` di samping Bearer, agar PDF bisa dibuka di tab browser.

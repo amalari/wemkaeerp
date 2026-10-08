@@ -87,16 +87,23 @@ fun interface TenantOperationalDataProbe {
 }
 
 /**
- * Menetapkan pack sebuah tenant (superadmin). Ditolak bila pack tidak dikenal, atau bila tenant sudah punya data
- * operasional di vertikal lamanya (Discovery B7 §5).
+ * Menetapkan pack sebuah tenant (superadmin). Ditolak bila pack tidak dikenal, bila pack **dimiliki tenant lain**
+ * (`StoredDomainPack.ownerTenantId`, TRD-PLAT-005), atau bila tenant sudah punya data operasional di vertikal
+ * lamanya (Discovery B7 §5).
  */
 class AssignTenantDomainPackUseCase(
     private val tenantRepository: TenantRepository,
-    private val probe: TenantOperationalDataProbe
+    private val probe: TenantOperationalDataProbe,
+    private val packRepository: DomainPackRepository
 ) {
     suspend operator fun invoke(tenantId: TenantId, code: DomainPackCode): Result<Tenant> = runCatching {
         val tenant = tenantRepository.findById(tenantId) ?: error("Tenant tidak ditemukan: ${tenantId.value}")
         requireNotNull(DomainPackRegistry.find(code)) { "Pack ${code.value} tidak dikenal" }
+        // TRD-PLAT-005: pack milik satu tenant tidak boleh dipasang pada tenant lain. Dicek SEBELUM jalan pintas
+        // "sudah sama", supaya pemasangan yang melanggar (data lama) gagal keras, bukan lolos diam-diam. `null` = pack
+        // bersama atau bawaan (tidak ada baris di repository), yang boleh dipakai siapa pun. Pesan tidak menyebut pemiliknya.
+        val owner = packRepository.findLatest(code)?.ownerTenantId
+        require(owner == null || owner == tenantId) { "Pack ${code.value} tidak tersedia untuk tenant ini." }
         if (tenant.domainPack == code) return@runCatching tenant
         require(!probe.hasOperationalData(tenantId)) {
             "Tenant ${tenant.slug.value} sudah punya data operasional di pack ${tenant.domainPack.value}; pindah vertikal ditolak."

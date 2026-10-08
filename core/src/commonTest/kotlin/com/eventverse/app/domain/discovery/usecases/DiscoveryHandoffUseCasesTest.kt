@@ -28,6 +28,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -93,8 +94,7 @@ class DiscoveryHandoffUseCasesTest {
         drafts.rows.clear(); tenants.rows.clear(); packs.rows.clear(); leads.rows.clear()
     }
 
-    private suspend fun lockedKlinik(): DiscoveryDraftId {
-        val id = DiscoveryDraftId("draft-1")
+    private suspend fun lockedKlinik(id: DiscoveryDraftId = DiscoveryDraftId("draft-1")): DiscoveryDraftId {
         CreateDiscoveryDraftUseCase(
             DeterministicDiscoveryAgent(), drafts
         )(DiscoveryRequest("Kami klinik dengan antrean pasien dan tagihan kasir.", industryHint = "klinik"), owner, id).getOrThrow()
@@ -155,7 +155,9 @@ class DiscoveryHandoffUseCasesTest {
     @Test
     fun `handoff kedua dengan pack identik dipakai ulang, versi berbeda ditolak`() = runTest {
         val first = lockedKlinik()
-        handoff(first, isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        val pertama = handoff(first, isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        assertFalse(pertama.packBecameShared)
+        assertEquals(pertama.tenant.id, packs.findLatest(pertama.packCode)?.ownerTenantId, "pack baru dimiliki tenant pertama")
 
         // Prospek kedua, draf identik → reuse versi terkunci.
         val second = DiscoveryDraftId("draft-2")
@@ -165,6 +167,10 @@ class DiscoveryHandoffUseCasesTest {
         LockDiscoveryDraftUseCase(drafts)(second, owner, isPlatformSuperadmin = false).getOrThrow()
         val reuse = handoff(second, isPlatformSuperadmin = true, tenantSlug = "klinik-b", companyName = "Klinik B").getOrThrow()
         assertEquals(1, reuse.packVersion)
+        // TRD-PLAT-004 P1: reuse identik oleh tenant lain sah, tetapi pack dilepas menjadi bersama — eksplisit, bukan lolos diam-diam.
+        assertTrue(reuse.packBecameShared)
+        assertNull(packs.findLatest(reuse.packCode)?.ownerTenantId)
+        assertEquals(reuse.packCode, tenants.findBySlug(TenantSlug("klinik-b"))?.domainPack)
 
         // Prospek ketiga dengan pack yang menyimpang dari versi terkunci → 409, butuh review manual (plan §7).
         val stored = drafts.findById(second)!!
@@ -174,6 +180,40 @@ class DiscoveryHandoffUseCasesTest {
         }
         assertTrue(ex.message!!.contains("review manual"))
         assertNull(tenants.findBySlug(TenantSlug("klinik-c")))
+    }
+
+    // ── TRD-PLAT-005 (A2/A3): reuse pack identik dan kepemilikan ────────────────────────────────────────
+
+    @Test
+    fun `handoff ulang oleh pemilik sendiri tidak melepas pack menjadi bersama`() = runTest {
+        val a = handoff(lockedKlinik(), isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        val ulang = handoff(lockedKlinik(DiscoveryDraftId("draft-2")), isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+
+        assertFalse(ulang.packBecameShared)
+        assertEquals(a.tenant.id, packs.findLatest(a.packCode)?.ownerTenantId, "pemilik tidak berubah")
+    }
+
+    @Test
+    fun `setelah dilepas, tenant ketiga memakai pack bersama tanpa pelepasan baru`() = runTest {
+        handoff(lockedKlinik(), isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        val b = handoff(lockedKlinik(DiscoveryDraftId("draft-2")), isPlatformSuperadmin = true, tenantSlug = "klinik-b", companyName = "Klinik B").getOrThrow()
+        val c = handoff(lockedKlinik(DiscoveryDraftId("draft-3")), isPlatformSuperadmin = true, tenantSlug = "klinik-c", companyName = "Klinik C").getOrThrow()
+
+        assertTrue(b.packBecameShared)
+        assertFalse(c.packBecameShared, "sudah bersama, tidak ada yang dilepas lagi")
+        assertEquals(b.packCode, c.tenant.domainPack)
+        assertNull(packs.findLatest(c.packCode)?.ownerTenantId)
+    }
+
+    @Test
+    fun `handoff yang gagal saat assign mengembalikan kepemilikan pack`() = runTest {
+        val a = handoff(lockedKlinik(), isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        val punyaData = HandoffDiscoveryDraftUseCase(drafts, tenants, packs) { true }
+
+        val result = punyaData(lockedKlinik(DiscoveryDraftId("draft-2")), isPlatformSuperadmin = true, tenantSlug = "klinik-b", companyName = "Klinik B")
+
+        assertTrue(result.isFailure)
+        assertEquals(a.tenant.id, packs.findLatest(a.packCode)?.ownerTenantId, "pack A tidak boleh tertinggal bersama akibat handoff yang gagal")
     }
 
     @Test

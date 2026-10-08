@@ -98,7 +98,11 @@ class HandoffDiscoveryDraftUseCase(
     private val probe: TenantOperationalDataProbe
 ) {
 
-    data class HandoffResult(val tenant: Tenant, val packCode: DomainPackCode, val packVersion: Int?)
+    /**
+     * [packBecameShared] benar bila handoff ini memakai ulang pack **milik tenant lain** (TRD-PLAT-005): pack itu
+     * kini bersama (`ownerTenantId = null`). Dibawa ke hasil supaya pemanggil bisa mencatat audit.
+     */
+    data class HandoffResult(val tenant: Tenant, val packCode: DomainPackCode, val packVersion: Int?, val packBecameShared: Boolean = false)
 
     class ForbiddenException(message: String) : IllegalStateException(message)
 
@@ -134,6 +138,7 @@ class HandoffDiscoveryDraftUseCase(
             )
         ).getOrThrow()
 
+        var packBecameShared = false
         val version: Int? = when {
             latest == null -> { // Pack bawaan (latest null karena shipped) atau pack data pertama.
                 if (DomainPackRegistry.isShipped(pack.code)) {
@@ -144,14 +149,28 @@ class HandoffDiscoveryDraftUseCase(
                     saved.version
                 }
             }
-            // Versi yang sudah ada wajib identik drafnya — reuse, bukan timpa.
-            else -> latest.version
+            // Versi yang sudah ada wajib identik drafnya — reuse, bukan timpa. Pack adalah kosakata + daftar modul, bukan
+            // data tenant (garment sendiri dipakai semua tenant), jadi memakai ulang yang identik sah. Tetapi pack yang
+            // masih berpemilik lain dilepas dulu menjadi bersama, eksplisit dan tercatat — bukan dilewatkan diam-diam
+            // oleh penegakan pemilik di AssignTenantDomainPackUseCase. Pemilik dibaca dari versi tertinggi.
+            else -> {
+                if (latest.ownerTenantId != null && latest.ownerTenantId != tenant.id) {
+                    domainPackRepository.save(latest.copy(ownerTenantId = null))
+                    packBecameShared = true
+                }
+                latest.version
+            }
         }
 
-        val assigned = AssignTenantDomainPackUseCase(tenantRepository, probe)(tenant.id, pack.code).getOrThrow()
+        // Pelepasan sudah tertulis sebelum assign (assign menolak pack berpemilik lain). Bila assign gagal — mis. tenant
+        // sudah punya data di vertikal lain — kepemilikan dikembalikan: handoff yang gagal tidak boleh meninggalkan
+        // pack milik tenant A menjadi bersama.
+        val assigned = AssignTenantDomainPackUseCase(tenantRepository, probe, domainPackRepository)(tenant.id, pack.code)
+            .onFailure { if (packBecameShared) latest?.let { domainPackRepository.save(it) } }
+            .getOrThrow()
         val withBlueprint = assigned.copy(businessPreset = stored.draft.blueprint)
         val final = if (withBlueprint != assigned) tenantRepository.save(withBlueprint).getOrThrow() else assigned
 
-        HandoffResult(final, pack.code, version)
+        HandoffResult(final, pack.code, version, packBecameShared)
     }
 }

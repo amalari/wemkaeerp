@@ -206,7 +206,7 @@ class DomainRouteWiring(
             probe = com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(), catalogRepository = catalogRepo,
             buildRepository = buildRepo, sizingWeightsRepository = sizingWeightsRepo, embeddingProvider = embeddingProviderImpl,
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo, builderChats = builderChats,
-            agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv())
+            agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv(), auditLogRepository = auditLogRepo)
         // Pilot Jalur C: modul pack data `layanan` (gerbang fail-closed; hanya tenant yang packnya memuat modul ini).
         layananChangeRequestRoutes(
             com.eventverse.app.infrastructure.PostgresLayananChangeRequestRepository(), roleRepo, assignmentRepo

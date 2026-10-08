@@ -46,7 +46,7 @@ fun Route.domainPackRoutes(
 ) {
     val saveDraft = SaveDomainPackDraftUseCase(packRepository)
     val lock = LockDomainPackUseCase(packRepository)
-    val assign = AssignTenantDomainPackUseCase(tenantRepository, probe)
+    val assign = AssignTenantDomainPackUseCase(tenantRepository, probe, packRepository)
 
     get("/api/tenant/pack") {
         val tenant = call.tenantContextOrNull ?: return@get call.respond(HttpStatusCode.NotFound, "No tenant context found")

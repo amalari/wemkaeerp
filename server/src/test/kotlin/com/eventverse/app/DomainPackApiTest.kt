@@ -124,6 +124,53 @@ class DomainPackApiTest {
         assertEquals(HttpStatusCode.Conflict, client.get("/api/tenant/pack") { asTenant("pack-hilang") }.status)
     }
 
+    @Test
+    fun ownedPack_isRejectedForOtherTenant_acceptedForOwner_andForbiddenForNonSuperadmin() = testApplication {
+        DatabaseFactory.init()
+        val tenants = tenants()
+        application { module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),
+            entitlementRepository = InMemoryTenantEntitlementRepository(), roleRepository = InMemoryRoleRepository(),
+            moduleAssignmentRepository = InMemoryModuleAssignmentRepository(), departmentRepository = InMemoryDepartmentRepository(),
+            employeeRepository = InMemoryEmployeeRepository(), auditLogRepository = InMemoryAuditLogRepository(),
+            domainPackRepository = InMemoryDomainPackRepository()) }
+        val json = DomainPackCodec.encodeToString(KLINIK)
+        assertEquals(HttpStatusCode.OK, client.put("/api/admin/domain-packs/klinik?ownerSlug=$klinikSlug") { asSuperadmin(); contentType(ContentType.Application.Json); setBody(json) }.status)
+        assertEquals(HttpStatusCode.OK, client.post("/api/admin/domain-packs/klinik/lock") { asSuperadmin() }.status)
+
+        // Tenant lain ditolak (409), tenantnya tidak berubah, dan pesan tidak membocorkan pemilik.
+        val ditolak = client.put("/api/admin/tenants/$garmentSlug/domain-pack") { asSuperadmin(); setBody("""{"code":"klinik"}""") }
+        assertEquals(HttpStatusCode.Conflict, ditolak.status)
+        assertTrue(!ditolak.bodyAsText().contains(klinikSlug) && !ditolak.bodyAsText().contains("ten-klinik-uji"), ditolak.bodyAsText())
+        assertEquals(GarmentDomainPack.CODE, DomainPackCodec.decode(client.get("/api/tenant/pack") { asTenant(garmentSlug) }.bodyAsText()).code)
+
+        // Non-superadmin: 403 sebelum aturan kepemilikan sempat dinilai.
+        assertEquals(HttpStatusCode.Forbidden, client.put("/api/admin/tenants/$garmentSlug/domain-pack") { asTenant(garmentSlug, Role.TENANT_ADMIN); setBody("""{"code":"klinik"}""") }.status)
+
+        // Pemilik diterima.
+        assertEquals(HttpStatusCode.OK, client.put("/api/admin/tenants/$klinikSlug/domain-pack") { asSuperadmin(); setBody("""{"code":"klinik"}""") }.status)
+    }
+
+    @Test
+    fun revisionWithoutOwnerSlug_keepsOwner_soOtherTenantsStayRejected() = testApplication {
+        // Mengunci semantik nyata (TRD-PLAT-005 D4): SaveDomainPackDraftUseCase mempertahankan pemilik versi sebelumnya
+        // (`ownerTenantId ?: latest?.ownerTenantId`). PUT tidak punya cara menjadikan pack bersama; itu hanya lewat handoff.
+        DatabaseFactory.init()
+        val tenants = tenants()
+        application { module(tenantRepository = tenants, pipelineRepository = InMemoryTenantPipelineRepository(),
+            entitlementRepository = InMemoryTenantEntitlementRepository(), roleRepository = InMemoryRoleRepository(),
+            moduleAssignmentRepository = InMemoryModuleAssignmentRepository(), departmentRepository = InMemoryDepartmentRepository(),
+            employeeRepository = InMemoryEmployeeRepository(), auditLogRepository = InMemoryAuditLogRepository(),
+            domainPackRepository = InMemoryDomainPackRepository()) }
+        val json = DomainPackCodec.encodeToString(KLINIK)
+        client.put("/api/admin/domain-packs/klinik?ownerSlug=$klinikSlug") { asSuperadmin(); contentType(ContentType.Application.Json); setBody(json) }
+        client.post("/api/admin/domain-packs/klinik/lock") { asSuperadmin() }
+
+        // Revisi tanpa ownerSlug → versi 2 tetap milik tenant klinik.
+        assertEquals(HttpStatusCode.OK, client.put("/api/admin/domain-packs/klinik") { asSuperadmin(); contentType(ContentType.Application.Json); setBody(json) }.status)
+        assertEquals(HttpStatusCode.Conflict, client.put("/api/admin/tenants/$garmentSlug/domain-pack") { asSuperadmin(); setBody("""{"code":"klinik"}""") }.status)
+        assertEquals(HttpStatusCode.OK, client.put("/api/admin/tenants/$klinikSlug/domain-pack") { asSuperadmin(); setBody("""{"code":"klinik"}""") }.status)
+    }
+
     private fun tenants() = InMemoryTenantRepository().also { repo ->
         runBlocking {
             repo.save(tenant("ten-klinik-uji", klinikSlug, GarmentDomainPack.CODE))
