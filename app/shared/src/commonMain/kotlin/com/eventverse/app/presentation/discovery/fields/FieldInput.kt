@@ -16,6 +16,7 @@ import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
+import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
@@ -29,7 +30,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * Pemetaan [FieldType]:
  * - TEXT -> [ClayTextField] standar
  * - NUMBER -> [ClayTextField] dengan [KeyboardType.Number]
- * - DATE -> [ClayTextField] dengan format TTTT-BB-HH
+ * - DATE -> [ClayDatePicker] pemilih tanggal berformat TTTT-BB-HH
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
  */
@@ -116,16 +117,13 @@ fun FieldInput(
                 )
             }
             FieldType.DATE -> {
-                ClayTextField(
+                ClayDatePicker(
                     value = value,
                     onValueChange = onValueChange,
+                    label = "",
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = if (compact) field.label else "TTTT-BB-HH (mis. 2026-10-15)",
                     enabled = enabled,
-                    isError = errorMessage != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    keyboardActions = keyboardActions
+                    isError = errorMessage != null
                 )
             }
             FieldType.TEXT -> {
