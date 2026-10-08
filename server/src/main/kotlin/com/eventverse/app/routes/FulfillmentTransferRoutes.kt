@@ -36,12 +36,12 @@ import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
 import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfigRepository
 import com.eventverse.app.domain.fulfillment.HandoverMode
+import com.eventverse.app.domain.fulfillment.HandoverRouteCode
+import com.eventverse.app.domain.fulfillment.HandoverRouteRepository
 import com.eventverse.app.domain.fulfillment.InternalTransferRepository
 import com.eventverse.app.domain.fulfillment.SackTransferId
-import com.eventverse.app.domain.fulfillment.SackRoute
-import com.eventverse.app.domain.fulfillment.legacySackRoutes
-import com.eventverse.app.domain.fulfillment.toRouteCode
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
+import com.eventverse.app.domain.fulfillment.TenantHandoverRoutes
 import com.eventverse.app.domain.fulfillment.WeightKg
 import com.eventverse.app.domain.fulfillment.usecases.ApproveTransferUseCase
 import com.eventverse.app.domain.fulfillment.usecases.ListTransfersUseCase
@@ -58,7 +58,6 @@ import com.eventverse.app.domain.traceability.TraceContainerRepository
 import com.eventverse.app.infrastructure.storage.BenchmarkImageStorage
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
-import com.eventverse.app.shared.fulfillment.FulfillmentRouteConfigCodec
 import com.eventverse.app.shared.fulfillment.InternalTransferCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -88,10 +87,11 @@ fun Route.fulfillmentTransferRoutes(
     transfers: InternalTransferRepository,
     containers: TraceContainerRepository,
     routeConfigRepository: FulfillmentRouteConfigRepository,
+    /** Daftar rute per tenant (V96) — sumber `knownRoutes` untuk submit dan layar `/routes`. */
+    handoverRoutes: HandoverRouteRepository,
     imageStorage: BenchmarkImageStorage? = null,
     roleRepository: RoleRepository? = null
 ) {
-    val submit = SubmitTransferUseCase(transfers, containers, routeConfigRepository)
     val resubmitUseCase = ResubmitTransferUseCase(transfers)
     val approve = ApproveTransferUseCase(transfers)
     val reject = RejectTransferUseCase(transfers)
@@ -124,13 +124,23 @@ fun Route.fulfillmentTransferRoutes(
             val body = call.fulfillmentBody()
                 ?: return@post call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
 
-            val leg = SackRoute.entries.firstOrNull { it.name == body.string("leg") }
-                ?: return@post call.respond(HttpStatusCode.BadRequest, "Rute perjalanan (leg) tidak dikenali")
+            // Kode rute kini data tenant (V96): parser tunggal menolak yang tidak sah —
+            // keanggotaan & status aktif divalidasi terhadap daftar efektif di bawah.
+            val routeCode = HandoverRouteCode.parse(body.string("leg"))
+                .getOrElse {
+                    return@post call.respond(HttpStatusCode.BadRequest, it.message ?: "Kode rute perjalanan tidak sah")
+                }
+            if (tenant.effectiveRoutes(handoverRoutes).find(routeCode)?.active != true) {
+                return@post call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Rute '${routeCode.value}' tidak dikenal atau sudah dinonaktifkan untuk tenant ini"
+                )
+            }
 
             // Mode diselesaikan di sini supaya bukti yang kurang dijawab 400 (salah isi form),
             // bukan 409 dari invarian domain — dua hal yang menuntun operator ke arah berbeda.
             val mode = (routeConfigRepository.findByTenantId(tenant.tenantId)
-                ?: FulfillmentRouteConfig(tenant.tenantId)).modeFor(leg)
+                ?: FulfillmentRouteConfig(tenant.tenantId)).modeFor(routeCode)
 
             var weight: WeightKg? = null
             var photoKey: String? = null
@@ -145,10 +155,24 @@ fun Route.fulfillmentTransferRoutes(
                     )
             }
 
+            // Rute yang sah kini dari data tenant (V96), bukan lagi isi `SackRoute` —
+            // jembatan S0–S2 berakhir di rebase PR B (plan §Track B, catatan).
+            val submit = SubmitTransferUseCase(
+                transfers,
+                containers,
+                routeConfigRepository,
+                knownRoutes = { tenantId ->
+                    TenantHandoverRoutes.resolve(
+                        tenantId,
+                        handoverRoutes.findByTenantId(tenantId),
+                        tenant.pack.handoverRouteTemplate
+                    )
+                }
+            )
             submit(
                 tenantId = tenant.tenantId,
                 rawSackPayload = body.string("sackCode").orEmpty(),
-                route = leg.toRouteCode(),
+                route = routeCode,
                 dispatchWeightKg = weight,
                 dispatchScalePhotoKey = photoKey,
                 requestedBy = body.string("requestedBy").orEmpty(),
@@ -270,45 +294,6 @@ fun Route.fulfillmentTransferRoutes(
             val key = storage.store(tenant.slug.value, fileName, contentType, bytes)
                 ?: return@post call.respond(HttpStatusCode.InternalServerError, "Gagal menyimpan berkas")
             call.respondJson(jsonObjectOf("key" to jsonOf(key)).encode())
-        }
-
-        // ── Konfigurasi mode per rute ───────────────────────────────────────────────────────
-        // Baca cukup konteks tenant: layar kerja butuh tahu bentuk formulirnya sebelum operator
-        // mengisi apa pun. Tulis butuh MANAGE, bukan OPERATE — ini topologi yang menentukan
-        // kapan gerbang ACC menutup, dan siapa pun yang bisa menulisnya bisa mematikannya.
-        route("/route-settings") {
-
-            get {
-                val tenant = call.requireFulfillmentTenant() ?: return@get
-                val config = routeConfigRepository.findByTenantId(tenant.tenantId)
-                    ?: FulfillmentRouteConfig(tenant.tenantId)
-                call.respondJson(FulfillmentRouteConfigCodec.encode(config).encode())
-            }
-
-            put {
-                val tenant = call.requireFulfillmentTenant() ?: return@put
-                if (!call.canManageFulfillment(tenant, roleRepository)) {
-                    return@put call.respond(
-                        HttpStatusCode.Forbidden,
-                        "Akses ditolak: mengubah pola serah terima butuh wewenang kelola modul FULFILLMENT"
-                    )
-                }
-                val body = call.fulfillmentBody()
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
-
-                // tenantId diambil dari sesi, bukan dari payload — payload hanya membawa rutenya.
-                // Isi tak sah (kode, mode, baris ganda) dan kode di luar rute tenant → 400, bukan dilewati diam-diam.
-                val config = runCatching {
-                    FulfillmentRouteConfigCodec.decode(body, tenant.tenantId)
-                        .validatedAgainst(legacySackRoutes(tenant.tenantId))
-                }.getOrElse { return@put call.respond(HttpStatusCode.BadRequest, it.message ?: "Konfigurasi rute tidak sah") }
-
-                runCatching { routeConfigRepository.save(config) }
-                    .onSuccess { call.respondJson(FulfillmentRouteConfigCodec.encode(config).encode()) }
-                    .onFailure {
-                        call.respond(HttpStatusCode.BadRequest, it.message ?: "Gagal menyimpan konfigurasi rute")
-                    }
-            }
         }
     }
 }

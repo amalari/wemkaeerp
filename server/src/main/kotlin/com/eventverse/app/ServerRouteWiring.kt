@@ -182,11 +182,24 @@ fun Route.operationalModuleRoutes(
     val fulfillmentRouteConfigRepository: com.eventverse.app.domain.fulfillment.FulfillmentRouteConfigRepository =
         com.eventverse.app.infrastructure.PostgresFulfillmentRouteConfigRepository()
 
+    // Satu instance untuk dua pemakai: submit (knownRoutes) dan layar konfigurasi /routes.
+    val handoverRouteRepository: com.eventverse.app.domain.fulfillment.HandoverRouteRepository =
+        com.eventverse.app.infrastructure.PostgresHandoverRouteRepository()
+
     fulfillmentTransferRoutes(
         transfers = transferRepo,
         containers = traceContainerRepo,
         routeConfigRepository = fulfillmentRouteConfigRepository,
+        handoverRoutes = handoverRouteRepository,
         imageStorage = benchmarkImageStorage,
+        roleRepository = roleRepo
+    )
+
+    // Rute & mode serah terima sebagai data (TRD-FLOW-003, B3) — konfigurasi terpisah
+    // dari perjalanan karung; gerbangnya lewat TenantRouteGatePolicy + MANAGE di handler.
+    fulfillmentRouteRoutes(
+        routes = handoverRouteRepository,
+        routeConfigRepository = fulfillmentRouteConfigRepository,
         roleRepository = roleRepo
     )
 
