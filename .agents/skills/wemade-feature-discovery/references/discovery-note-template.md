@@ -14,6 +14,7 @@
 
 ## 3. Jenis
 **Modul operasional / Governance / Foundation / Fitur dalam modul `<MODUL_INDUK>`** — alasan:
+**Mungkin dipakai tenant lain?** ya (→ pack bersama sejak awal) / tidak (→ khusus tenant) — alasan: *(hanya untuk modul baru)*
 
 ## 4. Uji Variabilitas
 | Konsep | Tenant? | Industri? | Admin ubah? | Kode/Data | Template & titik beku |

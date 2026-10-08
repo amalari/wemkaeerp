@@ -1289,6 +1289,21 @@ mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
 - Kanvas menyambung node **dari port**, bukan dari daftar tulis tangan (target TRD-FLOW-002). Port yang tidak menyambung = node yatim di kanvas.
 - Kunci: entitlement, `custom_roles`, `department_module_assignments` memakai **NAME** enum (`QUALITY_CONTROL`); node pipeline & `module_catalog_entries` memakai **code** (`quality_control`). Jangan tertukar.
 
+### 5.6 Kepemilikan & promosi modul (TRD-PLAT-004, diputuskan 2026-10-08)
+
+- **Jalur kepemilikan**: mesin platform → pack bawaan → pack data bersama → khusus tenant. Ketergantungan hanya
+  ke atas; kode mesin tidak boleh menyebut kode khusus tenant (pagar impor menyusul, rencana Track B).
+- **Promosi = salin, bukan ganti nama.** Modul khusus tenant yang ternyata berguna lintas tenant dipromosikan
+  dengan **menyalin** ke pack baru (kode dan prefiks baru). Nama schema DB sama dengan kode modul, jadi ganti
+  nama = migrasi tabel. Field `derivedFrom` dibuat saat promosi pertama terjadi, bukan sebelumnya.
+- **Kode khusus tenant tetap di pohon sumber dan binary yang sama** (P3) selama pagar impor dan pagar migrasi
+  hijau. Tinjau ulang bila ada tenant yang menuntut kode tertutup (kontrak, NDA).
+- **Modul khusus tenant**: migrasinya tidak boleh mereferensikan schema modul lain, kecuali `public.tenants`,
+  `public.users`, schema sendiri, dan schema yang dirujuk lewat `moduleReferences` (P4; pemindai menyusul).
+  B8 (FK/JOIN lintas schema) tetap berlaku untuk modul garment.
+- **Pack berpemilik** hanya bisa dipasang pada tenant pemiliknya (TRD-PLAT-005). Handoff identik oleh tenant lain
+  melepasnya menjadi bersama dan tercatat audit.
+
 ---
 
 # WeMade ERP — Aturan Variabilitas Tenant (Kode vs Data)

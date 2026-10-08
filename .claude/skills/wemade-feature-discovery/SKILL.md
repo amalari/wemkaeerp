@@ -50,6 +50,11 @@ Ikuti [`module-integration-rules.md` §5](../../rules/module-integration-rules.m
 Ragu antara modul dan fitur → **fitur**. Menurunkan modul jadi fitur jauh lebih mahal daripada
 menaikkan fitur jadi modul.
 
+**Pertanyaan wajib untuk modul baru (bukan fitur dalam modul): "Mungkin dipakai tenant lain?"**
+Jika ya → lahirkan di **pack bersama** sejak awal, bukan di pack milik satu tenant. Nama schema DB sama
+dengan kode modul, jadi mengganti nama modul tenant menjadi modul bersama kelak berarti migrasi tabel
+(TRD-PLAT-004 P5/P6). Catat jawabannya di Discovery Note §3.
+
 ## Langkah 4 — Uji Variabilitas
 
 Untuk setiap konsep baru (status, tahap, jenis, urutan, label, warna, tarif), jawab tiga pertanyaan
