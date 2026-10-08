@@ -8,11 +8,14 @@ import com.eventverse.app.domain.prototype.FieldHint
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.FormHints
 import com.eventverse.app.domain.prototype.KanbanHints
+import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TableHints
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.strictBoolean
 
 /**
  * Kawat JSON daftar [ScreenSuggestion] — dipisah dari `DomainPackCodec` karena tanggung
@@ -77,9 +80,17 @@ internal object ScreenSuggestionCodec {
         "rationale" to jsonOf(s.rationale)
     )
 
-    private fun encodeFieldHint(f: FieldHint): JsonValue.Obj = jsonObjectOf(
-        "key" to jsonOf(f.key), "type" to jsonOf(f.type.name),
-        "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
+    /** Parameter hanya ditulis bila bukan bawaan: pack lama tetap byte-per-byte sama setelah di-encode. */
+    private fun encodeFieldHint(f: FieldHint): JsonValue.Obj = JsonValue.Obj(
+        jsonObjectOf(
+            "key" to jsonOf(f.key), "type" to jsonOf(f.type.name),
+            "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
+        ).entries + buildMap {
+            if (f.format != NumberFormat.PLAIN) put("format", jsonOf(f.format.name))
+            f.currencyCode?.let { put("currencyCode", jsonOf(it)) }
+            if (f.withTime) put("withTime", jsonOf(true))
+            if (f.validation != TextValidation.NONE) put("validation", jsonOf(f.validation.name))
+        }
     )
 
     private fun decodeOne(o: JsonValue.Obj, path: String): ScreenSuggestion {
@@ -102,7 +113,12 @@ internal object ScreenSuggestionCodec {
                     (f["key"] as? JsonValue.Str)?.value ?: fail("$where.key", "wajib string"),
                     type,
                     (f["required"] as? JsonValue.Bool)?.value ?: false,
-                    strListIn(f, "options")
+                    strListIn(f, "options"),
+                    // Kunci absen/null = bawaan; tipe JSON salah atau nama tak dikenal ditolak (bukan jatuh ke bawaan).
+                    format = FieldParamWire.numberFormat(f),
+                    currencyCode = FieldParamWire.currencyCode(f),
+                    withTime = f.strictBoolean("withTime", false),
+                    validation = FieldParamWire.textValidation(f)
                 )
             }
         val moduleId = try {

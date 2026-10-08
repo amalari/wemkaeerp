@@ -32,6 +32,19 @@ sealed interface SpecOp {
     data class SetFieldFormat(val entityId: String, val field: String, val format: NumberFormat, val currencyCode: String? = null) : SpecOp
 
     /**
+     * Ubah [field] DATE menjadi tanggal-saja (`withTime=false`) atau tanggal+jam (`withTime=true`) (A0(C6) Irisan 2).
+     * Berbeda dari [SetFieldFormat], ini mengubah **bentuk nilai tersimpan** (`DATE` ↔ `TIMESTAMP`), jadi operasi
+     * **ditolak** bila ada nilai baris contoh yang tak lolos bentuk baru — tidak ada konversi diam-diam.
+     */
+    data class SetFieldWithTime(val entityId: String, val field: String, val withTime: Boolean) : SpecOp
+
+    /**
+     * Ubah validasi bentuk [field] TEXT (A0(C9) Irisan 2). Menyempitkan aturan bisa membuat nilai lama tak sah, jadi
+     * operasi **ditolak** bila ada nilai baris contoh yang tak lolos aturan baru; melonggarkan (mis. ke NONE) selalu lolos.
+     */
+    data class SetFieldValidation(val entityId: String, val field: String, val validation: TextValidation) : SpecOp
+
+    /**
      * Ganti jenis tampilan layar [screenId] menjadi [widget] — hanya **TABLE** dan **KANBAN** (papan) yang dikenal;
      * jenis lain ditolak dengan pesan. Tabel selalu mungkin untuk layar data; papan butuh field pilihan status
      * (ENUM). Aturan kelayakan lengkap di `ChangeWidgetOp`.

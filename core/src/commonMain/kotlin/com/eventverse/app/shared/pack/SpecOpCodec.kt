@@ -5,13 +5,13 @@ import com.eventverse.app.domain.discovery.brief.CaptureEntry
 import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
-import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.SpecOp
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.shared.json.strictBoolean
+import com.eventverse.app.shared.json.strictRequiredBoolean
 
 /**
  * Kawat JSON [SpecOp] dan [CaptureEntry] (kontrak v1) — dipakai body/respons `spec-ops` dan `brief`.
@@ -39,6 +39,8 @@ object SpecOpCodec {
             "type" to jsonOf("SetFieldFormat"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field),
             "format" to jsonOf(op.format.name), "currencyCode" to jsonOf(op.currencyCode)
         )
+        is SpecOp.SetFieldWithTime -> jsonObjectOf("type" to jsonOf("SetFieldWithTime"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "withTime" to jsonOf(op.withTime))
+        is SpecOp.SetFieldValidation -> jsonObjectOf("type" to jsonOf("SetFieldValidation"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "validation" to jsonOf(op.validation.name))
         is SpecOp.ChangeWidget -> jsonObjectOf("type" to jsonOf("ChangeWidget"), "screenId" to jsonOf(op.screenId), "widget" to jsonOf(op.widget.code))
     }
 
@@ -51,10 +53,9 @@ object SpecOpCodec {
             "AddField" -> {
                 val f = requireNotNull(o.obj("field")) { "Bidang 'field' wajib diisi." }
                 val ft = FieldType.entries.firstOrNull { it.name == f.string("fieldType") }
-                val format = decodeFormat(f.string("format"), required = false)
                 SpecOp.AddField(
                     str("entityId"),
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f))
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))
@@ -66,20 +67,15 @@ object SpecOpCodec {
                 str("entityId"), str("field"),
                 requireNotNull(o.boolean("required")) { "Bidang 'required' wajib diisi." }
             )
-            "SetFieldFormat" -> SpecOp.SetFieldFormat(str("entityId"), str("field"), decodeFormat(o.string("format"), required = true), o.string("currencyCode"))
+            "SetFieldFormat" -> SpecOp.SetFieldFormat(str("entityId"), str("field"), FieldParamWire.numberFormat(o, required = true), FieldParamWire.currencyCode(o))
+            "SetFieldWithTime" -> SpecOp.SetFieldWithTime(str("entityId"), str("field"), o.strictRequiredBoolean("withTime"))
+            "SetFieldValidation" -> SpecOp.SetFieldValidation(str("entityId"), str("field"), FieldParamWire.textValidation(o, required = true))
             "ChangeWidget" -> SpecOp.ChangeWidget(
                 str("screenId"),
                 requireNotNull(WidgetKind.fromCode(o.string("widget").orEmpty())) { "Jenis tampilan '${o.string("widget").orEmpty()}' tidak dikenal." }
             )
             else -> throw IllegalArgumentException("Jenis operasi '${type.orEmpty()}' tidak dikenal.")
         }
-    }
-
-    /** Nama format tak dikenal ditolak (bukan jatuh ke PLAIN); `AddField` boleh tanpa format (dokumen lama = PLAIN). */
-    private fun decodeFormat(name: String?, required: Boolean): NumberFormat = when {
-        name == null && !required -> NumberFormat.PLAIN
-        else -> NumberFormat.entries.firstOrNull { it.name == name }
-            ?: throw IllegalArgumentException("Format angka '${name.orEmpty()}' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
     }
 
     fun encode(e: CaptureEntry): JsonValue.Obj =

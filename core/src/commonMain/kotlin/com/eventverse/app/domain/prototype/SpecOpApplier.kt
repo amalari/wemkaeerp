@@ -32,6 +32,9 @@ object SpecOpApplier {
             is SpecOp.ShowFieldOnCard -> showFieldOnCard(screen, op)
             is SpecOp.SetFieldRequired -> setFieldRequired(screen, op)
             is SpecOp.SetFieldFormat -> setFieldFormat(screen, op)
+            // A0(C6)/A0(C9): parameter yang mengubah bentuk nilai sah; seed yang tak lolos menolak operasi.
+            is SpecOp.SetFieldWithTime -> FieldParamOps.setWithTime(screen, op)
+            is SpecOp.SetFieldValidation -> FieldParamOps.setValidation(screen, op)
             // SP-B5: ganti jenis tampilan; aturan kelayakan di ChangeWidgetOp (tolak bermesej, tak menebak).
             is SpecOp.ChangeWidget -> ChangeWidgetOp.apply(screen, op)
         }
