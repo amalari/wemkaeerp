@@ -145,12 +145,10 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
     ),
     "fieldTypes" to jsonArrayOf(
         FieldType.entries.map { t ->
-            jsonObjectOf(
-                "name" to jsonOf(t.name),
-                "note" to jsonOf(KoogDiscoveryFieldTypeVocabulary.note(t))
-            )
+            jsonObjectOf("name" to jsonOf(t.name), "note" to jsonOf(KoogDiscoveryFieldTypeVocabulary.note(t)))
         }
     ),
+    "numberFormats" to KoogDiscoveryNumberFormatVocabulary.catalogJson(),
     "cardStyles" to jsonArrayOf(CardStyle.entries.map { jsonOf(it.name) }),
     "skeleton" to KoogDiscoverySkeletonVocabulary.catalogJson(),
     "limits" to jsonObjectOf(

@@ -14,8 +14,10 @@ import com.eventverse.app.domain.discovery.proposal.FieldProposal
 import com.eventverse.app.domain.discovery.proposal.ProposalEdit
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.infrastructure.EnvLoader
 import com.eventverse.app.infrastructure.discovery.DiscoveryAgents
+import com.eventverse.app.infrastructure.discovery.KoogDiscoveryNumberFormatVocabulary
 import com.eventverse.app.infrastructure.discovery.extractJsonObject
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -49,7 +51,8 @@ class KoogModuleEditor(
         appendLine("Isian saat ini (entitas '${e?.label ?: "-"}'):")
         e?.fields?.forEach { f ->
             appendLine("- key=${f.key}; label=${f.label}; type=${f.type.name}; required=${f.required}" +
-                if (f.options.isNotEmpty()) "; options=${f.options.joinToString("|")}" else "")
+                (if (f.options.isNotEmpty()) "; options=${f.options.joinToString("|")}" else "") +
+                (if (f.format != NumberFormat.PLAIN) "; format=${f.format.name}; currencyCode=${f.currencyCode}" else ""))
         } ?: appendLine("(layar ini tidak punya isian)")
         e?.statusField?.let { appendLine("Field status (jangan dibuang/diganti tipenya): $it") }
         if (r.answered.isNotEmpty()) {
@@ -86,10 +89,12 @@ class KoogModuleEditor(
         val type = (o["type"] as? JsonValue.Str)?.value?.uppercase()?.let { t -> FieldType.entries.firstOrNull { it.name == t } }
             ?: error("field.type wajib salah satu ${FieldType.entries.joinToString { it.name }}")
         val options = (o["options"] as? JsonValue.Arr)?.items?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty().take(ProposalLimits.OPTIONS)
+        val number = KoogModuleEditorNumberFormat.read(o, type)
         return FieldProposal(
             key = (o["key"] as? JsonValue.Str)?.value ?: error("field.key wajib"),
             label = (o["label"] as? JsonValue.Str)?.value ?: error("field.label wajib"),
-            type = type, required = (o["required"] as? JsonValue.Bool)?.value ?: false, options = options
+            type = type, required = (o["required"] as? JsonValue.Bool)?.value ?: false, options = options,
+            format = number.format, currencyCode = number.currencyCode
         )
     }
 
@@ -106,6 +111,7 @@ class KoogModuleEditor(
             ATURAN:
             - key: huruf kecil, angka, garis bawah, diawali huruf, maksimum 41 karakter (mis. tanggal_kirim). label: nama tampil bahasa Indonesia.
             - type salah satu: ${FieldType.entries.joinToString { it.name }}. ENUM wajib punya options (maksimum ${ProposalLimits.OPTIONS}); tipe lain tanpa options. LONG_TEXT untuk isi sekalimat atau lebih (catatan, keluhan, deskripsi); TEXT untuk nama/kode/judul satu baris.
+            - ${KoogDiscoveryNumberFormatVocabulary.promptRule}. Jangan mengubah format/currencyCode field yang tidak diminta.
             - Maksimum $MAX_EDITS sunting per jawaban. Jangan membuang atau mengganti tipe field status. Jangan menambah field yang sudah ada.
             - Hanya lakukan yang diminta atau yang jelas tersirat dari jawaban pengguna. Jawaban "sudah cukup" atau permintaan di luar isian
               berarti tidak ada sunting: balas edits kosong dan jelaskan singkat di reply.
@@ -113,6 +119,7 @@ class KoogModuleEditor(
 
             BALASAN: satu objek JSON saja:
             {"reply":"...","edits":[{"op":"add","field":{"key":"...","label":"...","type":"TEXT","required":false,"options":[]}},
+            {"op":"add","field":{"key":"harga","label":"Harga","type":"NUMBER","required":false,"options":[],"format":"CURRENCY","currencyCode":"IDR"}},
             {"op":"remove","key":"..."},{"op":"replace","key":"...","field":{"key":"<sama>","label":"...","type":"ENUM","required":true,"options":["a","b"]}}]}
         """.trimIndent()
     }
