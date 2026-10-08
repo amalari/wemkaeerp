@@ -17,16 +17,43 @@ Tiap jalur di bawah memenuhi Gerbang 1 `wemade-feature-workflow`: berukuran seda
 | F7 | Draf berubah hanya lewat patch chat yang **diterapkan manusia** (`POST /chat/apply`), divalidasi ulang di use case | `BuilderRoutes.kt` |
 | F8 | Handoff dan `assign` pack menegakkan pemilik pack (TRD-PLAT-005); **deploy builder tidak memanggil `AssignTenantDomainPackUseCase`**, dan di jalur `BLOCKED_ON_BUILD` tenant tidak di-pin ke versi pack | `DeploymentUseCases.kt` |
 
+| F10 | `BuildRequest.quoteId` hanya dibaca dan disalin ulang; **tidak ada kode yang mengisinya**. `BuildRequest` lahir tanpa `ModuleBuildRecord` dan tanpa estimasi | `PostgresBuilderBuildRequestRepository`, `DeployTenantUseCase` |
+| F11 | `ModulePricingQuote.send()` dan `.accept()` **tidak dipanggil** di `core` maupun `server/src/main`: penawaran tidak pernah keluar dari `DRAFT`; pratinjau tagihan hanya menagih `ACCEPTED` | grep |
+| F12 | Mesin harga ledger sudah matang (estimasi p50/p90 dari build serupa, penawaran dari p90, menolak estimasi `LOW`, jam nyata kembali ke ledger lewat `effort`+`complete`) tetapi terputus dari antrean tenant | `BuildEstimator`, `QuoteModulePriceUseCase`, `ModuleDevRoutes` |
+
 **Belum diverifikasi (jawab di Discovery tiap jalur):** bagaimana tenant builder mendapat `tenants.domain_pack` = kode pack kustomnya bila tidak lewat handoff; apakah `BuildRequest.moduleId` selalu sama dengan id modul di pack; apakah ada UI konsol yang memanggil endpoint status; isi `Deployment` state machine penuh (`BuilderDeployment.kt` hanya dibaca sebagian).
 
 ## 1. Urutan yang disarankan
 
+> **Pembaruan 2026-10-08 (setelah pertanyaan soal penawaran harga):** ditambahkan **Jalur 0** — estimasi dan penawaran
+> terhubung ke antrean build (TRD-PLAT-007). Temuan F10–F12 di bawah. Produk belum launch, jadi dikerjakan langsung
+> tanpa kompatibilitas mundur, **sebelum** Jalur 1 karena mesin status Jalur 1 membaca keadaan penawaran dan ledger.
+
 ```
-Jalur 1  Siklus build ↔ registri ↔ deployment   (menutup F2/F3; paling berisiko: modul bisa "SHIPPED" tapi tidak hidup)
-   └──► Jalur 2  Deploy, versi, kepemilikan     (menutup F8; bergantung pada Jalur 1 untuk jalur BLOCKED_ON_BUILD)
+Jalur 0  Estimasi → penawaran → persetujuan → jam nyata terhubung ke antrean   (TRD-PLAT-007; fondasi Jalur 1)
+   └──► Jalur 1  Siklus build ↔ registri ↔ deployment   (menutup F2/F3; paling berisiko: modul bisa "SHIPPED" tapi tidak hidup)
+         └──► Jalur 2  Deploy, versi, kepemilikan     (menutup F8; bergantung pada Jalur 1 untuk jalur BLOCKED_ON_BUILD)
 Jalur 3  Narasi → konfigurasi                    (paling besar dan paling sedikit fondasinya; sink belum ada, lihat F6)
 ```
 Jalur 1 dan 3 tidak saling bergantung dan dapat berjalan paralel di worktree terpisah. Jalur 2 sebaiknya setelah Jalur 1.
+
+---
+
+## Jalur 0 — Estimasi dan Penawaran Terhubung ke Antrean Build
+
+**Spesifikasi**: [`TRD-PLAT-007`](../trd/TRD-PLAT-007-build-estimate-quote-link.md). **Tujuan**: `QUOTED`, `APPROVED`, dan `SHIPPED` bermakna secara mesin: ada estimasi, ada penawaran yang diterima oleh yang berwenang, dan jam nyata kembali ke ledger sehingga estimator belajar.
+
+**Inti perilaku**: saat `BuildRequest` lahir → buat `ModuleBuildRecord` dan estimasi otomatis (boleh menolak menebak) → superadmin menerbitkan penawaran dari p90 (`QUOTED`) → pemilik tenant menerima (`APPROVED`) → dikerjakan → `SHIPPED` hanya bila rekaman ledger `DELIVERED` dan modul tersedia. Build internal = penawaran diskon 100 % dengan alasan wajib; **tidak ada lompatan status**.
+
+| Track | Isi | Direktori |
+|---|---|---|
+| **A** | Kolom `build_record_id`/`estimate_state`; pembuatan rekaman + estimasi di deploy; `IssueBuildQuoteUseCase`, `AcceptBuildQuoteUseCase`; pemetaan status tiga sumber; tes dua tenant | `core/domain/builder`, `core/domain/moduledev` |
+| **B** | Migrasi aditif; endpoint quote/accept/reject/estimate; gerbang peran (pemilik tenant, superadmin atas nama); audit; tes 401/403/404/409/200 | `server` |
+| **C** | Antrean memuat estimasi/penawaran; keputusan penawaran di builder tenant; cek visual | `app/shared/presentation/builder` |
+
+**Keputusan yang diminta**: K-1 build internal = diskon 100 %; K-2 yang menerima penawaran = pemilik tenant (superadmin "atas nama"); K-3 estimasi sinkron dengan batas waktu; K-4 tanpa `QUEUED→APPROVED` langsung; K-5 `SHIPPED` mensyaratkan `DELIVERED`; K-6 kolom nullable dulu.
+**Belum diverifikasi**: cara `POST /builds` membuat rekaman dan syarat katalog untuk modul baru tenant; peran tenant yang sah menyetujui pengeluaran; isi pratinjau tagihan; perilaku `discountPercent = 100`.
+**Risiko**: estimasi sinkron memperlambat deploy; persetujuan tenant butuh RBAC yang belum dibaca; dua sumber status bisa menyimpang bila tidak dibungkus satu use case.
 
 ---
 
@@ -46,7 +73,7 @@ Jalur 1 dan 3 tidak saling bergantung dan dapat berjalan paralel di worktree ter
 | **B** | Endpoint status memakai mesin; endpoint go-live; cek registri; audit; tes HTTP 409/403/200 | `server` |
 | **C** | Panel antrean di konsol builder: tampilkan transisi sah, tombol go-live, alasan penolakan | `app/shared/presentation/builder` |
 
-**Keputusan yang diminta**: (J1-1) go-live manual vs otomatis; (J1-2) apakah `SHIPPED` untuk modul yang belum terdaftar ditolak (rekomendasi: ya).
+**Keputusan yang diminta**: (J1-1) go-live manual vs otomatis; (J1-2) apakah `SHIPPED` untuk modul yang belum terdaftar ditolak (rekomendasi: ya). *(J1-3, `QUEUED→APPROVED` langsung, **dibatalkan** oleh K-4 di Jalur 0.)*
 **Risiko**: data lama dengan status yang melompat (QUEUED→SHIPPED) — mesin hanya menegakkan transisi baru, tidak menulis ulang yang lama; deployment `BLOCKED_ON_BUILD` yang sudah ada di produksi perlu kueri pemeriksaan sebelum rilis.
 **Selesai bila**: tes domain dan HTTP hijau; satu modul tenant kedua (non-`layanan`) lolos siklus penuh di test; kueri produksi dijalankan.
 

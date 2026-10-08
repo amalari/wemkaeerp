@@ -9,6 +9,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Claude (draf) + Achmad Jamaludin | Dari `PLAN-builder-next-three-tracks.md` Jalur 1 |
+| 0.2 | 2026-10-08 | Claude + Achmad Jamaludin | Bergantung pada **TRD-PLAT-007** (Jalur 0). J1-3 dibatalkan (tidak ada `QUEUED→APPROVED` langsung); `QUOTED`/`APPROVED`/`REJECTED` kini lewat use case penawaran; `SHIPPED` juga mensyaratkan rekaman ledger `DELIVERED` |
 
 - **Summary & Business Context**: Saat sebuah tenant men-deploy pack kustom, platform membuat satu `BuildRequest` per modul dan deployment `BLOCKED_ON_BUILD`. Tim platform lalu membangun kodenya. Hari ini **tidak ada yang menghubungkan "kode selesai dibangun" dengan "tenant boleh jalan"**: status `SHIPPED` hanya mengubah satu kolom, tidak ada kode yang memindahkan deployment ke `ACTIVE`, dan tidak ada pemeriksaan bahwa modulnya benar-benar ada di rilis. Akibatnya modul bisa tercatat "shipped" padahal tidak hidup, dan go-live tenant bergantung pada langkah yang tidak ada di sistem.
 - **Rujukan**: TRD-PLAT-002 (builder, FR-M2-1/2/4), TRD-PLAT-004 (jalur kepemilikan, registri `TenantPackContributions`), TRD-PLAT-005 (kepemilikan pack), `PLAN-builder-next-three-tracks.md` Jalur 1.
@@ -34,13 +35,13 @@
 
 | Dari | Ke |
 |---|---|
-| `QUEUED` | `QUOTED`, `APPROVED`, `REJECTED` |
+| `QUEUED` | `QUOTED`, `REJECTED` |
 | `QUOTED` | `APPROVED`, `REJECTED` |
 | `APPROVED` | `IN_PROGRESS`, `REJECTED` |
 | `IN_PROGRESS` | `SHIPPED`, `REJECTED` |
 | `SHIPPED`, `REJECTED`, `SUPERSEDED` | *(final)* |
 
-Status sama dengan status sekarang = no-op sukses (idempoten). `SUPERSEDED` tetap hanya dikelola sistem (deploy ulang). `QUEUED→APPROVED` diizinkan karena build internal tanpa penawaran tetap sah (keputusan J1-3).
+Status sama dengan status sekarang = no-op sukses (idempoten). `SUPERSEDED` tetap hanya dikelola sistem (deploy ulang). **Pembaruan 0.2:** `QUEUED→APPROVED` **tidak** diizinkan; build internal memakai penawaran diskon 100 % (TRD-PLAT-007 K-1). Transisi `QUOTED`/`APPROVED`/`REJECTED` dijalankan use case penawaran, bukan endpoint status bebas.
 
 **FR-2 Keberadaan modul.** `→ SHIPPED` ditolak (409) kecuali modul permintaan **tersedia**: `moduleId` ada di pack bawaan (`DomainPackRegistry.shipped`) **atau** diklaim oleh sebuah kontribusi `TenantPackContributions` (kunci `tables`). Pesan menyebut modul dan alasan, tanpa membocorkan data tenant lain.
 
@@ -125,7 +126,7 @@ stateDiagram-v2
 |---|---|---|---|
 | **J1-1** | Go-live manual atau otomatis saat build terakhir `SHIPPED` | **Manual** | Ada verifikasi manusia di antara rilis kode dan tenant berjalan; otomatis menjadikan satu klik status sebagai go-live |
 | **J1-2** | `SHIPPED` untuk modul yang belum tersedia | **Ditolak** | Inilah celah utama (T3/T4) |
-| **J1-3** | `QUEUED→APPROVED` tanpa `QUOTED` | **Diizinkan** | Build internal tanpa penawaran |
+| ~~J1-3~~ | ~~`QUEUED→APPROVED` tanpa `QUOTED`~~ | **Dibatalkan (0.2)** | Digantikan TRD-PLAT-007 K-1/K-4 |
 | **J1-4** | Penjaga draf basi lewat sidik jari (FR-5) | **Ya, dengan konfirmasi eksplisit untuk deployment lama** | T2: draf tidak dikunci pada jalur blocked, jadi brief bisa menyimpang dari kode yang dikirim |
 | **J1-5** | Mengunci draf saat deploy `BLOCKED_ON_BUILD` | **Tidak** | Akan memecah alur revisi (deploy ulang = revisi) yang baru dibangun |
 
