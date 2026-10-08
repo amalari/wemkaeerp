@@ -23,11 +23,14 @@ import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
+import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 import androidx.compose.ui.graphics.Color as ComposeColor
+
+private const val DATE_TIME_TEXT_HINT = "YYYY-MM-DD"
 
 /**
  * One row of the lead inspector: a [LeadFieldDescriptor.label] plus an editor matching its
@@ -82,12 +85,29 @@ fun LeadCustomField(
         }
 
         Column(modifier = Modifier.padding(top = ClaySpacing.Xs)) {
+            // Kontrol dipilih lewat pemeta murni agar paritas tipe->kontrol bisa dites (LeadFieldControl).
+            val datePicker = leadFieldControl(descriptor.type) == LeadFieldControl.DATE_PICKER
             when (val type = descriptor.type) {
                 is FieldType.Text, is FieldType.LongText -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
                 is FieldType.Number -> TextEditor(cell, editable, onCommit) { CustomAttributes.numberCell(it) }
                 is FieldType.Checkbox -> CheckboxEditor(cell, editable, onCommit)
-                is FieldType.DateField -> TextEditor(cell, editable, onCommit, placeholder = "YYYY-MM-DD") {
-                    CustomAttributes.textCell(it)
+                is FieldType.DateField -> if (datePicker) {
+                    TextEditor(
+                        cell, editable, onCommit,
+                        input = { text, onChange ->
+                            ClayDatePicker(
+                                value = text,
+                                onValueChange = onChange,
+                                label = descriptor.label,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    ) { CustomAttributes.textCell(it) }
+                } else {
+                    // withTime: ClayDatePicker belum mendukung waktu; perilaku kolom teks lama dipertahankan.
+                    TextEditor(cell, editable, onCommit, placeholder = DATE_TIME_TEXT_HINT) {
+                        CustomAttributes.textCell(it)
+                    }
                 }
                 is FieldType.SingleSelect -> SelectEditor(type, cell, editable, onCommit)
                 is FieldType.UserRef -> UserRefEditor(cell, employees, editable, onCommit)
@@ -102,19 +122,24 @@ private fun TextEditor(
     editable: Boolean,
     onCommit: ((JsonValue.Obj?) -> Unit)?,
     placeholder: String? = null,
+    input: (@Composable (text: String, onChange: (String) -> Unit) -> Unit)? = null,
     buildCell: (String) -> JsonValue.Obj
 ) {
     val initialText = remember(cell) { cell?.let { it.entries["v"] }?.let(::rawText) ?: "" }
     var text by remember(cell) { mutableStateOf(initialText) }
 
     if (editable && onCommit != null) {
-        ClayTextField(
-            value = text,
-            onValueChange = { text = it },
-            placeholder = placeholder,
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (input != null) {
+            input(text) { text = it }
+        } else {
+            ClayTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = placeholder,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         // Hanya commit jika user benar-benar mengubah text dari nilai awalnya (initialText),
         // dengan jeda debounce 600ms agar tidak membanjiri server dan tidak mentrigger patch saat baru membuka lead.
         androidx.compose.runtime.LaunchedEffect(text) {
