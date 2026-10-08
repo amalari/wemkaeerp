@@ -82,7 +82,7 @@ per paket → enum dihapus.
 | B3 | `ModuleArchetype` → `SlotCode` dari pack | 63 file | |
 | B4 | `GarmentBusinessPreset` → preset = Blueprint milik pack | 64 file | |
 | B5 | **Test keamanan dulu**: setiap modul terdaftar wajib punya gerbang; route tanpa gerbang gagal (perluas `RouteOwnershipTest`) | kecil | Prasyarat B6 — wajib hijau sebelum B6 dimulai |
-| B6 | `BusinessModule` → `ModuleId` dari pack; RBAC/entitlement/menu membaca pack; migrasi JSONB entitlement & `custom_roles` dengan test "tidak ada pengguna yang kehilangan/mendapat akses" | 97 file, 20 migrasi | **Risiko tertinggi**, dikerjakan terakhir, beberapa PR |
+| B6 | `BusinessModule` → `ModuleId` dari pack; RBAC/entitlement/menu membaca pack; migrasi JSONB entitlement & `custom_roles` dengan test "tidak ada pengguna yang kehilangan/mendapat akses" | 97 file, 20 migrasi | **Risiko tertinggi**, dikerjakan terakhir, beberapa PR. **Alarm `AccessSnapshotB6Test` opt-in** (`RUN_ACCESS_SNAPSHOT=1`, tidak jalan di `:server:test` biasa): wajib dijalankan manual terhadap salinan data nyata sebelum merge tiap tahap B6c–B6f; snapshot baru dibuat di awal B6c. Prosedur di KDoc tes |
 | B7 | **Vertikal kedua nyata** (e-learning atau klien pertama yang datang): pack kedua + modul minimum + AI agent lintas pack | tergantung | Bukti abstraksi benar |
 
 **Aturan Jalur B**

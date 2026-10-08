@@ -42,6 +42,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.server.testing.testApplication
 import java.io.File
 import java.sql.DriverManager
+import org.junit.Assume.assumeTrue
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -57,13 +59,34 @@ import kotlin.test.assertEquals
  *
  * Tenant `factory-NNNNN` dikecualikan: dibuat test integrasi lain di DB dev dan jumlahnya bertambah setiap run.
  *
- * Tulis ulang snapshot **hanya** saat data DB sengaja berubah: `WRITE_ACCESS_SNAPSHOT=1 ./gradlew :server:test --tests '*AccessSnapshotB6Test*'`.
- * **Dipertahankan sampai cutover** repo B menggantikan produksi: alarm tambahan untuk setiap perubahan RBAC/entitlement.
- * Bila data DB sengaja diubah, tulis ulang snapshot dengan sadar (lihat di atas), jangan menonaktifkan test.
+ * **Opt-in** (`RUN_ACCESS_SNAPSHOT=1`); tanpa itu test dilewati dan tampil *skipped*, bukan hilang. Alasannya: seluruh
+ * `:server:test` dikunci ke database ber-nama `scratch` (`server/build.gradle.kts`, pagar di `DatabaseFactory.init()`),
+ * sedangkan test ini membaca **data nyata** (pengguna, jabatan, penugasan divisi). Di scratch yang kosong prinsipalnya
+ * lebih sedikit, jadi selisih jumlahnya bukan bukti ada yang kehilangan akses — dijalankan otomatis ia hanya
+ * menutupi kegagalan sungguhan. Alarm ini bermakna hanya terhadap salinan data nyata, sebelum/selama B6c–B6f.
+ *
+ * **Prosedur tiap tahap B6** (wajib sebelum merge; lihat PLAN-dual-track §B6):
+ * 1. Salin DB dev ke DB scratch khusus: `docker exec wemade-postgres sh -c "createdb -U postgres wemake_erp_scratch_b6 &&
+ *    pg_dump -U postgres wemake_erp | psql -U postgres wemake_erp_scratch_b6"`.
+ * 2. **Awal B6c**, buat snapshot baru dari salinan itu — snapshot lama dibuat dari DB dev pada waktu lain dan datanya
+ *    sudah bergeser, jadi jangan dianggap acuan:
+ *    `DB_NAME=wemake_erp_scratch_b6 RUN_ACCESS_SNAPSHOT=1 WRITE_ACCESS_SNAPSHOT=1 ./gradlew :server:test --tests '*AccessSnapshotB6Test*'`.
+ * 3. Tiap tahap berikutnya, bandingkan dengan snapshot itu (tanpa `WRITE_ACCESS_SNAPSHOT`):
+ *    `DB_NAME=wemake_erp_scratch_b6 RUN_ACCESS_SNAPSHOT=1 ./gradlew :server:test --tests '*AccessSnapshotB6Test*'`.
+ *
+ * Tulis ulang snapshot **hanya** saat data sengaja berubah, dengan sadar. **Dipertahankan sampai cutover** repo B
+ * menggantikan produksi: alarm tambahan untuk setiap perubahan RBAC/entitlement. Jangan menghapus test ini; menjadikannya
+ * opt-in hanya memindahkan *kapan* ia dijalankan, bukan *apakah*.
  */
 class AccessSnapshotB6Test {
 
     private val snapshotFile = File("src/test/resources/access-snapshot-b6.txt")
+
+    @BeforeTest
+    fun hanyaBilaDiminta() = assumeTrue(
+        "RUN_ACCESS_SNAPSHOT bukan 1 - alarm B6 dilewati (butuh salinan data nyata; lihat KDoc kelas)",
+        System.getenv("RUN_ACCESS_SNAPSHOT") == "1"
+    )
 
     private data class Principal(val label: String, val slug: String, val token: String)
 
