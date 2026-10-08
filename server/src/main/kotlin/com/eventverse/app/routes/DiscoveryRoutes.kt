@@ -309,7 +309,9 @@ fun Route.discoveryRoutes(
                             "tenantSlug" to jsonOf(it.tenant.slug.value),
                             "packCode" to jsonOf(it.packCode.value),
                             "packVersion" to (it.packVersion?.let { v -> jsonOf(v) } ?: com.eventverse.app.shared.json.JsonValue.Null),
-                            "blueprintCode" to jsonOf(it.tenant.businessPreset.code.value)
+                            "blueprintCode" to jsonOf(it.tenant.businessPreset.code.value),
+                            // true = pack milik tenant lain baru dilepas menjadi bersama oleh handoff ini (TRD-PLAT-004 P1).
+                            "packBecameShared" to jsonOf(it.packBecameShared)
                         ).encode(),
                         ContentType.Application.Json, HttpStatusCode.Created
                     )

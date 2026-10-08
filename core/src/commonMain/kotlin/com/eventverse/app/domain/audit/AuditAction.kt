@@ -14,6 +14,12 @@ enum class AuditAction(val code: String) {
     /** Vertikal (Domain Pack) sebuah tenant ditetapkan (B7): mengubah seluruh kosakata modul tenant itu. */
     TENANT_DOMAIN_PACK_ASSIGNED("tenant_domain_pack_assigned"),
 
+    /**
+     * Handoff memakai ulang pack identik milik tenant lain dan melepasnya menjadi bersama (TRD-PLAT-005):
+     * kepemilikan pack berubah, jadi harus ada jejak siapa yang memicu dan pack apa.
+     */
+    TENANT_DOMAIN_PACK_SHARED("tenant_domain_pack_shared"),
+
     /** Trial tenant diperpanjang superadmin (V88) — keputusan uang: memperlambang pendapatan. */
     TENANT_TRIAL_EXTENDED("tenant_trial_extended"),
 
