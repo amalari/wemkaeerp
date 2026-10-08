@@ -149,6 +149,7 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
         }
     ),
     "numberFormats" to KoogDiscoveryNumberFormatVocabulary.catalogJson(),
+    "fieldParams" to KoogDiscoveryDateTimeValidationVocabulary.catalogJson(),
     "cardStyles" to jsonArrayOf(CardStyle.entries.map { jsonOf(it.name) }),
     "skeleton" to KoogDiscoverySkeletonVocabulary.catalogJson(),
     "limits" to jsonObjectOf(
