@@ -72,7 +72,7 @@ internal object ChangeWidgetOp {
                 FieldType.DATE -> CardStyle.DATE
                 FieldType.NUMBER -> CardStyle.NUMBER
                 FieldType.BOOL -> CardStyle.FLAG
-                else -> CardStyle.TEXT
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, null -> CardStyle.TEXT
             })
         }
         return ScreenSpec(

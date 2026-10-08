@@ -31,6 +31,7 @@ object SpecOpApplier {
             // Kontrak v2 (plan induk §3.5), dilaksanakan sejak B4: kartu & kewajiban field.
             is SpecOp.ShowFieldOnCard -> showFieldOnCard(screen, op)
             is SpecOp.SetFieldRequired -> setFieldRequired(screen, op)
+            is SpecOp.SetFieldFormat -> setFieldFormat(screen, op)
             // SP-B5: ganti jenis tampilan; aturan kelayakan di ChangeWidgetOp (tolak bermesej, tak menebak).
             is SpecOp.ChangeWidget -> ChangeWidgetOp.apply(screen, op)
         }
@@ -152,6 +153,15 @@ object SpecOpApplier {
         val f = requireNotNull(e.field(op.field)) { "Field '${op.field}' tidak ada di '${e.label}'." }
         if (f.required == op.required) return screen // sudah seperti itu — tidak ada yang perlu berubah
         return withField(screen, e, f.copy(required = op.required))
+    }
+
+    /** C4: varian tampilan angka; invarian (hanya NUMBER, kode mata uang) ditegakkan [FieldSpec] dan dilaporkan bermesej. */
+    private fun setFieldFormat(screen: InteractiveScreen, op: SpecOp.SetFieldFormat): InteractiveScreen {
+        val e = entity(screen, op.entityId)
+        val f = requireNotNull(e.field(op.field)) { "Field '${op.field}' tidak ada di '${e.label}'." }
+        require(f.type == FieldType.NUMBER) { "Field '${f.label}' bertipe ${f.type.name}; format angka hanya untuk field NUMBER." }
+        if (f.format == op.format && f.currencyCode == op.currencyCode) return screen
+        return withField(screen, e, f.copy(format = op.format, currencyCode = op.currencyCode))
     }
 
     private fun List<CardElement>.upsertCardElement(field: String, style: CardStyle): List<CardElement> =

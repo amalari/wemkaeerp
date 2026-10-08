@@ -26,6 +26,12 @@ sealed interface SpecOp {
     data class SetFieldRequired(val entityId: String, val field: String, val required: Boolean) : SpecOp
 
     /**
+     * Ubah varian tampilan angka [field] (C4 Irisan 2): hanya field NUMBER; [currencyCode] wajib tepat bila
+     * [format] = CURRENCY. Penyimpanan dan isi baris tidak berubah (kolom tetap `NUMERIC(18,4)`).
+     */
+    data class SetFieldFormat(val entityId: String, val field: String, val format: NumberFormat, val currencyCode: String? = null) : SpecOp
+
+    /**
      * Ganti jenis tampilan layar [screenId] menjadi [widget] — hanya **TABLE** dan **KANBAN** (papan) yang dikenal;
      * jenis lain ditolak dengan pesan. Tabel selalu mungkin untuk layar data; papan butuh field pilihan status
      * (ENUM). Aturan kelayakan lengkap di `ChangeWidgetOp`.

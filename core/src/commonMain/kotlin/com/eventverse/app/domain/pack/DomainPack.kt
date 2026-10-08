@@ -3,6 +3,7 @@ package com.eventverse.app.domain.pack
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.fulfillment.HandoverRoute
+import com.eventverse.app.domain.prototype.CurrencyCode
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardHints
 import com.eventverse.app.domain.prototype.FormHints
@@ -183,9 +184,20 @@ data class DomainPack(
     /** Rujukan ke modul bersama platform (B6, lihat [ModuleReference]); aturan di [ModuleReferenceRules]. Data saja, belum ke RBAC/kanvas. */
     val moduleReferences: List<ModuleReference> = emptyList(),
     /** Template rute serah terima karung (TRD-FLOW-003). Kosong = pack tanpa rute bawaan, bukan rute pack lain. */
-    val handoverRouteTemplate: List<HandoverRoute> = emptyList()
+    val handoverRouteTemplate: List<HandoverRoute> = emptyList(),
+    /**
+     * Kode mata uang **bawaan** pack (C4 Irisan 2): hanya **sumber nilai awal** untuk usulan field `NUMBER(CURRENCY)`
+     * yang dibuat pembuat deterministik. Setelah masuk dokumen, kode itu **milik field** ([com.eventverse.app.domain.prototype.FieldSpec.currencyCode]):
+     * template disalin dan dokumen membeku, jadi mengubah bawaan pack tidak mengubah usulan/spec yang sudah ada.
+     * Pack yang tidak menyebutnya memakai bawaan global `IDR`; kode tak berbentuk tiga huruf besar **menggagalkan**
+     * pembangunan pack (tidak ada fallback ke `IDR`). Tidak ada daftar mata uang tertutup di kode.
+     */
+    val defaultCurrencyCode: String = DEFAULT_CURRENCY_CODE
 ) {
     init {
+        require(CurrencyCode.isValid(defaultCurrencyCode)) {
+            "Pack ${code.value}: defaultCurrencyCode '$defaultCurrencyCode' harus tiga huruf besar (mis. IDR)"
+        }
         require(phases.isNotEmpty()) { "Pack ${code.value} tanpa fase" }
         requireUnique("fase", phases.map { it.code.value })
         requireUnique("urutan fase", phases.map { it.order.toString() })
@@ -270,5 +282,10 @@ data class DomainPack(
     private fun requireUnique(kind: String, values: List<String>) {
         values.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()
             ?.let { error("Pack ${code.value}: $kind ganda '$it'") }
+    }
+
+    companion object {
+        /** Bawaan global untuk pack yang tidak menyebut mata uangnya. */
+        const val DEFAULT_CURRENCY_CODE: String = "IDR"
     }
 }
