@@ -156,6 +156,18 @@ class PrototypeFieldTypeSqlParityTest {
         }
     }
 
+    /** C4 Irisan 2 (D3): format adalah varian NUMBER — ditolak pada tipe lain, sah pada NUMBER. */
+    @Test
+    fun fieldSpec_formatOnNonNumber_isRejected_andOnNumberIsAccepted() {
+        FieldType.entries.filter { it != FieldType.NUMBER }.forEach { type ->
+            val result = runCatching { FieldSpec("k", "K", type, format = NumberFormat.CURRENCY) }
+            assertTrue(result.isFailure, "$type dengan format harus ditolak")
+        }
+        val number = FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY)
+        assertEquals(NumberFormat.CURRENCY, number.format)
+        assertEquals(NumberFormat.PLAIN, FieldSpec("x", "X", FieldType.NUMBER).format, "default PLAIN")
+    }
+
     @Test
     fun fieldType_entries_matchSampleVocabularySize() {
         assertEquals(FieldType.entries, allFields().map { it.type })

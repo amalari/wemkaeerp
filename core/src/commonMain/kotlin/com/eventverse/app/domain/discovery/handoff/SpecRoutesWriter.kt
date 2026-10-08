@@ -2,6 +2,7 @@ package com.eventverse.app.domain.discovery.handoff
 
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 
 /**
  * Route CRUD **fail-closed** dari spec (kontrak §3.4). Urutan gerbang tidak boleh diubah:
@@ -23,7 +24,7 @@ internal object SpecRoutesWriter {
                 "com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository", "com.eventverse.app.domain.pack.DomainPackRegistry",
                 "com.eventverse.app.domain.pack.ModuleId",
                 "com.eventverse.app.domain.prototype.EntitySpec", "com.eventverse.app.domain.prototype.FieldSpec",
-                "com.eventverse.app.domain.prototype.FieldType", "com.eventverse.app.domain.prototype.PrototypeAction",
+                "com.eventverse.app.domain.prototype.FieldType", "com.eventverse.app.domain.prototype.NumberFormat", "com.eventverse.app.domain.prototype.PrototypeAction",
                 "com.eventverse.app.domain.prototype.PrototypeReducer", "com.eventverse.app.domain.prototype.PrototypeRow",
                 "com.eventverse.app.domain.prototype.PrototypeSpec", "com.eventverse.app.domain.prototype.PrototypeStore",
                 "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.rbac.AccessLevel",
@@ -137,7 +138,8 @@ internal object SpecRoutesWriter {
         append("EntitySpec(").append(SpecNaming.kString(e.id)).append(", ").append(SpecNaming.kString(e.label)).append(", listOf(")
         append(e.fields.joinToString(", ") { f ->
             "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", listOf(" +
-                f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required + ")"
+                f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
+                (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name) + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

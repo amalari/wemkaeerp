@@ -13,6 +13,7 @@ import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.FormConfig
 import com.eventverse.app.domain.prototype.InteractiveScreen
+import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeSpec
@@ -36,7 +37,8 @@ object InteractiveScreenCodec {
                 "fields" to jsonArrayOf(e.fields.map { f ->
                     jsonObjectOf(
                         "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                        "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required)
+                        "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
+                        "format" to jsonOf(f.format.name)
                     )
                 }),
                 "stateMachine" to (e.stateMachine?.let { sm ->
@@ -93,7 +95,11 @@ object InteractiveScreenCodec {
                 requireNotNull(e.string("id")) { "entitas tanpa id" }, e.string("label").orEmpty(),
                 e.objectArray("fields").map { f ->
                     val type = FieldType.entries.firstOrNull { it.name == f.string("type") }
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false)
+                    val formatName = f.string("format")
+                    val format = if (formatName == null) NumberFormat.PLAIN
+                    else NumberFormat.entries.firstOrNull { it.name == formatName }
+                        ?: throw IllegalArgumentException("Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, format)
                 },
                 machine
             )

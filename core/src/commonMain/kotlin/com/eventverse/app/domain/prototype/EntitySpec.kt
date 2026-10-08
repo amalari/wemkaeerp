@@ -16,6 +16,13 @@ import kotlinx.datetime.LocalDate
  */
 enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL }
 
+/**
+ * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
+ * koersi **identik** dengan angka polos (`NUMERIC(18,4)`) — hanya render dan parsing masukan yang beda.
+ * Ini parameter, bukan tipe baru; padanan CRM `Number(format = Currency)`.
+ */
+enum class NumberFormat { PLAIN, CURRENCY, PERCENT }
+
 data class FieldSpec(
     val key: String,
     val label: String,
@@ -23,7 +30,12 @@ data class FieldSpec(
     /** Wajib terisi untuk [FieldType.ENUM]; kosong untuk tipe lain. */
     val options: List<String> = emptyList(),
     /** Kontrak v1: field wajib. Ditegakkan reducer pada `Create`; `SetField` boleh mengosongkan hanya bila tidak wajib. */
-    val required: Boolean = false
+    val required: Boolean = false,
+    /**
+     * C4 Irisan 2: varian tampilan angka; wajib [NumberFormat.PLAIN] untuk tipe selain [FieldType.NUMBER].
+     * Tanda tangan simpan tidak berubah — tetap string angka polos di kolom `NUMERIC(18,4)`.
+     */
+    val format: NumberFormat = NumberFormat.PLAIN
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
@@ -34,6 +46,9 @@ data class FieldSpec(
             }
         } else {
             require(options.isEmpty()) { "Field '$key' bukan ENUM tapi punya opsi" }
+        }
+        require(type == FieldType.NUMBER || format == NumberFormat.PLAIN) {
+            "Field '$key' bertipe ${type.name}, bukan NUMBER, jadi tidak boleh punya format ${format.name}"
         }
     }
 

@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.discovery.proposal
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 import kotlinx.datetime.LocalDate
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
@@ -20,6 +21,10 @@ internal object ProposalEntityRules {
             if (!seen.add(f.key)) sink.add("$at.key", "Kunci field '${f.key}' dipakai dua kali")
             sink.text("$at.label", f.label, "Label field '${f.key}'")
             checkOptions(f, at, sink)
+            // C4 Irisan 2 (keputusan D3): format adalah varian NUMBER, bukan tipe lain.
+            if (f.type != FieldType.NUMBER && f.format != NumberFormat.PLAIN) {
+                sink.add("$at.format", "Field '${f.key}' bertipe ${f.type.name}, bukan NUMBER, jadi tidak boleh punya format ${f.format.name}")
+            }
         }
         checkStatus(entity, sink)
     }

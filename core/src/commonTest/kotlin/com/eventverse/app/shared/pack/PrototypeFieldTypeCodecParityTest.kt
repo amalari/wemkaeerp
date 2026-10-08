@@ -9,8 +9,10 @@ import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ScreenSuggestion
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldHint
+import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.InteractiveScreen
+import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.PrototypeFieldTypeSampleFields.allFields
 import com.eventverse.app.domain.prototype.PrototypeFieldTypeSampleFields.validValue
 import com.eventverse.app.domain.prototype.PrototypeRow
@@ -169,5 +171,50 @@ class PrototypeFieldTypeCodecParityTest {
             assertTrue(error.path.endsWith(".type"), error.path)
             assertTrue(FieldType.entries.all { it.name in (error.message ?: "") }, "pesan harus menyebut kosakata tertutup: ${error.message}")
         }
+    }
+
+    // ---- C4 Irisan 2: NumberFormat sebagai parameter NUMBER ------------------------------------
+
+    /** C4 Irisan 2: `format` NUMBER ikut kawat layar interaktif; yang tak dikenal ditolak, bukan jadi PLAIN. */
+    @Test
+    fun interactiveScreenCodec_numberFormat_roundTrips_andUnknownIsRejected() {
+        val spec = PrototypeSpec(
+            listOf(EntitySpec("e", "E", listOf(FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY)))),
+            listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf("harga"))))
+        )
+        val screen = InteractiveScreen(spec, mapOf("e" to listOf(PrototypeRow("r1", mapOf("harga" to "12000")))))
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(screen))
+        assertEquals(NumberFormat.CURRENCY, decoded.spec.entities.single().fields.single().format)
+        val tampered = InteractiveScreenCodec.encode(screen).encode().replace("\"format\":\"CURRENCY\"", "\"format\":\"RUPIAH\"")
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(tampered) as JsonValue.Obj) }.isFailure, "format 'RUPIAH' harus ditolak, tidak diam-diam jadi PLAIN")
+    }
+
+    /** C4 Irisan 2: AddField membawa `format` utuh lewat kawat SpecOp. */
+    @Test
+    fun specOpCodec_addFieldWithNumberFormat_roundTrips() {
+        val op = SpecOp.AddField("e", FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.PERCENT))
+        val decoded = SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow()
+        assertEquals(op, decoded)
+        assertEquals(NumberFormat.PERCENT, (decoded as SpecOp.AddField).field.format)
+    }
+
+    /** C4 Irisan 2: `format` ikut kawat dokumen draf, byte-stabil, dan format tak dikenal ditolak berpath. */
+    @Test
+    fun screenProposalCodec_numberFormat_roundTripsThroughDraftDocument_andUnknownIsRejected() {
+        val base = ScreenProposalFixtures.kanbanAntrean()
+        val extras = listOf(
+            FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY),
+            FieldProposal("diskon", "Diskon", FieldType.NUMBER, format = NumberFormat.PERCENT)
+        )
+        val entity = ScreenProposalFixtures.pasien
+        val proposal = base.copy(entity = entity.copy(fields = entity.fields + extras))
+        val raw = DiscoveryDraftCodec.encodeToString(draft(screenOf(proposal)))
+        val fields = DiscoveryDraftCodec.decode(raw).screens.single().proposal?.entity?.fields.orEmpty()
+        assertEquals(NumberFormat.CURRENCY, fields.first { it.key == "tarif" }.format)
+        assertEquals(NumberFormat.PERCENT, fields.first { it.key == "diskon" }.format)
+        assertEquals(raw, DiscoveryDraftCodec.encodeToString(DiscoveryDraftCodec.decode(raw)), "dokumen draf byte-stabil")
+        val tampered = raw.replace("\"format\":\"CURRENCY\"", "\"format\":\"RUPIAH\"")
+        val error = assertFailsWith<DiscoveryDraftDecodeException>("format tak dikenal harus ditolak") { DiscoveryDraftCodec.decode(tampered) }
+        assertTrue(error.path.endsWith(".format"), error.path)
     }
 }

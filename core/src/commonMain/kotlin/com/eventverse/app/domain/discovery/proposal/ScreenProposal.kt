@@ -4,6 +4,7 @@ import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 
 /**
  * Usulan satu layar prototype — **kontrak tunggal** antara semua pembuat layar (manusia di pack, agent
@@ -56,7 +57,12 @@ data class FieldProposal(
     val type: FieldType,
     val required: Boolean = false,
     /** Wajib untuk [FieldType.ENUM]; kosong untuk tipe lain. */
-    val options: List<String> = emptyList()
+    val options: List<String> = emptyList(),
+    /**
+     * C4 Irisan 2: varian tampilan angka, wajib [NumberFormat.PLAIN] untuk tipe selain [FieldType.NUMBER]
+     * (divalidasi [ScreenProposalValidator], bukan konstruktor — dokumen usulan tidak melempar).
+     */
+    val format: NumberFormat = NumberFormat.PLAIN
 )
 
 /**

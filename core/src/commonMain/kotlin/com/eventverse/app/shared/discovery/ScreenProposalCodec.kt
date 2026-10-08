@@ -8,6 +8,7 @@ import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -73,7 +74,8 @@ object ScreenProposalCodec {
         "fields" to jsonArrayOf(e.fields.map { f ->
             jsonObjectOf(
                 "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf))
+                "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
+                "format" to jsonOf(f.format.name)
             )
         }),
         "statusField" to jsonOf(e.statusField),
@@ -85,13 +87,17 @@ object ScreenProposalCodec {
         label = r.string("label"),
         fields = r.objects("fields").map { f ->
             val typeName = f.string("type")
+            val formatName = f.optString("format")
             FieldProposal(
                 key = f.string("key"),
                 label = f.string("label"),
                 type = FieldType.entries.firstOrNull { it.name == typeName }
                     ?: f.fail("type", "Tipe field '$typeName' bukan kosakata tertutup: ${FieldType.entries.joinToString { it.name }}"),
                 required = f.boolean("required", false),
-                options = f.strings("options")
+                options = f.strings("options"),
+                format = if (formatName == null) NumberFormat.PLAIN
+                else NumberFormat.entries.firstOrNull { it.name == formatName }
+                    ?: f.fail("format", "Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
             )
         },
         statusField = r.optString("statusField"),

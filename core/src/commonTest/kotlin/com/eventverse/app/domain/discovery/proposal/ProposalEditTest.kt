@@ -3,6 +3,7 @@ package com.eventverse.app.domain.discovery.proposal
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -97,5 +98,14 @@ class ProposalEditTest {
         val toLongRequired = FieldProposal("keluhan", "Keluhan", FieldType.LONG_TEXT, required = true)
         val replaced = table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", toLongRequired))).getOrThrow()
         assertEquals("ngilu", replaced.seed.single()["keluhan"], "teks bebas tetap sah sebagai LONG_TEXT — validator lolos")
+    }
+
+    /** C4 Irisan 2 (D3): format hanya sah pada NUMBER; usulan dengan format di tipe lain ditolak validator. */
+    @Test
+    fun `format angka hanya sah pada field NUMBER - C4 Irisan 2`() {
+        val kotor = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.TEXT, format = NumberFormat.CURRENCY))))
+        assertTrue(kotor.exceptionOrNull()!!.message!!.contains("bukan NUMBER"), "format pada non-NUMBER ditolak validator")
+        val sah = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("tarif", "Tarif", FieldType.NUMBER, format = NumberFormat.CURRENCY)))).getOrThrow()
+        assertEquals(NumberFormat.CURRENCY, sah.entity!!.fields.first { it.key == "tarif" }.format)
     }
 }

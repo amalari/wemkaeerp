@@ -54,7 +54,7 @@ fun ScreenProposal.toInteractiveScreen(source: ProposalSource? = null): Result<I
 
 private fun EntityProposal.toEntitySpec(): EntitySpec = EntitySpec(
     id, label,
-    fields.map { FieldSpec(it.key, it.label, it.type, it.options, it.required) },
+    fields.map { FieldSpec(it.key, it.label, it.type, it.options, it.required, it.format) },
     // Tanpa transisi = bebas pindah (sama dengan petunjuk papan pack); mesin status hanya bila ada aturan.
     statusField?.takeIf { transitions.isNotEmpty() }?.let { sf -> StateMachine(sf, transitions.mapValues { (_, v) -> v.toSet() }) }
 )
