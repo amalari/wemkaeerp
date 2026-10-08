@@ -5,6 +5,7 @@ import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
 
 /**
  * Usulan satu layar prototype — **kontrak tunggal** antara semua pembuat layar (manusia di pack, agent
@@ -66,7 +67,9 @@ data class FieldProposal(
     /** Wajib tepat bila [format] = CURRENCY (divalidasi [ScreenProposalValidator], bukan konstruktor). */
     val currencyCode: String? = null,
     /** A0(C6): tanggal + jam; hanya sah untuk [FieldType.DATE] (divalidasi [ScreenProposalValidator], bukan konstruktor). */
-    val withTime: Boolean = false
+    val withTime: Boolean = false,
+    /** A0(C9): validasi bentuk teks; hanya sah untuk [FieldType.TEXT] (divalidasi [ScreenProposalValidator], bukan konstruktor). */
+    val validation: TextValidation = TextValidation.NONE
 )
 
 /**

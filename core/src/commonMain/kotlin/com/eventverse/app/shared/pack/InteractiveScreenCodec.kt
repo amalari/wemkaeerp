@@ -40,7 +40,7 @@ object InteractiveScreenCodec {
                         "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
                         "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
                         "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
-                        "withTime" to jsonOf(f.withTime)
+                        "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name)
                     )
                 }),
                 "stateMachine" to (e.stateMachine?.let { sm ->
@@ -101,7 +101,7 @@ object InteractiveScreenCodec {
                     val format = if (formatName == null) NumberFormat.PLAIN
                     else NumberFormat.entries.firstOrNull { it.name == formatName }
                         ?: throw IllegalArgumentException("Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}")
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"), f.strictBoolean("withTime", false))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f))
                 },
                 machine
             )

@@ -4,6 +4,8 @@ import com.eventverse.app.domain.prototype.CurrencyCode
 import com.eventverse.app.domain.prototype.DateFieldValues
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
+import com.eventverse.app.domain.prototype.TextValidations
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
 internal object ProposalEntityRules {
@@ -36,6 +38,9 @@ internal object ProposalEntityRules {
             }
             if (f.type != FieldType.DATE && f.withTime) {
                 sink.add("$at.withTime", "Field '${f.key}' bertipe ${f.type.name}, bukan DATE, jadi tidak boleh punya withTime")
+            }
+            if (f.type != FieldType.TEXT && f.validation != TextValidation.NONE) {
+                sink.add("$at.validation", "Field '${f.key}' bertipe ${f.type.name}, bukan TEXT, jadi tidak boleh punya validation ${f.validation.name}")
             }
         }
         checkStatus(entity, sink)
@@ -117,7 +122,10 @@ internal object ProposalEntityRules {
                 if (f.withTime) "'$v' bukan tanggal-jam ISO (YYYY-MM-DDTHH:MM, tanpa detik/zona) untuk field '${f.key}'"
                 else "'$v' bukan tanggal ISO (YYYY-MM-DD) untuk field '${f.key}'"
             )
-            FieldType.TEXT, FieldType.LONG_TEXT -> Unit
+            FieldType.TEXT -> if (!TextValidations.isValid(f.validation, v)) {
+                sink.add(at, "'$v' bukan ${f.validation.name.lowercase()} yang sah untuk field '${f.key}'")
+            }
+            FieldType.LONG_TEXT -> Unit
         }
     }
 }

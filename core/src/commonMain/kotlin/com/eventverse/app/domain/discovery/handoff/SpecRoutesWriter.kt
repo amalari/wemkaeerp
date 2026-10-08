@@ -3,6 +3,7 @@ package com.eventverse.app.domain.discovery.handoff
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
 
 /**
  * Route CRUD **fail-closed** dari spec (kontrak §3.4). Urutan gerbang tidak boleh diubah:
@@ -17,6 +18,7 @@ internal object SpecRoutesWriter {
         val fn = SpecNaming.camel(t.schema) + "Routes"
         val path = "/api/tenant/modules/" + t.schema + "/" + t.table
         val dateCols = t.columns.filter { it.field.type == FieldType.DATE }
+        val validatedTextCols = t.columns.filter { it.field.type == FieldType.TEXT && it.field.validation != TextValidation.NONE }
         return buildString {
             appendLine("package com.eventverse.app.routes")
             appendLine()
@@ -27,7 +29,7 @@ internal object SpecRoutesWriter {
                 "com.eventverse.app.domain.prototype.FieldType", "com.eventverse.app.domain.prototype.NumberFormat", "com.eventverse.app.domain.prototype.PrototypeAction",
                 "com.eventverse.app.domain.prototype.PrototypeReducer", "com.eventverse.app.domain.prototype.PrototypeRow",
                 "com.eventverse.app.domain.prototype.PrototypeSpec", "com.eventverse.app.domain.prototype.PrototypeStore",
-                "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.rbac.AccessLevel",
+                "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.prototype.TextValidation", "com.eventverse.app.domain.rbac.AccessLevel",
                 "com.eventverse.app.domain.rbac.ModuleAssignmentRepository", "com.eventverse.app.domain.rbac.RoleRepository",
                 "com.eventverse.app.domain.tenant.TenantContext", "com.eventverse.app.plugins.tenantContextOrNull",
                 "com.eventverse.app.shared.json.JsonParser", "com.eventverse.app.shared.json.jsonArrayOf",
@@ -45,6 +47,7 @@ internal object SpecRoutesWriter {
             appendLine("private const val ID_PREFIX = ${SpecNaming.kString(SpecNaming.ident(t.entity.id, "Entitas").take(20))}")
             appendLine("private val SPEC = PrototypeSpec(listOf(${entityLiteral(t.entity)}), emptyList())")
             appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
+            appendLine("private val TEXT_FIELDS = listOf<FieldSpec>(${validatedTextCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TEXT, validation = TextValidation." + it.field.validation.name + ")" }})")
             appendLine()
             appendLine("/**")
             appendLine(" * CRUD ${t.entity.label}: baca = VIEW, tambah/ubah (termasuk pindah status) = OPERATE, hapus = MANAGE.")
@@ -89,7 +92,7 @@ internal object SpecRoutesWriter {
             appendLine("            val tenant = call.authorized(AccessLevel.OPERATE) ?: return@post")
             appendLine("            val values = call.bodyValues() ?: return@post")
             appendLine("            val row = PrototypeRow(ID_PREFIX + \"-\" + UUID.randomUUID(), values)")
-            appendLine("            val problem = dateProblem(values)")
+            appendLine("            val problem = dateProblem(values) ?: textProblem(values)")
             appendLine("                ?: PrototypeReducer.reduce(SPEC, PrototypeStore(), PrototypeAction.Create(ENTITY_ID, row)).exceptionOrNull()?.message")
             appendLine("            if (problem != null) return@post call.respond(HttpStatusCode.BadRequest, problem)")
             appendLine("            repository.save(tenant.tenantId, row)")
@@ -100,7 +103,7 @@ internal object SpecRoutesWriter {
             appendLine("            val id = call.parameters[\"id\"].orEmpty()")
             appendLine("            val values = call.bodyValues() ?: return@put")
             appendLine("            val current = repository.find(tenant.tenantId, id) ?: return@put call.respond(HttpStatusCode.NotFound, \"Data tidak ditemukan.\")")
-            appendLine("            var problem = dateProblem(values)")
+            appendLine("            var problem = dateProblem(values) ?: textProblem(values)")
             appendLine("            var store = PrototypeStore(mapOf(ENTITY_ID to listOf(current)))")
             appendLine("            if (problem == null) {")
             appendLine("                for ((key, value) in values) {")
@@ -134,6 +137,12 @@ internal object SpecRoutesWriter {
             appendLine("        if (ok) null else \"'\" + f.label + \"' harus berformat TTTT-BB-HHTJJ:MM.\"")
             appendLine("    } else if (runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
             appendLine("}")
+            appendLine()
+            appendLine("/** Field TEXT berkunci validasi bentuk (email/telepon): nilai disimpan apa adanya, hanya bentuknya yang diperiksa (aturan tunggal `FieldSpec.accepts`). */")
+            appendLine("private fun textProblem(values: Map<String, String>): String? = TEXT_FIELDS.firstNotNullOfOrNull { f ->")
+            appendLine("    val v = values[f.key].orEmpty()")
+            appendLine("    if (v.isNotBlank() && !f.accepts(v)) \"'\" + f.label + \"' bukan \" + f.validation.name.lowercase() + \" yang sah.\" else null")
+            appendLine("}")
         }
     }
 
@@ -145,7 +154,8 @@ internal object SpecRoutesWriter {
                 f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
                 (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
                     (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) +
-                (if (f.withTime) ", withTime = true" else "") + ")"
+                (if (f.withTime) ", withTime = true" else "") +
+                (if (f.validation != TextValidation.NONE) ", validation = TextValidation." + f.validation.name else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->
