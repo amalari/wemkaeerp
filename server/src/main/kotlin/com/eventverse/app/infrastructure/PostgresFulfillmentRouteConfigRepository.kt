@@ -31,17 +31,19 @@ class PostgresFulfillmentRouteConfigRepository : FulfillmentRouteConfigRepositor
 
             if (rows.isEmpty()) return@dbQuery null
 
-            val modes = rows.mapNotNull { row ->
-                // Baris yang rute atau modenya tak dikenali dilewati satu per satu, bukan
-                // menjatuhkan seluruh konfigurasi: enum bisa menyusut antar rilis, dan rute
-                // usang harus jatuh ke ADMIN_HUB — bukan membuat layar kerja gagal dibuka.
-                // TRD-FLOW-003: kunci kini kode rute. Baris dengan kode tak sah masih dilewati di sini;
-                // Track B2 menggantinya dengan penolakan bersama repositori rute per tenant.
-                val route = HandoverRouteCode.parse(row[FulfillmentRouteSettingsTable.route]).getOrNull()
-                    ?: return@mapNotNull null
+            val modes = rows.map { row ->
+                // TRD-FLOW-003 B2: baca ketat — kode tak sah atau mode tak dikenal MELEMPAR,
+                // bukan melewatkan baris diam-diam (tenant-variability-rules Kontrak 4). Baris
+                // hanya bisa masuk lewat PUT route-settings yang menolak kode di luar daftar
+                // tenant, dan mode dibatasi CHECK database sejak V61.
+                val route = HandoverRouteCode.parse(row[FulfillmentRouteSettingsTable.route]).getOrElse {
+                    throw IllegalStateException("Kode rute tersimpan tidak sah: '${row[FulfillmentRouteSettingsTable.route]}'")
+                }
                 val mode = HandoverMode.entries
                     .firstOrNull { it.name == row[FulfillmentRouteSettingsTable.handoverMode] }
-                    ?: return@mapNotNull null
+                    ?: throw IllegalStateException(
+                        "Mode tersimpan tidak dikenal '${row[FulfillmentRouteSettingsTable.handoverMode]}' untuk rute '${route.value}'"
+                    )
                 route to mode
             }.toMap()
 

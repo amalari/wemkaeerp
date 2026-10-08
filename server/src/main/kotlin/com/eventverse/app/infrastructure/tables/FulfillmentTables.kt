@@ -78,3 +78,24 @@ object FulfillmentTransferEventsTable : Table("fulfillment.fulfillment_transfer_
 
     override val primaryKey = PrimaryKey(id)
 }
+
+/**
+ * Daftar rute serah terima milik tenant. Cermin migrasi V96 (TRD-FLOW-003).
+ *
+ * Tanpa FK ke `tenants`, persis SQL-nya: keanggotaan tenant dijaga RLS, bukan FK.
+ * Rute tidak pernah dihapus bila pernah dipakai perjalanan — dijaga
+ * `PostgresHandoverRouteRepository.save`, bukan constraint database, karena daftar
+ * pemakainya ada di tabel lain (`fulfillment_transfers.leg`).
+ */
+object FulfillmentRoutesTable : Table("fulfillment.fulfillment_routes") {
+    val tenantId = varchar("tenant_id", 64)
+    val code = varchar("code", 40)
+    val label = varchar("label", 120)
+    val fromNode = varchar("from_node", 120).nullable()
+    val toNode = varchar("to_node", 120).nullable()
+    val sortOrder = integer("sort_order")
+    val active = bool("active")
+    val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(tenantId, code)
+}

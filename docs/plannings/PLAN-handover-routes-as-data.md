@@ -88,7 +88,19 @@ PR-0 ──┬── A1→A2→A3→A4→A5 ──┐
   (spec prototype vs konfigurasi tenant) belum diverifikasi.
 - Penyatuan `InternalTransfer` dan `SuratJalanManifest`: ditolak (TRD §1 Non-Goals).
 
-## 5. Status PR-0 (2026-10-08, branch `feat/flow-003-pr0-handover-route-contract`, belum di-commit)
+## 5. Status Track B (2026-10-08, branch `feat/flow-003-track-b-server-persistence`, worktree `../wemkaeerp-track-b`)
+
+**Selesai B1–B4, di atas `main` pasca-merge A1–A5 (jembatan `SackRoute` sisi server sudah dihapus sesuai catatan §Track B):**
+- B1: `V96__fulfillment_routes_as_data.sql` (aditif, RLS, `CHECK` kode, tanpa seed, tanpa backfill; dry-run `BEGIN…ROLLBACK` bersih; terdaftar di `ModuleSchemaMap`).
+- B2: `PostgresHandoverRouteRepository` (string murni; `save` menolak hapus rute yang pernah dipakai → 409); baca `PostgresFulfillmentRouteConfigRepository` diperketat (tidak ada lagi `mapNotNull` diam-diam — warisan komentar A).
+- B3: `FulfillmentRouteRoutes.kt` baru — `GET/PUT /routes` + `GET/PUT /route-settings` ber-kode sesuai TRD §4.4; blok route-settings lama **dicicil keluar** `FulfillmentTransferRoutes.kt` (365 → 356 baris pasca-rebase A — ratchet turun meski file juga menerima perubahan submit dari A); `knownRoutes` submit kini dari database (V96) + template pack, bukan `legacySackRoutes`.
+- B4: `FulfillmentRouteRoutesTest` (8 test: 403 tanpa wewenang, 403 RBAC tak terhitung, 200 jabatan ber-MANAGE, 400 kode duplikat/tak sah, 400 rute tak dikenal, 409 hapus-vs-200 nonaktifkan, paritas template, mode DIRECT rute non-garment `DIGITIZING_TO_HOOPING`).
+
+**Bukti segar**: kompilasi `:server:compileKotlin` + `compileTestKotlin` hijau; 12/12 test hijau (B4 + `RouteGateTest` + `RouteOwnershipTest` + `ModuleSchemaOwnershipTest`). Regresi: 5 kelas yang gagal di suite penuh dijalankan di `main` vs cabang B — gagalannya identik (`AccessSnapshotB6Test`, pre-existing; sisanya flaky per-urutan, lolos terisolasi di kedua sisi) → nol regresi dari B.
+
+**Catatan lintas track**: `CostingEstimatorTuningApiTest` (3), `DiscoveryInterviewApiTest` (4), `MasterDataApiTest` (1), `TechPackApiTest` (1) gagal hanya saat suite penuh dan lolos saat terisolasi di kedua sisi — bukan wilayah B, dicatat agar tidak disalahkan pada merge ini.
+
+## 6. Status PR-0 (2026-10-08, branch `feat/flow-003-pr0-handover-route-contract`, belum di-commit)
 
 **Selesai**: `HandoverRouteCode`/`HandoverRoute`/`TenantHandoverRoutes` (+ `resolve`),
 `HandoverRouteRepository` (port, termasuk `codesInUse`), `SackRoute.toRouteCode()`,
