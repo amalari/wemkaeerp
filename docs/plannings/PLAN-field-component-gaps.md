@@ -68,7 +68,7 @@ Masalah: agent tidak bisa menyebut "Keranjang" atau "Pembayaran" pada layar kust
 | **C** | Renderer menggambar blok dari data, tampil sebagai sketsa (bukan interaktif); cek visual di dua pack | `app/shared/presentation/discovery` |
 
 Bukan tipe field, jadi aturan `field-component-rules.md` hanya berlaku sebagian (katalog agent dan codec menolak nilai tak dikenal); aturan itu
-perlu mencatat pengecualian ini agar tidak dianggap terlupa. **Tetap non-interaktif** (keputusan D5).
+perlu mencatat pengecualian ini agar tidak dianggap terlupa. **Tetap non-interaktif** (keputusan D6).
 
 ### Irisan 4 — `RELATION`, `FILE` (C7, C8)
 TRD sendiri; prasyarat: keputusan tentang rujukan lintas modul (hanya lewat port, TRD-PLAT-004 P4) dan penyimpanan objek.
