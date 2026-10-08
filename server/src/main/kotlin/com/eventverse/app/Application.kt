@@ -182,7 +182,7 @@ fun Application.module(
     builderBillingInvoices: com.eventverse.app.domain.builder.SubscriptionInvoiceRepository? = null,
     builderBillingPreview: com.eventverse.app.domain.builder.TenantBillingPreviewSource? = null
 ) {
-    val repository = tenantRepository ?: run { DatabaseFactory.init(); PostgresTenantRepository() }
+    val repository = DatabaseFactory.init().let { tenantRepository ?: PostgresTenantRepository() } // init idempoten & tanpa syarat: repo lain default-nya Postgres, tes tak boleh bergantung pada urutan
     val userRepo = userRepository ?: PostgresUserRepository()
     val roleRepo = roleRepository ?: PostgresRoleRepository()
     val assignmentRepo = moduleAssignmentRepository ?: PostgresModuleAssignmentRepository()
