@@ -79,3 +79,8 @@ Track C: C1 ─ (pakai awalan `layanan_` dulu) → C2 → C3 → C4
 - Penegakan pemilik pack pada request-time (TRD-PLAT-005 D3).
 - Jalur narasi ke konfigurasi lewat builder (TRD tersendiri).
 - Field `derivedFrom` dan alat promosi (menunggu promosi pertama).
+
+## 7. Status Track A (2026-10-08, branch `docs/plat-004-decisions`)
+
+**A1–A4 selesai.** A1: pertanyaan "Mungkin dipakai tenant lain?" di Langkah 3 skill Discovery dan di §3 template Discovery Note. A2/A3: §5.6 baru di `module-integration-rules.md` (jalur kepemilikan, promosi = salin, kode tenant satu binary selama pagar hijau, batasan migrasi modul tenant, pack berpemilik). A4: `scripts/sync-agent-config.sh` lalu `--check` keluar 0.
+Dokumen saja; tidak ada kode yang dikompilasi atau dites. Pagar yang dijanjikan di §5.6 (impor dan migrasi) **belum ada** — itu Track B dan C.
