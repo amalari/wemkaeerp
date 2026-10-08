@@ -9,6 +9,7 @@ import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -75,7 +76,8 @@ object ScreenProposalCodec {
             jsonObjectOf(
                 "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
                 "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
-                "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode)
+                "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
+                "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name)
             )
         }),
         "statusField" to jsonOf(e.statusField),
@@ -88,6 +90,7 @@ object ScreenProposalCodec {
         fields = r.objects("fields").map { f ->
             val typeName = f.string("type")
             val formatName = f.optString("format")
+            val validationName = f.optString("validation")
             FieldProposal(
                 key = f.string("key"),
                 label = f.string("label"),
@@ -98,7 +101,11 @@ object ScreenProposalCodec {
                 format = if (formatName == null) NumberFormat.PLAIN
                 else NumberFormat.entries.firstOrNull { it.name == formatName }
                     ?: f.fail("format", "Format angka '$formatName' bukan kosakata tertutup: ${NumberFormat.entries.joinToString { it.name }}"),
-                currencyCode = f.optString("currencyCode")
+                currencyCode = f.optString("currencyCode"),
+                withTime = f.boolean("withTime", false),
+                validation = if (validationName == null) TextValidation.NONE
+                else TextValidation.entries.firstOrNull { it.name == validationName }
+                    ?: f.fail("validation", "Validasi teks '$validationName' bukan kosakata tertutup: ${TextValidation.entries.joinToString { it.name }}")
             )
         },
         statusField = r.optString("statusField"),

@@ -34,7 +34,8 @@ internal fun SpecColumn.sqlDefinition(): String {
     return when (field.type) {
         FieldType.TEXT, FieldType.LONG_TEXT -> "TEXT$notNull" + if (field.required) " CHECK (btrim($name) <> '')" else ""
         FieldType.NUMBER -> "NUMERIC(18,4)$notNull"
-        FieldType.DATE -> "DATE$notNull"
+        // withTime (A0(C6)): waktu dinding tanpa zona = TIMESTAMP (bukan TIMESTAMPTZ), tepat menit di tingkat nilai.
+        FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
         FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.options.joinToString(", ") { SpecNaming.sqlString(it) }}))"
         FieldType.BOOL -> "BOOLEAN NOT NULL DEFAULT FALSE"
     }

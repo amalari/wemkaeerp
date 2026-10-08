@@ -3,6 +3,7 @@ package com.eventverse.app.domain.discovery.handoff
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.TextValidation
 
 /**
  * Route CRUD **fail-closed** dari spec (kontrak §3.4). Urutan gerbang tidak boleh diubah:
@@ -17,6 +18,7 @@ internal object SpecRoutesWriter {
         val fn = SpecNaming.camel(t.schema) + "Routes"
         val path = "/api/tenant/modules/" + t.schema + "/" + t.table
         val dateCols = t.columns.filter { it.field.type == FieldType.DATE }
+        val validatedTextCols = t.columns.filter { it.field.type == FieldType.TEXT && it.field.validation != TextValidation.NONE }
         return buildString {
             appendLine("package com.eventverse.app.routes")
             appendLine()
@@ -27,7 +29,7 @@ internal object SpecRoutesWriter {
                 "com.eventverse.app.domain.prototype.FieldType", "com.eventverse.app.domain.prototype.NumberFormat", "com.eventverse.app.domain.prototype.PrototypeAction",
                 "com.eventverse.app.domain.prototype.PrototypeReducer", "com.eventverse.app.domain.prototype.PrototypeRow",
                 "com.eventverse.app.domain.prototype.PrototypeSpec", "com.eventverse.app.domain.prototype.PrototypeStore",
-                "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.rbac.AccessLevel",
+                "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.prototype.TextValidation", "com.eventverse.app.domain.rbac.AccessLevel",
                 "com.eventverse.app.domain.rbac.ModuleAssignmentRepository", "com.eventverse.app.domain.rbac.RoleRepository",
                 "com.eventverse.app.domain.tenant.TenantContext", "com.eventverse.app.plugins.tenantContextOrNull",
                 "com.eventverse.app.shared.json.JsonParser", "com.eventverse.app.shared.json.jsonArrayOf",
@@ -36,7 +38,7 @@ internal object SpecRoutesWriter {
                 "io.ktor.server.application.ApplicationCall", "io.ktor.server.request.receiveText",
                 "io.ktor.server.response.respond", "io.ktor.server.response.respondText", "io.ktor.server.routing.Route",
                 "io.ktor.server.routing.delete", "io.ktor.server.routing.get", "io.ktor.server.routing.post",
-                "io.ktor.server.routing.put", "io.ktor.server.routing.route", "kotlinx.datetime.LocalDate", "java.util.UUID"
+                "io.ktor.server.routing.put", "io.ktor.server.routing.route", "kotlinx.datetime.LocalDate", "kotlinx.datetime.LocalDateTime", "java.util.UUID"
             ).forEach { appendLine("import $it") }
             appendLine()
             appendLine("// KANDIDAT PR (hasil generator) — modul ${SpecNaming.kString(moduleId)}. Setelah diterapkan milik tim.")
@@ -44,7 +46,8 @@ internal object SpecRoutesWriter {
             appendLine("private const val ENTITY_ID = ${SpecNaming.kString(t.entity.id)}")
             appendLine("private const val ID_PREFIX = ${SpecNaming.kString(SpecNaming.ident(t.entity.id, "Entitas").take(20))}")
             appendLine("private val SPEC = PrototypeSpec(listOf(${entityLiteral(t.entity)}), emptyList())")
-            appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE)" }})")
+            appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
+            appendLine("private val TEXT_FIELDS = listOf<FieldSpec>(${validatedTextCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TEXT, validation = TextValidation." + it.field.validation.name + ")" }})")
             appendLine()
             appendLine("/**")
             appendLine(" * CRUD ${t.entity.label}: baca = VIEW, tambah/ubah (termasuk pindah status) = OPERATE, hapus = MANAGE.")
@@ -89,7 +92,7 @@ internal object SpecRoutesWriter {
             appendLine("            val tenant = call.authorized(AccessLevel.OPERATE) ?: return@post")
             appendLine("            val values = call.bodyValues() ?: return@post")
             appendLine("            val row = PrototypeRow(ID_PREFIX + \"-\" + UUID.randomUUID(), values)")
-            appendLine("            val problem = dateProblem(values)")
+            appendLine("            val problem = dateProblem(values) ?: textProblem(values)")
             appendLine("                ?: PrototypeReducer.reduce(SPEC, PrototypeStore(), PrototypeAction.Create(ENTITY_ID, row)).exceptionOrNull()?.message")
             appendLine("            if (problem != null) return@post call.respond(HttpStatusCode.BadRequest, problem)")
             appendLine("            repository.save(tenant.tenantId, row)")
@@ -100,7 +103,7 @@ internal object SpecRoutesWriter {
             appendLine("            val id = call.parameters[\"id\"].orEmpty()")
             appendLine("            val values = call.bodyValues() ?: return@put")
             appendLine("            val current = repository.find(tenant.tenantId, id) ?: return@put call.respond(HttpStatusCode.NotFound, \"Data tidak ditemukan.\")")
-            appendLine("            var problem = dateProblem(values)")
+            appendLine("            var problem = dateProblem(values) ?: textProblem(values)")
             appendLine("            var store = PrototypeStore(mapOf(ENTITY_ID to listOf(current)))")
             appendLine("            if (problem == null) {")
             appendLine("                for ((key, value) in values) {")
@@ -125,10 +128,20 @@ internal object SpecRoutesWriter {
             appendLine()
             appendLine("private fun rowJson(row: PrototypeRow) = jsonObjectOf(\"id\" to jsonOf(row.id), \"values\" to jsonStringMapOf(row.values))")
             appendLine()
-            appendLine("/** Field tanggal wajib ISO (TTTT-BB-HH); spec prototype menerima teks bebas, kolom DATE tidak. */")
+            appendLine("/** Field tanggal wajib ISO (TTTT-BB-HH, atau TTTT-BB-HHTJJ:MM bila withTime); kolom DATE/TIMESTAMP tidak menerima teks bebas. */")
             appendLine("private fun dateProblem(values: Map<String, String>): String? = DATE_FIELDS.firstNotNullOfOrNull { f ->")
             appendLine("    val v = values[f.key].orEmpty()")
-            appendLine("    if (v.isNotBlank() && runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
+            appendLine("    if (v.isBlank()) null")
+            appendLine("    else if (f.withTime) {")
+            appendLine("        val ok = v.length == 16 && v[10] == 'T' && runCatching { LocalDateTime.parse(v) }.isSuccess")
+            appendLine("        if (ok) null else \"'\" + f.label + \"' harus berformat TTTT-BB-HHTJJ:MM.\"")
+            appendLine("    } else if (runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
+            appendLine("}")
+            appendLine()
+            appendLine("/** Field TEXT berkunci validasi bentuk (email/telepon): nilai disimpan apa adanya, hanya bentuknya yang diperiksa (aturan tunggal `FieldSpec.accepts`). */")
+            appendLine("private fun textProblem(values: Map<String, String>): String? = TEXT_FIELDS.firstNotNullOfOrNull { f ->")
+            appendLine("    val v = values[f.key].orEmpty()")
+            appendLine("    if (v.isNotBlank() && !f.accepts(v)) \"'\" + f.label + \"' bukan \" + f.validation.name.lowercase() + \" yang sah.\" else null")
             appendLine("}")
         }
     }
@@ -140,7 +153,9 @@ internal object SpecRoutesWriter {
             "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", listOf(" +
                 f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
                 (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
-                    (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) + ")"
+                    (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) +
+                (if (f.withTime) ", withTime = true" else "") +
+                (if (f.validation != TextValidation.NONE) ", validation = TextValidation." + f.validation.name else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

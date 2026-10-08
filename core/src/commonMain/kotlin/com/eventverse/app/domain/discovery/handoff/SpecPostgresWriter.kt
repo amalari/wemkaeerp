@@ -15,6 +15,7 @@ internal object SpecPostgresWriter {
         appendLine()
         appendLine("import org.jetbrains.exposed.sql.Table")
         appendLine("import org.jetbrains.exposed.sql.kotlin.datetime.date")
+        appendLine("import org.jetbrains.exposed.sql.kotlin.datetime.datetime")
         appendLine("import org.jetbrains.exposed.sql.kotlin.datetime.timestamp")
         appendLine()
         appendLine("// KANDIDAT PR (hasil generator) — cermin migrasi ${t.qualified}. Setelah diterapkan milik tim.")
@@ -42,6 +43,7 @@ internal object SpecPostgresWriter {
             appendLine("import com.eventverse.app.infrastructure.tables.$objectName")
             appendLine("import kotlinx.datetime.Clock")
             appendLine("import kotlinx.datetime.LocalDate")
+            appendLine("import kotlinx.datetime.LocalDateTime")
             appendLine("import org.jetbrains.exposed.sql.ResultRow")
             appendLine("import org.jetbrains.exposed.sql.SortOrder")
             appendLine("import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq")
@@ -106,7 +108,7 @@ internal object SpecPostgresWriter {
         val base = when (c.field.type) {
             FieldType.TEXT, FieldType.LONG_TEXT -> "text($n)"
             FieldType.NUMBER -> "decimal($n, 18, 4)"
-            FieldType.DATE -> "date($n)"
+            FieldType.DATE -> if (c.field.withTime) "datetime($n)" else "date($n)"
             FieldType.ENUM -> "varchar($n, 120)"
             FieldType.BOOL -> "bool($n).default(false)"
         }
@@ -120,7 +122,10 @@ internal object SpecPostgresWriter {
         return when (c.field.type) {
             FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM -> if (optional) "$raw.ifBlank { null }" else raw
             FieldType.NUMBER -> if (optional) "$raw.takeIf { it.isNotBlank() }?.toBigDecimal()" else "$raw.toBigDecimal()"
-            FieldType.DATE -> if (optional) "$raw.takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) }" else "LocalDate.parse($raw)"
+            FieldType.DATE -> {
+                val parser = if (c.field.withTime) "LocalDateTime" else "LocalDate"
+                if (optional) "$raw.takeIf { it.isNotBlank() }?.let { $parser.parse(it) }" else "$parser.parse($raw)"
+            }
             FieldType.BOOL -> "$raw == \"ya\""
         }
     }

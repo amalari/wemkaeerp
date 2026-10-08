@@ -1,16 +1,17 @@
 package com.eventverse.app.domain.prototype
 
-import kotlinx.datetime.LocalDate
-
 /**
  * Tipe field prototype: kosakata **tertutup milik sistem** (lolos Uji Variabilitas — renderer harus
  * bisa menggambar tiap tipe di semua vertikal). Nama field, opsi enum, dan transisi tetap data.
  *
  * Tanda tangan format simpan per tipe (A0 Irisan 2, lihat `docs/plannings/PLAN-field-component-gaps.md` §2):
- * - [TEXT], [LONG_TEXT]: string bebas, kolom SQL `TEXT`; [LONG_TEXT] untuk isi panjang/multibaris
+ * - [TEXT], [LONG_TEXT]: string, kolom SQL `TEXT`, disimpan **apa adanya**. [TEXT] boleh punya [FieldSpec.validation]
+ *   ([TextValidation] EMAIL/PHONE: hanya aturan bentuk nilai, penyimpanan tak berubah); [LONG_TEXT] untuk isi panjang/multibaris tanpa validasi
  *   (padanan CRM `FieldType.LongText`; per keputusan D2 kosakatanya tetap terpisah).
  * - [NUMBER]: string angka desimal, kolom `NUMERIC(18,4)`.
- * - [DATE]: tanggal kalender ISO `TTTT-BB-HH`, kolom `DATE`.
+ * - [DATE]: tanggal kalender ISO `TTTT-BB-HH`, kolom `DATE`; dengan [FieldSpec.withTime] = true: `TTTT-BB-HH'T'JJ:MM`
+ *   (mis. `2026-10-08T14:30`), waktu dinding **tanpa zona waktu** tepat sampai menit, kolom `TIMESTAMP` (aturan di
+ *   [DateFieldValues]).
  * - [ENUM]: salah satu opsi di [FieldSpec.options].
  * - [BOOL]: `ya` / `tidak`, kolom `BOOLEAN`.
  */
@@ -48,7 +49,17 @@ data class FieldSpec(
      * Kode mata uang per field ([CurrencyCode]); wajib terisi **tepat** bila [format] = [NumberFormat.CURRENCY],
      * dan wajib `null` selain itu. Metadata tampilan: tidak masuk kolom SQL.
      */
-    val currencyCode: String? = null
+    val currencyCode: String? = null,
+    /**
+     * A0(C6) Irisan 2: tanggal + jam (menit). Hanya sah untuk [FieldType.DATE]. Mengubah **penyimpanan** (kolom
+     * `TIMESTAMP`, nilai `TTTT-BB-HH'T'JJ:MM`), bukan hanya tampilan — lihat [DateFieldValues].
+     */
+    val withTime: Boolean = false,
+    /**
+     * A0(C9) Irisan 2: validasi bentuk teks. Hanya sah untuk [FieldType.TEXT] (bukan [FieldType.LONG_TEXT]); selain
+     * [TextValidation.NONE] pada tipe lain ditolak. Nilai tetap disimpan apa adanya — lihat [TextValidations].
+     */
+    val validation: TextValidation = TextValidation.NONE
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
@@ -63,6 +74,12 @@ data class FieldSpec(
         require(type == FieldType.NUMBER || format == NumberFormat.PLAIN) {
             "Field '$key' bertipe ${type.name}, bukan NUMBER, jadi tidak boleh punya format ${format.name}"
         }
+        require(type == FieldType.DATE || !withTime) {
+            "Field '$key' bertipe ${type.name}, bukan DATE, jadi tidak boleh punya withTime"
+        }
+        require(type == FieldType.TEXT || validation == TextValidation.NONE) {
+            "Field '$key' bertipe ${type.name}, bukan TEXT, jadi tidak boleh punya validation ${validation.name}"
+        }
         if (format == NumberFormat.CURRENCY) {
             require(currencyCode != null && CurrencyCode.isValid(currencyCode)) {
                 "Field '$key' berformat CURRENCY wajib punya kode mata uang tiga huruf besar (mis. IDR), bukan '$currencyCode'"
@@ -76,11 +93,11 @@ data class FieldSpec(
     fun accepts(value: String): Boolean {
         if (value.isEmpty()) return true
         return when (type) {
-            FieldType.TEXT -> true
+            FieldType.TEXT -> TextValidations.isValid(validation, value)
             FieldType.LONG_TEXT -> true
             FieldType.NUMBER -> value.toDoubleOrNull() != null
-            // Sama dengan `ProposalEntityRules`: tanggal kalender ISO (TTTT-BB-HH), bukan teks bebas.
-            FieldType.DATE -> runCatching { LocalDate.parse(value) }.isSuccess
+            // Sama dengan `ProposalEntityRules`: tanggal ISO (TTTT-BB-HH) atau, bila withTime, TTTT-BB-HHTJJ:MM; bukan teks bebas.
+            FieldType.DATE -> DateFieldValues.isValid(value, withTime)
             FieldType.ENUM -> value in options
             FieldType.BOOL -> value == "ya" || value == "tidak"
         }

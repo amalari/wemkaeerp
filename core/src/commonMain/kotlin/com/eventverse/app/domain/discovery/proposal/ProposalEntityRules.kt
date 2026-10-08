@@ -1,9 +1,11 @@
 package com.eventverse.app.domain.discovery.proposal
 
 import com.eventverse.app.domain.prototype.CurrencyCode
+import com.eventverse.app.domain.prototype.DateFieldValues
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
-import kotlinx.datetime.LocalDate
+import com.eventverse.app.domain.prototype.TextValidation
+import com.eventverse.app.domain.prototype.TextValidations
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
 internal object ProposalEntityRules {
@@ -33,6 +35,12 @@ internal object ProposalEntityRules {
                 }
             } else if (code != null) {
                 sink.add("$at.currencyCode", "Field '${f.key}' tidak berformat CURRENCY, jadi tidak boleh punya kode mata uang")
+            }
+            if (f.type != FieldType.DATE && f.withTime) {
+                sink.add("$at.withTime", "Field '${f.key}' bertipe ${f.type.name}, bukan DATE, jadi tidak boleh punya withTime")
+            }
+            if (f.type != FieldType.TEXT && f.validation != TextValidation.NONE) {
+                sink.add("$at.validation", "Field '${f.key}' bertipe ${f.type.name}, bukan TEXT, jadi tidak boleh punya validation ${f.validation.name}")
             }
         }
         checkStatus(entity, sink)
@@ -109,8 +117,15 @@ internal object ProposalEntityRules {
             FieldType.ENUM -> if (v !in f.options) sink.add(at, "'$v' bukan pilihan '${f.key}' (${f.options.joinToString()})")
             FieldType.NUMBER -> if (v.toDoubleOrNull() == null) sink.add(at, "'$v' bukan angka untuk field '${f.key}'")
             FieldType.BOOL -> if (v != "ya" && v != "tidak") sink.add(at, "Field BOOL '${f.key}' hanya menerima 'ya' atau 'tidak', dapat '$v'")
-            FieldType.DATE -> if (runCatching { LocalDate.parse(v) }.isFailure) sink.add(at, "'$v' bukan tanggal ISO (YYYY-MM-DD) untuk field '${f.key}'")
-            FieldType.TEXT, FieldType.LONG_TEXT -> Unit
+            FieldType.DATE -> if (!DateFieldValues.isValid(v, f.withTime)) sink.add(
+                at,
+                if (f.withTime) "'$v' bukan tanggal-jam ISO (YYYY-MM-DDTHH:MM, tanpa detik/zona) untuk field '${f.key}'"
+                else "'$v' bukan tanggal ISO (YYYY-MM-DD) untuk field '${f.key}'"
+            )
+            FieldType.TEXT -> if (!TextValidations.isValid(f.validation, v)) {
+                sink.add(at, "'$v' bukan ${f.validation.name.lowercase()} yang sah untuk field '${f.key}'")
+            }
+            FieldType.LONG_TEXT -> Unit
         }
     }
 }
