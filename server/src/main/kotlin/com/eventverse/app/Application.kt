@@ -302,7 +302,7 @@ fun Application.module(
             discoveryDemandRepository = discoveryDemandRepository, builderChatRepository = builderChatRepository, crmLeadRepository = crmLeadRepository,
             contactRepository = contactRepository, dealRepository = dealRepository,
             poFileStorageOverride = poFileStorage, customFieldDefinitionRepository = customFieldDefinitionRepository,
-            leadActivityRepository = leadActivityRepository, samplingOrderRepository = samplingOrderRepository, materialItemRepository = materialItemRepository,
+            leadActivityRepository = leadActivityRepository, samplingOrderRepository = samplingOrderRepository, materialItemRepository = materialItemRepository, materialPriceRepository = materialPriceRepository,
             techPackRepository = techPackRepository, invoiceRepository = invoiceRepository,
             invoiceTemplateRepository = invoiceTemplateRepository, invoicePaymentRepository = invoicePaymentRepository,
             invoiceIssuerProfileRepository = invoiceIssuerProfileRepository, costingSheetRepository = costingSheetRepository,
