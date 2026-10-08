@@ -13,6 +13,13 @@ import com.eventverse.app.domain.pack.ModuleId
  *
  * Daftar ini sumber kebenaran `ModuleSchemaOwnershipTest`: tabel baru yang tidak terdaftar di sini atau di [platform]
  * menggagalkan test. Modul hasil pack data (AI) mengikuti aturan yang sama: `klinik_antrean.*`.
+ *
+ * Pagar migrasi J3 (P4, TRD-PLAT-004 §4.5; PLAN-module-ownership-lanes Track C): modul **khusus tenant** yang
+ * terdaftar di `TenantPackContributions` dilarang mengunci dirinya ke schema modul lain lewat migrasi —
+ * `REFERENCES`/`FROM`/`JOIN` dari migrasi J3 hanya boleh ke `public.tenants`, `public.users`, schema milik modul
+ * J3 terdaftar, atau schema modul yang dirujuk lewat `moduleReferences`. Dijaga `J3MigrationFenceTest`.
+ * Pembatasan ini **khusus J3**: B8 (FK/JOIN lintas schema) tetap berlaku penuh untuk modul garment/J1 — satu
+ * database, schema hanya memisahkan namespace, dan saling merujuk antar modul garment tetap sah.
  */
 object ModuleSchemaMap {
 

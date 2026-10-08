@@ -97,3 +97,17 @@ Dokumen saja; tidak ada kode yang dikompilasi atau dites. Pagar yang dijanjikan 
 **Bukti** (segar, ±13:07): `:core:jvmTest` 1617/0; `:app:shared:jvmTest` 268/0; `:server:test` terarah 38/0; kompilasi core JS/Wasm, `app:shared` JS/Wasm, `server` main+test bersih; `scripts/audit-variability.sh main` 0 temuan.
 
 **Batas**: pagar menangkap sebutan nama paket di sumber (impor/nama lengkap), bukan refleksi atau susunan string. Tes `*Layanan*` mungkin tidak menyentuh Postgres nyata; migrasi V90 tidak diubah. `:server:test` penuh tidak dijalankan.
+
+## Status Track C (2026-10-08, branch `feat/plat-004-track-c-migration-fence`, worktree `../wemkaeerp-wt-c`)
+
+**C1–C4 selesai.** Dikerjakan setelah B2 merge, jadi deteksi C1 langsung membaca registri `TenantPackContributions` (tindak lanjut "satu perubahan kecil" di §4 sudah termakan — tidak ada fase awalan `layanan_`).
+- C1: aturan deteksi mekanis di `J3MigrationFence` (sumber tes server): migrasi J3 = yang membuat/mengubah schema milik modul J3 terdaftar (`CREATE SCHEMA`, `ALTER SCHEMA/TABLE`, atau sebutan terkualifikasi `schema.`).
+- C2: pemindai `db/migration/*.sql` — `REFERENCES` (terkualifikasi maupun tidak → `public.<tabel>`), `FROM`/`JOIN` terkualifikasi, dan `SET search_path`. Daftar putih: `public.tenants`, `public.users`, schema modul J3 terdaftar, schema `moduleReferences` (kini kosong). `INSERT INTO`/`UPDATE` tidak dipindai (pola pendaftaran katalog V64/V90); `FROM` tak-terkualifikasi dilewati dengan alasan tertulis di KDoc.
+- C3: fixture pelanggar `server/src/test/resources/db/migration-fixture/V901__j3_fixture_referencing_crm_sales.sql` (di luar lokasi Flyway) — REFERENCES + JOIN + `SET search_path` ke `crm_sales` semuanya tertangkap; V90 asli lolos; migrasi J3 patuh (inline) lolos; migrasi garment tetap diadili standar B8.
+- C4: KDoc `ModuleSchemaMap` — pembatasan khusus J3; B8 tetap berlaku untuk modul garment.
+- Tidak ada perubahan perilaku runtime: satu-satunya sentuhan `src/main` adalah KDoc.
+
+**Bukti** (segar, 2026-10-08): `:server:compileKotlin` + `compileTestKotlin` hijau; `J3MigrationFenceTest` 4/0 (V90 lolos, fixture `crm_sales` tertangkap untuk ketiga bentuk, migrasi patuh lolos, migrasi garment lolos); `TenantCodeBoundaryTest` 3/0 (pagar impor B4 tak terganggu); `LayananChangeRequestRoutesGateTest` 6/0 dan `RouteOwnershipTest` 1/0; `scripts/audit-variability.sh` 0 temuan. **Gigi diuji dengan mutasi nyata**: menyisipkan `REFERENCES crm_sales.crm_leads(id)` ke V90 asli membuat `J3MigrationFenceTest` GAGAL; V90 dipulihkan, tes hijau lagi. Core dan `app:shared` tidak tersentuh (satu baris diff di luar server hanyalah KDoc-free docs).
+
+**Batas**: pemindai regex menangkap kesalahan lazim, bukan sabotase (SQL dirakit dari string, blok `DO $$`). `FROM`/`JOIN` tak-terkualifikasi tidak dipindai (alasan tertulis di KDoc). Schema sesama modul J3 dianggap satu ranah milik tenant — diperketat saat pack J3 kedua lahir (kriteria TRD §5.6). Dokumen pengajaran: `docs/teaching/teaching-plat-004-track-c-j3-migration-fence.md`.
+
