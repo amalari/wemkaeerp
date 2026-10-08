@@ -38,4 +38,12 @@ sealed interface ViewProposal {
     data class Print(val fields: List<String>) : ViewProposal
 
     data object None : ViewProposal
+
+    /**
+     * Kerangka `CUSTOM_SCREEN` bernama blok (Irisan 3b, C10). Sketsa non-interaktif (D6).
+     *
+     * **A0 hanya menetapkan bentuk.** Belum ada yang memproduksinya: validator masih mewajibkan [None] untuk
+     * `CUSTOM_SCREEN` dan codec belum membacanya, jadi nilai ini ditolak sampai Track A sisa menggantinya.
+     */
+    data class Skeleton(val blocks: List<SkeletonBlock>) : ViewProposal
 }

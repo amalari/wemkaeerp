@@ -39,39 +39,92 @@ Alasan urutan: C1 dan C2 tidak mengubah kosakata sehingga tidak butuh keputusan 
 tipe/parameter sederhana. C7 dan C8 melibatkan integritas referensial dan penyimpanan objek, dan bersinggungan dengan
 pagar J3 (`RELATION` antar modul harus lewat port, bukan JOIN lintas schema) sehingga butuh TRD sendiri.
 
-## 2. Irisan kerja (Track A/B/C per irisan)
+## 2. Irisan kerja (Track A/B/C per irisan, dirancang untuk agent paralel)
+
+### Aturan paralel (berlaku untuk semua irisan)
+
+Track dipotong **per lapisan dan kepemilikan direktori**, bukan per fitur, supaya tiga agent tidak menyunting file yang sama.
+
+| Track | Pemilik | Direktori yang boleh disunting | Dilarang menyentuh |
+|---|---|---|---|
+| **A — Domain** | kosakata, validasi, codec, usulan layar, generator SQL, tes paritas sisi domain | `core/src/commonMain`, `core/src/commonTest` | `server/`, `app/` |
+| **B — Agent & Server** | katalog `screen_catalog`, prompt Koog, evaluasi deterministik, route/infrastruktur server | `server/src/main`, `server/src/test`, `KoogDiscovery*` | `core/`, `app/` |
+| **C — UI** | kontrol input, komponen `designsystem/`, layar, cek visual, tes UI | `app/shared/src/commonMain/.../presentation`, `app/shared/src/commonTest` | `core/`, `server/` |
+
+Gerbang dan aturan main:
+1. **Gerbang A0 (kontrak, harus merge lebih dulu, kecil).** Sebelum B dan C mulai, A merge komit minimal yang berisi *hanya bentuk* tipe/kontrak (entri enum atau sealed, tanda tangan fungsi, KDoc). Tanpa ini B dan C gagal kompilasi karena `when` tanpa `else` (Kontrak 6) atau tidak punya tipe untuk dirujuk. Setelah A0 ada, **B dan C berjalan paralel dengan sisa A** (validasi, codec, SQL, tes).
+2. **Satu worktree per agent** (`isolation: "worktree"`), cabang bertingkat dari komit A0. Agent B dan C **tidak menyunting `core/`**; kebutuhan perubahan kontrak dikembalikan ke A sebagai permintaan, bukan ditambal lokal.
+3. **Urutan merge:** A0 → A sisa → B dan C (urutan bebas) → komit integrasi.
+4. **Integrator (satu orang/agent, bukan A/B/C)** menjalankan gerbang 7: kompilasi 5 target, tes core/app/server segar, `scripts/audit-variability.sh`, tes paritas, cek visual, lalu **satu** teaching doc per irisan. Agent track tidak menulis teaching doc agar tidak bentrok.
+5. **Ratchet ukuran file** (CLAUDE.md §14): pemilik track mengukur `wc -l` file yang disentuh sebelum mulai. Bila sebuah file sudah di atas hard limit, pemecahannya menjadi tugas track pemilik direktori itu, dikerjakan sebelum menambah isi.
+6. **Antar-irisan:** Irisan 1 dan 3b tidak berbagi file sehingga boleh jalan bersamaan. Irisan 2, 3, 4 menyentuh `EntitySpec.kt` dan `FieldInput.kt` yang sama, jadi A0 mereka **berurutan** (satu A0 per tipe), tetapi B dan C tipe ke-n boleh jalan bersamaan dengan A0/A tipe ke-(n+1) (pipa).
 
 ### Irisan 1 — Date picker + tes paritas (C1, C2)
+
+Tidak mengubah kosakata, jadi **tidak ada A0 kosakata**; gerbangnya adalah tanda tangan komponen, dibekukan dari awal:
+`ClayDatePicker(value: String, onValueChange: (String) -> Unit, label: String, modifier: Modifier, enabled: Boolean, isError: Boolean)` dengan `value` berformat `TTTT-BB-HH` atau kosong, buta domain. Track B membuatnya; Track C dan A hanya memakai tanda tangan itu.
+
 | Track | Isi | Direktori |
 |---|---|---|
-| **A** | Tes paritas yang mengiterasi `FieldType.entries` (prototype) dan varian sealed (CRM): tiap tipe punya pemetaan SQL, kontrol input, entri katalog agent, round-trip codec. Tes dengan pack non-default | `core/commonTest`, `app/shared/commonTest` |
-| **B** | Komponen `ClayDatePicker` di `designsystem/` (buta domain, token Clay, tanpa literal warna) yang mengembalikan string `TTTT-BB-HH`; dipakai `FieldInput` untuk `DATE` | `app/shared/presentation/designsystem`, `.../discovery/fields` |
-| **C** | Terapkan juga di CRM (`LeadCustomField`, `AddCustomFieldDialog` untuk `DateField`); cek visual di dua konteks (form, sel tabel) dan di lebar sempit; teaching doc | `app/shared/presentation/crm` |
+| **A** | Tes paritas sisi domain yang mengiterasi `FieldType.entries` (prototype) dan varian sealed (CRM): tiap tipe punya pemetaan SQL, entri katalog agent, round-trip codec yang menolak nilai tak dikenal. Pack non-default. Tes paritas "kontrol input ada untuk tiap tipe" ditulis di Track C (butuh UI) | `core/commonTest` |
+| **B** | Komponen `ClayDatePicker` di `designsystem/` (buta domain, token Clay, tanpa literal warna), dipakai `FieldInput` untuk `DATE`; konteks form dan sel tabel/kanban (`TableCell`, `InlineRowEditor`, `KanbanDetailDialog`) ikut diperiksa. Jalankan `scripts/find-similar-feature.sh` dulu untuk memastikan belum ada date picker lain | `app/shared/presentation/designsystem`, `.../discovery/fields` |
+| **C** | Terapkan juga di CRM (`LeadCustomField`, `AddCustomFieldDialog` untuk `DateField`) memakai komponen Track B; tes paritas "kontrol input ada untuk tiap tipe"; cek visual di dua konteks dan di lebar sempit (Wasm dan JVM) | `app/shared/presentation/crm`, `app/shared/commonTest` |
+
+**Pengecualian pemetaan lapisan:** karena Irisan 1 tidak punya kerja agent/server, Track B dan C di sini sama-sama di `app/shared`, dipisah per direktori (discovery vs CRM). Hanya B yang boleh menyunting `designsystem/`.
+Ketergantungan: C bergantung pada B hanya lewat tanda tangan di atas, jadi keduanya jalan bersamaan; C merge setelah B. Track A tidak bergantung pada keduanya.
 
 Catatan desain: date picker di Compose Multiplatform lintas 5 target tidak seragam (komponen Material 3 `DatePicker` ada tetapi
 perilakunya per platform berbeda); **keputusan D1** di bawah.
 
 ### Irisan 2 — Tipe sederhana (C3, C4, C6, C9)
-Tiap tipe/parameter mengikuti alur Kontrak 4 aturan: domain → codec (menolak nilai tak dikenal) → proposal rules →
-generator SQL → katalog agent → `FieldInput` → tes paritas. Satu tipe per PR.
+Satu tipe/parameter per PR, masing-masing dengan A0. Prasyarat: Irisan 1 Track A (tes paritas) sudah merge, supaya entri baru tanpa padanan langsung menggagalkan tes.
+
+| Track | Isi (per tipe) | Direktori |
+|---|---|---|
+| **A** | **A0:** entri tipe/parameter + validasi `FieldSpec` + tanda tangan format simpan (mis. `LONG_TEXT` = string; `NUMBER(format = Currency/Percent)`; `DATE(withTime)`; `TEXT(validation = Email/Phone)`). **Sisa A:** `SpecOp`/`SpecOpApplier`, `ProposalEntityRules`, `ProposalEdit`, `DeterministicScreenProposer`, codec (`InteractiveScreenCodec`, `SpecOpCodec`, `ScreenProposalCodec` menolak nilai tak dikenal), `SpecColumns`/`SpecPostgresWriter`/`SpecRoutesWriter`, tes paritas | `core/commonMain`, `core/commonTest` |
+| **B** | `screen_catalog` memuat tipe baru dan aturan pemakaiannya, `KoogDiscoveryPrompt` dan `KoogModuleEditor` tidak menyebut daftar tipe basi, evaluasi agent deterministik (tanpa LLM berbayar), codec sisi server bila ada | `server/.../infrastructure/discovery`, `.../builder` |
+| **C** | Kontrol di `FieldInput` + `TableCell`, `InlineRowEditor`, `KanbanDetailDialog`, `InteractiveFormState`, `InteractiveTableState`; komponen dasar di `designsystem/` bila perlu (mis. area teks, input format); cek visual di dua konteks dan pack non-garment | `app/shared/presentation/discovery/fields`, `.../designsystem` |
+
+Urutan pipa: A0(C3) → [A(C3) ‖ B(C3) ‖ C(C3) ‖ A0(C4)] → … Tipe C4 (mata uang/persen) paling besar di Track C karena format tampil dan parsing masukan.
 
 ### Irisan 3 — `MULTI_SELECT` (C5)
-Butuh keputusan penyimpanan (kolom larik vs tabel tautan) dan dampak ke generator; TRD ringkas.
-
-### Irisan 3b — Kerangka layar kustom (C10)
-Masalah: agent tidak bisa menyebut "Keranjang" atau "Pembayaran" pada layar kustom; pratinjau selalu tiga kotak generik (G9).
+**Gerbang awal (bukan track):** TRD ringkas yang memutuskan penyimpanan — kolom larik vs tabel tautan — dan bentuk nilai di codec. Tanpa keputusan ini A0 tidak boleh dimulai.
 
 | Track | Isi | Direktori |
 |---|---|---|
-| **A** | `ViewProposal.Skeleton(blocks)` menggantikan `None` **hanya** untuk `CUSTOM_SCREEN`; tiap blok `{label, lebar, petunjuk}`; batas baru di `ProposalLimits` (jumlah blok, panjang label, lebar ∈ {penuh, separuh}); `ProposalViewRules` dan codec (`ViewProposalCodec`) diperbarui, nilai tak sah **ditolak**; tes round-trip dan validator dengan pack non-garment | `core/domain/discovery/proposal`, `core/shared/discovery` |
-| **B** | `WidgetRegistry.sampleRowsFor` memakai blok dari usulan bila ada, jatuh ke tiga blok generik bila tidak (draf lama tetap hidup); `viewShape`/`widgetNote` di `screen_catalog` dan aturan prompt Koog menjelaskan bentuk baru dengan batas yang sama dengan validator; evaluasi agent deterministik | `core`, `server/infrastructure/discovery` |
+| **A** | **A0:** tipe `MULTI_SELECT` (opsi + batas pilihan) dan format nilai (larik terurut, tanpa duplikat). **Sisa A:** validasi, codec (dua kosakata sesuai keputusan D2: prototype dulu, CRM dicatat), `SpecColumns`/penulis SQL untuk penyimpanan terpilih, `SpecOp`, tes paritas | `core/commonMain`, `core/commonTest` |
+| **B** | Katalog agent dan aturan prompt (kapan memilih `MULTI_SELECT` vs `ENUM`), evaluasi deterministik, route hasil scaffold membaca/menulis larik | `server/.../infrastructure/discovery`, `.../builder` |
+| **C** | Kontrol chip pilihan ganda di `FieldInput` (+ konteks tabel/kanban), komponen dasar `designsystem/` buta domain, cek visual | `app/shared/presentation/discovery/fields`, `.../designsystem` |
+
+### Irisan 3b — Kerangka layar kustom (C10)
+### Irisan 3b — Kerangka layar kustom (C10)
+Masalah: agent tidak bisa menyebut "Keranjang" atau "Pembayaran" pada layar kustom; pratinjau selalu tiga kotak generik (G9).
+
+**Kontrak A0:** `SkeletonBlock(label, width ∈ {FULL, HALF}, hint ∈ daftar tertutup D5)` dan `ViewProposal.Skeleton(blocks)`. Track A merge ini lebih dulu; B dan C hanya memakai tipe itu.
+
+| Track | Isi | Direktori |
+|---|---|---|
+| **A** | **A0** di atas. **Sisa A:** `Skeleton` menggantikan `None` **hanya** untuk `CUSTOM_SCREEN`; batas baru di `ProposalLimits` (jumlah blok, panjang label); `ProposalViewRules` dan codec (`ViewProposalCodec`) diperbarui, nilai tak sah **ditolak**; `WidgetRegistry.sampleRowsFor` memakai blok dari usulan bila ada, jatuh ke tiga blok generik bila tidak (draf lama tetap hidup); tes round-trip dan validator dengan pack non-garment | `core/domain/discovery/proposal`, `core/shared/discovery`, `WidgetRegistry` |
+| **B** | `viewShape`/`widgetNote` di `screen_catalog` dan aturan prompt Koog menjelaskan bentuk baru dengan batas yang sama dengan validator (batas dibaca dari `ProposalLimits`, tidak disalin); `DiscoverySummary` meneruskan sampel; evaluasi agent deterministik | `server/infrastructure/discovery` |
 | **C** | Renderer menggambar blok dari data, tampil sebagai sketsa (bukan interaktif); cek visual di dua pack | `app/shared/presentation/discovery` |
 
 Bukan tipe field, jadi aturan `field-component-rules.md` hanya berlaku sebagian (katalog agent dan codec menolak nilai tak dikenal); aturan itu
 perlu mencatat pengecualian ini agar tidak dianggap terlupa. **Tetap non-interaktif** (keputusan D6).
 
 ### Irisan 4 — `RELATION`, `FILE` (C7, C8)
-TRD sendiri; prasyarat: keputusan tentang rujukan lintas modul (hanya lewat port, TRD-PLAT-004 P4) dan penyimpanan objek.
+Dua sub-irisan terpisah (4a `RELATION`, 4b `FILE`), masing-masing dengan TRD sendiri sebagai **gerbang awal** dan A0 sendiri. 4a dan 4b tidak berbagi kontrak baru sehingga boleh jalan paralel, selama A0 mereka berurutan (berbagi `EntitySpec.kt`).
+
+**Gerbang TRD:**
+- 4a: rujukan lintas modul hanya lewat port, bukan JOIN lintas schema (TRD-PLAT-004 P4 dan pagar J3); keputusan siapa pemilik integritas referensial.
+- 4b: jalur penyimpanan objek (belum diverifikasi apakah server sudah punya jalur unggah), batas ukuran, tipe konten, dan siapa boleh mengunduh.
+
+| Track | 4a `RELATION` | 4b `FILE` | Direktori |
+|---|---|---|---|
+| **A** | **A0:** tipe `RELATION(target)` dengan `isReferential`; validasi target ada dan dapat dirujuk; codec; `SpecColumns` (kunci asing logis, tanpa FK lintas schema); tes paritas + tes target tidak sah | **A0:** tipe `FILE` (nilai = referensi objek, bukan byte); antarmuka `ObjectStorage` di domain; codec menolak referensi tak dikenal; `SpecColumns`; tes paritas | `core/commonMain`, `core/commonTest` |
+| **B** | Route pencarian opsi rujukan dengan gate modul target (`requireModuleAccess`), **fail-closed**, tes 403 untuk peran tak berwenang; katalog agent dan prompt | Implementasi `ObjectStorage` (infrastruktur), endpoint unggah/unduh dengan gate modul induk, **fail-closed**, tes 403, batas ukuran; katalog agent dan prompt | `server/src/main`, `server/src/test` |
+| **C** | Kontrol pemilih rujukan (pencarian, tampilan label) di `FieldInput` + tabel/kanban | Kontrol unggah (progres, error, batas ukuran) di `FieldInput` + tabel/kanban; komponen dasar `designsystem/` | `app/shared/presentation/discovery/fields`, `.../designsystem` |
+
+Pengecualian Kontrak 8: bila TRD belum selesai, tipe ini **ditolak**, tidak dipetakan ke `TEXT`.
 
 ## 3. Keputusan yang diminta
 

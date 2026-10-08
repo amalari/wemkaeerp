@@ -87,6 +87,6 @@ private fun ScreenProposal.toScreenSpec(): ScreenSpec {
         is ViewProposal.Form -> ScreenSpec(screenId, title, WidgetKind.FORM, e?.id, form = FormConfig(v.fields, v.submitLabel))
         is ViewProposal.Checklist -> ScreenSpec(screenId, title, WidgetKind.CHECKLIST, e?.id, checklist = ChecklistConfig(v.labelField, v.doneField))
         is ViewProposal.Dashboard -> ScreenSpec(screenId, title, WidgetKind.DASHBOARD, null, dashboard = DashboardConfig(v.tiles))
-        is ViewProposal.Print, ViewProposal.None -> error("Widget ${widget.code} tidak punya bentuk interaktif")
+        is ViewProposal.Print, ViewProposal.None, is ViewProposal.Skeleton -> error("Widget ${widget.code} tidak punya bentuk interaktif")
     }
 }

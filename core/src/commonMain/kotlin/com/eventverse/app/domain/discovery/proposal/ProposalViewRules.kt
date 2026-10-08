@@ -56,6 +56,8 @@ internal object ProposalViewRules {
                 if (entity != null) existAll(".view.fields", view.fields, "Field cetak")
             }
             ViewProposal.None -> Unit
+            // A0: tak terjangkau — `matches` hanya meloloskan None untuk CUSTOM_SCREEN. Track A sisa mengisinya.
+            is ViewProposal.Skeleton -> Unit
         }
     }
 

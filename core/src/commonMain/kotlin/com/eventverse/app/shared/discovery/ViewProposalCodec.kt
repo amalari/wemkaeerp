@@ -37,6 +37,8 @@ internal object ViewProposalCodec {
         }))
         is ViewProposal.Print -> jsonObjectOf("fields" to jsonArrayOf(v.fields.map(::jsonOf)))
         ViewProposal.None -> JsonValue.Null
+        // A0: belum ada kawat untuk Skeleton; melempar lebih baik daripada menulis `null` dan menghilangkan blok.
+        is ViewProposal.Skeleton -> error("Kawat ViewProposal.Skeleton belum didefinisikan (Irisan 3b, Track A sisa)")
     }
 
     /** [parent] = pembaca proposal; `view` dibaca darinya menurut [widget]. */
