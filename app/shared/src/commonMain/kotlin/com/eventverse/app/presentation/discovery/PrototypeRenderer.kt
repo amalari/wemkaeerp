@@ -254,31 +254,7 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                 }
             }
         }
-        WidgetKind.CUSTOM_SCREEN -> Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-            // Kerangka, bukan isi: blok "penuh" berdiri sendiri, blok "separuh" dipasangkan dengan
-            // tetangga berikutnya. Aturan pemasangan tinggal di renderer, bukan di sample — sample
-            // cukup menyatakan blok apa yang ada.
-            var index = 0
-            while (index < rows.size) {
-                val baris = rows[index]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                ) {
-                    if (baris["Lebar"] == "penuh") {
-                        CustomScreenBlock(baris["Blok"].orEmpty(), Modifier.fillMaxWidth())
-                    } else {
-                        CustomScreenBlock(baris["Blok"].orEmpty(), Modifier.weight(1f))
-                        val pasangan = rows.getOrNull(index + 1)?.takeIf { it["Lebar"] != "penuh" }
-                        if (pasangan != null) {
-                            CustomScreenBlock(pasangan["Blok"].orEmpty(), Modifier.weight(1f))
-                            index++
-                        }
-                    }
-                }
-                index++
-            }
-        }
+        WidgetKind.CUSTOM_SCREEN -> SkeletonSketch(rows)
         WidgetKind.TABLE -> Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             // Tabel nyata: header dari kunci baris pertama, lalu SEMUA baris data — bukan cuma
             // baris pertama seperti v1. Kolom sama berat; sampel v1 (kunci konsisten) ikut bentuk ini.
@@ -343,22 +319,3 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
         }
     }
 }
-
-/**
- * Satu blok kerangka layar rancangan bebas — dipisah supaya [WidgetBody] tetap terbaca sebagai
- * susunan, bukan sebagai detail gaya. Rata (tanpa bayangan) karena ia menggambarkan *isi* kartu,
- * bukan kartu di atas kartu.
- */
-@Composable
-private fun CustomScreenBlock(label: String, modifier: Modifier = Modifier) {
-    Text(
-        text = label,
-        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-            .background(WeMadeColors.SurfaceMuted.copy(alpha = 0.14f), ClayShapes.Tile)
-            .padding(ClaySpacing.Md)
-    )
-}
-
