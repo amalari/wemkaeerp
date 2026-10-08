@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.discovery.fields
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.presentation.designsystem.displayIsoDateTime
 
 /**
  * Logika tampil & masukan angka berformat (Irisan 2, C4) sebagai fungsi murni common Kotlin
@@ -126,8 +127,9 @@ fun normalizeNumberTyping(input: String, format: NumberFormat): String? {
     return parseNumberInput(input, format)
 }
 
-/** Teks tampil sebuah nilai menurut spesifikasi field; selain NUMBER dikembalikan apa adanya. */
+/** Teks tampil sebuah nilai menurut spesifikasi field; NUMBER diformat, DATE withTime diberi spasi (JJ:MM), sisanya apa adanya. */
 fun FieldSpec.displayValue(stored: String): String = when (type) {
     FieldType.NUMBER -> formatNumberForDisplay(stored, format, currencyCode)
-    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.DATE, FieldType.ENUM, FieldType.BOOL -> stored
+    FieldType.DATE -> if (withTime) displayIsoDateTime(stored) else stored
+    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL -> stored
 }
