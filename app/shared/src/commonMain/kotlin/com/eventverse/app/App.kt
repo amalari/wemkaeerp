@@ -460,18 +460,16 @@ fun App() {
                         }
                         // FULFILLMENT punya layar kerjanya sendiri (kurir antar karung),
                         // tapi gerbangnya tetap ganda seperti modul lain: sesi dulu, baru wewenang.
-                        AppNavScreen.FULFILLMENT -> {
+                        AppNavScreen.FULFILLMENT, AppNavScreen.FULFILLMENT_ROUTE_SETTINGS -> {
                             val module = screen.businessModule
                             if (isAuthenticated && module != null) {
-                                FulfillmentWorkspaceScreen(
-                                    decision = accessDecisions[module] ?: AccessDecision(
-                                        config = ModuleAccessConfig(),
-                                        source = AccessSource.NONE,
-                                        fromRole = ModuleAccessConfig(),
-                                        fromDepartment = ModuleAccessConfig()
-                                    ),
-                                    persona = activePersona
+                                val decision = accessDecisions[module] ?: AccessDecision(
+                                    ModuleAccessConfig(), AccessSource.NONE, ModuleAccessConfig(), ModuleAccessConfig()
                                 )
+                                when (screen) {
+                                    AppNavScreen.FULFILLMENT -> FulfillmentWorkspaceScreen(decision, activePersona)
+                                    else -> com.eventverse.app.presentation.fulfillment.FulfillmentRouteSettingsScreen(decision, activePersona)
+                                }
                             } else {
                                 AuthGuardCard(
                                     targetModuleName = screen.title,

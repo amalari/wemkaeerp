@@ -148,6 +148,13 @@ enum class AppNavScreen(
         businessModule = GarmentModules.FULFILLMENT,
         isNavMenuItem = false
     ),
+    FULFILLMENT_ROUTE_SETTINGS(
+        route = "/fulfillment/routes",
+        title = "Pengaturan Rute Serah Terima",
+        aliases = listOf("/fulfillment-routes", "/route-settings"),
+        businessModule = GarmentModules.FULFILLMENT,
+        isNavMenuItem = false
+    ),
     MASTER_DATA(
         route = "/master-data",
         title = "Master Data Bahan & Harga",
