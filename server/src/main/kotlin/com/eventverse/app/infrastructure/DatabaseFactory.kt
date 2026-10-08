@@ -64,6 +64,17 @@ object DatabaseFactory {
     ): DataSource {
         if (dataSource != null) return dataSource!!
 
+        // Pagar tes: task Gradle `test` menyalakan properti ini. URL yang tidak berisi `scratch` ditolak SEBELUM
+        // koneksi dibuka, karena `init` menjalankan Flyway (memigrasi database tujuan) — lihat `server/build.gradle.kts`.
+        if (System.getProperty(REQUIRE_SCRATCH_PROPERTY) == "true") {
+            val dbName = jdbcUrl.substringAfterLast('/').substringBefore('?')
+            check(dbName.contains("scratch")) {
+                "Tes menolak database '$dbName': hanya database ber-nama 'scratch' yang boleh dimigrasi/ditulis tes. " +
+                    "Buat dengan `createdb wemake_erp_scratch_test` atau set DB_NAME ber-nama scratch; " +
+                    "periksa juga DB_JDBC_URL di .env."
+            }
+        }
+
         val config = HikariConfig().apply {
             this.jdbcUrl = jdbcUrl
             this.username = user
@@ -172,6 +183,9 @@ object DatabaseFactory {
         dataSource?.close()
         dataSource = null
     }
+
+    /** Dinyalakan task Gradle `test` (`server/build.gradle.kts`); lihat pagar di [init]. */
+    const val REQUIRE_SCRATCH_PROPERTY = "wemade.requireScratchDb"
 
     private fun getEnvOrDefault(name: String, default: String): String =
         EnvLoader.get(name).takeIf { it.isNotBlank() } ?: default

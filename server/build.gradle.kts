@@ -94,4 +94,14 @@ tasks.register<JavaExec>("importHistoricalCosting") {
 tasks.withType<Test>().configureEach {
     environment("DISCOVERY_AGENT", "deterministic")
     environment("INTERVIEW_AGENT", "off")
+
+    // Tes tidak boleh menyentuh database kerja. `DatabaseFactory.init()` menjalankan migrasi Flyway dan bawaan
+    // `DB_NAME`-nya `wemake_erp` (juga dari `.env`), jadi tanpa ini `:server:test` ikut memigrasi DB dev.
+    // Env sistem mengalahkan `.env`; `DB_NAME` scratch yang Anda set sendiri tetap dihormati. Database-nya harus
+    // sudah ada: `createdb wemake_erp_scratch_test` (atau `docker exec wemade-postgres psql -U postgres -c "CREATE
+    // DATABASE wemake_erp_scratch_test"`). `wemade.requireScratchDb` menyalakan pagar di `DatabaseFactory.init()`
+    // yang menolak URL non-scratch (mis. `DB_JDBC_URL` dari `.env`, yang tidak bisa ditimpa dari sini).
+    val scratchDb = System.getenv("DB_NAME")?.takeIf { it.contains("scratch") } ?: "wemake_erp_scratch_test"
+    environment("DB_NAME", scratchDb)
+    systemProperty("wemade.requireScratchDb", "true")
 }
