@@ -11,6 +11,7 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.strictBoolean
 
 /**
  * Kawat JSON [SpecOp] dan [CaptureEntry] (kontrak v1) — dipakai body/respons `spec-ops` dan `brief`.
@@ -27,7 +28,8 @@ object SpecOpCodec {
             "field" to jsonObjectOf(
                 "key" to jsonOf(op.field.key), "label" to jsonOf(op.field.label), "fieldType" to jsonOf(op.field.type.name),
                 "options" to jsonArrayOf(op.field.options.map(::jsonOf)), "required" to jsonOf(op.field.required),
-                "format" to jsonOf(op.field.format.name), "currencyCode" to jsonOf(op.field.currencyCode)
+                "format" to jsonOf(op.field.format.name), "currencyCode" to jsonOf(op.field.currencyCode),
+                "withTime" to jsonOf(op.field.withTime)
             )
         )
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
@@ -52,7 +54,7 @@ object SpecOpCodec {
                 val format = decodeFormat(f.string("format"), required = false)
                 SpecOp.AddField(
                     str("entityId"),
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, format, f.string("currencyCode"), f.strictBoolean("withTime", false))
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))

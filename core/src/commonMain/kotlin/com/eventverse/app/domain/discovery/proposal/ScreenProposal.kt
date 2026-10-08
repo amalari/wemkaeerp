@@ -64,7 +64,9 @@ data class FieldProposal(
      */
     val format: NumberFormat = NumberFormat.PLAIN,
     /** Wajib tepat bila [format] = CURRENCY (divalidasi [ScreenProposalValidator], bukan konstruktor). */
-    val currencyCode: String? = null
+    val currencyCode: String? = null,
+    /** A0(C6): tanggal + jam; hanya sah untuk [FieldType.DATE] (divalidasi [ScreenProposalValidator], bukan konstruktor). */
+    val withTime: Boolean = false
 )
 
 /**

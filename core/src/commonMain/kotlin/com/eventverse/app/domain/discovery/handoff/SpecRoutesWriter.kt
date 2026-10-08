@@ -36,7 +36,7 @@ internal object SpecRoutesWriter {
                 "io.ktor.server.application.ApplicationCall", "io.ktor.server.request.receiveText",
                 "io.ktor.server.response.respond", "io.ktor.server.response.respondText", "io.ktor.server.routing.Route",
                 "io.ktor.server.routing.delete", "io.ktor.server.routing.get", "io.ktor.server.routing.post",
-                "io.ktor.server.routing.put", "io.ktor.server.routing.route", "kotlinx.datetime.LocalDate", "java.util.UUID"
+                "io.ktor.server.routing.put", "io.ktor.server.routing.route", "kotlinx.datetime.LocalDate", "kotlinx.datetime.LocalDateTime", "java.util.UUID"
             ).forEach { appendLine("import $it") }
             appendLine()
             appendLine("// KANDIDAT PR (hasil generator) — modul ${SpecNaming.kString(moduleId)}. Setelah diterapkan milik tim.")
@@ -44,7 +44,7 @@ internal object SpecRoutesWriter {
             appendLine("private const val ENTITY_ID = ${SpecNaming.kString(t.entity.id)}")
             appendLine("private const val ID_PREFIX = ${SpecNaming.kString(SpecNaming.ident(t.entity.id, "Entitas").take(20))}")
             appendLine("private val SPEC = PrototypeSpec(listOf(${entityLiteral(t.entity)}), emptyList())")
-            appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE)" }})")
+            appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
             appendLine()
             appendLine("/**")
             appendLine(" * CRUD ${t.entity.label}: baca = VIEW, tambah/ubah (termasuk pindah status) = OPERATE, hapus = MANAGE.")
@@ -125,10 +125,14 @@ internal object SpecRoutesWriter {
             appendLine()
             appendLine("private fun rowJson(row: PrototypeRow) = jsonObjectOf(\"id\" to jsonOf(row.id), \"values\" to jsonStringMapOf(row.values))")
             appendLine()
-            appendLine("/** Field tanggal wajib ISO (TTTT-BB-HH); spec prototype menerima teks bebas, kolom DATE tidak. */")
+            appendLine("/** Field tanggal wajib ISO (TTTT-BB-HH, atau TTTT-BB-HHTJJ:MM bila withTime); kolom DATE/TIMESTAMP tidak menerima teks bebas. */")
             appendLine("private fun dateProblem(values: Map<String, String>): String? = DATE_FIELDS.firstNotNullOfOrNull { f ->")
             appendLine("    val v = values[f.key].orEmpty()")
-            appendLine("    if (v.isNotBlank() && runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
+            appendLine("    if (v.isBlank()) null")
+            appendLine("    else if (f.withTime) {")
+            appendLine("        val ok = v.length == 16 && v[10] == 'T' && runCatching { LocalDateTime.parse(v) }.isSuccess")
+            appendLine("        if (ok) null else \"'\" + f.label + \"' harus berformat TTTT-BB-HHTJJ:MM.\"")
+            appendLine("    } else if (runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
             appendLine("}")
         }
     }
@@ -140,7 +144,8 @@ internal object SpecRoutesWriter {
             "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", listOf(" +
                 f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
                 (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
-                    (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) + ")"
+                    (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) +
+                (if (f.withTime) ", withTime = true" else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

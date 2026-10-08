@@ -92,7 +92,7 @@ private fun FieldProposal.accepts(v: String): Boolean = when (type) {
     com.eventverse.app.domain.prototype.FieldType.ENUM -> v in options
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> v.toDoubleOrNull() != null
     com.eventverse.app.domain.prototype.FieldType.BOOL -> v == "ya" || v == "tidak"
-    com.eventverse.app.domain.prototype.FieldType.DATE -> runCatching { kotlinx.datetime.LocalDate.parse(v) }.isSuccess
+    com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.isValid(v, withTime)
     com.eventverse.app.domain.prototype.FieldType.TEXT, com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> true
 }
 
@@ -100,6 +100,6 @@ private fun FieldProposal.sampleValue(): String = when (type) {
     com.eventverse.app.domain.prototype.FieldType.ENUM -> options.firstOrNull() ?: "contoh"
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> "0"
     com.eventverse.app.domain.prototype.FieldType.BOOL -> "tidak"
-    com.eventverse.app.domain.prototype.FieldType.DATE -> "2026-01-01"
+    com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.sample(withTime)
     com.eventverse.app.domain.prototype.FieldType.TEXT, com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> "contoh"
 }
