@@ -113,7 +113,7 @@ object DeterministicScreenProposer : ScreenProposer {
         FieldType.DATE -> CardElement(f.key, CardStyle.DATE)
         FieldType.NUMBER -> CardElement(f.key, CardStyle.NUMBER)
         FieldType.BOOL -> CardElement(f.key, CardStyle.FLAG)
-        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION -> null
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE -> null
     }
 
     /** Satu ubin per modul lain yang slotnya punya status: jumlah baris berstatus **awal** (antrean yang menunggu). */

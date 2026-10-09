@@ -30,7 +30,7 @@ class PrototypeFieldTypeSqlParityTest {
 
     /** Awalan SQL yang diharapkan; `when` tanpa `else` = pagar kompilator. */
     private fun expectedSql(type: FieldType): String = when (type) {
-        FieldType.TEXT, FieldType.LONG_TEXT -> "TEXT"
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "TEXT"
         FieldType.NUMBER -> "NUMERIC(18,4)"
         FieldType.DATE -> "DATE"
         FieldType.ENUM -> "VARCHAR(120)"
@@ -39,7 +39,7 @@ class PrototypeFieldTypeSqlParityTest {
     }
 
     private fun expectedExposed(type: FieldType): String = when (type) {
-        FieldType.TEXT, FieldType.LONG_TEXT -> "text("
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "text("
         FieldType.NUMBER -> "decimal("
         FieldType.DATE -> "date("
         FieldType.ENUM -> "varchar("
@@ -233,5 +233,17 @@ class PrototypeFieldTypeSqlParityTest {
         assertFalse(f.accepts("   "), "blank bukan id")
         assertFalse(f.accepts("../po"), "path traversal ditolak")
         assertFalse(f.accepts("po..001"), "..' ditolak di mana pun")
+    }
+
+    /** C8 (TRD-FIELD-002 FR-5): accepts FILE = bentuk FileRef; referensi rusak/buatan ditolak, kosong sah. */
+    @Test
+    fun accepts_fileField_acceptsOnlyValidFileRefShape() {
+        val f = fieldFor(FieldType.FILE)
+        assertTrue(f.accepts(""), "kosong = belum diisi")
+        assertTrue(f.accepts("fields/ten/pesanan/r-1/scan-a1b2c3-scan.pdf"), "FileRef sah")
+        assertFalse(f.accepts("fields/../rahasia"), "path traversal ditolak")
+        assertFalse(f.accepts("/absolut/fields/scan.pdf"), "awalan absolut ditolak")
+        assertFalse(f.accepts("scan.pdf"), "tanpa namespace fields/ ditolak")
+        assertFalse(f.accepts("fields/ten/r-1/baris\nbaru.pdf"), "kontrol/baris baru ditolak")
     }
 }

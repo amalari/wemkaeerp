@@ -15,6 +15,7 @@ object PrototypeFieldTypeSampleFields {
         FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, listOf("Digitizing", "Hooping", "Selesai"), required)
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
         FieldType.RELATION -> FieldSpec("rujukan_po", "Rujukan PO", type, required = required, target = "pesanan")
+        FieldType.FILE -> FieldSpec("lampiran_scan", "Lampiran scan", type, required = required)
     }
 
     /** Satu field per tipe, urutan [FieldType.entries]. */
@@ -29,5 +30,6 @@ object PrototypeFieldTypeSampleFields {
         FieldType.ENUM -> "Hooping"
         FieldType.BOOL -> "ya"
         FieldType.RELATION -> "po-001"
+        FieldType.FILE -> "fields/ten-bordir/pesanan_bordir/r-1/lampiran_scan-a1b2c3-scan.pdf"
     }
 }

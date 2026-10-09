@@ -85,6 +85,15 @@ sealed interface FieldType {
         }
     }
 
+    /**
+     * Berkas terunggah (C8, TRD-FIELD-002). Nilai sel = `FileRef` (string key `fields/...`), byte di
+     * `ObjectStorage` (server) — byte TIDAK PERNAH masuk jsonb. Tidak referensial: integritasnya bentuk
+     * key (validasi `FileRef.isValid`), bukan baris link; objek hilang dirender "tidak ditemukan".
+     */
+    data object File : FieldType {
+        override val code: String = "FILE"
+    }
+
     companion object {
         /**
          * Codes accepted for `field_type`. Kept in sync with the sealed hierarchy above.
@@ -96,7 +105,7 @@ sealed interface FieldType {
          * `ExceptionInInitializerError` the first time `FieldType` is touched at all.
          */
         val ALL_CODES: Set<String> = setOf(
-            "TEXT", "LONG_TEXT", "NUMBER", "SINGLE_SELECT", "DATE", "CHECKBOX", "USER_REF", "RELATION"
+            "TEXT", "LONG_TEXT", "NUMBER", "SINGLE_SELECT", "DATE", "CHECKBOX", "USER_REF", "RELATION", "FILE"
         )
     }
 }

@@ -128,6 +128,8 @@ internal object ProposalEntityRules {
             FieldType.LONG_TEXT -> Unit
             // Keputusan R2 TRD-FIELD-001: seed RELATION wajib kosong di v1 — tidak mengarang id target.
             FieldType.RELATION -> sink.add(at, "Field RELATION '${f.key}' wajib kosong di baris contoh (v1); isi nilai rujukan lewat data nyata")
+            // C8 (TRD-FIELD-002): seed FILE wajib kosong — referensi ke objek yang tidak ada ditolak.
+            FieldType.FILE -> sink.add(at, "Field FILE '${f.key}' wajib kosong di baris contoh (v1); berkas diunggah lewat data nyata")
         }
     }
 }

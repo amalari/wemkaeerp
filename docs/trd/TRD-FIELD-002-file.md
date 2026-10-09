@@ -13,6 +13,7 @@
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Kilo (riset dari kode) | Verifikasi jalur unggah selesai: **server SUDAH punya object storage** (bukti §4.1) |
 | 0.2 | 2026-10-08 | User | R1–R3 disetujui dengan opsi default dokumen; R4 dititipkan ke Track C; gerbang Irisan 4b dinyatakan lewat |
+| 0.3 | 2026-10-09 | Kilo (implementasi A0) | Klarifikasi FR-4/FR-5: **ref di sel** = `fields/{tenantId}/...` (kontrak `FileRef.isValid`), **layout bucket** = tenant-first `{tenantId}/fields/...` dipetakan adapter Track B — dua keputusan berbeda, jangan dicampur |
 
 - **Summary & Business Context**: Kosakata field belum punya tipe berkas (scan PO, foto, lampiran).
   C8 ditandai **Besar** karena butuh penyimpanan objek dan keputusan gate unduh. Pertanyaan plan
@@ -64,12 +65,17 @@ module-integration: fitur mewarisi modul induk):
   pola `S3PoFileStorage.downloadUrl`), bukan berkas permanen.
 - Tes wajib: 403 peran tanpa wewenang untuk unggah **dan** unduh; 403 tanpa identitas; urutan gerbang
   RBAC **sebelum** body dibaca (Kontrak 7; pola `SpecRoutesWriter.authorized`).
-- Key unggah deterministik per tenant untuk memungkinkan sweep orphan (konvensi `PoFileStorage`):
-  `{tenantId}/fields/{moduleCode}/{recordId}/{fieldKey}-{acak}-{fileName}`.
+- Key unggah deterministik per tenant untuk memungkinkan sweep orphan (konvensi `PoFileStorage`).
+  Dua lapis yang berbeda (klarifikasi implementasi A0, 2026-10-09): **ref di sel** selalu
+  `fields/{tenantId}/{moduleCode}/{recordId}/{fieldKey}-{acak}-{fileName}` (berawalan namespace
+  `fields/` — kontrak `FileRef.isValid` §4.4); **layout di bucket** memetakan ulang menjadi
+  tenant-first `{tenantId}/fields/...` oleh adapter penyimpanan (Track B) supaya sweep
+  `{tenantId}/fields/**` tetap murah. Jangan mencampur keduanya di satu string.
 
 **FR-5 (Codec menolak referensi tak dikenal)** — Bentuk `FileRef` tervalidasi di `accepts`
 (prototype) dan `CustomFieldValidation.validateType` (CRM): wajib berawalan namespace key
-(`{tenantId}/fields/`), tanpa `..`, tanpa awalan `/`, tidak kosong. Referensi rusak/buatan = **tolak**
+(`fields/`; tenant menyusul sebagai segmen berikutnya — lihat FR-4), tanpa `..`, tanpa awalan
+`/`, tidak kosong. Referensi rusak/buatan = **tolak**
 (400 / `TypeMismatch`), **tidak pernah** fallback ke teks kosong atau `TEXT` (Kontrak 4; D4).
 
 **FR-6 (UI)** — Komponen dasar `ClayFileField` di `designsystem/` (buta domain: `fileName`,

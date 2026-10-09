@@ -29,7 +29,8 @@ class LeadFieldControlParityTest {
         FieldType.DateField(),
         FieldType.Checkbox,
         FieldType.UserRef(),
-        FieldType.Relation(targetResource = "employees")
+        FieldType.Relation(targetResource = "employees"),
+        FieldType.File
     ).associateBy { it.code }
 
     @Test
@@ -42,6 +43,12 @@ class LeadFieldControlParityTest {
     @Test
     fun relationField_hasItsOwnControl() {
         assertEquals(LeadFieldControl.RELATION, leadFieldControl(FieldType.Relation(targetResource = "leads")))
+    }
+
+    /** C8 (TRD-FIELD-002): File punya kontrol sendiri — unggah/unduh, bukan kolom teks. */
+    @Test
+    fun fileField_hasItsOwnControl() {
+        assertEquals(LeadFieldControl.FILE, leadFieldControl(FieldType.File))
     }
 
     @Test

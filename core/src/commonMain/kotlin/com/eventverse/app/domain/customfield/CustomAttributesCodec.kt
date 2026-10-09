@@ -36,7 +36,7 @@ object CustomAttributesCodec {
     // -----------------------------------------------------------------------
 
     fun encodeConfig(type: FieldType): JsonValue.Obj = when (type) {
-        is FieldType.Text, is FieldType.LongText, is FieldType.Checkbox ->
+        is FieldType.Text, is FieldType.LongText, is FieldType.Checkbox, is FieldType.File ->
             JsonValue.Obj(emptyMap())
 
         is FieldType.Number -> jsonObjectOf(
@@ -76,6 +76,9 @@ object CustomAttributesCodec {
         "DATE" -> FieldType.DateField(withTime = config.boolean(KEY_WITH_TIME) ?: false)
 
         "USER_REF" -> FieldType.UserRef(maxCount = config.int(KEY_MAX_COUNT) ?: 1)
+
+        // TRD-FIELD-002 §4.4: FILE tanpa konfigurasi (bentuk ref tervalidasi di CustomFieldValidation).
+        FieldType.File.code -> FieldType.File
 
         // TRD-FIELD-001 §4.3: RELATION tanpa `targetResource` = korupsi (null), BUKAN fallback —
         // membacanya sebagai tipe lain mengubah data tanpa jejak.

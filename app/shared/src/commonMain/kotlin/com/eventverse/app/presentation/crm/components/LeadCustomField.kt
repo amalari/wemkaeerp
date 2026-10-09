@@ -117,6 +117,8 @@ fun LeadCustomField(
                 // C7 (TRD-FIELD-001): id rujukan tampil baca-saja; kontrol pemilih (ClayRelationPicker) di Track C,
                 // dan penulisan nilai rujukan tetap divalidasi server (RelationTargetResolver).
                 is FieldType.Relation -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
+                // C8 (TRD-FIELD-002): key berkas tampil baca-saja; unggah/unduh (ClayFileField) di Track C.
+                is FieldType.File -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
             }
         }
     }

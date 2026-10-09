@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prototype
 
+import com.eventverse.app.domain.storage.FileRef
+
 /**
  * Tipe field prototype: kosakata **tertutup milik sistem** (lolos Uji Variabilitas — renderer harus
  * bisa menggambar tiap tipe di semua vertikal). Nama field, opsi enum, dan transisi tetap data.
@@ -17,8 +19,10 @@ package com.eventverse.app.domain.prototype
  * - [RELATION]: id baris target (string) di modul pemegang field, kolom `VARCHAR(64)` **tanpa**
  *   `REFERENCES` (rujukan logis, pagar J3 — TRD-FIELD-001 FR-1); target rujukan ada di
  *   [FieldSpec.target].
+ * - [FILE]: referensi objek `FileRef` (string key) — byte hidup di `ObjectStorage`, TIDAK PERNAH di
+ *   kolom/jsonb (TRD-FIELD-002 FR-2); seed v1 wajib kosong.
  */
-enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL, RELATION }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL, RELATION, FILE }
 
 /**
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
@@ -121,6 +125,8 @@ data class FieldSpec(
             FieldType.BOOL -> value == "ya" || value == "tidak"
             // C7: id target non-blank tanpa ".."; keberadaan target diverifikasi server, bukan klien.
             FieldType.RELATION -> value.isNotBlank() && !value.contains("..")
+            // C8: kosong = belum diisi; selain itu wajib FileRef sah (bentuk key, bukan keberadaan objek).
+            FieldType.FILE -> FileRef.isValid(value)
         }
     }
 }

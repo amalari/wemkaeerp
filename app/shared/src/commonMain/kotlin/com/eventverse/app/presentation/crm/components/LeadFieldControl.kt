@@ -33,7 +33,13 @@ internal enum class LeadFieldControl {
      * Track C — untuk sementara varian ini tidak punya editor aktif (render baca-saja), tidak
      * dipalsukan jadi kolom teks.
      */
-    RELATION
+    RELATION,
+
+    /**
+     * Berkas terunggah (C8, TRD-FIELD-002). Nilai sel = key `fields/...` (byte di ObjectStorage).
+     * Kontrol unggah (`ClayFileField`) menyusul di Track C — dilarang dipalsukan jadi kolom teks.
+     */
+    FILE
 }
 
 internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
@@ -45,6 +51,7 @@ internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
     is FieldType.SingleSelect -> LeadFieldControl.SINGLE_SELECT
     is FieldType.UserRef -> LeadFieldControl.USER_REF
     is FieldType.Relation -> LeadFieldControl.RELATION
+    is FieldType.File -> LeadFieldControl.FILE
 }
 
 /**

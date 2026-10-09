@@ -38,7 +38,8 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_date", "Tanggal", FieldType.DATE),
             FieldSpec("f_enum", "Status", FieldType.ENUM, options = listOf("Draft", "Rilis")),
             FieldSpec("f_bool", "Aktif", FieldType.BOOL),
-            FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan")
+            FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan"),
+            FieldSpec("f_file", "Lampiran", FieldType.FILE)
         )
 
         // Verifikasi semua entri FieldType tercakup dalam daftar uji
@@ -65,6 +66,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("Draft", formState.formValues["f_enum"])
         assertEquals("tidak", formState.formValues["f_bool"])
         assertEquals("", formState.formValues["f_rel"], "RELATION harus memiliki nilai awal string kosong")
+        assertEquals("", formState.formValues["f_file"], "FILE harus memiliki nilai awal string kosong")
 
         // 2. Table State startInlineCreate menghasilkan nilai inline terdefinisi
         val tableHints = TableHints(
@@ -80,7 +82,8 @@ class PrototypeFieldControlParityTest {
             "f_date" to "2026-10-08",
             "f_enum" to "Draft",
             "f_bool" to "ya",
-            "f_rel" to "pesanan-1"
+            "f_rel" to "pesanan-1",
+            "f_file" to "fields/ten/item/i-1/lampiran-a1b2c3-scan.pdf"
         )
         val tableScreen = requireNotNull(
             InteractiveScreenFactory.table("scr-table-parity", "Uji Tabel", listOf(sampleRow), tableHints)
@@ -93,6 +96,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("Draft", tableState.inlineValues["f_enum"])
         assertEquals("tidak", tableState.inlineValues["f_bool"])
         assertEquals("", tableState.inlineValues["f_rel"], "RELATION inline harus kosong")
+        assertEquals("", tableState.inlineValues["f_file"], "FILE inline harus kosong")
     }
 
     @Test

@@ -39,10 +39,10 @@ import kotlin.test.assertTrue
 class PrototypeFieldTypeCodecParityTest {
 
     /** Nama tipe yang bukan kosakata: mata uang (parameter, bukan tipe), tipe yang masih ditunda
-     *  (plan C4-C8), salah huruf, dan kosong. `LONG_TEXT` lulusan plan C3 (Irisan 2) dan `RELATION`
-     *  lulusan C7 (TRD-FIELD-001) — keduanya kini anggota kosakata dan diuji round-trip-nya,
-     *  bukan lagi di daftar penolakan ini. */
-    private val unknownNames = listOf("CURRENCY", "MULTI_SELECT", "FILE", "text", "Text", "UANG", "")
+     *  (plan C4-C8), salah huruf, dan kosong. `LONG_TEXT` lulusan plan C3 (Irisan 2), `RELATION`
+     *  lulusan C7 (TRD-FIELD-001), dan `FILE` lulusan C8 (TRD-FIELD-002) — keduanya kini anggota
+     *  kosakata dan diuji round-trip-nya, bukan lagi di daftar penolakan ini. */
+    private val unknownNames = listOf("CURRENCY", "MULTI_SELECT", "text", "Text", "UANG", "")
 
     // ---- InteractiveScreenCodec ----------------------------------------------------------------
 

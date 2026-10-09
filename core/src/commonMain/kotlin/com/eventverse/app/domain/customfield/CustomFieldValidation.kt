@@ -119,6 +119,13 @@ object CustomFieldValidation {
             // Sel = id record target (string). Keberadaan id diverifikasi server via RelationTargetResolver
             // (Track B) — validasi bentuk di sini sejajar UserRef; resolver yang gagal = TargetNotFound.
             is FieldType.Relation -> if (v !is JsonValue.Str) mismatch(def) else null
+
+            // C8 (TRD-FIELD-002 FR-5): sel = FileRef sah (key `fields/...`, tanpa `..`). Referensi rusak/
+            // buatan = TypeMismatch — TIDAK pernah fallback ke teks kosong atau TEXT.
+            is FieldType.File -> {
+                val raw = (v as? JsonValue.Str)?.value
+                if (raw == null || !com.eventverse.app.domain.storage.FileRef.isValid(raw)) mismatch(def) else null
+            }
         }
     }
 

@@ -38,6 +38,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
  * - RELATION -> sementara tampilan baca-saja id rujukan (C7/TRD-FIELD-001); `ClayRelationPicker`
  *   menyusul di Track C — dilarang memalsukan rujukan jadi kolom teks bebas
+ * - FILE -> sementara tampilan baca-saja referensi berkas (C8/TRD-FIELD-002); `ClayFileField`
+ *   menyusul di Track C — byte tidak pernah lewat sel, hanya key `fields/...`
  */
 @Composable
 fun FieldInput(
@@ -179,6 +181,15 @@ fun FieldInput(
             // C7 (TRD-FIELD-001): nilai RELATION = id baris target yang diverifikasi server — bukan teks bebas,
             // jadi tidak boleh dirender sebagai input teks. Pemilih rujukan (ClayRelationPicker) di Track C.
             FieldType.RELATION -> {
+                Text(
+                    text = value.ifBlank { "—" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (value.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
+                )
+            }
+            // C8 (TRD-FIELD-002): nilai FILE = key `fields/...` (byte di ObjectStorage) — bukan teks bebas.
+            // Unggah/unduh (ClayFileField) di Track C; tabel/kanban v1 = ganti/hapus berkas yang ada.
+            FieldType.FILE -> {
                 Text(
                     text = value.ifBlank { "—" },
                     style = MaterialTheme.typography.bodyMedium,

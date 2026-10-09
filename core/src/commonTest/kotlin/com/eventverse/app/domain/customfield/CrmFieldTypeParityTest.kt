@@ -33,7 +33,7 @@ class CrmFieldTypeParityTest {
         FieldType.Text, FieldType.LongText,
         FieldType.Number(NumberFormat.Currency("IDR"), 2), FieldType.Number(NumberFormat.Percent, 1), FieldType.Number(),
         select, FieldType.DateField(withTime = true), FieldType.DateField(), FieldType.Checkbox, FieldType.UserRef(maxCount = 3),
-        FieldType.Relation(targetResource = "leads", maxCount = 2)
+        FieldType.Relation(targetResource = "leads", maxCount = 2), FieldType.File
     )
 
     /** Pagar kompilator: tanpa `else`, varian baru wajib ditambahkan di sini dan di [samples]. */
@@ -46,6 +46,7 @@ class CrmFieldTypeParityTest {
         is FieldType.Checkbox -> "CHECKBOX"
         is FieldType.UserRef -> "USER_REF"
         is FieldType.Relation -> "RELATION"
+        is FieldType.File -> "FILE"
     }
 
     private fun def(type: FieldType, id: String = "cf-${type.code.lowercase()}") = CustomFieldDefinition(
@@ -76,7 +77,7 @@ class CrmFieldTypeParityTest {
 
     @Test
     fun decodeFieldType_unknownCode_returnsNullAndNeverFallsBackToText() {
-        listOf("CURRENCY", "MULTI_SELECT", "FILE", "text", "Text", "", " TEXT").forEach { code ->
+        listOf("CURRENCY", "MULTI_SELECT", "text", "Text", "", " TEXT").forEach { code ->
             assertNull(CustomAttributesCodec.decodeFieldType(code, JsonValue.Obj(emptyMap())), "kode '$code' harus ditolak")
         }
     }
@@ -130,6 +131,7 @@ class CrmFieldTypeParityTest {
         is FieldType.Checkbox -> CustomAttributes.checkboxCell(true)
         is FieldType.UserRef -> CustomAttributes.textCell("user-1")
         is FieldType.Relation -> CustomAttributes.textCell("lead-1")
+        is FieldType.File -> CustomAttributes.textCell("fields/ten-bordir/crm_sales/l-1/lampiran-a1b2c3-scan.pdf")
     }
 
     private fun invalidCell(t: FieldType): JsonValue.Obj = when (t) {
@@ -140,6 +142,8 @@ class CrmFieldTypeParityTest {
         is FieldType.Checkbox -> CustomAttributes.textCell("ya")
         is FieldType.UserRef -> CustomAttributes.numberCell("1")
         is FieldType.Relation -> CustomAttributes.numberCell("1")
+        // C8: referensi tanpa namespace `fields/` = bukan FileRef sah → TypeMismatch, bukan fallback.
+        is FieldType.File -> CustomAttributes.textCell("scan.pdf")
     }
 
     @Test

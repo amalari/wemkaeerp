@@ -32,7 +32,8 @@ internal data class SpecTable(val schema: String, val table: String, val entity:
 internal fun SpecColumn.sqlDefinition(): String {
     val notNull = if (field.required) " NOT NULL" else ""
     return when (field.type) {
-        FieldType.TEXT, FieldType.LONG_TEXT -> "TEXT$notNull" + if (field.required) " CHECK (btrim($name) <> '')" else ""
+        // C8: FILE menyimpan **ref** (key `fields/...` tervalidasi FileRef) — kolom tetap TEXT, byte di ObjectStorage.
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "TEXT$notNull" + if (field.required) " CHECK (btrim($name) <> '')" else ""
         FieldType.NUMBER -> "NUMERIC(18,4)$notNull"
         // withTime (A0(C6)): waktu dinding tanpa zona = TIMESTAMP (bukan TIMESTAMPTZ), tepat menit di tingkat nilai.
         FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
