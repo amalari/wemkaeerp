@@ -90,7 +90,7 @@ Urutan pipa: A0(C3) → [A(C3) ‖ B(C3) ‖ C(C3) ‖ A0(C4)] → … Tipe C4 (
 
 ### Irisan 3 — `MULTI_SELECT` (C5)
 **Gerbang awal (bukan track):** TRD ringkas yang memutuskan penyimpanan — kolom larik vs tabel tautan — dan bentuk nilai di codec. Tanpa keputusan ini A0 tidak boleh dimulai.
-**Status gerbang:** [`TRD-FIELD-003-multi-select.md`](../trd/TRD-FIELD-003-multi-select.md) **diusulkan, menunggu persetujuan R1–R5** (rekomendasi: kolom `TEXT[]` + CHECK; nilai sel = string JSON array berurut menurut `options`; `maxSelections` saja; CRM tidak disentuh). A0 belum boleh dimulai.
+**Status gerbang:** [`TRD-FIELD-003-multi-select.md`](../trd/TRD-FIELD-003-multi-select.md) **disetujui 2026-10-09 — gerbang lewat, A0 boleh dimulai** (kolom `TEXT[]` + CHECK; nilai sel = string JSON array berurut menurut `options`; `maxSelections` saja; CRM tidak disentuh). A0 berurutan dengan A0 4a/4b (berbagi `EntitySpec.kt`); tes integrasi Postgres untuk kolom larik wajib hijau sebelum Track B/C.
 
 | Track | Isi | Direktori |
 |---|---|---|

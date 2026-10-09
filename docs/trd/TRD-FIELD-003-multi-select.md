@@ -3,12 +3,13 @@
 ## 1. Document Context and Administration
 
 - **Title & Unique ID**: TRD-FIELD-003 — Tipe Field `MULTI_SELECT`
-- **Status**: **Diusulkan — menunggu persetujuan R1–R5** (gerbang TRD wajib sesuai `PLAN-field-component-gaps.md` §2 Irisan 3 dan Kontrak 8 `field-component-rules.md`; **A0 belum boleh dimulai** sampai status ini berubah)
+- **Status**: **Disetujui — gerbang lewat, A0 boleh dimulai** (R1–R5 ditutup oleh user 2026-10-09; gerbang TRD wajib sesuai `PLAN-field-component-gaps.md` §2 Irisan 3 dan Kontrak 8 `field-component-rules.md`; A0 berurutan dengan A0 Irisan 4a/4b karena berbagi `EntitySpec.kt`)
 - **Revision History**:
 
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-09 | Claude (riset dari kode) | TRD gerbang; rekomendasi diberikan dan disetujui untuk ditulis oleh user; belum ada kode |
+| 0.2 | 2026-10-09 | User | R1–R5 disetujui dengan opsi default dokumen; gerbang Irisan 3 dinyatakan lewat |
 
 - **Summary & Business Context**: Kosakata field prototype hanya punya `ENUM` (satu pilihan). Atribut yang
   berlabel ganda (alergi pasien, layanan yang dibeli, jenis bahan) hari ini dipaksa menjadi `TEXT` bebas — data
@@ -224,15 +225,15 @@ tes; `DeterministicScreenProposer:54` membuat field status `ENUM` — tidak beru
   penolakan `statusField` oleh validator (FR-5).
 - **Teks bahasa:** font Nunito tak punya glyph non-ASCII; label pilihan dan pemisah tampil hanya ASCII/Latin-1.
 
-## Keputusan (menunggu user)
+## Keputusan (disetujui user, 2026-10-09)
 
 | # | Keputusan | Rekomendasi dokumen | Status |
 |---|---|---|---|
-| R1 | Penyimpanan | `TEXT[]` + CHECK | **Menunggu** |
-| R2 | Bentuk nilai | String JSON array, urut menurut `options`, `""` kosong, `"[]"` ditolak | **Menunggu** |
-| R3 | Parameter | `maxSelections: Int?` saja | **Menunggu** |
-| R4 | Batas dengan `ENUM`/status | `MULTI_SELECT` ≠ `statusField` | **Menunggu** |
-| R5 | CRM | Tidak disentuh (D2) | **Menunggu** |
+| R1 | Penyimpanan | `TEXT[]` + CHECK | **Disetujui** |
+| R2 | Bentuk nilai | String JSON array, urut menurut `options`, `""` kosong, `"[]"` ditolak | **Disetujui** |
+| R3 | Parameter | `maxSelections: Int?` saja | **Disetujui** |
+| R4 | Batas dengan `ENUM`/status | `MULTI_SELECT` ≠ `statusField` | **Disetujui** |
+| R5 | CRM | Tidak disentuh (D2) | **Disetujui** |
 
-Setelah R1–R5 disetujui, ubah status di §1 menjadi "Disetujui — gerbang lewat, A0 boleh dimulai" dan catat
-revisi 0.2 di tabel riwayat (pola TRD-FIELD-001/002).
+Syarat tambahan yang mengikat A0 (dari bagian Risiko): **tes integrasi Postgres untuk kolom `TEXT[]` wajib hijau
+sebelum Track B dan C dimulai**; bila gagal, kembali ke `TEXT` + JSON tanpa mengubah kontrak nilai prototype.
