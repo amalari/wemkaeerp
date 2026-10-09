@@ -48,7 +48,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # One-shot: buat bucket PO bila belum ada.
+  # One-shot: buat bucket PO & bucket berkas field FILE bila belum ada.
   minio-init:
     image: quay.io/minio/mc:latest
     depends_on:
@@ -57,7 +57,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $${S3_ACCESS_KEY:-wemademinio} $${S3_SECRET_KEY:-wemademinio-secret} &&
-      mc mb --ignore-existing local/${S3_BUCKET_PO:-wemade-po}
+      mc mb --ignore-existing local/${S3_BUCKET_PO:-wemade-po} local/${S3_BUCKET_FILES:-wemade-files}
       "
 
 volumes:

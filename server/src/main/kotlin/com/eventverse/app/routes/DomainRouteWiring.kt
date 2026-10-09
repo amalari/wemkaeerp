@@ -109,6 +109,10 @@ class DomainRouteWiring(
     contactRepository: ContactRepository? = null,
     dealRepository: DealRepository? = null,
     poFileStorageOverride: PoFileStorage? = null,
+    /** Port storage field FILE (C8, TRD-FIELD-002); default adapter S3 (bucket `S3_BUCKET_FILES`). */
+    objectStorageOverride: com.eventverse.app.domain.storage.ObjectStorage? = null,
+    /** Row store per modul untuk resolve ref unduhan field FILE (titik injeksi test). */
+    private val fieldFileRecordRows: Map<String, com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository> = emptyMap(),
     customFieldDefinitionRepository: CustomFieldDefinitionRepository? = null,
     leadActivityRepository: LeadActivityRepository? = null,
     samplingOrderRepository: SamplingOrderRepository? = null,
@@ -134,6 +138,8 @@ class DomainRouteWiring(
     private val crmContactRepo = contactRepository ?: PostgresContactRepository()
     private val crmDealRepo = dealRepository ?: PostgresDealRepository()
     private val poFileStorage = poFileStorageOverride ?: S3PoFileStorage()
+    private val objectStorage = objectStorageOverride
+        ?: com.eventverse.app.infrastructure.storage.S3ObjectStorage()
     private val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     private val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
     private val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
@@ -221,6 +227,15 @@ class DomainRouteWiring(
             employeeRepository = empRepo, roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo,
             poFileStorage = poFileStorage, samplingOrderRepository = samplingOrderRepo
+        )
+        // Berkas tipe field FILE (C8, TRD-FIELD-002) — gerbang modul induk per path + varian CRM.
+        fieldFileRoutes(
+            objectStorage = objectStorage,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo,
+            crmLeadRepository = crmLeadRepo,
+            employeeRepository = empRepo,
+            recordRows = fieldFileRecordRows
         )
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,
