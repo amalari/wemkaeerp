@@ -38,5 +38,9 @@ internal fun SpecColumn.sqlDefinition(): String {
         FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
         FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.options.joinToString(", ") { SpecNaming.sqlString(it) }}))"
         FieldType.BOOL -> "BOOLEAN NOT NULL DEFAULT FALSE"
+        // C7 (TRD-FIELD-001 FR-1): rujukan LOGIS — id baris target saja, TANPA `REFERENCES` lintas schema
+        // (pagar J3 TRD-PLAT-004; promosi modul = salin + prefiks baru mematahkan FK fisik). Keberadaan
+        // target divalidasi saat tulis nilai, bukan oleh DB.
+        FieldType.RELATION -> "VARCHAR(64)$notNull"
     }
 }

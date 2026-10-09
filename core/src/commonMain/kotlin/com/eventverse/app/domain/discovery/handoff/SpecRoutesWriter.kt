@@ -155,7 +155,9 @@ internal object SpecRoutesWriter {
                 (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
                     (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) +
                 (if (f.withTime) ", withTime = true" else "") +
-                (if (f.validation != TextValidation.NONE) ", validation = TextValidation." + f.validation.name else "") + ")"
+                (if (f.validation != TextValidation.NONE) ", validation = TextValidation." + f.validation.name else "") +
+                // C7: target RELATION wajib ikut tercetak — FieldSpec RELATION tanpa target ditolak validasi.
+                (if (f.target != null) ", target = " + SpecNaming.kString(f.target) else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

@@ -14,8 +14,11 @@ package com.eventverse.app.domain.prototype
  *   [DateFieldValues]).
  * - [ENUM]: salah satu opsi di [FieldSpec.options].
  * - [BOOL]: `ya` / `tidak`, kolom `BOOLEAN`.
+ * - [RELATION]: id baris target (string) di modul pemegang field, kolom `VARCHAR(64)` **tanpa**
+ *   `REFERENCES` (rujukan logis, pagar J3 — TRD-FIELD-001 FR-1); target rujukan ada di
+ *   [FieldSpec.target].
  */
-enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL, RELATION }
 
 /**
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
@@ -59,7 +62,14 @@ data class FieldSpec(
      * A0(C9) Irisan 2: validasi bentuk teks. Hanya sah untuk [FieldType.TEXT] (bukan [FieldType.LONG_TEXT]); selain
      * [TextValidation.NONE] pada tipe lain ditolak. Nilai tetap disimpan apa adanya — lihat [TextValidations].
      */
-    val validation: TextValidation = TextValidation.NONE
+    val validation: TextValidation = TextValidation.NONE,
+    /**
+     * C7 (TRD-FIELD-001): target rujukan; wajib tepat bila type == [FieldType.RELATION], wajib null selain itu.
+     * Format: "entityId" (satu modul) atau "moduleId:entityId" (lintas modul, harus bisa diresolusi
+     * `DomainPack.resolveModule` — modul sendiri atau moduleReferences/sharedModules). Metadata spec saja:
+     * tidak masuk kolom SQL (kolomnya menyimpan id baris target).
+     */
+    val target: String? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
@@ -87,6 +97,15 @@ data class FieldSpec(
         } else {
             require(currencyCode == null) { "Field '$key' berformat ${format.name}, jadi tidak boleh punya kode mata uang" }
         }
+        if (type == FieldType.RELATION) {
+            // C7: bentuk target divalidasi di sini; keberadaan baris target divalidasi server saat tulis nilai
+            // (fail-closed lewat jalur baca modul target), bukan di konstruktor ini.
+            require(!target.isNullOrBlank() && !target.contains(' ') && target.count { it == ':' } <= 1) {
+                "Field RELATION '$key' wajib punya target 'entityId' atau 'moduleId:entityId' (tanpa spasi, maksimum satu ':'), dapat '$target'"
+            }
+        } else {
+            require(target == null) { "Field '$key' bertipe ${type.name}, bukan RELATION, jadi tidak boleh punya target" }
+        }
     }
 
     /** Nilai [value] sah untuk field ini? Kosong selalu sah (belum diisi). */
@@ -100,6 +119,8 @@ data class FieldSpec(
             FieldType.DATE -> DateFieldValues.isValid(value, withTime)
             FieldType.ENUM -> value in options
             FieldType.BOOL -> value == "ya" || value == "tidak"
+            // C7: id target non-blank tanpa ".."; keberadaan target diverifikasi server, bukan klien.
+            FieldType.RELATION -> value.isNotBlank() && !value.contains("..")
         }
     }
 }

@@ -95,6 +95,8 @@ private fun FieldProposal.accepts(v: String): Boolean = when (type) {
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.isValid(v, withTime)
     com.eventverse.app.domain.prototype.FieldType.TEXT -> com.eventverse.app.domain.prototype.TextValidations.isValid(validation, v)
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> true
+    // C7: bentuk id rujukan sama dengan FieldSpec.accepts (keberadaan target diverifikasi server).
+    com.eventverse.app.domain.prototype.FieldType.RELATION -> v.isNotBlank() && !v.contains("..")
 }
 
 private fun FieldProposal.sampleValue(): String = when (type) {
@@ -104,4 +106,6 @@ private fun FieldProposal.sampleValue(): String = when (type) {
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.sample(withTime)
     com.eventverse.app.domain.prototype.FieldType.TEXT -> com.eventverse.app.domain.prototype.TextValidations.sample(validation)
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> "contoh"
+    // Keputusan R2 TRD-FIELD-001: seed RELATION = kosong di v1 (tidak mengarang id target).
+    com.eventverse.app.domain.prototype.FieldType.RELATION -> ""
 }

@@ -29,7 +29,8 @@ object SpecOpCodec {
                 "key" to jsonOf(op.field.key), "label" to jsonOf(op.field.label), "fieldType" to jsonOf(op.field.type.name),
                 "options" to jsonArrayOf(op.field.options.map(::jsonOf)), "required" to jsonOf(op.field.required),
                 "format" to jsonOf(op.field.format.name), "currencyCode" to jsonOf(op.field.currencyCode),
-                "withTime" to jsonOf(op.field.withTime), "validation" to jsonOf(op.field.validation.name)
+                "withTime" to jsonOf(op.field.withTime), "validation" to jsonOf(op.field.validation.name),
+                "target" to jsonOf(op.field.target)
             )
         )
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
@@ -55,7 +56,7 @@ object SpecOpCodec {
                 val ft = FieldType.entries.firstOrNull { it.name == f.string("fieldType") }
                 SpecOp.AddField(
                     str("entityId"),
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f))
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))

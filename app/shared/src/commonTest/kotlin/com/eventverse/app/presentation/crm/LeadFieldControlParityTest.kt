@@ -28,13 +28,20 @@ class LeadFieldControlParityTest {
         FieldType.SingleSelect(listOf(SelectOption(SelectOptionId("a"), "A", "#112233"))),
         FieldType.DateField(),
         FieldType.Checkbox,
-        FieldType.UserRef()
+        FieldType.UserRef(),
+        FieldType.Relation(targetResource = "employees")
     ).associateBy { it.code }
 
     @Test
     fun everyFieldTypeCode_hasSampleAndControl() {
         assertEquals(FieldType.ALL_CODES, samples.keys, "FieldType baru wajib ditambahkan ke sampel dan pemeta kontrol")
         samples.values.forEach { leadFieldControl(it) }
+    }
+
+    /** C7 (TRD-FIELD-001): Relation punya kontrol sendiri — tidak dipalsukan jadi teks atau UserRef. */
+    @Test
+    fun relationField_hasItsOwnControl() {
+        assertEquals(LeadFieldControl.RELATION, leadFieldControl(FieldType.Relation(targetResource = "leads")))
     }
 
     @Test

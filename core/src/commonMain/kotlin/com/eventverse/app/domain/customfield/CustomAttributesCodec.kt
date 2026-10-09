@@ -25,6 +25,7 @@ object CustomAttributesCodec {
     private const val KEY_DECIMALS = "decimals"
     private const val KEY_WITH_TIME = "withTime"
     private const val KEY_MAX_COUNT = "maxCount"
+    private const val KEY_TARGET_RESOURCE = "targetResource"
     private const val KEY_ID = "id"
     private const val KEY_LABEL = "label"
     private const val KEY_COLOR_HEX = "colorHex"
@@ -51,6 +52,11 @@ object CustomAttributesCodec {
         is FieldType.DateField -> jsonObjectOf(KEY_WITH_TIME to jsonOf(type.withTime))
 
         is FieldType.UserRef -> jsonObjectOf(KEY_MAX_COUNT to jsonOf(type.maxCount))
+
+        is FieldType.Relation -> jsonObjectOf(
+            KEY_TARGET_RESOURCE to jsonOf(type.targetResource),
+            KEY_MAX_COUNT to jsonOf(type.maxCount)
+        )
     }
 
     /** Returns null for an unrecognised code — callers must treat that as data corruption. */
@@ -70,6 +76,12 @@ object CustomAttributesCodec {
         "DATE" -> FieldType.DateField(withTime = config.boolean(KEY_WITH_TIME) ?: false)
 
         "USER_REF" -> FieldType.UserRef(maxCount = config.int(KEY_MAX_COUNT) ?: 1)
+
+        // TRD-FIELD-001 §4.3: RELATION tanpa `targetResource` = korupsi (null), BUKAN fallback —
+        // membacanya sebagai tipe lain mengubah data tanpa jejak.
+        "RELATION" -> config.string(KEY_TARGET_RESOURCE)?.let {
+            FieldType.Relation(targetResource = it, maxCount = config.int(KEY_MAX_COUNT) ?: 1)
+        }
 
         else -> null
     }

@@ -55,7 +55,9 @@ data class FieldHint(
     val format: NumberFormat = NumberFormat.PLAIN,
     val currencyCode: String? = null,
     val withTime: Boolean = false,
-    val validation: TextValidation = TextValidation.NONE
+    val validation: TextValidation = TextValidation.NONE,
+    /** C7 (TRD-FIELD-001): target rujukan; wajib tepat bila [type] == [FieldType.RELATION] (invarian di [FieldSpec]). */
+    val target: String? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldHint.key kosong" }
@@ -64,11 +66,11 @@ data class FieldHint(
         } else {
             require(options.isEmpty()) { "FieldHint '$key' bukan ENUM tapi punya opsi" }
         }
-        toFieldSpec() // invarian parameter (format/withTime/validation) = satu sumber: FieldSpec
+        toFieldSpec() // invarian parameter (format/withTime/validation/target) = satu sumber: FieldSpec
     }
 
     /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. */
-    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation)
+    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation, target)
 }
 
 /**

@@ -39,9 +39,10 @@ import kotlin.test.assertTrue
 class PrototypeFieldTypeCodecParityTest {
 
     /** Nama tipe yang bukan kosakata: mata uang (parameter, bukan tipe), tipe yang masih ditunda
-     *  (plan C4-C8), salah huruf, dan kosong. `LONG_TEXT` lulusan plan C3 (Irisan 2) — kini anggota
-     *  kosakata dan diuji round-trip-nya, bukan lagi di daftar penolakan ini. */
-    private val unknownNames = listOf("CURRENCY", "MULTI_SELECT", "FILE", "RELATION", "text", "Text", "UANG", "")
+     *  (plan C4-C8), salah huruf, dan kosong. `LONG_TEXT` lulusan plan C3 (Irisan 2) dan `RELATION`
+     *  lulusan C7 (TRD-FIELD-001) — keduanya kini anggota kosakata dan diuji round-trip-nya,
+     *  bukan lagi di daftar penolakan ini. */
+    private val unknownNames = listOf("CURRENCY", "MULTI_SELECT", "FILE", "text", "Text", "UANG", "")
 
     // ---- InteractiveScreenCodec ----------------------------------------------------------------
 
@@ -110,7 +111,7 @@ class PrototypeFieldTypeCodecParityTest {
     private fun suggestionWithEveryType(): ScreenSuggestion {
         val hints = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
-            FieldHint(f.key, type, options = f.options)
+            FieldHint(f.key, type, options = f.options, target = f.target)
         }
         return ScreenSuggestion(
             ModuleId("bordir_antrean"), "Antrean bordir", WidgetKind.TABLE,
@@ -197,6 +198,30 @@ class PrototypeFieldTypeCodecParityTest {
     fun specOpCodec_addFieldWithCurrency_keepsCode() {
         val op = SpecOp.AddField("e", FieldSpec("harga", "Harga", FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "EUR"))
         assertEquals(op, SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow())
+    }
+
+    /** C7 (TRD-FIELD-001): `target` RELATION ikut kawat layar interaktif — hilang = rujukan rusak. */
+    @Test
+    fun interactiveScreenCodec_relationTarget_roundTrips_andMissingTargetIsRejected() {
+        val spec = PrototypeSpec(
+            listOf(EntitySpec("e", "E", listOf(FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "crm:lead")))),
+            listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf("rujukan"))))
+        )
+        val screen = InteractiveScreen(spec, mapOf("e" to listOf(PrototypeRow("r1", mapOf("rujukan" to "lead-1")))))
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(screen))
+        assertEquals("crm:lead", decoded.spec.entities.single().fields.single().target)
+        // RELATION tanpa target di kawat = korupsi bentuk: FieldSpec menolak, bukan fallback.
+        val raw = InteractiveScreenCodec.encode(screen).encode().replace("\"target\":\"crm:lead\"", "\"target\":null")
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw) as JsonValue.Obj) }.isFailure, "RELATION tanpa target ditolak")
+    }
+
+    /** C7: AddField membawa `target` utuh lewat kawat SpecOp. */
+    @Test
+    fun specOpCodec_addFieldWithRelationTarget_keepsTarget() {
+        val op = SpecOp.AddField("e", FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "pesanan"))
+        val decoded = SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow()
+        assertEquals(op, decoded)
+        assertEquals("pesanan", (decoded as SpecOp.AddField).field.target)
     }
 
     @Test

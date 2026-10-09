@@ -14,6 +14,17 @@ sealed interface CustomFieldValidationError {
     data class UnknownOption(override val fieldId: CustomFieldId, val label: String, val optionId: String) :
         CustomFieldValidationError
     data class ArchivedField(override val fieldId: CustomFieldId, val label: String) : CustomFieldValidationError
+
+    /**
+     * C7 (TRD-FIELD-001): nilai field rujukan menunjuk record target yang tidak ada di tenant yang sama.
+     * Ditolak saat tulis (fail-closed, 400) — bukan disimpan diam-diam; rendering "tidak ditemukan" hanya
+     * untuk target yang hilang SETELAH tersimpan (target dihapus belakangan).
+     */
+    data class TargetNotFound(
+        override val fieldId: CustomFieldId,
+        val label: String,
+        val resourceId: String
+    ) : CustomFieldValidationError
 }
 
 /**
@@ -104,6 +115,10 @@ object CustomFieldValidation {
             }
 
             is FieldType.UserRef -> if (v !is JsonValue.Str) mismatch(def) else null
+
+            // Sel = id record target (string). Keberadaan id diverifikasi server via RelationTargetResolver
+            // (Track B) — validasi bentuk di sini sejajar UserRef; resolver yang gagal = TargetNotFound.
+            is FieldType.Relation -> if (v !is JsonValue.Str) mismatch(def) else null
         }
     }
 

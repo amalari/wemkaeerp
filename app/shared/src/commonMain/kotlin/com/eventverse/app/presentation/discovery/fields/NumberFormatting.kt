@@ -131,5 +131,6 @@ fun normalizeNumberTyping(input: String, format: NumberFormat): String? {
 fun FieldSpec.displayValue(stored: String): String = when (type) {
     FieldType.NUMBER -> formatNumberForDisplay(stored, format, currencyCode)
     FieldType.DATE -> if (withTime) displayIsoDateTime(stored) else stored
-    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL -> stored
+    // C7: sementara id target apa adanya (fallback id); resolusi label opsi menyusul di Track C TRD-FIELD-001.
+    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
 }

@@ -26,7 +26,14 @@ internal enum class LeadFieldControl {
      */
     DATE_TIME_TEXT,
     SINGLE_SELECT,
-    USER_REF
+    USER_REF,
+
+    /**
+     * Rujukan record lain (C7, TRD-FIELD-001). Kontrol pemilih (`ClayRelationPicker`) menyusul di
+     * Track C — untuk sementara varian ini tidak punya editor aktif (render baca-saja), tidak
+     * dipalsukan jadi kolom teks.
+     */
+    RELATION
 }
 
 internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
@@ -37,6 +44,7 @@ internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
     is FieldType.DateField -> if (type.withTime) LeadFieldControl.DATE_TIME_TEXT else LeadFieldControl.DATE_PICKER
     is FieldType.SingleSelect -> LeadFieldControl.SINGLE_SELECT
     is FieldType.UserRef -> LeadFieldControl.USER_REF
+    is FieldType.Relation -> LeadFieldControl.RELATION
 }
 
 /**

@@ -40,7 +40,8 @@ object InteractiveScreenCodec {
                         "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
                         "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
                         "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
-                        "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name)
+                        "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
+                        "target" to jsonOf(f.target)
                     )
                 }),
                 "stateMachine" to (e.stateMachine?.let { sm ->
@@ -97,7 +98,7 @@ object InteractiveScreenCodec {
                 requireNotNull(e.string("id")) { "entitas tanpa id" }, e.string("label").orEmpty(),
                 e.objectArray("fields").map { f ->
                     val type = FieldType.entries.firstOrNull { it.name == f.string("type") }
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f))
                 },
                 machine
             )

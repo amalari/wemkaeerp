@@ -101,7 +101,7 @@ class InteractiveFormState(
             formValues[f.key] = when (f.type) {
                 FieldType.BOOL -> "tidak"
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE -> ""
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.RELATION -> ""
             }
         }
     }

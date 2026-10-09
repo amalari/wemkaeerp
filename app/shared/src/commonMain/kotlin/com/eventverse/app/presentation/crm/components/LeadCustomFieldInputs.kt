@@ -65,7 +65,7 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                 modifier = Modifier.fillMaxWidth()
             )
             // Difilter oleh LeadFormState.supportsInput: belum punya input di dialog lead baru.
-            is FieldType.Checkbox, is FieldType.UserRef -> Unit
+            is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation -> Unit
         }
     }
 }

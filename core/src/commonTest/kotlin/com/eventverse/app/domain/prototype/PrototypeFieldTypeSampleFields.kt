@@ -14,6 +14,7 @@ object PrototypeFieldTypeSampleFields {
         FieldType.DATE -> FieldSpec("tanggal_desain", "Tanggal desain", type, required = required)
         FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, listOf("Digitizing", "Hooping", "Selesai"), required)
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
+        FieldType.RELATION -> FieldSpec("rujukan_po", "Rujukan PO", type, required = required, target = "pesanan")
     }
 
     /** Satu field per tipe, urutan [FieldType.entries]. */
@@ -27,5 +28,6 @@ object PrototypeFieldTypeSampleFields {
         FieldType.DATE -> "2026-10-08"
         FieldType.ENUM -> "Hooping"
         FieldType.BOOL -> "ya"
+        FieldType.RELATION -> "po-001"
     }
 }

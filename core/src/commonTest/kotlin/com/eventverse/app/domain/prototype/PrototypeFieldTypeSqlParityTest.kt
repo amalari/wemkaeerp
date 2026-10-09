@@ -35,6 +35,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.DATE -> "DATE"
         FieldType.ENUM -> "VARCHAR(120)"
         FieldType.BOOL -> "BOOLEAN"
+        FieldType.RELATION -> "VARCHAR(64)"
     }
 
     private fun expectedExposed(type: FieldType): String = when (type) {
@@ -43,6 +44,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.DATE -> "date("
         FieldType.ENUM -> "varchar("
         FieldType.BOOL -> "bool("
+        FieldType.RELATION -> "varchar("
     }
 
     @Test
@@ -146,6 +148,17 @@ class PrototypeFieldTypeSqlParityTest {
         assertTrue("NOT NULL" in sql && "btrim" in sql, sql)
     }
 
+    /** C7 (TRD-FIELD-001 FR-1, kriteria terima #1): RELATION TIDAK PERNAH memancarkan `REFERENCES` —
+     *  rujukan logis, pagar J3; integritas dijaga validasi saat tulis, bukan FK lintas schema. */
+    @Test
+    fun sqlDefinition_relationColumn_neverEmitsReferences() {
+        val sql = table(fieldFor(FieldType.RELATION, required = true)).columns.single().sqlDefinition()
+        assertTrue(sql.startsWith("VARCHAR(64)") && "NOT NULL" in sql, sql)
+        assertFalse("REFERENCES" in sql.uppercase(), "RELATION tidak boleh punya FK fisik: $sql")
+        val optional = table(fieldFor(FieldType.RELATION)).columns.single().sqlDefinition()
+        assertFalse("REFERENCES" in optional.uppercase(), optional)
+    }
+
     // ---- invarian konstruksi ----------------------------------------------------------------
 
     @Test
@@ -189,5 +202,36 @@ class PrototypeFieldTypeSqlParityTest {
     @Test
     fun fieldType_entries_matchSampleVocabularySize() {
         assertEquals(FieldType.entries, allFields().map { it.type })
+    }
+
+    // ---- C7 (TRD-FIELD-001 §4.3): kontrak target RELATION --------------------------------------
+
+    /** `target` wajib TEPAT untuk RELATION: RELATION tanpa target ditolak, tipe lain dengan target ditolak. */
+    @Test
+    fun fieldSpec_target_isRequiredExactlyForRelation() {
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION) }.isFailure, "RELATION tanpa target ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "  ") }.isFailure, "target kosong ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.TEXT, target = "pesanan") }.isFailure, "TEXT dengan target ditolak")
+        assertEquals("pesanan", FieldSpec("k", "K", FieldType.RELATION, target = "pesanan").target)
+    }
+
+    /** Bentuk target: satu string tanpa spasi, maksimum satu ':' (format "entityId" / "moduleId:entityId"). */
+    @Test
+    fun fieldSpec_relationTarget_shapeIsValidated() {
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "dua modul") }.isFailure, "spasi ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "a:b:c") }.isFailure, "dua ':' ditolak")
+        assertEquals("crm:lead", FieldSpec("k", "K", FieldType.RELATION, target = "crm:lead").target, "lintas modul sah")
+    }
+
+    /** accepts RELATION: kosong sah (belum diisi); id non-blank tanpa ".." sah; sisanya ditolak. */
+    @Test
+    fun accepts_relationField_acceptsTargetIdShapeOnly() {
+        val f = fieldFor(FieldType.RELATION)
+        assertTrue(f.accepts(""), "kosong = belum diisi")
+        assertTrue(f.accepts("po-001"), "id target sah")
+        assertTrue(f.accepts("crm:lead-9"), "id lintas modul sah")
+        assertFalse(f.accepts("   "), "blank bukan id")
+        assertFalse(f.accepts("../po"), "path traversal ditolak")
+        assertFalse(f.accepts("po..001"), "..' ditolak di mana pun")
     }
 }

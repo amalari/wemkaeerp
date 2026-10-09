@@ -114,6 +114,9 @@ fun LeadCustomField(
                 }
                 is FieldType.SingleSelect -> SelectEditor(type, cell, editable, onCommit)
                 is FieldType.UserRef -> UserRefEditor(cell, employees, editable, onCommit)
+                // C7 (TRD-FIELD-001): id rujukan tampil baca-saja; kontrol pemilih (ClayRelationPicker) di Track C,
+                // dan penulisan nilai rujukan tetap divalidasi server (RelationTargetResolver).
+                is FieldType.Relation -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
             }
         }
     }

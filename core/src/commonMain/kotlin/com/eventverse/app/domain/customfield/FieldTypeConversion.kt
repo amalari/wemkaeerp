@@ -44,7 +44,10 @@ object FieldTypeConversion {
         // Nothing may convert into or out of UserRef by coercion: a person reference is not
         // a coercion of a string. Forcing delete + re-add makes the admin notice the link
         // rows that would otherwise silently vanish.
+        // Relation (C7) padanannya: rujukan record juga bukan koersi teks, dan baris link-nya
+        // (`custom_field_relation_links`) akan hilang senyap bila dipaksa konversi.
         if (from is FieldType.UserRef || to is FieldType.UserRef) return ConversionSafety.FORBIDDEN
+        if (from is FieldType.Relation || to is FieldType.Relation) return ConversionSafety.FORBIDDEN
 
         return when {
             from is FieldType.Text && to is FieldType.LongText -> ConversionSafety.LOSSLESS

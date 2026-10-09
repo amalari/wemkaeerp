@@ -26,6 +26,9 @@ internal object KoogDiscoveryFieldTypeVocabulary {
         FieldType.DATE -> "tanggal ISO YYYY-MM-DD; parameter `withTime` true untuk waktu bermenit YYYY-MM-DDTHH:MM, lihat fieldParams"
         FieldType.ENUM -> "wajib options 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk status kerja"
         FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
+        // C7 (TRD-FIELD-001): rujukan antar entitas; FR-6 — wajib target, seed kosong.
+        FieldType.RELATION -> "rujukan antar entitas/modul; parameter `target` wajib (\"entityId\" atau " +
+            "\"moduleId:entityId\", lihat fieldParams); di seed WAJIB kosong — nilai rujukan diisi data nyata, bukan contoh"
     }
 
     /** Aturan prompt: daftar tipe + pemilihan TEXT vs LONG_TEXT. Satu baris (disisipkan ke teks ber-indentasi). */

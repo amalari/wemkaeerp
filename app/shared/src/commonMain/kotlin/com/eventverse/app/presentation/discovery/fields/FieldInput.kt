@@ -36,6 +36,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * - DATE -> [ClayDatePicker] (TTTT-BB-HH); dengan [FieldSpec.withTime] -> [ClayDateTimePicker] (TTTT-BB-HHTJJ:MM)
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
+ * - RELATION -> sementara tampilan baca-saja id rujukan (C7/TRD-FIELD-001); `ClayRelationPicker`
+ *   menyusul di Track C — dilarang memalsukan rujukan jadi kolom teks bebas
  */
 @Composable
 fun FieldInput(
@@ -172,6 +174,15 @@ fun FieldInput(
                     minLines = if (compact) 2 else 3,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     keyboardActions = keyboardActions
+                )
+            }
+            // C7 (TRD-FIELD-001): nilai RELATION = id baris target yang diverifikasi server — bukan teks bebas,
+            // jadi tidak boleh dirender sebagai input teks. Pemilih rujukan (ClayRelationPicker) di Track C.
+            FieldType.RELATION -> {
+                Text(
+                    text = value.ifBlank { "—" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (value.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
                 )
             }
         }

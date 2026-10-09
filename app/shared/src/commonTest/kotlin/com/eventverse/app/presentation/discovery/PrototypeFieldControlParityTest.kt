@@ -37,7 +37,8 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_num", "Jumlah", FieldType.NUMBER),
             FieldSpec("f_date", "Tanggal", FieldType.DATE),
             FieldSpec("f_enum", "Status", FieldType.ENUM, options = listOf("Draft", "Rilis")),
-            FieldSpec("f_bool", "Aktif", FieldType.BOOL)
+            FieldSpec("f_bool", "Aktif", FieldType.BOOL),
+            FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan")
         )
 
         // Verifikasi semua entri FieldType tercakup dalam daftar uji
@@ -63,12 +64,13 @@ class PrototypeFieldControlParityTest {
         assertEquals("", formState.formValues["f_date"])
         assertEquals("Draft", formState.formValues["f_enum"])
         assertEquals("tidak", formState.formValues["f_bool"])
+        assertEquals("", formState.formValues["f_rel"], "RELATION harus memiliki nilai awal string kosong")
 
         // 2. Table State startInlineCreate menghasilkan nilai inline terdefinisi
         val tableHints = TableHints(
             statusColumn = "f_enum",
             options = listOf("Draft", "Rilis"),
-            fields = allFields.filter { it.key != "f_enum" }.map { FieldHint(it.key, it.type, options = it.options) },
+            fields = allFields.filter { it.key != "f_enum" }.map { FieldHint(it.key, it.type, options = it.options, target = it.target) },
             inlineCreate = true
         )
         val sampleRow = mapOf(
@@ -77,7 +79,8 @@ class PrototypeFieldControlParityTest {
             "f_num" to "10",
             "f_date" to "2026-10-08",
             "f_enum" to "Draft",
-            "f_bool" to "ya"
+            "f_bool" to "ya",
+            "f_rel" to "pesanan-1"
         )
         val tableScreen = requireNotNull(
             InteractiveScreenFactory.table("scr-table-parity", "Uji Tabel", listOf(sampleRow), tableHints)
@@ -89,6 +92,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("", tableState.inlineValues["f_long"], "LONG_TEXT inline harus kosong")
         assertEquals("Draft", tableState.inlineValues["f_enum"])
         assertEquals("tidak", tableState.inlineValues["f_bool"])
+        assertEquals("", tableState.inlineValues["f_rel"], "RELATION inline harus kosong")
     }
 
     @Test

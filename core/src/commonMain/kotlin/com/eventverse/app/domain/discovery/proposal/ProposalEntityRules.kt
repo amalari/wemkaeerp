@@ -126,6 +126,8 @@ internal object ProposalEntityRules {
                 sink.add(at, "'$v' bukan ${f.validation.name.lowercase()} yang sah untuk field '${f.key}'")
             }
             FieldType.LONG_TEXT -> Unit
+            // Keputusan R2 TRD-FIELD-001: seed RELATION wajib kosong di v1 — tidak mengarang id target.
+            FieldType.RELATION -> sink.add(at, "Field RELATION '${f.key}' wajib kosong di baris contoh (v1); isi nilai rujukan lewat data nyata")
         }
     }
 }

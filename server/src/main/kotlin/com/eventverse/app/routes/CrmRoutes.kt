@@ -475,4 +475,6 @@ private fun describeValidationError(error: CustomFieldValidationError): String =
     is CustomFieldValidationError.TypeMismatch -> "\"${error.label}\" harus bertipe ${error.expected}"
     is CustomFieldValidationError.UnknownOption -> "\"${error.label}\" memilih opsi yang tidak dikenal"
     is CustomFieldValidationError.ArchivedField -> "\"${error.label}\" sudah tidak aktif"
+    // C7 (TRD-FIELD-001): rujukan menunjuk record yang tidak ada di tenant yang sama — ditolak, bukan disimpan.
+    is CustomFieldValidationError.TargetNotFound -> "\"${error.label}\" menunjuk record '${error.resourceId}' yang tidak ditemukan"
 }

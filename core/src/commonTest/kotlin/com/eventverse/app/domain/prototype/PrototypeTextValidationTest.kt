@@ -63,7 +63,11 @@ class PrototypeTextValidationTest {
                 assertTrue(r.isFailure, "$type dengan validation $v harus ditolak")
                 assertTrue(r.exceptionOrNull()?.message.orEmpty().contains("bukan TEXT"), r.exceptionOrNull()?.message)
             }
-            assertTrue(runCatching { FieldSpec("k", "K", type, options, validation = TextValidation.NONE) }.isSuccess, "$type + NONE sah")
+            assertTrue(runCatching {
+                // C7: RELATION wajib bawa target — konstruksi sah-nya beda satu parameter itu saja.
+                if (type == FieldType.RELATION) FieldSpec("k", "K", type, options, validation = TextValidation.NONE, target = "pesanan")
+                else FieldSpec("k", "K", type, options, validation = TextValidation.NONE)
+            }.isSuccess, "$type + NONE sah")
         }
     }
 

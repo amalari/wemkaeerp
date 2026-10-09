@@ -32,4 +32,7 @@ internal object FieldParamWire {
 
     /** Kunci `currencyCode`: string atau `null`; tipe JSON salah ditolak (bentuk kodenya divalidasi `FieldSpec`). */
     fun currencyCode(obj: JsonValue.Obj): String? = obj.strictOptString("currencyCode")
+
+    /** Kunci `target` (C7, TRD-FIELD-001): string atau `null`; tipe JSON salah ditolak (bentuknya divalidasi `FieldSpec`). */
+    fun target(obj: JsonValue.Obj): String? = obj.strictOptString("target")
 }

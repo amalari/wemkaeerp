@@ -32,7 +32,8 @@ class CrmFieldTypeParityTest {
     private val samples: List<FieldType> = listOf(
         FieldType.Text, FieldType.LongText,
         FieldType.Number(NumberFormat.Currency("IDR"), 2), FieldType.Number(NumberFormat.Percent, 1), FieldType.Number(),
-        select, FieldType.DateField(withTime = true), FieldType.DateField(), FieldType.Checkbox, FieldType.UserRef(maxCount = 3)
+        select, FieldType.DateField(withTime = true), FieldType.DateField(), FieldType.Checkbox, FieldType.UserRef(maxCount = 3),
+        FieldType.Relation(targetResource = "leads", maxCount = 2)
     )
 
     /** Pagar kompilator: tanpa `else`, varian baru wajib ditambahkan di sini dan di [samples]. */
@@ -44,6 +45,7 @@ class CrmFieldTypeParityTest {
         is FieldType.DateField -> "DATE"
         is FieldType.Checkbox -> "CHECKBOX"
         is FieldType.UserRef -> "USER_REF"
+        is FieldType.Relation -> "RELATION"
     }
 
     private fun def(type: FieldType, id: String = "cf-${type.code.lowercase()}") = CustomFieldDefinition(
@@ -74,9 +76,20 @@ class CrmFieldTypeParityTest {
 
     @Test
     fun decodeFieldType_unknownCode_returnsNullAndNeverFallsBackToText() {
-        listOf("CURRENCY", "MULTI_SELECT", "FILE", "RELATION", "text", "Text", "", " TEXT").forEach { code ->
+        listOf("CURRENCY", "MULTI_SELECT", "FILE", "text", "Text", "", " TEXT").forEach { code ->
             assertNull(CustomAttributesCodec.decodeFieldType(code, JsonValue.Obj(emptyMap())), "kode '$code' harus ditolak")
         }
+    }
+
+    /** C7 (TRD-FIELD-001 §4.3): RELATION tanpa `targetResource` = korupsi (null), BUKAN fallback ke tipe lain. */
+    @Test
+    fun decodeFieldType_relationWithoutTargetResource_returnsNull() {
+        assertNull(CustomAttributesCodec.decodeFieldType("RELATION", JsonValue.Obj(emptyMap())))
+        assertNull(CustomAttributesCodec.decodeFieldType("RELATION", jsonObjectOf("maxCount" to jsonOf(2))))
+        assertEquals(
+            FieldType.Relation(targetResource = "leads", maxCount = 2),
+            CustomAttributesCodec.decodeFieldType("RELATION", jsonObjectOf("targetResource" to jsonOf("leads"), "maxCount" to jsonOf(2)))
+        )
     }
 
     @Test
@@ -116,6 +129,7 @@ class CrmFieldTypeParityTest {
         is FieldType.DateField -> CustomAttributes.dateCell(LocalDate(2026, 10, 8))
         is FieldType.Checkbox -> CustomAttributes.checkboxCell(true)
         is FieldType.UserRef -> CustomAttributes.textCell("user-1")
+        is FieldType.Relation -> CustomAttributes.textCell("lead-1")
     }
 
     private fun invalidCell(t: FieldType): JsonValue.Obj = when (t) {
@@ -125,6 +139,7 @@ class CrmFieldTypeParityTest {
         is FieldType.DateField -> CustomAttributes.textCell("bukan-tanggal")
         is FieldType.Checkbox -> CustomAttributes.textCell("ya")
         is FieldType.UserRef -> CustomAttributes.numberCell("1")
+        is FieldType.Relation -> CustomAttributes.numberCell("1")
     }
 
     @Test
@@ -154,5 +169,15 @@ class CrmFieldTypeParityTest {
     @Test
     fun conversion_everySample_toItself_isIdentity() {
         samples.forEach { assertEquals(ConversionSafety.IDENTITY, FieldTypeConversion.classify(it, it), it.code) }
+    }
+
+    /** C7 (TRD-FIELD-001 FR-5): konversi dari/ke Relation = FORBIDDEN (padanan UserRef) — baris link
+     *  `custom_field_relation_links` tidak boleh hilang senyap lewat ganti tipe. */
+    @Test
+    fun conversion_toOrFromRelation_isForbidden() {
+        samples.filter { it !is FieldType.Relation }.forEach { other ->
+            assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(other, FieldType.Relation(targetResource = "leads")), "dari ${other.code}")
+            assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(FieldType.Relation(targetResource = "leads"), other), "ke ${other.code}")
+        }
     }
 }

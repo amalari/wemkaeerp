@@ -72,7 +72,8 @@ internal object ChangeWidgetOp {
                 FieldType.DATE -> CardStyle.DATE
                 FieldType.NUMBER -> CardStyle.NUMBER
                 FieldType.BOOL -> CardStyle.FLAG
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, null -> CardStyle.TEXT
+                // C7: id rujukan tampil sebagai teks pola di kartu (label resolusinya menyusul).
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, null -> CardStyle.TEXT
             })
         }
         return ScreenSpec(

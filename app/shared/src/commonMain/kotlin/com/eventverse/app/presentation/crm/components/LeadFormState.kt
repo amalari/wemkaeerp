@@ -82,7 +82,7 @@ class LeadFormState(initialStage: LeadStage) {
                 is FieldType.DateField -> isBlankOrIsoDate(raw)
                 is FieldType.Text, is FieldType.LongText, is FieldType.SingleSelect -> true
                 // Tidak dirender di dialog lead baru (supportsInput) — tidak ada nilai untuk divalidasi.
-                is FieldType.Checkbox, is FieldType.UserRef -> true
+                is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation -> true
             }
         }
         return hasIdentifier && isPhoneValid && isEmailValid && customOk

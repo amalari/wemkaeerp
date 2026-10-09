@@ -90,6 +90,7 @@ internal object ScreenSuggestionCodec {
             f.currencyCode?.let { put("currencyCode", jsonOf(it)) }
             if (f.withTime) put("withTime", jsonOf(true))
             if (f.validation != TextValidation.NONE) put("validation", jsonOf(f.validation.name))
+            f.target?.let { put("target", jsonOf(it)) }
         }
     )
 
@@ -118,7 +119,8 @@ internal object ScreenSuggestionCodec {
                     format = FieldParamWire.numberFormat(f),
                     currencyCode = FieldParamWire.currencyCode(f),
                     withTime = f.strictBoolean("withTime", false),
-                    validation = FieldParamWire.textValidation(f)
+                    validation = FieldParamWire.textValidation(f),
+                    target = FieldParamWire.target(f)
                 )
             }
         val moduleId = try {
