@@ -15,6 +15,9 @@ import com.eventverse.app.domain.storage.FileRef
  *   (mis. `2026-10-08T14:30`), waktu dinding **tanpa zona waktu** tepat sampai menit, kolom `TIMESTAMP` (aturan di
  *   [DateFieldValues]).
  * - [ENUM]: salah satu opsi di [FieldSpec.options].
+ * - [MULTI_SELECT]: **banyak** opsi dari [FieldSpec.options] (TRD-FIELD-003). Nilai sel = string JSON array nama opsi
+ *   berurut menurut `options` (aturan lengkap di [MultiSelectValues]); kolom SQL `TEXT[]` dengan CHECK opsi;
+ *   [FieldSpec.maxSelections] membatasi jumlah pilihan. **Bukan** status: tidak boleh jadi `statusField`/StateMachine.
  * - [BOOL]: `ya` / `tidak`, kolom `BOOLEAN`.
  * - [RELATION]: id baris target (string) di modul pemegang field, kolom `VARCHAR(64)` **tanpa**
  *   `REFERENCES` (rujukan logis, pagar J3 — TRD-FIELD-001 FR-1); target rujukan ada di
@@ -22,7 +25,7 @@ import com.eventverse.app.domain.storage.FileRef
  * - [FILE]: referensi objek `FileRef` (string key) — byte hidup di `ObjectStorage`, TIDAK PERNAH di
  *   kolom/jsonb (TRD-FIELD-002 FR-2); seed v1 wajib kosong.
  */
-enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOL, RELATION, FILE }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, MULTI_SELECT, BOOL, RELATION, FILE }
 
 /**
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
@@ -43,7 +46,7 @@ data class FieldSpec(
     val key: String,
     val label: String,
     val type: FieldType,
-    /** Wajib terisi untuk [FieldType.ENUM]; kosong untuk tipe lain. */
+    /** Wajib terisi (unik) untuk [FieldType.ENUM] dan [FieldType.MULTI_SELECT]; kosong untuk tipe lain. */
     val options: List<String> = emptyList(),
     /** Kontrak v1: field wajib. Ditegakkan reducer pada `Create`; `SetField` boleh mengosongkan hanya bila tidak wajib. */
     val required: Boolean = false,
@@ -73,17 +76,31 @@ data class FieldSpec(
      * `DomainPack.resolveModule` — modul sendiri atau moduleReferences/sharedModules). Metadata spec saja:
      * tidak masuk kolom SQL (kolomnya menyimpan id baris target).
      */
-    val target: String? = null
+    val target: String? = null,
+    /**
+     * A0 (TRD-FIELD-003): batas jumlah pilihan untuk [FieldType.MULTI_SELECT]. `null` = hanya dibatasi jumlah
+     * [options]. Wajib hanya untuk MULTI_SELECT; bila diisi `1..options.size`. Wajib `null` untuk tipe lain.
+     */
+    val maxSelections: Int? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
         require(label.isNotBlank()) { "Field '$key' tanpa label" }
-        if (type == FieldType.ENUM) {
+        if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) {
             require(options.isNotEmpty() && options.distinct().size == options.size) {
-                "Field ENUM '$key' wajib punya opsi unik"
+                "Field ${type.name} '$key' wajib punya opsi unik"
             }
         } else {
-            require(options.isEmpty()) { "Field '$key' bukan ENUM tapi punya opsi" }
+            require(options.isEmpty()) { "Field '$key' bukan ENUM atau MULTI_SELECT tapi punya opsi" }
+        }
+        if (type == FieldType.MULTI_SELECT) {
+            require(maxSelections == null || maxSelections in 1..options.size) {
+                "Field MULTI_SELECT '$key' maxSelections harus 1..${options.size}, dapat $maxSelections"
+            }
+        } else {
+            require(maxSelections == null) {
+                "Field '$key' bertipe ${type.name}, bukan MULTI_SELECT, jadi tidak boleh punya maxSelections"
+            }
         }
         require(type == FieldType.NUMBER || format == NumberFormat.PLAIN) {
             "Field '$key' bertipe ${type.name}, bukan NUMBER, jadi tidak boleh punya format ${format.name}"
@@ -123,6 +140,7 @@ data class FieldSpec(
             // Sama dengan `ProposalEntityRules`: tanggal ISO (TTTT-BB-HH) atau, bila withTime, TTTT-BB-HHTJJ:MM; bukan teks bebas.
             FieldType.DATE -> DateFieldValues.isValid(value, withTime)
             FieldType.ENUM -> value in options
+            FieldType.MULTI_SELECT -> MultiSelectValues.isValid(value, options, maxSelections)
             FieldType.BOOL -> value == "ya" || value == "tidak"
             // C7: id target non-blank tanpa ".."; keberadaan target diverifikasi server, bukan klien.
             FieldType.RELATION -> value.isNotBlank() && !value.contains("..")

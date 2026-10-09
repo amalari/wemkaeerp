@@ -36,12 +36,15 @@ object InteractiveScreenCodec {
             jsonObjectOf(
                 "id" to jsonOf(e.id), "label" to jsonOf(e.label),
                 "fields" to jsonArrayOf(e.fields.map { f ->
-                    jsonObjectOf(
-                        "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                        "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
-                        "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
-                        "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
-                        "target" to jsonOf(f.target)
+                    // A0 (TRD-FIELD-003): `maxSelections` ditulis HANYA bila bukan null → dokumen lama byte-identik.
+                    JsonValue.Obj(
+                        jsonObjectOf(
+                            "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
+                            "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
+                            "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
+                            "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
+                            "target" to jsonOf(f.target)
+                        ).entries + (f.maxSelections?.let { mapOf("maxSelections" to jsonOf(it)) } ?: emptyMap())
                     )
                 }),
                 "stateMachine" to (e.stateMachine?.let { sm ->
@@ -98,7 +101,7 @@ object InteractiveScreenCodec {
                 requireNotNull(e.string("id")) { "entitas tanpa id" }, e.string("label").orEmpty(),
                 e.objectArray("fields").map { f ->
                     val type = FieldType.entries.firstOrNull { it.name == f.string("type") }
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f))
                 },
                 machine
             )

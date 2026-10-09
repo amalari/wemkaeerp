@@ -3,6 +3,7 @@ package com.eventverse.app.shared.pack
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.strictOptInt
 import com.eventverse.app.shared.json.strictOptString
 
 /**
@@ -35,4 +36,10 @@ internal object FieldParamWire {
 
     /** Kunci `target` (C7, TRD-FIELD-001): string atau `null`; tipe JSON salah ditolak (bentuknya divalidasi `FieldSpec`). */
     fun target(obj: JsonValue.Obj): String? = obj.strictOptString("target")
+
+    /**
+     * Kunci `maxSelections` (A0, TRD-FIELD-003): bilangan bulat opsional atau `null`; absen/`null` = tanpa batas,
+     * tipe JSON salah ditolak (bukan jatuh ke bawaan). Rentang `1..options.size` divalidasi `FieldSpec`, bukan di sini.
+     */
+    fun maxSelections(obj: JsonValue.Obj): Int? = obj.strictOptInt("maxSelections")
 }

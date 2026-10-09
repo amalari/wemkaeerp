@@ -57,7 +57,7 @@ data class FieldProposal(
     val label: String,
     val type: FieldType,
     val required: Boolean = false,
-    /** Wajib untuk [FieldType.ENUM]; kosong untuk tipe lain. */
+    /** Wajib untuk [FieldType.ENUM] dan [FieldType.MULTI_SELECT]; kosong untuk tipe lain. */
     val options: List<String> = emptyList(),
     /**
      * C4 Irisan 2: varian tampilan angka, wajib [NumberFormat.PLAIN] untuk tipe selain [FieldType.NUMBER]
@@ -76,7 +76,13 @@ data class FieldProposal(
      * bisa diresolusi pack). Bentuk & resolusi divalidasi [ScreenProposalValidator], bukan konstruktor —
      * dokumen usulan tidak melempar (galat berpath dikembalikan ke agent).
      */
-    val target: String? = null
+    val target: String? = null,
+    /**
+     * A0 (TRD-FIELD-003): batas jumlah pilihan untuk [FieldType.MULTI_SELECT]; `null` = hanya dibatasi jumlah opsi.
+     * Hanya sah untuk MULTI_SELECT dan (bila diisi) `1..options.size` — divalidasi [ScreenProposalValidator], bukan
+     * konstruktor (dokumen usulan tidak melempar).
+     */
+    val maxSelections: Int? = null
 )
 
 /**

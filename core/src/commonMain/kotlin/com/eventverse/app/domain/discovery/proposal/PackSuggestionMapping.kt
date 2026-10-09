@@ -44,7 +44,7 @@ internal object PackSuggestionMapping {
 
     // C7 (TRD-FIELD-001): `target` RELATION diteruskan utuh dari petunjuk pack — penerjemah tidak mengarang
     // maupun membuang rujukan; bentuk & resolusinya ditegakkan ScreenProposalValidator.
-    private fun FieldHint.toProposal() = FieldProposal(key, key, type, required, options, format, currencyCode, withTime, validation, target)
+    private fun FieldHint.toProposal() = FieldProposal(key, key, type, required, options, format, currencyCode, withTime, validation, target, maxSelections)
     private fun text(key: String) = FieldProposal(key, key, FieldType.TEXT)
     private fun Map<String, Set<String>>.asLists() = mapValues { (_, v) -> v.toList() }
 

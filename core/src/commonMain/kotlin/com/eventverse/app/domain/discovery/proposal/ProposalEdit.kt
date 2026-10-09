@@ -90,6 +90,9 @@ private fun List<Map<String, String>>.reconcileFor(f: FieldProposal): List<Map<S
 
 private fun FieldProposal.accepts(v: String): Boolean = when (type) {
     com.eventverse.app.domain.prototype.FieldType.ENUM -> v in options
+    // A0 (TRD-FIELD-003): bentuk nilai MULTI_SELECT = aturan tunggal MultiSelectValues.
+    com.eventverse.app.domain.prototype.FieldType.MULTI_SELECT ->
+        com.eventverse.app.domain.prototype.MultiSelectValues.isValid(v, options, maxSelections)
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> v.toDoubleOrNull() != null
     com.eventverse.app.domain.prototype.FieldType.BOOL -> v == "ya" || v == "tidak"
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.isValid(v, withTime)
@@ -103,6 +106,9 @@ private fun FieldProposal.accepts(v: String): Boolean = when (type) {
 
 private fun FieldProposal.sampleValue(): String = when (type) {
     com.eventverse.app.domain.prototype.FieldType.ENUM -> options.firstOrNull() ?: "contoh"
+    // A0 (TRD-FIELD-003): contoh MULTI_SELECT = satu pilihan pertama, sebagai string JSON kanonik.
+    com.eventverse.app.domain.prototype.FieldType.MULTI_SELECT ->
+        com.eventverse.app.domain.prototype.MultiSelectValues.encode(options.take(1), options)
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> "0"
     com.eventverse.app.domain.prototype.FieldType.BOOL -> "tidak"
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.sample(withTime)

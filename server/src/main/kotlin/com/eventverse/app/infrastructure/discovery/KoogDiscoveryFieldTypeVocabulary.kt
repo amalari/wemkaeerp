@@ -25,6 +25,11 @@ internal object KoogDiscoveryFieldTypeVocabulary {
         FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
         FieldType.DATE -> "tanggal ISO YYYY-MM-DD; parameter `withTime` true untuk waktu bermenit YYYY-MM-DDTHH:MM, lihat fieldParams"
         FieldType.ENUM -> "wajib options 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk status kerja"
+        // A0 (TRD-FIELD-003): kompilasi-forced. Katalog/prompt penuh (kapan MULTI_SELECT vs ENUM) = Track B.
+        FieldType.MULTI_SELECT -> "pilihan ganda dari daftar tertutup (atribut berlabel ganda: alergi, layanan, jenis bahan); " +
+            "wajib options unik 2-${ProposalLimits.OPTIONS}; parameter opsional `maxSelections` (1..jumlah opsi) membatasi " +
+            "jumlah pilihan; BUKAN status kerja (jangan dipakai sebagai statusField) dan di seed ditulis sebagai array JSON, " +
+            "mis. [\"a\",\"b\"]"
         FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
         // C7 (TRD-FIELD-001): rujukan antar entitas; FR-6 — wajib target, seed kosong.
         FieldType.RELATION -> "rujukan antar entitas/modul; parameter `target` wajib (\"entityId\" atau " +

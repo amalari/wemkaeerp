@@ -57,20 +57,22 @@ data class FieldHint(
     val withTime: Boolean = false,
     val validation: TextValidation = TextValidation.NONE,
     /** C7 (TRD-FIELD-001): target rujukan; wajib tepat bila [type] == [FieldType.RELATION] (invarian di [FieldSpec]). */
-    val target: String? = null
+    val target: String? = null,
+    /** A0 (TRD-FIELD-003): batas pilihan MULTI_SELECT; hanya sah untuk MULTI_SELECT (invarian di [FieldSpec]). */
+    val maxSelections: Int? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldHint.key kosong" }
-        if (type == FieldType.ENUM) {
-            require(options.isNotEmpty() && options.distinct().size == options.size) { "FieldHint ENUM '$key' wajib punya opsi unik" }
+        if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) {
+            require(options.isNotEmpty() && options.distinct().size == options.size) { "FieldHint ${type.name} '$key' wajib punya opsi unik" }
         } else {
-            require(options.isEmpty()) { "FieldHint '$key' bukan ENUM tapi punya opsi" }
+            require(options.isEmpty()) { "FieldHint '$key' bukan ENUM atau MULTI_SELECT tapi punya opsi" }
         }
-        toFieldSpec() // invarian parameter (format/withTime/validation/target) = satu sumber: FieldSpec
+        toFieldSpec() // invarian parameter (format/withTime/validation/target/maxSelections) = satu sumber: FieldSpec
     }
 
     /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. */
-    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation, target)
+    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation, target, maxSelections)
 }
 
 /**

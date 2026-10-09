@@ -57,7 +57,8 @@ class PrototypeTextValidationTest {
     @Test
     fun fieldSpec_validationOnNonText_isRejected_includingLongText() {
         FieldType.entries.filter { it != FieldType.TEXT }.forEach { type ->
-            val options = if (type == FieldType.ENUM) listOf("a") else emptyList()
+            // ENUM dan MULTI_SELECT wajib membawa opsi; kalau tidak, penolakannya bukan karena validation.
+            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf("a") else emptyList()
             TextValidation.entries.filter { it != TextValidation.NONE }.forEach { v ->
                 val r = runCatching { FieldSpec("k", "K", type, options, validation = v) }
                 assertTrue(r.isFailure, "$type dengan validation $v harus ditolak")

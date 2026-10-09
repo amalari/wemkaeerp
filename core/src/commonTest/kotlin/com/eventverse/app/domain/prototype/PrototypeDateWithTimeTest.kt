@@ -24,7 +24,8 @@ class PrototypeDateWithTimeTest {
     @Test
     fun fieldSpec_withTimeOnNonDate_isRejected_forEveryOtherType() {
         FieldType.entries.filter { it != FieldType.DATE }.forEach { type ->
-            val options = if (type == FieldType.ENUM) listOf("a") else emptyList()
+            // ENUM dan MULTI_SELECT wajib membawa opsi; kalau tidak, penolakannya bukan karena withTime.
+            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf("a") else emptyList()
             val result = runCatching { FieldSpec("k", "K", type, options, withTime = true) }
             assertTrue(result.isFailure, "$type dengan withTime harus ditolak")
             assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("bukan DATE"), "pesan jelas: ${result.exceptionOrNull()?.message}")

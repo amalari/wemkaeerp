@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
 import com.eventverse.app.presentation.common.fieldFileClientSizeError
 import com.eventverse.app.presentation.common.fieldFileErrorMessage
@@ -130,6 +131,16 @@ fun FieldInput(
                         )
                     }
                 }
+            }
+            // A0 (TRD-FIELD-003): kompilasi-forced. Placeholder baca-saja; kontrol chip pilih-ganda,
+            // batas maxSelections, dan konteks tabel/kanban = Track C. Dilarang memalsukan jadi teks bebas.
+            FieldType.MULTI_SELECT -> {
+                val selected = MultiSelectValues.parse(value).orEmpty()
+                Text(
+                    text = if (selected.isEmpty()) "Belum ada pilihan" else selected.joinToString(", "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WeMadeColors.OnSurface
+                )
             }
             FieldType.NUMBER -> {
                 val affix = numberAffix(field.format, field.currencyCode)

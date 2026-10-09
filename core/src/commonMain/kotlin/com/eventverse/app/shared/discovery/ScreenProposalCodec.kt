@@ -15,6 +15,7 @@ import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import com.eventverse.app.shared.json.jsonStringMapOf
+import com.eventverse.app.shared.pack.FieldParamWire
 import com.eventverse.app.shared.pack.InteractiveScreenCodec
 
 /**
@@ -73,13 +74,16 @@ object ScreenProposalCodec {
     private fun encodeEntity(e: EntityProposal): JsonValue.Obj = jsonObjectOf(
         "id" to jsonOf(e.id), "label" to jsonOf(e.label),
         "fields" to jsonArrayOf(e.fields.map { f ->
-            jsonObjectOf(
-                "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
-                "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
-                "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
-                // C7 (TRD-FIELD-001): target rujukan ikut kawat; null untuk tipe selain RELATION.
-                "target" to jsonOf(f.target)
+            // A0 (TRD-FIELD-003): `maxSelections` ditulis HANYA bila bukan null → dokumen lama byte-identik.
+            JsonValue.Obj(
+                jsonObjectOf(
+                    "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
+                    "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
+                    "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
+                    "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
+                    // C7 (TRD-FIELD-001): target rujukan ikut kawat; null untuk tipe selain RELATION.
+                    "target" to jsonOf(f.target)
+                ).entries + (f.maxSelections?.let { mapOf("maxSelections" to jsonOf(it)) } ?: emptyMap())
             )
         }),
         "statusField" to jsonOf(e.statusField),
@@ -109,7 +113,9 @@ object ScreenProposalCodec {
                 else TextValidation.entries.firstOrNull { it.name == validationName }
                     ?: f.fail("validation", "Validasi teks '$validationName' bukan kosakata tertutup: ${TextValidation.entries.joinToString { it.name }}"),
                 // C7: target opsional di kawat; bentuk & resolusi divalidasi ScreenProposalValidator, bukan codec.
-                target = f.optString("target")
+                target = f.optString("target"),
+                // A0 (TRD-FIELD-003): kunci opsional; tipe JSON salah ditolak (bukan jatuh ke bawaan) dengan path.
+                maxSelections = f.parsed("maxSelections") { FieldParamWire.maxSelections(f.rawNode()) }
             )
         },
         statusField = r.optString("statusField"),

@@ -42,7 +42,7 @@ class PrototypeFieldTypeCodecParityTest {
      *  (plan C4-C8), salah huruf, dan kosong. `LONG_TEXT` lulusan plan C3 (Irisan 2), `RELATION`
      *  lulusan C7 (TRD-FIELD-001), dan `FILE` lulusan C8 (TRD-FIELD-002) — keduanya kini anggota
      *  kosakata dan diuji round-trip-nya, bukan lagi di daftar penolakan ini. */
-    private val unknownNames = listOf("CURRENCY", "MULTI_SELECT", "text", "Text", "UANG", "")
+    private val unknownNames = listOf("CURRENCY", "text", "Text", "UANG", "")
 
     // ---- InteractiveScreenCodec ----------------------------------------------------------------
 
@@ -111,7 +111,8 @@ class PrototypeFieldTypeCodecParityTest {
     private fun suggestionWithEveryType(): ScreenSuggestion {
         val hints = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
-            FieldHint(f.key, type, options = f.options, target = f.target)
+            // A0 (TRD-FIELD-003): maxSelections ikut kawat (MULTI_SELECT), target (RELATION) — keduanya opsional.
+            FieldHint(f.key, type, options = f.options, target = f.target, maxSelections = f.maxSelections)
         }
         return ScreenSuggestion(
             ModuleId("bordir_antrean"), "Antrean bordir", WidgetKind.TABLE,
@@ -147,8 +148,8 @@ class PrototypeFieldTypeCodecParityTest {
         val base = ScreenProposalFixtures.kanbanAntrean()
         val extras = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
-            // C7: `target` RELATION ikut dokumen draf (null untuk tipe lain).
-            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.options, target = f.target)
+            // C7: `target` RELATION ikut dokumen draf (null untuk tipe lain). A0: `maxSelections` MULTI_SELECT ikut.
+            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.options, target = f.target, maxSelections = f.maxSelections)
         }
         val entity = ScreenProposalFixtures.pasien
         val proposal = base.copy(entity = entity.copy(fields = entity.fields + extras))
