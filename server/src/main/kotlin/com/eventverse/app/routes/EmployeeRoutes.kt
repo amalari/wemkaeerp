@@ -6,6 +6,7 @@ import com.eventverse.app.domain.orgchart.EmployeeRepository
 import com.eventverse.app.domain.orgchart.EmailConflictException
 import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.orgchart.usecases.*
+import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
@@ -42,6 +43,10 @@ fun Route.employeeRoutes(
     val restoreDefaultEmployeesUseCase = RestoreDefaultEmployeesUseCase(employeeRepository, departmentRepository)
 
     route("/api/tenant/employees") {
+        // TRD-PLAT-011: baca VIEW, tulis OPERATE (DELETE/archived/restore tetap MANAGE di handler); fail-closed.
+        if (roleRepository != null && moduleAssignmentRepository != null) {
+            moduleGate(GarmentModules.ORG_CHART, roleRepository, moduleAssignmentRepository, write = AccessLevel.OPERATE)
+        }
         get {
             val tenant = call.tenantContextOrNull ?: run {
                 call.respond(HttpStatusCode.NotFound, "No tenant context found")
