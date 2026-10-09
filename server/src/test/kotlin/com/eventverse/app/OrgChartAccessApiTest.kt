@@ -293,17 +293,27 @@ class OrgChartAccessApiTest {
         assertTrue(body.contains("emp-budi"), "Fokus node harus ada")
     }
 
-    // ── Jalur lama tidak boleh ikut tertutup ─────────────────────────────────────────────────
+    // ── Token tanpa identitas pabrik (TRD-PLAT-011: fail-closed) ─────────────────────────────
 
     @Test
-    fun listEmployees_withTokenCarryingNoFactoryIdentity_shouldBehaveAsBefore() = testApplication {
-        // Token tanpa divisi dan tanpa jabatan tidak punya sumbu wewenang sama sekali. Menutupnya
-        // akan mematikan pemasangan route lama alih-alih menjaganya.
+    fun listEmployees_withNoIdentityOwnerToken_shouldStillPass() = testApplication {
+        // DIBALIK dari "shouldBehaveAsBefore" (TRD-PLAT-011): dulu kunci ini mengesahkan token tanpa jabatan
+        // dan divisi lolos sebagai "perilaku lama" — termasuk SALES/OPERATOR. Kini yang lolos hanya Owner
+        // (`TENANT_ADMIN`) lewat moduleDecision; peran lain 403 (lihat OrgChartFailClosedApiTest).
         installApp()
 
         val response = client.get("/api/tenant/employees") { asTenant(slug) }
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.employeeCount() > 0)
+    }
+
+    @Test
+    fun listEmployees_withNoIdentityNonOwnerToken_shouldBeForbidden() = testApplication {
+        installApp()
+
+        val response = client.get("/api/tenant/employees") { asTenant(slug, com.eventverse.app.domain.auth.Role.SALES) }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 }
