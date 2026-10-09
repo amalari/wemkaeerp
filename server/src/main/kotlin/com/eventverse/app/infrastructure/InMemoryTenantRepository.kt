@@ -1,6 +1,9 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.pack.UnresolvableBlueprintException
+import com.eventverse.app.domain.pack.resolveBlueprint
 
 import com.eventverse.app.domain.tenant.*
 import java.util.concurrent.ConcurrentHashMap
@@ -56,6 +59,11 @@ class InMemoryTenantRepository : TenantRepository {
         tenants.values.firstOrNull { it.slug == slug }
 
     override suspend fun save(tenant: Tenant): Result<Tenant> {
+        // Aturan tulis yang sama dengan Postgres (TRD-PLAT-008 FR-5): kode starter harus ter-resolve oleh pack tenant,
+        // supaya tes berbasis memori tak lolos pada data yang akan ditolak di produksi.
+        if (resolveBlueprint(DomainPackRegistry.find(tenant.domainPack), tenant.businessPreset.code) == null) {
+            return Result.failure(UnresolvableBlueprintException(tenant.slug.value, tenant.domainPack, tenant.businessPreset.code.value))
+        }
         tenants[tenant.id] = tenant
         return Result.success(tenant)
     }

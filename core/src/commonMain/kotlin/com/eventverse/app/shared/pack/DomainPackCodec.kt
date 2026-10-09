@@ -79,6 +79,7 @@ object DomainPackCodec {
             if (pack.sharedModules.isNotEmpty()) put("sharedModules", jsonArrayOf(pack.sharedModules.map { jsonOf(it.value) }))
             if (pack.handoverRouteTemplate.isNotEmpty()) put("handoverRouteTemplate", HandoverRouteCodec.encode(pack.handoverRouteTemplate))
             if (pack.defaultCurrencyCode != DomainPack.DEFAULT_CURRENCY_CODE) put("defaultCurrencyCode", jsonOf(pack.defaultCurrencyCode))
+            if (pack.blueprints.isNotEmpty()) put("blueprints", jsonArrayOf(pack.blueprints.map(BlueprintCodec::encode)))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -139,6 +140,13 @@ object DomainPackCodec {
             }.toSet()
             else -> throw DomainPackDecodeException("$.sharedModules", "harus array")
         }
+        val blueprints = when (val v = root["blueprints"]) {
+            null, JsonValue.Null -> emptyList() // kunci absen = pack tanpa starter data (TRD-PLAT-008 FR-2)
+            is JsonValue.Arr -> v.items.mapIndexed { i, b ->
+                BlueprintCodec.decode(b as? JsonValue.Obj ?: throw DomainPackDecodeException("$.blueprints[$i]", "harus objek"), "$.blueprints[$i]")
+            }
+            else -> throw DomainPackDecodeException("$.blueprints", "harus array")
+        }
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -159,7 +167,8 @@ object DomainPackCodec {
                 moduleReferences = ModuleReferenceCodec.decode(root["moduleReferences"], "$.moduleReferences"),
                 handoverRouteTemplate = HandoverRouteCodec.decode(root["handoverRouteTemplate"], "$.handoverRouteTemplate"),
                 // Kunci absen/null = pack belum menyebut mata uangnya → bawaan global; nilai tak sah ditolak oleh DomainPack.init.
-                defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE
+                defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE,
+                blueprints = blueprints
             )
         }
     }

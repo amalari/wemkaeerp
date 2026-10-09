@@ -1,18 +1,15 @@
 package com.eventverse.app.shared.discovery
 
 import com.eventverse.app.domain.blueprint.Blueprint
-import com.eventverse.app.domain.blueprint.BlueprintCode
-import com.eventverse.app.domain.blueprint.BlueprintModule
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.PrototypeScreen
-import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
-import com.eventverse.app.shared.json.jsonStringMapOf
+import com.eventverse.app.shared.pack.BlueprintCodec
 import com.eventverse.app.shared.pack.DomainPackCodec
 import com.eventverse.app.shared.pack.DomainPackDecodeException
 
@@ -88,40 +85,13 @@ object DiscoveryDraftCodec {
         }
     }
 
-    private fun encodeBlueprint(bp: Blueprint): JsonValue.Obj = jsonObjectOf(
-        "code" to jsonOf(bp.code.value), "pack" to jsonOf(bp.pack.value),
-        "displayName" to jsonOf(bp.displayName), "shortBadge" to jsonOf(bp.shortBadge),
-        "description" to jsonOf(bp.description), "targetClientProfile" to jsonOf(bp.targetClientProfile),
-        "modules" to jsonArrayOf(bp.modules.map { m ->
-            jsonObjectOf(
-                "moduleCode" to jsonOf(m.moduleCode), "active" to jsonOf(m.active),
-                "parameters" to jsonStringMapOf(m.parameters)
-            )
-        })
-    )
+    private fun encodeBlueprint(bp: Blueprint): JsonValue.Obj = BlueprintCodec.encode(bp)
 
-    private fun decodeBlueprint(obj: JsonValue.Obj): Blueprint {
-        val r = Reader(obj, "$.blueprint")
-        val modules = r.objects("modules").map { m ->
-            m.build {
-                BlueprintModule(
-                    moduleCode = m.string("moduleCode"),
-                    active = m.boolean("active") ?: m.fail("active", "wajib boolean"),
-                    parameters = m.stringMap("parameters")
-                )
-            }
-        }
-        return r.build {
-            Blueprint(
-                code = r.value("code", ::BlueprintCode),
-                pack = r.value("pack", ::DomainPackCode),
-                displayName = r.string("displayName"),
-                shortBadge = r.string("shortBadge"),
-                description = r.string("description"),
-                targetClientProfile = r.string("targetClientProfile"),
-                modules = modules
-            )
-        }
+    /** Parser Blueprint dibagi dengan `DomainPackCodec` (TRD-PLAT-008); galatnya dibungkus jenis galat draf. */
+    private fun decodeBlueprint(obj: JsonValue.Obj): Blueprint = try {
+        BlueprintCodec.decode(obj, "$.blueprint")
+    } catch (e: DomainPackDecodeException) {
+        throw DiscoveryDraftDecodeException(e.path, e.message?.removePrefix("${e.path}: ") ?: "blueprint tidak sah")
     }
 
     /** Kunci objek opsional: absen/null = tidak ada; ada tapi bukan objek = **ditolak**, tidak diabaikan. */
@@ -150,24 +120,9 @@ object DiscoveryDraftCodec {
             else -> fail(key, "wajib string")
         }
 
-        fun boolean(key: String): Boolean? = (obj[key] as? JsonValue.Bool)?.value
-
         fun <T> value(key: String, ctor: (String) -> T): T {
             val raw = string(key)
             return try { ctor(raw) } catch (e: IllegalArgumentException) { fail(key, e.message ?: "tidak sah") }
-        }
-
-        fun objects(key: String): List<Reader> = when (val v = obj[key]) {
-            is JsonValue.Arr -> v.items.mapIndexed { i, item ->
-                Reader(item as? JsonValue.Obj ?: fail("$key[$i]", "harus objek"), "$path.$key[$i]")
-            }
-            else -> fail(key, "wajib array")
-        }
-
-        fun stringMap(key: String): Map<String, String> = when (val v = obj[key]) {
-            null -> emptyMap()
-            is JsonValue.Obj -> v.entries.mapNotNull { (k, v) -> (v as? JsonValue.Str)?.let { k to it.value } }.toMap()
-            else -> fail(key, "wajib objek")
         }
     }
 }
