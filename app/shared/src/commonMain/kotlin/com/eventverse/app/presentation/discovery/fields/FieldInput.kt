@@ -33,9 +33,12 @@ import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFileField
 import com.eventverse.app.presentation.designsystem.ClayFileFieldState
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
+import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
 
@@ -51,8 +54,9 @@ import kotlinx.coroutines.launch
  * - DATE -> [ClayDatePicker] (TTTT-BB-HH); dengan [FieldSpec.withTime] -> [ClayDateTimePicker] (TTTT-BB-HHTJJ:MM)
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
- * - RELATION -> sementara tampilan baca-saja id rujukan (C7/TRD-FIELD-001); `ClayRelationPicker`
- *   menyusul di Track C — dilarang memalsukan rujukan jadi kolom teks bebas
+ * - RELATION -> [ClayRelationPicker] (C7/TRD-FIELD-001 Track C) bila host menyuplai [relation];
+ *   tanpa penyuplai (mis. demo memori) tampil baca-saja id/label — dilarang memalsukan rujukan
+ *   jadi kolom teks bebas
  * - FILE -> [ClayFileField] (C8/TRD-FIELD-002 Track C): unggah pertama/ganti/hapus lewat
  *   [FileFieldOps] bila record sudah punya id server; byte tidak pernah lewat sel, hanya key
  *   `fields/...`. Tanpa ops = chip baca-saja / penjelasan bahwa unggah menyusul setelah data ada.
@@ -68,7 +72,8 @@ fun FieldInput(
     enabled: Boolean = true,
     errorMessage: String? = null,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
-    fileOps: FileFieldOps? = null
+    fileOps: FileFieldOps? = null,
+    relation: RelationFieldUi? = null
 ) {
     Column(
         modifier = modifier,
@@ -195,14 +200,42 @@ fun FieldInput(
                     keyboardActions = keyboardActions
                 )
             }
-            // C7 (TRD-FIELD-001): nilai RELATION = id baris target yang diverifikasi server — bukan teks bebas,
-            // jadi tidak boleh dirender sebagai input teks. Pemilih rujukan (ClayRelationPicker) di Track C.
+            // C7 (TRD-FIELD-001 Track C): nilai RELATION = id baris target yang diverifikasi server.
+            // Dengan penyuplai opsi, render ClayRelationPicker; tanpa itu (demo memori / belum ada
+            // server) tampil baca-saja label/id — bukan kolom teks bebas.
             FieldType.RELATION -> {
-                Text(
-                    text = value.ifBlank { "—" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (value.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
-                )
+                if (relation != null && enabled) {
+                    ClayRelationPicker(
+                        query = relation.query,
+                        onQueryChange = relation::onQueryChange,
+                        options = relation.options,
+                        selectedId = value.trim().ifEmpty { null },
+                        onSelect = { option ->
+                            onValueChange(option?.id ?: "")
+                            relation.onSelect(option)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = enabled,
+                        isError = shownError != null,
+                        label = "",
+                        selectedLabel = relation.labelFor(value.trim()),
+                        isLoading = relation.isLoading
+                    )
+                    relation.error?.let { msg ->
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = WeMadeColors.Error
+                        )
+                    }
+                } else {
+                    val display = relationDisplay(value) { id -> relation?.labelFor(id) }
+                    Text(
+                        text = display.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (display.missing) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
+                    )
+                }
             }
             // C8 (TRD-FIELD-002 Track C): nilai FILE = key `fields/...` (byte di ObjectStorage).
             // Unggah/ganti/hapus hanya bila [fileOps] tersedia (record sudah ber-id server);

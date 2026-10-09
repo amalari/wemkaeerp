@@ -27,6 +27,7 @@ import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.designsystem.ClayFileChip
 import com.eventverse.app.presentation.discovery.fields.FieldInput
 import com.eventverse.app.presentation.discovery.fields.displayValue
+import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
 
@@ -58,6 +59,8 @@ fun TableCell(
             )
             // Diingat per baris — jangan membangun ulang klien ops saat recompose (C8).
             val editFileOps = remember(state, row.id) { state.fileFieldOps(row.id) }
+            // C7: pemilih rujukan per kolom (null bila bukan RELATION / demo memori).
+            val editRelation = remember(state, column) { state.relationField(column) }
 
             FieldInput(
                 field = field,
@@ -67,6 +70,7 @@ fun TableCell(
                 compact = true,
                 errorMessage = state.cellErrorMessage,
                 fileOps = editFileOps,
+                relation = editRelation,
                 modifier = Modifier
                     .width(columnWidth)
                     .onPreviewKeyEvent { event ->
@@ -109,6 +113,29 @@ fun TableCell(
                         }
                     },
                     tint = if (state.isCellEditable(column)) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
+                )
+            } else if (fieldSpec?.type == FieldType.RELATION) {
+                // C7 Track C: label rujukan, fallback id; "Tidak ditemukan (id)" abu bila target hilang.
+                val display = relationDisplay(rawValue) { id -> state.relationLabels[id] }
+                Text(
+                    text = display.text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when {
+                        display.missing -> WeMadeColors.OnSurfaceMuted
+                        isEditable -> WeMadeColors.Primary
+                        else -> WeMadeColors.OnSurface
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .width(columnWidth)
+                        .then(
+                            if (isEditable) {
+                                Modifier
+                                    .pointerHoverIcon(PointerIcon.Hand)
+                                    .clickable { state.startCellEdit(row.id, column, row[column]) }
+                            } else Modifier
+                        )
                 )
             } else {
                 val cellText = (fieldSpec?.displayValue(rawValue) ?: rawValue).ifEmpty { "—" }

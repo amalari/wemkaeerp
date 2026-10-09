@@ -10,6 +10,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
 import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
 import com.eventverse.app.presentation.common.fieldFileClientSizeError
 import com.eventverse.app.presentation.common.fieldFileErrorMessage
@@ -35,8 +37,12 @@ import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayFileField
 import com.eventverse.app.presentation.designsystem.ClayFileFieldState
+import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.relationDisplay
+import com.eventverse.app.presentation.relation.relationFieldControllerForResource
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.coroutines.launch
@@ -145,9 +151,15 @@ fun LeadCustomField(
                 }
                 is FieldType.SingleSelect -> SelectEditor(type, cell, editable, onCommit)
                 is FieldType.UserRef -> UserRefEditor(cell, employees, editable, onCommit)
-                // C7 (TRD-FIELD-001): id rujukan tampil baca-saja; kontrol pemilih (ClayRelationPicker) di Track C,
-                // dan penulisan nilai rujukan tetap divalidasi server (RelationTargetResolver).
-                is FieldType.Relation -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
+                // C7 (TRD-FIELD-001 Track C): pemilih rujukan (ClayRelationPicker) saat editable;
+                // baca-saja menampilkan label/fallback id/"tidak ditemukan". Penulisan tetap
+                // divalidasi server (RelationTargetResolver). Tidak dipalsukan jadi kolom teks.
+                is FieldType.Relation -> RelationEditor(
+                    type = type,
+                    cell = cell,
+                    editable = editable,
+                    onCommit = onCommit
+                )
                 // C8 (TRD-FIELD-002 Track C): ClayFileField — unggah/ganti/hapus bila aksi tersedia.
                 is FieldType.File -> FileEditor(
                     fieldId = descriptor.fieldId,
@@ -378,6 +390,60 @@ private fun UserRefEditor(
     } else {
         Text(text = selected?.name ?: "—", fontSize = 13.sp, color = WeMadeColors.OnSurface)
     }
+}
+
+/**
+ * Editor field `Relation` (C7, TRD-FIELD-001 Track C) di atas [ClayRelationPicker]. Opsi dimuat
+ * dari route `GET /api/tenant/relation-options` (Track B) lewat [relationFieldControllerForResource].
+ * Bila penyuplai opsi tak tersedia (mis. sesi tanpa tenant), tampil baca-saja label/fallback id —
+ * kontrol yang belum bisa jangan dipalsukan jadi kolom teks (field-component-rules Kontrak 8).
+ */
+@Composable
+private fun RelationEditor(
+    type: FieldType.Relation,
+    cell: JsonValue.Obj?,
+    editable: Boolean,
+    onCommit: ((JsonValue.Obj?) -> Unit)?
+) {
+    val selectedId = cell?.string("v")?.trim()?.takeIf { it.isNotEmpty() }
+    val relationUi = rememberLeadRelationUi(type.targetResource)
+
+    if (editable && onCommit != null && relationUi != null) {
+        ClayRelationPicker(
+            query = relationUi.query,
+            onQueryChange = relationUi::onQueryChange,
+            options = relationUi.options,
+            selectedId = selectedId,
+            onSelect = { option ->
+                relationUi.onSelect(option)
+                onCommit(option?.let { CustomAttributes.textCell(it.id) })
+            },
+            label = "",
+            selectedLabel = selectedId?.let { relationUi.labelFor(it) },
+            isLoading = relationUi.isLoading
+        )
+        relationUi.error?.let { msg ->
+            Text(text = msg, fontSize = 11.sp, color = WeMadeColors.Error)
+        }
+    } else {
+        val display = relationDisplay(selectedId.orEmpty()) { id -> relationUi?.labelFor(id) }
+        Text(
+            text = display.text,
+            fontSize = 13.sp,
+            color = if (display.missing) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
+        )
+    }
+}
+
+@Composable
+private fun rememberLeadRelationUi(resource: String): RelationFieldUi? {
+    val scope = rememberCoroutineScope()
+    val tenantSlug = remember { StoredTenantSlugProvider.currentTenantSlug() }
+    val controller = remember(resource, tenantSlug) {
+        relationFieldControllerForResource(tenantSlug, resource, scope)
+    }
+    LaunchedEffect(controller) { controller?.prime() }
+    return controller
 }
 
 private fun parseHex(hex: String): Long {

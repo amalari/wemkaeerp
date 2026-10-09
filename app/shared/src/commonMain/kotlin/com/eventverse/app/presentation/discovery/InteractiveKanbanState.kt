@@ -7,11 +7,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.eventverse.app.domain.prototype.DataBinding
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.discovery.fields.FileFieldOps
 import com.eventverse.app.presentation.discovery.fields.fieldFileOpsOrNull
+import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.relationFieldControllerOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,6 +49,21 @@ class InteractiveKanbanState(
      * `null` bila layar berbinding memori (demo tanpa server — unggah tidak mungkin).
      */
     fun fileFieldOps(recordId: String): FileFieldOps? = fieldFileOpsOrNull(apiBinding, recordId)
+
+    /** Cache label rujukan (id target → label) untuk field RELATION, diisi pemilih saat opsi dimuat. */
+    val relationLabels = androidx.compose.runtime.mutableStateMapOf<String, String>()
+
+    private val relationControllers = mutableMapOf<String, RelationFieldUi>()
+
+    /** Kontroler pemilih rujukan untuk field RELATION (C7); `null` bila bukan RELATION / demo memori. */
+    fun relationField(column: String): RelationFieldUi? {
+        val field = spec.entity(entityId)?.field(column) ?: return null
+        if (field.type != FieldType.RELATION) return null
+        relationControllers[column]?.let { return it }
+        val created = relationFieldControllerOrNull(apiBinding, field.target.orEmpty(), scope) ?: return null
+        relationControllers[column] = created
+        return created
+    }
 
 
     /** Alasan penolakan terakhir (transisi terlarang), null bila aksi terakhir berhasil. */
