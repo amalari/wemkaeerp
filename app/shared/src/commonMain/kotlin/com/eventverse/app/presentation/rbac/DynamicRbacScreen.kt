@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.domain.pack.VocabularyKey
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.rbac.components.AssignDepartmentModal
 import com.eventverse.app.presentation.rbac.components.AssignModuleModal
@@ -65,7 +67,11 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
 fun DynamicRbacScreen(
-    viewModel: DynamicRbacViewModel = remember { DynamicRbacViewModel() },
+    /** Tenant sesi aktif; WAJIB (tanpa default) supaya layar ini tidak pernah memakai tenant demo diam-diam. */
+    tenantId: TenantId,
+    tenantSlug: String,
+    // Dibuat sekali per tenant; berpindah tenant membuat VM baru, selain itu VM bertahan.
+    viewModel: DynamicRbacViewModel = remember(tenantId, tenantSlug) { DynamicRbacViewModel(tenantId, tenantSlug) },
     onBackToLogin: () -> Unit = {},
     /**
      * Wewenang efektif atas modul Hak Akses itu sendiri.
@@ -216,7 +222,19 @@ fun DynamicRbacScreen(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                when (state.viewMode) {
+                when (val load = state.loadState) {
+                    RbacLoadState.Loading -> RbacLoadingView()
+                    RbacLoadState.Empty -> RbacEmptyView(
+                        message = "Belum ada jabatan di ${ActiveTenantPack.current.term(VocabularyKey.WORKPLACE)} ini.",
+                        createLabel = "Buat jabatan",
+                        canCreate = canManage,
+                        onCreate = { onWriteEvent(DynamicRbacUiEvent.OpenCreateModal()) }
+                    )
+                    is RbacLoadState.Failed -> RbacFailedView(
+                        message = load.message,
+                        onRetry = { viewModel.onEvent(DynamicRbacUiEvent.Reload) }
+                    )
+                    RbacLoadState.Loaded -> when (state.viewMode) {
                     RbacViewMode.PER_MODULE -> {
                         val filteredModules = ActiveTenantPack.current.moduleIds.filter { module ->
                             state.searchQuery.isBlank() ||
@@ -287,6 +305,7 @@ fun DynamicRbacScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    }
                 }
             }
         }
@@ -356,7 +375,7 @@ fun DynamicRbacScreen(
 private fun ScreenHeader(
     totalRoles: Int,
     totalModules: Int,
-    totalUsers: Int,
+    totalUsers: Int?,
     onBackToLogin: () -> Unit
 ) {
     Row(
@@ -398,7 +417,8 @@ private fun ScreenHeader(
         ) {
             HeaderStatChip(label = "Jabatan", value = "$totalRoles")
             HeaderStatChip(label = "Modul SaaS", value = "$totalModules")
-            HeaderStatChip(label = "Total Karyawan", value = "$totalUsers")
+            // Hanya angka nyata dari server; tak terbaca = chip disembunyikan, bukan 0 yang menyesatkan.
+            if (totalUsers != null) HeaderStatChip(label = "Total Karyawan", value = "$totalUsers")
 
             ClayButton(
                 text = "Ke Halaman Login",

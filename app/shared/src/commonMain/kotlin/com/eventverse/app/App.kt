@@ -100,6 +100,7 @@ import com.eventverse.app.presentation.workspace.tint
 import com.eventverse.app.presentation.orgchart.OrgChartScreen
 import com.eventverse.app.presentation.pipeline.FactoryFlowScreen
 import com.eventverse.app.presentation.rbac.DynamicRbacScreen
+import com.eventverse.app.presentation.rbac.RbacNoTenantView
 import com.eventverse.app.presentation.tenant.TenantModuleEntitlementDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
@@ -381,9 +382,10 @@ fun App() {
                                     )
                                 }
                             ) { access ->
-                                DynamicRbacScreen(
-                                    onBackToLogin = { navigateTo(AppNavScreen.LOGIN) },
-                                    access = access
+                                val rbacSlug = session?.tenantSlug // tenant sesi, tanpa fallback demo (TRD-PLAT-010 T3)
+                                if (rbacSlug == null) RbacNoTenantView() else DynamicRbacScreen(
+                                    tenantId = session?.user?.tenantId ?: TenantId("ten-$rbacSlug"), tenantSlug = rbacSlug,
+                                    onBackToLogin = { navigateTo(AppNavScreen.LOGIN) }, access = access
                                 )
                             }
                         }

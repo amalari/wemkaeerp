@@ -168,27 +168,21 @@ class RbacAccessPolicyRepository(
             client.getTenantPack(tenantSlug).onSuccess { ActiveTenantPack.activate(it) }
             val server = client.getMyAccess(tenantSlug).getOrNull()?.also { _serverDecisions.value = it }
             // Daftar wewenang semua orang hanya untuk admin RBAC. Tanpa keputusan server (offline/server lama) tetap
-            // dicoba seperti dulu, termasuk fallback preset; dengan keputusan server yang menolak, tidak diminta sama
-            // sekali — tidak ada 403 sia-sia dan tidak ada jabatan contoh yang tampil seolah milik pabrik.
+            // dicoba seperti dulu; dengan keputusan server yang menolak, tidak diminta sama sekali (tanpa 403 sia-sia).
+            // Kegagalan TIDAK lagi diganti data contoh garment (TRD-PLAT-010 K5): daftar tetap kosong.
             val readsRbac = server?.get(GarmentModules.DYNAMIC_RBAC)?.config?.isAccessible ?: true
             if (readsRbac) {
                 client.getRoles(tenantSlug).onSuccess { remote ->
                     if (remote.isNotEmpty()) _roles.value = remote
-                }.onFailure {
-                    if (_roles.value.isEmpty() && server == null) _roles.value = CustomRole.createFactoryPresets(tenantId, ActiveTenantPack.current)
                 }
             }
 
             client.getDepartments(tenantSlug).onSuccess { remote ->
                 if (remote.isNotEmpty()) _departments.value = remote
-            }.onFailure {
-                if (_departments.value.isEmpty()) _departments.value = Department.defaultPresets()
             }
 
             client.getEmployees(tenantSlug).onSuccess { remote ->
                 if (remote.isNotEmpty()) _employees.value = remote
-            }.onFailure {
-                if (_employees.value.isEmpty()) _employees.value = OrgNode.createSampleEmployees(tenantId)
             }
 
             if (readsRbac) {
