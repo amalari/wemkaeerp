@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
@@ -14,6 +15,8 @@ import com.eventverse.app.domain.prototype.PrototypeAction
 import com.eventverse.app.domain.prototype.PrototypeReducer
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeStore
+import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.relationFieldControllerOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,6 +62,22 @@ class InteractiveFormState(
     }
 
     fun fields(): List<FieldSpec> = config.fields.mapNotNull { entity.field(it) }
+
+    private val apiBinding: DataBinding.Api? = screen.binding as? DataBinding.Api
+    private val relationControllers = mutableMapOf<String, RelationFieldUi>()
+
+    /**
+     * Kontroler pemilih rujukan untuk field RELATION (C7, TRD-FIELD-001 Track C); `null` bila
+     * field bukan RELATION atau layar berbinding memori (demo tanpa server).
+     */
+    fun relationField(fieldKey: String): RelationFieldUi? {
+        val field = entity.field(fieldKey) ?: return null
+        if (field.type != FieldType.RELATION) return null
+        relationControllers[fieldKey]?.let { return it }
+        val created = relationFieldControllerOrNull(apiBinding, field.target.orEmpty(), scope) ?: return null
+        relationControllers[fieldKey] = created
+        return created
+    }
 
     fun setFieldValue(fieldKey: String, value: String) {
         formValues[fieldKey] = value

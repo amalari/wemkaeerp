@@ -29,9 +29,9 @@ internal enum class LeadFieldControl {
     USER_REF,
 
     /**
-     * Rujukan record lain (C7, TRD-FIELD-001). Kontrol pemilih (`ClayRelationPicker`) menyusul di
-     * Track C — untuk sementara varian ini tidak punya editor aktif (render baca-saja), tidak
-     * dipalsukan jadi kolom teks.
+     * Rujukan record lain (C7, TRD-FIELD-001). Dirender `ClayRelationPicker` di
+     * `LeadCustomField` saat editable (opsi dari route `relation-options`); baca-saja menampilkan
+     * label/fallback id. Tidak pernah dipalsukan jadi kolom teks.
      */
     RELATION,
 

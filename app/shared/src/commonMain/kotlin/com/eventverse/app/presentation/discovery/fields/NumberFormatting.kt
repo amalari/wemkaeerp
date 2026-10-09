@@ -132,7 +132,8 @@ fun normalizeNumberTyping(input: String, format: NumberFormat): String? {
 fun FieldSpec.displayValue(stored: String): String = when (type) {
     FieldType.NUMBER -> formatNumberForDisplay(stored, format, currencyCode)
     FieldType.DATE -> if (withTime) displayIsoDateTime(stored) else stored
-    // C7: sementara id target apa adanya (fallback id); resolusi label opsi menyusul di Track C TRD-FIELD-001.
+    // C7 Track C: resolusi label rujukan ditangani `presentation/relation` (relationDisplay) di
+    // call site (tabel/kanban); di sini nilai tersimpan apa adanya (fallback id).
     // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
     FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
     FieldType.FILE -> fileRefDisplayName(stored)

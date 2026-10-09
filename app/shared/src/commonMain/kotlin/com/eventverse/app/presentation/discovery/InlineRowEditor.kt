@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
@@ -67,6 +68,8 @@ fun InlineRowEditor(
                     required = false
                 )
                 val value = state.inlineValues[column].orEmpty()
+                // C7: pemilih rujukan inline (null bila bukan RELATION / demo memori).
+                val relation = remember(state, column) { state.relationField(column) }
 
                 FieldInput(
                     field = field,
@@ -74,6 +77,7 @@ fun InlineRowEditor(
                     onValueChange = { state.setInlineValue(column, it) },
                     showLabel = false,
                     compact = true,
+                    relation = relation,
                     modifier = Modifier.width(columnWidth)
                 )
             }

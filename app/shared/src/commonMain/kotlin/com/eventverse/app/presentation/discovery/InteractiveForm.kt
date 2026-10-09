@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -35,10 +36,13 @@ fun InteractiveForm(state: InteractiveFormState, modifier: Modifier = Modifier) 
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
             state.fields().forEach { field ->
+                // C7: pemilih rujukan per field (null bila bukan RELATION / demo memori).
+                val relation = remember(state, field.key) { state.relationField(field.key) }
                 FieldInput(
                     field = field,
                     value = state.formValues[field.key].orEmpty(),
-                    onValueChange = { state.setFieldValue(field.key, it) }
+                    onValueChange = { state.setFieldValue(field.key, it) },
+                    relation = relation
                 )
             }
 

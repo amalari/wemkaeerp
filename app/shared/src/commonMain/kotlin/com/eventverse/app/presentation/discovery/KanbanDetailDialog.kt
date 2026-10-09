@@ -86,13 +86,16 @@ fun KanbanDetailDialog(
             ) {
                 // Form isian field; field FILE (C8) dapat mengunggah karena kartu sudah ber-id server.
                 formFields.forEach { field ->
+                    // C7: pemilih rujukan per field (null bila bukan RELATION / demo memori).
+                    val relation = remember(card, field.key) { state.relationField(field.key) }
                     FieldInput(
                         field = field,
                         value = formValues[field.key].orEmpty(),
                         onValueChange = { formValues[field.key] = it },
                         showLabel = true,
                         compact = false,
-                        fileOps = fileOps
+                        fileOps = fileOps,
+                        relation = relation
                     )
                 }
 

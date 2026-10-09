@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.domain.prototype.CardElement
 import com.eventverse.app.domain.prototype.CardStyle
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -35,6 +36,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.IconCalendarGrid
 import com.eventverse.app.presentation.discovery.fields.displayValue
+import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -125,7 +127,13 @@ private fun RenderRichCardElements(
 
     elements.forEachIndexed { index, elem ->
         val fieldSpec = state.spec.entity(state.entityId)?.field(elem.field)
-        val rawValue = fieldSpec?.displayValue(card[elem.field]) ?: card[elem.field]
+        val stored = card[elem.field]
+        // C7 Track C: label rujukan, fallback id, "Tidak ditemukan (id)" bila target hilang.
+        val rawValue = if (fieldSpec?.type == FieldType.RELATION) {
+            relationDisplay(stored) { id -> state.relationLabels[id] }.text
+        } else {
+            fieldSpec?.displayValue(stored) ?: stored
+        }
         val fieldLabel = fieldSpec?.label ?: elem.field
 
         when (elem.style) {

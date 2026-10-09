@@ -14,6 +14,8 @@ import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.prototype.TableView
 import com.eventverse.app.presentation.discovery.fields.FileFieldOps
 import com.eventverse.app.presentation.discovery.fields.fieldFileOpsOrNull
+import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.relationFieldControllerOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,6 +61,24 @@ class InteractiveTableState(
      * `null` bila layar berbinding memori (demo tanpa server — unggah tidak mungkin).
      */
     fun fileFieldOps(recordId: String): FileFieldOps? = fieldFileOpsOrNull(apiBinding, recordId)
+
+    /** Cache label rujukan (id target → label) untuk kolom RELATION, diisi pemilih saat opsi dimuat. */
+    val relationLabels = mutableStateMapOf<String, String>()
+
+    private val relationControllers = mutableMapOf<String, RelationFieldUi>()
+
+    /**
+     * Kontroler pemilih rujukan untuk kolom RELATION (C7, TRD-FIELD-001 Track C); `null` bila
+     * kolom bukan RELATION atau layar berbinding memori (demo tanpa server, opsi tak bisa dimuat).
+     */
+    fun relationField(column: String): RelationFieldUi? {
+        val field = entity.field(column) ?: return null
+        if (field.type != FieldType.RELATION) return null
+        relationControllers[column]?.let { return it }
+        val created = relationFieldControllerOrNull(apiBinding, field.target.orEmpty(), scope) ?: return null
+        relationControllers[column] = created
+        return created
+    }
 
     val visibleRows: List<PrototypeRow>
         get() = TableView.apply(controller.rows, config.columns, query, sortColumn, ascending)
