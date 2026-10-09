@@ -86,7 +86,7 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                             .clickable { state.toggleSort(column) }
                     ) {
                         Text(
-                            column,
+                            state.columnLabel(column),
                             style = MaterialTheme.typography.labelSmall,
                             color = WeMadeColors.OnSurfaceMuted,
                             maxLines = 1,

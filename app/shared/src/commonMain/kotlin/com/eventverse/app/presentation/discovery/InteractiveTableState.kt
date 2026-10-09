@@ -84,6 +84,9 @@ class InteractiveTableState(
 
     fun fieldSpec(column: String): FieldSpec? = entity.field(column)
 
+    /** Teks header kolom: label field; fallback ke key bila field tak ada. Pengurutan tetap memakai key. */
+    fun columnLabel(column: String): String = fieldSpec(column)?.label ?: column
+
     // --- Inline Creation (A4) ---
     var isCreatingInline by mutableStateOf(false)
         private set
