@@ -3,7 +3,7 @@
 ## 1. Konteks dan Administrasi
 
 - **ID**: TRD-PLAT-010 — Data sampel vs keadaan kosong (Org Chart + RBAC)
-- **Status**: **Disetujui** (2026-10-09; K1–K8 dan Q1–Q7 disetujui sesuai rekomendasi dokumen). T1 (klien Org Chart) dan T2 (server restore sadar-pack) boleh dimulai; T3 (RBAC) dimulai setelah tes pembuktian balapan `ActiveTenantPack`; T4 tidak dikerjakan (Q5).
+- **Status**: **Disetujui; T1, T2, T3 selesai dan ter-merge** (2026-10-10). T4 tidak dikerjakan (Q5). Belum terverifikasi visual: urutan Loading→Empty/Loaded, keadaan galat, 360 dp, dan bukti B3 lewat login asli. Utang yang dicatat T3 tetapi tidak diubah: fallback `?: "wemade-demo"` di `App.kt` dan `/api/auth/me` (`PublicAuthRoutes.kt:204`), `AuthViewModel` memakai `TenantId("ten-default")` bila tenantId user null.
 - **Riwayat**: 0.1 — 2026-10-09 — Claude (riset dari kode di `ec0d1937`; tanpa menjalankan aplikasi).
 - **Riwayat**: 0.2 — 2026-10-09 — Pengguna menyetujui K1–K8 dan menjawab Q1–Q7 dengan rekomendasi dokumen: Q1 kosong + CTA; Q2 demo CMT/D2C tetap berisi lewat seed data; Q3 galat saja; Q4 `userCount` ditunda; Q5 cukup predikat K3 (tanpa T4); Q6 alat uji persona tidak dibersihkan sekarang; Q7 kosakata pack dipakai bila tersedia.
 - **Rujukan**: `CLAUDE.md` Status Repo butir 4 (kode mesin tak menyebut satu industri), `tenant-variability-rules.md`
