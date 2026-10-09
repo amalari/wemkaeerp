@@ -3,8 +3,9 @@
 ## 1. Konteks dan Administrasi
 
 - **ID**: TRD-PLAT-010 — Data sampel vs keadaan kosong (Org Chart + RBAC)
-- **Status**: **Diusulkan** (belum ditinjau pengguna; semua keputusan di §4 diambil atas nama pengguna dan wajib ditinjau)
+- **Status**: **Disetujui** (2026-10-09; K1–K8 dan Q1–Q7 disetujui sesuai rekomendasi dokumen). T1 (klien Org Chart) dan T2 (server restore sadar-pack) boleh dimulai; T3 (RBAC) dimulai setelah tes pembuktian balapan `ActiveTenantPack`; T4 tidak dikerjakan (Q5).
 - **Riwayat**: 0.1 — 2026-10-09 — Claude (riset dari kode di `ec0d1937`; tanpa menjalankan aplikasi).
+- **Riwayat**: 0.2 — 2026-10-09 — Pengguna menyetujui K1–K8 dan menjawab Q1–Q7 dengan rekomendasi dokumen: Q1 kosong + CTA; Q2 demo CMT/D2C tetap berisi lewat seed data; Q3 galat saja; Q4 `userCount` ditunda; Q5 cukup predikat K3 (tanpa T4); Q6 alat uji persona tidak dibersihkan sekarang; Q7 kosakata pack dipakai bila tersedia.
 - **Rujukan**: `CLAUDE.md` Status Repo butir 4 (kode mesin tak menyebut satu industri), `tenant-variability-rules.md`
   Kontrak 3/4/6/7, `design-system-rules.md` §8, `file-size-rules.md` Kontrak 2 (ratchet), TRD-PLAT-008/009 (pola),
   `teaching-org-chart-t-shape-hierarchy.md:25`, `teaching-dual-path-orgchart-hierarchy-sync.md:269`.
@@ -210,7 +211,7 @@ Kompilasi 5 target + `scripts/audit-variability.sh` (tidak boleh menambah temuan
 | Alat uji persona masih memakai sampel | Dicatat; Q6 |
 | Klien lama vs server baru (409 tak dikenal klien lama) | Klien lama menampilkan toast galat umum; tidak ada kerusakan data |
 
-## 9. Keputusan Menunggu Pengguna
+## 9. Keputusan Pengguna (disetujui 2026-10-09 sesuai rekomendasi)
 
 | # | Pertanyaan | Rekomendasi |
 |---|---|---|
