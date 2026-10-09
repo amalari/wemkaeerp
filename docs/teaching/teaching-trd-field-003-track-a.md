@@ -70,19 +70,17 @@ fun setMaxSelections(screen: InteractiveScreen, op: SpecOp.SetFieldMaxSelections
     require(f.type == FieldType.MULTI_SELECT) {
         "Field '${f.label}' bertipe ${f.type.name}; batas pilihan hanya untuk field MULTI_SELECT."
     }
-    val max = op.maxSelections
-    require(max == null || max in 1..f.options.size) {
-        "Batas pilihan '${f.label}' harus 1..${f.options.size}, dapat $max."
-    }
-    if (f.maxSelections == max) return screen
-    return replace(screen, op.entityId, f.copy(maxSelections = max), "mengubah batas pilihan")
+    if (f.maxSelections == op.maxSelections) return screen
+    return replace(screen, op.entityId, f.copy(maxSelections = op.maxSelections), "mengubah batas pilihan")
 }
 ```
 
 **Mengapa begini?**
-- **Tiga gerbang sebelum mengubah apa pun**: field harus ada, tipenya harus `MULTI_SELECT`, dan rentangnya sah.
-  Rentang diperiksa **di sini** (bukan hanya di `FieldSpec`) supaya pesan galatnya ramah; `FieldSpec` tetap
-  penjaga terakhir — dua lapis, bukan saling menggantikan.
+- **Dua gerbang sebelum mengubah apa pun**: field harus ada, dan tipenya harus `MULTI_SELECT`. Tipe diperiksa
+  **di sini** demi pesan yang jelas (untuk tipe lain `options` kosong sehingga rentangnya akan membingungkan).
+  **Rentang `1..options.size` bukan** diperiksa ulang di sini: itu invarian `FieldSpec`, dan `f.copy(maxSelections = …)`
+  membuat `FieldSpec` baru yang langsung menegakkannya. Satu sumber aturan rentang, bukan dua salinan yang bisa
+  menyimpang (temuan review yang diperbaiki).
 - **`replace(...)` melakukan pekerjaan berat**: ia menolak bila ada nilai seed yang tak lolos bentuk baru. Karena
   `FieldSpec.accepts` untuk `MULTI_SELECT` memanggil `MultiSelectValues.isValid(value, options, maxSelections)`,
   menurunkan batas langsung terdeteksi — **satu sumber aturan nilai**, tidak ada cek duplikat di sini.
@@ -167,9 +165,10 @@ is SpecOp.SetFieldMaxSelections -> jsonObjectOf(
    *Bahaya*: nilai pengguna hilang tanpa jejak. *Solusi*: `replace(...)` menolak dan memberi pesan jumlah baris
    yang bermasalah.
 
-4. **Jebakan: memeriksa rentang hanya di reducer.**
-   *Bahaya*: pesan galat generik dari `FieldSpec` (mis. "harus 1..3") kurang ramah. *Solusi*: `require` eksplisit
-   di reducer **plus** invarian `FieldSpec` sebagai penjaga terakhir.
+4. **Jebakan: menyalin aturan rentang ke reducer.**
+   *Bahaya*: dua salinan `1..options.size` (di reducer dan di `FieldSpec`) bisa menyimpang saat aturan berubah —
+   satu menerima nilai yang ditolak yang lain. *Solusi*: `FieldSpec` adalah **satu-satunya** pemilik rentang;
+   reducer cukup membiarkan `f.copy(...)` menegakkannya. Periksa tipe di reducer hanya demi pesan yang jelas.
 
 5. **Jebakan: menaruh `maxSelections` di tengah parameter `FieldSpec`.**
    *Bahaya*: argumen positional lama tergeser. *Solusi*: selalu di akhir, dengan bawaan `null` (sudah dilakukan A0).
