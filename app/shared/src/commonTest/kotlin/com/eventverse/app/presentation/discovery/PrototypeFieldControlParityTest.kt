@@ -37,6 +37,7 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_num", "Jumlah", FieldType.NUMBER),
             FieldSpec("f_date", "Tanggal", FieldType.DATE),
             FieldSpec("f_enum", "Status", FieldType.ENUM, options = listOf("Draft", "Rilis")),
+            FieldSpec("f_multi", "Label Ganda", FieldType.MULTI_SELECT, options = listOf("A", "B", "C")),
             FieldSpec("f_bool", "Aktif", FieldType.BOOL),
             FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan"),
             FieldSpec("f_file", "Lampiran", FieldType.FILE)
@@ -64,6 +65,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("", formState.formValues["f_num"])
         assertEquals("", formState.formValues["f_date"])
         assertEquals("Draft", formState.formValues["f_enum"])
+        assertEquals("", formState.formValues["f_multi"], "MULTI_SELECT harus memiliki nilai awal kosong (belum ada pilihan)")
         assertEquals("tidak", formState.formValues["f_bool"])
         assertEquals("", formState.formValues["f_rel"], "RELATION harus memiliki nilai awal string kosong")
         assertEquals("", formState.formValues["f_file"], "FILE harus memiliki nilai awal string kosong")
@@ -81,6 +83,7 @@ class PrototypeFieldControlParityTest {
             "f_num" to "10",
             "f_date" to "2026-10-08",
             "f_enum" to "Draft",
+            "f_multi" to """["A","C"]""",
             "f_bool" to "ya",
             "f_rel" to "pesanan-1",
             "f_file" to "fields/ten/item/i-1/lampiran-a1b2c3-scan.pdf"
@@ -94,6 +97,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("", tableState.inlineValues["f_text"])
         assertEquals("", tableState.inlineValues["f_long"], "LONG_TEXT inline harus kosong")
         assertEquals("Draft", tableState.inlineValues["f_enum"])
+        assertEquals("", tableState.inlineValues["f_multi"], "MULTI_SELECT inline harus kosong")
         assertEquals("tidak", tableState.inlineValues["f_bool"])
         assertEquals("", tableState.inlineValues["f_rel"], "RELATION inline harus kosong")
         assertEquals("", tableState.inlineValues["f_file"], "FILE inline harus kosong")

@@ -137,7 +137,8 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     // call site (tabel/kanban); di sini nilai tersimpan apa adanya (fallback id).
     // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
     FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
-    // A0 (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON); gaya chip = Track C.
-    FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ") ?: stored
+    // C (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON kanonik); belum ada pilihan -> "—";
+    // nilai tak sah (bukan array JSON) ditampilkan apa adanya, tidak disembunyikan (pola DATE).
+    FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ")?.ifEmpty { "—" } ?: stored.ifEmpty { "—" }
     FieldType.FILE -> fileRefDisplayName(stored)
 }

@@ -34,6 +34,7 @@ import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFileField
 import com.eventverse.app.presentation.designsystem.ClayFileFieldState
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
+import com.eventverse.app.presentation.designsystem.ClayMultiChoiceChips
 import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
@@ -55,6 +56,8 @@ import kotlinx.coroutines.launch
  * - NUMBER -> [ClayTextField] dengan prefix/suffix format (Rp/kode, %; lihat NumberFormatting.kt); nilai simpan tetap angka polos
  * - DATE -> [ClayDatePicker] (TTTT-BB-HH); dengan [FieldSpec.withTime] -> [ClayDateTimePicker] (TTTT-BB-HHTJJ:MM)
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
+ * - MULTI_SELECT -> Pilihan **ganda** (chip boleh dipilih >1) lewat [ClayMultiChoiceChips]; nilai simpan =
+ *   string JSON array kanonik (urut menurut `options`, tanpa duplikat) yang disusun [multiSelectToggleValue]
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
  * - RELATION -> [ClayRelationPicker] (C7/TRD-FIELD-001 Track C) bila host menyuplai [relation];
  *   tanpa penyuplai (mis. demo memori) tampil baca-saja id/label — dilarang memalsukan rujukan
@@ -132,14 +135,18 @@ fun FieldInput(
                     }
                 }
             }
-            // A0 (TRD-FIELD-003): kompilasi-forced. Placeholder baca-saja; kontrol chip pilih-ganda,
-            // batas maxSelections, dan konteks tabel/kanban = Track C. Dilarang memalsukan jadi teks bebas.
+            // C (TRD-FIELD-003): chip pilihan ganda; nilai disusun kanonik lewat multiSelectToggleValue
+            // (satu aturan dengan codec MultiSelectValues). Batas maxSelections dijaga komponen bersama.
             FieldType.MULTI_SELECT -> {
-                val selected = MultiSelectValues.parse(value).orEmpty()
-                Text(
-                    text = if (selected.isEmpty()) "Belum ada pilihan" else selected.joinToString(", "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = WeMadeColors.OnSurface
+                val selected = MultiSelectValues.parse(value).orEmpty().toSet()
+                ClayMultiChoiceChips(
+                    options = field.options,
+                    selected = selected,
+                    onToggle = { option ->
+                        onValueChange(multiSelectToggleValue(value, option, field.options))
+                    },
+                    maxSelections = field.maxSelections,
+                    enabled = enabled
                 )
             }
             FieldType.NUMBER -> {
