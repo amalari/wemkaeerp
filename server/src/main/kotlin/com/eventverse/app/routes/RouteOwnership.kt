@@ -74,7 +74,14 @@ object RouteOwnership {
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
         "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform"),
         "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)")
-    ) + com.eventverse.app.tenant.TenantPackContributions.routePrefixes.map { (prefix, module) -> prefix to RouteOwner.Module(module) }
+    ) + com.eventverse.app.tenant.TenantPackContributions.routePrefixes.map { (prefix, module) -> prefix to RouteOwner.Module(module) } +
+        // Sengaja SETELAH prefix modul khusus tenant yang lebih spesifik: sisa path /modules = endpoint
+        // berkas tipe field FILE (TRD-FIELD-002) yang wewenangnya dihitung dari modul induk pada path.
+        listOf(
+            "/api/tenant/modules" to RouteOwner.Platform(
+                "unggah/unduh berkas tipe field FILE (TRD-FIELD-002) — gerbang modul induk per path"
+            )
+        )
 
     fun ownerOf(path: String): RouteOwner? {
         if (path == "/api/tenant") return RouteOwner.Platform("info tenant")
