@@ -25,9 +25,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.theme.WeMadeColors
-import kotlinx.datetime.LocalDate
-
-private enum class DateTimeStep { CLOSED, DATE, TIME }
 
 private const val DEFAULT_HOUR = 9
 
@@ -52,9 +49,8 @@ fun ClayDateTimePicker(
     val parsed = parseIsoDateTimeOrNull(value)
     val hasFormatError = value.isNotEmpty() && parsed == null
     val effectiveError = isError || hasFormatError
-    var step by remember { mutableStateOf(DateTimeStep.CLOSED) }
-    var pendingDate by remember { mutableStateOf<LocalDate?>(null) }
-    val active = step != DateTimeStep.CLOSED
+    var flow by remember { mutableStateOf(DateTimeFlow()) }
+    val active = flow.isActive
     val accent = when {
         effectiveError -> WeMadeColors.Error
         active -> WeMadeColors.Primary
@@ -80,7 +76,7 @@ fun ClayDateTimePicker(
                 )
                 .then(
                     if (enabled) {
-                        Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { step = DateTimeStep.DATE }
+                        Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { flow = flow.opened() }
                     } else Modifier
                 )
                 .padding(horizontal = ClaySpacing.Lg, vertical = 10.dp),
@@ -136,34 +132,33 @@ fun ClayDateTimePicker(
         }
     }
 
-    if (enabled && step == DateTimeStep.DATE) {
+    if (enabled && flow.step == DateTimeStep.DATE) {
         ClayDatePickerDialog(
-            initialDate = parsed?.date,
+            initialDate = flow.calendarInitialDate(parsed),
             title = if (label.isNotBlank()) "Pilih tanggal $label" else "Pilih Tanggal",
-            onDismiss = { step = DateTimeStep.CLOSED },
+            onDismiss = { flow = flow.dismissed() },
             onSelectDate = { iso ->
                 val date = parseIsoDateOrNull(iso)
                 if (date == null) { // tombol "Kosongkan"
                     onValueChange("")
-                    step = DateTimeStep.CLOSED
+                    flow = flow.dismissed()
                 } else {
-                    pendingDate = date
-                    step = DateTimeStep.TIME
+                    flow = flow.datePicked(date)
                 }
             }
         )
     }
-    val chosenDate = pendingDate
-    if (enabled && step == DateTimeStep.TIME && chosenDate != null) {
+    val chosenDate = flow.pendingDate
+    if (enabled && flow.step == DateTimeStep.TIME && chosenDate != null) {
         ClayTimePickerDialog(
             initialHour = parsed?.hour ?: DEFAULT_HOUR,
             initialMinute = parsed?.minute ?: 0,
             title = if (label.isNotBlank()) "Pilih jam $label" else "Pilih Jam",
-            onDismiss = { step = DateTimeStep.CLOSED },
-            onBack = { step = DateTimeStep.DATE },
+            onDismiss = { flow = flow.dismissed() },
+            onBack = { flow = flow.backedToDate() },
             onConfirm = { hour, minute ->
                 onValueChange(formatIsoDateTime(chosenDate, hour, minute))
-                step = DateTimeStep.CLOSED
+                flow = flow.dismissed()
             }
         )
     }
