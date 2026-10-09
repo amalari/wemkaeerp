@@ -21,9 +21,11 @@ import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 
@@ -90,6 +92,39 @@ class PostgresCrmLeadRepository : CrmLeadRepository {
 
             leads.map { lead -> lead.copy(activityCount = counts[lead.id] ?: 0) }
         }
+
+    /**
+     * Opsi pemilih `RELATION` (TRD-FIELD-001 FR-4): predicate jangkauan + pencarian + `LIMIT` di SQL,
+     * tanpa agregat aktivitas (label tidak memakainya). Satu ketikan tidak boleh memuat seluruh lead.
+     */
+    override suspend fun searchActive(
+        tenantId: TenantId,
+        ownerReachIds: Set<OrgNodeId>?,
+        query: String,
+        limit: Int
+    ): List<CrmLead> = DatabaseFactory.dbQuery(tenantId) {
+        if (ownerReachIds != null && ownerReachIds.isEmpty()) return@dbQuery emptyList()
+
+        var condition: org.jetbrains.exposed.sql.Op<Boolean> =
+            (CrmLeadsTable.tenantId eq tenantId.value) and (CrmLeadsTable.archivedAt.isNull())
+        if (ownerReachIds != null) {
+            condition = condition and (CrmLeadsTable.ownerEmployeeId inList ownerReachIds.map { it.value })
+        }
+        if (query.isNotBlank()) {
+            val pattern = "%$query%"
+            condition = condition and (
+                (CrmLeadsTable.brandName like pattern) or
+                    (CrmLeadsTable.contactPerson like pattern) or
+                    (CrmLeadsTable.id like pattern)
+                )
+        }
+
+        CrmLeadsTable.selectAll()
+            .where(condition)
+            .orderBy(CrmLeadsTable.updatedAt, SortOrder.DESC)
+            .limit(limit)
+            .map(::toLead)
+    }
 
     override suspend fun save(lead: CrmLead): Result<CrmLead> = runCatching {
         DatabaseFactory.dbQuery(lead.tenantId) {

@@ -41,6 +41,7 @@ import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.relation.relationFieldControllerForResource
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -426,7 +427,7 @@ private fun RelationEditor(
             Text(text = msg, fontSize = 11.sp, color = WeMadeColors.Error)
         }
     } else {
-        val display = relationDisplay(selectedId.orEmpty()) { id -> relationUi?.labelFor(id) }
+        val display = relationDisplay(selectedId.orEmpty(), cachedRelationLabel { id -> relationUi?.labelFor(id) })
         Text(
             text = display.text,
             fontSize = 13.sp,

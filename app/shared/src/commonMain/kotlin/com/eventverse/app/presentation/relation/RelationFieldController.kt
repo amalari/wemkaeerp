@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.eventverse.app.domain.prototype.DataBinding
+import com.eventverse.app.domain.prototype.relationTargetFormatError
 import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
 import com.eventverse.app.presentation.designsystem.RelationOption
 import kotlinx.coroutines.CoroutineScope
@@ -104,17 +105,16 @@ class RelationFieldController(
 
 /**
  * Pisah notasi target `entityId` (modul sendiri) atau `moduleId:entityId` (lintas modul) —
- * parser tunggal, tanpa fallback senyap (Kontrak 4 variability). Nilai tanpa `:` memakai
- * [defaultModule].
+ * bentuknya **dikunci satu aturan core** [relationTargetFormatError] supaya UI dan validator
+ * tidak berbeda pendapat. Bentuk tak sah mengembalikan entitas kosong; pemanggil lalu fail-closed
+ * (`null`), bukan menebak (Kontrak 4 variability: parser tunggal, tanpa fallback senyap).
  */
 fun resolveRelationTarget(target: String, defaultModule: String): Pair<String, String> {
     val trimmed = target.trim()
+    if (relationTargetFormatError(trimmed) != null) return defaultModule to ""
     val idx = trimmed.indexOf(':')
-    return if (idx > 0 && idx < trimmed.length - 1) {
-        trimmed.substring(0, idx) to trimmed.substring(idx + 1)
-    } else {
-        defaultModule to trimmed
-    }
+    return if (idx > 0) trimmed.substring(0, idx) to trimmed.substring(idx + 1)
+    else defaultModule to trimmed
 }
 
 /**

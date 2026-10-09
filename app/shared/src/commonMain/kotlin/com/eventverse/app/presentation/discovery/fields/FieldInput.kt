@@ -38,6 +38,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.relation.RelationFieldUi
+import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
@@ -229,7 +230,7 @@ fun FieldInput(
                         )
                     }
                 } else {
-                    val display = relationDisplay(value) { id -> relation?.labelFor(id) }
+                    val display = relationDisplay(value, cachedRelationLabel { id -> relation?.labelFor(id) })
                     Text(
                         text = display.text,
                         style = MaterialTheme.typography.bodyMedium,

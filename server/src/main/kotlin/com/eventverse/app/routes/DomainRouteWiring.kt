@@ -231,6 +231,7 @@ class DomainRouteWiring(
         relationRoutes(
             roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo,
+            employeeRepository = empRepo,
             registry = relationTargetRegistryFor
         )
         dealRoutes(

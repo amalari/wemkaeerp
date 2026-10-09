@@ -1,11 +1,17 @@
 package com.eventverse.app.relation
 
+import com.eventverse.app.domain.crm.BrandName
+import com.eventverse.app.domain.crm.CrmLead
+import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.discovery.handoff.InMemoryPrototypeRowRepository
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.infrastructure.InMemoryCrmLeadRepository
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Instant
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -48,4 +54,30 @@ class RelationTargetResolverTest {
     @Test fun `id target kosong ditolak`() = runBlocking {
         assertFalse(resolver.exists(tenantId, "quality_control", ""))
     }
+
+    // ---- Sumber opsi CRM menghormati jangkauan pemilik (regresi TRD-FIELD-001 FR-4) -----------------
+
+    @Test fun `opsi CRM menghormati jangkauan pemilik - bukan seluruh tenant`() = runBlocking {
+        // Data leak yang dicegah: `options` TIDAK boleh memakai findActive(tenantId, null) untuk
+        // pemanggil ber-scope sempit; reachableOwnerIds wajib diteruskan ke query.
+        val leads = InMemoryCrmLeadRepository()
+        leads.save(lead("lead-a", "emp-a"))
+        leads.save(lead("lead-b", "emp-b"))
+        val source = CrmLeadRelationSource(leads)
+
+        val all = source.options(tenantId, entity = "leads", reachableOwnerIds = null, query = "", limit = 20)
+        assertEquals(setOf("lead-a", "lead-b"), all.map { it.id }.toSet())
+
+        val scoped = source.options(tenantId, entity = "leads", reachableOwnerIds = setOf(OrgNodeId("emp-a")), query = "", limit = 20)
+        assertEquals(listOf("lead-a"), scoped.map { it.id })
+    }
+
+    private fun lead(id: String, owner: String) = CrmLead(
+        id = LeadId(id),
+        tenantId = tenantId,
+        brandName = BrandName(id),
+        ownerEmployeeId = OrgNodeId(owner),
+        createdAt = Instant.fromEpochMilliseconds(0),
+        updatedAt = Instant.fromEpochMilliseconds(0)
+    )
 }

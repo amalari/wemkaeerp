@@ -36,6 +36,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.IconCalendarGrid
 import com.eventverse.app.presentation.discovery.fields.displayValue
+import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -130,7 +131,7 @@ private fun RenderRichCardElements(
         val stored = card[elem.field]
         // C7 Track C: label rujukan, fallback id, "Tidak ditemukan (id)" bila target hilang.
         val rawValue = if (fieldSpec?.type == FieldType.RELATION) {
-            relationDisplay(stored) { id -> state.relationLabels[id] }.text
+            relationDisplay(stored, cachedRelationLabel { id -> state.relationLabels[id] }).text
         } else {
             fieldSpec?.displayValue(stored) ?: stored
         }

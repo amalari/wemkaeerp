@@ -10,6 +10,7 @@
 |---|---|---|---|
 | 0.1 | 2026-10-08 | Kilo (riset dari kode) | TRD gerbang; belum ada kode; semua temuan dari bacaan file |
 | 0.2 | 2026-10-08 | User | R1–R4 disetujui dengan opsi default dokumen; gerbang Irisan 4a dinyatakan lewat |
+| 0.3 | 2026-10-09 | Kilo | Review kode pasca-merge: FR-4 diperjelas — route opsi wajib menghormati `DataScope` modul **target**; `entity` diteruskan ke sumber; label CRM memakai `CrmLead.title` |
 
 - **Summary & Business Context**: Kosakata field belum punya cara menyatakan rujukan antar entitas
   (mis. SPK merujuk PO; lead merujuk record modul lain). Plan menandai C7 ukuran **Besar** karena
@@ -64,11 +65,15 @@ penulisan nilai:
 `GET /api/tenant/relation-options?module={targetModuleCode}&entity={entityId}&q={kueri}`
 Gerbang berurutan (pola `SpecRoutesWriter.authorized`, urutan tidak boleh diubah): konteks tenant →
 modul target dikenal proses (403 bila tidak) → `requireModuleAccess(targetModule, VIEW)` (403) →
-modul target ada di pack tenant (404) → baru query dijalankan (`LIMIT 20`, p95 ≤ 300 ms).
+modul target ada di pack tenant (404) → **jangkauan data pemanggil atas modul target**
+(`decision.config.sanitizeFor(target).scope`; `ALL_TENANT_DATA` = tanpa predicate, selain itu
+`reachableOwnerIds` diturunkan seperti CRM) → baru query dijalankan (`LIMIT 20`, p95 ≤ 300 ms).
+`entity` diteruskan ke sumber opsi (sumber ber-scope modul boleh mengabaikannya).
 Respons: `[{"id","label"}]`; label v1 = field `TEXT` pertama baris target, fallback = id.
 Tes wajib: 403 untuk peran tanpa VIEW di modul target; 403 untuk modul tak dikenal; 403 **sebelum**
 body/parameter isi dibaca (Kontrak 7); pemanggil berwenang di modul pemegang **tapi** tak berwenang di
-modul target tetap 403 (ini inti keputusan #2).
+modul target tetap 403 (ini inti keputusan #2); **peran dengan VIEW tapi scope sempit (OWN/SUBORDINATE)
+tidak menerima opsi di luar jangkauannya** (regresi data leak).
 
 **FR-5 (Kosakata CRM)** — `Relation` masuk kosakata CRM sebagai tipe `isReferential = true` seperti
 `UserRef`, tetapi penyimpanan rujukannya **tabel baru** `custom_field_relation_links` (schema

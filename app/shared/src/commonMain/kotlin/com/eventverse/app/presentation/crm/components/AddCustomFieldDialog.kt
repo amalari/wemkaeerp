@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.prototype.relationTargetFormatError
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -67,7 +68,11 @@ fun AddCustomFieldDialog(
     var typeMenuExpanded by remember { mutableStateOf(false) }
 
     val selectedOption = FIELD_TYPE_OPTIONS[selectedTypeIndex]
-    val canAdd = label.isNotBlank() && (!selectedOption.needsTarget || targetResource.isNotBlank())
+    // Bentuk target dikunci aturan core yang sama dengan validator spec/server (Kontrak 4:
+    // parser tunggal, tanpa fallback senyap) — jadi dialog tidak bisa menyimpan bentuk yang pasti 400.
+    val targetValid = !selectedOption.needsTarget ||
+        relationTargetFormatError(targetResource.trim()) == null
+    val canAdd = label.isNotBlank() && targetValid
 
     Dialog(onDismissRequest = onDismiss) {
         ClayCard(modifier = Modifier.width(420.dp)) {
@@ -109,11 +114,11 @@ fun AddCustomFieldDialog(
                         value = targetResource,
                         onValueChange = { targetResource = it },
                         label = "Resource Target",
-                        placeholder = "mis. leads / module:entity",
+                        placeholder = "mis. crm_sales atau crm_sales:leads",
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        text = "Isi kunci resource modul lain yang sah dirujuk (R1 ModuleReferenceRules).",
+                        text = "Isi kode modul target (mis. crm_sales) atau module:entity (mis. crm_sales:leads).",
                         fontSize = 10.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )

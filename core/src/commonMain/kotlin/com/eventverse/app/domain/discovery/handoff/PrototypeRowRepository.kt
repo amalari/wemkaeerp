@@ -15,6 +15,23 @@ interface PrototypeRowRepository {
     suspend fun save(tenantId: TenantId, row: PrototypeRow)
     /** `true` bila baris ada dan terhapus. */
     suspend fun delete(tenantId: TenantId, id: String): Boolean
+
+    /**
+     * Baris yang cocok [query] (cocok nilai sel mana pun atau [PrototypeRow.id]), maksimum [limit].
+     * Dipakai pencarian opsi `RELATION` (TRD-FIELD-001 FR-4) supaya jalur ini tidak perlu menarik
+     * seluruh tabel. Implementasi default memfilter [list] di memori agar setiap implementasi tetap
+     * sah; implementasi Postgres **dianjurkan menekan** predicate + `LIMIT` ke SQL (jalur rujukan
+     * tidak boleh memuat seluruh tabel tiap ketikan).
+     */
+    suspend fun search(tenantId: TenantId, query: String, limit: Int): List<PrototypeRow> =
+        list(tenantId).asSequence()
+            .filter { row ->
+                query.isBlank() ||
+                    row.id.contains(query, ignoreCase = true) ||
+                    row.values.values.any { it.contains(query, ignoreCase = true) }
+            }
+            .take(limit)
+            .toList()
 }
 
 /** Implementasi memori (test). Urutan penyisipan terjaga; data tiap tenant terpisah. */

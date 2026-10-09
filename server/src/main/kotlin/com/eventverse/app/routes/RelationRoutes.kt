@@ -1,11 +1,16 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.crm.LeadScope
+import com.eventverse.app.domain.orgchart.EmployeeRepository
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.pack.resolveModule
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModules
+import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.rbac.isOperational
+import com.eventverse.app.domain.tenant.TenantContext
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.relation.RelationTargetRegistry
@@ -44,6 +49,7 @@ private val log = LoggerFactory.getLogger("RelationRoutes")
 fun Route.relationRoutes(
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
+    employeeRepository: EmployeeRepository,
     registry: RelationTargetRegistry
 ) {
     get("/api/tenant/relation-options") {
@@ -83,8 +89,18 @@ fun Route.relationRoutes(
         }
         val query = call.request.queryParameters["q"].orEmpty().trim()
 
+        // 5b. Jangkauan data pemanggil atas modul TARGET (bukan modul pemegang) — tanpa ini,
+        //     pengguna dengan VIEW tapi OWN_DATA_ONLY/SUBORDINATE_DATA atas modul hierarkis (CRM)
+        //     akan membaca seluruh record tenant. `null` (ALL_TENANT_DATA) = tanpa predicate.
+        val scope = decision.config.sanitizeFor(target).scope
+        val reachableOwnerIds = if (scope == DataScope.ALL_TENANT_DATA) {
+            null
+        } else {
+            call.relationOwnerReach(tenant, scope, employeeRepository)
+        }
+
         val options = registry.sourceFor(target.value)
-            ?.options(tenant.tenantId, query, RELATION_OPTION_LIMIT)
+            ?.options(tenant.tenantId, entity, reachableOwnerIds, query, RELATION_OPTION_LIMIT)
             .orEmpty()
 
         call.respondText(
@@ -101,4 +117,22 @@ private suspend fun ApplicationCall.rejectRelation(status: HttpStatusCode, messa
         status.value, callerPrincipalOrNull?.userId ?: "anon", request.queryParameters["module"] ?: "-"
     )
     respond(status, message)
+}
+
+/**
+ * Jangkauan data pemanggil atas modul target (pola `crmOwnerReach`): `null` = `ALL_TENANT_DATA`,
+ * selain itu himpunan pemilik yang boleh dibaca. Dipakai supaya route opsi menghormati `DataScope`
+ * modul **target**, bukan hanya status login pemanggil.
+ */
+private suspend fun ApplicationCall.relationOwnerReach(
+    tenant: TenantContext,
+    scope: DataScope,
+    employeeRepository: EmployeeRepository
+): Set<OrgNodeId>? {
+    val principal = callerPrincipalOrNull
+    val viewerEmployeeId = principal?.email
+        ?.let { email -> employeeRepository.findByEmail(tenant.tenantId, email) }
+        ?.id
+    val employees = employeeRepository.findAllByTenant(tenant.tenantId)
+    return LeadScope.reachableOwnerIds(scope, employees, viewerEmployeeId, principal?.departmentId)
 }

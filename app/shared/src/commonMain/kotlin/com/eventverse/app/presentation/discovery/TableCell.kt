@@ -27,6 +27,7 @@ import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.designsystem.ClayFileChip
 import com.eventverse.app.presentation.discovery.fields.FieldInput
 import com.eventverse.app.presentation.discovery.fields.displayValue
+import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
@@ -116,7 +117,7 @@ fun TableCell(
                 )
             } else if (fieldSpec?.type == FieldType.RELATION) {
                 // C7 Track C: label rujukan, fallback id; "Tidak ditemukan (id)" abu bila target hilang.
-                val display = relationDisplay(rawValue) { id -> state.relationLabels[id] }
+                val display = relationDisplay(rawValue, cachedRelationLabel { id -> state.relationLabels[id] })
                 Text(
                     text = display.text,
                     style = MaterialTheme.typography.bodySmall,

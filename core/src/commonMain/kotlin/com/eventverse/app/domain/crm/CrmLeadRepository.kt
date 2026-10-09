@@ -21,5 +21,21 @@ interface CrmLeadRepository {
      */
     suspend fun findActive(tenantId: TenantId, ownerReachIds: Set<OrgNodeId>?): List<CrmLead>
 
+    /**
+     * Opsi label untuk pemilih `RELATION` (TRD-FIELD-001 FR-4): lead aktif yang cocok [query]
+     * (label judul atau id), maksimum [limit], dengan jangkauan [ownerReachIds] yang sama seperti
+     * [findActive]. Implementasi default memfilter [findActive] di memori (tanpa agregat aktivitas);
+     * implementasi Postgres menekan predicate + `LIMIT` ke SQL supaya satu ketikan tidak memuat
+     * seluruh lead.
+     */
+    suspend fun searchActive(
+        tenantId: TenantId,
+        ownerReachIds: Set<OrgNodeId>?,
+        query: String,
+        limit: Int
+    ): List<CrmLead> = findActive(tenantId, ownerReachIds)
+        .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.id.value.contains(query, ignoreCase = true) }
+        .take(limit)
+
     suspend fun save(lead: CrmLead): Result<CrmLead>
 }
