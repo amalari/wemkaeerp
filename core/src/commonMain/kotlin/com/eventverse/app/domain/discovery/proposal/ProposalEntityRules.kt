@@ -6,6 +6,7 @@ import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TextValidations
+import com.eventverse.app.domain.prototype.relationTargetFormatError
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
 internal object ProposalEntityRules {
@@ -63,15 +64,13 @@ internal object ProposalEntityRules {
             sink.add("$at.target", "Field RELATION '${f.key}' wajib punya target 'entityId' atau 'moduleId:entityId'")
             return
         }
-        if (target.any { it.isWhitespace() } || target.count { it == ':' } > 1) {
-            sink.add("$at.target", "Target field RELATION '${f.key}' harus 'entityId' atau 'moduleId:entityId' (tanpa spasi, maksimum satu ':'), dapat '$target'")
+        // Bentuk = satu sumber aturan bersama invariant FieldSpec (`relationTargetFormatError`), tak boleh berbeda.
+        val shapeError = relationTargetFormatError(target)
+        if (shapeError != null) {
+            sink.add("$at.target", "Target field RELATION '${f.key}' $shapeError, dapat '$target'")
             return
         }
         val parts = target.split(':')
-        if (parts.any { it.isBlank() }) {
-            sink.add("$at.target", "Target field RELATION '${f.key}' tidak boleh punya bagian kosong di sekitar ':', dapat '$target'")
-            return
-        }
         if (parts.size == 2 && packModuleIds != null && parts[0] !in packModuleIds) {
             sink.add("$at.target", "Target lintas modul '${parts[0]}' tidak dapat diresolusi pack ini (modul: ${packModuleIds.sorted().joinToString()})")
         }

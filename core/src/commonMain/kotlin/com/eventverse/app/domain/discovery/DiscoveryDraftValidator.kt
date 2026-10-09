@@ -44,6 +44,10 @@ object DiscoveryDraftValidator {
         }
 
         val moduleIds = draft.pack.modules.map { it.id.value }.toSet()
+        // C7 (TRD-FIELD-001 FR-2): target RELATION lintas modul sah bila `DomainPack.resolveModule` mengenalnya —
+        // modul sendiri pack **atau** modul bersama yang dirujuk (`moduleReferences`). Ubin dasbor & target
+        // rujukan memakai himpunan ini; kepemilikan layar tetap hanya modul pack sendiri (`moduleIds`).
+        val resolvableModuleIds = moduleIds + draft.pack.moduleReferences.map { it.platformModuleId.value }
         draft.blueprint.modules.forEachIndexed { i, m ->
             if (m.moduleCode !in moduleIds) issues += DiscoveryValidationIssue(
                 "$.blueprint.modules[$i].moduleCode",
@@ -64,7 +68,7 @@ object DiscoveryDraftValidator {
                 "$.screens[$i].widget",
                 "Widget '${s.widget}' bukan kosakata tertutup: ${WidgetKind.entries.joinToString { it.code }}"
             )
-            issues += proposalIssues(i, s, moduleIds, purity)
+            issues += proposalIssues(i, s, resolvableModuleIds, purity)
         }
         // Konsistensi lintas-layar: screenId unik (semua layar) dan entity.id sama berdefinisi konsisten (yang berproposal).
         val ids = mutableMapOf<String, Int>()
@@ -86,7 +90,7 @@ object DiscoveryDraftValidator {
      * seluruh aturan [ScreenProposalValidator] dengan path `$.screens[i].proposal…`. Satu validator untuk
      * semua pembuat — draf tidak punya aturan usulan sendiri.
      */
-    private fun proposalIssues(i: Int, s: PrototypeScreen, moduleIds: Set<String>, purity: Boolean): List<DiscoveryValidationIssue> {
+    private fun proposalIssues(i: Int, s: PrototypeScreen, packModuleIds: Set<String>, purity: Boolean): List<DiscoveryValidationIssue> {
         val p = s.proposal ?: return if (s.source != null) {
             listOf(DiscoveryValidationIssue("$.screens[$i].source", "source hanya bermakna bila layar punya proposal"))
         } else emptyList()
@@ -96,7 +100,7 @@ object DiscoveryDraftValidator {
         if (p.moduleId != s.moduleId) issues += DiscoveryValidationIssue("$at.moduleId", "Harus sama dengan moduleId layar '${s.moduleId.value}', dapat '${p.moduleId.value}'")
         if (p.widget.code != s.widget) issues += DiscoveryValidationIssue("$at.widget", "Harus sama dengan widget layar '${s.widget}', dapat '${p.widget.code}'")
         if (s.source == null) issues += DiscoveryValidationIssue("$.screens[$i].source", "Layar ber-proposal wajib menyebut source (PACK, DETERMINISTIC, atau AGENT)")
-        issues += ScreenProposalValidator.validate(p, at, s.source, moduleIds, purity).map { DiscoveryValidationIssue(it.path, it.message) }
+        issues += ScreenProposalValidator.validate(p, at, s.source, packModuleIds, purity).map { DiscoveryValidationIssue(it.path, it.message) }
         return issues
     }
 

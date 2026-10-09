@@ -78,15 +78,22 @@ data class FieldProposal(
 ### Blok B — Aturan target (satu tempat, fail-closed)
 
 ```kotlin
+// EntitySpec.kt — SATU sumber bentuk target, dipakai invariant FieldSpec & validator usulan
+fun relationTargetFormatError(target: String?): String? = when {
+    target.isNullOrBlank() -> "target wajib diisi"
+    target.any { it.isWhitespace() } || target.count { it == ':' } > 1 -> "…format…"
+    target.split(':').any { it.isBlank() } -> "…bagian kosong…"
+    else -> null
+}
+
 // ProposalEntityRules.kt
 private fun checkTarget(f: FieldProposal, at: String, sink: IssueSink, packModuleIds: Set<String>?) {
     if (f.type != FieldType.RELATION) {
         if (f.target != null) sink.add("$at.target", "…bukan RELATION…tidak boleh punya target"); return
     }
     if (f.target.isNullOrBlank()) { sink.add("$at.target", "Field RELATION wajib punya target…"); return }
-    if (f.target.any { it.isWhitespace() } || f.target.count { it == ':' } > 1) { sink.add("$at.target", "…format…"); return }
+    relationTargetFormatError(f.target)?.let { err -> sink.add("$at.target", "…$err…"); return }
     val parts = f.target.split(':')
-    if (parts.any { it.isBlank() }) { sink.add("$at.target", "…bagian kosong…"); return }
     if (parts.size == 2 && packModuleIds != null && parts[0] !in packModuleIds) {
         sink.add("$at.target", "Target lintas modul '${parts[0]}' tidak dapat diresolusi pack ini…")
     }
@@ -96,9 +103,13 @@ private fun checkTarget(f: FieldProposal, at: String, sink: IssueSink, packModul
 - **Tiga bentuk tolakan** (kriteria terima §5) persis: (1) tanpa target, (2) bentuk salah
   (spasi/dua `:`/bagian kosong), (3) modul lintas yang tak bisa diresolusi. Masing-masing `return` awal
   supaya tidak ada galat beruntun pada satu field.
-- `packModuleIds == null` = "konteks pack tak diketahui" (mis. `toInteractiveScreen` tanpa konteks) →
-  resolusi modul **tidak bisa** diperiksa, jadi dilewatkan. Ini pasangan pola yang sudah ada di
-  `ProposalViewRules.checkDashboard` untuk ubin dasbor.
+- **Bentuk target adalah satu aturan, bukan dua.** `relationTargetFormatError` dipakai `.init` `FieldSpec`
+  dan `checkTarget`, sehingga bentuknya tak bisa berbeda di dua gerbang (temuan review: dua salinan yang
+  sudah menyimpang — satu menolak `"foo:"`, yang lain menerimanya).
+- `packModuleIds` diisi **modul yang dapat diresolusi pack**: modul sendiri **dan** modul bersama yang
+  dirujuk (`moduleReferences`), sejalan `DomainPack.resolveModule` (FR-2). `null` = "konteks pack tak
+  diketahui" (mis. `toInteractiveScreen` tanpa konteks) → resolusi modul **tidak bisa** diperiksa, jadi
+  dilewatkan; pola yang sama dipakai `ProposalViewRules.checkDashboard` untuk ubin dasbor.
 
 ### Blok C — Kabel codec & konversi
 
