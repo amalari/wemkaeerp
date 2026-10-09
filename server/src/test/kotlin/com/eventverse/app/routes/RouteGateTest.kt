@@ -109,6 +109,59 @@ class RouteGateTest {
         if (problems.isNotEmpty()) fail(problems.joinToString("\n\n"))
     }
 
+    /**
+     * TRD-PLAT-011: probe yang dulu tak ada — token **tanpa `customRoleId` dan tanpa `departmentId`** (peran SALES).
+     * Probe di atas memakai jabatan tak dikenal sehingga selalu NONE; token tanpa identitas dulu dibaca "tidak
+     * diketahui" dan lolos pada rute Bagan Organisasi. Dibatasi ke rute karyawan/divisi (rute modul lain punya
+     * pola serupa yang dicatat sebagai tindak lanjut, mis. Factory Flow).
+     */
+    @Test
+    fun orgChartRoutes_denyMemberCarryingNoFactoryIdentity() = testApplication {
+        DatabaseFactory.init()
+        val tenants = InMemoryTenantRepository()
+        runBlocking {
+            tenants.save(
+                Tenant(TenantId("ten-gate2"), TenantSlug(slug), TenantName("Gate Probe"), TenantStatus.ACTIVE,
+                    SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON)
+            )
+        }
+        var routes = emptyList<String>()
+        application {
+            module(
+                tenantRepository = tenants,
+                pipelineRepository = InMemoryTenantPipelineRepository(),
+                entitlementRepository = InMemoryTenantEntitlementRepository(),
+                roleRepository = InMemoryRoleRepository(),
+                moduleAssignmentRepository = InMemoryModuleAssignmentRepository(),
+                departmentRepository = InMemoryDepartmentRepository(),
+                employeeRepository = InMemoryEmployeeRepository()
+            )
+            monitor.subscribe(ApplicationStarted) {
+                routes = pluginOrNull(RoutingRoot)?.getAllRoutes().orEmpty().mapNotNull(::methodAndPath)
+                    .filter { it.substringAfter(' ').let { p -> p.startsWith("/api/tenant/employees") || p.startsWith("/api/tenant/departments") } }
+                    .distinct()
+            }
+        }
+        startApplication()
+        assertTrue(routes.size >= 10, "Enumerasi route Org Chart gagal: ${routes.size} route")
+
+        val token = TestAuth.tenantToken(slug, Role.SALES)
+        val notDenied = routes.filter { route ->
+            val (method, path) = route.split(' ', limit = 2)
+            val status = runCatching {
+                client.request(path.replace(Regex("\\{[^}]+}"), "x1")) {
+                    this.method = HttpMethod.parse(method)
+                    header("X-Tenant-Slug", slug)
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    if (method != "GET") setBody("{}")
+                }.status.value
+            }.getOrDefault(-1)
+            status != 401 && status != 403
+        }
+        if (notDenied.isNotEmpty()) fail("Rute Org Chart meloloskan token tanpa identitas pabrik:\n" + notDenied.sorted().joinToString("\n") { "  $it" })
+    }
+
     /** `/api/tenant/x/(method:GET)` → `GET /api/tenant/x`. */
     private fun methodAndPath(route: io.ktor.server.routing.RoutingNode): String? {
         val raw = route.toString()

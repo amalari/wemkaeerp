@@ -64,12 +64,10 @@ fun Route.departmentRoutes(
     val restoreDefaultDepartmentsUseCase = RestoreDefaultDepartmentsUseCase(departmentRepository)
 
     route("/api/tenant/departments") {
-        // B5: baca = VIEW, tulis = MANAGE (fail-closed). Daftar divisi (GET persis /departments) memakai guard
-        // orgChartDecision miliknya sendiri di handler — tidak digerbang dua kali.
+        // B5: baca = VIEW, tulis = MANAGE (fail-closed). TRD-PLAT-011: GET daftar divisi ikut digerbang
+        // (sebelumnya dikecualikan dan bergantung pada orgChartDecision yang permisif untuk token tanpa identitas).
         if (roleRepository != null && moduleAssignmentRepository != null) {
-            moduleGate(GarmentModules.ORG_CHART, roleRepository, moduleAssignmentRepository) { method, path ->
-                if (method == io.ktor.http.HttpMethod.Get && path == "/api/tenant/departments") GateRule(AccessLevel.NONE, emptyList()) else null
-            }
+            moduleGate(GarmentModules.ORG_CHART, roleRepository, moduleAssignmentRepository)
         }
         get {
             val tenant = call.tenantContextOrNull ?: run {

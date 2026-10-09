@@ -64,26 +64,26 @@ import io.ktor.server.response.*
  */
 
 /**
- * Wewenang efektif pemanggil atas [GarmentModules.ORG_CHART], atau `null` bila tidak dapat
- * dihitung (repository wewenang tidak dipasang, atau pemanggil tanpa identitas pabrik).
+ * Wewenang efektif pemanggil atas [GarmentModules.ORG_CHART].
  *
- * `null` berarti *"tidak diketahui"*, dan pemanggil memperlakukannya seperti sebelum penjagaan ini
- * ada. Itu disengaja: pemasangan route lama dan sebagian pengujian tidak menyuntikkan repository
- * wewenang sama sekali, dan menutup total di situ akan mematikan fitur alih-alih menjaganya.
+ * `null` ("tidak diketahui", dibaca permisif) kini hanya berarti **repository wewenang tidak dipasang**
+ * (pemasangan route lama dan sebagian pengujian). Bila repository terpasang, keputusan selalu terhitung,
+ * termasuk untuk pemanggil tanpa jabatan dan tanpa divisi: diputuskan lewat [moduleDecision] (jalur yang
+ * sama dengan `moduleGate`), sehingga Owner/superadmin lolos dan peran lain `NONE` (403). TRD-PLAT-011:
+ * sebelumnya kasus itu `null` dan lolos tanpa batas.
  */
 internal suspend fun ApplicationCall.orgChartDecision(
     tenant: TenantContext,
     roleRepository: RoleRepository?,
     moduleAssignmentRepository: ModuleAssignmentRepository?
 ): AccessDecision? {
-    val principal = callerPrincipalOrNull ?: return null
     if (roleRepository == null || moduleAssignmentRepository == null) return null
-
-    // Tanpa jabatan dan tanpa divisi, tidak ada satu pun sumbu yang bisa memberi maupun
-    // mempersempit wewenang. Menanyakannya ke database hanya menghasilkan dua query untuk jawaban
-    // yang sudah pasti — dan ini pula yang menjaga token layanan tanpa identitas pabrik tetap
-    // berperilaku seperti sebelumnya.
-    if (principal.customRoleId == null && principal.departmentId == null) return null
+    val principal = callerPrincipalOrNull
+    // Tanpa principal, atau tanpa jabatan dan divisi: tak ada sumbu yang bisa memberi wewenang selain
+    // bypass Owner/superadmin, dan itu sudah dihitung oleh moduleDecision.
+    if (principal == null || (principal.customRoleId == null && principal.departmentId == null)) {
+        return moduleDecision(GarmentModules.ORG_CHART, tenant, roleRepository, moduleAssignmentRepository)
+    }
 
     val role = principal.customRoleId
         ?.let { runCatching { RoleId(it) }.getOrNull() }
@@ -125,7 +125,7 @@ internal suspend fun ApplicationCall.requireOrgChartAccess(
     decision: AccessDecision?,
     required: AccessLevel
 ): Boolean {
-    // Wewenang tak terhitung: pertahankan perilaku lama (lihat KDoc orgChartDecision).
+    // Tak terhitung hanya bila repository wewenang tidak dipasang (lihat KDoc orgChartDecision).
     val effective = decision ?: return true
 
     if (effective.config.level.isAtLeast(required)) return true
