@@ -177,7 +177,7 @@ fun PrototypeExportBriefDialog(
 
                 if (copied) {
                     Text(
-                        text = "✓ Teks brief disalin ke clipboard!",
+                        text = "Teks brief disalin ke clipboard!",
                         style = MaterialTheme.typography.bodySmall,
                         color = WeMadeColors.Success,
                         fontWeight = FontWeight.Bold

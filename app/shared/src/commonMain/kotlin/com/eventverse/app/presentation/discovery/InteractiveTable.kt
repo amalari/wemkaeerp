@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -33,6 +35,8 @@ import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.designsystem.IconChevronDown
+import com.eventverse.app.presentation.designsystem.IconChevronUp
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 private val ColumnWidth = 118.dp
@@ -73,18 +77,27 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
                 state.config.columns.forEach { column ->
-                    val marker = if (state.sortColumn == column) (if (state.ascending) " ▲" else " ▼") else ""
-                    Text(
-                        column + marker,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = WeMadeColors.OnSurfaceMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .width(ColumnWidth)
                             .pointerHoverIcon(PointerIcon.Hand)
                             .clickable { state.toggleSort(column) }
-                    )
+                    ) {
+                        Text(
+                            column,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = WeMadeColors.OnSurfaceMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (state.sortColumn == column) {
+                            val markerModifier = Modifier.size(12.dp)
+                            if (state.ascending) IconChevronUp(markerModifier) else IconChevronDown(markerModifier)
+                        }
+                    }
                 }
             }
             HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.3f))

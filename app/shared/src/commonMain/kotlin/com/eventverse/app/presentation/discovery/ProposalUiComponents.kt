@@ -194,7 +194,7 @@ fun ModuleProposalSummaryCard(
                         entity.fields.firstOrNull { it.key == sf }
                     }
                     if (statusField != null && statusField.options.isNotEmpty()) {
-                        val flow = statusField.options.take(4).joinToString(" → ") +
+                        val flow = statusField.options.take(4).joinToString(" > ") +
                             if (statusField.options.size > 4) " (+${statusField.options.size - 4})" else ""
                         ClayTag(
                             text = "Status: $flow",
