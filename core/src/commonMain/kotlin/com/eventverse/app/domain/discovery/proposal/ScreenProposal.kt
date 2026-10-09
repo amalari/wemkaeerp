@@ -69,7 +69,14 @@ data class FieldProposal(
     /** A0(C6): tanggal + jam; hanya sah untuk [FieldType.DATE] (divalidasi [ScreenProposalValidator], bukan konstruktor). */
     val withTime: Boolean = false,
     /** A0(C9): validasi bentuk teks; hanya sah untuk [FieldType.TEXT] (divalidasi [ScreenProposalValidator], bukan konstruktor). */
-    val validation: TextValidation = TextValidation.NONE
+    val validation: TextValidation = TextValidation.NONE,
+    /**
+     * C7 (TRD-FIELD-001): target rujukan — wajib tepat bila [type] = [FieldType.RELATION], wajib `null`
+     * selain itu. Format `"entityId"` (satu modul) atau `"moduleId:entityId"` (lintas modul, modulnya wajib
+     * bisa diresolusi pack). Bentuk & resolusi divalidasi [ScreenProposalValidator], bukan konstruktor —
+     * dokumen usulan tidak melempar (galat berpath dikembalikan ke agent).
+     */
+    val target: String? = null
 )
 
 /**

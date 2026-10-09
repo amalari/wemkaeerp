@@ -147,7 +147,8 @@ class PrototypeFieldTypeCodecParityTest {
         val base = ScreenProposalFixtures.kanbanAntrean()
         val extras = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
-            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.options)
+            // C7: `target` RELATION ikut dokumen draf (null untuk tipe lain).
+            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.options, target = f.target)
         }
         val entity = ScreenProposalFixtures.pasien
         val proposal = base.copy(entity = entity.copy(fields = entity.fields + extras))
@@ -161,6 +162,10 @@ class PrototypeFieldTypeCodecParityTest {
         assertEquals(raw, DiscoveryDraftCodec.encodeToString(decoded))
         val types = decoded.screens.single().proposal?.entity?.fields?.map { it.type }.orEmpty().toSet()
         assertEquals(FieldType.entries.toSet(), types)
+        // C7: target RELATION ikut kawat usulan (bukan hilang saat encode/decode).
+        val relation = decoded.screens.single().proposal?.entity?.fields?.single { it.type == FieldType.RELATION }
+        assertEquals(allFields().single { it.type == FieldType.RELATION }.target, relation?.target)
+        assertEquals(null, decoded.screens.single().proposal?.entity?.fields?.first { it.type == FieldType.TEXT }?.target)
     }
 
     @Test

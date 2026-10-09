@@ -42,10 +42,12 @@ import com.eventverse.app.domain.rbac.ScopeCapability
  * permintaan customisasi klien. **Bukan** pack bawaan platform: ia didaftarkan lewat
  * [DomainPackRegistry.register] (prefiks `layanan_` wajib, lihat `violations`), bukan masuk `shipped`.
  *
- * Spec-nya sengaja memuat enam [FieldType] — TEXT, ENUM, NUMBER, DATE, BOOL, dan **FILE** (`lampiran`:
- * permintaan perubahan membawa berkas lampiran; seed-nya wajib kosong, unggah nyata lewat Track B/C) —
- * supaya keluaran generator untuk setiap tipe benar-benar dikompilasi dan dites, bukan hanya diklaim.
- * Konteks kedua non-garment untuk tipe FILE (Kontrak 7 variability, TRD-FIELD-002 Track A).
+ * Spec-nya sengaja memuat delapan [FieldType] — TEXT, ENUM, NUMBER, DATE, BOOL, **FILE** (`lampiran`:
+ * permintaan perubahan membawa berkas lampiran; seed-nya wajib kosong, unggah nyata lewat Track B/C), dan
+ * **RELATION** (`rujukan`: rujukan ke permintaan lain, kolom `VARCHAR(64)` **tanpa** `REFERENCES`
+ * — rujukan logis, pagar J3 TRD-FIELD-001 FR-1) — supaya keluaran generator untuk setiap tipe benar-benar
+ * dikompilasi dan dites, bukan hanya diklaim. Konteks kedua non-garment untuk FILE dan RELATION
+ * (Kontrak 7 variability, TRD-FIELD-002 / TRD-FIELD-001 Track A).
  */
 object LayananPilotPack {
     val CODE = DomainPackCode("layanan")
@@ -115,7 +117,9 @@ object LayananPilotPack {
                 FieldHint("target_selesai", FieldType.DATE),
                 FieldHint("mendesak", FieldType.BOOL),
                 FieldHint("catatan", FieldType.TEXT),
-                FieldHint("lampiran", FieldType.FILE)
+                FieldHint("lampiran", FieldType.FILE),
+                // C7 (TRD-FIELD-001): rujukan logis ke permintaan lain; target "entityId" satu modul.
+                FieldHint("rujukan", FieldType.RELATION, target = "change_request")
             ),
             card = listOf(
                 CardElement("judul", CardStyle.TITLE),
@@ -125,7 +129,7 @@ object LayananPilotPack {
                 CardElement("mendesak", CardStyle.FLAG)
             ),
             columnMeta = mapOf("Ditinjau" to ColumnMeta(wipLimit = 5)),
-            detailForm = FormConfig(listOf("judul", "peminta", "prioritas", "perkiraan_jam", "target_selesai", "mendesak", "catatan", "lampiran"), "Simpan")
+            detailForm = FormConfig(listOf("judul", "peminta", "prioritas", "perkiraan_jam", "target_selesai", "mendesak", "catatan", "lampiran", "rujukan"), "Simpan")
         ),
         dataBinding = DataBinding.Api(API_BASE_PATH)
     )
@@ -144,7 +148,10 @@ object LayananPilotPack {
             FieldSpec("catatan", "Catatan", FieldType.TEXT),
             // C8 (TRD-FIELD-002): lampiran = FILE, konteks kedua non-garment. Tidak wajib, dan seed
             // papan kosong (binding Api) — unggah nyata lewat endpoint Track B, bukan baris contoh.
-            FieldSpec("lampiran", "Lampiran", FieldType.FILE)
+            FieldSpec("lampiran", "Lampiran", FieldType.FILE),
+            // C7 (TRD-FIELD-001): rujukan = RELATION, konteks kedua non-garment. Rujukan logis
+            // (tanpa REFERENCES, pagar J3); seed papan kosong (binding Api) — id target diisi lewat data nyata.
+            FieldSpec("rujukan", "Permintaan terkait", FieldType.RELATION, target = "change_request")
         ),
         stateMachine = StateMachine(
             "status",
@@ -166,7 +173,7 @@ object LayananPilotPack {
             ScreenSpec("daftar", "Daftar Permintaan", WidgetKind.TABLE, "change_request",
                 table = TableConfig(listOf("judul", "peminta", "prioritas", "status", "target_selesai"), "status")),
             ScreenSpec("form", "Tambah Permintaan", WidgetKind.FORM, "change_request",
-                form = FormConfig(listOf("judul", "peminta", "prioritas", "status", "perkiraan_jam", "target_selesai", "mendesak", "catatan", "lampiran"), "Simpan permintaan"))
+                form = FormConfig(listOf("judul", "peminta", "prioritas", "status", "perkiraan_jam", "target_selesai", "mendesak", "catatan", "lampiran", "rujukan"), "Simpan permintaan"))
         )
     )
 }

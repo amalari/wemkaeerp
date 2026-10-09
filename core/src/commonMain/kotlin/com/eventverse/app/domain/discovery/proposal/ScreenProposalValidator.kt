@@ -60,7 +60,7 @@ object ScreenProposalValidator {
         sink.text(".rationale", proposal.rationale, "rationale")
 
         checkEntityPresence(proposal, sink)
-        proposal.entity?.let { ProposalEntityRules.check(it, sink) }
+        proposal.entity?.let { ProposalEntityRules.check(it, sink, packModuleIds) }
         ProposalViewRules.check(proposal, sink, packModuleIds)
         ProposalEntityRules.checkSeed(proposal, sink)
         if (verticalPurity) ProposalPurityRules.check(proposal, sink)
