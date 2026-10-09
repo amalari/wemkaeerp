@@ -12,6 +12,10 @@ import com.eventverse.app.domain.discovery.proposal.ScreenProposalValidator
 import com.eventverse.app.domain.discovery.proposal.ViewProposal
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.prototype.PrototypeFieldTypeSampleFields.fieldFor
+import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.strictOptInt
+import com.eventverse.app.shared.pack.InteractiveScreenCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -166,6 +170,34 @@ class PrototypeMultiSelectTest {
         assertTrue("private fun multiProblem" in routes, "fungsi multiProblem harus ada")
         assertEquals(2, Regex("multiProblem\\(values\\)").findAll(routes).count(), "multiProblem dipanggil di POST dan PUT")
         assertTrue("FieldType.MULTI_SELECT" in routes, "entityLiteral membawa tipe MULTI_SELECT")
+    }
+
+    // ---- kawat ketat: maxSelections harus bilangan bulat ---------------------------------------
+
+    @Test
+    fun codec_strictMaxSelections_rejectsFractionalAndWrongType() {
+        val spec = PrototypeSpec(
+            listOf(EntitySpec("e", "E", listOf(fieldFor(FieldType.MULTI_SELECT)))),
+            listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf("layanan_dibeli"))))
+        )
+        val encoded = InteractiveScreenCodec.encode(InteractiveScreen(spec, emptyMap())).encode()
+        assertTrue("\"maxSelections\":2" in encoded, encoded)
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(encoded) as JsonValue.Obj) }.isSuccess, "2 sah")
+        // Bilangan pecahan/overflow/string = tipe salah: DITOLAK, bukan dipotong diam-diam jadi 2.
+        val fractional = encoded.replace("\"maxSelections\":2", "\"maxSelections\":2.5")
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(fractional) as JsonValue.Obj) }.isFailure, "maxSelections 2.5 harus ditolak")
+        val stringly = encoded.replace("\"maxSelections\":2", "\"maxSelections\":\"2\"")
+        assertTrue(runCatching { InteractiveScreenCodec.decode(JsonParser.parse(stringly) as JsonValue.Obj) }.isFailure, "maxSelections string harus ditolak")
+    }
+
+    @Test
+    fun strictOptInt_acceptsIntegersOnly() {
+        assertEquals(2, JsonParser.parseObject("{\"m\":2}").strictOptInt("m"))
+        assertNull(JsonParser.parseObject("{}").strictOptInt("m"))
+        assertNull(JsonParser.parseObject("{\"m\":null}").strictOptInt("m"))
+        listOf("{\"m\":2.5}", "{\"m\":2.0}", "{\"m\":\"2\"}", "{\"m\":99999999999}").forEach { raw ->
+            assertTrue(runCatching { JsonParser.parseObject(raw).strictOptInt("m") }.isFailure, "'$raw' harus ditolak")
+        }
     }
 
     // ---- FR-5: MULTI_SELECT bukan statusField --------------------------------------------------
