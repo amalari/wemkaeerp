@@ -20,11 +20,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
-import com.eventverse.app.presentation.common.FIELD_FILE_MAX_BYTES
+import com.eventverse.app.presentation.common.fieldFileClientSizeError
 import com.eventverse.app.presentation.common.fieldFileErrorMessage
 import com.eventverse.app.presentation.common.fieldFileSizeHint
 import com.eventverse.app.presentation.common.fileRefDisplayName
-import com.eventverse.app.presentation.common.formatFileSize
 import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
@@ -280,11 +279,9 @@ private fun FileFieldInput(
                 scope.launch {
                     val ops = fileOps ?: return@launch
                     val picked = pickLocalFile(FIELD_FILE_ACCEPT) ?: return@launch
-                    if (picked.bytes.size > FIELD_FILE_MAX_BYTES) {
-                        uploadState = ClayFileFieldState.Error(
-                            "Berkas ${formatFileSize(picked.bytes.size.toLong())} melebihi batas " +
-                                formatFileSize(FIELD_FILE_MAX_BYTES.toLong()) + "."
-                        )
+                    val sizeError = fieldFileClientSizeError(picked.bytes.size.toLong())
+                    if (sizeError != null) {
+                        uploadState = ClayFileFieldState.Error(sizeError)
                         return@launch
                     }
                     uploadState = ClayFileFieldState.Uploading(progress = null)

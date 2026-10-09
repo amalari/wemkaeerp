@@ -76,6 +76,8 @@ fun KanbanDetailDialog(
             )
         },
         text = {
+            // Ops field FILE diingat per kartu — jangan membangun ulang saat tiap ketikan recompose.
+            val fileOps = remember(card.id) { state.fileFieldOps(card.id) }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -90,7 +92,7 @@ fun KanbanDetailDialog(
                         onValueChange = { formValues[field.key] = it },
                         showLabel = true,
                         compact = false,
-                        fileOps = state.fileFieldOps(card.id)
+                        fileOps = fileOps
                     )
                 }
 

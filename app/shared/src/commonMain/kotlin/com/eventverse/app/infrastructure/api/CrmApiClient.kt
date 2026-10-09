@@ -175,7 +175,7 @@ class CrmApiClient(
             contentType(ContentType.Application.OctetStream)
             setBody(bytes)
         }
-        val body = response.bodyOrFieldFileThrow("mengunggah berkas")
+        val body = response.fieldFilePathBody("mengunggah berkas")
         JsonParser.parseObject(body).string("ref") ?: error("Server tidak mengembalikan referensi berkas")
     }
 
@@ -188,17 +188,8 @@ class CrmApiClient(
             tenantRequest(tenantSlug, tokenProvider)
             accept(ContentType.Application.Json)
         }
-        val body = response.bodyOrFieldFileThrow("membuat tautan unduhan")
+        val body = response.fieldFilePathBody("membuat tautan unduhan")
         JsonParser.parseObject(body).string("url") ?: error("Respons tautan unduhan tidak valid")
-    }
-
-    /** Seperti [requireBody], tapi galat non-2xx membawa status untuk pemetaan 413/415/503 (FR-3). */
-    private suspend fun HttpResponse.bodyOrFieldFileThrow(action: String): String {
-        val body = bodyAsText()
-        if (!status.isSuccess()) {
-            throw FieldFileHttpException(status.value, body.ifBlank { "Gagal $action (HTTP ${status.value})" })
-        }
-        return body
     }
 
     private suspend fun decodeLeadOrThrow(response: HttpResponse, action: String): CrmLead {

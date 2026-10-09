@@ -45,6 +45,19 @@ fun fieldFileSizeHint(): String =
     "Maks ${formatFileSize(FIELD_FILE_MAX_BYTES.toLong())} · PDF, gambar, TXT, CSV"
 
 /**
+ * Penjaga ukuran sisi klien (satu sumber untuk form prototype & CRM): mengembalikan pesan galat
+ * bila [actualBytes] melewati [FIELD_FILE_MAX_BYTES], atau `null` bila lolos. Ini **hanya**
+ * rahmat pertama — server tetap penentu akhir (413 fail-closed).
+ */
+fun fieldFileClientSizeError(actualBytes: Long): String? =
+    if (actualBytes > FIELD_FILE_MAX_BYTES) {
+        "Berkas ${formatFileSize(actualBytes)} melebihi batas " +
+            formatFileSize(FIELD_FILE_MAX_BYTES.toLong()) + "."
+    } else {
+        null
+    }
+
+/**
  * Pemetaan galat unggah/unduh ke pesan manusiawi. 413/415/503 dari server (TRD-FIELD-002 FR-3)
  * dipetakan ke sebab yang bisa dibaca; pesan server non-kosong untuk kasus lain diteruskan apa
  * adanya, dan sisanya pesan generik — tanpa kode HTTP mentah membocor ke layar.
@@ -54,7 +67,10 @@ fun fieldFileErrorMessage(error: Throwable): String {
         return error.message?.takeIf { it.isNotBlank() } ?: "Gagal memproses berkas."
     }
     return when (error.status) {
-        413 -> "Ukuran berkas melebihi batas ${formatFileSize(FIELD_FILE_MAX_BYTES.toLong())}."
+        // Batas ukuran dimiliki server: bila server mengirim alasannya, pakai itu; kalau tidak,
+        // sampaikan batas kontrak (JANGAN menelan pesan server lalu mengarang batas berbeda).
+        413 -> error.message?.takeIf { it.isNotBlank() }
+            ?: "Ukuran berkas melebihi batas ${formatFileSize(FIELD_FILE_MAX_BYTES.toLong())}."
         415 -> "Tipe berkas tidak didukung — gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV."
         503 -> "Penyimpanan berkas belum siap di server (env S3 belum diatur). Hubungi admin."
         403 -> "Anda tidak berwenang memproses berkas pada data ini."

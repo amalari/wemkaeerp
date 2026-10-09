@@ -10,11 +10,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
@@ -60,7 +62,10 @@ sealed interface ClayFileFieldState {
  * @param state status unggah saat ini.
  * @param onPick memilih berkas (unggah pertama atau ganti); pemanggil yang membuka picker platform.
  * @param onDownload aksi unduh; null = tidak tersedia (mis. referensi belum ada atau tanpa izin).
+ *   Unduh **tidak** ikut dipadamkan oleh [enabled] — membaca adalah hak yang berbeda dari mengubah.
  * @param onRemove aksi hapus referensi dari sel; null = tidak tersedia.
+ * @param enabled gerbang untuk aksi **mengubah** (pilih/ganti/hapus); unduh tetap aktif bila
+ *   [onDownload] diberikan, karena izin baca berbeda dari izin tulis.
  * @param isError menandai galat validasi dari pemanggil (outline chip memakai warna galat).
  * @param label label field opsional — pemanggil yang sudah menggambar labelnya sendiri mengosongkannya.
  */
@@ -138,7 +143,8 @@ fun ClayFileField(
                 if (onDownload != null) {
                     ClayIconButton(
                         onClick = onDownload,
-                        enabled = enabled && !isBusy,
+                        // Unduh = hak baca: jangan ikut dipadamkan oleh `enabled` (izin tulis).
+                        enabled = !isBusy,
                         size = 30.dp,
                         shape = ClayShapes.Tile
                     ) {
@@ -178,16 +184,15 @@ fun ClayFileField(
 
 /**
  * Bar progres bergaya clay: rel `clayFlat` + isian [WeMadeColors.Primary]. [progress] null =
- * segmen bergerak bolak-balik (aktifitas), angka = terisi penuh sepanjang pecahannya.
+ * segmen bergerak melintas (aktifitas), angka 0..1 = isian determinate sepanjang pecahannya.
  */
 @Composable
 private fun ClayFileProgressBar(progress: Float?) {
-    var fillStart = 0f
-    var fillEnd = 0f
-    if (progress == null) {
+    val target = progress
+    val segmentStart = if (target == null) {
         val transition = rememberInfiniteTransition(label = "clayFileUpload")
-        val segmentStart by transition.animateFloat(
-            initialValue = -0.35f,
+        val start by transition.animateFloat(
+            initialValue = -SEGMENT_WIDTH,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(durationMillis = 1100, easing = LinearEasing),
@@ -195,14 +200,11 @@ private fun ClayFileProgressBar(progress: Float?) {
             ),
             label = "clayFileUploadSegment"
         )
-        fillStart = segmentStart
-        fillEnd = segmentStart + 0.35f
+        start
     } else {
-        fillEnd = progress.coerceIn(0f, 1f)
+        0f
     }
-    val fraction = (fillEnd - fillStart).coerceIn(0f, 1f)
-    if (fraction <= 0f) return
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(8.dp)
@@ -213,14 +215,21 @@ private fun ClayFileProgressBar(progress: Float?) {
                 borderWidth = ClayBorder.Hairline
             )
     ) {
+        val railWidth = maxWidth
+        val fillFraction = target?.coerceIn(0f, 1f) ?: SEGMENT_WIDTH
+        // `.clayFlat` sudah meng-clip ke bentuk rel, jadi segmen tak bisa meluber keluar.
         Box(
             modifier = Modifier
+                .offset(x = railWidth * segmentStart)
                 .fillMaxHeight()
-                .fillMaxWidth(fraction)
+                .fillMaxWidth(fillFraction)
                 .background(WeMadeColors.Primary)
         )
     }
 }
+
+/** Lebar segmen aktifitas (relatif lebar rel) saat progres transport belum terukur. */
+private const val SEGMENT_WIDTH = 0.35f
 
 /** Chip berkas mini satu baris (nama saja) untuk konteks padat — pembacaan, bukan aksi. */
 @Composable

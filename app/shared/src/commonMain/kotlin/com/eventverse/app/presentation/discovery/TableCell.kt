@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
@@ -55,6 +56,8 @@ fun TableCell(
                 label = column,
                 required = false
             )
+            // Diingat per baris — jangan membangun ulang klien ops saat recompose (C8).
+            val editFileOps = remember(state, row.id) { state.fileFieldOps(row.id) }
 
             FieldInput(
                 field = field,
@@ -63,7 +66,7 @@ fun TableCell(
                 showLabel = false,
                 compact = true,
                 errorMessage = state.cellErrorMessage,
-                fileOps = state.fileFieldOps(row.id),
+                fileOps = editFileOps,
                 modifier = Modifier
                     .width(columnWidth)
                     .onPreviewKeyEvent { event ->
@@ -88,13 +91,19 @@ fun TableCell(
             if (fieldSpec?.type == FieldType.FILE && rawValue.isNotBlank()) {
                 // C8 Track C: chip nama berkas (segmen terakhir ref) + unduh presigned; bukan teks mentah.
                 val scope = rememberCoroutineScope()
+                val downloadOps = remember(state, row.id) { state.fileFieldOps(row.id) }
                 ClayFileChip(
                     fileName = fieldSpec.displayValue(rawValue),
                     onClick = {
-                        val ops = state.fileFieldOps(row.id) ?: return@ClayFileChip
+                        val ops = downloadOps ?: return@ClayFileChip
+                        // Mulai aksi baru → buang galat unduhan sebelumnya agar tidak basi.
+                        state.transientMessage = null
                         scope.launch {
                             ops.downloadUrl(column, rawValue) { result ->
-                                result.onSuccess { url -> openInBrowser(url) }
+                                result.onSuccess { url ->
+                                    state.transientMessage = null
+                                    openInBrowser(url)
+                                }
                                     .onFailure { err -> state.transientMessage = fieldFileErrorMessage(err) }
                             }
                         }

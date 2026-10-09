@@ -6,6 +6,7 @@ import com.eventverse.app.infrastructure.api.FieldFileHttpException
 import com.eventverse.app.presentation.discovery.fields.displayValue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Kontrak kecil yang dipertaruhkan tipe field `FILE` (TRD-FIELD-002 Track C): nama tampil dari
@@ -36,9 +37,14 @@ class FileFieldSupportTest {
 
     @Test
     fun errorMapping_coversFailClosedStatuses() {
+        // 413: batas dimiliki server — pesan server dipakai bila ada, kalau tidak pakai batas kontrak.
+        assertEquals(
+            "payload terlalu besar dari server",
+            fieldFileErrorMessage(FieldFileHttpException(413, "payload terlalu besar dari server"))
+        )
         assertEquals(
             "Ukuran berkas melebihi batas 10 MB.",
-            fieldFileErrorMessage(FieldFileHttpException(413, "payload too large"))
+            fieldFileErrorMessage(FieldFileHttpException(413, "   "))
         )
         assertEquals(
             "Tipe berkas tidak didukung — gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV.",
@@ -55,6 +61,15 @@ class FileFieldSupportTest {
         assertEquals(
             "Data atau berkas tidak ditemukan — mungkin sudah dihapus.",
             fieldFileErrorMessage(FieldFileHttpException(404, "gone"))
+        )
+    }
+
+    @Test
+    fun sizeGuard_blocksOnlyOverLimit() {
+        assertNull(fieldFileClientSizeError(10L * 1024 * 1024))
+        assertEquals(
+            "Berkas 12 MB melebihi batas 10 MB.",
+            fieldFileClientSizeError(12L * 1024 * 1024)
         )
     }
 

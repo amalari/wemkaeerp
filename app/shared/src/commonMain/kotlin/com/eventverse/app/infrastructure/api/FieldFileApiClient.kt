@@ -71,7 +71,7 @@ class FieldFileApiClient(
             contentType(ContentType.Application.OctetStream)
             setBody(bytes)
         }
-        val body = response.bodyOrThrow("mengunggah berkas")
+        val body = response.fieldFilePathBody("mengunggah berkas")
         JsonParser.parseObject(body).string("ref")
             ?: error("Server tidak mengembalikan referensi berkas")
     }
@@ -87,17 +87,9 @@ class FieldFileApiClient(
             authorize()
             accept(ContentType.Application.Json)
         }
-        val body = response.bodyOrThrow("membuat tautan unduhan")
+        val body = response.fieldFilePathBody("membuat tautan unduhan")
         JsonParser.parseObject(body).string("url")
             ?: error("Respons tautan unduhan tidak valid")
-    }
-
-    private suspend fun HttpResponse.bodyOrThrow(action: String): String {
-        val body = bodyAsText()
-        if (!status.isSuccess()) {
-            throw FieldFileHttpException(status.value, body.ifBlank { "Gagal $action (HTTP ${status.value})" })
-        }
-        return body
     }
 
     private fun io.ktor.client.request.HttpRequestBuilder.authorize() {
@@ -112,4 +104,17 @@ class FieldFileApiClient(
         /** Basis route module-records hasil generate (`{moduleCode}` = schema modul). */
         const val MODULE_RECORDS_BASE = "/api/tenant/modules"
     }
+}
+
+/**
+ * Ambil body respons endpoint berkas field, atau lempar [FieldFileHttpException] ber-status untuk
+ * non-2xx. Satu implementasi dipakai bersama klien module-records & CRM-leads — supaya kontrak
+ * status yang mendasari pemetaan 413/415/503 (FR-3) tidak menyimpang antar endpoint.
+ */
+internal suspend fun HttpResponse.fieldFilePathBody(action: String): String {
+    val body = bodyAsText()
+    if (!status.isSuccess()) {
+        throw FieldFileHttpException(status.value, body.ifBlank { "Gagal $action (HTTP ${status.value})" })
+    }
+    return body
 }

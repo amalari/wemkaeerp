@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -25,11 +24,10 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
-import com.eventverse.app.presentation.common.FIELD_FILE_MAX_BYTES
+import com.eventverse.app.presentation.common.fieldFileClientSizeError
 import com.eventverse.app.presentation.common.fieldFileErrorMessage
 import com.eventverse.app.presentation.common.fieldFileSizeHint
 import com.eventverse.app.presentation.common.fileRefDisplayName
-import com.eventverse.app.presentation.common.formatFileSize
 import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -261,11 +259,9 @@ private fun FileEditor(
                 if (boundActions != null && boundLeadId != null) {
                     scope.launch {
                         val picked = pickLocalFile(FIELD_FILE_ACCEPT) ?: return@launch
-                        if (picked.bytes.size > FIELD_FILE_MAX_BYTES) {
-                            uploadState = ClayFileFieldState.Error(
-                                "Berkas ${formatFileSize(picked.bytes.size.toLong())} melebihi batas " +
-                                    formatFileSize(FIELD_FILE_MAX_BYTES.toLong()) + "."
-                            )
+                        val sizeError = fieldFileClientSizeError(picked.bytes.size.toLong())
+                        if (sizeError != null) {
+                            uploadState = ClayFileFieldState.Error(sizeError)
                             return@launch
                         }
                         uploadState = ClayFileFieldState.Uploading(progress = null)

@@ -3,7 +3,6 @@ package com.eventverse.app.presentation.discovery.fields
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.infrastructure.api.FieldFileApiClient
 import com.eventverse.app.infrastructure.api.FieldFileRemoteDataSource
-import com.eventverse.app.presentation.common.fileRefDisplayName
 
 /**
  * Aksi jaringan field `FILE` untuk **satu record** prototype (TRD-FIELD-002 Track C).
@@ -38,10 +37,15 @@ class FileFieldOps(
         { fieldKey, _, onDone ->
             onDone(client.fieldFileDownloadUrl(moduleCode, recordId, fieldKey))
         }
-
-    /** Nama berkas tampil dari ref (segmen terakhir; fallback id — R4 metadata menyusul). */
-    fun displayName(ref: String): String = fileRefDisplayName(ref)
 }
+
+/**
+ * Klien bersama untuk seluruh aksi field `FILE` prototype — satu `HttpClient` per proses, bukan
+ * per call site (kolom tabel & dialog kanban memanggil [fieldFileOpsOrNull] saat recomposisi;
+ * membuat klien baru di sana akan membocorkan engine/connection pool). HttpClient Ktor memang
+ * dirancang dipakai bersama.
+ */
+private val sharedFieldFileClient: FieldFileRemoteDataSource by lazy { FieldFileApiClient() }
 
 /**
  * Membuat [FileFieldOps] dari binding layar; `null` untuk [DataBinding.Memory] (demo memori tak
@@ -53,6 +57,5 @@ fun fieldFileOpsOrNull(binding: DataBinding?, recordId: String): FileFieldOps? {
     val basePath = (binding as? DataBinding.Api)?.basePath ?: return null
     val moduleCode = basePath.substringAfter("/modules/", "").substringBefore('/')
     if (moduleCode.isBlank()) return null
-    // Satu klien per permintaan ops: HttpClient tidak membuka koneksi sebelum request pertama.
-    return FileFieldOps(FieldFileApiClient(), moduleCode, recordId)
+    return FileFieldOps(sharedFieldFileClient, moduleCode, recordId)
 }
