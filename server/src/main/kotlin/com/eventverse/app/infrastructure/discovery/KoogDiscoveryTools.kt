@@ -150,6 +150,15 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
     ),
     "numberFormats" to KoogDiscoveryNumberFormatVocabulary.catalogJson(),
     "fieldParams" to KoogDiscoveryDateTimeValidationVocabulary.catalogJson(),
+    // C7 (TRD-FIELD-001 FR-6): aturan target RELATION + R1 ModuleReferenceRules (modul target yang sah dirujuk).
+    "relationTarget" to jsonObjectOf(
+        "note" to jsonOf(
+            "Field RELATION wajib `target`: \"entityId\" (satu modul) atau \"moduleId:entityId\" (lintas modul). " +
+                "Lintas modul sah hanya bila modul target adalah modul pack ini sendiri atau modul bersama yang " +
+                "ditawarkan platform (aturan R1) — modul tata kelola/fondasi TIDAK boleh jadi target (diakses lewat " +
+                "salinan identik, bukan rujukan). Seed RELATION wajib kosong: nilai rujukan diisi data nyata, bukan contoh."
+        )
+    ),
     "cardStyles" to jsonArrayOf(CardStyle.entries.map { jsonOf(it.name) }),
     "skeleton" to KoogDiscoverySkeletonVocabulary.catalogJson(),
     "limits" to jsonObjectOf(

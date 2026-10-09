@@ -142,6 +142,10 @@ class DomainRouteWiring(
         ?: com.eventverse.app.infrastructure.storage.S3ObjectStorage()
     private val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     private val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
+    // C7 (TRD-FIELD-001 Track B): sumber opsi rujukan & resolver target. Modul target = modul handoff
+    // (recordRows) atau CRM; tanpa entri = tidak ada opsi/target (fail-closed).
+    private val relationTargetRegistryFor = com.eventverse.app.relation.RelationTargetRegistry.default(crmLeadRepo, fieldFileRecordRows)
+    private val relationTargetResolver = com.eventverse.app.relation.RegistryRelationTargetResolver(relationTargetRegistryFor)
     private val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     private val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository(); private val traceContainerRepo = PostgresTraceContainerRepository(); private val internalTransferRepo = PostgresInternalTransferRepository()
     private val traceWorkOrderProvider = CompositeTraceWorkOrderProvider(
@@ -220,7 +224,14 @@ class DomainRouteWiring(
             dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,
             employeeRepository = empRepo, roleRepository = roleRepo,
             moduleAssignmentRepository = assignmentRepo, invoiceRepository = invoiceRepo,
-            leadActivityRepository = leadActivityRepo
+            leadActivityRepository = leadActivityRepo,
+            relationTargetResolver = relationTargetResolver
+        )
+        // Opsi rujukan tipe field RELATION (C7, TRD-FIELD-001 Track B) — gerbang modul TARGET per query.
+        relationRoutes(
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo,
+            registry = relationTargetRegistryFor
         )
         dealRoutes(
             dealRepository = crmDealRepo, contactRepository = crmContactRepo,

@@ -73,7 +73,10 @@ object RouteOwnership {
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),
         "/api/tenant/billing-preview" to RouteOwner.Platform("pratinjau tagihan paket"),
         "/api/tenant/customization-requests" to RouteOwner.Platform("permintaan kustomisasi modul ke tim platform"),
-        "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)")
+        "/api/tenant/help" to RouteOwner.Platform("AI helper bantuan pengguna tenant (TRD-HELP-001/002)"),
+        // C7 (TRD-FIELD-001): pilihan opsi rujukan tipe field RELATION — wewenang dihitung dari
+        // modul TARGET pada query (`?module=`), bukan dari pemilik path.
+        "/api/tenant/relation-options" to RouteOwner.Platform("pilihan rujukan tipe field RELATION (TRD-FIELD-001)")
     ) + com.eventverse.app.tenant.TenantPackContributions.routePrefixes.map { (prefix, module) -> prefix to RouteOwner.Module(module) } +
         // Sengaja SETELAH prefix modul khusus tenant yang lebih spesifik: sisa path /modules = endpoint
         // berkas tipe field FILE (TRD-FIELD-002) yang wewenangnya dihitung dari modul induk pada path.

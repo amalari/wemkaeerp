@@ -101,7 +101,9 @@ internal object KoogDiscoveryPrompt {
         10. Setiap layar data (`KANBAN`, `TABLE`, `FORM`, `CHECKLIST`) wajib membawa `proposal` berisi isi
             layar: {"screenId","moduleId","title","widget","rationale","entity","view","seed","source"} —
             tanpa kunci lain. `DASHBOARD` dan `CUSTOM_SCREEN`: `"entity": null`.
-        11. `entity` = jenis benda yang dikelola layar: ${KoogDiscoveryFieldTypeVocabulary.promptRule},
+        11. `entity` = jenis benda yang dikelola layar: ${KoogDiscoveryFieldTypeVocabulary.promptRule}.
+            Field RELATION wajib `target` ("entityId" atau "moduleId:entityId"); modul target harus modul pack ini
+            sendiri atau modul bersama yang ditawarkan platform (aturan R1), bukan modul tata kelola/fondasi.
             `statusField` = kunci field ENUM status kerja
             (2–8 pilihan), `transitions` = perpindahan status yang sah. Status yang berupa ALUR KERJA
             (Baru → Diproses → Selesai) wajib berurutan dengan satu kondisi awal dan satu akhir. Status
