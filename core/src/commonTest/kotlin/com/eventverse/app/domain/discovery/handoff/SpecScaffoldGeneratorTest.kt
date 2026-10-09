@@ -22,12 +22,13 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
  * `generateFromSpec` (kontrak §3.4, butir C1–C2). Dites dengan **dua template**: pilot `layanan`
- * (enam tipe field, termasuk FILE lampiran) dan fixture tiket servis dari kontrak B0 (kunci berhuruf
- * besar), sesuai Kontrak 6.
+ * (delapan tipe field, termasuk FILE lampiran dan RELATION `rujukan`) dan fixture tiket servis dari
+ * kontrak B0 (kunci berhuruf besar), sesuai Kontrak 6.
  */
 class SpecScaffoldGeneratorTest {
     private val generator = HandoffScaffoldGenerator()
@@ -90,6 +91,11 @@ class SpecScaffoldGeneratorTest {
             "'GLOBAL_ONLY', 'PLANNED'"
         ).forEach { assertTrue(it in sql, "baris hilang: $it") }
         assertTrue("JSONB" !in sql, "tidak boleh tabel stub payload JSONB")
+        // C7 (TRD-FIELD-001 FR-1, kriteria terima #1): kolom RELATION memancarkan VARCHAR(64) TANPA
+        // `REFERENCES` — rujukan logis lintas schema dilindungi pagar J3, integritas dijaga saat tulis nilai.
+        val relationLine = sql.lineSequence().first { it.trimStart().startsWith("rujukan ") }
+        assertTrue("VARCHAR(64)" in relationLine, relationLine)
+        assertFalse("REFERENCES" in relationLine, "RELATION tidak boleh FK fisik (pagar J3): $relationLine")
     }
 
     // ---- keamanan: spec = data tak tepercaya -----------------------------------------------------
@@ -182,7 +188,7 @@ class SpecScaffoldGeneratorTest {
         DomainPackRegistry.register(LayananPilotPack.pack)
         assertEquals(LayananPilotPack.module, DomainPackRegistry.moduleDefinition(LayananPilotPack.CHANGE_REQUEST))
         assertEquals(
-            setOf(FieldType.TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.ENUM, FieldType.BOOL, FieldType.FILE),
+            setOf(FieldType.TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.ENUM, FieldType.BOOL, FieldType.FILE, FieldType.RELATION),
             LayananPilotPack.entity.fields.map { it.type }.toSet()
         )
     }

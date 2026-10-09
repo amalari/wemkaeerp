@@ -102,10 +102,11 @@ data class FieldSpec(
             require(currencyCode == null) { "Field '$key' berformat ${format.name}, jadi tidak boleh punya kode mata uang" }
         }
         if (type == FieldType.RELATION) {
-            // C7: bentuk target divalidasi di sini; keberadaan baris target divalidasi server saat tulis nilai
-            // (fail-closed lewat jalur baca modul target), bukan di konstruktor ini.
-            require(!target.isNullOrBlank() && !target.contains(' ') && target.count { it == ':' } <= 1) {
-                "Field RELATION '$key' wajib punya target 'entityId' atau 'moduleId:entityId' (tanpa spasi, maksimum satu ':'), dapat '$target'"
+            // C7: bentuk target divalidasi di sini (satu sumber: [relationTargetFormatError]); keberadaan baris
+            // target divalidasi server saat tulis nilai (fail-closed lewat jalur baca modul target), bukan di sini.
+            val error = relationTargetFormatError(target)
+            require(error == null) {
+                "Field RELATION '$key' target tidak sah ($error), dapat '$target'"
             }
         } else {
             require(target == null) { "Field '$key' bertipe ${type.name}, bukan RELATION, jadi tidak boleh punya target" }
@@ -129,6 +130,22 @@ data class FieldSpec(
             FieldType.FILE -> FileRef.isValid(value)
         }
     }
+}
+
+/**
+ * Satu sumber aturan **bentuk** `target` RELATION (C7, TRD-FIELD-001 FR-2/FR-6): `"entityId"` (satu modul)
+ * atau `"moduleId:entityId"` (lintas modul) — tanpa spasi, maksimum satu ':', tanpa bagian kosong. Mengembalikan
+ * pesan galat, atau `null` bila sah. Dipakai bersama oleh invariant [FieldSpec] dan validator usulan
+ * (`ProposalEntityRules`), supaya bentuknya tidak bisa berbeda di dua gerbang.
+ *
+ * Keberadaan modul target & record target **tidak** diperiksa di sini (itu tugas pack/server saat tulis nilai).
+ */
+fun relationTargetFormatError(target: String?): String? = when {
+    target.isNullOrBlank() -> "target wajib diisi"
+    target.any { it.isWhitespace() } || target.count { it == ':' } > 1 ->
+        "harus 'entityId' atau 'moduleId:entityId' (tanpa spasi, maksimum satu ':')"
+    target.split(':').any { it.isBlank() } -> "tidak boleh punya bagian kosong di sekitar ':'"
+    else -> null
 }
 
 /**

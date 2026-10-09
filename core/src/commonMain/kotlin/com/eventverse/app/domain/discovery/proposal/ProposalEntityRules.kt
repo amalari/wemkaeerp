@@ -6,11 +6,12 @@ import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TextValidations
+import com.eventverse.app.domain.prototype.relationTargetFormatError
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
 internal object ProposalEntityRules {
 
-    fun check(entity: EntityProposal, sink: IssueSink) {
+    fun check(entity: EntityProposal, sink: IssueSink, packModuleIds: Set<String>?) {
         sink.key(".entity.id", entity.id, "entity.id")
         sink.text(".entity.label", entity.label, "entity.label")
         if (entity.fields.isEmpty()) sink.add(".entity.fields", "Entity wajib punya minimal 1 field")
@@ -42,8 +43,37 @@ internal object ProposalEntityRules {
             if (f.type != FieldType.TEXT && f.validation != TextValidation.NONE) {
                 sink.add("$at.validation", "Field '${f.key}' bertipe ${f.type.name}, bukan TEXT, jadi tidak boleh punya validation ${f.validation.name}")
             }
+            checkTarget(f, at, sink, packModuleIds)
         }
         checkStatus(entity, sink)
+    }
+
+    /**
+     * C7 (TRD-FIELD-001 FR-2/FR-6): `target` rujukan wajib tepat untuk RELATION, tidak boleh ada pada tipe
+     * lain. Bentuknya `"entityId"` (satu modul) atau `"moduleId:entityId"` (lintas modul). Target lintas modul
+     * yang modulnya tidak dapat diresolusi pack **ditolak** (bukan dibiarkan lolos ke server). Modul sendiri
+     * pack di [packModuleIds]; `null` = konteks pack tak diketahui, resolusi modul tak dapat diperiksa di sini.
+     */
+    private fun checkTarget(f: FieldProposal, at: String, sink: IssueSink, packModuleIds: Set<String>?) {
+        val target = f.target
+        if (f.type != FieldType.RELATION) {
+            if (target != null) sink.add("$at.target", "Field '${f.key}' bertipe ${f.type.name}, bukan RELATION, jadi tidak boleh punya target")
+            return
+        }
+        if (target.isNullOrBlank()) {
+            sink.add("$at.target", "Field RELATION '${f.key}' wajib punya target 'entityId' atau 'moduleId:entityId'")
+            return
+        }
+        // Bentuk = satu sumber aturan bersama invariant FieldSpec (`relationTargetFormatError`), tak boleh berbeda.
+        val shapeError = relationTargetFormatError(target)
+        if (shapeError != null) {
+            sink.add("$at.target", "Target field RELATION '${f.key}' $shapeError, dapat '$target'")
+            return
+        }
+        val parts = target.split(':')
+        if (parts.size == 2 && packModuleIds != null && parts[0] !in packModuleIds) {
+            sink.add("$at.target", "Target lintas modul '${parts[0]}' tidak dapat diresolusi pack ini (modul: ${packModuleIds.sorted().joinToString()})")
+        }
     }
 
     private fun checkOptions(f: FieldProposal, at: String, sink: IssueSink) {

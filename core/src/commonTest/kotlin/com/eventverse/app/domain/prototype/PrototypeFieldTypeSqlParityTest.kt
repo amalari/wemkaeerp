@@ -220,6 +220,9 @@ class PrototypeFieldTypeSqlParityTest {
     fun fieldSpec_relationTarget_shapeIsValidated() {
         assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "dua modul") }.isFailure, "spasi ditolak")
         assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "a:b:c") }.isFailure, "dua ':' ditolak")
+        // C7: bentuk = satu sumber aturan (`relationTargetFormatError`) — bagian kosong di sekitar ':' juga ditolak.
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = "a:") }.isFailure, "sisi kanan kosong ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.RELATION, target = ":a") }.isFailure, "sisi kiri kosong ditolak")
         assertEquals("crm:lead", FieldSpec("k", "K", FieldType.RELATION, target = "crm:lead").target, "lintas modul sah")
     }
 

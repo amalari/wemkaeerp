@@ -71,7 +71,11 @@ object PrototypeContractSamples {
             FieldSpec("Status", "Status", FieldType.ENUM, listOf("Baru", "Dikerjakan", "Selesai")),
             // C8 (TRD-FIELD-002): nilai = FileRef; baris contoh sengaja TANPA kunci ini (seed FILE
             // wajib kosong — referensi karangan ke objek yang tidak ada ditolak validator).
-            FieldSpec("Lampiran", "Lampiran", FieldType.FILE)
+            FieldSpec("Lampiran", "Lampiran", FieldType.FILE),
+            // C7 (TRD-FIELD-001): rujukan LOGIS — id baris target saja, tanpa FK lintas schema. Target
+            // "order" = entitas di modul yang sama (sampel bentuk "entityId"); keberadaan record target
+            // diverifikasi server saat tulis nilai (fail-closed), bukan oleh DB.
+            FieldSpec("Rujukan", "Rujukan Order", FieldType.RELATION, target = "order")
         ),
         stateMachine = StateMachine("Status", mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Selesai", "Baru")))
     )

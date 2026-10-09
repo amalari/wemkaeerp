@@ -77,7 +77,9 @@ object ScreenProposalCodec {
                 "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
                 "required" to jsonOf(f.required), "options" to jsonArrayOf(f.options.map(::jsonOf)),
                 "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
-                "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name)
+                "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
+                // C7 (TRD-FIELD-001): target rujukan ikut kawat; null untuk tipe selain RELATION.
+                "target" to jsonOf(f.target)
             )
         }),
         "statusField" to jsonOf(e.statusField),
@@ -105,7 +107,9 @@ object ScreenProposalCodec {
                 withTime = f.boolean("withTime", false),
                 validation = if (validationName == null) TextValidation.NONE
                 else TextValidation.entries.firstOrNull { it.name == validationName }
-                    ?: f.fail("validation", "Validasi teks '$validationName' bukan kosakata tertutup: ${TextValidation.entries.joinToString { it.name }}")
+                    ?: f.fail("validation", "Validasi teks '$validationName' bukan kosakata tertutup: ${TextValidation.entries.joinToString { it.name }}"),
+                // C7: target opsional di kawat; bentuk & resolusi divalidasi ScreenProposalValidator, bukan codec.
+                target = f.optString("target")
             )
         },
         statusField = r.optString("statusField"),

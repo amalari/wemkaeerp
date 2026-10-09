@@ -75,6 +75,15 @@ class CrmFieldTypeParityTest {
         assertTrue(decoded.all { it.tenantId == tenant && it.ownerResource == OwnerResource.MASTER_DATA_MATERIAL })
     }
 
+    /** C7: sel RELATION = id record target string; dibaca kembali lewat [CustomAttributes.relation], tanpa karangan. */
+    @Test
+    fun customAttributes_relationCell_roundTripsAndReadsBack() {
+        val id = CustomFieldId("cf-relation")
+        val attrs = CustomAttributes.EMPTY.with(id, CustomAttributes.relationCell("lead-9"))
+        assertEquals("lead-9", attrs.relation(id))
+        assertEquals("relation", attrs.rawCell(id)?.string("t"))
+    }
+
     @Test
     fun decodeFieldType_unknownCode_returnsNullAndNeverFallsBackToText() {
         listOf("CURRENCY", "MULTI_SELECT", "text", "Text", "", " TEXT").forEach { code ->
@@ -130,7 +139,8 @@ class CrmFieldTypeParityTest {
         is FieldType.DateField -> CustomAttributes.dateCell(LocalDate(2026, 10, 8))
         is FieldType.Checkbox -> CustomAttributes.checkboxCell(true)
         is FieldType.UserRef -> CustomAttributes.textCell("user-1")
-        is FieldType.Relation -> CustomAttributes.textCell("lead-1")
+        // C7: sel RELATION = id record target bertag `relation`; keberadaan diverifikasi server (Track B).
+        is FieldType.Relation -> CustomAttributes.relationCell("lead-1")
         is FieldType.File -> CustomAttributes.textCell("fields/ten-bordir/crm_sales/l-1/lampiran-a1b2c3-scan.pdf")
     }
 

@@ -44,7 +44,9 @@ object ScreenProposalValidator {
     /**
      * @param path awalan path galat; default `$` (usulan berdiri sendiri), draf memakai `$.screens[i].proposal`.
      * @param source asal usulan bila diketahui; hanya [ProposalSource.Pack] yang boleh memilih `DataBinding.Api`.
-     * @param packModuleIds modul pack bila diketahui; ubin dasbor yang menghitung modul lain wajib menunjuk modul ini.
+     * @param packModuleIds modul yang dapat diresolusi pack bila diketahui (modul sendiri **dan** modul bersama
+     *   yang dirujuk); ubin dasbor yang menghitung modul lain wajib menunjuk salah satunya, dan target RELATION
+     *   lintas modul wajib dapat diresolusi. `null` = konteks pack tak diketahui, keduanya dilewatkan.
      * @param verticalPurity true untuk pack non-garment: istilah konveksi di teks usulan ditolak ([VerticalPurity]).
      */
     fun validate(
@@ -60,7 +62,7 @@ object ScreenProposalValidator {
         sink.text(".rationale", proposal.rationale, "rationale")
 
         checkEntityPresence(proposal, sink)
-        proposal.entity?.let { ProposalEntityRules.check(it, sink) }
+        proposal.entity?.let { ProposalEntityRules.check(it, sink, packModuleIds) }
         ProposalViewRules.check(proposal, sink, packModuleIds)
         ProposalEntityRules.checkSeed(proposal, sink)
         if (verticalPurity) ProposalPurityRules.check(proposal, sink)

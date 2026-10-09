@@ -35,6 +35,13 @@ data class CustomAttributes(private val raw: JsonValue.Obj) {
 
     fun checked(fieldId: CustomFieldId): Boolean = rawCell(fieldId)?.boolean("v") ?: false
 
+    /**
+     * C7 (TRD-FIELD-001): id record target satu field [FieldType.Relation]. Sel = string id bertag `relation`.
+     * Keberadaan record diverifikasi server lewat [RelationTargetResolver] (Track B) — pembaca ini hanya
+     * mengembalikan id yang tersimpan, tidak pernah mengarang rujukan.
+     */
+    fun relation(fieldId: CustomFieldId): String? = rawCell(fieldId)?.string("v")
+
     fun hasValue(fieldId: CustomFieldId): Boolean = raw.has(fieldId.value)
 
     /** Returns a copy with [fieldId] set to a tagged cell, or removed if [cell] is null. */
@@ -61,6 +68,10 @@ data class CustomAttributes(private val raw: JsonValue.Obj) {
             jsonObjectOf("t" to jsonTag("date"), "v" to JsonValue.Str(date.toString()))
         fun checkboxCell(checked: Boolean): JsonValue.Obj =
             jsonObjectOf("t" to jsonTag("checkbox"), "v" to JsonValue.Bool(checked))
+
+        /** C7: sel rujukan = id record target (string) bertag `relation`; keberadaan diverifikasi server. */
+        fun relationCell(targetRecordId: String): JsonValue.Obj =
+            jsonObjectOf("t" to jsonTag("relation"), "v" to JsonValue.Str(targetRecordId))
 
         private fun jsonTag(tag: String): JsonValue = JsonValue.Str(tag)
     }
