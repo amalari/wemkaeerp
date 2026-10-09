@@ -258,6 +258,26 @@ fun Route.departmentRoutes(
                 return@post
             }
 
+            // Defense in depth atas moduleGate di atas (yang hanya terpasang bila repository wewenang disuntik):
+            // menimpa seluruh divisi menuntut MANAGE dan jangkauan penuh, sama seperti rute karyawan.
+            val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
+            if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@post
+            if (employeeRepository != null) {
+                val reach = call.orgChartDataReach(
+                    decision = decision,
+                    allEmployees = GetEmployeesUseCase(employeeRepository).getAll(tenant.tenantId, null).getOrDefault(emptyList())
+                )
+                if (!reach.isUnrestricted) {
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        "Memuat ulang template struktur menimpa seluruh divisi, sehingga menuntut " +
+                            "jangkauan data Seluruh Data Pabrik."
+                    )
+                    return@post
+                }
+            }
+            if (!call.requireStarterOrgChart(tenant)) return@post
+
             val result = restoreDefaultDepartmentsUseCase(tenant.tenantId)
             if (result.isSuccess) {
                 call.respondText(DepartmentDto.toJsonList(result.getOrThrow()), contentType = ContentType.Application.Json)

@@ -345,6 +345,7 @@ fun Route.employeeRoutes(
 
             val decision = call.orgChartDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireOrgChartAccess(decision, AccessLevel.MANAGE)) return@post
+            if (!call.requireManageOrgChartForBulkWrite(tenant, roleRepository, moduleAssignmentRepository)) return@post
             // Memuat ulang template menimpa seluruh bagan, lintas divisi. Tidak ada jangkauan
             // sempit yang masuk akal untuk itu: yang boleh menekannya harus melihat semuanya.
             val reach = call.orgChartDataReach(
@@ -359,6 +360,7 @@ fun Route.employeeRoutes(
                 )
                 return@post
             }
+            if (!call.requireStarterOrgChart(tenant)) return@post
 
             val result = restoreDefaultEmployeesUseCase(tenant.tenantId)
             if (result.isSuccess) {
