@@ -231,3 +231,42 @@ Kompilasi 5 target + `scripts/audit-variability.sh` (tidak boleh menambah temuan
   terbaca; seed awal in-memory tidak diperiksa).
 - Apakah `RbacAccessPolicyRepositoryTest` bergantung pada fallback; isi `OrgChartViewModelDeleteTest`.
 - Apakah registrasi tenant non-garment sudah membuat jabatan Owner di server (diasumsikan dari TRD-PLAT-009, tidak ditelusuri).
+
+## 11. Tambahan T3 dari penyelidikan B3 (2026-10-09)
+
+Penyelidikan baca-saja atas "403 sementara pada muat dingin `/rbac`" (terlihat dua kali di cek visual) menemukan bahwa
+**T3 sebagaimana ditulis di §5 tidak cukup** dan, tanpa tambahan, malah membuat gejalanya lebih terlihat (403 menjadi
+keadaan galat/kosong, bukan sampel yang diam-diam). Keyakinan penyelidik ±85% (cacat nyata); yang belum dijelaskan:
+cek visual melihat gelombang kedua 200 padahal kode memprediksi 403 menetap — kemungkinan token yang disuntikkan lewat
+`localStorage` berubah antar-gelombang. **Wajib dibuktikan di langkah pertama T3** (login sungguhan sebagai Owner tenant
+non-demo, buka `/rbac`, periksa header `X-Tenant-Slug` dan isi body 403: "Akun ini terikat pada tenant" = slug,
+"Butuh wewenang ... atas modul" = gerbang modul).
+
+**Temuan (terverifikasi di `HEAD 1ecbfec3`):**
+- `DynamicRbacViewModel` (`presentation/rbac/DynamicRbacViewModel.kt:44-46`) punya default `tenantId = "tenant-wemade-demo"`
+  dan `tenantSlug = "wemade-demo"`; satu-satunya pemanggilnya `remember { DynamicRbacViewModel() }` tanpa argumen
+  (`DynamicRbacScreen.kt:68`) dan `App.kt:384` tidak meneruskan slug sesi. Jadi layar RBAC **tidak pernah** memakai
+  slug tenant aktif — bukan "sebelum sesi dipulihkan", melainkan tidak pernah. Org Chart (`App.kt:359-361`, memakai
+  `session?.tenantSlug`) dan Builder (`StoredTenantSlugProvider`) tidak terdampak.
+- Server menolak dengan benar (fail-closed, **jangan dilonggarkan**): `TenantResolutionPlugin` — pemanggil terikat
+  tenant dengan `requestedSlug != principal.tenantSlug` → 403.
+- **Dugaan (belum dibuktikan):** "dua kali per rute" berasal dari `GovernanceModuleGate.kt:58-61`
+  (`content(ModuleAccessConfig())` saat `decision == null`) lalu `:~80` (`content(decision.config)`) — dua call site berbeda
+  menciptakan ulang `remember { DynamicRbacViewModel() }` sehingga 3 rute dipanggil dua kali (tanpa retry otomatis;
+  tidak ada `HttpRequestRetry` di app/shared).
+- `/api/auth/me` (`PublicAuthRoutes.kt:204`) memakai **fallback senyap `"wemade-demo"`** bila klaim `tenant_slug`
+  kosong — melanggar Kontrak 4 (tolak, bukan fallback senyap). Beberapa fallback serupa di `App.kt` (±359, 435, 459, 584).
+- Tak ada tes yang mengunci slug RBAC (tak ada `DynamicRbacViewModel*Test`, tak ada tes header klien RBAC/OrgChart).
+
+**Tambahan ruang lingkup T3 (selain §5):**
+1. `DynamicRbacScreen`/`DynamicRbacViewModel` menerima `tenantSlug` dan `tenantId` dari `session` di `App.kt`; **tanpa default**
+   (parameter wajib).
+2. VM dibuat sekali per tenant: `remember(tenantSlug)` dan/atau diangkat di atas `GovernanceModuleGate`, sehingga
+   perpindahan cabang gerbang tidak memicu `init` kedua.
+3. Hapus fallback slug senyap di `App.kt` bila bisa dilakukan tanpa menyentuh area lain; `/me` server tidak boleh jatuh
+   ke demo (kembalikan galat/"sesi belum siap") — **fail-closed**, pisahkan sebagai langkah kecil bila menyentuh kontrak sesi.
+4. Tes: VM RBAC memanggil klien dengan slug yang diberikan; VM tidak dibuat ulang saat gerbang berpindah cabang;
+   klien RBAC mengirim `X-Tenant-Slug` sesuai argumen.
+5. Celah terpisah (hanya dicatat): bila klaim `tenant_slug` pada token kosong, server tidak membandingkan slug
+   (mismatch dianggap false).
+
