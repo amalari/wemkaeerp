@@ -15,7 +15,7 @@ object TenantsTable : Table("tenants") {
      * The tenant's garment business model (FOB / CMT / Brand D2C). Drives which pipeline
      * preset a tenant is provisioned with, so it has to be persisted rather than defaulted.
      */
-    val businessPreset = varchar("business_preset", 50).default("fob_full_package")
+    val businessPreset = varchar("business_preset", 64).default("fob_full_package")
     val industryTemplate = varchar("industry_template", 32).default("KNIT_SWEATER")
 
     /** Vertikal tenant (V75, B7). */

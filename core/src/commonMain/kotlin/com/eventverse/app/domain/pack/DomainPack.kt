@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.fulfillment.HandoverRoute
@@ -192,9 +193,16 @@ data class DomainPack(
      * Pack yang tidak menyebutnya memakai bawaan global `IDR`; kode tak berbentuk tiga huruf besar **menggagalkan**
      * pembangunan pack (tidak ada fallback ke `IDR`). Tidak ada daftar mata uang tertutup di kode.
      */
-    val defaultCurrencyCode: String = DEFAULT_CURRENCY_CODE
+    val defaultCurrencyCode: String = DEFAULT_CURRENCY_CODE,
+    /**
+     * Starter alur milik pack ini (TRD-PLAT-008), disalin ke tenant saat handoff. Tenant menyimpan **kodenya**; kode
+     * di-resolve lewat [resolveBlueprint]. Kosong = pack tanpa starter data — pack bawaan garment sengaja kosong
+     * (starter-nya tetap `GarmentBlueprints`, supaya bytes pack garment tak berubah). Invarian: [requireBlueprintsValid].
+     */
+    val blueprints: List<Blueprint> = emptyList()
 ) {
     init {
+        requireBlueprintsValid()
         require(CurrencyCode.isValid(defaultCurrencyCode)) {
             "Pack ${code.value}: defaultCurrencyCode '$defaultCurrencyCode' harus tiga huruf besar (mis. IDR)"
         }

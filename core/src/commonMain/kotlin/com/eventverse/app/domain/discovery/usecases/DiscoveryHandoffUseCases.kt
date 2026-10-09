@@ -7,6 +7,7 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.DomainPackRepository
+import com.eventverse.app.domain.pack.resolveBlueprint
 import com.eventverse.app.domain.pack.usecases.AssignTenantDomainPackUseCase
 import com.eventverse.app.domain.pack.usecases.LockDomainPackUseCase
 import com.eventverse.app.domain.pack.usecases.SaveDomainPackDraftUseCase
@@ -117,7 +118,18 @@ class HandoffDiscoveryDraftUseCase(
         require(stored.status == DiscoveryDraftStatus.LOCKED) {
             "Draf ${draftId.value} masih DRAFT; kunci dulu sebelum handoff"
         }
-        val pack = stored.draft.pack
+        val blueprint = stored.draft.blueprint
+        // TRD-PLAT-008: starter tenant = data milik pack. Pack data membawa blueprint draf (disimpan + dikunci bersama
+        // pack); pack bawaan tak menyimpan apa pun, jadi blueprint-nya wajib sudah ada di katalognya — ditolak SEBELUM
+        // tenant dibuat, supaya tak ada tenant yang kodenya tak bisa dimuat.
+        val pack = if (DomainPackRegistry.isShipped(stored.draft.pack.code)) {
+            require(resolveBlueprint(stored.draft.pack, blueprint.code) == blueprint) {
+                "Blueprint ${blueprint.code.value} bukan starter pack bawaan ${stored.draft.pack.code.value}; handoff ditolak"
+            }
+            stored.draft.pack
+        } else {
+            stored.draft.pack.let { it.copy(blueprints = it.blueprints.filter { b -> b.code != blueprint.code } + blueprint) }
+        }
 
         // Validasi versi pack **sebelum** tenant dibuat — kegagalan 409 tidak boleh meninggalkan tenant yatim.
         val latest = if (DomainPackRegistry.isShipped(pack.code)) null else domainPackRepository.findLatest(pack.code)
@@ -168,7 +180,7 @@ class HandoffDiscoveryDraftUseCase(
         val assigned = AssignTenantDomainPackUseCase(tenantRepository, probe, domainPackRepository)(tenant.id, pack.code)
             .onFailure { if (packBecameShared) latest?.let { domainPackRepository.save(it) } }
             .getOrThrow()
-        val withBlueprint = assigned.copy(businessPreset = stored.draft.blueprint)
+        val withBlueprint = assigned.copy(businessPreset = blueprint)
         val final = if (withBlueprint != assigned) tenantRepository.save(withBlueprint).getOrThrow() else assigned
 
         HandoffResult(final, pack.code, version, packBecameShared)

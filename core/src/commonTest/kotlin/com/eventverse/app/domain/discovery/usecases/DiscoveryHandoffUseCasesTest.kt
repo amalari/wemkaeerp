@@ -6,11 +6,13 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryRequest
 import com.eventverse.app.domain.discovery.DeterministicDiscoveryAgent
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
+import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.DomainPackRepository
 import com.eventverse.app.domain.pack.DomainPackStatus
 import com.eventverse.app.domain.pack.StoredDomainPack
+import com.eventverse.app.domain.pack.resolveBlueprint
 import com.eventverse.app.domain.prospect.LeadStatus
 import com.eventverse.app.domain.prospect.ProspectLead
 import com.eventverse.app.domain.prospect.ProspectLeadId
@@ -149,7 +151,29 @@ class DiscoveryHandoffUseCasesTest {
         assertEquals(draft.blueprint, result.tenant.businessPreset)
         assertEquals(DomainPackStatus.LOCKED, packs.findLatest(draft.pack.code)!!.status)
         // Pack data baru langsung dikenal registry — layar modulnya aktif lewat jalur B7.
-        assertEquals(draft.pack, DomainPackRegistry.find(draft.pack.code))
+        // TRD-PLAT-008: starter tenant kini milik pack, jadi pack yang tersimpan/terdaftar membawa blueprint draf.
+        val ownedPack = draft.pack.copy(blueprints = listOf(draft.blueprint))
+        assertEquals(ownedPack, DomainPackRegistry.find(draft.pack.code))
+        assertEquals(ownedPack, packs.findLatest(draft.pack.code)!!.pack)
+        assertEquals(draft.blueprint, resolveBlueprint(DomainPackRegistry.find(result.tenant.domainPack), result.tenant.businessPreset.code))
+    }
+
+    @Test
+    fun `handoff garment dengan blueprint di luar katalog pack bawaan ditolak sebelum tenant dibuat`() = runTest {
+        val id = DiscoveryDraftId("draft-g2")
+        CreateDiscoveryDraftUseCase(
+            DeterministicDiscoveryAgent(), drafts
+        )(DiscoveryRequest("Konveksi brand sendiri untuk distro retail."), owner, id).getOrThrow()
+        val stored = drafts.findById(id)!!
+        val kustom = stored.draft.blueprint.copy(code = BlueprintCode("fob_kustom"))
+        drafts.save(stored.copy(draft = stored.draft.copy(blueprint = kustom)))
+        LockDiscoveryDraftUseCase(drafts)(id, owner, isPlatformSuperadmin = false).getOrThrow()
+
+        val ex = assertFailsWith<IllegalArgumentException> {
+            handoff(id, isPlatformSuperadmin = true, tenantSlug = "distro-kustom", companyName = "Distro Kustom").getOrThrow()
+        }
+        assertTrue(ex.message!!.contains("fob_kustom"))
+        assertTrue(tenants.rows.isEmpty(), "tidak ada tenant yatim")
     }
 
     @Test
