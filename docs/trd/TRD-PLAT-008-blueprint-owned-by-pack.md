@@ -3,8 +3,9 @@
 ## 1. Konteks dan Administrasi
 
 - **ID**: TRD-PLAT-008 — Blueprint milik pack
-- **Status**: **Diusulkan** (menunggu tinjauan pengguna; implementasi ada di cabang yang sama, belum di-merge)
+- **Status**: **Disetujui dan di-merge** (2026-10-09; keputusan K1–K7 ditinjau pengguna, termasuk K5 — tenant rusak dilewati di `findAll()` dengan log ERROR — dan K7 — handoff ke pack yang sama dengan blueprint berbeda tetap 409)
 - **Riwayat**: 0.1 — 2026-10-09 — Claude (riset dari kode); keputusan di §4 diambil atas nama pengguna dan wajib ditinjau.
+- **Riwayat**: 0.2 — 2026-10-09 — Pengguna menyetujui dan meminta merge; perubahan perilaku yang dikonfirmasi: handoff garment dengan blueprint di luar tiga starter ditolak; `BlueprintCodec` menolak `parameters` non-string (dulu dibuang diam-diam). Catatan integrasi: migrasi V97 bisa bentrok dengan sesi lain yang menambah V97 — nomori ulang saat integrasi.
 - **Rujukan**: `PLAN-dual-track-garment-and-general-platform.md` baris B4 ("preset = Blueprint milik pack"),
   `discovery-B4-blueprint.md`, TRD-PLAT-001-blueprint, TRD-PLAT-004/005 (kepemilikan pack),
   `tenant-variability-rules.md` Kontrak 4/5/6/7/8, `module-integration-rules.md` §5.1/§5.6.
