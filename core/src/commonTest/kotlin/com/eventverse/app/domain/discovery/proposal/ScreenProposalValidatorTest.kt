@@ -199,6 +199,21 @@ class ScreenProposalValidatorTest {
         assertIssueAt("$.seed", issues(dasbor), "tanpa entity")
     }
 
+    /** C8 (TRD-FIELD-002 Track A): seed FILE wajib kosong — referensi berbentuk FileRef sah pun ditolak,
+     *  karena baris contoh tidak boleh menunjuk objek yang tidak ada; kosong tetap sah (belum diisi). */
+    @Test
+    fun `seed FILE wajib kosong walau bentuk referensinya sah`() {
+        fun denganLampiran(nilai: String) = kanbanAntrean()
+            .withFields { f -> f + FieldProposal("lampiran", "Lampiran", FieldType.FILE) }
+            .copy(seed = listOf(mapOf("nama" to "A", "status" to "Menunggu", "lampiran" to nilai)))
+        assertIssueAt(
+            "$.seed[0].lampiran",
+            issues(denganLampiran("fields/klinik/antrean/r-1/scan-a1b2c3-scan.pdf")),
+            "wajib kosong"
+        )
+        assertEquals(emptyList(), issues(denganLampiran("")), "seed FILE kosong sah")
+    }
+
     // --- binding & path draf --------------------------------------------------------------------
     @Test
     fun `binding api hanya untuk usulan pack`() {

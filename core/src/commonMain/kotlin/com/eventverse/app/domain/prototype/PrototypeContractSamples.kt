@@ -58,7 +58,7 @@ object PrototypeContractSamples {
 
     // ---- Bentuk kontrak v2 (blok kaya + port data) — tetap non-garment (bengkel servis) ----
 
-    /** Entitas order servis: satu field per gaya kartu, mesin status di "Status". */
+    /** Entitas order servis: satu field per gaya kartu, mesin status di "Status", plus FILE (C8). */
     val orderEntity = EntitySpec(
         id = "order",
         label = "Order Servis",
@@ -68,7 +68,10 @@ object PrototypeContractSamples {
             FieldSpec("Total", "Total Biaya", FieldType.NUMBER),
             FieldSpec("Target", "Target Selesai", FieldType.DATE),
             FieldSpec("Mendesak", "Mendesak", FieldType.BOOL),
-            FieldSpec("Status", "Status", FieldType.ENUM, listOf("Baru", "Dikerjakan", "Selesai"))
+            FieldSpec("Status", "Status", FieldType.ENUM, listOf("Baru", "Dikerjakan", "Selesai")),
+            // C8 (TRD-FIELD-002): nilai = FileRef; baris contoh sengaja TANPA kunci ini (seed FILE
+            // wajib kosong — referensi karangan ke objek yang tidak ada ditolak validator).
+            FieldSpec("Lampiran", "Lampiran", FieldType.FILE)
         ),
         stateMachine = StateMachine("Status", mapOf("Baru" to setOf("Dikerjakan"), "Dikerjakan" to setOf("Selesai", "Baru")))
     )

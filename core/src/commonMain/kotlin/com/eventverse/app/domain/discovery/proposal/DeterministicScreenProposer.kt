@@ -109,7 +109,8 @@ object DeterministicScreenProposer : ScreenProposer {
     private fun stages(statuses: List<String>): String =
         if (statuses.size < 2) statuses.joinToString() else statuses.dropLast(1).joinToString() + ", lalu " + statuses.last()
 
-    private fun cardOf(f: FieldProposal): CardElement? = when (f.type) {
+    /** Internal (bukan private) supaya test penjaga FILE bisa menegakkan langsung: FILE tidak pernah jadi elemen kartu. */
+    internal fun cardOf(f: FieldProposal): CardElement? = when (f.type) {
         FieldType.DATE -> CardElement(f.key, CardStyle.DATE)
         FieldType.NUMBER -> CardElement(f.key, CardStyle.NUMBER)
         FieldType.BOOL -> CardElement(f.key, CardStyle.FLAG)
