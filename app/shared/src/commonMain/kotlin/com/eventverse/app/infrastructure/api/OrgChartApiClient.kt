@@ -7,6 +7,16 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 
+/**
+ * Galat "Muat contoh" (`POST .../restore-presets`): 403 tidak berwenang, 409 pack tak punya contoh
+ * (TRD-PLAT-010 K3). [serverMessage] adalah teks body respons, dipakai apa adanya bila ada.
+ */
+class OrgChartRestoreException(
+    val status: Int,
+    summary: String,
+    val serverMessage: String
+) : RuntimeException("$summary (HTTP $status): $serverMessage")
+
 class OrgChartApiClient(
     private val httpClient: HttpClient = HttpClient(),
     private val baseUrl: String = "",
@@ -28,6 +38,8 @@ class OrgChartApiClient(
             error("Gagal memuat divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")
         }
         val text = response.bodyAsText()
+        // Isi yang bukan array JSON = tidak terbaca (galat), bukan "kosong" (TRD-PLAT-010 FR-1).
+        if (!text.trim().startsWith("[")) error("Respons divisi tidak dapat dibaca.")
         parseJsonArray(text).map { parseDepartment(it) }
     }
 
@@ -75,6 +87,7 @@ class OrgChartApiClient(
             error("Gagal memuat karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
         }
         val text = response.bodyAsText()
+        if (!text.trim().startsWith("[")) error("Respons karyawan tidak dapat dibaca.")
         parseJsonArray(text).map { parseOrgNode(it) }
     }
 
@@ -250,7 +263,7 @@ class OrgChartApiClient(
             tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
-            error("Gagal memulihkan preset karyawan (HTTP ${response.status.value}): ${response.bodyAsText()}")
+            throw OrgChartRestoreException(response.status.value, "Gagal memuat contoh karyawan", response.bodyAsText())
         }
     }
 
@@ -262,7 +275,7 @@ class OrgChartApiClient(
             tenantRequest(tenantSlug, tokenProvider)
         }
         if (!response.status.isSuccess()) {
-            error("Gagal memulihkan preset divisi (HTTP ${response.status.value}): ${response.bodyAsText()}")
+            throw OrgChartRestoreException(response.status.value, "Gagal memuat contoh divisi", response.bodyAsText())
         }
     }
 

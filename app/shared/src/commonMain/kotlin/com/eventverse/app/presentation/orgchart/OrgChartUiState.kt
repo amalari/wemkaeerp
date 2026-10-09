@@ -4,14 +4,18 @@ import com.eventverse.app.domain.orgchart.*
 
 data class OrgChartUiState(
     val employees: List<OrgNode> = emptyList(),
-    val departments: List<Department> = Department.defaultPresets(),
+    val departments: List<Department> = emptyList(),
+    /** Keadaan pemuatan dari server (TRD-PLAT-010). Awal `Loading`; tidak pernah berisi data contoh. */
+    val loadState: OrgChartLoadState = OrgChartLoadState.Loading,
+    /** True selama "Muat contoh" menunggu server; mencegah klik ganda. */
+    val isRestoringPresets: Boolean = false,
     val selectedEmployeeId: String? = null,
     val isCreatingNew: Boolean = true,
     // Form Inputs
     val nameInput: String = "",
     val emailInput: String = "",
     val phoneInput: String = "",
-    val selectedDepartment: Department? = Department.SALES,
+    val selectedDepartment: Department? = null,
     val isDepartmentLocked: Boolean = false,
     val selectedLevel: HierarchyLevel = HierarchyLevel.STAFF_OPERATOR,
     val selectedTierName: String? = "Staf Pelaksana / Operator",
@@ -231,6 +235,9 @@ sealed interface OrgChartUiEvent {
     data object ToggleResetMenu : OrgChartUiEvent
     data object ClearAllDataToEmpty : OrgChartUiEvent
     data object RestoreDefaultPresets : OrgChartUiEvent
+
+    /** "Coba lagi" setelah [OrgChartLoadState.Failed]. */
+    data object Reload : OrgChartUiEvent
 
     // Archive Operations (menggantikan hard-delete, pola Odoo)
     data class RequestArchiveEmployee(val id: String) : OrgChartUiEvent
