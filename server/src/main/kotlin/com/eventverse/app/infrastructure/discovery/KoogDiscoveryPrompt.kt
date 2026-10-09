@@ -105,7 +105,7 @@ internal object KoogDiscoveryPrompt {
             Field RELATION wajib `target` ("entityId" atau "moduleId:entityId"); modul target harus modul pack ini
             sendiri atau modul bersama yang ditawarkan platform (aturan R1), bukan modul tata kelola/fondasi.
             `statusField` = kunci field ENUM status kerja
-            (2–8 pilihan), `transitions` = perpindahan status yang sah. Status yang berupa ALUR KERJA
+            (2–8 pilihan) — MULTI_SELECT dilarang jadi `statusField`, `transitions` = perpindahan status yang sah. Status yang berupa ALUR KERJA
             (Baru → Diproses → Selesai) wajib berurutan dengan satu kondisi awal dan satu akhir. Status
             yang bukan alur kerja — level stok (Tersedia/Menipis/Habis), status pembayaran, status
             aktif/nonaktif — KOSONGKAN `transitions` (artinya bebas berpindah), jangan menggambar

@@ -92,16 +92,30 @@ class KoogModuleEditor(
     private fun fieldOf(o: JsonValue.Obj): FieldProposal {
         val type = (o["type"] as? JsonValue.Str)?.value?.uppercase()?.let { t -> FieldType.entries.firstOrNull { it.name == t } }
             ?: error("field.type wajib salah satu ${FieldType.entries.joinToString { it.name }}")
-        val options = (o["options"] as? JsonValue.Arr)?.items?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty().take(ProposalLimits.OPTIONS)
+        val rawOptions = (o["options"] as? JsonValue.Arr)?.items?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty()
+        requireOptions(type, rawOptions)
+        val options = rawOptions.take(ProposalLimits.OPTIONS)
         val number = KoogModuleEditorNumberFormat.read(o, type)
-        val params = KoogModuleEditorFieldParams.read(o, type)
+        val params = KoogModuleEditorFieldParams.read(o, type, options)
         return FieldProposal(
             key = (o["key"] as? JsonValue.Str)?.value ?: error("field.key wajib"),
             label = (o["label"] as? JsonValue.Str)?.value ?: error("field.label wajib"),
             type = type, required = (o["required"] as? JsonValue.Bool)?.value ?: false, options = options,
             format = number.format, currencyCode = number.currencyCode,
-            withTime = params.withTime, validation = params.validation
+            withTime = params.withTime, validation = params.validation, maxSelections = params.maxSelections
         )
+    }
+
+    /**
+     * ENUM dan MULTI_SELECT wajib punya `options` tidak kosong, ≤ `ProposalLimits.OPTIONS`, dan unik (cermin
+     * `ProposalEntityRules.checkOptions`, TRD-FIELD-003 FR-1). Kelebihan opsi **ditolak**, bukan dipotong diam-diam,
+     * supaya model mendapat galat berpath — bukan opsi yang hilang tanpa jejak.
+     */
+    private fun requireOptions(type: FieldType, options: List<String>) {
+        if (type != FieldType.ENUM && type != FieldType.MULTI_SELECT) return
+        require(options.isNotEmpty()) { "field.options wajib untuk type ${type.name}" }
+        require(options.size <= ProposalLimits.OPTIONS) { "field.options ${type.name} maksimum ${ProposalLimits.OPTIONS}, dapat ${options.size}" }
+        require(options.distinct().size == options.size) { "field.options ${type.name} wajib unik" }
     }
 
     companion object {
@@ -116,7 +130,7 @@ class KoogModuleEditor(
 
             ATURAN:
             - key: huruf kecil, angka, garis bawah, diawali huruf, maksimum 41 karakter (mis. tanggal_kirim). label: nama tampil bahasa Indonesia.
-            - type salah satu: ${FieldType.entries.joinToString { it.name }}. ENUM wajib punya options (maksimum ${ProposalLimits.OPTIONS}); tipe lain tanpa options. LONG_TEXT untuk isi sekalimat atau lebih (catatan, keluhan, deskripsi); TEXT untuk nama/kode/judul satu baris.
+            - type salah satu: ${FieldType.entries.joinToString { it.name }}. ENUM wajib punya options unik (maksimum ${ProposalLimits.OPTIONS}) dan dipakai untuk nilai tunggal/status; MULTI_SELECT juga wajib options unik dan boleh membawa maxSelections 1..jumlah opsi, dipakai HANYA untuk atribut berlabel ganda (banyak nilai sekaligus) dan TIDAK boleh dipakai sebagai field status; tipe lain tanpa options. LONG_TEXT untuk isi sekalimat atau lebih (catatan, keluhan, deskripsi); TEXT untuk nama/kode/judul satu baris.
             - ${KoogDiscoveryNumberFormatVocabulary.promptRule}. Jangan mengubah format/currencyCode field yang tidak diminta.
             - ${KoogDiscoveryDateTimeValidationVocabulary.promptRule}. Jangan mengubah withTime/validation field yang tidak diminta.
             - Maksimum $MAX_EDITS sunting per jawaban. Jangan membuang atau mengganti tipe field status. Jangan menambah field yang sudah ada.
@@ -129,6 +143,7 @@ class KoogModuleEditor(
             {"op":"add","field":{"key":"harga","label":"Harga","type":"NUMBER","required":false,"options":[],"format":"CURRENCY","currencyCode":"IDR"}},
             {"op":"add","field":{"key":"jadwal","label":"Jadwal","type":"DATE","required":false,"options":[],"withTime":true}},
             {"op":"add","field":{"key":"email","label":"Email","type":"TEXT","required":false,"options":[],"validation":"EMAIL"}},
+            {"op":"add","field":{"key":"layanan","label":"Layanan dibeli","type":"MULTI_SELECT","required":false,"options":["Digitizing","Hooping"],"maxSelections":1}},
             {"op":"remove","key":"..."},{"op":"replace","key":"...","field":{"key":"<sama>","label":"...","type":"ENUM","required":true,"options":["a","b"]}}]}
         """.trimIndent()
     }
