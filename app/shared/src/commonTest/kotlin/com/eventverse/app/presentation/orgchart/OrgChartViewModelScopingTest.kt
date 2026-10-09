@@ -19,7 +19,8 @@ class OrgChartViewModelScopingTest {
             tenantSlug = "wemade-demo",
             access = access,
             viewerDepartmentId = "dept-warehouse",
-            viewerEmployeeId = "emp-sl-1"
+            viewerEmployeeId = "emp-sl-1",
+            seed = OrgChartSeed.GarmentSample
         )
         val state = viewModel.uiState.value
 
@@ -66,7 +67,8 @@ class OrgChartViewModelScopingTest {
         val viewModel = OrgChartViewModel(
             tenantSlug = "wemade-demo",
             access = access,
-            viewerDepartmentId = "dept-warehouse"
+            viewerDepartmentId = "dept-warehouse",
+            seed = OrgChartSeed.GarmentSample
         )
 
         val employees = viewModel.uiState.value.employees
@@ -94,7 +96,8 @@ class OrgChartViewModelScopingTest {
         )
         val viewModel = OrgChartViewModel(
             tenantSlug = "wemade-demo",
-            access = access
+            access = access,
+            seed = OrgChartSeed.GarmentSample
         )
         val state = viewModel.uiState.value
 
@@ -115,7 +118,8 @@ class OrgChartViewModelScopingTest {
         )
         val viewModel = OrgChartViewModel(
             tenantSlug = "wemade-demo",
-            access = access
+            access = access,
+            seed = OrgChartSeed.GarmentSample
         )
         val state = viewModel.uiState.value
 
@@ -152,7 +156,8 @@ class OrgChartViewModelScopingTest {
             tenantSlug = "wemade-demo",
             access = access,
             viewerDepartmentId = "dept-warehouse",
-            viewerEmployeeId = "emp-sl-1"
+            viewerEmployeeId = "emp-sl-1",
+            seed = OrgChartSeed.GarmentSample
         )
         val state = viewModel.uiState.value
 
