@@ -24,12 +24,15 @@ internal object KoogDiscoveryFieldTypeVocabulary {
             "di seed ditulis sebagai teks biasa"
         FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
         FieldType.DATE -> "tanggal ISO YYYY-MM-DD; parameter `withTime` true untuk waktu bermenit YYYY-MM-DDTHH:MM, lihat fieldParams"
-        FieldType.ENUM -> "wajib options 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk status kerja"
-        // A0 (TRD-FIELD-003): kompilasi-forced. Katalog/prompt penuh (kapan MULTI_SELECT vs ENUM) = Track B.
-        FieldType.MULTI_SELECT -> "pilihan ganda dari daftar tertutup (atribut berlabel ganda: alergi, layanan, jenis bahan); " +
-            "wajib options unik 2-${ProposalLimits.OPTIONS}; parameter opsional `maxSelections` (1..jumlah opsi) membatasi " +
-            "jumlah pilihan; BUKAN status kerja (jangan dipakai sebagai statusField) dan di seed ditulis sebagai array JSON, " +
-            "mis. [\"a\",\"b\"]"
+        FieldType.ENUM -> "wajib options unik 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk nilai TUNGGAL — status kerja " +
+            "(statusField/StateMachine) dan atribut yang hanya boleh punya satu nilai; atribut berlabel ganda pakai " +
+            "MULTI_SELECT"
+        // Track B (TRD-FIELD-003): aturan pembeda dari ENUM + larangan statusField.
+        FieldType.MULTI_SELECT -> "MULTI_SELECT: pilihan ganda dari daftar tertutup (beberapa nilai sekaligus: alergi pasien, " +
+            "layanan dibeli, jenis bahan); wajib options unik 2-${ProposalLimits.OPTIONS}; parameter opsional `maxSelections` " +
+            "(1..jumlah opsi) membatasi jumlah pilihan; PILIH INI HANYA bila nilai boleh lebih dari satu — satu nilai saja " +
+            "tetap ENUM; BUKAN status kerja: dilarang dipakai sebagai statusField/StateMachine (status selalu ENUM) dan di " +
+            "seed ditulis sebagai array JSON nama opsi, mis. [\"Gigi\",\"Jantung\"]"
         FieldType.BOOL -> "nilai \"ya\" atau \"tidak\""
         // C7 (TRD-FIELD-001): rujukan antar entitas; FR-6 — wajib target, seed kosong.
         FieldType.RELATION -> "rujukan antar entitas/modul; parameter `target` wajib (\"entityId\" atau " +
@@ -39,10 +42,11 @@ internal object KoogDiscoveryFieldTypeVocabulary {
             "butuh server ber-S3 (bila storage belum terkonfigurasi, semua field FILE ditolak 503)"
     }
 
-    /** Aturan prompt: daftar tipe + pemilihan TEXT vs LONG_TEXT. Satu baris (disisipkan ke teks ber-indentasi). */
+    /** Aturan prompt: daftar tipe + pemilihan ENUM vs MULTI_SELECT vs TEXT/LONG_TEXT. Satu baris (disisipkan ke teks ber-indentasi). */
     val promptRule: String
-        get() = "`fields` bertipe {$names} (ENUM wajib `options` 2–${ProposalLimits.OPTIONS} pilihan; tipe lain tanpa " +
-            "`options`; ${FieldType.LONG_TEXT} untuk isi sekalimat atau lebih seperti catatan/keluhan/deskripsi, " +
+        get() = "`fields` bertipe {$names} (ENUM wajib `options` unik 2–${ProposalLimits.OPTIONS} untuk satu nilai; " +
+            "MULTI_SELECT = pilihan ganda, `options` unik & `maxSelections` opsional, dilarang jadi statusField; " +
+            "tipe lain tanpa `options`; ${FieldType.LONG_TEXT} untuk isi sekalimat atau lebih; " +
             "${FieldType.TEXT} untuk nama/kode/judul satu baris); " +
             KoogDiscoveryNumberFormatVocabulary.promptRule + "; " + KoogDiscoveryDateTimeValidationVocabulary.promptRule
 }
