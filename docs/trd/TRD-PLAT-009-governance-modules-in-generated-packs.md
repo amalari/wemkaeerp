@@ -3,7 +3,7 @@
 ## 1. Konteks dan Administrasi
 
 - **ID**: TRD-PLAT-009 — Modul tata kelola di pack hasil jalur generatif
-- **Status**: **Diusulkan** (keputusan di §4 diambil atas nama pengguna; wajib ditinjau sebelum merge)
+- **Status**: **Disetujui dan di-merge** (2026-10-09; keputusan 1–6 ditinjau pengguna). Catatan: urutan seksi/modul governance di depan daftar pack belum dilihat di UI; handoff ulang pack hasil handoff lama kini 409 sampai ada versi pack baru.
 - **Riwayat**: 0.1 — 2026-10-09 — Claude (riset dari kode). Temuan cek visual butir 4.
 - **Rujukan**: TRD-PLAT-004/005 (kepemilikan pack), TRD-PLAT-008 (pola kerja), `module-integration-rules.md` §5.2/§5.6,
   `tenant-variability-rules.md` Kontrak 5/7.
