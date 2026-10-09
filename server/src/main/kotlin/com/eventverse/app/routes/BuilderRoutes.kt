@@ -167,7 +167,7 @@ fun Route.builderRoutes(
                 return@get
             }
             val tenant = call.tenantContext
-            val stored = bootstrapDrafts(tenant.tenantId, tenant.domainPack, ownerUserId)
+            val stored = bootstrapDrafts(tenant.tenantId, tenant.domainPack, ownerUserId, tenant.businessPreset.code)
             call.respondText(
                 stored?.let { summaryObj(it).encode() } ?: "null",
                 ContentType.Application.Json

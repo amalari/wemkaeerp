@@ -2,6 +2,7 @@ package com.eventverse.app.domain.builder
 
 import com.eventverse.app.domain.auth.UserId
 import com.eventverse.app.domain.blueprint.Blueprint
+import com.eventverse.app.domain.blueprint.BlueprintCode
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
@@ -25,7 +26,11 @@ import kotlinx.datetime.Clock
  * Sumber data, mengikuti tangga keputusan tenant-variability:
  * - **Pack** dari [DomainPackRegistry] sesuai `domain_pack` tenant (shipped garment dulu; pack data
  *   mengikuti begitu terdaftar).
- * - **Blueprint** starter pertama milik pack itu — hanya kerangkanya; aktif/non-aktif ditentukan data.
+ * - **Blueprint** hanya kerangkanya; aktif/non-aktif ditentukan data. Sumber (B4, urutan yang sama dengan
+ *   `resolveBlueprint`): (1) `DomainPack.blueprints` milik pack — yang berkode sama dengan starter tersimpan tenant
+ *   (`business_preset`) bila ada, selain itu blueprint pertama pack (tenant data tak pernah memilih starter, kolomnya
+ *   berisi nilai bawaan platform yang bukan milik pack); (2) pack tanpa blueprint (garment) → starter platform
+ *   [GarmentBlueprints] pertama milik pack — tak berubah; (3) selain itu `null`.
  * - **Modul aktif** dari pipeline tenant ([TenantPipelineRepository]): node non-bypass, non-plugin.
  *   Invarian [DiscoveryDraft] menuntut blueprint hanya menyebut modul milik pack-nya sendiri, jadi
  *   irisan dengan blueprint yang dipakai; modul plugin/luar blueprint tidak dipaksa masuk.
@@ -50,15 +55,14 @@ class EnsureTenantWorkingDraftUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         domainPack: DomainPackCode,
-        ownerUserId: UserId
+        ownerUserId: UserId,
+        tenantBlueprintCode: BlueprintCode? = null
     ): StoredDiscoveryDraft? {
         val pack = DomainPackRegistry.find(domainPack) ?: return null
-        // Draf yang sudah ada dan sudah berlayar dikembalikan **sebelum** blueprint dicari: pack data (mis. `layanan`)
-        // tidak punya blueprint di GarmentBlueprints.all, dan dulu fungsi ini berhenti di sana walau draf-nya sudah
-        // tersimpan. Perilaku garmen tak berubah (draf berlayar memang tak pernah disentuh), dan pack tanpa
-        // blueprint tetap TIDAK dibuatkan draf — membuat draf untuk pack data umum adalah pekerjaan terpisah.
+        // Draf yang sudah ada dan sudah berlayar dikembalikan **sebelum** blueprint dicari: draf berlayar tak pernah
+        // disentuh, jadi tak perlu blueprint. Pack tanpa blueprint sama sekali tetap TIDAK dibuatkan draf.
         drafts.findByTenant(tenantId)?.takeIf { it.draft.screens.isNotEmpty() }?.let { return it }
-        val blueprint = GarmentBlueprints.all.firstOrNull { it.pack == pack.code } ?: return null
+        val blueprint = starterBlueprintFor(pack, tenantBlueprintCode) ?: return null
         val effectiveActive = effectiveActiveCodes(tenantId, blueprint)
 
         drafts.findByTenant(tenantId)?.let { existing ->
@@ -97,6 +101,20 @@ class EnsureTenantWorkingDraftUseCase(
             )
         }.getOrNull()
     }
+
+    /**
+     * Blueprint kerangka draf. Pack berblueprint memakai miliknya: kode tersimpan tenant dipilih bila milik pack,
+     * selain itu yang pertama — kode tenant yang bukan milik pack (nilai bawaan platform) bukan kesalahan di sini,
+     * karena pencarian kode lintas katalog adalah tugas `resolveBlueprint` untuk tenant, sedangkan draf hanya butuh
+     * kerangka yang sah bagi pack-nya (invarian [DiscoveryDraft]). Pack tanpa blueprint → starter platform
+     * pertama untuk pack itu (garment; paritas), atau `null`.
+     */
+    private fun starterBlueprintFor(pack: DomainPack, tenantBlueprintCode: BlueprintCode?): Blueprint? =
+        if (pack.blueprints.isNotEmpty()) {
+            pack.blueprints.firstOrNull { it.code == tenantBlueprintCode } ?: pack.blueprints.first()
+        } else {
+            GarmentBlueprints.all.firstOrNull { it.pack == pack.code }
+        }
 
     /** Modul aktif blueprint, diiriskan node pipeline tenant yang benar-benar jalan (fail-soft tanpa pipeline). */
     private suspend fun effectiveActiveCodes(tenantId: TenantId, blueprint: Blueprint): Set<String> {
