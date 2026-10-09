@@ -13,6 +13,9 @@ import com.eventverse.app.domain.pack.DomainPackRepository
 import com.eventverse.app.domain.pack.DomainPackStatus
 import com.eventverse.app.domain.pack.StoredDomainPack
 import com.eventverse.app.domain.pack.resolveBlueprint
+import com.eventverse.app.domain.pack.withGovernanceModules
+import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.prospect.LeadStatus
 import com.eventverse.app.domain.prospect.ProspectLead
 import com.eventverse.app.domain.prospect.ProspectLeadId
@@ -152,7 +155,7 @@ class DiscoveryHandoffUseCasesTest {
         assertEquals(DomainPackStatus.LOCKED, packs.findLatest(draft.pack.code)!!.status)
         // Pack data baru langsung dikenal registry — layar modulnya aktif lewat jalur B7.
         // TRD-PLAT-008: starter tenant kini milik pack, jadi pack yang tersimpan/terdaftar membawa blueprint draf.
-        val ownedPack = draft.pack.copy(blueprints = listOf(draft.blueprint))
+        val ownedPack = draft.pack.copy(blueprints = listOf(draft.blueprint)).withGovernanceModules()
         assertEquals(ownedPack, DomainPackRegistry.find(draft.pack.code))
         assertEquals(ownedPack, packs.findLatest(draft.pack.code)!!.pack)
         assertEquals(draft.blueprint, resolveBlueprint(DomainPackRegistry.find(result.tenant.domainPack), result.tenant.businessPreset.code))
@@ -253,6 +256,61 @@ class DiscoveryHandoffUseCasesTest {
         assertNull(result.packVersion) // Pack bawaan dikirim sebagai kode; tidak ada baris versi baru.
         assertTrue(packs.rows.isEmpty())
         assertEquals(result.tenant.businessPreset.code, drafts.findById(id)!!.draft.blueprint.code)
+    }
+
+    // ── TRD-PLAT-009: modul tata kelola wajib di pack hasil handoff ─────────────────────────────────
+
+    @Test
+    fun `handoff klinik menyimpan pack dengan org_chart dan dynamic_rbac berjenis GOVERNANCE`() = runTest {
+        val id = lockedKlinik()
+        val draft = drafts.findById(id)!!.draft
+        assertNull(draft.pack.module(GarmentModules.DYNAMIC_RBAC), "fixture non-default: draf klinik tak memuat governance")
+
+        val result = handoff(id, isPlatformSuperadmin = true, tenantSlug = "klinik-sehat", companyName = "Klinik Sehat").getOrThrow()
+
+        val saved = packs.findLatest(result.packCode)!!.pack
+        listOf(GarmentModules.ORG_CHART, GarmentModules.DYNAMIC_RBAC).forEach { m ->
+            val def = saved.module(m)
+            assertEquals(ModuleKind.GOVERNANCE, def?.kind)
+            assertNull(def?.slot, "tata kelola tidak di kanvas")
+            assertEquals(GarmentModules.modules.first { it.id == m }, def, "salinan identik")
+        }
+        assertTrue(saved.sections.any { it.code.value == "GOVERNANCE" })
+        assertEquals(draft.pack.modules.size + 2, saved.modules.size)
+        assertEquals(draft.pack, drafts.findById(id)!!.draft.pack, "draf terkunci tidak berubah")
+    }
+
+    @Test
+    fun `withGovernanceModules idempoten dan tidak menggandakan`() = runTest {
+        val pack = drafts.also { lockedKlinik() }.findById(DiscoveryDraftId("draft-1"))!!.draft.pack
+        val once = pack.withGovernanceModules()
+        assertEquals(once, once.withGovernanceModules())
+        assertEquals(1, once.modules.count { it.id == GarmentModules.DYNAMIC_RBAC })
+        assertEquals(1, once.sections.count { it.code.value == "GOVERNANCE" })
+    }
+
+    @Test
+    fun `handoff ulang pack hasil handoff baru identik, pack lama tanpa governance butuh review manual`() = runTest {
+        val a = handoff(lockedKlinik(), isPlatformSuperadmin = true, tenantSlug = "klinik-a", companyName = "Klinik A").getOrThrow()
+        val b = handoff(lockedKlinik(DiscoveryDraftId("draft-2")), isPlatformSuperadmin = true, tenantSlug = "klinik-b", companyName = "Klinik B").getOrThrow()
+        assertEquals(a.packVersion, b.packVersion, "reuse versi terkunci, tidak ada versi baru")
+
+        // Pack lama (hasil handoff sebelum TRD-PLAT-009): versi tersimpan tanpa governance tidak ditimpa diam-diam.
+        val lama = packs.findLatest(a.packCode)!!
+        packs.rows.removeAll { it.pack.code == a.packCode }
+        packs.save(lama.copy(pack = lama.pack.copy(modules = lama.pack.modules.filterNot { it.kind == ModuleKind.GOVERNANCE })))
+        val ex = assertFailsWith<IllegalStateException> {
+            handoff(lockedKlinik(DiscoveryDraftId("draft-3")), isPlatformSuperadmin = true, tenantSlug = "klinik-c", companyName = "Klinik C").getOrThrow()
+        }
+        assertTrue(ex.message!!.contains("review manual"))
+    }
+
+    @Test
+    fun `handoff garment tetap tak menyentuh pack bawaan`() = runTest {
+        assertEquals(
+            com.eventverse.app.domain.pack.GarmentDomainPack.pack,
+            com.eventverse.app.domain.pack.GarmentDomainPack.pack.withGovernanceModules()
+        )
     }
 
     private fun runTest(block: suspend () -> Unit) = kotlinx.coroutines.test.runTest { block() }

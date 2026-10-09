@@ -8,6 +8,7 @@ import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.DomainPackRepository
 import com.eventverse.app.domain.pack.resolveBlueprint
+import com.eventverse.app.domain.pack.withGovernanceModules
 import com.eventverse.app.domain.pack.usecases.AssignTenantDomainPackUseCase
 import com.eventverse.app.domain.pack.usecases.LockDomainPackUseCase
 import com.eventverse.app.domain.pack.usecases.SaveDomainPackDraftUseCase
@@ -128,7 +129,9 @@ class HandoffDiscoveryDraftUseCase(
             }
             stored.draft.pack
         } else {
+            // TRD-PLAT-009: pack runtime wajib membawa modul tata kelola (org_chart + dynamic_rbac), salinan identik.
             stored.draft.pack.let { it.copy(blueprints = it.blueprints.filter { b -> b.code != blueprint.code } + blueprint) }
+                .withGovernanceModules()
         }
 
         // Validasi versi pack **sebelum** tenant dibuat — kegagalan 409 tidak boleh meninggalkan tenant yatim.
