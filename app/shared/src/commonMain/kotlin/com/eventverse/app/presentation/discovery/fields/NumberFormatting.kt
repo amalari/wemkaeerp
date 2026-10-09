@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.discovery.fields
 
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.presentation.common.fileRefDisplayName
 import com.eventverse.app.presentation.designsystem.displayIsoDateTime
@@ -136,5 +137,7 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     // call site (tabel/kanban); di sini nilai tersimpan apa adanya (fallback id).
     // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
     FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
+    // A0 (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON); gaya chip = Track C.
+    FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ") ?: stored
     FieldType.FILE -> fileRefDisplayName(stored)
 }

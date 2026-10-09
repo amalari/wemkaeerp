@@ -41,6 +41,9 @@ internal object SpecPostgresWriter {
             appendLine("import com.eventverse.app.domain.prototype.PrototypeRow")
             appendLine("import com.eventverse.app.domain.tenant.TenantId")
             appendLine("import com.eventverse.app.infrastructure.tables.$objectName")
+            if (t.columns.any { it.field.type == FieldType.MULTI_SELECT }) {
+                appendLine("import com.eventverse.app.domain.prototype.MultiSelectValues")
+            }
             appendLine("import kotlinx.datetime.Clock")
             appendLine("import kotlinx.datetime.LocalDate")
             appendLine("import kotlinx.datetime.LocalDateTime")
@@ -111,6 +114,8 @@ internal object SpecPostgresWriter {
             FieldType.NUMBER -> "decimal($n, 18, 4)"
             FieldType.DATE -> if (c.field.withTime) "datetime($n)" else "date($n)"
             FieldType.ENUM -> "varchar($n, 120)"
+            // A0 (TRD-FIELD-003 R1): kolom larik Exposed; Postgres `TEXT[]` (lihat SpecColumns.sqlDefinition).
+            FieldType.MULTI_SELECT -> "array<String>($n)"
             FieldType.BOOL -> "bool($n).default(false)"
             // C7: rujukan logis (tanpa REFERENCES — lihat SpecColumns.sqlDefinition).
             FieldType.RELATION -> "varchar($n, 64)"
@@ -124,6 +129,8 @@ internal object SpecPostgresWriter {
         val optional = !c.field.required
         return when (c.field.type) {
             FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE -> if (optional) "$raw.ifBlank { null }" else raw
+            // A0 (TRD-FIELD-003): "" ↔ null (belum diisi); array ditulis dari string JSON kanonik.
+            FieldType.MULTI_SELECT -> if (optional) "MultiSelectValues.parse($raw)" else "MultiSelectValues.parse($raw).orEmpty()"
             FieldType.NUMBER -> if (optional) "$raw.takeIf { it.isNotBlank() }?.toBigDecimal()" else "$raw.toBigDecimal()"
             FieldType.DATE -> {
                 val parser = if (c.field.withTime) "LocalDateTime" else "LocalDate"
@@ -137,6 +144,12 @@ internal object SpecPostgresWriter {
         val cell = "r[$tbl.${c.prop}]"
         return when (c.field.type) {
             FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE -> if (c.field.required) cell else "($cell ?: \"\")"
+            // A0 (TRD-FIELD-003): baca larik → string JSON kanonik (urut menurut options); null ↔ "".
+            FieldType.MULTI_SELECT -> {
+                val opts = c.field.options.joinToString(", ") { SpecNaming.kString(it) }
+                if (c.field.required) "MultiSelectValues.encode($cell, listOf($opts))"
+                else "($cell?.let { MultiSelectValues.encode(it, listOf($opts)) } ?: \"\")"
+            }
             FieldType.NUMBER -> if (c.field.required) "$cell.stripTrailingZeros().toPlainString()" else "($cell?.stripTrailingZeros()?.toPlainString() ?: \"\")"
             FieldType.DATE -> if (c.field.required) "$cell.toString()" else "($cell?.toString() ?: \"\")"
             FieldType.BOOL -> "(if ($cell) \"ya\" else \"tidak\")"

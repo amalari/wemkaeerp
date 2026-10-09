@@ -3,6 +3,7 @@ package com.eventverse.app.domain.discovery.proposal
 import com.eventverse.app.domain.prototype.CurrencyCode
 import com.eventverse.app.domain.prototype.DateFieldValues
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TextValidations
@@ -43,6 +44,17 @@ internal object ProposalEntityRules {
             if (f.type != FieldType.TEXT && f.validation != TextValidation.NONE) {
                 sink.add("$at.validation", "Field '${f.key}' bertipe ${f.type.name}, bukan TEXT, jadi tidak boleh punya validation ${f.validation.name}")
             }
+            // A0 (TRD-FIELD-003): maxSelections hanya sah untuk MULTI_SELECT, dan (bila diisi) 1..options.size.
+            if (f.type != FieldType.MULTI_SELECT) {
+                if (f.maxSelections != null) {
+                    sink.add("$at.maxSelections", "Field '${f.key}' bertipe ${f.type.name}, bukan MULTI_SELECT, jadi tidak boleh punya maxSelections")
+                }
+            } else {
+                val max = f.maxSelections
+                if (max != null && (max < 1 || max > f.options.size)) {
+                    sink.add("$at.maxSelections", "Field MULTI_SELECT '${f.key}' maxSelections harus 1..${f.options.size}, dapat $max")
+                }
+            }
             checkTarget(f, at, sink, packModuleIds)
         }
         checkStatus(entity, sink)
@@ -77,11 +89,12 @@ internal object ProposalEntityRules {
     }
 
     private fun checkOptions(f: FieldProposal, at: String, sink: IssueSink) {
-        if (f.type != FieldType.ENUM) {
-            if (f.options.isNotEmpty()) sink.add("$at.options", "Field '${f.key}' bertipe ${f.type.name}, bukan ENUM, jadi tidak boleh punya options")
+        // A0 (TRD-FIELD-003): ENUM dan MULTI_SELECT sama-sama wajib opsi (unik, ≤ batas); tipe lain tanpa opsi.
+        if (f.type != FieldType.ENUM && f.type != FieldType.MULTI_SELECT) {
+            if (f.options.isNotEmpty()) sink.add("$at.options", "Field '${f.key}' bertipe ${f.type.name}, bukan ENUM atau MULTI_SELECT, jadi tidak boleh punya options")
             return
         }
-        if (f.options.isEmpty()) sink.add("$at.options", "Field ENUM '${f.key}' wajib punya options")
+        if (f.options.isEmpty()) sink.add("$at.options", "Field ${f.type.name} '${f.key}' wajib punya options")
         if (f.options.size > ProposalLimits.OPTIONS) {
             sink.add("$at.options", "Field '${f.key}' punya ${f.options.size} pilihan; maksimum ${ProposalLimits.OPTIONS}")
         }
@@ -145,6 +158,10 @@ internal object ProposalEntityRules {
         if (v.isEmpty()) return
         when (f.type) {
             FieldType.ENUM -> if (v !in f.options) sink.add(at, "'$v' bukan pilihan '${f.key}' (${f.options.joinToString()})")
+            // A0 (TRD-FIELD-003): seed MULTI_SELECT wajib array JSON kanonik dari opsi (aturan tunggal MultiSelectValues).
+            FieldType.MULTI_SELECT -> if (!MultiSelectValues.isValid(v, f.options, f.maxSelections)) {
+                sink.add(at, "'$v' bukan pilihan ganda yang sah untuk field '${f.key}' (${f.options.joinToString()})")
+            }
             FieldType.NUMBER -> if (v.toDoubleOrNull() == null) sink.add(at, "'$v' bukan angka untuk field '${f.key}'")
             FieldType.BOOL -> if (v != "ya" && v != "tidak") sink.add(at, "Field BOOL '${f.key}' hanya menerima 'ya' atau 'tidak', dapat '$v'")
             FieldType.DATE -> if (!DateFieldValues.isValid(v, f.withTime)) sink.add(

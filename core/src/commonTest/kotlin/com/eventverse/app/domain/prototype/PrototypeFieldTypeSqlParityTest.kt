@@ -34,6 +34,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.NUMBER -> "NUMERIC(18,4)"
         FieldType.DATE -> "DATE"
         FieldType.ENUM -> "VARCHAR(120)"
+        FieldType.MULTI_SELECT -> "TEXT[]"
         FieldType.BOOL -> "BOOLEAN"
         FieldType.RELATION -> "VARCHAR(64)"
     }
@@ -43,6 +44,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.NUMBER -> "decimal("
         FieldType.DATE -> "date("
         FieldType.ENUM -> "varchar("
+        FieldType.MULTI_SELECT -> "array<"
         FieldType.BOOL -> "bool("
         FieldType.RELATION -> "varchar("
     }
@@ -163,7 +165,8 @@ class PrototypeFieldTypeSqlParityTest {
 
     @Test
     fun fieldSpec_nonEnumTypeWithOptions_isRejected() {
-        FieldType.entries.filter { it != FieldType.ENUM }.forEach { type ->
+        // A0 (TRD-FIELD-003): MULTI_SELECT juga sah beropsi; sisanya ditolak.
+        FieldType.entries.filter { it != FieldType.ENUM && it != FieldType.MULTI_SELECT }.forEach { type ->
             val result = runCatching { FieldSpec("k", "K", type, listOf("a")) }
             assertTrue(result.isFailure, "$type dengan opsi harus ditolak")
         }

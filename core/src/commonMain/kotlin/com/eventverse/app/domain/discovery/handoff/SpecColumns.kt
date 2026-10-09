@@ -38,6 +38,16 @@ internal fun SpecColumn.sqlDefinition(): String {
         // withTime (A0(C6)): waktu dinding tanpa zona = TIMESTAMP (bukan TIMESTAMPTZ), tepat menit di tingkat nilai.
         FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
         FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.options.joinToString(", ") { SpecNaming.sqlString(it) }}))"
+        // A0 (TRD-FIELD-003 R1): kolom larik Postgres; opsi tetap dijaga DB lewat `<@` (subset dari opsi).
+        // required menambah cardinality > 0 ("[]" tersimpan tidak sah), maxSelections menambah batas atas.
+        FieldType.MULTI_SELECT -> buildString {
+            append("TEXT[]").append(notNull)
+            append(" CHECK (").append(name).append(" <@ ARRAY[")
+            append(field.options.joinToString(", ") { SpecNaming.sqlString(it) })
+            append("]::text[])")
+            if (field.required) append(" CHECK (cardinality($name) > 0)")
+            field.maxSelections?.let { append(" CHECK (cardinality($name) <= $it)") }
+        }
         FieldType.BOOL -> "BOOLEAN NOT NULL DEFAULT FALSE"
         // C7 (TRD-FIELD-001 FR-1): rujukan LOGIS — id baris target saja, TANPA `REFERENCES` lintas schema
         // (pagar J3 TRD-PLAT-004; promosi modul = salin + prefiks baru mematahkan FK fisik). Keberadaan

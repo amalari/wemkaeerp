@@ -91,6 +91,8 @@ internal object ScreenSuggestionCodec {
             if (f.withTime) put("withTime", jsonOf(true))
             if (f.validation != TextValidation.NONE) put("validation", jsonOf(f.validation.name))
             f.target?.let { put("target", jsonOf(it)) }
+            // A0 (TRD-FIELD-003): maxSelections ditulis hanya bila bukan null → pack lama byte-identik.
+            f.maxSelections?.let { put("maxSelections", jsonOf(it)) }
         }
     )
 
@@ -120,7 +122,8 @@ internal object ScreenSuggestionCodec {
                     currencyCode = FieldParamWire.currencyCode(f),
                     withTime = f.strictBoolean("withTime", false),
                     validation = FieldParamWire.textValidation(f),
-                    target = FieldParamWire.target(f)
+                    target = FieldParamWire.target(f),
+                    maxSelections = FieldParamWire.maxSelections(f)
                 )
             }
         val moduleId = try {

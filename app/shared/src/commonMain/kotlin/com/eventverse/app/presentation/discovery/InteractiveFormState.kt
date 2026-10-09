@@ -120,7 +120,8 @@ class InteractiveFormState(
             formValues[f.key] = when (f.type) {
                 FieldType.BOOL -> "tidak"
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.RELATION, FieldType.FILE -> ""
+                // A0 (TRD-FIELD-003): MULTI_SELECT default kosong (belum ada pilihan); chip = Track C.
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE -> ""
             }
         }
     }

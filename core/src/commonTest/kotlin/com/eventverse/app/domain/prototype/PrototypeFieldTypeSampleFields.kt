@@ -13,6 +13,7 @@ object PrototypeFieldTypeSampleFields {
         FieldType.NUMBER -> FieldSpec("jumlah_titik", "Jumlah titik", type, required = required)
         FieldType.DATE -> FieldSpec("tanggal_desain", "Tanggal desain", type, required = required)
         FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, listOf("Digitizing", "Hooping", "Selesai"), required)
+        FieldType.MULTI_SELECT -> FieldSpec("layanan_dibeli", "Layanan dibeli", type, listOf("Digitizing", "Hooping", "Selesai"), required, maxSelections = 2)
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
         FieldType.RELATION -> FieldSpec("rujukan_po", "Rujukan PO", type, required = required, target = "pesanan")
         FieldType.FILE -> FieldSpec("lampiran_scan", "Lampiran scan", type, required = required)
@@ -28,6 +29,8 @@ object PrototypeFieldTypeSampleFields {
         FieldType.NUMBER -> "12000"
         FieldType.DATE -> "2026-10-08"
         FieldType.ENUM -> "Hooping"
+        // Kanonik: urut menurut options, tanpa duplikat, ≤ maxSelections (2).
+        FieldType.MULTI_SELECT -> "[\"Digitizing\",\"Hooping\"]"
         FieldType.BOOL -> "ya"
         FieldType.RELATION -> "po-001"
         FieldType.FILE -> "fields/ten-bordir/pesanan_bordir/r-1/lampiran_scan-a1b2c3-scan.pdf"

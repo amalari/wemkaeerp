@@ -19,6 +19,7 @@ internal object SpecRoutesWriter {
         val path = "/api/tenant/modules/" + t.schema + "/" + t.table
         val dateCols = t.columns.filter { it.field.type == FieldType.DATE }
         val validatedTextCols = t.columns.filter { it.field.type == FieldType.TEXT && it.field.validation != TextValidation.NONE }
+        val multiCols = t.columns.filter { it.field.type == FieldType.MULTI_SELECT }
         return buildString {
             appendLine("package com.eventverse.app.routes")
             appendLine()
@@ -48,6 +49,7 @@ internal object SpecRoutesWriter {
             appendLine("private val SPEC = PrototypeSpec(listOf(${entityLiteral(t.entity)}), emptyList())")
             appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
             appendLine("private val TEXT_FIELDS = listOf<FieldSpec>(${validatedTextCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TEXT, validation = TextValidation." + it.field.validation.name + ")" }})")
+            appendLine("private val MULTI_FIELDS = listOf<FieldSpec>(${multiCols.joinToString(", ") { c -> "FieldSpec(" + SpecNaming.kString(c.field.key) + ", " + SpecNaming.kString(c.field.label) + ", FieldType.MULTI_SELECT, listOf(" + c.field.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + c.field.required + (c.field.maxSelections?.let { ", maxSelections = $it" } ?: "") + ")" }})")
             appendLine()
             appendLine("/**")
             appendLine(" * CRUD ${t.entity.label}: baca = VIEW, tambah/ubah (termasuk pindah status) = OPERATE, hapus = MANAGE.")
@@ -92,7 +94,7 @@ internal object SpecRoutesWriter {
             appendLine("            val tenant = call.authorized(AccessLevel.OPERATE) ?: return@post")
             appendLine("            val values = call.bodyValues() ?: return@post")
             appendLine("            val row = PrototypeRow(ID_PREFIX + \"-\" + UUID.randomUUID(), values)")
-            appendLine("            val problem = dateProblem(values) ?: textProblem(values)")
+            appendLine("            val problem = dateProblem(values) ?: textProblem(values) ?: multiProblem(values)")
             appendLine("                ?: PrototypeReducer.reduce(SPEC, PrototypeStore(), PrototypeAction.Create(ENTITY_ID, row)).exceptionOrNull()?.message")
             appendLine("            if (problem != null) return@post call.respond(HttpStatusCode.BadRequest, problem)")
             appendLine("            repository.save(tenant.tenantId, row)")
@@ -103,7 +105,7 @@ internal object SpecRoutesWriter {
             appendLine("            val id = call.parameters[\"id\"].orEmpty()")
             appendLine("            val values = call.bodyValues() ?: return@put")
             appendLine("            val current = repository.find(tenant.tenantId, id) ?: return@put call.respond(HttpStatusCode.NotFound, \"Data tidak ditemukan.\")")
-            appendLine("            var problem = dateProblem(values) ?: textProblem(values)")
+            appendLine("            var problem = dateProblem(values) ?: textProblem(values) ?: multiProblem(values)")
             appendLine("            var store = PrototypeStore(mapOf(ENTITY_ID to listOf(current)))")
             appendLine("            if (problem == null) {")
             appendLine("                for ((key, value) in values) {")
@@ -143,6 +145,12 @@ internal object SpecRoutesWriter {
             appendLine("    val v = values[f.key].orEmpty()")
             appendLine("    if (v.isNotBlank() && !f.accepts(v)) \"'\" + f.label + \"' bukan \" + f.validation.name.lowercase() + \" yang sah.\" else null")
             appendLine("}")
+            appendLine()
+            appendLine("/** Field MULTI_SELECT: nilai wajib array JSON nama opsi (aturan tunggal `FieldSpec.accepts`). */")
+            appendLine("private fun multiProblem(values: Map<String, String>): String? = MULTI_FIELDS.firstNotNullOfOrNull { f ->")
+            appendLine("    val v = values[f.key].orEmpty()")
+            appendLine("    if (v.isNotBlank() && !f.accepts(v)) \"'\" + f.label + \"' bukan pilihan ganda yang sah.\" else null")
+            appendLine("}")
         }
     }
 
@@ -157,7 +165,9 @@ internal object SpecRoutesWriter {
                 (if (f.withTime) ", withTime = true" else "") +
                 (if (f.validation != TextValidation.NONE) ", validation = TextValidation." + f.validation.name else "") +
                 // C7: target RELATION wajib ikut tercetak — FieldSpec RELATION tanpa target ditolak validasi.
-                (if (f.target != null) ", target = " + SpecNaming.kString(f.target) else "") + ")"
+                (if (f.target != null) ", target = " + SpecNaming.kString(f.target) else "") +
+                // A0 (TRD-FIELD-003): maxSelections MULTI_SELECT ikut tercetak (bukan null → tidak ditulis).
+                (if (f.maxSelections != null) ", maxSelections = " + f.maxSelections else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->
