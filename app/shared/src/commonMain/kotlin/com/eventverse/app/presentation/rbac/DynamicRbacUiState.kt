@@ -43,6 +43,9 @@ enum class RbacViewMode(val label: String, val iconKey: String) {
 }
 
 data class DynamicRbacUiState(
+    val loadState: RbacLoadState = RbacLoadState.Loading,
+    /** Jumlah karyawan nyata dari server; `null` = tidak terbaca (chip disembunyikan, bukan 0). */
+    val employeeCount: Int? = null,
     val viewMode: RbacViewMode = RbacViewMode.PER_MODULE,
     val roles: List<CustomRole> = emptyList(),
     val departments: List<Department> = emptyList(),
@@ -78,8 +81,9 @@ data class DynamicRbacUiState(
     val selectedRole: CustomRole?
         get() = draftRole ?: roles.find { it.id.value == selectedRoleId }
 
-    val totalUsers: Int
-        get() = roles.sumOf { it.userCount }
+    /** Karyawan nyata, bukan jumlah `userCount` preset jabatan (TRD-PLAT-010 K6). */
+    val totalUsers: Int?
+        get() = employeeCount
 
     val totalActiveModules: Int
         get() = ActiveTenantPack.current.moduleIds.size
@@ -123,6 +127,7 @@ sealed interface DynamicRbacUiEvent {
         val existingAssignmentKey: String? = null
     ) : DynamicRbacUiEvent
     data class RemoveDepartmentAssignment(val module: BusinessModule, val assignmentKey: String) : DynamicRbacUiEvent
+    data object Reload : DynamicRbacUiEvent
     data object DismissToast : DynamicRbacUiEvent
 }
 

@@ -41,219 +41,52 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+/**
+ * @param tenantId dan [tenantSlug] WAJIB diberikan pemanggil dari sesi (tanpa default): sebelumnya default
+ * `wemade-demo` membuat layar ini selalu meminta data tenant demo (TRD-PLAT-010 §11).
+ */
 class DynamicRbacViewModel(
-    private val tenantId: TenantId = TenantId("tenant-wemade-demo"),
-    private val tenantSlug: String = "wemade-demo",
+    private val tenantId: TenantId,
+    private val tenantSlug: String,
     private val apiClient: com.eventverse.app.infrastructure.api.RbacApiClient? = com.eventverse.app.infrastructure.api.RbacApiClient(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
     private val policyRepository: RbacAccessPolicyRepository = RbacAccessPolicyRepository.shared
 ) {
-    private val _uiState = MutableStateFlow(DynamicRbacUiState())
+    // Tanpa preset lokal (TRD-PLAT-010 K5): mulai Loading, jabatan datang dari server yang sudah sadar-pack.
+    private val _uiState = MutableStateFlow(
+        DynamicRbacUiState(loadState = if (apiClient == null) RbacLoadState.Empty else RbacLoadState.Loading)
+    )
     val uiState: StateFlow<DynamicRbacUiState> = _uiState.asStateFlow()
 
     private val _uiEffect = MutableSharedFlow<DynamicRbacUiEffect>()
     val uiEffect: SharedFlow<DynamicRbacUiEffect> = _uiEffect.asSharedFlow()
 
     init {
-        loadInitialRoles()
         fetchRemoteData()
     }
 
     private fun fetchRemoteData() {
         val client = apiClient ?: return
+        _uiState.update { it.copy(loadState = RbacLoadState.Loading) }
         scope.launch {
-            val deptsResult = client.getDepartments(tenantSlug)
-            val rolesResult = client.getRoles(tenantSlug)
-
-            // Penugasan divisi kini punya tabelnya sendiri. Seed lokal di loadInitialRoles()
-            // turun pangkat jadi cadangan saat backend belum jalan.
-            client.getModuleAssignments(tenantSlug).onSuccess { remote ->
-                if (remote.isNotEmpty()) {
-                    _uiState.update { it.copy(moduleAssignments = remote) }
-                    policyRepository.syncAssignments(remote)
-                }
+            val result = RbacDataLoader.load(client, tenantSlug)
+            if (result.loadState is RbacLoadState.Loaded && result.assignments.isNotEmpty()) {
+                policyRepository.syncAssignments(result.assignments)
             }
-
-            val remoteDepts = deptsResult.getOrNull()
-            val remoteRoles = rolesResult.getOrNull()
-
-            if (!remoteRoles.isNullOrEmpty() || !remoteDepts.isNullOrEmpty()) {
-                _uiState.update { state ->
-                    val finalDepts = if (!remoteDepts.isNullOrEmpty()) remoteDepts else state.departments
-                    val finalRoles = if (!remoteRoles.isNullOrEmpty()) remoteRoles else state.roles
-                    val selected = finalRoles.find { it.id.value == state.selectedRoleId } ?: finalRoles.firstOrNull()
-                    state.copy(
-                        departments = finalDepts,
-                        roles = finalRoles,
-                        selectedRoleId = selected?.id?.value,
-                        draftRole = selected
-                    )
-                }
+            _uiState.update { state ->
+                val selected = result.roles.firstOrNull()
+                state.copy(
+                    loadState = result.loadState,
+                    roles = result.roles,
+                    departments = result.departments,
+                    moduleAssignments = result.assignments,
+                    employeeCount = result.employeeCount,
+                    selectedRoleId = selected?.id?.value,
+                    draftRole = selected,
+                    isDirty = false
+                )
             }
         }
-    }
-
-    private fun loadInitialRoles() {
-        val presets = CustomRole.createFactoryPresets(tenantId, ActiveTenantPack.current)
-        val defaultDepts = Department.defaultPresets()
-        val initialAssignments = createDefaultModuleAssignments(defaultDepts)
-        val initialSelected = presets.firstOrNull()
-        _uiState.update {
-            it.copy(
-                roles = presets,
-                departments = defaultDepts,
-                moduleAssignments = initialAssignments,
-                selectedRoleId = initialSelected?.id?.value,
-                draftRole = initialSelected,
-                isDirty = false
-            )
-        }
-    }
-
-    private fun createDefaultModuleAssignments(depts: List<Department>): Map<BusinessModule, List<DepartmentModuleAssignment>> {
-        val salesDept = depts.find { it.code.equals("sales", ignoreCase = true) }
-        val whDept = depts.find { it.code.equals("warehouse", ignoreCase = true) }
-        val cutDept = depts.find { it.code.equals("cutting", ignoreCase = true) || it.code.contains("ppic", ignoreCase = true) }
-        val sewDept = depts.find { it.code.equals("sewing", ignoreCase = true) || it.code.contains("production", ignoreCase = true) || it.code.contains("ppic", ignoreCase = true) }
-        val qcDept = depts.find { it.code.equals("qc", ignoreCase = true) || it.code.contains("quality", ignoreCase = true) }
-        val finishDept = depts.find { it.code.equals("finishing", ignoreCase = true) || it.code.contains("warehouse", ignoreCase = true) }
-        val mgmtDept = depts.find { it.code.equals("management", ignoreCase = true) || it.code.contains("finance", ignoreCase = true) }
-
-        return mapOf(
-            GarmentModules.CRM_SALES to listOfNotNull(
-                salesDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.OPERATE,
-                        scope = DataScope.SUBORDINATE_DATA
-                    )
-                },
-                salesDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        specificRoleIds = setOf("role-sales-head"),
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.SAMPLING_ORDER to listOfNotNull(
-                salesDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.SUBORDINATE_DATA
-                    )
-                },
-                cutDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.OPERATE,
-                        scope = DataScope.OWN_DATA_ONLY
-                    )
-                }
-            ),
-            GarmentModules.MASTER_DATA to listOfNotNull(
-                whDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.OPERATE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.INVENTORY to listOfNotNull(
-                whDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.TECH_PACK_BOM to listOfNotNull(
-                cutDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                },
-                sewDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.VIEW,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.COSTING_HPP to listOfNotNull(
-                mgmtDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.PRODUCTION_MRP to listOfNotNull(
-                sewDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.OPERATOR_EXEC to listOfNotNull(
-                sewDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.OPERATE,
-                        scope = DataScope.OWN_DATA_ONLY
-                    )
-                }
-            ),
-            GarmentModules.QUALITY_CONTROL to listOfNotNull(
-                qcDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            ),
-            GarmentModules.FULFILLMENT to listOfNotNull(
-                finishDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.MANAGE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                },
-                whDept?.let {
-                    DepartmentModuleAssignment(
-                        departmentId = it.id.value,
-                        departmentName = it.displayName,
-                        accessLevel = AccessLevel.OPERATE,
-                        scope = DataScope.ALL_TENANT_DATA
-                    )
-                }
-            )
-        )
     }
 
     fun onEvent(event: DynamicRbacUiEvent) {
@@ -434,6 +267,8 @@ class DynamicRbacViewModel(
                     )
                 }
             }
+
+            is DynamicRbacUiEvent.Reload -> fetchRemoteData()
 
             is DynamicRbacUiEvent.DismissToast -> {
                 _uiState.update { it.copy(successToast = null, errorToast = null) }
