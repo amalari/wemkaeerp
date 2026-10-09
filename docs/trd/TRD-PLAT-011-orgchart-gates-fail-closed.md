@@ -3,7 +3,7 @@
 ## 1. Konteks dan Administrasi
 
 - **ID**: TRD-PLAT-011 — Gerbang rute Org Chart fail-closed
-- **Status**: **Diusulkan** (keputusan arah "tutup semua, bukan hanya jalur tulis" sudah diambil pengguna, 2026-10-10).
+- **Status**: **Diusulkan; diimplementasikan di cabang worktree, menunggu merge** (keputusan arah "tutup semua, bukan hanya jalur tulis" sudah diambil pengguna, 2026-10-10). Probe terhadap kode lama membuktikan celah: `SALES` tanpa identitas menerima 200 pada `GET /employees`.
 - **Rujukan**: `tenant-variability-rules.md` Kontrak 7 (menulis wajib fail-closed), `module-integration-rules.md` §5.2,
   `file-size-rules.md` Kontrak 2 (ratchet), TRD-PLAT-009/010 (pola; T2 sudah menutup `restore-presets`).
 
