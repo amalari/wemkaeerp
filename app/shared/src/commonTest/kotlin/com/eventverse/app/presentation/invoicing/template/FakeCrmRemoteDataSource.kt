@@ -73,6 +73,21 @@ class FakeCrmRemoteDataSource(
         content: String
     ): Result<LeadActivity> = unexpectedWrite()
 
+    override suspend fun uploadLeadFieldFile(
+        tenantSlug: String,
+        leadId: LeadId,
+        fieldId: String,
+        fileName: String,
+        contentType: String,
+        bytes: ByteArray
+    ): Result<String> = unexpectedWrite()
+
+    override suspend fun leadFieldFileDownloadUrl(
+        tenantSlug: String,
+        leadId: LeadId,
+        fieldId: String
+    ): Result<String> = unexpectedWrite()
+
     private fun <T> unexpectedWrite(): Result<T> =
         Result.failure(IllegalStateException("Desainer template tidak seharusnya menulis ke CRM"))
 }

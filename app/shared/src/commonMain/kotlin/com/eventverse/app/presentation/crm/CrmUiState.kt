@@ -142,6 +142,23 @@ sealed interface CrmUiEvent {
     data object CloseActivities : CrmUiEvent
     data class SubmitActivity(val leadId: LeadId, val content: String) : CrmUiEvent
 
+    /** C8 (TRD-FIELD-002): unggah berkas field FILE; sukses = ref untuk di-commit ke sel. */
+    data class UploadFieldFile(
+        val leadId: LeadId,
+        val fieldId: String,
+        val fileName: String,
+        val contentType: String,
+        val bytes: ByteArray,
+        val onDone: (Result<String>) -> Unit
+    ) : CrmUiEvent
+
+    /** C8 (TRD-FIELD-002): minta URL presigned unduhan berkas field FILE. */
+    data class OpenFieldFile(
+        val leadId: LeadId,
+        val fieldId: String,
+        val onDone: (Result<String>) -> Unit
+    ) : CrmUiEvent
+
     data object DismissStatusMessage : CrmUiEvent
     data object DismissError : CrmUiEvent
 }

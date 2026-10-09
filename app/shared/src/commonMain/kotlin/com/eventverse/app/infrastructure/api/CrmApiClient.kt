@@ -14,7 +14,6 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-
 /**
  * Client for the CRM Leads API. Uses [CrmLeadCodec] — the SAME codec the server encodes
  * with — so there is one wire format rather than two, exactly the reasoning
@@ -158,6 +157,48 @@ class CrmApiClient(
         }
         val body = response.requireBody("menambah aktivitas lead")
         CrmLeadCodec.decodeActivity(JsonParser.parseObject(body)) ?: error("Respons aktivitas tidak valid")
+    }
+
+    override suspend fun uploadLeadFieldFile(
+        tenantSlug: String,
+        leadId: LeadId,
+        fieldId: String,
+        fileName: String,
+        contentType: String,
+        bytes: ByteArray
+    ): Result<String> = runCatching {
+        // Kontrak §4.4: metadata via query, byte raw di body — satu request tanpa multipart.
+        val response = httpClient.post(resolveUrl("$LEADS_PATH/${leadId.value}/fields/$fieldId/upload")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            parameter("fileName", fileName)
+            parameter("contentType", contentType)
+            contentType(ContentType.Application.OctetStream)
+            setBody(bytes)
+        }
+        val body = response.bodyOrFieldFileThrow("mengunggah berkas")
+        JsonParser.parseObject(body).string("ref") ?: error("Server tidak mengembalikan referensi berkas")
+    }
+
+    override suspend fun leadFieldFileDownloadUrl(
+        tenantSlug: String,
+        leadId: LeadId,
+        fieldId: String
+    ): Result<String> = runCatching {
+        val response = httpClient.get(resolveUrl("$LEADS_PATH/${leadId.value}/fields/$fieldId/download")) {
+            tenantRequest(tenantSlug, tokenProvider)
+            accept(ContentType.Application.Json)
+        }
+        val body = response.bodyOrFieldFileThrow("membuat tautan unduhan")
+        JsonParser.parseObject(body).string("url") ?: error("Respons tautan unduhan tidak valid")
+    }
+
+    /** Seperti [requireBody], tapi galat non-2xx membawa status untuk pemetaan 413/415/503 (FR-3). */
+    private suspend fun HttpResponse.bodyOrFieldFileThrow(action: String): String {
+        val body = bodyAsText()
+        if (!status.isSuccess()) {
+            throw FieldFileHttpException(status.value, body.ifBlank { "Gagal $action (HTTP ${status.value})" })
+        }
+        return body
     }
 
     private suspend fun decodeLeadOrThrow(response: HttpResponse, action: String): CrmLead {

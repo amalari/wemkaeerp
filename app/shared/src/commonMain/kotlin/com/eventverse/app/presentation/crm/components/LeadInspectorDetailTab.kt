@@ -65,6 +65,7 @@ fun LeadInspectorDetailTab(
     onAddField: () -> Unit,
     onDeleteField: ((fieldId: String) -> Unit)?,
     onArchive: () -> Unit,
+    fieldFileActions: LeadFieldFileActions? = null,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -137,7 +138,9 @@ fun LeadInspectorDetailTab(
                     cell = cells[descriptor.fieldId],
                     editable = canWrite,
                     employees = employees,
-                    onCommit = { value -> onCommitField(descriptor.fieldId, value) }
+                    onCommit = { value -> onCommitField(descriptor.fieldId, value) },
+                    leadId = lead.id,
+                    fieldFileActions = fieldFileActions
                 )
             }
 
@@ -196,7 +199,9 @@ fun LeadInspectorDetailTab(
                             cell = cells[descriptor.fieldId],
                             editable = canWrite,
                             employees = employees,
-                            onCommit = { value -> onCommitField(descriptor.fieldId, value) }
+                            onCommit = { value -> onCommitField(descriptor.fieldId, value) },
+                            leadId = lead.id,
+                            fieldFileActions = fieldFileActions
                         )
                     }
 
@@ -242,7 +247,9 @@ fun LeadInspectorDetailTab(
                                 onDelete = if (canManage && descriptor.isDeletable && onDeleteField != null) {
                                     { fieldPendingDeletion = descriptor }
                                 } else null,
-                                onCommit = { value -> onCommitField(descriptor.fieldId, value) }
+                                onCommit = { value -> onCommitField(descriptor.fieldId, value) },
+                                leadId = lead.id,
+                                fieldFileActions = fieldFileActions
                             )
                         }
                     }

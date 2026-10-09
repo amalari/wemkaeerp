@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -13,24 +14,54 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
+import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
+import com.eventverse.app.presentation.common.FIELD_FILE_MAX_BYTES
+import com.eventverse.app.presentation.common.fieldFileErrorMessage
+import com.eventverse.app.presentation.common.fieldFileSizeHint
+import com.eventverse.app.presentation.common.fileRefDisplayName
+import com.eventverse.app.presentation.common.formatFileSize
+import com.eventverse.app.presentation.deal.openInBrowser
+import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
+import com.eventverse.app.presentation.designsystem.ClayFileField
+import com.eventverse.app.presentation.designsystem.ClayFileFieldState
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color as ComposeColor
 
 private const val DATE_TIME_TEXT_HINT = "YYYY-MM-DD"
+
+/**
+ * Aksi jaringan berkas untuk field `FILE` (C8, TRD-FIELD-002 §4.4) — dihubungkan dari
+ * [com.eventverse.app.presentation.crm.CrmViewModel] melalui [CrmUiEvent]. Null di seluruh
+ * rantai UI berarti tampilan baca-saja; pola callback-nya sama dengan unggah bukti fulfilment.
+ */
+class LeadFieldFileActions(
+    val upload: (
+        leadId: LeadId,
+        fieldId: String,
+        fileName: String,
+        contentType: String,
+        bytes: ByteArray,
+        onDone: (Result<String>) -> Unit
+    ) -> Unit,
+    val download: (leadId: LeadId, fieldId: String, onDone: (Result<String>) -> Unit) -> Unit
+)
 
 /**
  * One row of the lead inspector: a [LeadFieldDescriptor.label] plus an editor matching its
@@ -51,7 +82,9 @@ fun LeadCustomField(
     editable: Boolean,
     employees: List<OrgNode> = emptyList(),
     onDelete: (() -> Unit)? = null,
-    onCommit: ((JsonValue.Obj?) -> Unit)? = null
+    onCommit: ((JsonValue.Obj?) -> Unit)? = null,
+    leadId: LeadId? = null,
+    fieldFileActions: LeadFieldFileActions? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = ClaySpacing.Sm)) {
         Row(
@@ -117,8 +150,15 @@ fun LeadCustomField(
                 // C7 (TRD-FIELD-001): id rujukan tampil baca-saja; kontrol pemilih (ClayRelationPicker) di Track C,
                 // dan penulisan nilai rujukan tetap divalidasi server (RelationTargetResolver).
                 is FieldType.Relation -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
-                // C8 (TRD-FIELD-002): key berkas tampil baca-saja; unggah/unduh (ClayFileField) di Track C.
-                is FieldType.File -> TextEditor(cell, editable = false, onCommit = null) { CustomAttributes.textCell(it) }
+                // C8 (TRD-FIELD-002 Track C): ClayFileField — unggah/ganti/hapus bila aksi tersedia.
+                is FieldType.File -> FileEditor(
+                    fieldId = descriptor.fieldId,
+                    leadId = leadId,
+                    cell = cell,
+                    editable = editable,
+                    actions = fieldFileActions,
+                    onCommit = onCommit
+                )
             }
         }
     }
@@ -178,6 +218,96 @@ private fun CheckboxEditor(cell: JsonValue.Obj?, editable: Boolean, onCommit: ((
     } else {
         Text(text = if (checked) "Ya" else "Tidak", fontSize = 13.sp, color = WeMadeColors.OnSurface)
     }
+}
+
+/**
+ * Editor field `FILE` (C8, TRD-FIELD-002 Track C) di atas [ClayFileField]. Referensi `fields/...`
+ * adalah satu-satunya nilai sel; unggah sukses langsung di-commit ke sel (pola CommitField biasa).
+ * v1 kontrak §4.4: unggah hanya untuk lead yang sudah ada — dialog pembuatan lead tanpa aksi ini
+ * menampilkan tampilan kosong, bukan pemilih palsu.
+ */
+@Composable
+private fun FileEditor(
+    fieldId: String,
+    leadId: LeadId?,
+    cell: JsonValue.Obj?,
+    editable: Boolean,
+    actions: LeadFieldFileActions?,
+    onCommit: ((JsonValue.Obj?) -> Unit)?
+) {
+    val ref = cell?.string("v").orEmpty()
+    val scope = rememberCoroutineScope()
+    var uploadState by remember(cell) { mutableStateOf<ClayFileFieldState>(ClayFileFieldState.Idle) }
+    val canUpload = editable && onCommit != null && actions != null && leadId != null &&
+        uploadState !is ClayFileFieldState.Uploading
+
+    if (ref.isBlank() && !canUpload) {
+        Text(
+            text = if (ref.isBlank()) "—" else fileRefDisplayName(ref),
+            fontSize = 13.sp,
+            color = if (ref.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
+        )
+        return
+    }
+
+    ClayFileField(
+        fileName = if (ref.isBlank()) "" else fileRefDisplayName(ref),
+        sizeLabel = fieldFileSizeHint(),
+        state = uploadState,
+        onPick = {
+            if (canUpload) {
+                val boundActions = actions
+                val boundLeadId = leadId
+                if (boundActions != null && boundLeadId != null) {
+                    scope.launch {
+                        val picked = pickLocalFile(FIELD_FILE_ACCEPT) ?: return@launch
+                        if (picked.bytes.size > FIELD_FILE_MAX_BYTES) {
+                            uploadState = ClayFileFieldState.Error(
+                                "Berkas ${formatFileSize(picked.bytes.size.toLong())} melebihi batas " +
+                                    formatFileSize(FIELD_FILE_MAX_BYTES.toLong()) + "."
+                            )
+                            return@launch
+                        }
+                        uploadState = ClayFileFieldState.Uploading(progress = null)
+                        boundActions.upload(
+                            boundLeadId, fieldId, picked.fileName, picked.mimeType, picked.bytes
+                        ) { result ->
+                            result.fold(
+                                onSuccess = { newRef ->
+                                    uploadState = ClayFileFieldState.Ready
+                                    onCommit?.invoke(CustomAttributes.textCell(newRef))
+                                },
+                                onFailure = { err ->
+                                    uploadState = ClayFileFieldState.Error(fieldFileErrorMessage(err))
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        onDownload = if (ref.isNotBlank() && actions != null && leadId != null) {
+            {
+                val boundActions = actions
+                val boundLeadId = leadId
+                scope.launch {
+                    boundActions.download(boundLeadId, fieldId) { result ->
+                        result.onSuccess { url -> openInBrowser(url) }
+                            .onFailure { err -> uploadState = ClayFileFieldState.Error(fieldFileErrorMessage(err)) }
+                    }
+                }
+            }
+        } else null,
+        onRemove = if (ref.isNotBlank() && canUpload) {
+            {
+                uploadState = ClayFileFieldState.Idle
+                onCommit?.invoke(null)
+            }
+        } else null,
+        enabled = canUpload,
+        isError = uploadState is ClayFileFieldState.Error,
+        label = ""
+    )
 }
 
 @Composable

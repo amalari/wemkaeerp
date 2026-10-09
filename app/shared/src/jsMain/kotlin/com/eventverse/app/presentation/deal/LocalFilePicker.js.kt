@@ -25,21 +25,21 @@ actual suspend fun pickLocalFile(accept: String): PickedLocalFile? =
 
         // Dipanggil sekali saja: `onchange` tidak pernah terpicu kalau pengguna menekan Cancel,
         // jadi coroutine-nya diselesaikan lewat pembatalan, bukan lewat cabang kedua di sini.
-        fun finish(dataUrl: String?) {
+        fun finish(dataUrl: String?, fileName: String?) {
             input.parentNode?.removeChild(input)
             if (continuation.isActive) {
-                continuation.resume(dataUrl?.let { decodeDataUrlToPickedFile(it) })
+                continuation.resume(dataUrl?.let { decodeDataUrlToPickedFile(it, fileName) })
             }
         }
 
         input.onchange = {
             val file = input.files?.item(0)
             if (file == null) {
-                finish(null)
+                finish(null, null)
             } else {
                 val reader = FileReader()
-                reader.onload = { _ -> finish(reader.result as? String) }
-                reader.onerror = { _ -> finish(null) }
+                reader.onload = { _ -> finish(reader.result as? String, file.name) }
+                reader.onerror = { _ -> finish(null, null) }
                 reader.readAsDataURL(file)
             }
         }

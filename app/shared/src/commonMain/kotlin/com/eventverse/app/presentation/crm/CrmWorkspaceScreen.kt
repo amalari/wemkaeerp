@@ -31,6 +31,7 @@ import com.eventverse.app.presentation.crm.components.CreateLeadDialog
 import com.eventverse.app.presentation.crm.components.CrmKanbanBoard
 import com.eventverse.app.presentation.crm.components.CrmMobileKanbanView
 import com.eventverse.app.presentation.crm.components.LeadActivitiesDialog
+import com.eventverse.app.presentation.crm.components.LeadFieldFileActions
 import com.eventverse.app.presentation.deal.components.ContactsPane
 import com.eventverse.app.presentation.deal.components.DealsPane
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -60,6 +61,18 @@ fun CrmWorkspaceScreen(
     val viewModel = remember(tenantSlug) { CrmViewModel(tenantSlug = tenantSlug, access = access) }
     val state by viewModel.uiState.collectAsState()
     val employees by RbacAccessPolicyRepository.shared.employees.collectAsState()
+
+    // C8 (TRD-FIELD-002): aksi unggah/unduh berkas field FILE; gate tulis ada di ViewModel & server.
+    val fieldFileActions = remember(viewModel) {
+        LeadFieldFileActions(
+            upload = { leadId, fieldId, fileName, contentType, bytes, onDone ->
+                viewModel.onEvent(CrmUiEvent.UploadFieldFile(leadId, fieldId, fileName, contentType, bytes, onDone))
+            },
+            download = { leadId, fieldId, onDone ->
+                viewModel.onEvent(CrmUiEvent.OpenFieldFile(leadId, fieldId, onDone))
+            }
+        )
+    }
 
     // Tab direktori hidup di URL, bukan hanya di state Compose: memuat ulang halaman saat
     // sedang membuka Deal harus kembali ke Deal, dan tombol Back browser harus memindahkan
@@ -201,6 +214,7 @@ fun CrmWorkspaceScreen(
                     selectedSource = state.selectedSource,
                     onFilterEmployee = { viewModel.onEvent(CrmUiEvent.FilterByEmployee(it)) },
                     onFilterSource = { viewModel.onEvent(CrmUiEvent.FilterBySource(it)) },
+                    fieldFileActions = fieldFileActions,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -231,6 +245,7 @@ fun CrmWorkspaceScreen(
                             viewModel.onEvent(CrmUiEvent.SubmitActivity(leadId, content))
                         }
                     },
+                    fieldFileActions = fieldFileActions,
                     modifier = Modifier.fillMaxSize()
                 )
             }

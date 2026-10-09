@@ -5,12 +5,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.prototype.TableView
+import com.eventverse.app.presentation.discovery.fields.FileFieldOps
+import com.eventverse.app.presentation.discovery.fields.fieldFileOpsOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,6 +47,18 @@ class InteractiveTableState(
     override val phase: BlockDataPhase get() = controller.phase
     override val errorMessage: String? get() = controller.errorMessage
     val message: String? get() = controller.errorMessage
+
+    /** Pesan sekali-jalan untuk aksi sel di luar controller (mis. gagal unduh berkas, C8). */
+    var transientMessage by mutableStateOf<String?>(null)
+
+    /** Binding API layar (bila ada) — sumber moduleCode untuk aksi field FILE (C8 Track C). */
+    private val apiBinding: DataBinding.Api? = screen.binding as? DataBinding.Api
+
+    /**
+     * Aksi unggah/unduh berkas untuk field FILE pada satu baris (C8, TRD-FIELD-002 Track C);
+     * `null` bila layar berbinding memori (demo tanpa server — unggah tidak mungkin).
+     */
+    fun fileFieldOps(recordId: String): FileFieldOps? = fieldFileOpsOrNull(apiBinding, recordId)
 
     val visibleRows: List<PrototypeRow>
         get() = TableView.apply(controller.rows, config.columns, query, sortColumn, ascending)

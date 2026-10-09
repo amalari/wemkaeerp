@@ -6,9 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeRow
+import com.eventverse.app.presentation.discovery.fields.FileFieldOps
+import com.eventverse.app.presentation.discovery.fields.fieldFileOpsOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,6 +37,16 @@ class InteractiveKanbanState(
     override val rows: List<PrototypeRow> get() = controller.rows
     override val phase: BlockDataPhase get() = controller.phase
     override val errorMessage: String? get() = controller.errorMessage
+
+    /** Binding API layar (bila ada) — sumber moduleCode untuk aksi field FILE (C8 Track C). */
+    private val apiBinding: DataBinding.Api? = screen.binding as? DataBinding.Api
+
+    /**
+     * Aksi unggah/unduh berkas untuk field FILE pada satu kartu (C8, TRD-FIELD-002 Track C);
+     * `null` bila layar berbinding memori (demo tanpa server — unggah tidak mungkin).
+     */
+    fun fileFieldOps(recordId: String): FileFieldOps? = fieldFileOpsOrNull(apiBinding, recordId)
+
 
     /** Alasan penolakan terakhir (transisi terlarang), null bila aksi terakhir berhasil. */
     var message by mutableStateOf<String?>(null)

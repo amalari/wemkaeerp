@@ -82,14 +82,15 @@ fun KanbanDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
             ) {
-                // Form isian field
+                // Form isian field; field FILE (C8) dapat mengunggah karena kartu sudah ber-id server.
                 formFields.forEach { field ->
                     FieldInput(
                         field = field,
                         value = formValues[field.key].orEmpty(),
                         onValueChange = { formValues[field.key] = it },
                         showLabel = true,
-                        compact = false
+                        compact = false,
+                        fileOps = state.fileFieldOps(card.id)
                     )
                 }
 

@@ -101,6 +101,7 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
             }
         }
         state.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
+        state.transientMessage?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
         if (state.config.statusField != null) {
             Text("Ketuk status untuk mengubahnya.", style = MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
         }

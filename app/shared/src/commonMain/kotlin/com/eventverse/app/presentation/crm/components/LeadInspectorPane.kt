@@ -87,6 +87,7 @@ fun LeadInspectorPane(
     isLoadingActivities: Boolean = false,
     isSubmittingActivity: Boolean = false,
     onSubmitActivity: ((content: String) -> Unit)? = null,
+    fieldFileActions: LeadFieldFileActions? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(LeadInspectorTab.DETAIL) }
@@ -246,6 +247,7 @@ fun LeadInspectorPane(
                     onAddField = onAddField,
                     onDeleteField = onDeleteField,
                     onArchive = onArchive,
+                    fieldFileActions = fieldFileActions,
                     modifier = Modifier.weight(1f)
                 )
             }

@@ -37,7 +37,8 @@ internal enum class LeadFieldControl {
 
     /**
      * Berkas terunggah (C8, TRD-FIELD-002). Nilai sel = key `fields/...` (byte di ObjectStorage).
-     * Kontrol unggah (`ClayFileField`) menyusul di Track C — dilarang dipalsukan jadi kolom teks.
+     * Dirender `ClayFileField` di `LeadCustomField` — unggah/ganti/hapus bila [LeadFieldFileActions]
+     * tersedia (lead sudah ada); tidak pernah dipalsukan jadi kolom teks.
      */
     FILE
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -20,14 +21,20 @@ import androidx.compose.ui.unit.Dp
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeRow
+import com.eventverse.app.presentation.common.fieldFileErrorMessage
+import com.eventverse.app.presentation.deal.openInBrowser
+import com.eventverse.app.presentation.designsystem.ClayFileChip
 import com.eventverse.app.presentation.discovery.fields.FieldInput
 import com.eventverse.app.presentation.discovery.fields.displayValue
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlinx.coroutines.launch
 
 /**
  * Komponen sel tabel yang dapat diedit langsung (TRD-PLAT-003, butir A4).
  * Bila kolom terdaftar di [TableConfig.editableFields], mengetuk teks akan membuka
  * editor sel inline. Tekan Enter untuk menyimpan, Esc untuk membatalkan.
+ * Sel FILE (C8, TRD-FIELD-002): chip nama berkas + aksi unduh presigned (read),
+ * unggah/ganti/hapus lewat [FieldInput] bila baris ber-id server.
  */
 @Composable
 fun TableCell(
@@ -56,6 +63,7 @@ fun TableCell(
                 showLabel = false,
                 compact = true,
                 errorMessage = state.cellErrorMessage,
+                fileOps = state.fileFieldOps(row.id),
                 modifier = Modifier
                     .width(columnWidth)
                     .onPreviewKeyEvent { event ->
@@ -75,23 +83,43 @@ fun TableCell(
                     }
             )
         } else {
-            val cellText = (state.fieldSpec(column)?.displayValue(row[column]) ?: row[column]).ifEmpty { "—" }
-            Text(
-                text = cellText,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isEditable) WeMadeColors.Primary else WeMadeColors.OnSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .width(columnWidth)
-                    .then(
-                        if (isEditable) {
-                            Modifier
-                                .pointerHoverIcon(PointerIcon.Hand)
-                                .clickable { state.startCellEdit(row.id, column, row[column]) }
-                        } else Modifier
-                    )
-            )
+            val fieldSpec = state.fieldSpec(column)
+            val rawValue = row[column]
+            if (fieldSpec?.type == FieldType.FILE && rawValue.isNotBlank()) {
+                // C8 Track C: chip nama berkas (segmen terakhir ref) + unduh presigned; bukan teks mentah.
+                val scope = rememberCoroutineScope()
+                ClayFileChip(
+                    fileName = fieldSpec.displayValue(rawValue),
+                    onClick = {
+                        val ops = state.fileFieldOps(row.id) ?: return@ClayFileChip
+                        scope.launch {
+                            ops.downloadUrl(column, rawValue) { result ->
+                                result.onSuccess { url -> openInBrowser(url) }
+                                    .onFailure { err -> state.transientMessage = fieldFileErrorMessage(err) }
+                            }
+                        }
+                    },
+                    tint = if (state.isCellEditable(column)) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
+                )
+            } else {
+                val cellText = (fieldSpec?.displayValue(rawValue) ?: rawValue).ifEmpty { "—" }
+                Text(
+                    text = cellText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isEditable) WeMadeColors.Primary else WeMadeColors.OnSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .width(columnWidth)
+                        .then(
+                            if (isEditable) {
+                                Modifier
+                                    .pointerHoverIcon(PointerIcon.Hand)
+                                    .clickable { state.startCellEdit(row.id, column, row[column]) }
+                            } else Modifier
+                        )
+                )
+            }
         }
     }
 }

@@ -56,6 +56,22 @@ interface CrmRemoteDataSource {
     suspend fun getActivities(tenantSlug: String, leadId: LeadId): Result<List<com.eventverse.app.domain.crm.LeadActivity>>
 
     suspend fun addActivity(tenantSlug: String, leadId: LeadId, content: String): Result<com.eventverse.app.domain.crm.LeadActivity>
+
+    /**
+     * Mengunggah berkas untuk field `FILE` (C8, TRD-FIELD-002 §4.4): byte mentah di body,
+     * metadata di query; sukses = referensi `fields/...` yang disimpan ke sel lewat patch biasa.
+     */
+    suspend fun uploadLeadFieldFile(
+        tenantSlug: String,
+        leadId: LeadId,
+        fieldId: String,
+        fileName: String,
+        contentType: String,
+        bytes: ByteArray
+    ): Result<String>
+
+    /** URL presigned (15 menit) untuk mengunduh berkas field `FILE` lead. */
+    suspend fun leadFieldFileDownloadUrl(tenantSlug: String, leadId: LeadId, fieldId: String): Result<String>
 }
 
 data class LeadStageTransition(
