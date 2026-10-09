@@ -57,6 +57,7 @@ import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.CustomFieldValidationError
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
+import com.eventverse.app.domain.customfield.RelationTargetResolver
 import com.eventverse.app.domain.customfield.usecases.AddCustomFieldDefinitionUseCase
 import com.eventverse.app.domain.customfield.usecases.ArchiveCustomFieldDefinitionUseCase
 import com.eventverse.app.domain.orgchart.EmployeeRepository
@@ -91,7 +92,9 @@ fun Route.crmRoutes(
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
     invoiceRepository: InvoiceRepository,
-    leadActivityRepository: LeadActivityRepository = PostgresLeadActivityRepository()
+    leadActivityRepository: LeadActivityRepository = PostgresLeadActivityRepository(),
+    /** C7 (TRD-FIELD-001 Track B): verifikasi target field RELATION saat tulis; null = validasi dilewati (test lama). */
+    relationTargetResolver: RelationTargetResolver? = null
 ) {
     val listLeadsUseCase = ListLeadsUseCase(leadRepository)
     val createLeadUseCase = CreateLeadUseCase(leadRepository, customFieldRepository)
@@ -170,6 +173,9 @@ fun Route.crmRoutes(
             val req = runCatching { CrmLeadCodec.decodeCreateRequest(call.receiveText()) }.getOrElse {
                 return@post call.respond(HttpStatusCode.BadRequest, it.message ?: "Body tidak valid") }
             if (!call.requireReachableOwner(reach, req.ownerEmployeeId)) return@post
+            if (relationTargetResolver != null &&
+                !call.rejectMissingRelationTargets(tenant.tenantId, customFieldRepository, req.customValues, relationTargetResolver)
+            ) return@post
 
             createLeadUseCase(
                 tenantId = tenant.tenantId,
@@ -215,6 +221,9 @@ fun Route.crmRoutes(
 
                 val req = CrmLeadCodec.decodePatchRequest(call.receiveText())
                 if (req.ownerEmployeeIdSet && !call.requireReachableOwner(reach, req.ownerEmployeeId)) return@patch
+                if (relationTargetResolver != null &&
+                    !call.rejectMissingRelationTargets(tenant.tenantId, customFieldRepository, req.customValues, relationTargetResolver)
+                ) return@patch
 
                 val patch = LeadPatch(
                     brandName = req.brandName,

@@ -48,7 +48,11 @@ object ModuleSchemaMap {
             "sampling_yield_timings", "sampling_milestones", "sampling_finishing_deposits", "sampling_qc_inspections",
             "tenant_stage_flows", "tenant_optional_processes", "tenant_stage_phase_tags", "sample_storage_records"
         ),
-        GarmentModules.CRM_SALES to setOf("crm_leads", "crm_lead_activities", "crm_contacts", "deals", "deal_purchase_orders", "crm_ai_settings"),
+        GarmentModules.CRM_SALES to setOf(
+            "crm_leads", "crm_lead_activities", "crm_contacts", "deals", "deal_purchase_orders", "crm_ai_settings",
+            // C7 (TRD-FIELD-001 Track B): tabel link tipe field RELATION hidup di schema modul pemegang (CRM).
+            "custom_field_relation_links"
+        ),
         GarmentModules.MASTER_DATA to setOf("material_code_sequences", "material_items", "material_prices", "material_price_policies"),
         GarmentModules.VENDOR_CONTACTS to setOf("vendors", "vendor_assignments"),
         GarmentModules.TECH_PACK_BOM to setOf(
