@@ -35,6 +35,8 @@ object SpecOpApplier {
             // A0(C6)/A0(C9): parameter yang mengubah bentuk nilai sah; seed yang tak lolos menolak operasi.
             is SpecOp.SetFieldWithTime -> FieldParamOps.setWithTime(screen, op)
             is SpecOp.SetFieldValidation -> FieldParamOps.setValidation(screen, op)
+            // A sisa (TRD-FIELD-003): batas pilihan MULTI_SELECT; menyempit di atas seed yang ada ditolak.
+            is SpecOp.SetFieldMaxSelections -> FieldParamOps.setMaxSelections(screen, op)
             // SP-B5: ganti jenis tampilan; aturan kelayakan di ChangeWidgetOp (tolak bermesej, tak menebak).
             is SpecOp.ChangeWidget -> ChangeWidgetOp.apply(screen, op)
         }

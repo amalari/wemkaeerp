@@ -45,6 +45,14 @@ sealed interface SpecOp {
     data class SetFieldValidation(val entityId: String, val field: String, val validation: TextValidation) : SpecOp
 
     /**
+     * Ubah batas jumlah pilihan [field] `MULTI_SELECT` (A sisa TRD-FIELD-003, pola [SetFieldWithTime]): hanya field
+     * MULTI_SELECT, dan bila diisi `1..options.size`; `null` = tanpa batas. Menyempitkan batas bisa membuat nilai
+     * seed lama melebihi batas baru, jadi operasi **ditolak** bila ada nilai baris contoh yang tak lolos bentuk baru
+     * — tidak ada pemotongan pilihan diam-diam.
+     */
+    data class SetFieldMaxSelections(val entityId: String, val field: String, val maxSelections: Int?) : SpecOp
+
+    /**
      * Ganti jenis tampilan layar [screenId] menjadi [widget] — hanya **TABLE** dan **KANBAN** (papan) yang dikenal;
      * jenis lain ditolak dengan pesan. Tabel selalu mungkin untuk layar data; papan butuh field pilihan status
      * (ENUM). Aturan kelayakan lengkap di `ChangeWidgetOp`.

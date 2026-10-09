@@ -163,6 +163,7 @@ object BriefRenderer {
             TextValidation.PHONE -> "nomor telepon"
         }}"
         is SpecOp.SetFieldRequired -> "jadikan '${op.field}' ${if (op.required) "wajib diisi" else "boleh dikosongkan"}"
+        is SpecOp.SetFieldMaxSelections -> "batasi pilihan '${op.field}' " + (op.maxSelections?.let { "maksimum $it" } ?: "tanpa batas")
     }
 
     /** Format rupiah deterministik tanpa bergantung locale: pemisah ribuan titik. */

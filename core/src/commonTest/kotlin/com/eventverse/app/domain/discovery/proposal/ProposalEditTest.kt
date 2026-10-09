@@ -100,6 +100,28 @@ class ProposalEditTest {
         assertEquals("ngilu", replaced.seed.single()["keluhan"], "teks bebas tetap sah sebagai LONG_TEXT — validator lolos")
     }
 
+    /** A0 (TRD-FIELD-003): MULTI_SELECT mengalir lewat sunting usulan; contoh kanonik = satu opsi pertama. */
+    @Test
+    fun `MULTI_SELECT ikut sunting usulan - wajib mengisi contoh kanonik, tak wajib tidak`() {
+        val required = FieldProposal("layanan", "Layanan", FieldType.MULTI_SELECT, required = true, options = listOf("Digitizing", "Hooping"))
+        val out = table.applyEdits(listOf(ProposalEdit.AddField(required))).getOrThrow()
+        assertTrue(out.seed.all { it["layanan"] == "[\"Digitizing\"]" }, "wajib -> contoh kanonik JSON array urut options")
+        val optional = table.applyEdits(listOf(ProposalEdit.AddField(FieldProposal("layanan", "Layanan", FieldType.MULTI_SELECT, options = listOf("Digitizing"))))).getOrThrow()
+        assertTrue(optional.seed.all { "layanan" !in it }, "tak wajib -> baris contoh tidak diisi")
+    }
+
+    /** A0: mengganti tipe ke MULTI_SELECT membuang nilai lama yang tak sesuai; batas lebih sempit membuang kelebihan. */
+    @Test
+    fun `ganti ke MULTI_SELECT menjaga seed sah dan batas lebih sempit membuang nilai berlebih`() {
+        val asMulti = table.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", FieldProposal("keluhan", "Keluhan", FieldType.MULTI_SELECT, options = listOf("Digitizing", "Hooping"))))).getOrThrow()
+        assertTrue(asMulti.seed.all { "keluhan" !in it }, "'ngilu' bukan pilihan ganda sah dan field tak wajib -> dibuang")
+        val seeded = asMulti.copy(seed = asMulti.seed.map { it + ("keluhan" to "[\"Digitizing\",\"Hooping\"]") })
+        val narrowed = seeded.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", FieldProposal("keluhan", "Keluhan", FieldType.MULTI_SELECT, options = listOf("Digitizing", "Hooping"), maxSelections = 1)))).getOrThrow()
+        assertTrue(narrowed.seed.all { "keluhan" !in it }, "nilai melebihi maxSelections baru dibuang (tak wajib)")
+        val required = seeded.applyEdits(listOf(ProposalEdit.ReplaceField("keluhan", FieldProposal("keluhan", "Keluhan", FieldType.MULTI_SELECT, required = true, options = listOf("Digitizing", "Hooping"), maxSelections = 1)))).getOrThrow()
+        assertTrue(required.seed.all { it["keluhan"] == "[\"Digitizing\"]" }, "wajib -> contoh kanonik dalam batas baru")
+    }
+
     /** C4 Irisan 2 (D3): format hanya sah pada NUMBER; usulan dengan format di tipe lain ditolak validator. */
     @Test
     fun `format angka hanya sah pada field NUMBER - C4 Irisan 2`() {
