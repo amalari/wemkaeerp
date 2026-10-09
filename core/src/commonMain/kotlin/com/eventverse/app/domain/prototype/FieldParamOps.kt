@@ -26,6 +26,24 @@ internal object FieldParamOps {
         return replace(screen, op.entityId, f.copy(validation = op.validation), "mengubah validasi")
     }
 
+    /**
+     * A sisa TRD-FIELD-003: batas pilihan `MULTI_SELECT`. Rentang `1..options.size` (atau `null` = tanpa batas)
+     * ditegakkan di sini agar pesannya ramah; `FieldSpec` tetap penjaga terakhir. Menyempitkan batas di atas seed
+     * yang sudah ada ditolak lewat [replace] — tidak ada pilihan yang dipotong diam-diam.
+     */
+    fun setMaxSelections(screen: InteractiveScreen, op: SpecOp.SetFieldMaxSelections): InteractiveScreen {
+        val f = fieldOf(screen, op.entityId, op.field)
+        require(f.type == FieldType.MULTI_SELECT) {
+            "Field '${f.label}' bertipe ${f.type.name}; batas pilihan hanya untuk field MULTI_SELECT."
+        }
+        val max = op.maxSelections
+        require(max == null || max in 1..f.options.size) {
+            "Batas pilihan '${f.label}' harus 1..${f.options.size}, dapat $max."
+        }
+        if (f.maxSelections == max) return screen
+        return replace(screen, op.entityId, f.copy(maxSelections = max), "mengubah batas pilihan")
+    }
+
     private fun fieldOf(screen: InteractiveScreen, entityId: String, key: String): FieldSpec {
         val e = requireNotNull(screen.spec.entity(entityId)) { "Entitas '$entityId' tidak ada di layar ini." }
         return requireNotNull(e.field(key)) { "Field '$key' tidak ada di '${e.label}'." }

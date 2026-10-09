@@ -13,6 +13,7 @@ import com.eventverse.app.shared.pack.SpecOpCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -46,6 +47,14 @@ class FieldParamOpsTest {
 
     private fun setValidation(s: InteractiveScreen, v: TextValidation, field: String = "kontak") =
         SpecOpApplier.apply(s, SpecOp.SetFieldValidation("antrean_klinik", field, v))
+
+    private val multiOptions = listOf("Digitizing", "Hooping", "Selesai")
+
+    private fun multiScreen(rows: List<Map<String, String>>, maxSelections: Int? = null) =
+        screen(listOf(FieldSpec("pasien", "Pasien", FieldType.TEXT), FieldSpec("layanan", "Layanan dibeli", FieldType.MULTI_SELECT, multiOptions, maxSelections = maxSelections)), rows)
+
+    private fun setMax(s: InteractiveScreen, max: Int?, field: String = "layanan") =
+        SpecOpApplier.apply(s, SpecOp.SetFieldMaxSelections("antrean_klinik", field, max))
 
     // ---- SetFieldWithTime ----------------------------------------------------------------------
 
@@ -144,6 +153,52 @@ class FieldParamOpsTest {
             val error = SpecOpApplier.apply(s, SpecOp.SetFieldValidation("antrean_klinik", field.key, TextValidation.EMAIL)).exceptionOrNull()?.message.orEmpty()
             assertTrue("hanya untuk field TEXT" in error, "$type: $error")
         }
+    }
+
+    // ---- SetFieldMaxSelections (A sisa TRD-FIELD-003) --------------------------------------------
+
+    @Test
+    fun setMaxSelections_narrowsRaisesAndClears_whenSeedFits() {
+        val s = multiScreen(listOf(mapOf("pasien" to "Budi", "layanan" to "[\"Digitizing\"]")))
+        val limited = setMax(s, 1).getOrThrow()
+        assertEquals(1, limited.spec.entities.single().field("layanan")!!.maxSelections)
+        assertEquals(s.seed, limited.seed, "seed yang masih sah dipertahankan")
+        val cleared = setMax(limited, null).getOrThrow()
+        assertNull(cleared.spec.entities.single().field("layanan")!!.maxSelections)
+        assertSame(s, setMax(s, null).getOrThrow(), "tanpa batas -> tanpa batas tak mengubah apa pun")
+    }
+
+    @Test
+    fun setMaxSelections_seedExceedingNewLimit_isRejectedNotTrimmed() {
+        val s = multiScreen(listOf(mapOf("pasien" to "Budi", "layanan" to "[\"Digitizing\",\"Hooping\"]")))
+        val error = setMax(s, 1).exceptionOrNull()?.message.orEmpty()
+        assertTrue("1 baris" in error && "batas pilihan" in error, error)
+        // menaikkan batas selalu lolos (tidak ada nilai yang jadi tak sah)
+        assertEquals(3, setMax(s, 3).getOrThrow().spec.entities.single().field("layanan")!!.maxSelections)
+    }
+
+    @Test
+    fun setMaxSelections_nonMultiOutOfRangeOrMissing_isRejectedWithMessage() {
+        val s = multiScreen(listOf(mapOf("pasien" to "Budi")))
+        assertTrue("hanya untuk field MULTI_SELECT" in setMax(s, 1, "pasien").exceptionOrNull()?.message.orEmpty())
+        assertTrue("1..3" in setMax(s, 0).exceptionOrNull()?.message.orEmpty(), "0 di bawah rentang")
+        assertTrue("1..3" in setMax(s, 4).exceptionOrNull()?.message.orEmpty(), "4 di atas jumlah opsi")
+        assertTrue("tidak ada" in setMax(s, 1, "hantu").exceptionOrNull()?.message.orEmpty())
+    }
+
+    @Test
+    fun specOpCodec_setFieldMaxSelections_roundTripsEveryShape_andRejectsBadWire() {
+        listOf<Int?>(null, 1).forEach { max ->
+            val op = SpecOp.SetFieldMaxSelections("e", "f", max)
+            assertEquals(op, SpecOpCodec.decode(JsonParser.parseObject(SpecOpCodec.encode(op).encode())).getOrThrow(), "max=$max")
+        }
+        fun fails(raw: String) = SpecOpCodec.decode(JsonParser.parseObject(raw)).exceptionOrNull()?.message.orEmpty()
+        val head = """"type":"SetFieldMaxSelections","entityId":"e","field":"f""""
+        // kunci wajib ada: absen = galat, bukan diam-diam "hapus batas"; tipe salah ditolak.
+        assertTrue("maxSelections" in fails("{$head}"), "kunci absen harus ditolak")
+        assertTrue("maxSelections" in fails("{$head,\"maxSelections\":1.5}"), "pecahan ditolak")
+        assertTrue("maxSelections" in fails("{$head,\"maxSelections\":\"1\"}"), "string ditolak")
+        assertTrue(SpecOpCodec.decode(JsonParser.parseObject("{$head,\"maxSelections\":null}")).isSuccess, "null = hapus batas, sah")
     }
 
     // ---- applyAll, brief, kawat ------------------------------------------------------------------

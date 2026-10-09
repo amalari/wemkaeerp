@@ -45,6 +45,11 @@ object SpecOpCodec {
         )
         is SpecOp.SetFieldWithTime -> jsonObjectOf("type" to jsonOf("SetFieldWithTime"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "withTime" to jsonOf(op.withTime))
         is SpecOp.SetFieldValidation -> jsonObjectOf("type" to jsonOf("SetFieldValidation"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field), "validation" to jsonOf(op.validation.name))
+        // A sisa (TRD-FIELD-003): `null` ditulis eksplisit (hapus batas), pola `currencyCode` di SetFieldFormat.
+        is SpecOp.SetFieldMaxSelections -> jsonObjectOf(
+            "type" to jsonOf("SetFieldMaxSelections"), "entityId" to jsonOf(op.entityId), "field" to jsonOf(op.field),
+            "maxSelections" to (op.maxSelections?.let { jsonOf(it) } ?: JsonValue.Null)
+        )
         is SpecOp.ChangeWidget -> jsonObjectOf("type" to jsonOf("ChangeWidget"), "screenId" to jsonOf(op.screenId), "widget" to jsonOf(op.widget.code))
     }
 
@@ -74,6 +79,11 @@ object SpecOpCodec {
             "SetFieldFormat" -> SpecOp.SetFieldFormat(str("entityId"), str("field"), FieldParamWire.numberFormat(o, required = true), FieldParamWire.currencyCode(o))
             "SetFieldWithTime" -> SpecOp.SetFieldWithTime(str("entityId"), str("field"), o.strictRequiredBoolean("withTime"))
             "SetFieldValidation" -> SpecOp.SetFieldValidation(str("entityId"), str("field"), FieldParamWire.textValidation(o, required = true))
+            "SetFieldMaxSelections" -> {
+                // Kunci wajib ada (absen bukan "hapus batas"); JSON null = hapus batas, tipe lain DITOLAK.
+                require(o.has("maxSelections")) { "Bidang 'maxSelections' wajib diisi (bilangan bulat atau null)." }
+                SpecOp.SetFieldMaxSelections(str("entityId"), str("field"), FieldParamWire.maxSelections(o))
+            }
             "ChangeWidget" -> SpecOp.ChangeWidget(
                 str("screenId"),
                 requireNotNull(WidgetKind.fromCode(o.string("widget").orEmpty())) { "Jenis tampilan '${o.string("widget").orEmpty()}' tidak dikenal." }

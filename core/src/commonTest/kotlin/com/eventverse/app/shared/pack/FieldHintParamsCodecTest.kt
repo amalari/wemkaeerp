@@ -195,6 +195,39 @@ class FieldHintParamsCodecTest {
         assertTrue(SpecOpCodec.decode(JsonParser.parse(old) as JsonValue.Obj).isSuccess)
     }
 
+    // ---- A0 (TRD-FIELD-003): FieldHint & kawat MULTI_SELECT maxSelections -------------------------------
+
+    @Test
+    fun fieldHint_maxSelections_isOnlyForMultiSelect_andWithinOptions() {
+        fun fails(block: () -> FieldHint) = assertFailsWith<IllegalArgumentException> { block() }.message.orEmpty()
+        assertTrue("maxSelections" in fails { FieldHint("k", FieldType.TEXT, maxSelections = 1) }, "maxSelections pada TEXT ditolak")
+        val multi = FieldHint("layanan", FieldType.MULTI_SELECT, options = listOf("a", "b"), maxSelections = 2)
+        assertEquals(2, multi.toFieldSpec().maxSelections)
+        assertTrue("maxSelections" in fails { FieldHint("layanan", FieldType.MULTI_SELECT, options = listOf("a", "b"), maxSelections = 3) }, "di luar jumlah opsi ditolak")
+    }
+
+    @Test
+    fun screenSuggestionCodec_multiSelectMaxSelections_roundTrips_andInvalidIsRejected() {
+        val multi = FieldHint("layanan", FieldType.MULTI_SELECT, options = listOf("Digitizing", "Hooping"), maxSelections = 1)
+        val s = suggestion(listOf(multi), listOf(mapOf("layanan" to "[\"Digitizing\"]")))
+        val back = roundTrip(listOf(s))
+        assertEquals(listOf(s), back)
+        assertEquals(1, back.single().tableHints!!.fields.single().maxSelections)
+        val json = ScreenSuggestionCodec.encode(listOf(s)).encode()
+        assertTrue("\"maxSelections\":1" in json, json)
+        // Tipe JSON salah = ditolak (bukan jatuh ke bawaan).
+        assertFailsWith<DomainPackDecodeException> {
+            ScreenSuggestionCodec.decode(JsonParser.parse(json.replace("\"maxSelections\":1", "\"maxSelections\":1.5")))
+        }
+        // Bentuk salah (di luar 1..options.size) = ditolak invarian FieldHint saat decode, bukan diredam.
+        assertFailsWith<DomainPackDecodeException> {
+            ScreenSuggestionCodec.decode(JsonParser.parse(json.replace("\"maxSelections\":1", "\"maxSelections\":9")))
+        }
+        // Bawaan (tanpa kunci) tetap tak ditulis: pack lama byte-identik.
+        val plain = suggestion(listOf(FieldHint("status", FieldType.ENUM, options = listOf("Baru", "Selesai"))), listOf(mapOf("status" to "Baru")))
+        assertFalse("\"maxSelections\"" in ScreenSuggestionCodec.encode(listOf(plain)).encode())
+    }
+
     @Test
     fun interactiveScreenCodec_formatAndCurrency_wrongJsonType_isRejected() {
         val screen = ScreenProposalFixtures.tabelTagihan().toInteractiveScreen().getOrThrow()

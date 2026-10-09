@@ -205,4 +205,24 @@ class DeterministicScreenProposerTest {
             assertTrue(hints.none { it.type == FieldType.FILE }, "${draft.pack.code.value}: petunjuk FILE")
         }
     }
+
+    /**
+     * A0 (TRD-FIELD-003 FR-5): pembuat deterministik tidak pernah mengusulkan MULTI_SELECT sebagai **status**
+     * (status papan selalu ENUM), dan MULTI_SELECT tidak pernah menjadi elemen kartu (`cardOf` = null) — gaya
+     * tampil daftar label ditetapkan Track C.
+     */
+    @Test
+    fun `proposer tidak menjadikan MULTI_SELECT status atau elemen kartu`() = runTest {
+        val multi = FieldProposal("layanan", "Layanan", FieldType.MULTI_SELECT, options = listOf("a", "b"), maxSelections = 1)
+        assertEquals(null, DeterministicScreenProposer.cardOf(multi), "MULTI_SELECT tidak punya gaya kartu")
+        assertNotNull(DeterministicScreenProposer.cardOf(FieldProposal("tanggal", "Tanggal", FieldType.DATE)), "kontras: tipe lain punya gaya kartu")
+        narratives.values.forEach { text ->
+            draftOf(text).screens.forEach { s ->
+                val p = s.proposal!!
+                val entity = p.entity
+                val status = entity?.statusField?.let { k -> entity.fields.first { it.key == k }.type }
+                assertTrue(status != FieldType.MULTI_SELECT, "${s.screenId}: MULTI_SELECT jadi status")
+            }
+        }
+    }
 }
