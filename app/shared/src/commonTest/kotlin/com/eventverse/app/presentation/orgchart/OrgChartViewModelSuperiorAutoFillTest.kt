@@ -8,7 +8,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun initialState_shouldHaveDefaultSuperiorAutomaticallySelected() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
         val state = viewModel.uiState.value
 
         assertEquals(Department.SALES.id, state.selectedDepartment?.id)
@@ -23,7 +23,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun startCreateNewEmployee_shouldResetWithPreselectedSuperior() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // First select an existing executive
         val hendra = viewModel.uiState.value.employees.find { it.level == HierarchyLevel.EXECUTIVE }
@@ -44,7 +44,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun jalur1_selectReportsTo_shouldAutomaticallyFillDepartmentAndAdjustLevel() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // Case A: Select Joko Susilo (Kepala Produksi & PPIC)
         val joko = viewModel.uiState.value.employees.find {
@@ -93,7 +93,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun editDepartmentAndTiers_shouldUpdateStateCorrectly() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // 1. Edit Department
         val dept = Department.SALES
@@ -127,7 +127,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun jalur2_selectDepartmentAndLevel_shouldAutomaticallySelectSuperior() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // 1. Change department to PRODUCTION_PPIC
         viewModel.onEvent(OrgChartUiEvent.SelectDepartment(Department.PRODUCTION_PPIC))
@@ -164,7 +164,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun companyLeaders_shouldListExecutivesAndDepartmentHeads() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
         val state = viewModel.uiState.value
 
         val leaders = state.companyLeaders
@@ -176,7 +176,7 @@ class OrgChartViewModelSuperiorAutoFillTest {
 
     @Test
     fun dynamicTiers_shouldAddTierToSelectedDepartment() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // Select Production department
         viewModel.onEvent(OrgChartUiEvent.SelectDepartment(Department.PRODUCTION_PPIC))

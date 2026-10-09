@@ -2,9 +2,9 @@ package com.eventverse.app.presentation.orgchart
 
 import com.eventverse.app.domain.orgchart.*
 import com.eventverse.app.domain.rbac.AccessLevel
-import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.infrastructure.api.OrgChartApiClient
+import com.eventverse.app.infrastructure.api.OrgChartRestoreException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,146 +13,41 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * @param tenantSlug slug tenant dari sesi/pemanggil; mesin tidak punya tenant bawaan (TRD-PLAT-010 K2).
+ * @param seed isi awal; produksi memakai [OrgChartSeed.None]. [OrgChartSeed.GarmentSample] khusus tes (K8).
+ */
 class OrgChartViewModel(
-    private val tenantSlug: String = "wemade-demo",
+    private val tenantSlug: String,
     private val apiClient: OrgChartApiClient? = null,
     private val access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
     private val viewerDepartmentId: String? = null,
     private val viewerEmployeeId: String? = null,
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main),
+    seed: OrgChartSeed = OrgChartSeed.None
 ) {
 
-    private val _uiState = MutableStateFlow(OrgChartUiState())
+    private val loader = OrgChartDataLoader(access, viewerDepartmentId, viewerEmployeeId)
+
+    private val _uiState = MutableStateFlow(loader.initialState(seed, hasClient = apiClient != null))
     val uiState: StateFlow<OrgChartUiState> = _uiState.asStateFlow()
 
     private val isScoped: Boolean
-        get() = access.scope != DataScope.ALL_TENANT_DATA && !viewerDepartmentId.isNullOrBlank()
+        get() = loader.isScoped
+
+    private fun filterByScope(nodes: List<OrgNode>, deptId: String?): List<OrgNode> =
+        loader.filterByScope(nodes, deptId)
 
     init {
-        loadInitialData()
+        reload()
     }
 
-    private fun matchDepartment(depts: List<Department>, query: String?): Department? {
-        if (query.isNullOrBlank()) return null
-        return depts.find { it.id.value.equals(query, ignoreCase = true) }
-            ?: depts.find { it.code.equals(query, ignoreCase = true) }
-            ?: depts.find { query.contains(it.code, ignoreCase = true) || it.code.contains(query, ignoreCase = true) }
-            ?: depts.find { it.displayName.contains(query, ignoreCase = true) || query.contains(it.displayName, ignoreCase = true) }
-    }
-
-    private fun filterByScope(nodes: List<OrgNode>, deptId: String?): List<OrgNode> {
-        if (!isScoped) return nodes
-        return OrgChartVisibility.visibleTo(
-            nodes = nodes,
-            scope = access.scope,
-            viewerEmployeeId = viewerEmployeeId?.let { OrgNodeId(it) },
-            viewerDepartmentId = deptId ?: viewerDepartmentId
-        )
-    }
-
-    private fun loadInitialData() {
-        val sampleList = OrgNode.createSampleEmployees()
-        val defaultDepts = Department.defaultPresets()
-        val matchedDept = matchDepartment(defaultDepts, viewerDepartmentId)
-        val targetDept = matchedDept ?: defaultDepts.firstOrNull { it.id.value == "dept-sales" } ?: defaultDepts.firstOrNull() ?: Department.SALES
-
-        val scopedSampleList = filterByScope(sampleList, targetDept.id.value)
-        val initialSuperior = resolveDefaultSuperior(scopedSampleList, targetDept, HierarchyLevel.STAFF_OPERATOR)
-        val initialSelectedEmpId = if (!access.canWrite) {
-            val viewerNode = if (viewerEmployeeId != null) scopedSampleList.find { it.id.value == viewerEmployeeId } else null
-            viewerNode?.id?.value
-                ?: scopedSampleList.find { it.department?.id == targetDept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }?.id?.value
-                ?: scopedSampleList.find { it.department?.id == targetDept.id }?.id?.value
-                ?: scopedSampleList.firstOrNull()?.id?.value
-        } else {
-            null
-        }
-
-        _uiState.update {
-            it.copy(
-                employees = scopedSampleList,
-                departments = if (isScoped) listOf(targetDept) else defaultDepts,
-                selectedDepartment = targetDept,
-                isDepartmentLocked = isScoped,
-                isCreatingNew = access.canWrite,
-                selectedEmployeeId = initialSelectedEmpId,
-                selectedReportsToId = initialSuperior
-            )
-        }
-
-        // Asynchronously fetch live data from Backend API
+    /** Membaca ulang dari server; hasilnya (termasuk kosong/galat) menggantikan keadaan, tanpa fallback ke contoh. */
+    private fun reload() {
         val client = apiClient ?: return
         coroutineScope.launch {
-            try {
-                val deptsResult = client.getDepartments(tenantSlug)
-                val empsResult = client.getEmployees(tenantSlug)
-
-                if (deptsResult.isSuccess && empsResult.isSuccess) {
-                    val liveDepts = deptsResult.getOrThrow()
-                    val liveEmps = empsResult.getOrThrow()
-                    if (liveDepts.isNotEmpty() || liveEmps.isNotEmpty()) {
-                        _uiState.update { state ->
-                            val matchedLiveDept = matchDepartment(liveDepts, viewerDepartmentId)
-                            val activeLiveDept = when {
-                                state.selectedDepartment != null -> {
-                                    liveDepts.find { it.id == state.selectedDepartment.id }
-                                        ?: matchedLiveDept
-                                        ?: state.selectedDepartment
-                                }
-                                viewerDepartmentId.isNullOrBlank() -> null
-                                matchedLiveDept != null -> matchedLiveDept
-                                else -> liveDepts.firstOrNull()
-                            }
-
-                            val effectiveLiveEmps = filterByScope(liveEmps, activeLiveDept?.id?.value)
-                            val effectiveLiveDepts = if (isScoped && activeLiveDept != null) {
-                                listOf(activeLiveDept)
-                            } else if (liveDepts.isNotEmpty()) {
-                                liveDepts
-                            } else {
-                                state.departments
-                            }
-
-                            val validSuperior = if (state.selectedReportsToId != null && effectiveLiveEmps.any { it.id.value == state.selectedReportsToId }) {
-                                state.selectedReportsToId
-                            } else if (activeLiveDept != null) {
-                                resolveDefaultSuperior(effectiveLiveEmps, activeLiveDept, state.selectedLevel)
-                            } else {
-                                null
-                            }
-
-                            val effectiveSelectedEmpId = if (!access.canWrite) {
-                                if (state.selectedEmployeeId != null && effectiveLiveEmps.any { it.id.value == state.selectedEmployeeId }) {
-                                    state.selectedEmployeeId
-                                } else if (activeLiveDept == null) {
-                                    effectiveLiveEmps.find { it.level == HierarchyLevel.EXECUTIVE }?.id?.value
-                                        ?: effectiveLiveEmps.firstOrNull()?.id?.value
-                                } else {
-                                    val viewerNode = if (viewerEmployeeId != null) effectiveLiveEmps.find { it.id.value == viewerEmployeeId } else null
-                                    viewerNode?.id?.value
-                                        ?: effectiveLiveEmps.find { it.department?.id == activeLiveDept.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT }?.id?.value
-                                        ?: effectiveLiveEmps.find { it.department?.id == activeLiveDept.id }?.id?.value
-                                        ?: effectiveLiveEmps.firstOrNull()?.id?.value
-                                }
-                            } else {
-                                state.selectedEmployeeId
-                            }
-
-                            state.copy(
-                                departments = effectiveLiveDepts,
-                                employees = if (effectiveLiveEmps.isNotEmpty()) effectiveLiveEmps else state.employees,
-                                selectedDepartment = activeLiveDept,
-                                isDepartmentLocked = isScoped,
-                                isCreatingNew = access.canWrite,
-                                selectedEmployeeId = effectiveSelectedEmpId,
-                                selectedReportsToId = validSuperior
-                            )
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Silently fallback to presets if backend is offline or starting up
-            }
+            val loaded = loader.fetch(client, tenantSlug)
+            _uiState.update { loader.apply(it, loaded) }
         }
     }
 
@@ -674,43 +569,36 @@ class OrgChartViewModel(
 
             is OrgChartUiEvent.RestoreDefaultPresets -> {
                 if (!access.canManage || isScoped) return
-                val defaultDepts = Department.defaultPresets()
-                val defaultEmployees = OrgNode.createSampleEmployees()
-                _uiState.update { state ->
-                    state.copy(
-                        employees = defaultEmployees,
-                        departments = defaultDepts,
-                        selectedDepartment = Department.SALES,
-                        selectedEmployeeId = null,
-                        isCreatingNew = true,
-                        nameInput = "",
-                        emailInput = "",
-                        phoneInput = "",
-                        selectedLevel = HierarchyLevel.STAFF_OPERATOR,
-                        selectedReportsToId = null,
-                        roleTitleInput = "",
-                        isResetMenuOpen = false,
-                        toastMessage = "Preset template konveksi berhasil dimuat kembali!"
-                    )
+                if (_uiState.value.isRestoringPresets) return
+                val client = apiClient
+                if (client == null) {
+                    _uiState.update { it.copy(isResetMenuOpen = false, toastMessage = "Tidak terhubung ke server; contoh tidak dapat dimuat.") }
+                    return
                 }
-
-                // Call Backend API
-                val client = apiClient ?: return
+                // K4: server yang memutuskan dan menulis; state lokal TIDAK diubah sebelum server menjawab.
+                _uiState.update { it.copy(isRestoringPresets = true, isResetMenuOpen = false) }
                 coroutineScope.launch {
-                    try {
-                        client.restoreDepartmentPresets(tenantSlug)
-                        client.restoreEmployeePresets(tenantSlug)
-                        val serverDepts = client.getDepartments(tenantSlug).getOrNull()
-                        val serverEmps = client.getEmployees(tenantSlug).getOrNull()
-                        if (serverDepts != null && serverEmps != null) {
-                            _uiState.update { state ->
-                                state.copy(departments = serverDepts, employees = serverEmps)
-                            }
+                    val failure = client.restoreDepartmentPresets(tenantSlug).exceptionOrNull()
+                        ?: client.restoreEmployeePresets(tenantSlug).exceptionOrNull()
+                    if (failure != null) {
+                        _uiState.update {
+                            it.copy(isRestoringPresets = false, toastMessage = restoreFailureMessage(failure))
                         }
-                    } catch (e: Exception) {
-                        println("API Restore Presets exception: ${e.message}")
+                        return@launch
+                    }
+                    val loaded = loader.fetch(client, tenantSlug)
+                    _uiState.update {
+                        loader.apply(it, loaded).copy(
+                            isRestoringPresets = false,
+                            toastMessage = if (loaded is OrgChartLoadState.Loaded) "Contoh struktur organisasi berhasil dimuat." else it.toastMessage
+                        )
                     }
                 }
+            }
+
+            is OrgChartUiEvent.Reload -> {
+                _uiState.update { loader.beginLoading(it) }
+                reload()
             }
 
             // Archive Operations (Soft-Delete — pola Odoo)
@@ -1158,39 +1046,12 @@ class OrgChartViewModel(
         }
     }
 
-    companion object {
-        /**
-         * Logika penentuan atasan default otomatis berdasarkan hirarki wewenang dan divisi:
-         * - STAFF_OPERATOR -> Kepala Divisi dari divisi tersebut. Fallback ke Direksi jika belum ada kepala divisi.
-         * - HEAD_OF_DEPARTMENT -> Direksi (Executive).
-         * - EXECUTIVE -> null (tidak memiliki atasan).
-         */
-        fun resolveDefaultSuperior(
-            employees: List<OrgNode>,
-            dept: Department?,
-            level: HierarchyLevel
-        ): String? {
-            return when (level) {
-                HierarchyLevel.EXECUTIVE -> null
-                HierarchyLevel.HEAD_OF_DEPARTMENT -> {
-                    employees.find { it.level == HierarchyLevel.EXECUTIVE }?.id?.value
-                }
-                HierarchyLevel.TEAM_LEAD -> {
-                    employees.find {
-                        it.department?.id == dept?.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT
-                    }?.id?.value ?: employees.find { it.level == HierarchyLevel.EXECUTIVE }?.id?.value
-                }
-                HierarchyLevel.STAFF_OPERATOR -> {
-                    employees.find {
-                        it.department?.id == dept?.id && it.level == HierarchyLevel.TEAM_LEAD
-                    }?.id?.value
-                        ?: employees.find {
-                            it.department?.id == dept?.id && it.level == HierarchyLevel.HEAD_OF_DEPARTMENT
-                        }?.id?.value
-                        ?: employees.find { it.level == HierarchyLevel.EXECUTIVE }?.id?.value
-                }
-            }
+    private fun restoreFailureMessage(cause: Throwable): String {
+        val server = (cause as? OrgChartRestoreException)?.serverMessage?.takeIf { it.isNotBlank() }
+        return when ((cause as? OrgChartRestoreException)?.status) {
+            403 -> server ?: "Anda tidak berwenang memuat contoh struktur organisasi."
+            409 -> server ?: "Jenis usaha ini tidak menyediakan contoh struktur organisasi."
+            else -> server ?: cause.message ?: "Gagal memuat contoh struktur organisasi."
         }
     }
 }
-

@@ -37,6 +37,8 @@ import com.eventverse.app.domain.orgchart.DepartmentTier
 import com.eventverse.app.domain.orgchart.HeadSuccessionAction
 import com.eventverse.app.domain.orgchart.HierarchyLevel
 import com.eventverse.app.domain.orgchart.OrgNode
+import com.eventverse.app.domain.pack.VocabularyKey
+import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.infrastructure.api.OrgChartApiClient
@@ -48,7 +50,7 @@ import com.eventverse.app.presentation.workspace.tint
 
 @Composable
 fun OrgChartScreen(
-    tenantSlug: String = "wemade-demo",
+    tenantSlug: String,
     access: ModuleAccessConfig = ModuleAccessConfig(AccessLevel.MANAGE),
     viewerDepartmentId: String? = null,
     viewerEmployeeId: String? = null,
@@ -82,8 +84,9 @@ fun OrgChartScreen(
         ) {
             // 1. Top Header Bar
             OrgChartHeader(
-                totalEmployees = state.employees.size,
-                totalDepartments = state.departments.size,
+                // K6: angka hanya bila terbaca dari server; selama memuat/galat chip disembunyikan, bukan 0.
+                totalEmployees = state.employees.size.takeIf { state.loadState.isResolved },
+                totalDepartments = state.departments.size.takeIf { state.loadState.isResolved },
                 isResetMenuOpen = state.isResetMenuOpen,
                 accessLevel = access.level,
                 isDepartmentLocked = state.isDepartmentLocked,
@@ -103,8 +106,17 @@ fun OrgChartScreen(
                 onDismiss = { viewModel.onEvent(OrgChartUiEvent.DismissToast) }
             )
 
-            // 2. Main Split-View Layout (Form Left, Live Chart Right)
-            Row(
+            // 2. Main Split-View Layout (Form Left, Live Chart Right); memuat/galat menggantikan seluruhnya
+            val loadState = state.loadState
+            if (loadState is OrgChartLoadState.Loading) {
+                OrgChartLoadingView(modifier = Modifier.weight(1f))
+            } else if (loadState is OrgChartLoadState.Failed) {
+                OrgChartFailedView(
+                    message = loadState.message,
+                    onRetry = { viewModel.onEvent(OrgChartUiEvent.Reload) },
+                    modifier = Modifier.weight(1f)
+                )
+            } else Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -145,6 +157,7 @@ fun OrgChartScreen(
                     onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
                     onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
                     onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
+                    onAddDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
                     onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) },
                     onToggleArchived = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
                     showArchivedPanel = state.showArchivedPanel,
@@ -419,8 +432,8 @@ private fun ArchivedPanel(
 
 @Composable
 private fun OrgChartHeader(
-    totalEmployees: Int,
-    totalDepartments: Int,
+    totalEmployees: Int?,
+    totalDepartments: Int?,
     isResetMenuOpen: Boolean,
     accessLevel: AccessLevel,
     isDepartmentLocked: Boolean = false,
@@ -478,8 +491,8 @@ private fun OrgChartHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            HeaderBadge(label = "Total Karyawan", value = "$totalEmployees Orang")
-            HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
+            if (totalEmployees != null) HeaderBadge(label = "Total Karyawan", value = "$totalEmployees Orang")
+            if (totalDepartments != null) HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
             ClayBadge(text = accessLevel.badgeLabel(), tint = accessLevel.tint(), dot = true)
 
             // Tombol Opsi Preset, Divisi Baru, dan Tambah Karyawan hanya tampil untuk pengguna dengan wewenang tulis
@@ -511,8 +524,8 @@ private fun OrgChartHeader(
                         DropdownMenuItem(
                             text = {
                                 Column {
-                                    Text("Muat Template Konveksi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-                                    Text("Isi dengan 5 divisi & staf contoh", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
+                                    Text("Muat Contoh Struktur", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
+                                    Text("Server mengisi divisi & staf contoh bila tersedia", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
                                 }
                             },
                             onClick = onRestorePresets
@@ -1388,6 +1401,7 @@ private fun ChartPreviewPanel(
     onDeptChange: (Department) -> Unit = {},
     onSelectDireksi: () -> Unit = {},
     onAddNewEmployee: () -> Unit,
+    onAddDepartment: () -> Unit,
     onRestorePresets: () -> Unit,
     onToggleArchived: () -> Unit,
     showArchivedPanel: Boolean,
@@ -1480,51 +1494,22 @@ private fun ChartPreviewPanel(
 
             // The Rendered T-Shape Tree View or Empty State
             if (state.employees.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(ClaySpacing.Xxl),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-                    ) {
-                        Text(
-                            text = "Bagan Organisasi Masih Kosong",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = WeMadeColors.OnSurface
-                        )
-                        Text(
-                            text = if (state.isDepartmentLocked) {
-                                "Belum ada karyawan yang terdaftar di divisi ${state.selectedDepartment?.displayName ?: "ini"}."
-                            } else {
-                                "Belum ada karyawan yang terdaftar. Anda dapat memulai dengan struktur kosong atau menggunakan template konveksi bawaan."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            textAlign = TextAlign.Center
-                        )
-                        if (canWrite) {
-                            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
-                            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                                if (canManage && !state.isDepartmentLocked) {
-                                    ClayButton(
-                                        text = "Muat Template Konveksi (5 Divisi)",
-                                        onClick = onRestorePresets,
-                                        style = ClayButtonStyle.Secondary,
-                                        offset = ClayOffset.Small
-                                    )
-                                }
-                                ClayButton(
-                                    text = "+ Tambah Karyawan Pertama",
-                                    onClick = onAddNewEmployee,
-                                    style = ClayButtonStyle.Primary,
-                                    offset = ClayOffset.Small
-                                )
-                            }
-                        }
-                    }
-                }
+                val workplace = ActiveTenantPack.current.term(VocabularyKey.WORKPLACE)
+                OrgChartEmptyState(
+                    message = when {
+                        state.isDepartmentLocked ->
+                            "Belum ada karyawan yang terdaftar di divisi ${state.selectedDepartment?.displayName ?: "ini"}."
+                        state.departments.isEmpty() ->
+                            "Belum ada divisi dan karyawan di $workplace ini. Buat divisi pertama, atau muat contoh bila tersedia."
+                        else -> "Belum ada karyawan yang terdaftar di $workplace ini."
+                    },
+                    createLabel = if (state.departments.isEmpty()) "+ Buat Divisi Pertama" else "+ Tambah Karyawan Pertama",
+                    canCreate = canWrite,
+                    canLoadSample = canManage && !state.isDepartmentLocked,
+                    isLoadingSample = state.isRestoringPresets,
+                    onCreate = if (state.departments.isEmpty()) onAddDepartment else onAddNewEmployee,
+                    onLoadSample = onRestorePresets
+                )
             } else {
                 TShapeChartView(
                     result = state.resolvedHierarchy,

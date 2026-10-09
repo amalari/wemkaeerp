@@ -10,7 +10,7 @@ class OrgChartViewModelDeleteTest {
 
     @Test
     fun deleteEmployee_shouldReassignSubordinatesAndRemoveNode() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
         val initialState = viewModel.uiState.value
         val initialCount = initialState.employees.size
         assertTrue(initialCount >= 9)
@@ -41,7 +41,7 @@ class OrgChartViewModelDeleteTest {
 
     @Test
     fun deleteDepartment_withExistingEmployees_shouldBlockDeletion() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
         val salesDept = Department.SALES
 
         viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(salesDept))
@@ -59,7 +59,7 @@ class OrgChartViewModelDeleteTest {
 
     @Test
     fun deleteDepartment_withoutEmployees_shouldSucceed() {
-        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo")
+        val viewModel = OrgChartViewModel(tenantSlug = "wemade-demo", seed = OrgChartSeed.GarmentSample)
 
         // Create an empty custom department
         val emptyDept = Department.createCustom(
