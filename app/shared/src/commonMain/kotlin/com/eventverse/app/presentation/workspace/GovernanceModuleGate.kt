@@ -49,19 +49,11 @@ fun GovernanceModuleGate(
         return
     }
 
-    // Keputusan yang belum tiba diperlakukan sebagai terbuka penuh, bukan tertutup.
-    //
-    // `accessDecisions` kosong sampai persona aktif terpasang, dan itu terjadi beberapa saat setelah
-    // sesi ada. Menutup layar selama jeda itu akan menampilkan "akses ditolak" berkedip pada setiap
-    // muat ulang halaman — perilaku yang akan dilaporkan sebagai kerusakan, bukan sebagai keamanan.
-    // Penjagaan yang sebenarnya tetap ada di server; ini hanya lapisan tampilan.
-    if (decision == null) {
-        content(ModuleAccessConfig())
-        return
-    }
-
-    when {
-        decision.blockedByEntitlement -> GateMessage {
+    // Satu call site `content(...)` untuk SEMUA keadaan terbuka (keputusan belum tiba maupun sudah tiba).
+    // Dua call site berbeda = dua grup komposisi berbeda, sehingga `remember { ... }` di dalam konten
+    // (mis. ViewModel layar) dibuat ulang saat gerbang berpindah cabang (TRD-PLAT-010 §11).
+    when (val view = resolveGateView(decision)) {
+        GateView.NotEntitled -> GateMessage {
             ModuleNotEntitledCard(
                 moduleName = screen.title,
                 tenantName = tenantName,
@@ -69,7 +61,7 @@ fun GovernanceModuleGate(
             )
         }
 
-        !decision.config.isAccessible -> GateMessage {
+        GateView.Denied -> GateMessage {
             AccessDeniedCard(
                 moduleName = screen.title,
                 personaName = persona?.name ?: "Tanpa persona",
@@ -78,8 +70,29 @@ fun GovernanceModuleGate(
             )
         }
 
-        else -> content(decision.config)
+        is GateView.Open -> content(view.config)
     }
+}
+
+/** Hasil keputusan gerbang. Logika murni, dipisah dari komposisi agar bisa diuji. */
+internal sealed interface GateView {
+    data class Open(val config: ModuleAccessConfig) : GateView
+    data object NotEntitled : GateView
+    data object Denied : GateView
+}
+
+/**
+ * Keputusan yang belum tiba diperlakukan sebagai terbuka penuh, bukan tertutup.
+ *
+ * `accessDecisions` kosong sampai persona aktif terpasang, dan itu terjadi beberapa saat setelah
+ * sesi ada. Menutup layar selama jeda itu akan menampilkan "akses ditolak" berkedip pada setiap
+ * muat ulang halaman. Penjagaan yang sebenarnya tetap ada di server; ini hanya lapisan tampilan.
+ */
+internal fun resolveGateView(decision: AccessDecision?): GateView = when {
+    decision == null -> GateView.Open(ModuleAccessConfig())
+    decision.blockedByEntitlement -> GateView.NotEntitled
+    !decision.config.isAccessible -> GateView.Denied
+    else -> GateView.Open(decision.config)
 }
 
 @Composable
