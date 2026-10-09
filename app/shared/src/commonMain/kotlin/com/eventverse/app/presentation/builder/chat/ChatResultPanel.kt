@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.eventverse.app.presentation.builder.BuilderDraftState
+import com.eventverse.app.presentation.builder.BuilderDraftStatusView
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayIconButton
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -40,6 +42,7 @@ private val TABS = listOf("Modul", "Fitur", "Alur Data", "Prototype")
 @Composable
 internal fun ChatResultPanel(
     draft: DiscoveryDraftUi?,
+    draftState: BuilderDraftState,
     patchPreview: List<String>,
     onClose: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -86,7 +89,7 @@ internal fun ChatResultPanel(
                 }
             }
             if (draft == null) {
-                Text("Memuat draf…", style = typography.bodyMedium, color = WeMadeColors.OnSurfaceMuted)
+                BuilderDraftStatusView(draftState)
             } else when (tab) {
                 0 -> ModuleMapPane(draft = draft)
                 1 -> FeaturesTab(featuresOf(draft))
