@@ -9,20 +9,35 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
+import com.eventverse.app.presentation.common.fieldFileClientSizeError
+import com.eventverse.app.presentation.common.fieldFileErrorMessage
+import com.eventverse.app.presentation.common.fieldFileSizeHint
+import com.eventverse.app.presentation.common.fileRefDisplayName
+import com.eventverse.app.presentation.deal.openInBrowser
+import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
+import com.eventverse.app.presentation.designsystem.ClayFileField
+import com.eventverse.app.presentation.designsystem.ClayFileFieldState
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlinx.coroutines.launch
 
 /**
  * Komponen input bersama untuk tipe data prototipe (TRD-PLAT-003, butir A3 — Aturan Tiga Kali).
@@ -38,8 +53,9 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * - BOOL -> [ClayCheckbox] dengan status "ya" / "tidak"
  * - RELATION -> sementara tampilan baca-saja id rujukan (C7/TRD-FIELD-001); `ClayRelationPicker`
  *   menyusul di Track C — dilarang memalsukan rujukan jadi kolom teks bebas
- * - FILE -> sementara tampilan baca-saja referensi berkas (C8/TRD-FIELD-002); `ClayFileField`
- *   menyusul di Track C — byte tidak pernah lewat sel, hanya key `fields/...`
+ * - FILE -> [ClayFileField] (C8/TRD-FIELD-002 Track C): unggah pertama/ganti/hapus lewat
+ *   [FileFieldOps] bila record sudah punya id server; byte tidak pernah lewat sel, hanya key
+ *   `fields/...`. Tanpa ops = chip baca-saja / penjelasan bahwa unggah menyusul setelah data ada.
  */
 @Composable
 fun FieldInput(
@@ -51,7 +67,8 @@ fun FieldInput(
     compact: Boolean = false,
     enabled: Boolean = true,
     errorMessage: String? = null,
-    keyboardActions: KeyboardActions = KeyboardActions.Default
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    fileOps: FileFieldOps? = null
 ) {
     Column(
         modifier = modifier,
@@ -187,15 +204,17 @@ fun FieldInput(
                     color = if (value.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
                 )
             }
-            // C8 (TRD-FIELD-002): nilai FILE = key `fields/...` (byte di ObjectStorage) — bukan teks bebas.
-            // Unggah/unduh (ClayFileField) di Track C; tabel/kanban v1 = ganti/hapus berkas yang ada.
-            FieldType.FILE -> {
-                Text(
-                    text = value.ifBlank { "—" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (value.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
-                )
-            }
+            // C8 (TRD-FIELD-002 Track C): nilai FILE = key `fields/...` (byte di ObjectStorage).
+            // Unggah/ganti/hapus hanya bila [fileOps] tersedia (record sudah ber-id server);
+            // unduh lewat URL presigned. Batas ukuran dijaga di klien + pesan server dipetakan.
+            FieldType.FILE -> FileFieldInput(
+                field = field,
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                isError = errorMessage != null,
+                fileOps = fileOps
+            )
         }
 
         if (shownError != null) {
@@ -215,5 +234,93 @@ private fun NumberAffixText(text: String) {
         text = text,
         style = MaterialTheme.typography.labelMedium,
         color = WeMadeColors.OnSurfaceMuted
+    )
+}
+
+/**
+ * Cabang kontrol field `FILE` (C8, TRD-FIELD-002 Track C) di atas [ClayFileField].
+ *
+ * Alur unggah mengikuti pola yang sudah terbukti (bukti foto/mockup deal & fulfilment):
+ * picker platform (`pickLocalFile`) → jaga batas 10 MB di klien → unggah byte via [FileFieldOps]
+ * → sukses = sel diisi referensi `fields/...` dari server. Progres v1 determinate belum tersedia
+ * dari transport, jadi bar aktifitasnya bergerak (lihat `ClayFileFieldState.Uploading`).
+ */
+@Composable
+private fun FileFieldInput(
+    field: FieldSpec,
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    isError: Boolean,
+    fileOps: FileFieldOps?
+) {
+    val scope = rememberCoroutineScope()
+    var uploadState by remember(field.key) { mutableStateOf<ClayFileFieldState>(ClayFileFieldState.Idle) }
+    val ref = value.trim()
+    val canUpload = enabled && fileOps != null && uploadState !is ClayFileFieldState.Uploading
+
+    if (ref.isBlank() && fileOps == null) {
+        // Kontrak §4.4 mengunci recordId di path endpoint: record baru belum bisa menerima unggah.
+        // Penjelasan jujur, bukan pemilih yang tidak akan pernah berhasil (Kontrak 8).
+        Text(
+            text = "Lampiran dapat diunggah setelah data tersimpan.",
+            style = MaterialTheme.typography.labelSmall,
+            color = WeMadeColors.OnSurfaceMuted
+        )
+        return
+    }
+
+    ClayFileField(
+        fileName = if (ref.isBlank()) "" else fileRefDisplayName(ref),
+        sizeLabel = fieldFileSizeHint(),
+        state = uploadState,
+        onPick = {
+            if (canUpload) {
+                scope.launch {
+                    val ops = fileOps ?: return@launch
+                    val picked = pickLocalFile(FIELD_FILE_ACCEPT) ?: return@launch
+                    val sizeError = fieldFileClientSizeError(picked.bytes.size.toLong())
+                    if (sizeError != null) {
+                        uploadState = ClayFileFieldState.Error(sizeError)
+                        return@launch
+                    }
+                    uploadState = ClayFileFieldState.Uploading(progress = null)
+                    ops.upload(field.key, picked.fileName, picked.mimeType, picked.bytes) { result ->
+                        result.fold(
+                            onSuccess = { newRef ->
+                                uploadState = ClayFileFieldState.Ready
+                                onValueChange(newRef)
+                            },
+                            onFailure = { err ->
+                                uploadState = ClayFileFieldState.Error(fieldFileErrorMessage(err))
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        onDownload = if (ref.isNotBlank() && fileOps != null) {
+            {
+                scope.launch {
+                    val ops = fileOps
+                    if (ops != null) {
+                        ops.downloadUrl(field.key, ref) { result ->
+                            result.onSuccess { url -> openInBrowser(url) }
+                                .onFailure { err ->
+                                    uploadState = ClayFileFieldState.Error(fieldFileErrorMessage(err))
+                                }
+                        }
+                    }
+                }
+            }
+        } else null,
+        onRemove = if (ref.isNotBlank() && fileOps != null && enabled) {
+            {
+                uploadState = ClayFileFieldState.Idle
+                onValueChange("")
+            }
+        } else null,
+        enabled = canUpload,
+        isError = isError || uploadState is ClayFileFieldState.Error
     )
 }

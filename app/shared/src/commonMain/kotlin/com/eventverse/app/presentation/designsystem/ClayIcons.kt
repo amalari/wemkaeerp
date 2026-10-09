@@ -1371,3 +1371,92 @@ fun IconHelp(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfac
         drawCircle(color = color, radius = stroke * 0.75f, center = Offset(w * 0.5f, h * 0.72f))
     }
 }
+
+/** Dokumen dengan sudut terlipat — chip nama berkas pada field FILE (TRD-FIELD-002). */
+@Composable
+fun IconFile(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurfaceMuted) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Badan dokumen dengan sudut kanan-atas terlipat
+        val sheet = Path().apply {
+            moveTo(w * 0.18f, h * 0.10f)
+            lineTo(w * 0.62f, h * 0.10f)
+            lineTo(w * 0.82f, h * 0.30f)
+            lineTo(w * 0.82f, h * 0.90f)
+            lineTo(w * 0.18f, h * 0.90f)
+            close()
+        }
+        drawPath(
+            sheet,
+            color = color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // Garis lipatan
+        drawPath(
+            Path().apply {
+                moveTo(w * 0.62f, h * 0.10f)
+                lineTo(w * 0.62f, h * 0.30f)
+                lineTo(w * 0.82f, h * 0.30f)
+            },
+            color = color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // Dua baris isi
+        drawLine(
+            color = color,
+            start = Offset(w * 0.30f, h * 0.52f),
+            end = Offset(w * 0.70f, h * 0.52f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(w * 0.30f, h * 0.68f),
+            end = Offset(w * 0.58f, h * 0.68f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+/** Panah unduh ke garis dasar — aksi unduh berkas presigned (TRD-FIELD-002 §4.4). */
+@Composable
+fun IconDownload(modifier: Modifier = Modifier, color: Color = WeMadeColors.OnSurface) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8f * density
+
+        // Batang panah + kepala
+        drawLine(
+            color = color,
+            start = Offset(w * 0.5f, h * 0.12f),
+            end = Offset(w * 0.5f, h * 0.58f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        val head = Path().apply {
+            moveTo(w * 0.30f, h * 0.40f)
+            lineTo(w * 0.50f, h * 0.60f)
+            lineTo(w * 0.70f, h * 0.40f)
+        }
+        drawPath(head, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        // Wadah dasar
+        drawPath(
+            Path().apply {
+                moveTo(w * 0.14f, h * 0.70f)
+                lineTo(w * 0.14f, h * 0.82f)
+                lineTo(w * 0.86f, h * 0.82f)
+                lineTo(w * 0.86f, h * 0.70f)
+            },
+            color = color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}

@@ -99,6 +99,7 @@ fun CrmKanbanBoard(
     selectedSource: String? = null,
     onFilterEmployee: (OrgNodeId?) -> Unit = {},
     onFilterSource: (String?) -> Unit = {},
+    fieldFileActions: LeadFieldFileActions? = null,
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -297,6 +298,7 @@ fun CrmKanbanBoard(
                             isLoadingActivities = isLoadingActivities,
                             isSubmittingActivity = isSubmittingActivity,
                             onSubmitActivity = onSubmitActivity,
+                            fieldFileActions = fieldFileActions,
                             modifier = Modifier.fillMaxSize()
                         )
                     }

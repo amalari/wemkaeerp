@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.discovery.fields
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.presentation.common.fileRefDisplayName
 import com.eventverse.app.presentation.designsystem.displayIsoDateTime
 
 /**
@@ -132,6 +133,7 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     FieldType.NUMBER -> formatNumberForDisplay(stored, format, currencyCode)
     FieldType.DATE -> if (withTime) displayIsoDateTime(stored) else stored
     // C7: sementara id target apa adanya (fallback id); resolusi label opsi menyusul di Track C TRD-FIELD-001.
-    // C8: serupa — nama berkas dari ref; komponen unggah menyusul di Track C TRD-FIELD-002.
-    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION, FieldType.FILE -> stored
+    // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
+    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
+    FieldType.FILE -> fileRefDisplayName(stored)
 }

@@ -18,29 +18,29 @@ import kotlinx.coroutines.suspendCancellableCoroutine
         input.accept = accept;
         input.style.display = 'none';
         document.body.appendChild(input);
-        const finish = (value) => {
+        const finish = (value, name) => {
             if (input.parentNode) { input.parentNode.removeChild(input); }
-            cb(value);
+            cb(value, name ?? null);
         };
         input.onchange = () => {
             const file = input.files && input.files[0];
-            if (!file) { finish(null); return; }
+            if (!file) { finish(null, null); return; }
             const reader = new FileReader();
-            reader.onload = () => finish(typeof reader.result === 'string' ? reader.result : null);
-            reader.onerror = () => finish(null);
+            reader.onload = () => finish(typeof reader.result === 'string' ? reader.result : null, file.name);
+            reader.onerror = () => finish(null, null);
             reader.readAsDataURL(file);
         };
         input.click();
     }"""
 )
-private external fun openFilePickerJs(accept: String, onLoaded: (String?) -> Unit)
+private external fun openFilePickerJs(accept: String, onLoaded: (String?, String?) -> Unit)
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 actual suspend fun pickLocalFile(accept: String): PickedLocalFile? =
     suspendCancellableCoroutine { continuation ->
-        openFilePickerJs(accept) { dataUrl ->
+        openFilePickerJs(accept) { dataUrl, name ->
             if (continuation.isActive) {
-                continuation.resume(dataUrl?.let { decodeDataUrlToPickedFile(it) })
+                continuation.resume(dataUrl?.let { decodeDataUrlToPickedFile(it, name) })
             }
         }
     }

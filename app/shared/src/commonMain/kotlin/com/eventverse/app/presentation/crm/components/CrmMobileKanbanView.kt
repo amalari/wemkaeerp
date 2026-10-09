@@ -74,6 +74,7 @@ fun CrmMobileKanbanView(
     isLoadingActivities: Boolean = false,
     isSubmittingActivity: Boolean = false,
     onSubmitActivity: ((content: String) -> Unit)? = null,
+    fieldFileActions: LeadFieldFileActions? = null,
     modifier: Modifier = Modifier
 ) {
     val selectedLead = leads.firstOrNull { it.id == selectedLeadId }
@@ -235,6 +236,7 @@ fun CrmMobileKanbanView(
                 isLoadingActivities = isLoadingActivities,
                 isSubmittingActivity = isSubmittingActivity,
                 onSubmitActivity = onSubmitActivity,
+                fieldFileActions = fieldFileActions,
                 modifier = Modifier.fillMaxWidth()
             )
         }

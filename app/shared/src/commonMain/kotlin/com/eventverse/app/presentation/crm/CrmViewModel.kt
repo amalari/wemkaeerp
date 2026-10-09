@@ -67,6 +67,8 @@ class CrmViewModel(
             is CrmUiEvent.OpenActivities -> openActivities(event.lead)
             is CrmUiEvent.CloseActivities -> closeActivities()
             is CrmUiEvent.SubmitActivity -> submitActivity(event.leadId, event.content)
+            is CrmUiEvent.UploadFieldFile -> uploadFieldFile(event)
+            is CrmUiEvent.OpenFieldFile -> openFieldFile(event)
             is CrmUiEvent.DismissStatusMessage -> _uiState.update { it.copy(statusMessage = null, error = null) }
             is CrmUiEvent.DismissError -> _uiState.update { it.copy(error = null) }
         }
@@ -373,6 +375,30 @@ class CrmViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /**
+     * C8 (TRD-FIELD-002): unggah berkas field FILE. Gerbang tulis di UI mengikuti aturan layar
+     * ini (`canWrite`), gerbang sahnya tetap di server (OPERATE modul CRM, fail-closed). Ref yang
+     * kembang di-commit pemanggil ke sel lewat [CrmUiEvent.CommitField] — byte tak pernah ke sel.
+     */
+    private fun uploadFieldFile(event: CrmUiEvent.UploadFieldFile) {
+        if (!_uiState.value.canWrite) {
+            event.onDone(Result.failure(IllegalStateException("Anda tidak berwenang mengubah lead ini.")))
+            return
+        }
+        scope.launch {
+            val result = remoteDataSource.uploadLeadFieldFile(
+                tenantSlug, event.leadId, event.fieldId, event.fileName, event.contentType, event.bytes
+            )
+            event.onDone(result)
+        }
+    }
+
+    private fun openFieldFile(event: CrmUiEvent.OpenFieldFile) {
+        scope.launch {
+            event.onDone(remoteDataSource.leadFieldFileDownloadUrl(tenantSlug, event.leadId, event.fieldId))
         }
     }
 }

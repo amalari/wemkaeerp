@@ -24,8 +24,12 @@ const val MOCKUP_IMAGE_ACCEPT = "image/png,image/jpeg,image/webp"
  * Picker web sengaja mengembalikan data URL, bukan biner: membaca `File.arrayBuffer()`
  * dari DOM memerlukan interop typed-array yang berbeda antara JS dan Wasm, sedangkan
  * data URL hanyalah `String` — satu bentuk yang jalan di kedua target web.
+ *
+ * [fileName] = nama asli berkas dari input DOM; dipakai apa adanya bila ada (penting untuk
+ * field `FILE` yang menyimpan nama di ref). Bila null/kosong, nama disintesis dari MIME
+ * seperti sebelumnya (pemanggil lama mockup tidak berubah perilaku bila picker tak memberi nama).
  */
-internal fun decodeDataUrlToPickedFile(dataUrl: String): PickedLocalFile? {
+internal fun decodeDataUrlToPickedFile(dataUrl: String, fileName: String? = null): PickedLocalFile? {
     if (!dataUrl.startsWith("data:")) return null
     val comma = dataUrl.indexOf(',')
     if (comma <= 0) return null
@@ -42,7 +46,11 @@ internal fun decodeDataUrlToPickedFile(dataUrl: String): PickedLocalFile? {
         mime.contains("webp") -> "webp"
         else -> "img"
     }
-    return PickedLocalFile(fileName = "design-mockup.$extension", mimeType = mime, bytes = bytes)
+    return PickedLocalFile(
+        fileName = fileName?.takeIf { it.isNotBlank() } ?: "design-mockup.$extension",
+        mimeType = mime,
+        bytes = bytes
+    )
 }
 
 /**
