@@ -39,31 +39,14 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 private fun BuilderTenantDraft(content: @Composable (DiscoveryDraftUi) -> Unit) {
     val client = remember { BuilderApiClient() }
-    var draft by remember { mutableStateOf<DiscoveryDraftUi?>(null) }
-    var missing by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf<BuilderDraftState>(BuilderDraftState.Loading) }
 
-    LaunchedEffect(Unit) {
-        client.draft().fold(
-            onSuccess = { raw ->
-                draft = (raw as? com.eventverse.app.shared.json.JsonValue.Obj)
-                    ?.let { runCatching { DiscoveryDraftUi.fromJson(it) }.getOrNull() }
-                missing = draft == null
-            },
-            onFailure = { missing = true }
-        )
-    }
+    LaunchedEffect(Unit) { state = BuilderDraftState.load(client) }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-        val current = draft
+        val current = state.draftOrNull
         if (current == null) {
-            Text(
-                text = if (missing) "Belum ada draf kerja — mulai dari pane Chat, lalu tekan Terapkan pada usulan agent."
-                else "Memuat draf…",
-                style = rememberClayTypography().bodyMedium,
-                color = WeMadeColors.OnSurfaceMuted,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            BuilderDraftStatusView(state)
         } else {
             content(current)
         }

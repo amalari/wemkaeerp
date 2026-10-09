@@ -32,6 +32,8 @@ import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
+import com.eventverse.app.presentation.builder.BuilderDraftState
+import com.eventverse.app.presentation.builder.draftOrNull
 import com.eventverse.app.presentation.discovery.DiscoveryDraftUi
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
@@ -50,7 +52,8 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
 
     var messages by remember { mutableStateOf<List<BuilderChatEntry>>(emptyList()) }
-    var draft by remember { mutableStateOf<DiscoveryDraftUi?>(null) }
+    var draftState by remember { mutableStateOf<BuilderDraftState>(BuilderDraftState.Loading) }
+    val draft = draftState.draftOrNull
     var input by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -70,9 +73,7 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         }.onFailure { error = it.message }
     }
     suspend fun reloadDraft() {
-        client.draft().onSuccess { raw ->
-            draft = (raw as? JsonValue.Obj)?.let { runCatching { DiscoveryDraftUi.fromJson(it) }.getOrNull() }
-        }
+        draftState = BuilderDraftState.load(client)
     }
     LaunchedEffect(Unit) {
         reloadChat()
@@ -186,6 +187,7 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         val panel: @Composable (Modifier) -> Unit = { m ->
             ChatResultPanel(
                 draft = draft?.focusedOn(thread),
+                draftState = draftState,
                 patchPreview = previewSummary,
                 onClose = if (wide) null else ({ panelOpen = false }),
                 modifier = m,
