@@ -26,7 +26,8 @@ import kotlin.test.assertTrue
 
 /**
  * `generateFromSpec` (kontrak §3.4, butir C1–C2). Dites dengan **dua template**: pilot `layanan`
- * (kelima tipe field) dan fixture tiket servis dari kontrak B0 (kunci berhuruf besar), sesuai Kontrak 6.
+ * (enam tipe field, termasuk FILE lampiran) dan fixture tiket servis dari kontrak B0 (kunci berhuruf
+ * besar), sesuai Kontrak 6.
  */
 class SpecScaffoldGeneratorTest {
     private val generator = HandoffScaffoldGenerator()
@@ -81,6 +82,8 @@ class SpecScaffoldGeneratorTest {
             "perkiraan_jam NUMERIC(18,4),",
             "target_selesai DATE,",
             "mendesak    BOOLEAN NOT NULL DEFAULT FALSE,",
+            "catatan     TEXT,",
+            "lampiran    TEXT,",
             "SELECT apply_tenant_rls_in('layanan_change_request', 'change_requests');",
             "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA layanan_change_request TO wemade_app;",
             "'mce-layanan_change_request', 'layanan_change_request', 'layanan_change_request',",
@@ -178,6 +181,9 @@ class SpecScaffoldGeneratorTest {
     fun pilotPack_isRegistrableAsDataPack_andSpecMatchesItsModule() {
         DomainPackRegistry.register(LayananPilotPack.pack)
         assertEquals(LayananPilotPack.module, DomainPackRegistry.moduleDefinition(LayananPilotPack.CHANGE_REQUEST))
-        assertEquals(setOf(FieldType.TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.ENUM, FieldType.BOOL), LayananPilotPack.entity.fields.map { it.type }.toSet())
+        assertEquals(
+            setOf(FieldType.TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.ENUM, FieldType.BOOL, FieldType.FILE),
+            LayananPilotPack.entity.fields.map { it.type }.toSet()
+        )
     }
 }

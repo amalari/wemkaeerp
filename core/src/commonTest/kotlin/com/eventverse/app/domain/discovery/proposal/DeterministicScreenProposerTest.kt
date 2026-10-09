@@ -9,6 +9,7 @@ import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.ModuleSectionCode
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -179,5 +180,29 @@ class DeterministicScreenProposerTest {
         val failure = DeterministicScreenProposer.proposalsFor(pack, module)
         assertTrue(failure.isFailure)
         assertTrue(failure.exceptionOrNull()?.message.orEmpty().contains("defaultStatuses"))
+    }
+
+    /**
+     * C8 (TRD-FIELD-002 Track A): pembuat deterministik **tidak pernah mengusulkan FILE** — kontrol
+     * unggah baru ada di Track C, jadi tidak ada FieldProposal FILE di layar, tidak ada petunjuk FILE
+     * di usulan pack deterministik, dan FILE tidak pernah menjadi elemen kartu (`cardOf(FILE) == null`).
+     */
+    @Test
+    fun `proposer tidak mengusulkan FILE dan FILE tidak pernah jadi elemen kartu`() = runTest {
+        val file = FieldProposal("lampiran", "Lampiran", FieldType.FILE)
+        assertEquals(null, DeterministicScreenProposer.cardOf(file), "FILE tidak punya gaya kartu")
+        assertNotNull(DeterministicScreenProposer.cardOf(FieldProposal("tanggal", "Tanggal", FieldType.DATE)), "kontras: tipe lain punya gaya kartu")
+        narratives.values.forEach { text ->
+            val draft = draftOf(text)
+            draft.screens.forEach { s ->
+                val p = s.proposal!!
+                assertTrue(p.entity?.fields?.any { it.type == FieldType.FILE } != true, "${s.screenId}: usulan FILE")
+                val card = (p.view as? ViewProposal.Kanban)?.card.orEmpty()
+                val fileKeys = p.entity?.fields?.filter { it.type == FieldType.FILE }?.map { it.key }.orEmpty()
+                assertTrue(card.none { it.field in fileKeys }, "${s.screenId}: FILE di kartu")
+            }
+            val hints = draft.pack.screenSuggestions.flatMap { it.kanbanHints?.fields.orEmpty() + it.tableHints?.fields.orEmpty() }
+            assertTrue(hints.none { it.type == FieldType.FILE }, "${draft.pack.code.value}: petunjuk FILE")
+        }
     }
 }
