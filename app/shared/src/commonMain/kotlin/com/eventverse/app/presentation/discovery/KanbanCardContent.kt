@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.eventverse.app.domain.prototype.CardElement
 import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.PrototypeRow
@@ -31,6 +33,7 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.IconCalendarGrid
 import com.eventverse.app.presentation.discovery.fields.displayValue
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -167,13 +170,20 @@ private fun RenderRichCardElements(
             }
             CardStyle.DATE -> {
                 if (rawValue.isNotBlank()) {
-                    Text(
-                        text = "📅 $rawValue",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = WeMadeColors.OnSurfaceMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconCalendarGrid(Modifier.size(12.dp), color = WeMadeColors.OnSurfaceMuted)
+                        Text(
+                            text = rawValue,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = WeMadeColors.OnSurfaceMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
                 }
             }
             CardStyle.NUMBER -> {
