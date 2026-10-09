@@ -186,7 +186,9 @@ class KoogDiscoveryMultiSelectTest {
             """"type":"MULTI_SELECT","options":["a","b"],"maxSelections":2.5""",
             // options wajib & unik
             """"type":"MULTI_SELECT"""",
-            """"type":"MULTI_SELECT","options":["a","a"]"""
+            """"type":"MULTI_SELECT","options":["a","a"]""",
+            // kelebihan opsi ditolak, bukan dipotong diam-diam (9 > ProposalLimits.OPTIONS)
+            """"type":"MULTI_SELECT","options":["a","b","c","d","e","f","g","h","i"]"""
         ).forEach { frag ->
             val r = edit("""{"reply":"x","edits":[{"op":"add","field":{"key":"a","label":"A",$frag}}]}""")
             assertTrue(r.isFailure, "Seharusnya ditolak: $frag")

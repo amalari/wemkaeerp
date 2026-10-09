@@ -92,8 +92,9 @@ class KoogModuleEditor(
     private fun fieldOf(o: JsonValue.Obj): FieldProposal {
         val type = (o["type"] as? JsonValue.Str)?.value?.uppercase()?.let { t -> FieldType.entries.firstOrNull { it.name == t } }
             ?: error("field.type wajib salah satu ${FieldType.entries.joinToString { it.name }}")
-        val options = (o["options"] as? JsonValue.Arr)?.items?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty().take(ProposalLimits.OPTIONS)
-        requireOptions(type, options)
+        val rawOptions = (o["options"] as? JsonValue.Arr)?.items?.mapNotNull { (it as? JsonValue.Str)?.value }.orEmpty()
+        requireOptions(type, rawOptions)
+        val options = rawOptions.take(ProposalLimits.OPTIONS)
         val number = KoogModuleEditorNumberFormat.read(o, type)
         val params = KoogModuleEditorFieldParams.read(o, type, options)
         return FieldProposal(
@@ -106,12 +107,14 @@ class KoogModuleEditor(
     }
 
     /**
-     * ENUM dan MULTI_SELECT wajib punya `options` tidak kosong dan unik (cermin `ProposalEntityRules.checkOptions`,
-     * TRD-FIELD-003 FR-1). Nilai salah ditolak di sini agar model mendapat galat berpath, bukan diteruskan ke validator.
+     * ENUM dan MULTI_SELECT wajib punya `options` tidak kosong, ≤ `ProposalLimits.OPTIONS`, dan unik (cermin
+     * `ProposalEntityRules.checkOptions`, TRD-FIELD-003 FR-1). Kelebihan opsi **ditolak**, bukan dipotong diam-diam,
+     * supaya model mendapat galat berpath — bukan opsi yang hilang tanpa jejak.
      */
     private fun requireOptions(type: FieldType, options: List<String>) {
         if (type != FieldType.ENUM && type != FieldType.MULTI_SELECT) return
         require(options.isNotEmpty()) { "field.options wajib untuk type ${type.name}" }
+        require(options.size <= ProposalLimits.OPTIONS) { "field.options ${type.name} maksimum ${ProposalLimits.OPTIONS}, dapat ${options.size}" }
         require(options.distinct().size == options.size) { "field.options ${type.name} wajib unik" }
     }
 
