@@ -85,6 +85,12 @@ fun Route.publicAuthRoutes(
                 val tenantSlug = commandSlug
                     ?: user.tenantId?.let { repository.findById(it)?.slug?.value }
                     ?: ""
+                // Fail-closed: akun tenant tanpa slug yang dapat ditentukan tidak boleh mendapat
+                // token (dulu terbit dengan tenant_slug null lalu ditolak gerbang di tiap request).
+                if (tenantSlug.isBlank() && user.role != Role.PLATFORM_SUPERADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Tenant akun tidak dapat ditentukan")
+                    return@post
+                }
                 val sessionToken = jwtTokenService.generateToken(user, tenantSlug.ifBlank { null })
                 call.respondText(authSessionJson(user, sessionToken.value, tenantSlug), contentType = ContentType.Application.Json)
             } else {
@@ -113,12 +119,11 @@ fun Route.publicAuthRoutes(
 
             val jwt = verifyResult.getOrThrow()
             val userId = jwt.subject ?: ""
-            // Fail-closed: klaim slug kosong tidak boleh jatuh ke tenant bawaan. Superadmin
-            // platform memang tak terikat tenant, jadi hanya ia yang boleh tanpa slug.
+            val roleClaim = jwt.getClaim("role").asString()
             val tenantSlug = jwt.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
-            val claimedRole = jwt.getClaim("role").asString()
-            if (tenantSlug == null && claimedRole != Role.PLATFORM_SUPERADMIN.name) {
-                call.respond(HttpStatusCode.Forbidden, "Token tidak membawa tenant; sesi ditolak.")
+            // Tanpa fallback senyap ke "wemade-demo": token tenant-bound tanpa slug ditolak.
+            if (tenantSlug == null && roleClaim != Role.PLATFORM_SUPERADMIN.name) {
+                call.respond(HttpStatusCode.Unauthorized, "Token tidak memuat tenant")
                 return@get
             }
             val username = jwt.getClaim("username").asString() ?: ""
@@ -151,27 +156,4 @@ fun Route.publicAuthRoutes(
             )
         }
     }
-}
-
-/**
- * Bentuk JSON sesi terotentikasi yang dipakai seluruh endpoint auth publik.
- *
- * Diangkat jadi satu fungsi karena tiga endpoint (`/demo`, `/google`, `/me`) sebelumnya merakit
- * string yang sama secara terpisah, dan penambahan field identitas tenant harus muncul di
- * ketiganya sekaligus — kalau tidak, client melihat persona hanya di sebagian jalur masuk.
- */
-internal fun authSessionJson(user: User, token: String, tenantSlug: String): String {
-    val permissionsJson = user.effectivePermissions.joinToString(",") { "\"${it.name}\"" }
-    fun nullableJson(value: String?): String = if (value == null) "null" else "\"$value\""
-
-    return "{\"token\":\"$token\",\"user\":{" +
-        "\"id\":\"${user.id.value}\"," +
-        "\"tenantId\":\"${user.tenantId?.value ?: ""}\"," +
-        "\"username\":\"${user.username.value}\"," +
-        "\"email\":\"${user.email.value}\"," +
-        "\"role\":\"${user.role.name}\"," +
-        "\"departmentId\":${nullableJson(user.departmentId)}," +
-        "\"customRoleId\":${nullableJson(user.customRoleId)}," +
-        "\"permissions\":[$permissionsJson]}," +
-        "\"tenantSlug\":\"$tenantSlug\"}"
 }

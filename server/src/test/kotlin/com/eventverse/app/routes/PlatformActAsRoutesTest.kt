@@ -89,7 +89,7 @@ class PlatformActAsRoutesTest {
 
     private suspend fun ApplicationTestBuilder.actAs(user: User?, slug: String): HttpResponse =
         client.post("/api/admin/tenants/$slug/act-as") {
-            user?.let { header(HttpHeaders.Authorization, "Bearer ${jwt.generateToken(it).value}") }
+            user?.let { header(HttpHeaders.Authorization, "Bearer ${jwt.generateToken(it, it.tenantId?.let { "bordir-uji" }).value}") }
         }
 
     @Test

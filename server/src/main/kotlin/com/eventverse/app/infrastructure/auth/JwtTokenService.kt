@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.interfaces.DecodedJWT
 import com.eventverse.app.domain.auth.AuthToken
+import com.eventverse.app.domain.auth.Role
 import com.eventverse.app.domain.auth.User
 import java.util.*
 
@@ -21,6 +22,11 @@ class JwtTokenService(
         .build()
 
     fun generateToken(user: User, tenantSlug: String? = null): AuthToken {
+        // Token tenant-bound tanpa slug ditolak saat penerbitan: gerbang tenant menolaknya di sisi
+        // baca, jadi menerbitkannya hanya menghasilkan sesi rusak yang gagal jauh dari sebabnya.
+        require(user.role == Role.PLATFORM_SUPERADMIN || !tenantSlug.isNullOrBlank()) {
+            "Slug tenant wajib untuk token akun tenant (user ${user.id.value})"
+        }
         val now = Date()
         val expiresAt = Date(now.time + validityDurationMillis)
 
