@@ -91,7 +91,7 @@ class SessionHandoffRoutesTest {
     private suspend fun ApplicationTestBuilder.issue(user: User, actAs: String? = null): HttpResponse =
         client.submitForm("/api/public/auth/handoff/issue", parameters { actAs?.let { append("actAs", it) } }) {
             header(HttpHeaders.Host, "app.$base")
-            header(HttpHeaders.Authorization, "Bearer ${jwt.generateToken(user).value}")
+            header(HttpHeaders.Authorization, "Bearer ${jwt.generateToken(user, user.tenantId?.let { "bordir-uji" }).value}")
         }
 
     private suspend fun ApplicationTestBuilder.ticketFor(user: User, actAs: String? = null): String =
@@ -199,6 +199,6 @@ class SessionHandoffRoutesTest {
     @Test
     fun `redeem session token should not be accepted as ticket`() = testApplication {
         install()
-        assertEquals(401, redeem(jwt.generateToken(owner).value, "bordir-uji.$base").status.value)
+        assertEquals(401, redeem(jwt.generateToken(owner, "bordir-uji").value, "bordir-uji.$base").status.value)
     }
 }

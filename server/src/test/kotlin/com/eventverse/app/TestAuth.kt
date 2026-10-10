@@ -98,6 +98,16 @@ object TestAuth {
         customRoleId = customRoleId
     )
 
+    /** Token dengan klaim role mentah, untuk menguji role tak dikenal. */
+    fun tokenWithRawRole(tenantSlug: String, rawRole: String?): String {
+        val now = Date()
+        return JWT.create().withIssuer(ISSUER).withSubject("usr-test-rawrole")
+            .withClaim("tenant_slug", tenantSlug)
+            .withClaim("role", rawRole)
+            .withIssuedAt(now).withExpiresAt(Date(now.time + 60 * 60 * 1000L))
+            .sign(algorithm)
+    }
+
     /** Token for a platform superadmin, which is bound to no single tenant. */
     fun superadminToken(): String = sign(
         userId = "usr-test-superadmin",

@@ -165,11 +165,17 @@ val TenantResolutionPlugin = createApplicationPlugin(
             return@onCall
         }
 
+        // Fail-closed: role hilang/tak dikenal ditolak. Dulu jatuh ke TENANT_ADMIN, yakni identitas
+        // yang tak terbaca justru diberi wewenang terluas.
+        val callerRole = decoded.getClaim("role").asString()
+            ?.let { name -> runCatching { Role.valueOf(name) }.getOrNull() }
+        if (callerRole == null) {
+            call.respond(HttpStatusCode.Forbidden, "Peran pada sesi tidak dikenali.")
+            return@onCall
+        }
         val principal = CallerPrincipal(
             userId = decoded.subject ?: "",
-            role = decoded.getClaim("role").asString()
-                ?.let { name -> runCatching { Role.valueOf(name) }.getOrNull() }
-                ?: Role.TENANT_ADMIN,
+            role = callerRole,
             tenantId = decoded.getClaim("tenant_id").asString()
                 ?.takeIf { it.isNotBlank() }
                 ?.let { TenantId(it) },

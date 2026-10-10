@@ -39,7 +39,19 @@ class TenantResolutionPluginTest {
     }
 
     @Test
-    fun public_onboarding_check_subdomain_should_bypass_tenant_check() = testApplication {
+    fun tokenWithUnknownRole_shouldReturn403_notTenantAdmin() = testApplication {
+        application { module(twoTenantRepo()) }
+
+        listOf("GALAXY_EMPEROR", null).forEach { raw ->
+            val response = client.get("/api/tenant/info") {
+                header(HttpHeaders.Authorization, "Bearer ${com.eventverse.app.TestAuth.tokenWithRawRole("pabrik-alpha", raw)}")
+            }
+            assertEquals(HttpStatusCode.Forbidden, response.status, "role=$raw")
+        }
+    }
+
+    @Test
+    fun public_onboarding_check_subdomain_should_bypass_tenant_check()= testApplication {
         application { module() }
 
         val response = client.get("/api/public/onboarding/check-subdomain?slug=brand-new-convection")
