@@ -142,9 +142,13 @@ class DomainRouteWiring(
         ?: com.eventverse.app.infrastructure.storage.S3ObjectStorage()
     private val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     private val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
+    // Sumber baris per modul (TRD-FIELD-004 B1): kontribusi pack terdaftar = produksi; parameter tes menang.
+    private val recordRows = com.eventverse.app.tenant.TenantPackContributions.mergeRows(
+        com.eventverse.app.tenant.TenantPackContributions.all, fieldFileRecordRows
+    )
     // C7 (TRD-FIELD-001 Track B): sumber opsi rujukan & resolver target. Modul target = modul handoff
     // (recordRows) atau CRM; tanpa entri = tidak ada opsi/target (fail-closed).
-    private val relationTargetRegistryFor = com.eventverse.app.relation.RelationTargetRegistry.default(crmLeadRepo, fieldFileRecordRows)
+    private val relationTargetRegistryFor = com.eventverse.app.relation.RelationTargetRegistry.default(crmLeadRepo, recordRows)
     private val relationTargetResolver = com.eventverse.app.relation.RegistryRelationTargetResolver(relationTargetRegistryFor)
     private val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     private val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository(); private val traceContainerRepo = PostgresTraceContainerRepository(); private val internalTransferRepo = PostgresInternalTransferRepository()
@@ -218,7 +222,7 @@ class DomainRouteWiring(
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo, builderChats = builderChats,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv(), auditLogRepository = auditLogRepo)
         // Modul khusus tenant (J3) lewat registri — gerbang fail-closed tetap milik tiap modul (TRD-PLAT-004 P2).
-        com.eventverse.app.tenant.TenantPackContributions.all.forEach { it.registerRoutes(this, roleRepo, assignmentRepo) }
+        com.eventverse.app.tenant.TenantPackContributions.all.forEach { it.registerRoutes(this, roleRepo, assignmentRepo, relationTargetResolver) }
         crmRoutes(
             leadRepository = crmLeadRepo, contactRepository = crmContactRepo,
             dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,
@@ -247,7 +251,7 @@ class DomainRouteWiring(
             moduleAssignmentRepository = assignmentRepo,
             crmLeadRepository = crmLeadRepo,
             employeeRepository = empRepo,
-            recordRows = fieldFileRecordRows
+            recordRows = recordRows
         )
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,

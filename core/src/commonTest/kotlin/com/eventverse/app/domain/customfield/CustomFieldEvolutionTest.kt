@@ -51,6 +51,7 @@ class CustomFieldEvolutionTest {
             key = FieldKey("lainnya"), label = "Lainnya", type = CrmFieldType(FieldType.TEXT), position = 2000.0
         )
         val errors = CustomFieldValidation.validateForPatch(tenantId,
+            recordId = "lead-1",
             definitions = listOf(requiredTextField(), otherField),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-other") to CustomAttributes.textCell("baru"))
@@ -61,6 +62,7 @@ class CustomFieldEvolutionTest {
     @Test
     fun validateForPatch_touchingRequiredFieldWithBlankValue_isRejected() {
         val errors = CustomFieldValidation.validateForPatch(tenantId,
+            recordId = "lead-1",
             definitions = listOf(requiredTextField()),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-required") to CustomAttributes.textCell(""))
@@ -73,6 +75,7 @@ class CustomFieldEvolutionTest {
     fun validateForPatch_archivedField_isRejected() {
         val archived = requiredTextField().copy(isRequired = false, archivedAt = Instant.parse("2026-03-01T00:00:00Z"))
         val errors = CustomFieldValidation.validateForPatch(tenantId,
+            recordId = "lead-1",
             definitions = listOf(archived),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-required") to CustomAttributes.textCell("x"))

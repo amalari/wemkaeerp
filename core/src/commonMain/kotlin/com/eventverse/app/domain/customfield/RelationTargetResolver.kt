@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.tenant.TenantId
 
 /**
@@ -11,6 +12,16 @@ import com.eventverse.app.domain.tenant.TenantId
  * satu-satunya keberadaan record-nya (tanpa FK/JOIN lintas schema — pagar J3, FR-1).
  */
 interface RelationTargetResolver {
-    /** True bila record [targetRecordId] ada pada resource [targetResource] dalam [tenantId]. */
-    suspend fun exists(tenantId: TenantId, targetResource: String, targetRecordId: String): Boolean
+    /**
+     * True bila record [targetRecordId] ada pada resource [targetResource] dalam [tenantId] **dan** terjangkau
+     * pemanggil. [reachableOwnerIds] = jangkauan `DataScope` pemanggil atas modul target (`null` = seluruh tenant);
+     * parameter **wajib** (TRD-FIELD-004 FR-3.2, tanpa default) agar tiap pemanggil memutuskan jangkauannya —
+     * record di luar jangkauan dijawab `false`, sama dengan "tidak ditemukan" (tanpa oracle keberadaan).
+     */
+    suspend fun exists(
+        tenantId: TenantId,
+        targetResource: String,
+        targetRecordId: String,
+        reachableOwnerIds: Set<OrgNodeId>?
+    ): Boolean
 }

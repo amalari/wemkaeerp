@@ -8,6 +8,7 @@ import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TextValidations
 import com.eventverse.app.domain.prototype.TimeFieldValues
+import com.eventverse.app.domain.discovery.handoff.RelationTargetPolicy
 import com.eventverse.app.domain.prototype.relationTargetFormatError
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
@@ -87,6 +88,8 @@ internal object ProposalEntityRules {
         if (parts.size == 2 && packModuleIds != null && parts[0] !in packModuleIds) {
             sink.add("$at.target", "Target lintas modul '${parts[0]}' tidak dapat diresolusi pack ini (modul: ${packModuleIds.sorted().joinToString()})")
         }
+        // Q3 TRD-FIELD-004: modul HIERARCHICAL belum boleh jadi target modul hasil generate (gerbang target FR-3.x belum ada).
+        if (parts.size == 2) RelationTargetPolicy.hierarchicalTargetProblem(parts[0], f.key)?.let { sink.add("$at.target", it) }
     }
 
     private fun checkOptions(f: FieldProposal, at: String, sink: IssueSink) {

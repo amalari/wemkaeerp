@@ -83,7 +83,8 @@ class FieldFileRoutesTest {
         level: AccessLevel,
         storage: FakeObjectStorage = FakeObjectStorage(),
         leads: InMemoryCrmLeadRepository = InMemoryCrmLeadRepository(),
-        rows: Map<String, PrototypeRowRepository> = emptyMap()
+        // Default: record rec-1 ada (gerbang record TRD-FIELD-004 mensyaratkannya untuk unggah).
+        rows: Map<String, PrototypeRowRepository> = rowsWith()
     ): FakeObjectStorage {
         val tenants = InMemoryTenantRepository()
         val roles = InMemoryRoleRepository()

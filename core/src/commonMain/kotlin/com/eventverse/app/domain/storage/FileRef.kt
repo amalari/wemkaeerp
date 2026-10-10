@@ -23,14 +23,19 @@ value class FileRef private constructor(val value: String) {
          * [tenantId] hanya bila bentuknya sah DAN segmen pertama setelah `fields/` sama persis dengan
          * [tenantId] (perbandingan satu segmen utuh — tenant `abc` tidak cocok dengan `abcd`), diikuti
          * minimal segmen modul, record, dan nama. [moduleCode] diisi oleh rute yang tahu modulnya (unduh):
-         * segmen kedua harus sama. recordId sengaja tidak dicocokkan — alur "record baru" mengunggah dengan
-         * id sementara sebelum record tersimpan. Tanpa fallback ke [isValid]; [tenantId] kosong = tidak sah.
+         * segmen kedua harus sama. [recordId] (TRD-FIELD-004 FR-1.3) mengikat ref ke record pemiliknya: segmen
+         * ketiga harus sama, sehingga ref berkas record X tidak sah ditulis ke record Y. `null` hanya untuk
+         * pemanggil domain yang memang tak punya record (tes bentuk); **semua rute server wajib mengisinya** —
+         * alasan lama "alur record baru mengunggah dengan id sementara" gugur (klien hanya mengunggah untuk
+         * record yang sudah ada; FILE pada create ditolak). Tanpa fallback ke [isValid]; [tenantId] kosong = tidak sah.
          */
-        fun isValidFor(tenantId: String, raw: String, moduleCode: String? = null): Boolean {
+        fun isValidFor(tenantId: String, raw: String, moduleCode: String? = null, recordId: String? = null): Boolean {
             if (tenantId.isBlank() || !isValid(raw)) return false
             val segments = raw.removePrefix(PREFIX).split('/')
             if (segments.size < 4 || segments.any { it.isEmpty() }) return false
-            return segments[0] == tenantId && (moduleCode == null || segments[1] == moduleCode)
+            return segments[0] == tenantId &&
+                (moduleCode == null || segments[1] == moduleCode) &&
+                (recordId == null || segments[2] == recordId)
         }
 
         /**

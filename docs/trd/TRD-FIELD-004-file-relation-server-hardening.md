@@ -3,7 +3,7 @@
 ## 1. Document Context and Administration
 
 - **Title & ID**: TRD-FIELD-004 — Penyamaan gerbang DataScope/keberadaan record pada unggah-unduh FILE generik, validasi RELATION di modul hasil generate, guard tulis RELATION CRM, mitigasi MIME/header objek, dan jaring pengaman rute tulis berbasis spec
-- **Status**: **DRAFT — menunggu persetujuan.** Belum ada kode yang diubah. Semua bukti `file:baris` diambil dari HEAD `bf9fbe65` (= `main`, sudah memuat `ef51931c`); yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
+- **Status**: **v0.2 — Keputusan Q1/Q2/Q3/Q5/Q7 DISETUJUI pengguna (2026-10-10); Track A (A1-A4) SELESAI dan terverifikasi; Track B/C belum dikerjakan.** Q4 (DataScope CRUD modul generate), Q6 (`nosniff`, infra) dan Q8 (wiring deployment) tetap TERBUKA. Semua bukti `file:baris` di bagian audit diambil dari HEAD `bf9fbe65` (= `main`, sudah memuat `ef51931c`); yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
 - **Basis**: `main` @ `bf9fbe65`. Pola acuan: TRD-PLAT-011/012 (audit rute -> gerbang -> level -> tes, Track A/B/C).
 - **Dokumen terkait**: `TRD-FIELD-001-relation.md`, `TRD-FIELD-002-file.md` (v0.4), `docs/teaching/teaching-field-file-tenant-ref-guard.md`, `.claude/rules/tenant-variability-rules.md` Kontrak 6/7, `field-component-rules.md`.
 
@@ -12,6 +12,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 | :--- | :--- | :--- | :--- |
 | 0.1 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Draft awal dari audit kode HEAD `bf9fbe65` |
+| 0.2 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Q1/Q2/Q3/Q5/Q7 disetujui. Track A selesai (A1 `79df6847`, A2 `ecc9975c`, A3 `9c771f7e`, A4 `ce44e3e1`). Catatan implementasi di "Status Track A" di bawah |
 
 ### Summary & Business Context
 
@@ -287,7 +288,23 @@ WARN tanpa isi untuk tolakan baru; metrik hitung 403/415/400-relasi per rute. Pe
 - Magic byte menolak berkas sah yang berformat tidak lazim (mis. JPEG dengan prefiks) — pertahankan daftar tanda tangan sempit dan dapat diperluas dengan tes.
 - Tidak bisa dipastikan: header `nosniff`/lifecycle bucket di lingkungan nyata; konfigurasi S3 produksi.
 
+### Status Track A (v0.2, 2026-10-10) — SELESAI
+
+Tes merah lebih dulu (A1: 14 dari 26 merah terhadap kode lama), lalu hijau; `:server:test` 791 tes (0 gagal, 5 skip),
+`:core:jvmTest` 1834 (0 gagal), `:app:shared:jvmTest`/`compileKotlinWasmJs`/`compileKotlinJs` hijau, `audit-variability.sh` 0 temuan.
+
+| Butir | Hasil | Penyimpangan/penajaman terhadap draf |
+| :-- | :-- | :-- |
+| A1 | `FieldFileRecordScopeTest`, `CrmRelationTargetGateTest`, fixture `FieldGateTestSupport` (garment + pack `layanan`, peran tak berwenang 403, tenant lain) | - |
+| A2 | `FieldFileRecordGate.kt` (`requireReachableRecord`, `callerOwnerReach`); `FieldFileRoutes.kt` 283 -> 280 | Sumber pemilik = interface core `RecordOwnerSource` yang **opsional diimplementasikan** oleh `PrototypeRowRepository` (bukan kelas `RecordAccessSource` baru) -> tanpa param wiring baru di `Application.kt`/`DomainRouteWiring.kt`. Modul HIERARCHICAL yang penyimpannya bukan `RecordOwnerSource` = 403 apa pun scope pemanggil (Q2) |
+| A3 | `FileRef.isValidFor(..., recordId)`; `fileOwnershipProblem(tenantId, recordId: String?, values)`; `validateForPatch(tenantId, recordId, ...)`; generator memancarkan `null` (POST) / `id` (PUT) | `recordId` bertipe `String?` **wajib tanpa default**: `null` = record baru -> nilai FILE ditolak 400 (Q1). Berlaku juga untuk CRM create dan master data. **Konsekuensi**: field FILE `isRequired` membuat create tak mungkin dipenuhi (nilai tak bisa disuplai saat create); jadikan field itu opsional atau isi lewat edit |
+| A4 | `RelationTargetAuthorization.kt` (`authorizeRelationTarget`); `RelationRoutes.kt` 138 -> 70; `CrmRelationWriteGuard.kt` 45 -> 58; `CrmRoutes.kt` 489 (tetap) | `exists(..., reachableOwnerIds)` wajib di `RelationTargetSource` **dan** di port core `RelationTargetResolver` (guard memanggil resolver). Modul target di luar pack tenant = 404 (gerbang bersama), bukan 400 |
+
+**Dampak klien**: tidak ada perubahan kode klien (`FieldInput.kt`/`FileFieldOps.kt` hanya mengunggah untuk record yang sudah ada). **Dampak generator**: emisi `fileProblem` berubah tanda tangan; `layanan_change_request` terkomit tidak memanggilnya (basi, Track C1) sehingga tidak terdampak. **Belum dikerjakan**: B1-B3, C1-C3, Q4, Q6, Q8.
+
 ### Pertanyaan Terbuka (dengan rekomendasi)
+
+> v0.2: **Q1, Q2, Q3, Q5, Q7 = DISETUJUI** sesuai rekomendasi masing-masing. **Q4, Q6, Q8 = TERBUKA.**
 
 - **Q1 — FILE pada create ditolak (400)?** Rekomendasi: ya (FR-1.3); klien tak mengunggah untuk record baru. Alternatif (id sementara + ikatan lunak) ditolak karena membuka kategori orphan baru.
 - **Q2 — Modul HIERARCHICAL tanpa sumber pemilik di rute generik: 403 atau 404?** Rekomendasi: 403 fail-closed (bukan 404) supaya perbedaan "tak ada sumber" vs "tak ada record" tidak tersamar; CRM tetap lewat rute lead-nya.
@@ -297,3 +314,28 @@ WARN tanpa isi untuk tolakan baru; metrik hitung 403/415/400-relasi per rute. Pe
 - **Q6 — `nosniff` di mana ditegakkan?** Rekomendasi: bucket policy/reverse proxy (infra), dicatat di runbook; bukan kode aplikasi. Perlu keputusan pemilik infra.
 - **Q7 — Magic byte: 415 atau 400?** Rekomendasi: 415 (sama dengan allowlist) agar klien punya satu penanganan.
 - **Q8 — Wiring produksi (F0) benar-benar kosong?** Dari `server/src/main` ya; **[TAK TERVERIFIKASI]** terhadap konfigurasi deployment di luar repo. Rekomendasi: konfirmasi ke pemilik deployment sebelum A/B1, karena menentukan apakah unduh generik hari ini 404 di produksi.
+
+---
+
+## Status Track B (ditulis oleh pelaksana Track B; Track A dicatat oleh pelaksana lain — seksi ini sengaja terpisah agar tak konflik)
+
+| Butir | Status | Bukti |
+| :-- | :-- | :-- |
+| **B1** `Contribution.rows` + `DomainRouteWiring` (FR-2.3, F0) | **Selesai** | `TenantPackContributions.Contribution.rows` (wajib, tanpa default), `mergeRows` (fail-loud: kunci di luar pack / modul ganda ditolak; parameter tes `fieldFileRecordRows` menang), dipakai `DomainRouteWiring` untuk unduh FILE **dan** `RelationTargetRegistry`. Tes: `TenantPackContributionsRowsTest` (6). |
+| **B2** `relationProblem` generator + normalisasi target (FR-2.1/2.2) + Q3 | **Selesai** | `relationTargetResource` / `EntitySpec.relationTargetProblem` (core, `prototype/RelationTargets.kt`); emisi di `SpecRoutesRelationEmitter` (kosong bila tanpa RELATION = keluaran identik); `registerRoutes` menerima resolver; Q3 ditolak di generator dan validator usulan (`RelationTargetPolicy`). Tes: `RelationTargetRulesTest` (9), `SpecRoutesRelationEmissionTest` (7). |
+| **B3** magic byte + header adapter (FR-4.x) | **Ditunda** | menyentuh berkas Track A (`FieldFileRoutes`, `S3ObjectStorage`). |
+
+**Verifikasi F0 dari kode HEAD (bukan salinan TRD)**: `Application.kt` mendeklarasikan `fieldFileRecordRows = emptyMap()`
+sebagai default dan meneruskannya ke `DomainRouteWiring`; pemasok non-kosong satu-satunya hanya tiga tes
+(`FieldFileRoutesTest`, `FieldFileTenantIsolationTest`, `RelationRoutesTest`). Tidak ada kode `server/src/main` lain yang
+mengisinya. Benar untuk `server/src/main`; **Q8 tetap terbuka** untuk konfigurasi deployment di luar repo (asumsi:
+tidak ada wiring di luar repo yang menyuntik `fieldFileRecordRows`; bila ada, parameter tetap menang atas kontribusi).
+
+**Catatan keputusan**: validasi keberadaan RELATION ditaruh di core (`relationTargetProblem`) dan kode yang digenerate hanya
+memanggilnya (pola `fileOwnershipProblem`), jadi aturan normalisasi/keberadaan teruji tanpa mengompilasi kode hasil generate.
+Q3 diberlakukan juga di validator usulan (jalur "registrasi" pack hasil generate) agar ditolak sedini mungkin.
+
+**Dampak ke `layanan_change_request`**: berkas terkomit `LayananChangeRequestRoutes.kt` **tidak diubah** (masih basi: tanpa
+`lampiran`/`rujukan`, = Track C1). Keluaran generator terbaru untuk pilot kini memuat `relationProblem`; diverifikasi
+dikompilasi (dicoba sementara lalu dikembalikan). Kontribusi layanan sudah menyuplai `rows` sehingga unduh FILE dan resolver
+RELATION punya sumber baris produksi begitu C1 menerapkan hasil regenerasi.

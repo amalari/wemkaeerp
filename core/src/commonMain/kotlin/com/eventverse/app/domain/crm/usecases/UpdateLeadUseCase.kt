@@ -58,7 +58,7 @@ class UpdateLeadUseCase(
 
         if (patch.customValues.isNotEmpty()) {
             val definitions = customFieldRepository.findActiveByResource(tenantId, OwnerResource.CRM_SALES)
-            val errors = CustomFieldValidation.validateForPatch(tenantId, definitions, existing.createdAt, patch.customValues)
+            val errors = CustomFieldValidation.validateForPatch(tenantId, leadId.value, definitions, existing.createdAt, patch.customValues)
             if (errors.isNotEmpty()) throw LeadValidationException(errors)
         }
 

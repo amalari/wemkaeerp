@@ -33,6 +33,20 @@ Q1/2/3/5/7 disetujui pengguna — lihat §5).
 | **Track A** (celah rute FILE/RELATION): A1 tes merah, A2 `FieldFileRecordGate`, A3 ikatan `recordId`, A4 `authorizeRelationTarget` | `worktree-agent-a2a4c73c4c9b00cb6` (`.claude/worktrees/agent-a2a4c73c4c9b00cb6`, terkunci) | `79df6847`, `ecc9975c`, `9c771f7e`, `ce44e3e1`, docs `134c0536` | **Selesai** (laporan akhir diterima; basis `8ae0a07c`). Menurut agen: server 791 tes (5 skip), core 1834, app:shared + Wasm/JS hijau, audit 0 temuan; A1 = 26 tes, 14 merah pada kode lama. Teaching doc `teaching-field-file-relation-record-gate.md` dan TRD v0.2 ada di branch. **Belum diverifikasi ulang di worktree bersih oleh integrator.** |
 | **Track B (B1+B2)**: `Contribution.rows` (F0), `relationProblem` di generator, penolakan target HIERARCHICAL | `worktree-agent-a5bacf93a917b548a` | `4f687dbd`, `00ab7468` | **Selesai**; agen: core 1846 / server 762 tes hijau di basis `8ae0a07c` |
 
+**UPDATE (integrasi sudah dikerjakan):** Track A + Track B sudah digabung di branch
+`integration/field-004` (worktree `.claude/worktrees/integ-f004`, 11 komit di atas `907960bb`) dan
+**terverifikasi hijau penuh** (`--rerun-tasks`, worktree bersih): server 797 tes / app:shared 465 /
+core 1859, 0 gagal; audit 0 temuan. Integrasi memerlukan 3 perbaikan pasca-merge (konflik
+`SpecRoutesWriter.kt`; `RelationTargets.kt` memanggil `exists` tanpa `reachableOwnerIds` yang kini wajib;
+dua tes Track B memakai tanda tangan lama) — semuanya `reachableOwnerIds = null` (target modul generate
+hanya ke GLOBAL_ONLY, Q3). **`main` BELUM dimajukan** karena folder utama punya 16 file belum dikomit milik
+sesi lain (penyatuan kosakata field) dengan 5 file tumpang tindih
+(`CustomFieldValidation.kt`, `CrmFieldTypeParityTest.kt`, `CustomFieldEvolutionTest.kt`,
+`CrmRelationWriteGuard.kt`, `CrmRoutes.kt`). Langkah: sesi itu mengomit/menyimpan pekerjaannya, lalu di
+folder utama `git merge --ff-only integration/field-004`; bila `main` sudah maju, merge ulang
+`integration/field-004` ke `main` lalu ulangi verifikasi (resep §6). Setelah masuk: hapus worktree
+`integ-f004`, `agent-a2a4c73c4c9b00cb6`, `agent-a5bacf93a917b548a` dan branch-nya.
+
 **Cara melanjutkan (urutan yang disarankan):**
 1. `cd /Volumes/amalari/Projects/wemkaeerp && git branch --show-current` (harus `main`). Cek
    `git -C .claude/worktrees/agent-a2a4c73c4c9b00cb6 status --short` dan `git log main..worktree-agent-a2a4c73c4c9b00cb6`.
