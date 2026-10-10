@@ -27,6 +27,7 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.designsystem.claySurface
+import com.eventverse.app.presentation.pipeline.components.FactoryFlowBlockedCard
 import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
@@ -163,6 +164,15 @@ fun FactoryFlowScreen(
                 onRetry = { viewModel.onEvent(FactoryFlowUiEvent.Retry(tenantSlug)) },
                 onDismiss = { viewModel.onEvent(FactoryFlowUiEvent.DismissStatusMessage) }
             )
+
+            // 403 / galat muat: kartu penghalang menggantikan kanvas; preset tidak pernah ditampilkan (Q2).
+            if (state.loadState.isBlocked) {
+                FactoryFlowBlockedCard(
+                    state = state.loadState,
+                    onRetry = { viewModel.onEvent(FactoryFlowUiEvent.Retry(tenantSlug)) }
+                )
+                return@Column
+            }
 
             // Per-tenant module provisioning panel
             AnimatedVisibility(visible = state.isModulePanelVisible) {
