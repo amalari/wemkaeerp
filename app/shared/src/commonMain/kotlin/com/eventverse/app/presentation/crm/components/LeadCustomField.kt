@@ -35,11 +35,13 @@ import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCheckbox
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
+import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFileField
 import com.eventverse.app.presentation.designsystem.ClayFileFieldState
 import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.designsystem.displayIsoDateTime
 import com.eventverse.app.presentation.relation.RelationFieldUi
 import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
@@ -48,8 +50,6 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color as ComposeColor
-
-private const val DATE_TIME_TEXT_HINT = "YYYY-MM-DD"
 
 /**
  * Aksi jaringan berkas untuk field `FILE` (C8, TRD-FIELD-002 §4.4) — dihubungkan dari
@@ -124,13 +124,28 @@ fun LeadCustomField(
 
         Column(modifier = Modifier.padding(top = ClaySpacing.Xs)) {
             // Kontrol dipilih lewat pemeta murni agar paritas tipe->kontrol bisa dites (LeadFieldControl).
-            val datePicker = leadFieldControl(descriptor.type) == LeadFieldControl.DATE_PICKER
             when (val type = descriptor.type) {
                 is FieldType.Text -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
                 is FieldType.LongText -> TextEditor(cell, editable, onCommit, singleLine = false, minLines = 3) { CustomAttributes.textCell(it) }
                 is FieldType.Number -> TextEditor(cell, editable, onCommit) { CustomAttributes.numberCell(it) }
                 is FieldType.Checkbox -> CheckboxEditor(cell, editable, onCommit)
-                is FieldType.DateField -> if (datePicker) {
+                is FieldType.DateField -> if (type.withTime) {
+                    // C6 (Irisan 2): ClayDateTimePicker, format simpan `TTTT-BB-HH'T'JJ:MM` — sama dengan prototype.
+                    TextEditor(
+                        cell, editable, onCommit,
+                        input = { text, onChange ->
+                            ClayDateTimePicker(
+                                value = text,
+                                onValueChange = onChange,
+                                // Label sudah dirender pada header baris; dikosongkan agar tidak dobel.
+                                label = "",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        // Nilai lama `TTTT-BB-HH` tampil apa adanya (pola prototype), bukan crash.
+                        displayText = ::displayIsoDateTime
+                    ) { CustomAttributes.textCell(it) }
+                } else {
                     TextEditor(
                         cell, editable, onCommit,
                         input = { text, onChange ->
@@ -144,11 +159,6 @@ fun LeadCustomField(
                             )
                         }
                     ) { CustomAttributes.textCell(it) }
-                } else {
-                    // withTime: ClayDatePicker belum mendukung waktu; perilaku kolom teks lama dipertahankan.
-                    TextEditor(cell, editable, onCommit, placeholder = DATE_TIME_TEXT_HINT) {
-                        CustomAttributes.textCell(it)
-                    }
                 }
                 is FieldType.SingleSelect -> SelectEditor(type, cell, editable, onCommit)
                 is FieldType.UserRef -> UserRefEditor(cell, employees, editable, onCommit)
@@ -184,6 +194,8 @@ private fun TextEditor(
     singleLine: Boolean = true,
     minLines: Int = 1,
     input: (@Composable (text: String, onChange: (String) -> Unit) -> Unit)? = null,
+    /** Penampil nilai saat baca-saja; default apa adanya (mis. tanggal berwaktu lewat `displayIsoDateTime`). */
+    displayText: (String) -> String = { it },
     buildCell: (String) -> JsonValue.Obj
 ) {
     val initialText = remember(cell) { cell?.let { it.entries["v"] }?.let(::rawText) ?: "" }
@@ -210,7 +222,7 @@ private fun TextEditor(
             onCommit(text.takeIf { it.isNotBlank() }?.let(buildCell))
         }
     } else {
-        Text(text = text.ifBlank { "—" }, fontSize = 13.sp, color = WeMadeColors.OnSurface)
+        Text(text = displayText(text).ifBlank { "—" }, fontSize = 13.sp, color = WeMadeColors.OnSurface)
     }
 }
 

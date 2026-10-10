@@ -5,6 +5,7 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -136,7 +137,10 @@ class CrmFieldTypeParityTest {
         is FieldType.Text, is FieldType.LongText -> CustomAttributes.textCell("catatan")
         is FieldType.Number -> CustomAttributes.numberCell("12.5")
         is FieldType.SingleSelect -> CustomAttributes.selectCell(optionId)
-        is FieldType.DateField -> CustomAttributes.dateCell(LocalDate(2026, 10, 8))
+        // C6 (Irisan 2): tanggal berwaktu wajib TTTT-BB-HH'T'JJ:MM; tanggal-saja untuk varian polos.
+        is FieldType.DateField ->
+            if (t.withTime) CustomAttributes.dateTimeCell(LocalDateTime(2026, 10, 8, 9, 30))
+            else CustomAttributes.dateCell(LocalDate(2026, 10, 8))
         is FieldType.Checkbox -> CustomAttributes.checkboxCell(true)
         is FieldType.UserRef -> CustomAttributes.textCell("user-1")
         // C7: sel RELATION = id record target bertag `relation`; keberadaan diverifikasi server (Track B).
@@ -148,7 +152,10 @@ class CrmFieldTypeParityTest {
         is FieldType.Text, is FieldType.LongText -> CustomAttributes.numberCell("1")
         is FieldType.Number -> CustomAttributes.textCell("bukan angka")
         is FieldType.SingleSelect -> CustomAttributes.selectCell(SelectOptionId("opt_hantu"))
-        is FieldType.DateField -> CustomAttributes.textCell("bukan-tanggal")
+        // C6: penolakan silang — tanggal-saja pada varian berwaktu ditolak, bukan dikoersi.
+        is FieldType.DateField ->
+            if (t.withTime) CustomAttributes.dateCell(LocalDate(2026, 10, 8))
+            else CustomAttributes.textCell("bukan-tanggal")
         is FieldType.Checkbox -> CustomAttributes.textCell("ya")
         is FieldType.UserRef -> CustomAttributes.numberCell("1")
         is FieldType.Relation -> CustomAttributes.numberCell("1")
@@ -171,6 +178,63 @@ class CrmFieldTypeParityTest {
             val errors = CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to invalidCell(t)))
             assertEquals(1, errors.size, "${t.code} harus menolak nilai tak cocok")
         }
+    }
+
+    /** C6 (Irisan 2): tanggal berwaktu hanya menerima TTTT-BB-HH'T'JJ:MM tepat menit — sisanya ditolak. */
+    @Test
+    fun validation_dateFieldWithTime_acceptsOnlyMinuteDateTime() {
+        val d = def(FieldType.DateField(withTime = true), "cf-date-time")
+        val ok = CustomAttributes.dateTimeCell(LocalDateTime(2026, 10, 8, 14, 30))
+        assertEquals(emptyList(), CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to ok)))
+        listOf(
+            CustomAttributes.dateCell(LocalDate(2026, 10, 8)),
+            CustomAttributes.textCell("2026-10-08T14:30:00"),
+            CustomAttributes.textCell("2026-10-08 14:30"),
+            CustomAttributes.textCell("2026-10-08T25:00"),
+            CustomAttributes.textCell("bukan-tanggal"),
+        ).forEach { cell ->
+            assertEquals(1, CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to cell)).size, "sel '$cell' harus ditolak")
+        }
+    }
+
+    /** C6: field tanggal-saja menolak nilai berwaktu — tidak ada koersi diam-diam ke salah satu arah. */
+    @Test
+    fun validation_dateFieldWithoutTime_rejectsDateTimeValue() {
+        val d = def(FieldType.DateField(), "cf-date-only")
+        val errors = CustomFieldValidation.validateForCreate(
+            listOf(d), mapOf(d.id to CustomAttributes.dateTimeCell(LocalDateTime(2026, 10, 8, 9, 30)))
+        )
+        assertEquals(1, errors.size)
+    }
+
+    /** C6: konversi teks ke tanggal berwaktu menerima TTTT-BB-HH'T'JJ:MM; tanggal-saja = Cleared (teks asli dipulihkan). */
+    @Test
+    fun conversion_toDateFieldWithTime_convertsMinuteDateTime_clearsDateOnly() {
+        val from = FieldType.Text
+        val to = FieldType.DateField(withTime = true)
+        val converted = FieldTypeConversion.coerce(CustomAttributes.textCell("2026-10-08T14:30"), from, to)
+        assertTrue(converted is CoercionResult.Converted, "tanggal-jam menit harus terkonversi")
+        assertEquals(
+            CoercionResult.Cleared("2026-10-08"),
+            FieldTypeConversion.coerce(CustomAttributes.textCell("2026-10-08"), from, to)
+        )
+    }
+
+    /** C6: ganti `withTime` mengubah bentuk nilai sah = LOSSY (dry run + konfirmasi); varian sama = IDENTITY. */
+    @Test
+    fun conversion_dateFieldChangingWithTime_isLossy() {
+        assertEquals(
+            ConversionSafety.LOSSY,
+            FieldTypeConversion.classify(FieldType.DateField(), FieldType.DateField(withTime = true))
+        )
+        assertEquals(
+            ConversionSafety.LOSSY,
+            FieldTypeConversion.classify(FieldType.DateField(withTime = true), FieldType.DateField())
+        )
+        assertEquals(
+            ConversionSafety.IDENTITY,
+            FieldTypeConversion.classify(FieldType.DateField(), FieldType.DateField())
+        )
     }
 
     // ---- konversi tipe --------------------------------------------------------------------------

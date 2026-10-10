@@ -184,7 +184,7 @@ class CrmViewModel(
 
         scope.launch {
             val patch = if (LeadFieldProjection.isCoreField(fieldId)) {
-                buildCorePatch(fieldId, value)
+                coreFieldPatchOf(fieldId, value)
             } else {
                 CrmLeadCodec.PatchLeadRequest(customValues = mapOf(CustomFieldId(fieldId) to value))
             }
@@ -206,33 +206,6 @@ class CrmViewModel(
                     }
                     _uiState.update { it.copy(error = error.message) }
                 }
-        }
-    }
-
-    private fun buildCorePatch(fieldId: String, value: JsonValue.Obj?): CrmLeadCodec.PatchLeadRequest {
-        val text = value?.string("v")
-        return when (fieldId) {
-            LeadFieldDescriptorCoreIds.BRAND_NAME ->
-                CrmLeadCodec.PatchLeadRequest(brandName = text?.let { com.eventverse.app.domain.crm.BrandName(it) })
-            LeadFieldDescriptorCoreIds.CONTACT_PERSON -> CrmLeadCodec.PatchLeadRequest(contactPerson = text ?: "")
-            LeadFieldDescriptorCoreIds.WHATSAPP_NUMBER ->
-                CrmLeadCodec.PatchLeadRequest(whatsappNumber = text?.let { WhatsappNumber.parse(it) })
-            LeadFieldDescriptorCoreIds.EMAIL ->
-                CrmLeadCodec.PatchLeadRequest(email = text ?: "")
-            LeadFieldDescriptorCoreIds.SOURCE -> CrmLeadCodec.PatchLeadRequest(source = LeadSource(text ?: ""))
-            LeadFieldDescriptorCoreIds.ESTIMATED_PCS ->
-                CrmLeadCodec.PatchLeadRequest(estimatedPcs = text?.toIntOrNull())
-            LeadFieldDescriptorCoreIds.ESTIMATED_VALUE ->
-                CrmLeadCodec.PatchLeadRequest(estimatedValue = text?.toLongOrNull()?.let { com.eventverse.app.domain.moduledev.MoneyIdr(it) })
-            LeadFieldDescriptorCoreIds.OWNER_EMPLOYEE_ID -> CrmLeadCodec.PatchLeadRequest(
-                ownerEmployeeIdSet = true,
-                ownerEmployeeId = text?.let { com.eventverse.app.domain.orgchart.OrgNodeId(it) }
-            )
-            LeadFieldDescriptorCoreIds.EXPECTED_CLOSE_DATE -> CrmLeadCodec.PatchLeadRequest(
-                expectedCloseDateSet = true,
-                expectedCloseDate = text?.let { runCatching { kotlinx.datetime.LocalDate.parse(it) }.getOrNull() }
-            )
-            else -> CrmLeadCodec.PatchLeadRequest()
         }
     }
 
@@ -400,6 +373,44 @@ class CrmViewModel(
         scope.launch {
             event.onDone(remoteDataSource.leadFieldFileDownloadUrl(tenantSlug, event.leadId, event.fieldId))
         }
+    }
+}
+
+/**
+ * Patch untuk edit field core dari sel editor. Teks sel dibaca **agnostik-tipe** (`Str` atau `Num`):
+ * cabang builder Number menghasilkan sel `Num` (syarat validasi tulis `CustomFieldValidation`),
+ * sementara cabang teks menghasilkan `Str` — keduanya wajib terbaca di sini. Murni, tanpa state.
+ */
+internal fun coreFieldPatchOf(fieldId: String, value: JsonValue.Obj?): CrmLeadCodec.PatchLeadRequest {
+    val text = value?.let { cell ->
+        when (val v = cell.entries["v"]) {
+            is JsonValue.Str -> v.value
+            is JsonValue.Num -> v.raw
+            else -> null
+        }
+    }
+    return when (fieldId) {
+        LeadFieldDescriptorCoreIds.BRAND_NAME ->
+            CrmLeadCodec.PatchLeadRequest(brandName = text?.let { com.eventverse.app.domain.crm.BrandName(it) })
+        LeadFieldDescriptorCoreIds.CONTACT_PERSON -> CrmLeadCodec.PatchLeadRequest(contactPerson = text ?: "")
+        LeadFieldDescriptorCoreIds.WHATSAPP_NUMBER ->
+            CrmLeadCodec.PatchLeadRequest(whatsappNumber = text?.let { WhatsappNumber.parse(it) })
+        LeadFieldDescriptorCoreIds.EMAIL ->
+            CrmLeadCodec.PatchLeadRequest(email = text ?: "")
+        LeadFieldDescriptorCoreIds.SOURCE -> CrmLeadCodec.PatchLeadRequest(source = LeadSource(text ?: ""))
+        LeadFieldDescriptorCoreIds.ESTIMATED_PCS ->
+            CrmLeadCodec.PatchLeadRequest(estimatedPcs = text?.toIntOrNull())
+        LeadFieldDescriptorCoreIds.ESTIMATED_VALUE ->
+            CrmLeadCodec.PatchLeadRequest(estimatedValue = text?.toLongOrNull()?.let { com.eventverse.app.domain.moduledev.MoneyIdr(it) })
+        LeadFieldDescriptorCoreIds.OWNER_EMPLOYEE_ID -> CrmLeadCodec.PatchLeadRequest(
+            ownerEmployeeIdSet = true,
+            ownerEmployeeId = text?.let { com.eventverse.app.domain.orgchart.OrgNodeId(it) }
+        )
+        LeadFieldDescriptorCoreIds.EXPECTED_CLOSE_DATE -> CrmLeadCodec.PatchLeadRequest(
+            expectedCloseDateSet = true,
+            expectedCloseDate = text?.let { runCatching { kotlinx.datetime.LocalDate.parse(it) }.getOrNull() }
+        )
+        else -> CrmLeadCodec.PatchLeadRequest()
     }
 }
 

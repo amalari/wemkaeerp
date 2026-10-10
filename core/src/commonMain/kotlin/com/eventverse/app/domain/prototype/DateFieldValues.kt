@@ -1,7 +1,7 @@
 package com.eventverse.app.domain.prototype
 
+import com.eventverse.app.shared.common.DateTimeCodec
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 
 /**
  * Aturan tunggal nilai field [FieldType.DATE] (A0(C6) Irisan 2). Satu tempat murni supaya `FieldSpec.accepts`,
@@ -14,15 +14,14 @@ import kotlinx.datetime.LocalDateTime
  *   (tanpa zona). Nilai tanggal-saja pada field `withTime` ditolak, dan sebaliknya: tidak ada koersi diam-diam.
  */
 object DateFieldValues {
-    /** Panjang tetap `TTTT-BB-HHTJJ:MM`; menolak detik, pecahan, dan zona. */
-    private const val DATE_TIME_LENGTH = 16
-    private const val SEPARATOR_INDEX = 10
-
+    /**
+     * Aturan tanggal-jam dipegang **tunggal** oleh [DateTimeCodec.parseLocalDateTimeMinuteOrNull]
+     * (satu module) — delegasi, bukan salinan, supaya gerbang prototype dan gerbang CRM tidak bisa
+     * berbeda tafsir. Tanggal-saja tetap divalidasi lokal.
+     */
     fun isValid(value: String, withTime: Boolean): Boolean =
-        if (withTime) isValidDateTime(value) else runCatching { LocalDate.parse(value) }.isSuccess
-
-    private fun isValidDateTime(value: String): Boolean =
-        value.length == DATE_TIME_LENGTH && value[SEPARATOR_INDEX] == 'T' && runCatching { LocalDateTime.parse(value) }.isSuccess
+        if (withTime) DateTimeCodec.parseLocalDateTimeMinuteOrNull(value) != null
+        else runCatching { LocalDate.parse(value) }.isSuccess
 
     /** Contoh sah untuk seed/penggantian nilai. */
     fun sample(withTime: Boolean): String = if (withTime) "2026-01-01T09:00" else "2026-01-01"

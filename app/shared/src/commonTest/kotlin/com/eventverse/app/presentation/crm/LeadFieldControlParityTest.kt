@@ -10,6 +10,7 @@ import com.eventverse.app.domain.customfield.SelectOptionId
 import com.eventverse.app.presentation.crm.components.LeadFieldControl
 import com.eventverse.app.presentation.crm.components.LeadFormState
 import com.eventverse.app.presentation.crm.components.isBlankOrIsoDate
+import com.eventverse.app.presentation.crm.components.isBlankOrIsoDateTime
 import com.eventverse.app.presentation.crm.components.leadFieldControl
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -63,16 +64,17 @@ class LeadFieldControlParityTest {
     }
 
     @Test
-    fun dateField_withTime_isNotFakedAsDatePicker() {
-        assertEquals(LeadFieldControl.DATE_TIME_TEXT, leadFieldControl(FieldType.DateField(withTime = true)))
+    fun dateField_withTime_usesDateTimePicker() {
+        // C6 (Irisan 2): ClayDateTimePicker — bukan kolom teks lama, bukan picker tanggal saja.
+        assertEquals(LeadFieldControl.DATE_TIME_PICKER, leadFieldControl(FieldType.DateField(withTime = true)))
     }
 
     @Test
     fun leadForm_inputSupport_isExplicitlyTheKnownSubset() {
         val supported = samples.filterValues { LeadFormState.supportsInput(it) }.keys
         assertEquals(setOf("TEXT", "LONG_TEXT", "NUMBER", "SINGLE_SELECT", "DATE"), supported)
-        // Tanggal berwaktu (DATE_TIME_TEXT) belum punya input di dialog — tidak dipalsukan jadi picker.
-        assertFalse(LeadFormState.supportsInput(FieldType.DateField(withTime = true)))
+        // Tanggal berwaktu satu kode "DATE" dengan tanpa waktu; keduanya kini punya input di dialog.
+        assertTrue(LeadFormState.supportsInput(FieldType.DateField(withTime = true)))
     }
 
     @Test
@@ -91,6 +93,17 @@ class LeadFieldControlParityTest {
         assertFalse(isBlankOrIsoDate("kemarin"))
     }
 
+    /** C6 (Irisan 2): validator tanggal berwaktu, parser yang sama dengan `ClayDateTimePicker`. */
+    @Test
+    fun dateTimeValue_blankOrValidIsoDateTimeAccepted_malformedRejected() {
+        assertTrue(isBlankOrIsoDateTime(""))
+        assertTrue(isBlankOrIsoDateTime("2026-10-08T14:30"))
+        assertFalse(isBlankOrIsoDateTime("2026-10-08"), "nilai lama tanpa jam tidak sah untuk tanggal berwaktu")
+        assertFalse(isBlankOrIsoDateTime("2026-10-08T24:00"), "jam 24 di luar 00-23")
+        assertFalse(isBlankOrIsoDateTime("2026-10-08 14:30"), "pemisah wajib 'T', bukan spasi")
+        assertFalse(isBlankOrIsoDateTime("kemarin"))
+    }
+
     @Test
     fun submit_whenDateMalformed_isBlocked_evenWhenOptional() {
         val tanggal = LeadFieldDescriptor(
@@ -105,5 +118,22 @@ class LeadFieldControlParityTest {
         assertFalse(form.canSubmit(listOf(tanggal)), "tanggal rusak tidak boleh lolos validasi form")
         form.update("cf-tanggal", "")
         assertTrue(form.canSubmit(listOf(tanggal)), "kosong berarti belum diisi — sah untuk field opsional")
+    }
+
+    /** C6 (Irisan 2): tanggal berwaktu divalidasi ketat `TTTT-BB-HH'T'JJ:MM`, nilai lama tanpa jam ditolak. */
+    @Test
+    fun submit_whenDateTimeMalformed_isBlocked_evenWhenOptional() {
+        val jadwal = LeadFieldDescriptor(
+            "cf-jadwal", "Jadwal Kunjungan", FieldType.DateField(withTime = true),
+            isRequired = false, isEditable = true, isDeletable = true, isCore = false
+        )
+        val form = LeadFormState(LeadStage.NEW_LEAD).apply { update(LeadDraftFields.CONTACT_PERSON, "Rina") }
+
+        form.update("cf-jadwal", "2026-10-08T14:30")
+        assertTrue(form.canSubmit(listOf(jadwal)))
+        form.update("cf-jadwal", "2026-10-08")
+        assertFalse(form.canSubmit(listOf(jadwal)), "tanggal tanpa jam tidak sah untuk field tanggal berwaktu")
+        form.update("cf-jadwal", "")
+        assertTrue(form.canSubmit(listOf(jadwal)), "kosong berarti belum diisi — sah untuk field opsional")
     }
 }

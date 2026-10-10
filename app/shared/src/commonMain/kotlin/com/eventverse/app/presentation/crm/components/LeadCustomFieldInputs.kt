@@ -13,6 +13,7 @@ import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldType
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
+import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
@@ -21,8 +22,9 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
  * Input field kustom tenant di form lead baru (TRD-HELP-002 K4): Teks, Teks panjang, Angka, Pilihan,
- * dan Tanggal tanpa waktu (lewat `ClayDatePicker`, Irisan 1 Track C). Dirender dari skema tenant —
- * tidak ada nama kolom yang tertulis di kode.
+ * dan Tanggal — tanpa waktu lewat `ClayDatePicker` (Irisan 1 Track C), berwaktu lewat
+ * `ClayDateTimePicker` (C6, Irisan 2; format simpan `TTTT-BB-HH'T'JJ:MM`). Dirender dari skema
+ * tenant — tidak ada nama kolom yang tertulis di kode.
  */
 @Composable
 internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: LeadFormState) {
@@ -43,13 +45,22 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                     }
                 }
             }
-            is FieldType.DateField -> ClayDatePicker(
-                value = value,
-                onValueChange = { form.update(f.fieldId, it) },
-                label = label,
-                modifier = Modifier.fillMaxWidth(),
-                isError = value.isNotBlank() && !isBlankOrIsoDate(value)
-            )
+            is FieldType.DateField -> if (t.withTime) {
+                ClayDateTimePicker(
+                    value = value,
+                    onValueChange = { form.update(f.fieldId, it) },
+                    label = label,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                ClayDatePicker(
+                    value = value,
+                    onValueChange = { form.update(f.fieldId, it) },
+                    label = label,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = value.isNotBlank() && !isBlankOrIsoDate(value)
+                )
+            }
             is FieldType.LongText -> ClayTextArea(
                 value = value,
                 onValueChange = { form.update(f.fieldId, it) },

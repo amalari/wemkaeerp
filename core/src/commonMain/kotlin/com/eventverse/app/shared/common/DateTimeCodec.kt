@@ -2,6 +2,7 @@ package com.eventverse.app.shared.common
 
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 
 /**
  * Robust, Wasm-safe datetime parsing utilities for wire codecs.
@@ -50,6 +51,19 @@ object DateTimeCodec {
             LocalDate.parse(value)
         } catch (_: Exception) {
             fallback
+        }
+    }
+
+    /**
+     * C6 (Irisan 2): tanggal-jam dinding `TTTT-BB-HH'T'JJ:MM` tepat menit — tanpa detik, tanpa zona.
+     * Semantik identik dengan `DateFieldValues` di kosakata prototype; nilai tanggal-saja menghasilkan null.
+     */
+    fun parseLocalDateTimeMinuteOrNull(value: String?): LocalDateTime? {
+        if (value == null || value.length != 16 || value[10] != 'T') return null
+        return try {
+            LocalDateTime.parse(value)
+        } catch (_: Exception) {
+            null
         }
     }
 }

@@ -101,7 +101,15 @@ object CustomFieldValidation {
 
             is FieldType.DateField -> {
                 val raw = (v as? JsonValue.Str)?.value
-                if (raw == null || com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(raw) == null) mismatch(def) else null
+                // C6 (Irisan 2): field tanggal berwaktu wajib TTTT-BB-HH'T'JJ:MM (tanpa detik/zona);
+                // tanggal-saja ditolak, dan sebaliknya — semantik sama dengan DateFieldValues di kosakata
+                // prototype, tanpa koersi diam-diam.
+                val valid = raw != null && if (def.type.withTime) {
+                    com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateTimeMinuteOrNull(raw) != null
+                } else {
+                    com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(raw) != null
+                }
+                if (valid) null else mismatch(def)
             }
 
             is FieldType.SingleSelect -> {

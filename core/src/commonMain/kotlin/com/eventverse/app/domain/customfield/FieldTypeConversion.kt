@@ -39,6 +39,11 @@ object FieldTypeConversion {
     private const val MAX_DISTINCT_VALUES_FOR_SELECT = 50
 
     fun classify(from: FieldType, to: FieldType): ConversionSafety {
+        // C6 (Irisan 2): dua varian DateField punya kelas & kode sama, tapi bentuk nilai sahnya beda
+        // (ketat dua arah) — varian sama = IDENTITY, ganti `withTime` = LOSSY (dry run + konfirmasi).
+        if (from is FieldType.DateField && to is FieldType.DateField) {
+            return if (from.withTime == to.withTime) ConversionSafety.IDENTITY else ConversionSafety.LOSSY
+        }
         if (from::class == to::class && from.code == to.code) return ConversionSafety.IDENTITY
 
         // Nothing may convert into or out of UserRef by coercion: a person reference is not
@@ -55,7 +60,6 @@ object FieldTypeConversion {
             to is FieldType.Text || to is FieldType.LongText -> ConversionSafety.LOSSLESS
 
             from is FieldType.Number && to is FieldType.Number -> ConversionSafety.LOSSLESS
-            from is FieldType.DateField && to is FieldType.DateField -> ConversionSafety.LOSSLESS
 
             (from is FieldType.Text || from is FieldType.LongText) && to is FieldType.Number -> ConversionSafety.LOSSY
             (from is FieldType.Text || from is FieldType.LongText) && to is FieldType.DateField -> ConversionSafety.LOSSY
@@ -94,9 +98,18 @@ object FieldTypeConversion {
                 ?.let { CoercionResult.Converted(CustomAttributes.numberCell(it.toString())) }
                 ?: CoercionResult.Cleared(rawValueText)
 
-            to is FieldType.DateField -> com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(rawValueText.trim())
-                ?.let { CoercionResult.Converted(CustomAttributes.dateCell(it)) }
-                ?: CoercionResult.Cleared(rawValueText)
+            // C6 (Irisan 2): sadar `withTime` — target tanggal berwaktu hanya menerima TTTT-BB-HH'T'JJ:MM;
+            // tanggal-saja pada target itu = Cleared (eksplisit), bukan dikonversi diam-diam.
+            to is FieldType.DateField ->
+                if (to.withTime) {
+                    com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateTimeMinuteOrNull(rawValueText.trim())
+                        ?.let { CoercionResult.Converted(CustomAttributes.dateTimeCell(it)) }
+                        ?: CoercionResult.Cleared(rawValueText)
+                } else {
+                    com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateOrNull(rawValueText.trim())
+                        ?.let { CoercionResult.Converted(CustomAttributes.dateCell(it)) }
+                        ?: CoercionResult.Cleared(rawValueText)
+                }
 
             to is FieldType.Checkbox -> rawValueText.trim().lowercase().let {
                 when (it) {

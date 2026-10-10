@@ -66,6 +66,10 @@ data class CustomAttributes(private val raw: JsonValue.Obj) {
             jsonObjectOf("t" to jsonTag("select"), "v" to JsonValue.Str(optionId.value))
         fun dateCell(date: LocalDate): JsonValue.Obj =
             jsonObjectOf("t" to jsonTag("date"), "v" to JsonValue.Str(date.toString()))
+
+        /** C6 (Irisan 2): sel tanggal berwaktu `TTTT-BB-HH'T'JJ:MM` — tag `date` sama, bentuk nilai yang beda. */
+        fun dateTimeCell(value: kotlinx.datetime.LocalDateTime): JsonValue.Obj =
+            jsonObjectOf("t" to jsonTag("date"), "v" to JsonValue.Str(value.toString()))
         fun checkboxCell(checked: Boolean): JsonValue.Obj =
             jsonObjectOf("t" to jsonTag("checkbox"), "v" to JsonValue.Bool(checked))
 

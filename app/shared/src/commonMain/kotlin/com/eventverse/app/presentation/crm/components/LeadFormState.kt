@@ -77,9 +77,9 @@ class LeadFormState(initialStage: LeadStage) {
         val hasIdentifier = brandName.isNotBlank() || contactPerson.isNotBlank() || phone.isNotBlank()
         val customOk = schema.filter { supportsInput(it.type) }.all { f ->
             val raw = custom[CustomFieldId(f.fieldId)].orEmpty().trim()
-            (!f.isRequired || raw.isNotEmpty()) && when (f.type) {
+            (!f.isRequired || raw.isNotEmpty()) && when (val t = f.type) {
                 is FieldType.Number -> raw.isEmpty() || raw.replace(",", ".").toDoubleOrNull() != null
-                is FieldType.DateField -> isBlankOrIsoDate(raw)
+                is FieldType.DateField -> if (t.withTime) isBlankOrIsoDateTime(raw) else isBlankOrIsoDate(raw)
                 is FieldType.Text, is FieldType.LongText, is FieldType.SingleSelect -> true
                 // Tidak dirender di dialog lead baru (supportsInput) — tidak ada nilai untuk divalidasi.
                 is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation, is FieldType.File -> true
@@ -109,19 +109,20 @@ class LeadFormState(initialStage: LeadStage) {
     }
 
     companion object {
-        /** Kontrol yang dirender di dialog lead baru. UserRef butuh daftar karyawan; Checkbox & tanggal berwaktu menyusul. */
+        /** Kontrol yang dirender di dialog lead baru. UserRef butuh daftar karyawan; Checkbox menyusul. */
         private val CREATE_FORM_CONTROLS = setOf(
             LeadFieldControl.TEXT,
             LeadFieldControl.LONG_TEXT,
             LeadFieldControl.NUMBER,
             LeadFieldControl.SINGLE_SELECT,
-            LeadFieldControl.DATE_PICKER
+            LeadFieldControl.DATE_PICKER,
+            LeadFieldControl.DATE_TIME_PICKER
         )
 
         /**
          * Field kustom yang punya input di dialog (TRD-HELP-002 K4). Rute lewat [leadFieldControl]
-         * supaya paritas tipe→kontrol satu sumber kebenaran; tanggal tanpa waktu masuk lewat
-         * `ClayDatePicker` (Irisan 1 Track C), tanggal berwaktu (`DATE_TIME_TEXT`) belum.
+         * supaya paritas tipe→kontrol satu sumber kebenaran; tanggal tanpa waktu lewat `ClayDatePicker`
+         * (Irisan 1 Track C), tanggal berwaktu lewat `ClayDateTimePicker` (C6, Irisan 2).
          */
         fun supportsInput(type: FieldType): Boolean = leadFieldControl(type) in CREATE_FORM_CONTROLS
     }

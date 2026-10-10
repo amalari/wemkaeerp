@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.crm.components
 
 import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.presentation.designsystem.parseIsoDateTimeOrNull
 import com.eventverse.app.shared.common.DateTimeCodec
 
 /**
@@ -20,11 +21,8 @@ internal enum class LeadFieldControl {
     /** `ClayDatePicker` — nilai `TTTT-BB-HH` atau kosong. */
     DATE_PICKER,
 
-    /**
-     * Tanggal **dengan waktu**: `ClayDatePicker` belum mendukung waktu, jadi tetap kolom teks seperti sebelumnya
-     * (tidak dipalsukan menjadi tanggal saja).
-     */
-    DATE_TIME_TEXT,
+    /** `ClayDateTimePicker` — nilai `TTTT-BB-HH'T'JJ:MM` atau kosong (C6, Irisan 2). */
+    DATE_TIME_PICKER,
     SINGLE_SELECT,
     USER_REF,
 
@@ -48,7 +46,7 @@ internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
     is FieldType.LongText -> LeadFieldControl.LONG_TEXT
     is FieldType.Number -> LeadFieldControl.NUMBER
     is FieldType.Checkbox -> LeadFieldControl.CHECKBOX
-    is FieldType.DateField -> if (type.withTime) LeadFieldControl.DATE_TIME_TEXT else LeadFieldControl.DATE_PICKER
+    is FieldType.DateField -> if (type.withTime) LeadFieldControl.DATE_TIME_PICKER else LeadFieldControl.DATE_PICKER
     is FieldType.SingleSelect -> LeadFieldControl.SINGLE_SELECT
     is FieldType.UserRef -> LeadFieldControl.USER_REF
     is FieldType.Relation -> LeadFieldControl.RELATION
@@ -62,3 +60,11 @@ internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
  */
 internal fun isBlankOrIsoDate(value: String): Boolean =
     value.isBlank() || DateTimeCodec.parseLocalDateOrNull(value) != null
+
+/**
+ * Nilai field tanggal **berwaktu** sah untuk disimpan/dikirim: kosong berarti *belum diisi*, selain itu
+ * harus `TTTT-BB-HH'T'JJ:MM`. Parser yang sama dengan `ClayDateTimePicker` (satu aturan simpan, C6);
+ * nilai lama `TTTT-BB-HH` tidak sah di sini dan ditolak, bukan didiamkan.
+ */
+internal fun isBlankOrIsoDateTime(value: String): Boolean =
+    value.isBlank() || parseIsoDateTimeOrNull(value) != null

@@ -1,8 +1,28 @@
 # PLAN: Celah Komponen Input & Tipe Field — Daftar, Prioritas, dan Cara Menambahkannya
 
 Dibuat 2026-10-08. Aturan pendaftaran: [`.claude/rules/field-component-rules.md`](../../.claude/rules/field-component-rules.md).
-**Status: usulan.** Temuan §0 dibaca dari kode; yang belum diverifikasi ditandai. Belum ada kode.
+**Status: selesai (2026-10-10).** Seluruh celah C1–C10 terimplementasi — lihat tabel status di §1a. Temuan §0 dibaca dari kode per 2026-10-08 (G1–G8) dan 2026-10-09 (G9); sebagian sudah tidak berlaku (G2: `ClayDatePicker` kini ada; G7: tes paritas kini ada di `core/commonTest` dan `app/shared/commonTest`).
 Gerbang TRD Irisan 4 sudah ada dan **disetujui** (2026-10-08): [TRD-FIELD-001](../trd/TRD-FIELD-001-relation.md) (`RELATION`, 4a) dan [TRD-FIELD-002](../trd/TRD-FIELD-002-file.md) (`FILE`, 4b; R4-nya diputuskan Track C).
+
+## 1a. Status pelaksanaan (2026-10-10)
+
+| # | Status | Bukti utama |
+|---|---|---|
+| C1 | ✅ Selesai | `designsystem/ClayDatePicker.kt`; `teaching-clay-datepicker-field-tanggal-crm.md` |
+| C2 | ✅ Selesai | `core/commonTest` `PrototypeFieldTypeSqlParityTest`, `PrototypeFieldTypeCodecParityTest`; `app/shared/commonTest` `CrmFieldTypeParityTest` (kosakata CRM), `LeadFieldControlParityTest` |
+| C3 | ✅ Selesai | `LONG_TEXT` di `EntitySpec.kt`; `ClayTextArea` |
+| C4 | ✅ Selesai | `NumberFormat { PLAIN, CURRENCY, PERCENT }` + `CurrencyCode.kt` + `SpecOp.SetFieldFormat`; `teaching-field-number-format-currency-percent.md` |
+| C5 | ✅ Selesai | TRD-FIELD-003 disetujui; A0/A/B/C selesai (`MultiSelectValues.kt`, `ClayMultiChoiceChips`, `SpecPostgresWriter` `TEXT[]`); teaching `trd-field-003-*` |
+| C6 | ✅ Selesai | Prototype: `FieldSpec.withTime` + `ClayDateTimePicker` + kolom `TIMESTAMP`. CRM: `DateField(withTime)` kini dirender `ClayDateTimePicker` (`LeadFieldControl.DATE_TIME_PICKER`); validasi tulis `CustomFieldValidation` sadar-`withTime` (`TTTT-BB-HH'T'JJ:MM` ketat dua arah); konversi tipe sadar-`withTime` (ganti `withTime` = LOSSY). `ClayTimePicker` mandiri (`JJ:MM`) ada di `designsystem/` (D7) — **belum terdaftar ke kosakata field** (tidak ada tipe `TIME`; daftar bila tipe itu dibuat) |
+| C7 | ✅ Selesai | TRD-FIELD-001; `FieldType.Relation` + `ClayRelationPicker` + `RelationTargetResolver` (Track B); teaching `trd-field-001-*` |
+| C8 | ✅ Selesai | TRD-FIELD-002; `FieldType.File` + `FileRef` + port `ObjectStorage` (adapter S3) + `FieldFileRoutes`; teaching `trd-field-002-*` |
+| C9 | ✅ Selesai | `TextValidation` (EMAIL/PHONE) + `teaching-field-text-validation.md` |
+| C10 | ✅ Selesai | `ViewProposal.Skeleton` (`SkeletonBlock`: label, lebar, petunjuk tertutup D5), codec menolak nilai tak sah, renderer `SkeletonSketch`; `teaching-field-skeleton-custom-screen.md` |
+
+Sisa terbuka (follow-up, bukan celah tabel C1–C10):
+1. `AddCustomFieldDialog` CRM belum menawarkan opsi "tanggal berwaktu" — field `withTime` kini dibuat via API/seed; render/edit sudah penuh.
+2. MULTI_SELECT untuk kosakata CRM sengaja tidak disentuh (keputusan TRD-FIELD-003).
+3. Cek visual dengan mata (DoD design system) untuk `ClayTimePicker` dan alur tanggal berwaktu CRM masih perlu dijalankan di tenant uji non-garment.
 
 ## 0. Temuan terverifikasi
 
