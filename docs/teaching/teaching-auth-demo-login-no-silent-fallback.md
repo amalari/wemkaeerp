@@ -60,3 +60,28 @@ Pelajaran: fallback yang "aman karena sesi server selalu punya slug" tetap berba
 kasus tanpa slug yang sah (superadmin platform) lalu diam-diam membaca/menulis data tenant demo.
 Tes: `DemoLoginNoSilentFallbackTest` (restore), `DemoAuthGateApiTest` (400 tanpa slug, `bordir-uji-gate`),
 `TenantBoundTest`.
+
+## Tambahan: tombol demo yang membungkus, dan "Sesi tidak valid" di `*.lvh.me`
+
+**Tombol "Owner <slug>" di login Platform.** Di 360dp, label `Owner wemade-demo` membungkus jadi dua baris
+sehingga tombol lebih tinggi dari "Superadmin". Perbaikannya satu parameter: `maxLines = 1` pada
+`PlatformDemoButton` (`ClayButton` sudah memberi `overflow = Ellipsis`). Slug panjang kini terpotong
+(`Owner wemade...`), tinggi kedua tombol seragam. Ini Kontrak 13 design system: elemen yang boleh mengalah
+dinyatakan eksplisit, bukan dibiarkan membungkus.
+
+**Penyelidikan "Sesi tidak valid" di `wemade-demo.lvh.me`.** Tidak dapat direproduksi pada kode terkini
+(server `PLATFORM_BASE_DOMAIN=lvh.me`, web via proxy `/api`): login Owner dan Superadmin, reload (`/me`),
+handoff act-as ke tenant host, semuanya 200. Fakta yang menjelaskan laporan lama:
+
+- Sesi di `localStorage` per **origin termasuk port** (`wemade-demo.lvh.me:3011` != `:3012` != `app.lvh.me:3011`);
+  tidak ada cookie (`Set-Cookie` kosong), jadi tidak ada masalah SameSite/domain.
+- Klien memakai URL relatif `/api/...` lewat proxy webpack (`WEMADE_API_PORT`); `devPort = 8081` di
+  `TenantApiEndpointResolver` tidak dipakai jalur ini (hanya tes).
+- Tanpa `PLATFORM_BASE_DOMAIN` di server, host `*.lvh.me` dianggap mode lokal (layar login Platform, bukan
+  `LoginScreen` tenant) - perilaku berbeda, bukan galat.
+- Sebab sah penolakan setelah hardening: token lama tanpa `tenant_slug` untuk peran tenant ditolak `/me`
+  (`PublicAuthRoutes.kt` "Token tidak memuat tenant"; UI: "Sesi telah kedaluwarsa"); token bertanda tangan
+  `JWT_SECRET` lain ditolak `TenantResolutionPlugin` ("Sesi tidak valid atau sudah kedaluwarsa"). Keduanya
+  disengaja (fail-closed); sesi lama dibersihkan dengan login ulang.
+- Jebakan alat: satu browser Playwright dipakai bersama beberapa agen, sehingga halaman bisa berpindah ke
+  port agen lain di tengah uji. Pakai `browser.newContext()` sendiri.
