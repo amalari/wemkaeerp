@@ -76,9 +76,9 @@ class TenantPackContributionsRowsTest {
         val registered = DomainPackRegistry.find(LayananPilotPack.CODE) == null
         if (registered) DomainPackRegistry.register(LayananPilotPack.pack)
         try {
-            assertTrue(resolver.exists(tenantA, "$key:change_request", "cr-1"))
-            assertEquals(false, resolver.exists(tenantB, "$key:change_request", "cr-1"), "id tenant lain ditolak")
-            assertEquals(false, resolver.exists(tenantA, "$key:change_request", "tak-ada"))
+            assertTrue(resolver.exists(tenantA, "$key:change_request", "cr-1", reachableOwnerIds = null))
+            assertEquals(false, resolver.exists(tenantB, "$key:change_request", "cr-1", reachableOwnerIds = null), "id tenant lain ditolak")
+            assertEquals(false, resolver.exists(tenantA, "$key:change_request", "tak-ada", reachableOwnerIds = null))
         } finally {
             if (registered) DomainPackRegistry.unregister(LayananPilotPack.CODE)
         }

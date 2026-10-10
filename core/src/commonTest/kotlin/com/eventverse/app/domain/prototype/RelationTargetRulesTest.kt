@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.prototype
 
 import com.eventverse.app.domain.customfield.RelationTargetResolver
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -18,7 +19,12 @@ class RelationTargetRulesTest {
 
     private class FakeResolver(private val known: Set<Triple<String, String, String>>) : RelationTargetResolver {
         val asked = mutableListOf<Triple<String, String, String>>()
-        override suspend fun exists(tenantId: TenantId, targetResource: String, targetRecordId: String): Boolean {
+        override suspend fun exists(
+            tenantId: TenantId,
+            targetResource: String,
+            targetRecordId: String,
+            reachableOwnerIds: Set<OrgNodeId>?
+        ): Boolean {
             asked += Triple(tenantId.value, targetResource, targetRecordId)
             return Triple(tenantId.value, targetResource, targetRecordId) in known
         }
