@@ -205,7 +205,7 @@ class CrmFieldTypeParityTest {
             val cells = mapOf(d.id to validCell(t))
             // FILE terikat ke record yang SUDAH ada (TRD-FIELD-004 FR-1.3): sampel sah hanya lewat patch record `l-1`;
             // pada create ditolak (lihat validation_file_*). Tipe lain: create.
-            val errors = if (t is FieldType.File) {
+            val errors = if (t.kind == FieldType.FILE) {
                 CustomFieldValidation.validateForPatch(tenant, "l-1", listOf(d), Instant.fromEpochMilliseconds(0), cells)
             } else {
                 CustomFieldValidation.validateForCreate(tenant, listOf(d), cells)
@@ -216,8 +216,8 @@ class CrmFieldTypeParityTest {
 
     @Test
     fun validation_file_onCreate_isRejected_andRefOfAnotherRecord_isRejectedOnPatch() {
-        val d = def(FieldType.File, "cf-file")
-        val ref = mapOf(d.id to validCell(FieldType.File))
+        val d = def(CrmFieldType(FieldType.FILE), "cf-file")
+        val ref = mapOf(d.id to validCell(CrmFieldType(FieldType.FILE)))
         assertEquals(1, CustomFieldValidation.validateForCreate(tenant, listOf(d), ref).size, "record baru belum punya berkas")
         assertEquals(1, CustomFieldValidation.validateForPatch(tenant, "l-2", listOf(d), Instant.fromEpochMilliseconds(0), ref).size, "ref record l-1 di record l-2")
     }
