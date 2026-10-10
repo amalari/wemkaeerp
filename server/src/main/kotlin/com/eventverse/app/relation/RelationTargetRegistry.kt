@@ -38,8 +38,12 @@ interface RelationTargetSource {
         limit: Int
     ): List<RelationOption>
 
-    /** `true` bila record [recordId] ada pada tenant yang sama (validasi tulis, FR-2). */
-    suspend fun exists(tenantId: TenantId, recordId: String): Boolean
+    /**
+     * `true` bila record [recordId] ada pada tenant yang sama **dan** terjangkau pemanggil (validasi tulis, FR-2).
+     * [reachableOwnerIds] **wajib** tanpa default (TRD-FIELD-004 FR-3.2): kompilator memaksa tiap sumber memutuskan.
+     * `null` = seluruh tenant; sumber kolektif boleh mengabaikannya, sumber hierarkis (CRM) wajib memakainya.
+     */
+    suspend fun exists(tenantId: TenantId, recordId: String, reachableOwnerIds: Set<OrgNodeId>?): Boolean
 }
 
 /**
@@ -83,7 +87,7 @@ class PrototypeRowRelationSource(private val rows: PrototypeRowRepository) : Rel
     ): List<RelationOption> =
         rows.search(tenantId, query, limit).map { RelationOption(it.id, labelOf(it)) }
 
-    override suspend fun exists(tenantId: TenantId, recordId: String): Boolean =
+    override suspend fun exists(tenantId: TenantId, recordId: String, reachableOwnerIds: Set<OrgNodeId>?): Boolean =
         rows.find(tenantId, recordId) != null
 
     private fun labelOf(row: PrototypeRow): String =
@@ -108,8 +112,11 @@ class CrmLeadRelationSource(private val leads: CrmLeadRepository) : RelationTarg
         leads.searchActive(tenantId, reachableOwnerIds, query, limit)
             .map { RelationOption(it.id.value, it.title.take(MAX_LABEL_CHARS)) }
 
-    override suspend fun exists(tenantId: TenantId, recordId: String): Boolean =
-        leads.findById(tenantId, LeadId(recordId)) != null
+    /** Lead di luar jangkauan = "tidak ada"; lead tanpa pemilik hanya terjangkau scope penuh (`null`). */
+    override suspend fun exists(tenantId: TenantId, recordId: String, reachableOwnerIds: Set<OrgNodeId>?): Boolean {
+        val lead = leads.findById(tenantId, LeadId(recordId)) ?: return false
+        return reachableOwnerIds == null || (lead.ownerEmployeeId != null && lead.ownerEmployeeId in reachableOwnerIds)
+    }
 
     private companion object {
         const val MAX_LABEL_CHARS = 120
@@ -127,10 +134,15 @@ class CrmLeadRelationSource(private val leads: CrmLeadRepository) : RelationTarg
  */
 class RegistryRelationTargetResolver(private val registry: RelationTargetRegistry) : RelationTargetResolver {
 
-    override suspend fun exists(tenantId: TenantId, targetResource: String, targetRecordId: String): Boolean {
+    override suspend fun exists(
+        tenantId: TenantId,
+        targetResource: String,
+        targetRecordId: String,
+        reachableOwnerIds: Set<OrgNodeId>?
+    ): Boolean {
         if (targetRecordId.isBlank()) return false
         val module = resolvableTarget(targetResource) ?: return false
-        return registry.sourceFor(module.value)?.exists(tenantId, targetRecordId) ?: false
+        return registry.sourceFor(module.value)?.exists(tenantId, targetRecordId, reachableOwnerIds) ?: false
     }
 
     /** Modul target yang sah dirujuk, atau `null` (fail-closed). */
