@@ -176,7 +176,7 @@ class DemoAuthGateApiTest {
             val status = client.get("/api/public/auth/me") {
                 header(HttpHeaders.Authorization, "Bearer ${jwt(Role.TENANT_ADMIN, slug, "ten-gate-demo")}")
             }.status
-            assertEquals(HttpStatusCode.Forbidden, status, "slug=$slug")
+            assertEquals(HttpStatusCode.Unauthorized, status, "slug=$slug")
         }
     }
 
