@@ -26,7 +26,7 @@ class CustomFieldEvolutionTest {
 
     @Test
     fun validateForCreate_missingRequiredField_producesError() {
-        val errors = CustomFieldValidation.validateForCreate(listOf(requiredTextField()), emptyMap())
+        val errors = CustomFieldValidation.validateForCreate(tenantId, listOf(requiredTextField()), emptyMap())
         assertEquals(1, errors.size)
         assertTrue(errors.first() is CustomFieldValidationError.Required)
     }
@@ -34,7 +34,7 @@ class CustomFieldEvolutionTest {
     @Test
     fun validateForCreate_presentRequiredField_noError() {
         val cell = CustomAttributes.textCell("isi")
-        val errors = CustomFieldValidation.validateForCreate(
+        val errors = CustomFieldValidation.validateForCreate(tenantId,
             listOf(requiredTextField()), mapOf(CustomFieldId("cf-required") to cell)
         )
         assertTrue(errors.isEmpty())
@@ -48,7 +48,7 @@ class CustomFieldEvolutionTest {
             id = CustomFieldId("cf-other"), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
             key = FieldKey("lainnya"), label = "Lainnya", type = FieldType.Text, position = 2000.0
         )
-        val errors = CustomFieldValidation.validateForPatch(
+        val errors = CustomFieldValidation.validateForPatch(tenantId,
             definitions = listOf(requiredTextField(), otherField),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-other") to CustomAttributes.textCell("baru"))
@@ -58,7 +58,7 @@ class CustomFieldEvolutionTest {
 
     @Test
     fun validateForPatch_touchingRequiredFieldWithBlankValue_isRejected() {
-        val errors = CustomFieldValidation.validateForPatch(
+        val errors = CustomFieldValidation.validateForPatch(tenantId,
             definitions = listOf(requiredTextField()),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-required") to CustomAttributes.textCell(""))
@@ -70,7 +70,7 @@ class CustomFieldEvolutionTest {
     @Test
     fun validateForPatch_archivedField_isRejected() {
         val archived = requiredTextField().copy(isRequired = false, archivedAt = Instant.parse("2026-03-01T00:00:00Z"))
-        val errors = CustomFieldValidation.validateForPatch(
+        val errors = CustomFieldValidation.validateForPatch(tenantId,
             definitions = listOf(archived),
             recordCreatedAt = fieldCreatedEarly,
             patch = mapOf(CustomFieldId("cf-required") to CustomAttributes.textCell("x"))
@@ -104,7 +104,7 @@ class CustomFieldEvolutionTest {
             key = FieldKey("kategori"), label = "Kategori", position = 1000.0,
             type = FieldType.SingleSelect(listOf(SelectOption(SelectOptionId("opt_a"), "A", "#2563EB")))
         )
-        val errors = CustomFieldValidation.validateForCreate(
+        val errors = CustomFieldValidation.validateForCreate(tenantId,
             listOf(select), mapOf(select.id to CustomAttributes.selectCell(SelectOptionId("opt_ghost")))
         )
         assertEquals(1, errors.size)

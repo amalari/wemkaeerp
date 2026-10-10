@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -44,6 +45,7 @@ object CustomFieldValidation {
      * "predates this field" grace period the way a patch has.
      */
     fun validateForCreate(
+        tenantId: TenantId,
         definitions: List<CustomFieldDefinition>,
         values: Map<CustomFieldId, JsonValue.Obj?>
     ): List<CustomFieldValidationError> = definitions
@@ -53,7 +55,7 @@ object CustomFieldValidation {
             when {
                 def.isRequired && (cell == null || !hasMeaningfulValue(cell)) ->
                     CustomFieldValidationError.Required(def.id, def.label)
-                cell != null -> validateType(def, cell)
+                cell != null -> validateType(tenantId, def, cell)
                 else -> null
             }
         }
@@ -64,6 +66,7 @@ object CustomFieldValidation {
      * required field must never be blocked by that unrelated field being missing.
      */
     fun validateForPatch(
+        tenantId: TenantId,
         definitions: List<CustomFieldDefinition>,
         recordCreatedAt: Instant,
         patch: Map<CustomFieldId, JsonValue.Obj?>
@@ -80,14 +83,14 @@ object CustomFieldValidation {
             if (requiredNow && (cell == null || !hasMeaningfulValue(cell))) {
                 CustomFieldValidationError.Required(fieldId, def.label)
             } else if (cell != null) {
-                validateType(def, cell)
+                validateType(tenantId, def, cell)
             } else {
                 null
             }
         }
     }
 
-    private fun validateType(def: CustomFieldDefinition, cell: JsonValue.Obj): CustomFieldValidationError? {
+    private fun validateType(tenantId: TenantId, def: CustomFieldDefinition, cell: JsonValue.Obj): CustomFieldValidationError? {
         val v = cell.entries["v"]
         return when (def.type) {
             is FieldType.Text, is FieldType.LongText ->
@@ -128,11 +131,12 @@ object CustomFieldValidation {
             // (Track B) — validasi bentuk di sini sejajar UserRef; resolver yang gagal = TargetNotFound.
             is FieldType.Relation -> if (v !is JsonValue.Str) mismatch(def) else null
 
-            // C8 (TRD-FIELD-002 FR-5): sel = FileRef sah (key `fields/...`, tanpa `..`). Referensi rusak/
-            // buatan = TypeMismatch — TIDAK pernah fallback ke teks kosong atau TEXT.
+            // C8 (TRD-FIELD-002 FR-5): sel = FileRef sah (key `fields/...`, tanpa `..`) DAN milik tenant
+            // penulis (`isValidFor`, bukan `isValid` — ref `fields/<tenantLain>/...` memberi URL unduh objek
+            // tenant lain). Referensi rusak/asing = TypeMismatch — TIDAK pernah fallback ke teks/TEXT.
             is FieldType.File -> {
                 val raw = (v as? JsonValue.Str)?.value
-                if (raw == null || !com.eventverse.app.domain.storage.FileRef.isValid(raw)) mismatch(def) else null
+                if (raw == null || !com.eventverse.app.domain.storage.FileRef.isValidFor(tenantId.value, raw)) mismatch(def) else null
             }
         }
     }

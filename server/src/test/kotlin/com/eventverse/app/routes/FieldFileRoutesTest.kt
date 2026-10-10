@@ -37,6 +37,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
@@ -204,6 +206,56 @@ class FieldFileRoutesTest {
             asStaff(slug, roleId); setBody(ByteArray(10 * 1024 * 1024 + 1))
         }
         assertEquals(HttpStatusCode.PayloadTooLarge, r.status)
+    }
+
+    /** Body dengan panjang yang dideklarasikan terpisah dari isinya: membuktikan server percaya-tapi-membatasi. */
+    private fun body(declared: Long?, actual: ByteArray) = object : OutgoingContent.ReadChannelContent() {
+        override val contentLength: Long? = declared
+        override fun readFrom(): ByteReadChannel = ByteReadChannel(actual)
+    }
+
+    @Test fun `Content-Length melebihi batas ditolak 413 tanpa membaca body`() = testApplication {
+        val storage = installApp(AccessLevel.OPERATE)
+        // Isi sebenarnya hanya 16 byte: bila handler membaca body dulu, hasilnya 201 - 413 membuktikan header dicek lebih dulu.
+        val r = client.post("$base/upload?fileName=a.pdf&contentType=application/pdf") {
+            asStaff(slug, roleId); setBody(body(MAX_FIELD_FILE_BYTES + 1L, ByteArray(16)))
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, r.status)
+        assertTrue(storage.stored.isEmpty())
+    }
+
+    @Test fun `body tanpa Content-Length yang melebihi batas ditolak 413 dan tidak tersimpan`() = testApplication {
+        val storage = installApp(AccessLevel.OPERATE)
+        val r = client.post("$base/upload?fileName=a.pdf&contentType=application/pdf") {
+            asStaff(slug, roleId); setBody(body(null, ByteArray(MAX_FIELD_FILE_BYTES + 1)))
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, r.status)
+        assertTrue(storage.stored.isEmpty())
+    }
+
+    @Test fun `body tanpa Content-Length tepat di batas diterima`() = testApplication {
+        val storage = installApp(AccessLevel.OPERATE)
+        val r = client.post("$base/upload?fileName=a.pdf&contentType=application/pdf") {
+            asStaff(slug, roleId); setBody(body(null, ByteArray(MAX_FIELD_FILE_BYTES)))
+        }
+        assertEquals(HttpStatusCode.Created, r.status)
+        assertEquals(1, storage.stored.size)
+    }
+
+    @Test fun `Content-Length CRM melebihi batas ditolak 413 tanpa membaca body`() = testApplication {
+        installApp(AccessLevel.OPERATE, leads = InMemoryCrmLeadRepository().also { runBlocking { seedLead(it) } })
+        val r = client.post("$crmBase/upload?fileName=a.csv&contentType=text/csv") {
+            asStaff(slug, roleId); setBody(body(MAX_FIELD_FILE_BYTES + 1L, ByteArray(16)))
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, r.status)
+    }
+
+    @Test fun `gerbang modul 403 tetap mendahului pembacaan body besar`() = testApplication {
+        installApp(AccessLevel.VIEW)
+        val r = client.post("$base/upload?fileName=a.pdf&contentType=application/pdf") {
+            asStaff(slug, roleId); setBody(body(MAX_FIELD_FILE_BYTES + 1L, ByteArray(16)))
+        }
+        assertEquals(HttpStatusCode.Forbidden, r.status)
     }
 
     @Test fun `tipe konten CRM di luar allowlist ditolak 415`() = testApplication {

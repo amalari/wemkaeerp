@@ -145,7 +145,7 @@ class CrmFieldTypeParityTest {
         is FieldType.UserRef -> CustomAttributes.textCell("user-1")
         // C7: sel RELATION = id record target bertag `relation`; keberadaan diverifikasi server (Track B).
         is FieldType.Relation -> CustomAttributes.relationCell("lead-1")
-        is FieldType.File -> CustomAttributes.textCell("fields/ten-bordir/crm_sales/l-1/lampiran-a1b2c3-scan.pdf")
+        is FieldType.File -> CustomAttributes.textCell("fields/ten-bordir-uji/crm_sales/l-1/lampiran-a1b2c3-scan.pdf")
     }
 
     private fun invalidCell(t: FieldType): JsonValue.Obj = when (t) {
@@ -167,7 +167,7 @@ class CrmFieldTypeParityTest {
     fun validation_everySample_acceptsValidCell() {
         samples.forEach { t ->
             val d = def(t)
-            assertEquals(emptyList(), CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to validCell(t))), t.code)
+            assertEquals(emptyList(), CustomFieldValidation.validateForCreate(tenant, listOf(d), mapOf(d.id to validCell(t))), t.code)
         }
     }
 
@@ -175,7 +175,7 @@ class CrmFieldTypeParityTest {
     fun validation_everySample_rejectsMismatchedCell() {
         samples.forEach { t ->
             val d = def(t)
-            val errors = CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to invalidCell(t)))
+            val errors = CustomFieldValidation.validateForCreate(tenant, listOf(d), mapOf(d.id to invalidCell(t)))
             assertEquals(1, errors.size, "${t.code} harus menolak nilai tak cocok")
         }
     }
@@ -185,7 +185,7 @@ class CrmFieldTypeParityTest {
     fun validation_dateFieldWithTime_acceptsOnlyMinuteDateTime() {
         val d = def(FieldType.DateField(withTime = true), "cf-date-time")
         val ok = CustomAttributes.dateTimeCell(LocalDateTime(2026, 10, 8, 14, 30))
-        assertEquals(emptyList(), CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to ok)))
+        assertEquals(emptyList(), CustomFieldValidation.validateForCreate(tenant, listOf(d), mapOf(d.id to ok)))
         listOf(
             CustomAttributes.dateCell(LocalDate(2026, 10, 8)),
             CustomAttributes.textCell("2026-10-08T14:30:00"),
@@ -193,7 +193,7 @@ class CrmFieldTypeParityTest {
             CustomAttributes.textCell("2026-10-08T25:00"),
             CustomAttributes.textCell("bukan-tanggal"),
         ).forEach { cell ->
-            assertEquals(1, CustomFieldValidation.validateForCreate(listOf(d), mapOf(d.id to cell)).size, "sel '$cell' harus ditolak")
+            assertEquals(1, CustomFieldValidation.validateForCreate(tenant, listOf(d), mapOf(d.id to cell)).size, "sel '$cell' harus ditolak")
         }
     }
 
@@ -201,7 +201,7 @@ class CrmFieldTypeParityTest {
     @Test
     fun validation_dateFieldWithoutTime_rejectsDateTimeValue() {
         val d = def(FieldType.DateField(), "cf-date-only")
-        val errors = CustomFieldValidation.validateForCreate(
+        val errors = CustomFieldValidation.validateForCreate(tenant, 
             listOf(d), mapOf(d.id to CustomAttributes.dateTimeCell(LocalDateTime(2026, 10, 8, 9, 30)))
         )
         assertEquals(1, errors.size)

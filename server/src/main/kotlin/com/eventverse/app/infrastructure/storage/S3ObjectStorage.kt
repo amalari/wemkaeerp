@@ -111,11 +111,11 @@ class S3ObjectStorage(
      * key lain.
      */
     internal fun bucketKey(ref: String): String {
-        require(ref.startsWith(FileRef.PREFIX)) { "S3ObjectStorage: key bukan FileRef: $ref" }
+        require(FileRef.isValid(ref)) { "S3ObjectStorage: key bukan FileRef yang sah" }
         val rest = ref.removePrefix(FileRef.PREFIX)
         val tenant = rest.substringBefore('/')
         require(tenant.isNotBlank() && rest.contains('/')) {
-            "S3ObjectStorage: FileRef tanpa segmen tenant: $ref"
+            "S3ObjectStorage: FileRef tanpa segmen tenant"
         }
         return "$tenant/${FileRef.PREFIX}${rest.removePrefix("$tenant/")}"
     }

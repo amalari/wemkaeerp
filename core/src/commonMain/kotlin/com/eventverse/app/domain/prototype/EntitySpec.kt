@@ -203,4 +203,19 @@ data class EntitySpec(
     }
 
     fun field(key: String): FieldSpec? = fields.firstOrNull { it.key == key }
+
+    /**
+     * Kepemilikan nilai FILE untuk jalur TULIS di server (hardening lintas tenant): [FieldSpec.accepts] hanya
+     * memeriksa bentuk [FileRef], jadi tanpa ini tenant A bisa menyimpan `fields/<tenantB>/...`. Mengembalikan
+     * pesan galat untuk field FILE pertama yang berisi ref bukan milik [tenantId], atau `null` bila bersih.
+     * Kosong = belum diisi (dilewati); bentuk rusak dilaporkan reducer, bukan di sini. Reducer sengaja tetap
+     * tenant-buta (dipakai klien/port in-memory), jadi route server wajib memanggil ini SEBELUM reducer.
+     */
+    fun fileOwnershipProblem(tenantId: String, values: Map<String, String>): String? =
+        fields.firstNotNullOfOrNull { f ->
+            val v = values[f.key].orEmpty()
+            if (f.type == FieldType.FILE && v.isNotEmpty() && !FileRef.isValidFor(tenantId, v)) {
+                "'${f.label}' merujuk berkas yang bukan milik tenant ini."
+            } else null
+        }
 }
