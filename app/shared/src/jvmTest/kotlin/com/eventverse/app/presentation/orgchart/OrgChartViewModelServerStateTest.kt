@@ -151,7 +151,8 @@ class OrgChartViewModelServerStateTest {
         vm.onEvent(OrgChartUiEvent.RestoreDefaultPresets)
         val state = withTimeout(5_000) { vm.uiState.first { it.toastMessage != null } }
 
-        assertEquals("Jenis usaha ini tidak punya contoh.", state.toastMessage)
+        assertEquals("Peringatan: Jenis usaha ini tidak punya contoh.", state.toastMessage)
+        assertEquals(OrgChartToastSeverity.WARNING, OrgChartErrorMessages.severityOf(state.toastMessage.orEmpty()))
         assertEquals(OrgChartLoadState.Empty, state.loadState)
         assertTrue(state.departments.isEmpty() && state.employees.isEmpty())
         assertFalse(server.requests.contains("POST /api/tenant/employees/restore-presets"))
@@ -166,6 +167,7 @@ class OrgChartViewModelServerStateTest {
         val state = withTimeout(5_000) { vm.uiState.first { it.toastMessage != null } }
 
         assertEquals("Anda tidak berwenang memuat contoh struktur organisasi.", state.toastMessage)
+        assertEquals(OrgChartToastSeverity.ERROR, OrgChartErrorMessages.severityOf(state.toastMessage.orEmpty()))
         assertEquals(OrgChartLoadState.Empty, state.loadState)
         assertTrue(state.departments.isEmpty() && state.employees.isEmpty())
     }

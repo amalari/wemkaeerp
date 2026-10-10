@@ -160,6 +160,44 @@ class DemoAuthGateApiTest {
         assertEquals(HttpStatusCode.Forbidden, demo(demoSlug, "role" to "TENANT_ADMIN").status)
     }
 
+    @Test
+    fun demoLogin_superadmin_isCreatedPlatformLevelWithoutTenantId() = testApplication {
+        val users = FakeUsers()
+        boot(users, on)
+        val body = demo(demoSlug, "role" to "PLATFORM_SUPERADMIN").bodyAsText()
+        assertTrue("\"tenantId\":\"\"" in body, "superadmin tidak boleh terikat tenant: $body")
+        assertEquals(null, users.all.single().tenantId)
+    }
+
+    @Test
+    fun demoLogin_superadmin_legacyTenantBoundRowIsUnbound() = testApplication {
+        val users = FakeUsers()
+        users.all += User(UserId("usr-superadmin-001"), otherTenant.id, Username("superadmin_apps"), EmailAddress("superadmin@wemade.id"), Role.PLATFORM_SUPERADMIN)
+        boot(users, on)
+        val body = demo(demoSlug, "role" to "PLATFORM_SUPERADMIN").bodyAsText()
+        assertTrue("ten-gate-other" !in body, body)
+        assertEquals(null, users.all.single().tenantId)
+    }
+
+    @Test
+    fun demoLogin_superadminEmailHeldByNonSuperadmin_isRejectedNotBorrowed() = testApplication {
+        val users = FakeUsers()
+        users.all += User(UserId("usr-imposter"), otherTenant.id, Username("imposter"), EmailAddress("superadmin@wemade.id"), Role.TENANT_ADMIN)
+        boot(users, on)
+        assertEquals(HttpStatusCode.Forbidden, demo(demoSlug, "role" to "PLATFORM_SUPERADMIN").status)
+    }
+
+    @Test
+    fun demoLogin_personaWithVeryLongName_gets200AndDistinctUsernames() = testApplication {
+        val users = FakeUsers()
+        boot(users, on)
+        val prefix = "Bapak%20Haji%20Muhammad%20Abdurrahman%20Wahid%20Suryadiningrat%20"
+        assertEquals(HttpStatusCode.OK, demo(demoSlug, "username" to prefix + "Pertama").status)
+        assertEquals(HttpStatusCode.OK, demo(demoSlug, "username" to prefix + "Kedua").status)
+        assertEquals(2, users.all.map { it.username.value }.distinct().size)
+        assertTrue(users.all.all { it.username.value.length <= 30 })
+    }
+
     private fun jwt(role: Role, tenantSlug: String?, tenantId: String?): String {
         val secret = System.getenv("JWT_SECRET") ?: "wemade-erp-default-development-secret-key-32-chars-long!"
         val now = Date()

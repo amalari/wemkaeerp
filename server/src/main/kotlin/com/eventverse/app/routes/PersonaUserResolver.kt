@@ -17,9 +17,25 @@ import java.security.MessageDigest
  * tidak terdampak karena pemanggil memakai `existing.id` bila akunnya sudah ada.
  */
 internal fun personaUserId(tenantId: TenantId, slug: String): String {
-    val hash = MessageDigest.getInstance("SHA-256").digest(tenantId.value.toByteArray())
+    // Slug yang terpotong ikut di-hash: dua nama panjang berawalan sama tidak boleh berbagi id (PK global).
+    val keyed = if (slug.length > 43) "${tenantId.value}:$slug" else tenantId.value
+    val hash = MessageDigest.getInstance("SHA-256").digest(keyed.toByteArray())
         .take(4).joinToString("") { "%02x".format(it) }
     return "usr-persona-${slug.take(43)}-$hash"
+}
+
+/**
+ * Username persona, dijamin valid untuk [Username] (3..30 karakter). Nama pendek dipakai apa adanya
+ * (`persona_<slug>`, identik dengan perilaku lama). Nama panjang dipotong ke 23 karakter + `_` +
+ * hash 6 heks dari slug penuh, sehingga dua nama panjang berawalan sama tetap berbeda. Keunikan
+ * database hanya per tenant (`uq_tenant_username`), jadi hash tidak perlu memuat tenant.
+ */
+internal fun personaUsername(slug: String): String {
+    val base = "persona_${slug.replace('-', '_')}"
+    if (base.length <= 30) return base
+    val hash = MessageDigest.getInstance("SHA-256").digest(slug.toByteArray())
+        .take(3).joinToString("") { "%02x".format(it) }
+    return "${base.take(23)}_$hash"
 }
 
 /**
@@ -67,7 +83,7 @@ internal suspend fun resolvePersonaUser(
     val persona = User(
         id = existing?.id ?: UserId(personaUserId(tenantId, slug)),
         tenantId = tenantId,
-        username = Username("persona_${slug.replace('-', '_')}".take(50)),
+        username = existing?.username ?: Username(personaUsername(slug)),
         email = email,
         role = platformRoleFor(customRole?.name, requestedRoleId),
         isActive = true,

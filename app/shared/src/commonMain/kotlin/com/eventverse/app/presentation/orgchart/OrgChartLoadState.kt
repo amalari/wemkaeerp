@@ -33,7 +33,7 @@ sealed interface OrgChartLoadState {
         }
 
         private fun failureMessage(cause: Throwable): String =
-            cause.message?.takeIf { it.isNotBlank() } ?: "Gagal memuat struktur organisasi."
+            OrgChartErrorMessages.friendly(cause, "Gagal memuat struktur organisasi.")
     }
 }
 
