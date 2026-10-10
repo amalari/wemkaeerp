@@ -104,15 +104,10 @@ fun Route.demoAuthRoutes(
         }
 
         val user = if (isSuperAdmin) {
-            userRepo.findByEmail(EmailAddress("superadmin@wemade.id"))
-                ?: User(
-                    id = UserId("usr-superadmin-001"),
-                    tenantId = tenant.id,
-                    username = Username("superadmin_apps"),
-                    email = EmailAddress("superadmin@wemade.id"),
-                    role = Role.PLATFORM_SUPERADMIN,
-                    isActive = true
-                ).also { userRepo.save(it) }
+            runCatching { resolveDemoPlatformSuperadmin(userRepo) }.getOrElse {
+                call.respond(HttpStatusCode.Forbidden, it.message ?: "Akun superadmin demo tidak tersedia")
+                return@post
+            }
         } else {
             // Tanpa fallback email global: akun di luar tenant ini tidak pernah dipinjam.
             userRepo.findAllByTenant(tenant.id).firstOrNull { it.role == Role.TENANT_ADMIN }
@@ -127,7 +122,8 @@ fun Route.demoAuthRoutes(
         }
 
         // Token tidak pernah diterbitkan untuk user yang bukan milik tenant yang diminta.
-        // Superadmin platform tidak terikat tenant, jadi dikecualikan.
+        // Superadmin platform tidak terikat tenant (tenantId null), jadi dikecualikan. Slug yang
+        // dibawa token-nya hanyalah konteks workspace demo, bukan keanggotaan.
         if (!isSuperAdmin && user.tenantId != tenant.id) {
             call.respond(HttpStatusCode.Forbidden, "Akun demo bukan milik tenant '$tenantSlug'.")
             return@post

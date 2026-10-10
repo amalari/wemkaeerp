@@ -82,14 +82,22 @@ fun Route.publicAuthRoutes(
 
             if (authResult.isSuccess) {
                 val user = authResult.getOrThrow()
-                val tenantSlug = commandSlug
-                    ?: user.tenantId?.let { repository.findById(it)?.slug?.value }
-                    ?: ""
-                // Fail-closed: akun tenant tanpa slug yang dapat ditentukan tidak boleh mendapat
-                // token (dulu terbit dengan tenant_slug null lalu ditolak gerbang di tiap request).
-                if (tenantSlug.isBlank() && user.role != Role.PLATFORM_SUPERADMIN) {
-                    call.respond(HttpStatusCode.Forbidden, "Tenant akun tidak dapat ditentukan")
-                    return@post
+                // Slug di token selalu slug tenant MILIK akun, bukan slug yang diminta: kalau keduanya
+                // berbeda, sesi akan menunjuk tenant lain dari tempat akun itu berada. Hanya
+                // superadmin (tanpa tenant) boleh membawa slug permintaan, atau tanpa slug.
+                val tenantSlug = if (user.role == Role.PLATFORM_SUPERADMIN) {
+                    commandSlug.orEmpty()
+                } else {
+                    val owned = user.tenantId?.let { repository.findById(it)?.slug?.value }
+                    if (owned == null) {
+                        call.respond(HttpStatusCode.Forbidden, "Tenant akun tidak dapat ditentukan")
+                        return@post
+                    }
+                    if (commandSlug != null && !commandSlug.equals(owned, ignoreCase = true)) {
+                        call.respond(HttpStatusCode.Forbidden, "Akun ini bukan milik tenant '$commandSlug'")
+                        return@post
+                    }
+                    owned
                 }
                 val sessionToken = jwtTokenService.generateToken(user, tenantSlug.ifBlank { null })
                 call.respondText(authSessionJson(user, sessionToken.value, tenantSlug), contentType = ContentType.Application.Json)
