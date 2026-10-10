@@ -63,10 +63,8 @@ fun FulfillmentWorkspaceScreen(
      * sebelum sempat digambar. Gejalanya: kode karung dipindai, kolomnya kosong kembali, dan
      * formulir pengajuan tidak pernah muncul.
      */
-    viewModel: FulfillmentViewModel = run {
-        val tenantSlug = persona?.tenantSlug ?: "wemade-demo"
-        remember(tenantSlug) { FulfillmentViewModel(tenantSlug = tenantSlug) }
-    }
+    tenantSlug: String,
+    viewModel: FulfillmentViewModel = remember(tenantSlug) { FulfillmentViewModel(tenantSlug = tenantSlug) }
 ) {
     val state by viewModel.uiState.collectAsState()
 

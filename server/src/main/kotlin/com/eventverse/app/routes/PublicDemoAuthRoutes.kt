@@ -62,7 +62,11 @@ fun Route.demoAuthRoutes(
         fun field(name: String): String? = params?.get(name)?.ifBlank { null }
             ?: call.request.queryParameters[name]?.ifBlank { null }
 
-        val tenantSlug = field("tenantSlug") ?: "wemade-demo"
+        // Tanpa tenantSlug: tolak, bukan menebak tenant demo (tenant-variability Kontrak 4).
+        val tenantSlug = field("tenantSlug") ?: run {
+            call.respond(HttpStatusCode.BadRequest, "Parameter tenantSlug wajib diisi; tenant demo tidak ditebak.")
+            return@post
+        }
         if (!policy.allows(tenantSlug)) {
             call.respond(HttpStatusCode.Forbidden, "Tenant '$tenantSlug' bukan tenant demo; login demo ditolak.")
             return@post

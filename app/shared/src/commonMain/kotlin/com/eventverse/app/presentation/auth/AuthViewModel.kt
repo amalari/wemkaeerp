@@ -3,7 +3,6 @@ package com.eventverse.app.presentation.auth
 import com.eventverse.app.domain.auth.*
 import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.domain.tenant.SubscriptionTier
-import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.api.AuthApiClient
 import com.eventverse.app.infrastructure.api.AuthApiError
@@ -50,6 +49,8 @@ class AuthViewModel(
         const val APP_LANDING_PATH = "/login"
 
         const val MSG_SLUG_REQUIRED = "Pilih/isi kode pabrik terlebih dahulu."
+
+        const val MSG_SESSION_NO_TENANT = "Sesi tersimpan tidak menyebut pabrik. Silakan masuk kembali."
     }
 
     /** Dari `/config`; dipakai menyusun origin tenant saat handoff. */
@@ -71,21 +72,19 @@ class AuthViewModel(
         // 1. Auto-restore session from PlatformLocalStorage on startup / reload
         val savedJson = PlatformLocalStorage.getItem(STORAGE_KEY)
         val restoredSession = AuthApiClient.deserializeSession(savedJson)
-        if (restoredSession != null) {
+        if (restoredSession != null && !isRestorable(restoredSession)) {
+            // Sesi tersimpan tanpa tenant (bukan superadmin platform): tidak menebak "wemade-demo", kembali ke login.
+            PlatformLocalStorage.removeItem(STORAGE_KEY)
+            sessionStorage.clearSession()
+            _uiState.update { it.copy(errorMessage = MSG_SESSION_NO_TENANT) }
+        } else if (restoredSession != null) {
             _uiState.update {
                 it.copy(
                     authenticatedSession = restoredSession,
                     tenantSlug = restoredSession.tenantSlug ?: it.tenantSlug
                 )
             }
-            sessionStorage.setSession(
-                TenantSession(
-                    tenantId = restoredSession.user.tenantId ?: TenantId("ten-default"),
-                    slug = TenantSlug(restoredSession.tenantSlug ?: "wemade-demo"),
-                    name = "Pabrik ${restoredSession.tenantSlug ?: "wemade-demo"}",
-                    tier = SubscriptionTier.PRO
-                )
-            )
+            storeTenantSession(restoredSession, restoredSession.tenantSlug, "Pabrik ${restoredSession.tenantSlug}")
 
             // Pulihkan juga persona-nya. Tanpa ini, reload halaman mengembalikan sesi tetapi
             // mengosongkan wewenang, dan seluruh menu modul lenyap tanpa sebab yang terlihat.
@@ -187,13 +186,10 @@ class AuthViewModel(
                 PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
 
                 // 2. Simpan ke tenant session storage
-                sessionStorage.setSession(
-                    TenantSession(
-                        tenantId = session.user.tenantId ?: TenantId("ten-default"),
-                        slug = TenantSlug(session.tenantSlug ?: currentSlug),
-                        name = if (targetRole == Role.PLATFORM_SUPERADMIN) "WeMade Platform Admin" else "Pabrik ${session.tenantSlug ?: currentSlug}",
-                        tier = SubscriptionTier.PRO
-                    )
+                storeTenantSession(
+                    session,
+                    session.tenantSlug ?: currentSlug,
+                    if (targetRole == Role.PLATFORM_SUPERADMIN) "WeMade Platform Admin" else "Pabrik ${session.tenantSlug ?: currentSlug}"
                 )
 
                 // 3. Login demo tetap butuh persona, kalau tidak menu modulnya kosong.
@@ -210,6 +206,24 @@ class AuthViewModel(
                 _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
             }.onFailure { e -> failLogin(e) }
         }
+    }
+
+    /** Sesi tersimpan boleh dipulihkan bila menyebut tenant; superadmin platform memang tanpa tenant. */
+    private fun isRestorable(session: UserSession): Boolean =
+        !session.tenantSlug.isNullOrBlank() || session.user.role == Role.PLATFORM_SUPERADMIN
+
+    /**
+     * Menyimpan [TenantSession] hanya bila sesi punya tenantId DAN slug eksplisit. Selain itu storage
+     * dikosongkan: dulu tenantId/slug yang hilang diganti `ten-default`/`wemade-demo` secara senyap.
+     */
+    private fun storeTenantSession(session: UserSession, slug: String?, name: String) {
+        val tenantId = session.user.tenantId
+        val explicit = slug?.trim()?.ifEmpty { null }
+        if (tenantId == null || explicit == null) {
+            sessionStorage.clearSession()
+            return
+        }
+        sessionStorage.setSession(TenantSession(tenantId, TenantSlug(explicit), name, SubscriptionTier.PRO))
     }
 
     /** Satu pintu galat login demo/persona: pesan jelas, tanpa sesi, tanpa tulis storage. */
@@ -265,7 +279,7 @@ class AuthViewModel(
     private fun restorePersonaFrom(session: UserSession) {
         val user = session.user
         val tenantId = user.tenantId ?: return
-        val slug = session.tenantSlug ?: "wemade-demo"
+        val slug = session.tenantSlug?.trim()?.ifEmpty { null } ?: return // tanpa tenant: tidak ada persona
 
         policyRepository.setPersona(
             TestingPersona(
@@ -452,14 +466,7 @@ class AuthViewModel(
         val user = session.user
         val slug = session.tenantSlug?.ifBlank { null } ?: fallbackSlug
         PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(session))
-        sessionStorage.setSession(
-            TenantSession(
-                tenantId = user.tenantId ?: TenantId("ten-default"),
-                slug = TenantSlug(slug),
-                name = "Pabrik $slug",
-                tier = SubscriptionTier.PRO
-            )
-        )
+        storeTenantSession(session, slug, "Pabrik $slug")
         if (restorePersona) restorePersonaFrom(session)
         _uiState.update {
             it.copy(

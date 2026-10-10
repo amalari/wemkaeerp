@@ -229,6 +229,38 @@ class DemoAuthGateApiTest {
         }
     }
 
+    private suspend fun ApplicationTestBuilder.demoWithoutSlug(vararg form: Pair<String, String>) =
+        client.post("/api/public/auth/demo") {
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(form.joinToString("&") { "${it.first}=${it.second}" })
+        }
+
+    @Test
+    fun demoLogin_gateOnWithoutTenantSlug_is400AndNoUserCreated() = testApplication {
+        val users = FakeUsers()
+        boot(users, DemoLoginPolicy(enabled = true, demoTenantSlugs = setOf("wemade-demo", "bordir-uji-gate")))
+        val response = demoWithoutSlug("role" to "TENANT_ADMIN")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue("tenantSlug" in response.bodyAsText())
+        assertEquals(HttpStatusCode.BadRequest, demoWithoutSlug("username" to "Budi", "role" to "role-sales").status)
+        assertEquals(HttpStatusCode.BadRequest, demoWithoutSlug("tenantSlug" to "", "role" to "TENANT_ADMIN").status)
+        assertTrue(users.all.isEmpty(), "tanpa slug tidak boleh membuat user atau menebak tenant demo")
+    }
+
+    @Test
+    fun demoLogin_gateOffWithoutTenantSlug_stays404() = testApplication {
+        boot(FakeUsers(), DemoLoginPolicy())
+        assertEquals(HttpStatusCode.NotFound, demoWithoutSlug("role" to "TENANT_ADMIN").status)
+    }
+
+    @Test
+    fun demoLogin_extraDemoTenantWithSlug_stillWorks() = testApplication {
+        boot(FakeUsers(), DemoLoginPolicy(enabled = true, demoTenantSlugs = setOf("wemade-demo", "bordir-uji-gate")))
+        val response = demo("bordir-uji-gate", "role" to "TENANT_ADMIN")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue("\"tenantSlug\":\"bordir-uji-gate\"" in response.bodyAsText())
+    }
+
     @Test
     fun me_validTenantToken_stillWorks() = testApplication {
         boot(FakeUsers(), on)

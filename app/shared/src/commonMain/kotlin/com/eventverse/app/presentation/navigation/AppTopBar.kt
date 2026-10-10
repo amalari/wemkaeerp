@@ -132,14 +132,15 @@ fun AppTopBar(
             ) {
                 if (isAuthenticated && session != null) {
                     // Di layar desktop: Switcher persona hanya tampil di platform tenant
-                    if (!isCompact && showPersonaSwitcher) {
+                    val personaSlug = explicitTenantSlug(session.tenantSlug)
+                    if (!isCompact && showPersonaSwitcher && personaSlug != null) {
                         PersonaSwitcherDropdown(
                             activePersona = activePersona,
                             employees = policyEmployees,
                             departments = policyDepartments,
                             roles = policyRoles,
                             tenantId = session.user.tenantId ?: TenantId("ten-demo-001"),
-                            tenantSlug = session.tenantSlug ?: "wemade-demo",
+                            tenantSlug = personaSlug,
                             isAuditViewEnabled = auditView,
                             onAuditViewChange = onAuditViewChange,
                             onApplyPersona = onApplyPersona,
@@ -157,7 +158,7 @@ fun AppTopBar(
 
                     if (!isCompact && session.user.role == Role.PLATFORM_SUPERADMIN) {
                             CompanySwitcherDropdown(
-                                currentSlug = session.tenantSlug ?: "wemade-demo",
+                                currentSlug = session.tenantSlug.orEmpty(), // kosong = belum ada tenant terpilih
                                 onSelectTenant = onSelectCompany
                             )
 

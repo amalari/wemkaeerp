@@ -73,13 +73,11 @@ data class CompanyTenantProfile(
             )
         )
 
-        fun findBySlug(slug: String?): CompanyTenantProfile {
-            return ALL.firstOrNull { it.slug.equals(slug, ignoreCase = true) } ?: ALL.first()
-        }
+        /** Null bila slug bukan profil demo; tidak jatuh ke profil pertama. */
+        fun findBySlug(slug: String?): CompanyTenantProfile? =
+            ALL.firstOrNull { it.slug.equals(slug, ignoreCase = true) }
 
-        fun findByPreset(preset: Blueprint): CompanyTenantProfile {
-            return ALL.firstOrNull { it.preset == preset } ?: ALL.first()
-        }
+        fun findByPreset(preset: Blueprint): CompanyTenantProfile? = ALL.firstOrNull { it.preset == preset }
     }
 }
 

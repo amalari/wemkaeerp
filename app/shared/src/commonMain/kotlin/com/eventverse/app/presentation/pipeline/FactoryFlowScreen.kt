@@ -39,7 +39,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
 fun FactoryFlowScreen(
-    tenantSlug: String = "wemade-demo",
+    tenantSlug: String,
     viewModel: FactoryFlowViewModel = remember { FactoryFlowViewModel() },
     /**
      * Wewenang efektif atas modul Alur Pabrik.
@@ -64,8 +64,9 @@ fun FactoryFlowScreen(
         if (access.level.isAtLeast(required)) viewModel.onEvent(event)
     }
 
-    val activeCompany = remember(tenantSlug) {
-        com.eventverse.app.presentation.navigation.CompanyTenantProfile.findBySlug(tenantSlug)
+    // Nama tenant hanya bila slug dikenal; selain itu slug-nya sendiri, bukan profil demo pertama.
+    val companyLabel = remember(tenantSlug) {
+        com.eventverse.app.presentation.navigation.CompanyTenantProfile.findBySlug(tenantSlug)?.name ?: tenantSlug
     }
 
     // Load the tenant's persisted topology whenever the active company changes. The canvas
@@ -133,7 +134,7 @@ fun FactoryFlowScreen(
                                 color = WeMadeColors.OnSurface
                             )
                             ClayTag(
-                                text = activeCompany.name,
+                                text = companyLabel,
                                 tint = WeMadeColors.Primary,
                                 fontSize = 11.sp
                             )

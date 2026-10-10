@@ -203,6 +203,44 @@ class DemoLoginNoSilentFallbackTest {
         assertNoSession(state)
     }
 
+    // --- Pemulihan sesi tersimpan: tanpa slug tidak boleh menebak wemade-demo ---
+
+    private fun saved(role: String, slug: String?): String {
+        val slugPart = slug?.let { ""","tenantSlug":"$it"""" } ?: ""
+        return """{"token":"saved.jwt","user":{"id":"usr-1","tenantId":"ten-bordir-uji","username":"owner",""" +
+            """"email":"o@bordir-uji.id","role":"$role"}$slugPart}"""
+    }
+
+    @Test
+    fun restore_savedTenantSessionWithoutSlug_isRejectedAndStorageCleared() = runBlocking<Unit> {
+        PlatformLocalStorage.setItem(AuthApiClient.SESSION_STORAGE_KEY, saved("TENANT_ADMIN", null))
+        val f = fixture { reply(HttpStatusCode.OK, sessionJson) }
+        val state = f.vm.uiState.value
+        assertNull(state.authenticatedSession)
+        assertEquals(AuthViewModel.MSG_SESSION_NO_TENANT, state.errorMessage)
+        assertNull(PlatformLocalStorage.getItem(AuthApiClient.SESSION_STORAGE_KEY))
+        assertNull(sessionStorage.currentSession.value)
+        assertNull(f.vm.uiState.value.authenticatedSession?.tenantSlug) // tidak pernah menjadi wemade-demo
+    }
+
+    @Test
+    fun restore_savedSessionWithNonDefaultSlug_keepsThatTenant() = runBlocking<Unit> {
+        PlatformLocalStorage.setItem(AuthApiClient.SESSION_STORAGE_KEY, saved("TENANT_ADMIN", "bordir-uji"))
+        val f = fixture { reply(HttpStatusCode.OK, sessionJson) }
+        assertEquals("bordir-uji", f.vm.uiState.value.authenticatedSession?.tenantSlug)
+        assertEquals("bordir-uji", sessionStorage.currentSession.value?.slug?.value)
+        delay(300) // verifikasi sesi di latar menulis storage; tunggu agar tidak bocor ke test berikutnya
+    }
+
+    @Test
+    fun restore_savedSuperadminWithoutSlug_staysSignedInWithoutTenant() = runBlocking<Unit> {
+        PlatformLocalStorage.setItem(AuthApiClient.SESSION_STORAGE_KEY, saved("PLATFORM_SUPERADMIN", null))
+        val f = fixture { reply(HttpStatusCode.OK, saved("PLATFORM_SUPERADMIN", null)) }
+        assertNotNull(f.vm.uiState.value.authenticatedSession)
+        assertNull(sessionStorage.currentSession.value, "tanpa tenant: tidak ada TenantSession tebakan")
+        delay(300)
+    }
+
     @Test
     fun personaLogin_success_storesServerSession() = runBlocking<Unit> {
         val f = fixture { reply(HttpStatusCode.OK, sessionJson) }
