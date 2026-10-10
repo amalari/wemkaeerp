@@ -5,7 +5,7 @@ import com.eventverse.app.domain.crm.LeadActivity
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
@@ -135,7 +135,7 @@ sealed interface CrmUiEvent {
 
     data object OpenAddFieldDialog : CrmUiEvent
     data object CloseAddFieldDialog : CrmUiEvent
-    data class AddCustomField(val label: String, val type: FieldType, val isRequired: Boolean) : CrmUiEvent
+    data class AddCustomField(val label: String, val type: CrmFieldType, val isRequired: Boolean) : CrmUiEvent
     data class DeleteCustomField(val fieldId: String) : CrmUiEvent
 
     data class OpenActivities(val lead: CrmLead) : CrmUiEvent

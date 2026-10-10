@@ -11,20 +11,35 @@ Status lama ("belum diputuskan") dicabut oleh pemilik: **CRM belum dipakai user 
 
 ## 2. Keputusan arah
 
-**CRM migrasi ke kosakata prototype** (`core/.../prototype/EntitySpec.kt` `FieldType` enum + parameter di `FieldSpec`), bukan sebaliknya. Alasan:
+**CRM migrasi ke kosakata prototype** (`core/.../prototype/EntitySpec.kt` `FieldType` enum, **registry tunggal**), bukan sebaliknya. Alasan:
 
 1. Sisi prototype punya rantai Kontrak 4 lengkap: katalog agent (`KoogDiscoveryFieldTypeVocabulary`), generator SQL (`SpecColumns`), tes paritas, dan pipa pendaftaran — enum-nya adalah hub.
-2. `FieldSpec` sudah membawa parameter superset CRM: `options`, `format`, `currencyCode`, `withTime`, `validation`, `target`, `maxSelections`.
-3. CRM sealed `FieldType` tinggal digantikan; penyimpanan nilai (sel bertag `text`/`date`/…) tidak berubah sama sekali.
+2. CRM tidak memakai `FieldSpec` mentah (bentuk opsinya beda — lihat §2a), jadi CRM mendapat **karier tipis** `CrmFieldType(kind: FieldType, …)` di `core/.../customfield/CrmFieldType.kt`: `kind` menunjuk registry bersama, parameter khas CRM (opsi `SelectOption` berwarna+arsip, `maxCount`, `NumberFormat` CRM) tinggal di karier. Sealed `FieldType` CRM dihapus.
 
-## 3. Celah yang wajib ditutup A0 (kontrak, sebelum pelaksana)
+### 2a. Koreksi (ditemukan saat pelaksanaan)
+
+Klaim awal "`FieldSpec` superset CRM" **tidak akurat**. Yang benar: kosakata discovery sengaja tipis (opsi = `List<String>`, tanpa `maxCount`), CRM kaya (opsi berwarna + arsip lembut, `maxCount`, `NumberFormat` sendiri). Karena itu penyatuan dilakukan pada **registry tipe** (enum), bukan pada muatan parameter. Penyatuan parameter (satu `NumberFormat`, satu `SelectOption`, `maxCount` ke `FieldSpec`) **ditunda** — dicatat sebagai follow-up; tidak menghalangi manfaat utama (satu tempat pendaftaran tipe).
+
+## 3. Celah yang wajib ditutup A0 (kontrak, sebelum pelaksana) — ✅ SELESAI
 
 | Celah | Penyelesaian A0 |
 |---|---|
-| CRM punya `UserRef` — prototype tidak punya padanannya | Tambah `FieldType.USER_REF` + rantai Kontrak 4 (kolom SQL `VARCHAR`, kontrol UI pemilih user, catatan katalog) |
-| CRM `Number` punya `decimals` — prototype tidak | Tambah parameter `decimals` pada `FieldSpec` NUMBER (opsional, wire `FieldParamWire`) |
-| Kode tersimpan berbeda: CRM `SINGLE_SELECT`/`CHECKBOX` vs enum `ENUM`/`BOOL` | **Satu parser kompatibilitas** (Kontrak 4): kode legacy CRM → enum, diterima selamanya; tulisan baru memakai nama enum. Tidak ada migrasi data — parser yang menyesuaikan |
-| Kosakata CRM tak punya `TIME` | Setelah migrasi, CRM mewarisi `TIME` (dan tipe baru berikutnya) otomatis |
+| CRM punya `UserRef` — prototype tidak punya padanannya | ✅ `FieldType.USER_REF` + rantai Kontrak 4 (kolom SQL `VARCHAR(120)`, kontrol FieldInput, catatan katalog) |
+| CRM `Number` punya `decimals` — prototype tidak | ✅ parameter `decimals` pada `FieldSpec` NUMBER (`0..6`, wire `FieldParamWire`) |
+| Kode tersimpan berbeda: CRM `SINGLE_SELECT`/`CHECKBOX` vs enum `ENUM`/`BOOL` | ✅ `CrmLegacyTypeCode` — satu parser, kode legacy diterima selamanya; **tanpa migrasi data** |
+| Kosakata CRM tak punya `TIME`/`MULTI_SELECT` | ✅ diwarisi otomatis: validasi (`CustomFieldValidation`), kontrol UI (`TIME_PICKER`→`ClayTimePicker`, `MULTI_CHOICE`→`ClayMultiChoiceChips`), opsi dialog "Jam" |
+
+## 3a. Hasil pelaksanaan (2026-10-10)
+
+- Registry tunggal: `CrmFieldType.kind` = `FieldType` (11 tipe). Sealed CRM dihapus; `FieldType.kt` → `CrmFieldType.kt`.
+- Kunci wire config **tidak berubah** (`withTime`, `format`, `currencyCode`, `decimals`, `maxCount`, `targetResource`, `options`); kunci baru hanya `maxSelections` (MULTI_SELECT) dan `decimals` ditulis hanya bila dibatasi.
+- Sel MULTI_SELECT CRM = **larik JSON id opsi aktif** (aturan bentuk dipegang `MultiSelectValues`, di sini id diteruskan) — konsisten dengan prototipe yang memakai nama opsi.
+- `PreviewFieldTypeChangeUseCase`/`FieldTypeConversion` sadar-parameter (ganti `withTime` = LOSSY; jenis sama = IDENTITY).
+
+Sisa follow-up (bukan penghalang):
+1. Opsi **SingleSelect/MULTI_SELECT di dialog "Tambah kolom"** CRM belum ditawarkan (butuh editor opsi berwarna) — pola sama seperti sebelum penyatuan; field-nya tetap terbaca & tervalidasi.
+2. Penyatuan muatan parameter (§2a): satu `NumberFormat`, `SelectOption`, `maxCount`→`FieldSpec`.
+3. Cek visual CRM dengan field TIME/MULTI_SELECT di tenant uji (dialog + inspektur).
 
 ## 4. Irisan pelaksanaan (track per direktori, boleh paralel setelah A0)
 

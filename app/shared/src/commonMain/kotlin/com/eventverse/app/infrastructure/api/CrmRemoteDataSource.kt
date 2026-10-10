@@ -5,7 +5,7 @@ import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.shared.crm.CrmLeadCodec
 
 /**
@@ -47,7 +47,7 @@ interface CrmRemoteDataSource {
     suspend fun addCustomField(
         tenantSlug: String,
         label: String,
-        type: FieldType,
+        type: CrmFieldType,
         isRequired: Boolean
     ): Result<CustomFieldDefinition>
 

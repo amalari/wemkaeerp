@@ -4,7 +4,7 @@ import com.eventverse.app.domain.customfield.CoercionResult
 import com.eventverse.app.domain.customfield.ConversionSafety
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.customfield.FieldTypeConversion
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
@@ -35,7 +35,7 @@ class PreviewFieldTypeChangeUseCase(
     suspend operator fun invoke(
         tenantId: TenantId,
         fieldId: CustomFieldId,
-        newType: FieldType
+        newType: CrmFieldType
     ): Result<PreviewResult> = runCatching {
         val definition = requireNotNull(repository.findById(tenantId, fieldId)) {
             "Custom field not found: ${fieldId.value}"

@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -18,7 +20,7 @@ class CustomFieldEvolutionTest {
         ownerResource = OwnerResource.CRM_SALES,
         key = FieldKey("wajib"),
         label = "Wajib",
-        type = FieldType.Text,
+        type = CrmFieldType(FieldType.TEXT),
         position = 1000.0,
         isRequired = true,
         requiredSince = requiredSince
@@ -46,7 +48,7 @@ class CustomFieldEvolutionTest {
         // must not be rejected just because the required field was never filled in.
         val otherField = CustomFieldDefinition(
             id = CustomFieldId("cf-other"), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
-            key = FieldKey("lainnya"), label = "Lainnya", type = FieldType.Text, position = 2000.0
+            key = FieldKey("lainnya"), label = "Lainnya", type = CrmFieldType(FieldType.TEXT), position = 2000.0
         )
         val errors = CustomFieldValidation.validateForPatch(tenantId,
             definitions = listOf(requiredTextField(), otherField),
@@ -102,7 +104,7 @@ class CustomFieldEvolutionTest {
         val select = CustomFieldDefinition(
             id = CustomFieldId("cf-select"), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
             key = FieldKey("kategori"), label = "Kategori", position = 1000.0,
-            type = FieldType.SingleSelect(listOf(SelectOption(SelectOptionId("opt_a"), "A", "#2563EB")))
+            type = CrmFieldType(FieldType.ENUM, listOf(SelectOption(SelectOptionId("opt_a"), "A", "#2563EB")))
         )
         val errors = CustomFieldValidation.validateForCreate(tenantId,
             listOf(select), mapOf(select.id to CustomAttributes.selectCell(SelectOptionId("opt_ghost")))

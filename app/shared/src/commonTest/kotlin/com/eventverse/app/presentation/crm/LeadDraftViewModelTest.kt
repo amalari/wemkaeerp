@@ -8,7 +8,8 @@ import com.eventverse.app.domain.crm.prefill.LeadDraft
 import com.eventverse.app.domain.crm.prefill.LeadDraftFields
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.SelectOption
 import com.eventverse.app.domain.customfield.SelectOptionId
 import com.eventverse.app.infrastructure.api.LeadDraftDisabledException
@@ -42,7 +43,7 @@ class LeadDraftViewModelTest {
     }
 
     // Skema kustom tenant bordir (non-garment).
-    private val jenis = LeadFieldDescriptor("cf-jenis", "Jenis Bordir", FieldType.SingleSelect(listOf(SelectOption(SelectOptionId("opt_komputer"), "Bordir Komputer", "#2563EB"))), isRequired = true, isEditable = true, isDeletable = true, isCore = false)
+    private val jenis = LeadFieldDescriptor("cf-jenis", "Jenis Bordir", CrmFieldType(FieldType.ENUM, options = listOf(SelectOption(SelectOptionId("opt_komputer"), "Bordir Komputer", "#2563EB"))), isRequired = true, isEditable = true, isDeletable = true, isCore = false)
     private val draft = LeadDraft(
         brandName = "Batik Sekar", whatsappNumber = WhatsappNumber("6281234567890"), estimatedPcs = 24,
         customValues = mapOf(CustomFieldId("cf-jenis") to CustomAttributes.selectCell(SelectOptionId("opt_komputer"))), agentRef = "scripted",

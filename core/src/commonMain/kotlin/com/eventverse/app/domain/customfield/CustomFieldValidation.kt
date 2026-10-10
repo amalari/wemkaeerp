@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
+import com.eventverse.app.domain.prototype.TimeFieldValues
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.datetime.Instant
@@ -92,17 +95,17 @@ object CustomFieldValidation {
 
     private fun validateType(tenantId: TenantId, def: CustomFieldDefinition, cell: JsonValue.Obj): CustomFieldValidationError? {
         val v = cell.entries["v"]
-        return when (def.type) {
-            is FieldType.Text, is FieldType.LongText ->
+        return when (def.type.kind) {
+            FieldType.TEXT, FieldType.LONG_TEXT ->
                 if (v !is JsonValue.Str) mismatch(def) else null
 
-            is FieldType.Number ->
+            FieldType.NUMBER ->
                 if (v !is JsonValue.Num) mismatch(def) else null
 
-            is FieldType.Checkbox ->
+            FieldType.BOOL ->
                 if (v !is JsonValue.Bool) mismatch(def) else null
 
-            is FieldType.DateField -> {
+            FieldType.DATE -> {
                 val raw = (v as? JsonValue.Str)?.value
                 // C6 (Irisan 2): field tanggal berwaktu wajib TTTT-BB-HH'T'JJ:MM (tanpa detik/zona);
                 // tanggal-saja ditolak, dan sebaliknya — semantik sama dengan DateFieldValues di kosakata
@@ -115,7 +118,13 @@ object CustomFieldValidation {
                 if (valid) null else mismatch(def)
             }
 
-            is FieldType.SingleSelect -> {
+            // C6/D7: jam dinding JJ:MM tepat menit; aturan bentuk dipegang tunggal oleh TimeFieldValues.
+            FieldType.TIME -> {
+                val raw = (v as? JsonValue.Str)?.value
+                if (raw == null || !TimeFieldValues.isValid(raw)) mismatch(def) else null
+            }
+
+            FieldType.ENUM -> {
                 val optionId = (v as? JsonValue.Str)?.value
                 when {
                     optionId == null -> mismatch(def)
@@ -125,16 +134,24 @@ object CustomFieldValidation {
                 }
             }
 
-            is FieldType.UserRef -> if (v !is JsonValue.Str) mismatch(def) else null
+            // Larik JSON id opsi aktif (tanpa duplikat, tunduk `maxSelections`) — aturan bentuk dipegang
+            // tunggal oleh MultiSelectValues (kosakata bersama), di sini hanya id opsi yang diteruskan.
+            FieldType.MULTI_SELECT -> {
+                val raw = (v as? JsonValue.Str)?.value
+                val ids = def.type.activeOptions.map { it.id.value }
+                if (raw == null || !MultiSelectValues.isValid(raw, ids, def.type.maxSelections)) mismatch(def) else null
+            }
+
+            FieldType.USER_REF -> if (v !is JsonValue.Str) mismatch(def) else null
 
             // Sel = id record target (string). Keberadaan id diverifikasi server via RelationTargetResolver
             // (Track B) — validasi bentuk di sini sejajar UserRef; resolver yang gagal = TargetNotFound.
-            is FieldType.Relation -> if (v !is JsonValue.Str) mismatch(def) else null
+            FieldType.RELATION -> if (v !is JsonValue.Str) mismatch(def) else null
 
             // C8 (TRD-FIELD-002 FR-5): sel = FileRef sah (key `fields/...`, tanpa `..`) DAN milik tenant
             // penulis (`isValidFor`, bukan `isValid` — ref `fields/<tenantLain>/...` memberi URL unduh objek
             // tenant lain). Referensi rusak/asing = TypeMismatch — TIDAK pernah fallback ke teks/TEXT.
-            is FieldType.File -> {
+            FieldType.FILE -> {
                 val raw = (v as? JsonValue.Str)?.value
                 if (raw == null || !com.eventverse.app.domain.storage.FileRef.isValidFor(tenantId.value, raw)) mismatch(def) else null
             }

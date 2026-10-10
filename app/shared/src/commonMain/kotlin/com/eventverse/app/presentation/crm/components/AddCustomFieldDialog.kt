@@ -20,7 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.relationTargetFormatError
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -32,25 +33,27 @@ import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
- * Satu pilihan tipe kolom di dialog. [needsTarget] true untuk [FieldType.Relation] (C7,
+ * Satu pilihan tipe kolom di dialog. [needsTarget] true untuk [FieldType.RELATION] (C7,
  * TRD-FIELD-001): target resource wajib diisi, jadi tipenya dibangun terpisah dari [build]
  * memakai input `targetResource` di dialog — bukan placeholder palsu.
  */
 private data class FieldTypeOption(
     val label: String,
     val needsTarget: Boolean = false,
-    val build: (() -> FieldType)? = null
+    val build: (() -> CrmFieldType)? = null
 )
 
 private val FIELD_TYPE_OPTIONS = listOf(
-    FieldTypeOption("Teks") { FieldType.Text },
-    FieldTypeOption("Teks Panjang") { FieldType.LongText },
-    FieldTypeOption("Angka") { FieldType.Number() },
-    FieldTypeOption("Tanggal") { FieldType.DateField() },
+    FieldTypeOption("Teks") { CrmFieldType(FieldType.TEXT) },
+    FieldTypeOption("Teks Panjang") { CrmFieldType(FieldType.LONG_TEXT) },
+    FieldTypeOption("Angka") { CrmFieldType(FieldType.NUMBER) },
+    FieldTypeOption("Tanggal") { CrmFieldType(FieldType.DATE) },
     // Config {"withTime": true} dikirim otomatis: CrmApiClient menyusunnya lewat
-    // CustomAttributesCodec.encodeConfig dari objek FieldType yang dibangun di sini.
-    FieldTypeOption("Tanggal berwaktu") { FieldType.DateField(withTime = true) },
-    FieldTypeOption("Ceklis") { FieldType.Checkbox },
+    // CustomAttributesCodec.encodeConfig dari objek CrmFieldType yang dibangun di sini.
+    FieldTypeOption("Tanggal berwaktu") { CrmFieldType(FieldType.DATE, withTime = true) },
+    // D7: jam dinding murni — diwarisi dari kosakata bersama, kontrolnya ClayTimePicker.
+    FieldTypeOption("Jam") { CrmFieldType(FieldType.TIME) },
+    FieldTypeOption("Ceklis") { CrmFieldType(FieldType.BOOL) },
     FieldTypeOption("Rujukan ke Record", needsTarget = true)
     // SingleSelect deliberately omitted from this quick-add dialog: it needs an options
     // editor of its own (add/rename/reorder/archive choices), which is Phase 1.5 UI —
@@ -62,7 +65,7 @@ private val FIELD_TYPE_OPTIONS = listOf(
 @Composable
 fun AddCustomFieldDialog(
     onDismiss: () -> Unit,
-    onAdd: (label: String, type: FieldType, isRequired: Boolean) -> Unit
+    onAdd: (label: String, type: CrmFieldType, isRequired: Boolean) -> Unit
 ) {
     var label by remember { mutableStateOf("") }
     var selectedTypeIndex by remember { mutableStateOf(0) }
@@ -147,7 +150,7 @@ fun AddCustomFieldDialog(
                     text = "Tambah",
                     onClick = {
                         val type = if (selectedOption.needsTarget) {
-                            FieldType.Relation(targetResource = targetResource.trim())
+                            CrmFieldType(FieldType.RELATION, targetResource = targetResource.trim())
                         } else {
                             selectedOption.build?.invoke()
                         }

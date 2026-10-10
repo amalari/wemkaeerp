@@ -6,7 +6,7 @@ import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.crm.LeadStage
 import com.eventverse.app.domain.customfield.CustomAttributesCodec
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.crm.CrmLeadCodec
 import com.eventverse.app.shared.json.JsonParser
@@ -109,7 +109,7 @@ class CrmApiClient(
     override suspend fun addCustomField(
         tenantSlug: String,
         label: String,
-        type: FieldType,
+        type: CrmFieldType,
         isRequired: Boolean
     ): Result<CustomFieldDefinition> = runCatching {
         val response = httpClient.post(resolveUrl("/api/tenant/crm/fields")) {

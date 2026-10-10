@@ -2,7 +2,7 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.customfield.RelationTargetResolver
 import com.eventverse.app.domain.tenant.TenantId
@@ -29,10 +29,10 @@ internal suspend fun ApplicationCall.rejectMissingRelationTargets(
     if (values.isEmpty()) return true
     val relations = customFieldRepository
         .findActiveByResource(tenantId, OwnerResource.CRM_SALES)
-        .filter { it.type is FieldType.Relation && !it.isArchived }
+        .filter { it.type.kind == FieldType.RELATION && !it.isArchived }
     for (def in relations) {
         val recordId = values[def.id]?.string("v")?.takeIf { it.isNotBlank() } ?: continue
-        val targetResource = (def.type as FieldType.Relation).targetResource
+        val targetResource = def.type.targetResource ?: continue
         if (!resolver.exists(tenantId, targetResource, recordId)) {
             respond(
                 HttpStatusCode.BadRequest,

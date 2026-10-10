@@ -10,15 +10,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayDatePicker
 import com.eventverse.app.presentation.designsystem.ClayDateTimePicker
 import com.eventverse.app.presentation.designsystem.ClayFlowRow
+import com.eventverse.app.presentation.designsystem.ClayMultiChoiceChips
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
+import com.eventverse.app.presentation.designsystem.ClayTimePicker
+import com.eventverse.app.presentation.designsystem.isValidClayTime
 import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.shared.json.jsonArrayOf
+import com.eventverse.app.shared.json.jsonOf
 
 /**
  * Input field kustom tenant di form lead baru (TRD-HELP-002 K4): Teks, Teks panjang, Angka, Pilihan,
@@ -32,11 +39,11 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
         val id = CustomFieldId(f.fieldId)
         val value = form.custom[id].orEmpty()
         val label = f.label + (if (f.isRequired) " *" else "") + aiSuffix(form.isAi(f.fieldId))
-        when (val t = f.type) {
-            is FieldType.SingleSelect -> Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+        when (f.type.kind) {
+            FieldType.ENUM -> Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
                 Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
                 ClayFlowRow(spacing = ClaySpacing.Xs) {
-                    t.activeOptions.forEach { opt ->
+                    f.type.activeOptions.forEach { opt ->
                         ClayChoiceChip(
                             text = opt.label,
                             selected = value == opt.id.value,
@@ -45,7 +52,7 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                     }
                 }
             }
-            is FieldType.DateField -> if (t.withTime) {
+            FieldType.DATE -> if (f.type.withTime) {
                 ClayDateTimePicker(
                     value = value,
                     onValueChange = { form.update(f.fieldId, it) },
@@ -61,22 +68,47 @@ internal fun LeadCustomFieldInputs(schema: List<LeadFieldDescriptor>, form: Lead
                     isError = value.isNotBlank() && !isBlankOrIsoDate(value)
                 )
             }
-            is FieldType.LongText -> ClayTextArea(
+            FieldType.LONG_TEXT -> ClayTextArea(
                 value = value,
                 onValueChange = { form.update(f.fieldId, it) },
                 label = label,
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )
-            is FieldType.Text, is FieldType.Number -> ClayTextField(
+            FieldType.TEXT, FieldType.NUMBER -> ClayTextField(
                 value = value,
                 onValueChange = { form.update(f.fieldId, it) },
                 label = label,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            // D7: jam dinding; galat bentuk ditandai input, validasi akhir tetap di server.
+            FieldType.TIME -> ClayTimePicker(
+                value = value,
+                onValueChange = { form.update(f.fieldId, it) },
+                label = label,
+                modifier = Modifier.fillMaxWidth(),
+                isError = value.isNotBlank() && !isValidClayTime(value)
+            )
+            // MULTI_SELECT: larik id opsi aktif; dikirim sebagai larik JSON (aturan bentuk MultiSelectValues).
+            FieldType.MULTI_SELECT -> {
+                val selectedIds = (MultiSelectValues.parse(value) ?: emptyList()).toSet()
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+                    Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+                    ClayMultiChoiceChips(
+                        options = f.type.activeOptions.map { it.id.value },
+                        selected = selectedIds,
+                        onToggle = { id ->
+                            val next = if (id in selectedIds) selectedIds - id else selectedIds + id
+                            form.update(f.fieldId, jsonArrayOf(next.sorted().map { jsonOf(it) }).encode())
+                        },
+                        labelOf = { id -> f.type.activeOptions.firstOrNull { it.id.value == id }?.label ?: id },
+                        maxSelections = f.type.maxSelections
+                    )
+                }
+            }
             // Difilter oleh LeadFormState.supportsInput: belum punya input di dialog lead baru.
-            is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation, is FieldType.File -> Unit
+            FieldType.BOOL, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE -> Unit
         }
     }
 }

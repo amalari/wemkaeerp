@@ -55,7 +55,7 @@ import com.eventverse.app.domain.crm.usecases.UpdateLeadUseCase
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.CustomFieldValidationError
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.customfield.RelationTargetResolver
 import com.eventverse.app.domain.customfield.usecases.AddCustomFieldDefinitionUseCase
@@ -393,7 +393,7 @@ fun Route.crmRoutes(
                 call.respond(HttpStatusCode.BadRequest, "Unknown field type: ${req.typeCode}")
                 return@post
             }
-            if (type is FieldType.UserRef) {
+            if (type.kind == FieldType.USER_REF) {
                 // See PostgresCrmLeadRepository's documented gap: custom UserRef fields are
                 // not yet wired to custom_field_links. Refuse rather than silently accepting
                 // a field whose values would only ever live in the JSONB blob.

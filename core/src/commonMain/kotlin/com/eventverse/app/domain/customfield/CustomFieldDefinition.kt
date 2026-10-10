@@ -14,7 +14,7 @@ data class CustomFieldDefinition(
     val ownerResource: OwnerResource,
     val key: FieldKey,
     val label: String,
-    val type: FieldType,
+    val type: CrmFieldType,
     val position: Double,
     val isRequired: Boolean = false,
     val requiredSince: Instant? = null,

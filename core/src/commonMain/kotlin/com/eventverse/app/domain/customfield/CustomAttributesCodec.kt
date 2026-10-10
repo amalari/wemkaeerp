@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.JsonValue
@@ -25,6 +26,7 @@ object CustomAttributesCodec {
     private const val KEY_DECIMALS = "decimals"
     private const val KEY_WITH_TIME = "withTime"
     private const val KEY_MAX_COUNT = "maxCount"
+    private const val KEY_MAX_SELECTIONS = "maxSelections"
     private const val KEY_TARGET_RESOURCE = "targetResource"
     private const val KEY_ID = "id"
     private const val KEY_LABEL = "label"
@@ -35,58 +37,76 @@ object CustomAttributesCodec {
     // FieldType <-> (field_type code, config JSONB)
     // -----------------------------------------------------------------------
 
-    fun encodeConfig(type: FieldType): JsonValue.Obj = when (type) {
-        is FieldType.Text, is FieldType.LongText, is FieldType.Checkbox, is FieldType.File ->
+    fun encodeConfig(type: CrmFieldType): JsonValue.Obj = when (type.kind) {
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.BOOL, FieldType.FILE, FieldType.TIME ->
             JsonValue.Obj(emptyMap())
 
-        is FieldType.Number -> jsonObjectOf(
-            KEY_FORMAT to jsonOf(encodeNumberFormatTag(type.format)),
-            KEY_CURRENCY_CODE to jsonOf((type.format as? NumberFormat.Currency)?.currencyCode),
-            KEY_DECIMALS to jsonOf(type.decimals)
-        )
+        FieldType.NUMBER -> {
+            val entries = mutableMapOf<String, JsonValue>(
+                KEY_FORMAT to jsonOf(encodeNumberFormatTag(type.format)),
+                KEY_CURRENCY_CODE to jsonOf((type.format as? NumberFormat.Currency)?.currencyCode)
+            )
+            // `decimals` ditulis hanya bila dibatasi; absen = tidak dibatasi (null) — round-trip utuh.
+            type.decimals?.let { entries[KEY_DECIMALS] = jsonOf(it) }
+            JsonValue.Obj(entries)
+        }
 
-        is FieldType.SingleSelect -> jsonObjectOf(
+        FieldType.ENUM -> jsonObjectOf(
             KEY_OPTIONS to jsonArrayOf(type.options.map(::encodeOption))
         )
 
-        is FieldType.DateField -> jsonObjectOf(KEY_WITH_TIME to jsonOf(type.withTime))
+        FieldType.MULTI_SELECT -> jsonObjectOf(
+            KEY_OPTIONS to jsonArrayOf(type.options.map(::encodeOption)),
+            KEY_MAX_SELECTIONS to (type.maxSelections?.let { jsonOf(it) } ?: JsonValue.Null)
+        )
 
-        is FieldType.UserRef -> jsonObjectOf(KEY_MAX_COUNT to jsonOf(type.maxCount))
+        FieldType.DATE -> jsonObjectOf(KEY_WITH_TIME to jsonOf(type.withTime))
 
-        is FieldType.Relation -> jsonObjectOf(
+        FieldType.USER_REF -> jsonObjectOf(KEY_MAX_COUNT to jsonOf(type.maxCount))
+
+        FieldType.RELATION -> jsonObjectOf(
             KEY_TARGET_RESOURCE to jsonOf(type.targetResource),
             KEY_MAX_COUNT to jsonOf(type.maxCount)
         )
     }
 
-    /** Returns null for an unrecognised code — callers must treat that as data corruption. */
-    fun decodeFieldType(code: String, config: JsonValue.Obj): FieldType? = when (code) {
-        FieldType.Text.code -> FieldType.Text
-        FieldType.LongText.code -> FieldType.LongText
-        FieldType.Checkbox.code -> FieldType.Checkbox
+    /**
+     * Returns null for an unrecognised code — callers must treat that as data corruption.
+     * Kode dibaca lewat [CrmLegacyTypeCode]: `SINGLE_SELECT`/`CHECKBOX` legacy tetap sah (tanpa migrasi data).
+     */
+    fun decodeFieldType(code: String, config: JsonValue.Obj): CrmFieldType? {
+        val kind = runCatching { CrmLegacyTypeCode.toFieldType(code) }.getOrNull() ?: return null
+        return when (kind) {
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.BOOL, FieldType.FILE, FieldType.TIME ->
+                CrmFieldType(kind)
 
-        "NUMBER" -> decodeNumberFormat(config)?.let { format ->
-            FieldType.Number(format = format, decimals = config.int(KEY_DECIMALS) ?: 0)
+            FieldType.NUMBER -> decodeNumberFormat(config)?.let { format ->
+                // Kunci `decimals` absen = tidak dibatasi (null). Baris lama selalu menulis kunci itu,
+                // jadi perilaku baris lama tidak berubah.
+                CrmFieldType(kind, format = format, decimals = config.int(KEY_DECIMALS))
+            }
+
+            FieldType.ENUM -> CrmFieldType(
+                kind,
+                options = config.objectArray(KEY_OPTIONS).mapNotNull(::decodeOption)
+            )
+
+            FieldType.MULTI_SELECT -> CrmFieldType(
+                kind,
+                options = config.objectArray(KEY_OPTIONS).mapNotNull(::decodeOption),
+                maxSelections = config.int(KEY_MAX_SELECTIONS)
+            )
+
+            FieldType.DATE -> CrmFieldType(kind, withTime = config.boolean(KEY_WITH_TIME) ?: false)
+
+            FieldType.USER_REF -> CrmFieldType(kind, maxCount = config.int(KEY_MAX_COUNT) ?: 1)
+
+            // TRD-FIELD-001 §4.3: RELATION tanpa `targetResource` = korupsi (null), BUKAN fallback —
+            // membacanya sebagai tipe lain mengubah data tanpa jejak.
+            FieldType.RELATION -> config.string(KEY_TARGET_RESOURCE)?.let {
+                CrmFieldType(kind, maxCount = config.int(KEY_MAX_COUNT) ?: 1, targetResource = it)
+            }
         }
-
-        "SINGLE_SELECT" -> FieldType.SingleSelect(
-            options = config.objectArray(KEY_OPTIONS).mapNotNull(::decodeOption)
-        )
-
-        "DATE" -> FieldType.DateField(withTime = config.boolean(KEY_WITH_TIME) ?: false)
-
-        "USER_REF" -> FieldType.UserRef(maxCount = config.int(KEY_MAX_COUNT) ?: 1)
-
-        // TRD-FIELD-002 §4.4: FILE tanpa konfigurasi (bentuk ref tervalidasi di CustomFieldValidation).
-        FieldType.File.code -> FieldType.File
-
-        // TRD-FIELD-001 §4.3: RELATION tanpa `targetResource` = korupsi (null), BUKAN fallback —
-        // membacanya sebagai tipe lain mengubah data tanpa jejak.
-        "RELATION" -> config.string(KEY_TARGET_RESOURCE)?.let {
-            FieldType.Relation(targetResource = it, maxCount = config.int(KEY_MAX_COUNT) ?: 1)
-        }
-
-        else -> null
     }
 
     private fun encodeNumberFormatTag(format: NumberFormat): String = when (format) {

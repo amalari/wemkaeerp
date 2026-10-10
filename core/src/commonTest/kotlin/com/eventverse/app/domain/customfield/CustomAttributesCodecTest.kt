@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
+
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +12,7 @@ class CustomAttributesCodecTest {
 
     @Test
     fun encodeDecode_singleSelectField_roundTrips() {
-        val type = FieldType.SingleSelect(
+        val type = CrmFieldType(FieldType.ENUM, 
             options = listOf(
                 SelectOption(SelectOptionId("opt_a"), "Opsi A", "#2563EB"),
                 SelectOption(SelectOptionId("opt_b"), "Opsi B", "#16A34A", archivedAt = "2026-01-01T00:00:00Z")
@@ -36,7 +38,7 @@ class CustomAttributesCodecTest {
 
     @Test
     fun encodeDecode_numberFieldWithCurrency_roundTrips() {
-        val type = FieldType.Number(format = NumberFormat.Currency("IDR"), decimals = 0)
+        val type = CrmFieldType(FieldType.NUMBER, format = NumberFormat.Currency("IDR"), decimals = 0)
         val def = CustomFieldDefinition(
             id = CustomFieldId("cf-2"),
             tenantId = tenantId,
@@ -58,11 +60,11 @@ class CustomAttributesCodecTest {
         val defs = listOf(
             CustomFieldDefinition(
                 id = CustomFieldId("cf-3"), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
-                key = FieldKey("detail_kain"), label = "Detail Kain", type = FieldType.Text, position = 3000.0
+                key = FieldKey("detail_kain"), label = "Detail Kain", type = CrmFieldType(FieldType.TEXT), position = 3000.0
             ),
             CustomFieldDefinition(
                 id = CustomFieldId("cf-4"), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
-                key = FieldKey("sample_approved"), label = "Sample Approved", type = FieldType.Checkbox, position = 4000.0
+                key = FieldKey("sample_approved"), label = "Sample Approved", type = CrmFieldType(FieldType.BOOL), position = 4000.0
             )
         )
 
@@ -70,8 +72,8 @@ class CustomAttributesCodecTest {
         val decoded = CustomAttributesCodec.decodeDefinitions(tenantId, json)
 
         assertEquals(2, decoded.size)
-        assertEquals(FieldType.Text, decoded[0].type)
-        assertEquals(FieldType.Checkbox, decoded[1].type)
+        assertEquals(CrmFieldType(FieldType.TEXT), decoded[0].type)
+        assertEquals(CrmFieldType(FieldType.BOOL), decoded[1].type)
     }
 
     @Test

@@ -14,7 +14,9 @@ import com.eventverse.app.domain.crm.prefill.LeadDraft
 import com.eventverse.app.domain.crm.prefill.LeadDraftFields
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.presentation.designsystem.isValidClayTime
 import com.eventverse.app.domain.customfield.SelectOptionId
 import com.eventverse.app.shared.json.JsonValue
 
@@ -77,12 +79,13 @@ class LeadFormState(initialStage: LeadStage) {
         val hasIdentifier = brandName.isNotBlank() || contactPerson.isNotBlank() || phone.isNotBlank()
         val customOk = schema.filter { supportsInput(it.type) }.all { f ->
             val raw = custom[CustomFieldId(f.fieldId)].orEmpty().trim()
-            (!f.isRequired || raw.isNotEmpty()) && when (val t = f.type) {
-                is FieldType.Number -> raw.isEmpty() || raw.replace(",", ".").toDoubleOrNull() != null
-                is FieldType.DateField -> if (t.withTime) isBlankOrIsoDateTime(raw) else isBlankOrIsoDate(raw)
-                is FieldType.Text, is FieldType.LongText, is FieldType.SingleSelect -> true
+            (!f.isRequired || raw.isNotEmpty()) && when (f.type.kind) {
+                FieldType.NUMBER -> raw.isEmpty() || raw.replace(",", ".").toDoubleOrNull() != null
+                FieldType.DATE -> if (f.type.withTime) isBlankOrIsoDateTime(raw) else isBlankOrIsoDate(raw)
+                FieldType.TIME -> isValidClayTime(raw)
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.MULTI_SELECT -> true
                 // Tidak dirender di dialog lead baru (supportsInput) — tidak ada nilai untuk divalidasi.
-                is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation, is FieldType.File -> true
+                FieldType.BOOL, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE -> true
             }
         }
         return hasIdentifier && isPhoneValid && isEmailValid && customOk
@@ -92,10 +95,12 @@ class LeadFormState(initialStage: LeadStage) {
     fun customValues(schema: List<LeadFieldDescriptor>): Map<CustomFieldId, JsonValue.Obj?> = schema.mapNotNull { f ->
         val id = CustomFieldId(f.fieldId)
         val raw = custom[id]?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-        val cell = when (f.type) {
-            is FieldType.Number -> raw.replace(",", ".").toDoubleOrNull()?.let { CustomAttributes.numberCell(raw.replace(",", ".")) }
-            is FieldType.SingleSelect -> CustomAttributes.selectCell(SelectOptionId(raw))
-            else -> CustomAttributes.textCell(raw)
+        val cell = when (f.type.kind) {
+            FieldType.NUMBER -> raw.replace(",", ".").toDoubleOrNull()?.let { CustomAttributes.numberCell(raw.replace(",", ".")) }
+            FieldType.ENUM -> CustomAttributes.selectCell(SelectOptionId(raw))
+            // TIME dan MULTI_SELECT menyimpan string yang sudah berbentuk sah (JJ:MM / larik JSON id).
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT -> CustomAttributes.textCell(raw)
+            FieldType.BOOL, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE -> null
         } ?: return@mapNotNull null
         id to cell
     }.toMap()
@@ -116,7 +121,9 @@ class LeadFormState(initialStage: LeadStage) {
             LeadFieldControl.NUMBER,
             LeadFieldControl.SINGLE_SELECT,
             LeadFieldControl.DATE_PICKER,
-            LeadFieldControl.DATE_TIME_PICKER
+            LeadFieldControl.DATE_TIME_PICKER,
+            LeadFieldControl.TIME_PICKER,
+            LeadFieldControl.MULTI_CHOICE
         )
 
         /**
@@ -124,6 +131,6 @@ class LeadFormState(initialStage: LeadStage) {
          * supaya paritas tipe→kontrol satu sumber kebenaran; tanggal tanpa waktu lewat `ClayDatePicker`
          * (Irisan 1 Track C), tanggal berwaktu lewat `ClayDateTimePicker` (C6, Irisan 2).
          */
-        fun supportsInput(type: FieldType): Boolean = leadFieldControl(type) in CREATE_FORM_CONTROLS
+        fun supportsInput(type: CrmFieldType): Boolean = leadFieldControl(type) in CREATE_FORM_CONTROLS
     }
 }

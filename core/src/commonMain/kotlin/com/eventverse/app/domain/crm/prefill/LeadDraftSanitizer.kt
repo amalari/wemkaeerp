@@ -4,7 +4,7 @@ import com.eventverse.app.domain.crm.WhatsappNumber
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.shared.json.JsonValue
 
 /**
@@ -23,17 +23,17 @@ object LeadDraftSanitizer {
      * mengarang id rujukan; field itu dikecualikan di sini, jadi nilai mentahnya tak pernah dikonsumsi.
      */
     fun supportedCustomFields(definitions: List<CustomFieldDefinition>): List<CustomFieldDefinition> =
-        definitions.filter { !it.isArchived && (it.type is FieldType.Text || it.type is FieldType.LongText || it.type is FieldType.Number || it.type is FieldType.SingleSelect) }
+        definitions.filter { !it.isArchived && it.type.kind in SUPPORTED_PREFILL_KINDS }
 
     /** `when` tanpa `else` (Kontrak 6): tipe yang tak didukung tak pernah sampai ke sini (disaring [supportedCustomFields]). */
     fun specsFor(definitions: List<CustomFieldDefinition>): List<DraftFieldSpec> = CORE_SPECS + supportedCustomFields(definitions).map { d ->
-        when (val t = d.type) {
-            is FieldType.Text, is FieldType.LongText -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.TEXT)
-            is FieldType.Number -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.NUMBER)
-            is FieldType.SingleSelect -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.SELECT, t.activeOptions.map { it.label })
+        when (val t = d.type.kind) {
+            FieldType.TEXT, FieldType.LONG_TEXT -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.TEXT)
+            FieldType.NUMBER -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.NUMBER)
+            FieldType.ENUM -> DraftFieldSpec(d.id.value, d.label, DraftFieldKind.SELECT, d.type.activeOptions.map { it.label })
             // Tak didukung prefill AI; tak pernah tercapai. Jaga fail-closed bila daftar dukungan berubah.
-            is FieldType.DateField, is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation, is FieldType.File ->
-                error("Tipe ${t.code} tidak didukung prefill AI")
+            FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT, FieldType.BOOL, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE ->
+                error("Tipe ${d.type.code} tidak didukung prefill AI")
         }
     }
 
@@ -76,17 +76,20 @@ object LeadDraftSanitizer {
         )
     }
 
-    private fun customCell(d: CustomFieldDefinition, value: String): JsonValue.Obj? = when (val t = d.type) {
-        is FieldType.Text, is FieldType.LongText -> value.takeIf { it.length <= MAX_CUSTOM_TEXT }?.let(CustomAttributes::textCell)
-        is FieldType.Number -> value.replace(",", ".").toDoubleOrNull()?.let { n ->
-            val raw = if (t.decimals == 0) n.toLong().toString() else n.toString()
-            if (t.decimals == 0 && n % 1.0 != 0.0) null else CustomAttributes.numberCell(raw)
+    private fun customCell(d: CustomFieldDefinition, value: String): JsonValue.Obj? = when (val t = d.type.kind) {
+        FieldType.TEXT, FieldType.LONG_TEXT -> value.takeIf { it.length <= MAX_CUSTOM_TEXT }?.let(CustomAttributes::textCell)
+        FieldType.NUMBER -> value.replace(",", ".").toDoubleOrNull()?.let { n ->
+            val decimals = d.type.decimals ?: 0
+            val raw = if (decimals == 0) n.toLong().toString() else n.toString()
+            if (decimals == 0 && n % 1.0 != 0.0) null else CustomAttributes.numberCell(raw)
         }
-        is FieldType.SingleSelect -> t.activeOptions.firstOrNull { it.label.equals(value, ignoreCase = true) }?.let { CustomAttributes.selectCell(it.id) }
+        FieldType.ENUM -> d.type.activeOptions.firstOrNull { it.label.equals(value, ignoreCase = true) }?.let { CustomAttributes.selectCell(it.id) }
         // C7: RELATION (dan tipe non-teks lain) tidak didukung prefill AI — **jangan mengarang rujukan**.
         // Juga tak pernah sampai sini (disaring supportedCustomFields); cabang eksplisit menggantikan `else`.
-        is FieldType.DateField, is FieldType.Checkbox, is FieldType.UserRef, is FieldType.Relation, is FieldType.File -> null
+        FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT, FieldType.BOOL, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE -> null
     }
+
+    private val SUPPORTED_PREFILL_KINDS = setOf(FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.ENUM)
 
     private val CORE_SPECS = listOf(
         DraftFieldSpec(LeadDraftFields.BRAND_NAME, "Nama brand/perusahaan", DraftFieldKind.TEXT),

@@ -4,7 +4,7 @@ import com.eventverse.app.domain.customfield.CustomFieldDefinition
 import com.eventverse.app.domain.customfield.CustomFieldDefinitionRepository
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldKey
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Clock
@@ -28,7 +28,7 @@ class AddCustomFieldDefinitionUseCase(
         tenantId: TenantId,
         ownerResource: OwnerResource,
         label: String,
-        type: FieldType,
+        type: CrmFieldType,
         isRequired: Boolean = false,
         newId: () -> String
     ): Result<CustomFieldDefinition> = runCatching {

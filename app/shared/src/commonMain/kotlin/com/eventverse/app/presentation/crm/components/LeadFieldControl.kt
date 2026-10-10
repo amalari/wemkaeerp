@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.crm.components
 
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.presentation.designsystem.parseIsoDateTimeOrNull
 import com.eventverse.app.shared.common.DateTimeCodec
 
@@ -23,7 +24,13 @@ internal enum class LeadFieldControl {
 
     /** `ClayDateTimePicker` — nilai `TTTT-BB-HH'T'JJ:MM` atau kosong (C6, Irisan 2). */
     DATE_TIME_PICKER,
+
+    /** `ClayTimePicker` — jam dinding `JJ:MM` atau kosong (D7; diwarisi dari kosakata bersama). */
+    TIME_PICKER,
     SINGLE_SELECT,
+
+    /** `ClayMultiChoiceChips` — larik id opsi aktif (MULTI_SELECT, diwarisi dari kosakata bersama). */
+    MULTI_CHOICE,
     USER_REF,
 
     /**
@@ -41,16 +48,18 @@ internal enum class LeadFieldControl {
     FILE
 }
 
-internal fun leadFieldControl(type: FieldType): LeadFieldControl = when (type) {
-    is FieldType.Text -> LeadFieldControl.TEXT
-    is FieldType.LongText -> LeadFieldControl.LONG_TEXT
-    is FieldType.Number -> LeadFieldControl.NUMBER
-    is FieldType.Checkbox -> LeadFieldControl.CHECKBOX
-    is FieldType.DateField -> if (type.withTime) LeadFieldControl.DATE_TIME_PICKER else LeadFieldControl.DATE_PICKER
-    is FieldType.SingleSelect -> LeadFieldControl.SINGLE_SELECT
-    is FieldType.UserRef -> LeadFieldControl.USER_REF
-    is FieldType.Relation -> LeadFieldControl.RELATION
-    is FieldType.File -> LeadFieldControl.FILE
+internal fun leadFieldControl(type: CrmFieldType): LeadFieldControl = when (type.kind) {
+    FieldType.TEXT -> LeadFieldControl.TEXT
+    FieldType.LONG_TEXT -> LeadFieldControl.LONG_TEXT
+    FieldType.NUMBER -> LeadFieldControl.NUMBER
+    FieldType.BOOL -> LeadFieldControl.CHECKBOX
+    FieldType.DATE -> if (type.withTime) LeadFieldControl.DATE_TIME_PICKER else LeadFieldControl.DATE_PICKER
+    FieldType.TIME -> LeadFieldControl.TIME_PICKER
+    FieldType.ENUM -> LeadFieldControl.SINGLE_SELECT
+    FieldType.MULTI_SELECT -> LeadFieldControl.MULTI_CHOICE
+    FieldType.USER_REF -> LeadFieldControl.USER_REF
+    FieldType.RELATION -> LeadFieldControl.RELATION
+    FieldType.FILE -> LeadFieldControl.FILE
 }
 
 /**

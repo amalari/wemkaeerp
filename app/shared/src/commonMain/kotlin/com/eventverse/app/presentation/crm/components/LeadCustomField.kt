@@ -1,5 +1,10 @@
 package com.eventverse.app.presentation.crm.components
 
+import com.eventverse.app.shared.json.jsonOf
+import com.eventverse.app.shared.json.jsonArrayOf
+import com.eventverse.app.presentation.designsystem.isValidClayTime
+import com.eventverse.app.presentation.designsystem.ClayTimePicker
+import com.eventverse.app.presentation.designsystem.ClayMultiChoiceChips
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +27,9 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.crm.LeadFieldDescriptor
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.customfield.CustomAttributes
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.domain.orgchart.OrgNode
 import com.eventverse.app.infrastructure.api.StoredTenantSlugProvider
 import com.eventverse.app.presentation.common.FIELD_FILE_ACCEPT
@@ -124,12 +131,12 @@ fun LeadCustomField(
 
         Column(modifier = Modifier.padding(top = ClaySpacing.Xs)) {
             // Kontrol dipilih lewat pemeta murni agar paritas tipe->kontrol bisa dites (LeadFieldControl).
-            when (val type = descriptor.type) {
-                is FieldType.Text -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
-                is FieldType.LongText -> TextEditor(cell, editable, onCommit, singleLine = false, minLines = 3) { CustomAttributes.textCell(it) }
-                is FieldType.Number -> TextEditor(cell, editable, onCommit) { CustomAttributes.numberCell(it) }
-                is FieldType.Checkbox -> CheckboxEditor(cell, editable, onCommit)
-                is FieldType.DateField -> if (type.withTime) {
+            when (descriptor.type.kind) {
+                FieldType.TEXT -> TextEditor(cell, editable, onCommit) { CustomAttributes.textCell(it) }
+                FieldType.LONG_TEXT -> TextEditor(cell, editable, onCommit, singleLine = false, minLines = 3) { CustomAttributes.textCell(it) }
+                FieldType.NUMBER -> TextEditor(cell, editable, onCommit) { CustomAttributes.numberCell(it) }
+                FieldType.BOOL -> CheckboxEditor(cell, editable, onCommit)
+                FieldType.DATE -> if (descriptor.type.withTime) {
                     // C6 (Irisan 2): ClayDateTimePicker, format simpan `TTTT-BB-HH'T'JJ:MM` — sama dengan prototype.
                     TextEditor(
                         cell, editable, onCommit,
@@ -160,19 +167,33 @@ fun LeadCustomField(
                         }
                     ) { CustomAttributes.textCell(it) }
                 }
-                is FieldType.SingleSelect -> SelectEditor(type, cell, editable, onCommit)
-                is FieldType.UserRef -> UserRefEditor(cell, employees, editable, onCommit)
+                // D7: jam dinding JJ:MM; galat bentuk ditandai input, validasi akhir di server.
+                FieldType.TIME -> TextEditor(
+                    cell, editable, onCommit,
+                    input = { text, onChange ->
+                        ClayTimePicker(
+                            value = text,
+                            onValueChange = onChange,
+                            label = "",
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = text.isNotBlank() && !isValidClayTime(text)
+                        )
+                    }
+                ) { CustomAttributes.textCell(it) }
+                FieldType.ENUM -> SelectEditor(descriptor.type, cell, editable, onCommit)
+                FieldType.MULTI_SELECT -> MultiSelectEditor(descriptor.type, cell, editable, onCommit)
+                FieldType.USER_REF -> UserRefEditor(cell, employees, editable, onCommit)
                 // C7 (TRD-FIELD-001 Track C): pemilih rujukan (ClayRelationPicker) saat editable;
                 // baca-saja menampilkan label/fallback id/"tidak ditemukan". Penulisan tetap
                 // divalidasi server (RelationTargetResolver). Tidak dipalsukan jadi kolom teks.
-                is FieldType.Relation -> RelationEditor(
-                    type = type,
+                FieldType.RELATION -> RelationEditor(
+                    type = descriptor.type,
                     cell = cell,
                     editable = editable,
                     onCommit = onCommit
                 )
                 // C8 (TRD-FIELD-002 Track C): ClayFileField — unggah/ganti/hapus bila aksi tersedia.
-                is FieldType.File -> FileEditor(
+                FieldType.FILE -> FileEditor(
                     fieldId = descriptor.fieldId,
                     leadId = leadId,
                     cell = cell,
@@ -332,8 +353,39 @@ private fun FileEditor(
 }
 
 @Composable
+private fun MultiSelectEditor(
+    type: CrmFieldType,
+    cell: JsonValue.Obj?,
+    editable: Boolean,
+    onCommit: ((JsonValue.Obj?) -> Unit)?
+) {
+    val raw = cell?.string("v").orEmpty()
+    val selected = (MultiSelectValues.parse(raw) ?: emptyList()).toSet()
+    val labels = type.activeOptions.associate { it.id.value to it.label }
+    if (editable && onCommit != null) {
+        ClayMultiChoiceChips(
+            options = type.activeOptions.map { it.id.value },
+            selected = selected,
+            onToggle = { id ->
+                val next = if (id in selected) selected - id else selected + id
+                onCommit(CustomAttributes.textCell(jsonArrayOf(next.sorted().map { jsonOf(it) }).encode()))
+            },
+            labelOf = { id -> labels[id] ?: id },
+            maxSelections = type.maxSelections,
+            modifier = Modifier.fillMaxWidth()
+        )
+    } else {
+        Text(
+            text = if (selected.isEmpty()) "-" else selected.sorted().joinToString(", ") { labels[it] ?: it },
+            fontSize = 13.sp,
+            color = WeMadeColors.OnSurface
+        )
+    }
+}
+
+@Composable
 private fun SelectEditor(
-    type: FieldType.SingleSelect,
+    type: CrmFieldType,
     cell: JsonValue.Obj?,
     editable: Boolean,
     onCommit: ((JsonValue.Obj?) -> Unit)?
@@ -413,13 +465,15 @@ private fun UserRefEditor(
  */
 @Composable
 private fun RelationEditor(
-    type: FieldType.Relation,
+    type: CrmFieldType,
     cell: JsonValue.Obj?,
     editable: Boolean,
     onCommit: ((JsonValue.Obj?) -> Unit)?
 ) {
     val selectedId = cell?.string("v")?.trim()?.takeIf { it.isNotEmpty() }
-    val relationUi = rememberLeadRelationUi(type.targetResource)
+    // Invarian CrmFieldType menjamin targetResource ada untuk RELATION; data rusak = jangan render tebakan.
+    val resource = type.targetResource ?: return
+    val relationUi = rememberLeadRelationUi(resource)
 
     if (editable && onCommit != null && relationUi != null) {
         ClayRelationPicker(

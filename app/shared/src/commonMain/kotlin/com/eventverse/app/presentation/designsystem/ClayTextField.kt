@@ -158,7 +158,7 @@ fun ClayTextField(
 /**
  * Varian area teks multi-baris khas Claymorphism (TRD-PLAT-003, Irisan 2 Track C).
  * Nyaman untuk field teks panjang ([com.eventverse.app.domain.prototype.FieldType.LONG_TEXT]
- * dan [com.eventverse.app.domain.customfield.FieldType.LongText]).
+ * dan kosakata bersama `FieldType.LONG_TEXT`).
  */
 @Composable
 fun ClayTextArea(

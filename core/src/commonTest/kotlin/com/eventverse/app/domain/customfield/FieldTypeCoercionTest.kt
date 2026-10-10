@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -8,36 +10,36 @@ class FieldTypeCoercionTest {
 
     @Test
     fun classify_identicalType_isIdentity() {
-        assertEquals(ConversionSafety.IDENTITY, FieldTypeConversion.classify(FieldType.Text, FieldType.Text))
+        assertEquals(ConversionSafety.IDENTITY, FieldTypeConversion.classify(CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.TEXT)))
     }
 
     @Test
     fun classify_numberToText_isLossless() {
-        assertEquals(ConversionSafety.LOSSLESS, FieldTypeConversion.classify(FieldType.Number(), FieldType.Text))
+        assertEquals(ConversionSafety.LOSSLESS, FieldTypeConversion.classify(CrmFieldType(FieldType.NUMBER), CrmFieldType(FieldType.TEXT)))
     }
 
     @Test
     fun classify_textToNumber_isLossy() {
-        assertEquals(ConversionSafety.LOSSY, FieldTypeConversion.classify(FieldType.Text, FieldType.Number()))
+        assertEquals(ConversionSafety.LOSSY, FieldTypeConversion.classify(CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.NUMBER)))
     }
 
     @Test
     fun classify_anythingToUserRef_isForbidden() {
-        assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(FieldType.Text, FieldType.UserRef()))
-        assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(FieldType.UserRef(), FieldType.Text))
+        assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.USER_REF)))
+        assertEquals(ConversionSafety.FORBIDDEN, FieldTypeConversion.classify(CrmFieldType(FieldType.USER_REF), CrmFieldType(FieldType.TEXT)))
     }
 
     @Test
     fun coerce_textToNumber_validNumericText_converts() {
         val cell = CustomAttributes.textCell("18500000")
-        val result = FieldTypeConversion.coerce(cell, FieldType.Text, FieldType.Number())
+        val result = FieldTypeConversion.coerce(cell, CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.NUMBER))
         assertIs<CoercionResult.Converted>(result)
     }
 
     @Test
     fun coerce_textToNumber_nonNumericText_clearsWithOrphan() {
         val cell = CustomAttributes.textCell("sekitar 15 juta")
-        val result = FieldTypeConversion.coerce(cell, FieldType.Text, FieldType.Number())
+        val result = FieldTypeConversion.coerce(cell, CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.NUMBER))
         assertIs<CoercionResult.Cleared>(result)
         assertEquals("sekitar 15 juta", (result as CoercionResult.Cleared).orphanedRaw)
     }
@@ -46,7 +48,7 @@ class FieldTypeCoercionTest {
     fun coerce_textToSingleSelect_matchingLabel_converts() {
         val option = SelectOption(SelectOptionId("opt_kaos"), "Kaos", "#2563EB")
         val cell = CustomAttributes.textCell("Kaos")
-        val result = FieldTypeConversion.coerce(cell, FieldType.Text, FieldType.SingleSelect(listOf(option)))
+        val result = FieldTypeConversion.coerce(cell, CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.ENUM, listOf(option)))
         assertIs<CoercionResult.Converted>(result)
     }
 

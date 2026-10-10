@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.datetime.LocalDate
 
@@ -38,43 +39,44 @@ object FieldTypeConversion {
 
     private const val MAX_DISTINCT_VALUES_FOR_SELECT = 50
 
-    fun classify(from: FieldType, to: FieldType): ConversionSafety {
-        // C6 (Irisan 2): dua varian DateField punya kelas & kode sama, tapi bentuk nilai sahnya beda
-        // (ketat dua arah) — varian sama = IDENTITY, ganti `withTime` = LOSSY (dry run + konfirmasi).
-        if (from is FieldType.DateField && to is FieldType.DateField) {
+    fun classify(from: CrmFieldType, to: CrmFieldType): ConversionSafety {
+        // C6 (Irisan 2): dua varian DATE punya kode sama, tapi bentuk nilai sahnya beda (ketat dua arah) —
+        // varian sama = IDENTITY, ganti `withTime` = LOSSY (dry run + konfirmasi).
+        if (from.kind == FieldType.DATE && to.kind == FieldType.DATE) {
             return if (from.withTime == to.withTime) ConversionSafety.IDENTITY else ConversionSafety.LOSSY
         }
-        if (from::class == to::class && from.code == to.code) return ConversionSafety.IDENTITY
+        // Jenis sama = IDENTITY (perilaku lama: kelas+kode sama, apa pun parameternya).
+        if (from.kind == to.kind) return ConversionSafety.IDENTITY
 
         // Nothing may convert into or out of UserRef by coercion: a person reference is not
         // a coercion of a string. Forcing delete + re-add makes the admin notice the link
         // rows that would otherwise silently vanish.
         // Relation (C7) padanannya: rujukan record juga bukan koersi teks, dan baris link-nya
         // (`custom_field_relation_links`) akan hilang senyap bila dipaksa konversi.
-        if (from is FieldType.UserRef || to is FieldType.UserRef) return ConversionSafety.FORBIDDEN
-        if (from is FieldType.Relation || to is FieldType.Relation) return ConversionSafety.FORBIDDEN
+        if (from.kind == FieldType.USER_REF || to.kind == FieldType.USER_REF) return ConversionSafety.FORBIDDEN
+        if (from.kind == FieldType.RELATION || to.kind == FieldType.RELATION) return ConversionSafety.FORBIDDEN
 
         return when {
-            from is FieldType.Text && to is FieldType.LongText -> ConversionSafety.LOSSLESS
-            from is FieldType.LongText && to is FieldType.Text -> ConversionSafety.LOSSLESS
-            to is FieldType.Text || to is FieldType.LongText -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.TEXT && to.kind == FieldType.LONG_TEXT -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.LONG_TEXT && to.kind == FieldType.TEXT -> ConversionSafety.LOSSLESS
+            to.kind == FieldType.TEXT || to.kind == FieldType.LONG_TEXT -> ConversionSafety.LOSSLESS
 
-            from is FieldType.Number && to is FieldType.Number -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.NUMBER && to.kind == FieldType.NUMBER -> ConversionSafety.LOSSLESS
 
-            (from is FieldType.Text || from is FieldType.LongText) && to is FieldType.Number -> ConversionSafety.LOSSY
-            (from is FieldType.Text || from is FieldType.LongText) && to is FieldType.DateField -> ConversionSafety.LOSSY
-            (from is FieldType.Text || from is FieldType.LongText) && to is FieldType.SingleSelect -> ConversionSafety.LOSSY
-            from is FieldType.DateField && (to is FieldType.Text || to is FieldType.LongText) -> ConversionSafety.LOSSLESS
-            from is FieldType.SingleSelect && (to is FieldType.Text || to is FieldType.LongText) -> ConversionSafety.LOSSLESS
-            from is FieldType.Checkbox && (to is FieldType.Text || to is FieldType.LongText) -> ConversionSafety.LOSSLESS
-            from is FieldType.Number && to is FieldType.Checkbox -> ConversionSafety.LOSSY
+            (from.kind == FieldType.TEXT || from.kind == FieldType.LONG_TEXT) && to.kind == FieldType.NUMBER -> ConversionSafety.LOSSY
+            (from.kind == FieldType.TEXT || from.kind == FieldType.LONG_TEXT) && to.kind == FieldType.DATE -> ConversionSafety.LOSSY
+            (from.kind == FieldType.TEXT || from.kind == FieldType.LONG_TEXT) && to.kind == FieldType.ENUM -> ConversionSafety.LOSSY
+            from.kind == FieldType.DATE && (to.kind == FieldType.TEXT || to.kind == FieldType.LONG_TEXT) -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.ENUM && (to.kind == FieldType.TEXT || to.kind == FieldType.LONG_TEXT) -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.BOOL && (to.kind == FieldType.TEXT || to.kind == FieldType.LONG_TEXT) -> ConversionSafety.LOSSLESS
+            from.kind == FieldType.NUMBER && to.kind == FieldType.BOOL -> ConversionSafety.LOSSY
 
             else -> ConversionSafety.FORBIDDEN
         }
     }
 
     /**
-     * Refuses a lossy conversion into [FieldType.SingleSelect] when the source data would
+     * Refuses a lossy conversion into `ENUM` when the source data would
      * mint more than [MAX_DISTINCT_VALUES_FOR_SELECT] options — auto-minting hundreds of
      * statuses produces a board nobody can use.
      */
@@ -86,21 +88,21 @@ object FieldTypeConversion {
      * [CoercionResult.Cleared], carrying the original text so it can be restored, rather
      * than silently dropped.
      */
-    fun coerce(cell: JsonValue.Obj?, from: FieldType, to: FieldType): CoercionResult? {
+    fun coerce(cell: JsonValue.Obj?, from: CrmFieldType, to: CrmFieldType): CoercionResult? {
         if (cell == null) return null
         val rawValueText = cellText(cell) ?: return null
 
-        return when {
-            to is FieldType.Text || to is FieldType.LongText ->
+        return when (to.kind) {
+            FieldType.TEXT, FieldType.LONG_TEXT ->
                 CoercionResult.Converted(CustomAttributes.textCell(rawValueText))
 
-            to is FieldType.Number -> rawValueText.trim().toDoubleOrNull()
+            FieldType.NUMBER -> rawValueText.trim().toDoubleOrNull()
                 ?.let { CoercionResult.Converted(CustomAttributes.numberCell(it.toString())) }
                 ?: CoercionResult.Cleared(rawValueText)
 
             // C6 (Irisan 2): sadar `withTime` — target tanggal berwaktu hanya menerima TTTT-BB-HH'T'JJ:MM;
             // tanggal-saja pada target itu = Cleared (eksplisit), bukan dikonversi diam-diam.
-            to is FieldType.DateField ->
+            FieldType.DATE ->
                 if (to.withTime) {
                     com.eventverse.app.shared.common.DateTimeCodec.parseLocalDateTimeMinuteOrNull(rawValueText.trim())
                         ?.let { CoercionResult.Converted(CustomAttributes.dateTimeCell(it)) }
@@ -111,7 +113,7 @@ object FieldTypeConversion {
                         ?: CoercionResult.Cleared(rawValueText)
                 }
 
-            to is FieldType.Checkbox -> rawValueText.trim().lowercase().let {
+            FieldType.BOOL -> rawValueText.trim().lowercase().let {
                 when (it) {
                     "true", "1", "ya" -> CoercionResult.Converted(CustomAttributes.checkboxCell(true))
                     "false", "0", "tidak" -> CoercionResult.Converted(CustomAttributes.checkboxCell(false))
@@ -119,12 +121,15 @@ object FieldTypeConversion {
                 }
             }
 
-            to is FieldType.SingleSelect -> to.options.firstOrNull {
+            FieldType.ENUM -> to.options.firstOrNull {
                 it.label.equals(rawValueText.trim(), ignoreCase = true)
             }?.let { CoercionResult.Converted(CustomAttributes.selectCell(it.id)) }
                 ?: CoercionResult.Cleared(rawValueText)
 
-            else -> CoercionResult.Cleared(rawValueText)
+            // Tidak ada konversi koersi menuju tipe-tipe ini (classify = FORBIDDEN untuk semuanya);
+            // nilai asli dikembalikan apa adanya, bukan ditebak.
+            FieldType.TIME, FieldType.MULTI_SELECT, FieldType.USER_REF, FieldType.RELATION, FieldType.FILE ->
+                CoercionResult.Cleared(rawValueText)
         }
     }
 

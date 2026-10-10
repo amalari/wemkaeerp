@@ -7,7 +7,8 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldKey
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.discovery.handoff.InMemoryPrototypeRowRepository
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
@@ -145,7 +146,7 @@ class FieldFileTenantIsolationTest {
     private suspend fun seedCrm(leads: InMemoryCrmLeadRepository, definitions: InMemoryCustomFieldDefinitionRepository, ref: String? = null) {
         definitions.save(CustomFieldDefinition(
             id = CustomFieldId(fieldId), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
-            key = FieldKey("lampiran"), label = "Lampiran", type = FieldType.File, position = 1.0
+            key = FieldKey("lampiran"), label = "Lampiran", type = CrmFieldType(FieldType.FILE), position = 1.0
         ))
         var attrs = CustomAttributes.EMPTY
         if (ref != null) attrs = attrs.with(CustomFieldId(fieldId), CustomAttributes.textCell(ref))

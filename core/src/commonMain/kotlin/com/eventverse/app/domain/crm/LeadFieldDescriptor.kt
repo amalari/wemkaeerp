@@ -1,7 +1,9 @@
 package com.eventverse.app.domain.crm
 
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.NumberFormat
+import com.eventverse.app.domain.prototype.FieldType
 
 /**
  * One field of a lead's form — core or custom — projected to the SAME shape so the UI
@@ -17,7 +19,7 @@ import com.eventverse.app.domain.customfield.FieldType
 data class LeadFieldDescriptor(
     val fieldId: String,
     val label: String,
-    val type: FieldType,
+    val type: CrmFieldType,
     val isRequired: Boolean,
     /** Core fields with business logic hanging off them (owner, stage, ...) cannot be deleted by a tenant admin. */
     val isEditable: Boolean,
@@ -33,16 +35,16 @@ data class LeadFieldDescriptor(
 
         /** The fixed, strongly-typed core fields of a CRM lead, in display order. */
         fun coreFields(): List<LeadFieldDescriptor> = listOf(
-            LeadFieldDescriptor(coreFieldId("brand_name"), "Nama Brand/Perusahaan", FieldType.Text, isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("contact_person"), "Nama Kontak", FieldType.Text, isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("whatsapp_number"), "Nomor Handphone", FieldType.Text, isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("email"), "Email", FieldType.Text, isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("stage"), "Tahap", FieldType.Text, isRequired = true, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("source"), "Sumber Lead", FieldType.Text, isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("estimated_pcs"), "Estimasi Jumlah (pcs)", FieldType.Number(), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("estimated_value_idr"), "Estimasi Nilai (Rp)", FieldType.Number(format = com.eventverse.app.domain.customfield.NumberFormat.Currency("IDR")), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("owner_employee_id"), "PIC Sales", FieldType.UserRef(), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
-            LeadFieldDescriptor(coreFieldId("expected_close_date"), "Target Closing", FieldType.DateField(), isRequired = false, isEditable = true, isDeletable = false, isCore = true)
+            LeadFieldDescriptor(coreFieldId("brand_name"), "Nama Brand/Perusahaan", CrmFieldType(FieldType.TEXT), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("contact_person"), "Nama Kontak", CrmFieldType(FieldType.TEXT), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("whatsapp_number"), "Nomor Handphone", CrmFieldType(FieldType.TEXT), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("email"), "Email", CrmFieldType(FieldType.TEXT), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("stage"), "Tahap", CrmFieldType(FieldType.TEXT), isRequired = true, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("source"), "Sumber Lead", CrmFieldType(FieldType.TEXT), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("estimated_pcs"), "Estimasi Jumlah (pcs)", CrmFieldType(FieldType.NUMBER), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("estimated_value_idr"), "Estimasi Nilai (Rp)", CrmFieldType(FieldType.NUMBER, format = NumberFormat.Currency("IDR")), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("owner_employee_id"), "PIC Sales", CrmFieldType(FieldType.USER_REF), isRequired = false, isEditable = true, isDeletable = false, isCore = true),
+            LeadFieldDescriptor(coreFieldId("expected_close_date"), "Target Closing", CrmFieldType(FieldType.DATE), isRequired = false, isEditable = true, isDeletable = false, isCore = true)
         )
 
         fun fromCustomField(def: CustomFieldDefinition): LeadFieldDescriptor = LeadFieldDescriptor(

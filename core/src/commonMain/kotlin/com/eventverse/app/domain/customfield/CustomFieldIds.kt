@@ -111,7 +111,7 @@ value class FieldKey(val value: String) {
     }
 }
 
-/** A single selectable value of a [com.eventverse.app.domain.customfield.FieldType.SingleSelect] field. */
+/** A single selectable value of an ENUM ([com.eventverse.app.domain.prototype.FieldType.ENUM]) / MULTI_SELECT field. */
 @JvmInline
 value class SelectOptionId(val value: String) {
     init {
