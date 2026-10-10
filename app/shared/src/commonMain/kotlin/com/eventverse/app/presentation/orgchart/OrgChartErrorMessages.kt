@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.orgchart
 
 import com.eventverse.app.infrastructure.api.OrgChartRestoreException
+import com.eventverse.app.presentation.common.FriendlyErrors
 
 /** Tingkat keparahan pesan toast Org Chart; menentukan warna banner. */
 internal enum class OrgChartToastSeverity { SUCCESS, WARNING, ERROR }
@@ -16,40 +17,18 @@ internal enum class OrgChartToastSeverity { SUCCESS, WARNING, ERROR }
  * Teks sengaja ASCII/Latin-1 (font Nunito tidak punya glyph di luar itu).
  */
 internal object OrgChartErrorMessages {
-    const val UNREACHABLE = "Server tidak dapat dihubungi. Periksa koneksi Anda lalu coba lagi."
+    const val UNREACHABLE = FriendlyErrors.UNREACHABLE
     private const val NOT_AUTHORIZED = "Anda tidak berwenang memuat contoh struktur organisasi."
 
-    private val noiseMarkers = listOf(
-        "proxy", "econnrefused", "connection refused", "failed to fetch", "networkerror",
-        "unable to resolve host", "unknownhost", "connect timed out", "timed out", "connectexception"
-    )
-    private val gatewayStatus = Regex("""HTTP 50[234]\b""")
     private val errorPrefixes = listOf("Gagal", "Error", "Tidak terhubung", "Anda tidak berwenang", "Server tidak dapat")
 
-    /** True bila [text] tampak seperti galat transport/proxy, bukan pesan bisnis dari server. */
-    fun isTransportNoise(text: String?): Boolean {
-        if (text.isNullOrBlank()) return false
-        val lower = text.lowercase()
-        return noiseMarkers.any { it in lower } || gatewayStatus.containsMatchIn(text)
-    }
+    /** Pemetaan transport kini bersama ([FriendlyErrors]); delegasi ini menjaga pemanggil Org Chart tak berubah. */
+    fun isTransportNoise(text: String?): Boolean = FriendlyErrors.isTransportNoise(text)
 
-    private fun chainIsNoise(cause: Throwable?): Boolean {
-        var current = cause
-        var depth = 0
-        while (current != null && depth < 6) {
-            if (isTransportNoise(current.message) || isTransportNoise(current::class.simpleName)) return true
-            current = current.cause
-            depth++
-        }
-        return false
-    }
+    private fun chainIsNoise(cause: Throwable?): Boolean = FriendlyErrors.chainIsNoise(cause)
 
-    /** Teks ramah untuk galat apa pun; [fallback] dipakai bila galat tak membawa pesan. */
-    fun friendly(cause: Throwable?, fallback: String = "Terjadi kesalahan tak terduga."): String = when {
-        cause == null -> fallback
-        chainIsNoise(cause) -> UNREACHABLE
-        else -> cause.message?.takeIf { it.isNotBlank() } ?: fallback
-    }
+    fun friendly(cause: Throwable?, fallback: String = "Terjadi kesalahan tak terduga."): String =
+        FriendlyErrors.friendly(cause, fallback)
 
     /** Toast gagal "Muat/Pulihkan contoh": 403 galat, 409 peringatan (bukan sukses), selain itu galat. */
     fun restoreFailure(cause: Throwable): String {

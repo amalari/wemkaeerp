@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +22,7 @@ import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconPackage
 import com.eventverse.app.presentation.designsystem.IconUser
 import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.designsystem.scrollEdgeFade
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -31,10 +33,16 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 @Composable
 internal fun RbacViewModeTabs(selected: RbacViewMode, onSelect: (RbacViewMode) -> Unit) {
     val tabShape = ClayShapes.Chip
+    val scrollState = rememberScrollState()
+    // Tab terpilih selalu terlihat: di layar sempit "Per Jabatan" terpotong di kanan, jadi bilah menggulir ke ujung.
+    LaunchedEffect(selected) {
+        scrollState.animateScrollTo(if (selected == RbacViewMode.entries.last()) scrollState.maxValue else 0)
+    }
     Row(
         modifier = Modifier
             .clayFlat(shape = ClayShapes.Chip, background = WeMadeColors.SurfaceMuted, outline = WeMadeColors.Border)
-            .horizontalScroll(rememberScrollState())
+            .scrollEdgeFade(scrollState, WeMadeColors.SurfaceMuted)
+            .horizontalScroll(scrollState)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
