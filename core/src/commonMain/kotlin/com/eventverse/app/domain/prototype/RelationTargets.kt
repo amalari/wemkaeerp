@@ -35,7 +35,10 @@ suspend fun EntitySpec.relationTargetProblem(
         val v = values[f.key].orEmpty()
         if (v.isBlank()) continue
         val resource = relationTargetResource(ownerModuleCode, requireNotNull(f.target) { "Field RELATION '${f.key}' tanpa target" })
-        if (!resolver.exists(tenantId, resource, v)) return "'${f.label}' merujuk data yang tidak ditemukan."
+        // Jangkauan eksplisit (TRD-FIELD-004 FR-3.2, tanpa default): target modul hasil generate hanya boleh ke
+        // modul GLOBAL_ONLY (target HIERARCHICAL ditolak saat registrasi/generator, Q3), jadi jangkauannya
+        // seluruh tenant (null). Mengizinkan target HIERARCHICAL berarti harus menghitung jangkauan pemanggil di sini.
+        if (!resolver.exists(tenantId, resource, v, reachableOwnerIds = null)) return "'${f.label}' merujuk data yang tidak ditemukan."
     }
     return null
 }
