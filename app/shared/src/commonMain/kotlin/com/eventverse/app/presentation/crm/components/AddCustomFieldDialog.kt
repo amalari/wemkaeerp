@@ -47,6 +47,9 @@ private val FIELD_TYPE_OPTIONS = listOf(
     FieldTypeOption("Teks Panjang") { FieldType.LongText },
     FieldTypeOption("Angka") { FieldType.Number() },
     FieldTypeOption("Tanggal") { FieldType.DateField() },
+    // Config {"withTime": true} dikirim otomatis: CrmApiClient menyusunnya lewat
+    // CustomAttributesCodec.encodeConfig dari objek FieldType yang dibangun di sini.
+    FieldTypeOption("Tanggal berwaktu") { FieldType.DateField(withTime = true) },
     FieldTypeOption("Ceklis") { FieldType.Checkbox },
     FieldTypeOption("Rujukan ke Record", needsTarget = true)
     // SingleSelect deliberately omitted from this quick-add dialog: it needs an options

@@ -12,6 +12,8 @@ object PrototypeFieldTypeSampleFields {
         FieldType.LONG_TEXT -> FieldSpec("catatan_panjang", "Catatan panjang", type, required = required)
         FieldType.NUMBER -> FieldSpec("jumlah_titik", "Jumlah titik", type, required = required)
         FieldType.DATE -> FieldSpec("tanggal_desain", "Tanggal desain", type, required = required)
+        // C6: jam mulai shift — konteks bordir non-garment (jam operasional workshop).
+        FieldType.TIME -> FieldSpec("jam_mulai_shift", "Jam mulai shift", type, required = required)
         FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, listOf("Digitizing", "Hooping", "Selesai"), required)
         FieldType.MULTI_SELECT -> FieldSpec("layanan_dibeli", "Layanan dibeli", type, listOf("Digitizing", "Hooping", "Selesai"), required, maxSelections = 2)
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
@@ -28,6 +30,8 @@ object PrototypeFieldTypeSampleFields {
         FieldType.LONG_TEXT -> "Instruksi lengkap: jahit lapisan kain, benang polyester, lalu finishing."
         FieldType.NUMBER -> "12000"
         FieldType.DATE -> "2026-10-08"
+        // C6: satu sumber contoh — `TimeFieldValues.sample()`, bukan angka karangan di fixture.
+        FieldType.TIME -> TimeFieldValues.sample()
         FieldType.ENUM -> "Hooping"
         // Kanonik: urut menurut options, tanpa duplikat, ≤ maxSelections (2).
         FieldType.MULTI_SELECT -> "[\"Digitizing\",\"Hooping\"]"

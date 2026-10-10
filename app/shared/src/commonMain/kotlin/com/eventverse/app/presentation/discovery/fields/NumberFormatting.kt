@@ -136,7 +136,8 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     // C7 Track C: resolusi label rujukan ditangani `presentation/relation` (relationDisplay) di
     // call site (tabel/kanban); di sini nilai tersimpan apa adanya (fallback id).
     // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
-    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
+    // C6: TIME tampil apa adanya — bentuk simpan `JJ:MM` memang bentuk tampilnya (pola DATE tanpa withTime).
+    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
     // C (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON kanonik); belum ada pilihan -> "—";
     // nilai tak sah (bukan array JSON) ditampilkan apa adanya, tidak disembunyikan (pola DATE).
     FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ")?.ifEmpty { "—" } ?: stored.ifEmpty { "—" }

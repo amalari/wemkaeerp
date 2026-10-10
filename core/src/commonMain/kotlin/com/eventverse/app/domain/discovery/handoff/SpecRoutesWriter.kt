@@ -18,6 +18,7 @@ internal object SpecRoutesWriter {
         val fn = SpecNaming.camel(t.schema) + "Routes"
         val path = "/api/tenant/modules/" + t.schema + "/" + t.table
         val dateCols = t.columns.filter { it.field.type == FieldType.DATE }
+        val timeCols = t.columns.filter { it.field.type == FieldType.TIME }
         val validatedTextCols = t.columns.filter { it.field.type == FieldType.TEXT && it.field.validation != TextValidation.NONE }
         val multiCols = t.columns.filter { it.field.type == FieldType.MULTI_SELECT }
         return buildString {
@@ -48,6 +49,7 @@ internal object SpecRoutesWriter {
             appendLine("private const val ID_PREFIX = ${SpecNaming.kString(SpecNaming.ident(t.entity.id, "Entitas").take(20))}")
             appendLine("private val SPEC = PrototypeSpec(listOf(${entityLiteral(t.entity)}), emptyList())")
             appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
+            appendLine("private val TIME_FIELDS = listOf<FieldSpec>(${timeCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TIME)" }})")
             appendLine("private val TEXT_FIELDS = listOf<FieldSpec>(${validatedTextCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TEXT, validation = TextValidation." + it.field.validation.name + ")" }})")
             appendLine("private val MULTI_FIELDS = listOf<FieldSpec>(${multiCols.joinToString(", ") { c -> "FieldSpec(" + SpecNaming.kString(c.field.key) + ", " + SpecNaming.kString(c.field.label) + ", FieldType.MULTI_SELECT, listOf(" + c.field.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + c.field.required + (c.field.maxSelections?.let { ", maxSelections = $it" } ?: "") + ")" }})")
             appendLine()
@@ -94,7 +96,7 @@ internal object SpecRoutesWriter {
             appendLine("            val tenant = call.authorized(AccessLevel.OPERATE) ?: return@post")
             appendLine("            val values = call.bodyValues() ?: return@post")
             appendLine("            val row = PrototypeRow(ID_PREFIX + \"-\" + UUID.randomUUID(), values)")
-            appendLine("            val problem = dateProblem(values) ?: textProblem(values) ?: multiProblem(values)")
+            appendLine("            val problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values)")
             appendLine("                ?: PrototypeReducer.reduce(SPEC, PrototypeStore(), PrototypeAction.Create(ENTITY_ID, row)).exceptionOrNull()?.message")
             appendLine("            if (problem != null) return@post call.respond(HttpStatusCode.BadRequest, problem)")
             appendLine("            repository.save(tenant.tenantId, row)")
@@ -105,7 +107,7 @@ internal object SpecRoutesWriter {
             appendLine("            val id = call.parameters[\"id\"].orEmpty()")
             appendLine("            val values = call.bodyValues() ?: return@put")
             appendLine("            val current = repository.find(tenant.tenantId, id) ?: return@put call.respond(HttpStatusCode.NotFound, \"Data tidak ditemukan.\")")
-            appendLine("            var problem = dateProblem(values) ?: textProblem(values) ?: multiProblem(values)")
+            appendLine("            var problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values)")
             appendLine("            var store = PrototypeStore(mapOf(ENTITY_ID to listOf(current)))")
             appendLine("            if (problem == null) {")
             appendLine("                for ((key, value) in values) {")
@@ -138,6 +140,12 @@ internal object SpecRoutesWriter {
             appendLine("        val ok = v.length == 16 && v[10] == 'T' && runCatching { LocalDateTime.parse(v) }.isSuccess")
             appendLine("        if (ok) null else \"'\" + f.label + \"' harus berformat TTTT-BB-HHTJJ:MM.\"")
             appendLine("    } else if (runCatching { LocalDate.parse(v) }.isFailure) \"'\" + f.label + \"' harus berformat TTTT-BB-HH.\" else null")
+            appendLine("}")
+            appendLine()
+            appendLine("/** Field TIME: nilai wajib jam dinding JJ:MM 24-jam tepat menit (aturan tunggal `FieldSpec.accepts`). */")
+            appendLine("private fun timeProblem(values: Map<String, String>): String? = TIME_FIELDS.firstNotNullOfOrNull { f ->")
+            appendLine("    val v = values[f.key].orEmpty()")
+            appendLine("    if (v.isNotBlank() && !f.accepts(v)) \"'\" + f.label + \"' harus berformat JJ:MM (24 jam, tepat menit).\" else null")
             appendLine("}")
             appendLine()
             appendLine("/** Field TEXT berkunci validasi bentuk (email/telepon): nilai disimpan apa adanya, hanya bentuknya yang diperiksa (aturan tunggal `FieldSpec.accepts`). */")

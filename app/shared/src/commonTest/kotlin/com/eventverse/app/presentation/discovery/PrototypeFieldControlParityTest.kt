@@ -36,6 +36,7 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_long", "Catatan", FieldType.LONG_TEXT),
             FieldSpec("f_num", "Jumlah", FieldType.NUMBER),
             FieldSpec("f_date", "Tanggal", FieldType.DATE),
+            FieldSpec("f_time", "Jam mulai", FieldType.TIME),
             FieldSpec("f_enum", "Status", FieldType.ENUM, options = listOf("Draft", "Rilis")),
             FieldSpec("f_multi", "Label Ganda", FieldType.MULTI_SELECT, options = listOf("A", "B", "C")),
             FieldSpec("f_bool", "Aktif", FieldType.BOOL),
@@ -64,6 +65,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("", formState.formValues["f_long"], "LONG_TEXT harus memiliki nilai awal string kosong")
         assertEquals("", formState.formValues["f_num"])
         assertEquals("", formState.formValues["f_date"])
+        assertEquals("", formState.formValues["f_time"], "TIME harus memiliki nilai awal string kosong (belum diisi)")
         assertEquals("Draft", formState.formValues["f_enum"])
         assertEquals("", formState.formValues["f_multi"], "MULTI_SELECT harus memiliki nilai awal kosong (belum ada pilihan)")
         assertEquals("tidak", formState.formValues["f_bool"])
@@ -82,6 +84,7 @@ class PrototypeFieldControlParityTest {
             "f_long" to "Catatan",
             "f_num" to "10",
             "f_date" to "2026-10-08",
+            "f_time" to "09:30",
             "f_enum" to "Draft",
             "f_multi" to """["A","C"]""",
             "f_bool" to "ya",
@@ -96,6 +99,7 @@ class PrototypeFieldControlParityTest {
         assertTrue(tableState.isCreatingInline)
         assertEquals("", tableState.inlineValues["f_text"])
         assertEquals("", tableState.inlineValues["f_long"], "LONG_TEXT inline harus kosong")
+        assertEquals("", tableState.inlineValues["f_time"], "TIME inline harus kosong (C6)")
         assertEquals("Draft", tableState.inlineValues["f_enum"])
         assertEquals("", tableState.inlineValues["f_multi"], "MULTI_SELECT inline harus kosong")
         assertEquals("tidak", tableState.inlineValues["f_bool"])

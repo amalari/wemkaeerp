@@ -37,6 +37,8 @@ internal fun SpecColumn.sqlDefinition(): String {
         FieldType.NUMBER -> "NUMERIC(18,4)$notNull"
         // withTime (A0(C6)): waktu dinding tanpa zona = TIMESTAMP (bukan TIMESTAMPTZ), tepat menit di tingkat nilai.
         FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
+        // C6: jam dinding `JJ:MM` tanpa tanggal/zona = kolom TIME bawaan Postgres (pola kolom DATE).
+        FieldType.TIME -> "TIME$notNull"
         FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.options.joinToString(", ") { SpecNaming.sqlString(it) }}))"
         // A0 (TRD-FIELD-003 R1): kolom larik Postgres; opsi tetap dijaga DB lewat `<@` (subset dari opsi).
         // required menambah cardinality > 0 ("[]" tersimpan tidak sah), maxSelections menambah batas atas.

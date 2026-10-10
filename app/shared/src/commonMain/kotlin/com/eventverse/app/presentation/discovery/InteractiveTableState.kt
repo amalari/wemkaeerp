@@ -137,7 +137,8 @@ class InteractiveTableState(
                 FieldType.BOOL -> "tidak"
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
                 // A0 (TRD-FIELD-003): MULTI_SELECT default kosong (belum ada pilihan); chip = Track C.
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, null -> ""
+                // C6: TIME default kosong (belum diisi) — pola DATE.
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, null -> ""
             }
         }
         inlineErrorMessage = null

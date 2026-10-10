@@ -24,6 +24,10 @@ internal object KoogDiscoveryFieldTypeVocabulary {
             "di seed ditulis sebagai teks biasa"
         FieldType.NUMBER -> "angka; di seed ditulis sebagai teks \"5\""
         FieldType.DATE -> "tanggal ISO YYYY-MM-DD; parameter `withTime` true untuk waktu bermenit YYYY-MM-DDTHH:MM, lihat fieldParams"
+        // C6: jam dinding murni — tanpa tanggal; tanggal+jam sekaligus tetap DATE+withTime (bukan TIME).
+        FieldType.TIME -> "jam dinding JJ:MM 24 jam tepat menit (mis. \"09:30\"), tanpa tanggal dan tanpa zona: jam " +
+            "operasional/buka-tutup, jadwal shift, jam masuk-keluar; di seed ditulis \"09:30\"; bila yang dicatat adalah " +
+            "tanggal JAM sekaligus (janji temu, jadwal kunjungan) pakai DATE dengan `withTime` true, bukan TIME"
         FieldType.ENUM -> "wajib options unik 2-${ProposalLimits.OPTIONS} pilihan; dipakai untuk nilai TUNGGAL — status kerja " +
             "(statusField/StateMachine) dan atribut yang hanya boleh punya satu nilai; atribut berlabel ganda pakai " +
             "MULTI_SELECT"
@@ -44,7 +48,7 @@ internal object KoogDiscoveryFieldTypeVocabulary {
 
     /** Aturan prompt: daftar tipe + pemilihan ENUM vs MULTI_SELECT vs TEXT/LONG_TEXT. Satu baris (disisipkan ke teks ber-indentasi). */
     val promptRule: String
-        get() = "`fields` bertipe {$names} (ENUM wajib `options` unik 2–${ProposalLimits.OPTIONS} untuk satu nilai; " +
+        get() = "`fields` bertipe {$names} (ENUM wajib `options` unik 2–${ProposalLimits.OPTIONS} (satu nilai); " +
             "MULTI_SELECT = pilihan ganda, `options` unik & `maxSelections` opsional, dilarang jadi statusField; " +
             "tipe lain tanpa `options`; ${FieldType.LONG_TEXT} untuk isi sekalimat atau lebih; " +
             "${FieldType.TEXT} untuk nama/kode/judul satu baris); " +

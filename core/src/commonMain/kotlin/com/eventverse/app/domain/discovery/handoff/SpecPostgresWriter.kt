@@ -47,6 +47,7 @@ internal object SpecPostgresWriter {
             appendLine("import kotlinx.datetime.Clock")
             appendLine("import kotlinx.datetime.LocalDate")
             appendLine("import kotlinx.datetime.LocalDateTime")
+            appendLine("import kotlinx.datetime.LocalTime")
             appendLine("import org.jetbrains.exposed.sql.ResultRow")
             appendLine("import org.jetbrains.exposed.sql.SortOrder")
             appendLine("import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq")
@@ -113,6 +114,8 @@ internal object SpecPostgresWriter {
             FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "text($n)"
             FieldType.NUMBER -> "decimal($n, 18, 4)"
             FieldType.DATE -> if (c.field.withTime) "datetime($n)" else "date($n)"
+            // C6: kolom TIME ↔ `time()` Exposed (kotlin-datetime), nilai `LocalTime`.
+            FieldType.TIME -> "time($n)"
             FieldType.ENUM -> "varchar($n, 120)"
             // A0 (TRD-FIELD-003 R1): kolom larik Exposed; Postgres `TEXT[]` (lihat SpecColumns.sqlDefinition).
             FieldType.MULTI_SELECT -> "array<String>($n)"
@@ -136,6 +139,8 @@ internal object SpecPostgresWriter {
                 val parser = if (c.field.withTime) "LocalDateTime" else "LocalDate"
                 if (optional) "$raw.takeIf { it.isNotBlank() }?.let { $parser.parse(it) }" else "$parser.parse($raw)"
             }
+            // C6: bentuk `JJ:MM` sudah divalidasi gerbang `FieldSpec.accepts`; parser LocalTime satu sumber aturan.
+            FieldType.TIME -> if (optional) "$raw.takeIf { it.isNotBlank() }?.let { LocalTime.parse(it) }" else "LocalTime.parse($raw)"
             FieldType.BOOL -> "$raw == \"ya\""
         }
     }
@@ -151,7 +156,8 @@ internal object SpecPostgresWriter {
                 else "($cell?.let { MultiSelectValues.encode(it, listOf($opts)) } ?: \"\")"
             }
             FieldType.NUMBER -> if (c.field.required) "$cell.stripTrailingZeros().toPlainString()" else "($cell?.stripTrailingZeros()?.toPlainString() ?: \"\")"
-            FieldType.DATE -> if (c.field.required) "$cell.toString()" else "($cell?.toString() ?: \"\")"
+            // C6: LocalTime.toString() menghasilkan `JJ:MM` tepat untuk nilai menit — bentuk simpan yang sama.
+            FieldType.DATE, FieldType.TIME -> if (c.field.required) "$cell.toString()" else "($cell?.toString() ?: \"\")"
             FieldType.BOOL -> "(if ($cell) \"ya\" else \"tidak\")"
         }
     }

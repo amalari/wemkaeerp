@@ -7,6 +7,7 @@ import com.eventverse.app.domain.prototype.MultiSelectValues
 import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.TextValidation
 import com.eventverse.app.domain.prototype.TextValidations
+import com.eventverse.app.domain.prototype.TimeFieldValues
 import com.eventverse.app.domain.prototype.relationTargetFormatError
 
 /** Aturan entitas dan seed (plan §2.2: koherensi status, batas ukuran, seed cocok skema). */
@@ -169,6 +170,10 @@ internal object ProposalEntityRules {
                 if (f.withTime) "'$v' bukan tanggal-jam ISO (YYYY-MM-DDTHH:MM, tanpa detik/zona) untuk field '${f.key}'"
                 else "'$v' bukan tanggal ISO (YYYY-MM-DD) untuk field '${f.key}'"
             )
+            // C6: seed TIME wajib jam dinding JJ:MM 24-jam tepat menit — tanpa koersi ke bentuk lain.
+            FieldType.TIME -> if (!TimeFieldValues.isValid(v)) {
+                sink.add(at, "'$v' bukan jam JJ:MM (24 jam, tepat menit, tanpa detik/zona) untuk field '${f.key}'")
+            }
             FieldType.TEXT -> if (!TextValidations.isValid(f.validation, v)) {
                 sink.add(at, "'$v' bukan ${f.validation.name.lowercase()} yang sah untuk field '${f.key}'")
             }

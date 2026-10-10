@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.designsystem
 
+import com.eventverse.app.domain.prototype.TimeFieldValues
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -61,5 +62,18 @@ class ClayTimeValuesTest {
             )
         }
         assertNotNull(parseClayTimeOrNull(formatClayTime(21, 43)))
+    }
+
+    /** C6: parser komponen bersama dan aturan domain `TimeFieldValues` tidak boleh berbeda tafsir (pola ClayDateTimeValuesTest). */
+    @Test
+    fun parity_withCoreTimeFieldValues() {
+        val samples = listOf(
+            "00:00", "09:30", "23:59", "24:00", "23:60", "9:30", "09:30:15", "09-30", "0930", "ab:cd", " 9:30", "x"
+        )
+        samples.forEach { t ->
+            assertEquals(TimeFieldValues.isValid(t), parseClayTimeOrNull(t) != null, "paritas '$t'")
+        }
+        // Contoh satu sumber aturan domain harus selalu sah bagi parser UI.
+        assertNotNull(parseClayTimeOrNull(TimeFieldValues.sample()))
     }
 }

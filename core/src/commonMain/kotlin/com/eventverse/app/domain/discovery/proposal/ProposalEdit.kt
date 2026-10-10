@@ -96,6 +96,8 @@ private fun FieldProposal.accepts(v: String): Boolean = when (type) {
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> v.toDoubleOrNull() != null
     com.eventverse.app.domain.prototype.FieldType.BOOL -> v == "ya" || v == "tidak"
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.isValid(v, withTime)
+    // C6: jam dinding JJ:MM — aturan tunggal TimeFieldValues, sama dengan FieldSpec.accepts.
+    com.eventverse.app.domain.prototype.FieldType.TIME -> com.eventverse.app.domain.prototype.TimeFieldValues.isValid(v)
     com.eventverse.app.domain.prototype.FieldType.TEXT -> com.eventverse.app.domain.prototype.TextValidations.isValid(validation, v)
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> true
     // C7: bentuk id rujukan sama dengan FieldSpec.accepts (keberadaan target diverifikasi server).
@@ -112,6 +114,8 @@ private fun FieldProposal.sampleValue(): String = when (type) {
     com.eventverse.app.domain.prototype.FieldType.NUMBER -> "0"
     com.eventverse.app.domain.prototype.FieldType.BOOL -> "tidak"
     com.eventverse.app.domain.prototype.FieldType.DATE -> com.eventverse.app.domain.prototype.DateFieldValues.sample(withTime)
+    // C6: contoh jam dari satu sumber aturan nilai TIME (bukan angka karangan).
+    com.eventverse.app.domain.prototype.FieldType.TIME -> com.eventverse.app.domain.prototype.TimeFieldValues.sample()
     com.eventverse.app.domain.prototype.FieldType.TEXT -> com.eventverse.app.domain.prototype.TextValidations.sample(validation)
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> "contoh"
     // Keputusan R2 TRD-FIELD-001: seed RELATION = kosong di v1 (tidak mengarang id target).

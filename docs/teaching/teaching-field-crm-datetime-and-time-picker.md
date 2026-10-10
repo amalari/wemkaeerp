@@ -98,6 +98,6 @@ Komponen waktu-murni (`JJ:MM`) yang membuka ulang `ClayTimePickerDialog` yang su
 
 ## 🏆 7. Tantangan Mandiri
 
-- [ ] Tambahkan opsi "Tanggal berwaktu" ke `AddCustomFieldDialog` (CRM) — ikuti Kontrak 4 field-component-rules: grep semua penyebut konfigurasi tipe, pastikan codec `withTime` sudah ada (`CustomAttributesCodec` memang sudah), dan uji di pack non-default.
-- [ ] Rancang pendaftaran tipe `TIME` untuk `ClayTimePicker`: mulai dari Uji Variabilitas (Kontrak 1) — apakah "jam operasional" bervariasi per tenant, dan kosakata mana (prototype, CRM, atau keduanya) yang harus kena?
+- [x] Tambahkan opsi "Tanggal berwaktu" ke `AddCustomFieldDialog` (CRM) — **selesai 2026-10-10**: `FieldTypeOption("Tanggal berwaktu") { FieldType.DateField(withTime = true) }` tepat setelah "Tanggal"; config `{"withTime": true}` mengalir otomatis via `CustomAttributesCodec.encodeConfig` (pola opsi berparameter yang sudah ada).
+- [x] Rancang pendaftaran tipe `TIME` untuk `ClayTimePicker` — **selesai 2026-10-10, kosakata prototype**: `FieldType.TIME` + `TimeFieldValues` (`JJ:MM` ketat), SQL `TIME`, katalog agent, `FieldInput` → `ClayTimePicker`, test paritas. Baca lanjutan: [`teaching-field-component-c6-time.md`](teaching-field-component-c6-time.md). TIME untuk kosakata CRM ditunda (pola MULTI_SELECT CRM).
 - [ ] Periksa: apa yang terjadi pada rekam lama berisi `2026-10-08` di field yang admin ubah jadi `withTime = true`? Telusuri jalur dry run `LOSSY` dan jelaskan mengapa teks asli dipulihkan (`Cleared`), bukan dihapus.

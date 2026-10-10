@@ -39,6 +39,7 @@ import com.eventverse.app.presentation.designsystem.ClayRelationPicker
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTextArea
 import com.eventverse.app.presentation.designsystem.ClayTextField
+import com.eventverse.app.presentation.designsystem.ClayTimePicker
 import com.eventverse.app.presentation.relation.RelationFieldUi
 import com.eventverse.app.presentation.relation.cachedRelationLabel
 import com.eventverse.app.presentation.relation.relationDisplay
@@ -55,6 +56,7 @@ import kotlinx.coroutines.launch
  * - LONG_TEXT -> [ClayTextArea] area teks multi-baris
  * - NUMBER -> [ClayTextField] dengan prefix/suffix format (Rp/kode, %; lihat NumberFormatting.kt); nilai simpan tetap angka polos
  * - DATE -> [ClayDatePicker] (TTTT-BB-HH); dengan [FieldSpec.withTime] -> [ClayDateTimePicker] (TTTT-BB-HHTJJ:MM)
+ * - TIME -> [ClayTimePicker] (JJ:MM 24 jam, C6); waktu dinding murni tanpa tanggal — tanggal+jam sekaligus tetap jalur DATE withTime
  * - ENUM -> Pilihan opsi menggunakan [ClayChoiceChip]
  * - MULTI_SELECT -> Pilihan **ganda** (chip boleh dipilih >1) lewat [ClayMultiChoiceChips]; nilai simpan =
  *   string JSON array kanonik (urut menurut `options`, tanpa duplikat) yang disusun [multiSelectToggleValue]
@@ -192,6 +194,17 @@ fun FieldInput(
                         isError = errorMessage != null
                     )
                 }
+            }
+            // C6: jam dinding murni `JJ:MM` — satu keluarga dengan picker tanggal (komponen bersama, buta domain).
+            FieldType.TIME -> {
+                ClayTimePicker(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = "",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = enabled,
+                    isError = errorMessage != null
+                )
             }
             FieldType.TEXT -> {
                 ClayTextField(

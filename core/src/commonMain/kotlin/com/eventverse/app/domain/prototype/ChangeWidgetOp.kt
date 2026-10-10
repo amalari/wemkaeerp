@@ -75,7 +75,8 @@ internal object ChangeWidgetOp {
                 // C7: id rujukan tampil sebagai teks pola di kartu (label resolusinya menyusul).
                 // C8: nama berkas serupa — kartu menampilkan teks, bukan pratinjau.
                 // A0 (TRD-FIELD-003): MULTI_SELECT tampil sebagai teks; gaya daftar label ditetapkan Track C.
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, null -> CardStyle.TEXT
+                // C6: TIME tampil sebagai teks `JJ:MM` — belum ada gaya kartu khusus jam (menyusul bila ada pemakaian ketiga).
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, null -> CardStyle.TEXT
             })
         }
         return ScreenSpec(

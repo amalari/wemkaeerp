@@ -33,6 +33,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "TEXT"
         FieldType.NUMBER -> "NUMERIC(18,4)"
         FieldType.DATE -> "DATE"
+        FieldType.TIME -> "TIME"
         FieldType.ENUM -> "VARCHAR(120)"
         FieldType.MULTI_SELECT -> "TEXT[]"
         FieldType.BOOL -> "BOOLEAN"
@@ -43,6 +44,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.TEXT, FieldType.LONG_TEXT, FieldType.FILE -> "text("
         FieldType.NUMBER -> "decimal("
         FieldType.DATE -> "date("
+        FieldType.TIME -> "time("
         FieldType.ENUM -> "varchar("
         FieldType.MULTI_SELECT -> "array<"
         FieldType.BOOL -> "bool("
@@ -83,6 +85,7 @@ class PrototypeFieldTypeSqlParityTest {
     fun repository_everyFieldType_hasWriteAndReadExpression() {
         val repo = SpecPostgresWriter.repositoryFile(table(*allFields().toTypedArray()))
         assertTrue("LocalDate.parse" in repo, "DATE tulis")
+        assertTrue("LocalTime.parse" in repo, "TIME tulis (C6)")
         assertTrue("toBigDecimal" in repo, "NUMBER tulis")
         assertTrue("== \"ya\"" in repo, "BOOL tulis")
         assertTrue("stripTrailingZeros" in repo, "NUMBER baca")
@@ -132,6 +135,28 @@ class PrototypeFieldTypeSqlParityTest {
         assertFalse(date.accepts("2026-13-40"))
         assertFalse(date.accepts("08/10/2026"))
         assertTrue(date.accepts("2026-10-08"))
+    }
+
+    /** C6: TIME wajib `JJ:MM` 24-jam tepat menit — bentuk lain ditolak, tanpa koersi; kosong = belum diisi. */
+    @Test
+    fun accepts_timeField_acceptsOnlyWallClockMinuteShape() {
+        val time = fieldFor(FieldType.TIME)
+        assertTrue(time.accepts("00:00"), "tengah malam sah")
+        assertTrue(time.accepts("23:59"), "tepi atas sah")
+        assertTrue(time.accepts(TimeFieldValues.sample()), "contoh satu sumber sah")
+        assertTrue(time.accepts(""), "kosong = belum diisi")
+        listOf("9:30", "24:00", "09:60", "09:30:15", "0930", "09-30", "9:30 pagi", "ab:cd", " 9:30").forEach { broken ->
+            assertFalse(time.accepts(broken), "'$broken' harus ditolak (tanpa fallback senyap)")
+        }
+    }
+
+    /** C6: kolom TIME tidak pernah menerima detik/zona — bentuk simpan tepat menit, pola DATE/TIMESTAMP. */
+    @Test
+    fun sqlDefinition_timeColumn_mapsToPlainTime() {
+        val sql = table(fieldFor(FieldType.TIME)).columns.single().sqlDefinition()
+        assertEquals("TIME", sql, "TIME opsional tanpa NOT NULL/CHECK")
+        val required = table(fieldFor(FieldType.TIME, required = true)).columns.single().sqlDefinition()
+        assertEquals("TIME NOT NULL", required, "TIME wajib = TIME NOT NULL")
     }
 
     /** C3 Irisan 2: LONG_TEXT sebebas TEXT — multibaris dan isi panjang sah, kosong tetap sah. */

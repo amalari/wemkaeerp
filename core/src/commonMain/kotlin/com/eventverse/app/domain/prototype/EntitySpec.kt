@@ -14,6 +14,10 @@ import com.eventverse.app.domain.storage.FileRef
  * - [DATE]: tanggal kalender ISO `TTTT-BB-HH`, kolom `DATE`; dengan [FieldSpec.withTime] = true: `TTTT-BB-HH'T'JJ:MM`
  *   (mis. `2026-10-08T14:30`), waktu dinding **tanpa zona waktu** tepat sampai menit, kolom `TIMESTAMP` (aturan di
  *   [DateFieldValues]).
+ * - [TIME]: jam dinding `JJ:MM` 24-jam tepat menit (mis. `09:30`), **tanpa tanggal dan tanpa zona**, kolom SQL
+ *   `TIME` (aturan di [TimeFieldValues]). Primitif **bentuk sistem** seperti [TEXT]/[DATE] — bukan konsep bisnis
+ *   yang bervariasi per tenant/industri — sehingga lolos Uji Variabilitas (tenant-variability-rules Kontrak 1):
+ *   renderer dan kolom SQL-nya sama di semua vertikal, jam operasional/shift punya bentuk simpan yang sama.
  * - [ENUM]: salah satu opsi di [FieldSpec.options].
  * - [MULTI_SELECT]: **banyak** opsi dari [FieldSpec.options] (TRD-FIELD-003). Nilai sel = string JSON array nama opsi
  *   berurut menurut `options` (aturan lengkap di [MultiSelectValues]); kolom SQL `TEXT[]` dengan CHECK opsi;
@@ -25,7 +29,7 @@ import com.eventverse.app.domain.storage.FileRef
  * - [FILE]: referensi objek `FileRef` (string key) — byte hidup di `ObjectStorage`, TIDAK PERNAH di
  *   kolom/jsonb (TRD-FIELD-002 FR-2); seed v1 wajib kosong.
  */
-enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, ENUM, MULTI_SELECT, BOOL, RELATION, FILE }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, TIME, ENUM, MULTI_SELECT, BOOL, RELATION, FILE }
 
 /**
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
@@ -139,6 +143,8 @@ data class FieldSpec(
             FieldType.NUMBER -> value.toDoubleOrNull() != null
             // Sama dengan `ProposalEntityRules`: tanggal ISO (TTTT-BB-HH) atau, bila withTime, TTTT-BB-HHTJJ:MM; bukan teks bebas.
             FieldType.DATE -> DateFieldValues.isValid(value, withTime)
+            // C6: jam dinding JJ:MM 24-jam tepat menit — aturan tunggal di TimeFieldValues, tanpa koersi.
+            FieldType.TIME -> TimeFieldValues.isValid(value)
             FieldType.ENUM -> value in options
             FieldType.MULTI_SELECT -> MultiSelectValues.isValid(value, options, maxSelections)
             FieldType.BOOL -> value == "ya" || value == "tidak"

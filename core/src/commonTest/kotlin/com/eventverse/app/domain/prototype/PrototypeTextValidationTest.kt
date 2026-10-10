@@ -92,7 +92,7 @@ class PrototypeTextValidationTest {
         assertTrue("FieldSpec(\"kontak\", \"Kontak\", FieldType.TEXT, listOf(), false, validation = TextValidation.EMAIL)" in routes, "entityLiteral membawa validation")
         assertTrue("TEXT_FIELDS = listOf<FieldSpec>(FieldSpec(\"kontak\", \"Kontak\", FieldType.TEXT, validation = TextValidation.EMAIL))" in routes, routes)
         assertFalse("\"catatan\", \"Catatan\", FieldType.TEXT, validation" in routes, "field tanpa validasi tidak masuk TEXT_FIELDS")
-        assertTrue("private fun textProblem(" in routes && "dateProblem(values) ?: textProblem(values)" in routes)
+        assertTrue("private fun textProblem(" in routes && "dateProblem(values) ?: timeProblem(values) ?: textProblem(values)" in routes, "gerbang teks tetap dalam rantai (C6 menambah timeProblem di antara tanggal dan teks)")
         assertTrue("import com.eventverse.app.domain.prototype.TextValidation" in routes)
         val none = SpecRoutesWriter.routesFile("bordir_uji", table(FieldSpec("catatan", "Catatan", FieldType.TEXT)))
         assertTrue("TEXT_FIELDS = listOf<FieldSpec>()" in none)
