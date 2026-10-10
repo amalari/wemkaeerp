@@ -111,7 +111,7 @@ private fun HistoryRow(handoff: DeskHandoff, timeZone: TimeZone) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${handoff.order.spkNumber.value} • ${handoff.order.clientName}",
+                text = "${handoff.order.spkNumber.value} · ${handoff.order.clientName}",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface,
@@ -119,7 +119,7 @@ private fun HistoryRow(handoff: DeskHandoff, timeZone: TimeZone) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${handoff.eventLabel} • ${handoff.workerLabel}",
+                text = "${handoff.eventLabel} · ${handoff.workerLabel}",
                 fontSize = 11.sp,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,
@@ -128,7 +128,7 @@ private fun HistoryRow(handoff: DeskHandoff, timeZone: TimeZone) {
             Text(text = handoff.timingLine(timeZone), fontSize = 11.sp, color = WeMadeColors.OnSurface)
         }
         Text(
-            text = handoff.workMinutes?.let(::formatDeskDuration) ?: "–",
+            text = handoff.workMinutes?.let(::formatDeskDuration) ?: "-",
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurface

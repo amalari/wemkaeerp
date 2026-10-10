@@ -61,7 +61,7 @@ class HandoffScaffoldGenerator {
     private fun migrationFile(pack: DomainPack, version: Int): GeneratedFile {
         val sql = buildString {
             appendLine("-- ==============================================================================")
-            appendLine("-- KANDIDAT PR — HASIL GENERATOR (HandoffScaffoldGenerator) — WAJIB REVIEW MANUSIA")
+            appendLine("-- KANDIDAT PR - HASIL GENERATOR (HandoffScaffoldGenerator) - WAJIB REVIEW MANUSIA")
             appendLine("-- ==============================================================================")
             appendLine("-- Pack `${pack.code.value}`: ${pack.displayName}")
             appendLine("-- Diperankan modul: ${pack.modules.joinToString { it.id.value }}")
@@ -69,7 +69,7 @@ class HandoffScaffoldGenerator {
             appendLine("-- ==============================================================================")
             appendLine()
             pack.modules.forEach { module ->
-                appendLine("-- ${module.id.value} — ${module.displayName}")
+                appendLine("-- ${module.id.value} - ${module.displayName}")
                 appendLine("CREATE SCHEMA IF NOT EXISTS ${module.id.value};")
                 appendLine()
                 appendLine("CREATE TABLE IF NOT EXISTS ${module.id.value}.${module.id.value}_records (")
@@ -169,7 +169,7 @@ class HandoffScaffoldGenerator {
     private fun screenRegistryNote(pack: DomainPack): String = buildString {
         appendLine("// KANDIDAT PR (opsional): layar khusus modul pack `${pack.code.value}`.")
         appendLine("// Modul pack TANPA entri di ModuleScreenRegistry sudah otomatis memakai layar kerja")
-        appendLine("// generik (GenericModuleRoute) — jangan tambahkan entri sebelum layar kustomnya ada.")
+        appendLine("// generik (GenericModuleRoute) - jangan tambahkan entri sebelum layar kustomnya ada.")
         appendLine("//")
         pack.modules.forEach { module ->
             appendLine("// ${module.id.value} to { c -> /* TODO: layar kustom ${module.displayName} */ },")
@@ -191,7 +191,7 @@ class HandoffScaffoldGenerator {
             appendLine("- Nama tampilan: ${module.displayName}")
             appendLine("- Deskripsi: ${module.description}")
             appendLine()
-            appendLine("Review manusia: cek Uji Variabilitas (tenant-variability-rules.md Kontrak 1) —")
+            appendLine("Review manusia: cek Uji Variabilitas (tenant-variability-rules.md Kontrak 1) -")
             appendLine("modul pack boleh dijadikan modul hanya bila benar-benar dijual & di-RBAC; kalau")
             appendLine("hanya tahap/proses/stasiun, ia cukup sebagai data di pack (Kontrak 2).")
         }

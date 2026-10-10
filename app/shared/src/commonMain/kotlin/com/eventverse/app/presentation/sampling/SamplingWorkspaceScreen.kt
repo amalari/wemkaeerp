@@ -136,7 +136,7 @@ fun SamplingWorkspaceScreen(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "Pipeline Kanban SPK — dari SPK masuk sampai ACC buyer",
+                            text = "Pipeline Kanban SPK - dari SPK masuk sampai ACC buyer",
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )

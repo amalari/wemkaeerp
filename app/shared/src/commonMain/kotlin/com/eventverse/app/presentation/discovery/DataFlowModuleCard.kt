@@ -116,7 +116,7 @@ internal fun ModuleFlowCard(
                     )
                     if (flow.incoming.isEmpty()) {
                         Text(
-                            text = "Titik awal alur — tanpa port masuk",
+                            text = "Titik awal alur - tanpa port masuk",
                             style = typography.bodySmall,
                             fontSize = 10.sp,
                             color = WeMadeColors.OnSurfaceMuted

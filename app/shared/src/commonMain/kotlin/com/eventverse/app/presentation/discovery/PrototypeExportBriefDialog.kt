@@ -148,7 +148,7 @@ fun PrototypeExportBriefDialog(
 
                 if (isLoading) {
                     Text(
-                        text = "Menyusun brief…",
+                        text = "Menyusun brief...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = WeMadeColors.Primary
                     )

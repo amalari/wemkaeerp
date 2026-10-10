@@ -69,7 +69,7 @@ fun SamplingSizeChartTable(
                     color = WeMadeColors.OnSurface
                 )
                 Text(
-                    text = "• Spesifikasi Pola (cm)",
+                    text = "· Spesifikasi Pola (cm)",
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

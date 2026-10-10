@@ -80,7 +80,7 @@ fun FulfillmentRouteSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ClayButton(
-                        text = "← Kembali ke Pengiriman",
+                        text = "<- Kembali ke Pengiriman",
                         style = ClayButtonStyle.Ghost,
                         onClick = { navigator(AppNavScreen.FULFILLMENT) }
                     )

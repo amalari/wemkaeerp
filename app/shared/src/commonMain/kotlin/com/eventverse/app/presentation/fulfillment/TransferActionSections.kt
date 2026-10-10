@@ -98,7 +98,7 @@ internal fun ReceiveSection(
     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
         HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.4f))
         Text("Catat Penerimaan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
-        FormCaption("Deklarasi: $declaredPcs pcs. Penerima tidak perlu punya akun — cukup tanda tangan di layar ini.")
+        FormCaption("Deklarasi: $declaredPcs pcs. Penerima tidak perlu punya akun - cukup tanda tangan di layar ini.")
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             ClayButton(
                 text = "Diterima Langsung",
@@ -115,7 +115,7 @@ internal fun ReceiveSection(
             ClayTextField(value = carrier, onValueChange = { carrier = it }, label = "Ekspedisi / vendor", placeholder = "mis. JNE")
             ClayTextField(value = resi, onValueChange = { resi = it }, label = "Nomor resi", placeholder = "JNE1234567890")
             ClayTextField(value = weight, onValueChange = { weight = it }, label = "Berat resi (kg, eksak sampai koma)", placeholder = "contoh: 8,35")
-            FormCaption("Salin persis angka yang tercetak di resi — jangan dibulatkan.")
+            FormCaption("Salin persis angka yang tercetak di resi - jangan dibulatkan.")
         } else {
             ClayTextField(value = receiverName, onValueChange = { receiverName = it }, label = "Nama penerima", placeholder = "siapa yang menerimanya")
             ClayTextField(value = weight, onValueChange = { weight = it }, label = "Timbangan saat diterima (opsional, kg)", placeholder = "contoh: 8,20")

@@ -66,7 +66,7 @@ fun Route.domainPackRoutes(
             } catch (e: DomainPackDecodeException) {
                 return@put call.respond(HttpStatusCode.BadRequest, e.message ?: "Pack tidak sah")
             }
-            if (pack.code.value != code) return@put call.respond(HttpStatusCode.BadRequest, "Kode di body (${pack.code.value}) ≠ path ($code)")
+            if (pack.code.value != code) return@put call.respond(HttpStatusCode.BadRequest, "Kode di body (${pack.code.value}) != path ($code)")
             val owner = call.request.queryParameters["ownerSlug"]?.let { slug ->
                 tenantRepository.findAll().firstOrNull { it.slug.value == slug }?.id
                     ?: return@put call.respond(HttpStatusCode.NotFound, "Tenant pemilik '$slug' tidak ditemukan")
@@ -94,7 +94,7 @@ fun Route.domainPackRoutes(
         assign(tenant.id, code)
             .onSuccess { updated ->
                 call.recordAudit(auditLogRepository, actor, updated, AuditAction.TENANT_DOMAIN_PACK_ASSIGNED,
-                    "Menetapkan vertikal tenant '${updated.slug.value}': ${tenant.domainPack.value} → ${code.value}")
+                    "Menetapkan vertikal tenant '${updated.slug.value}': ${tenant.domainPack.value} -> ${code.value}")
                 call.respondText(jsonObjectOf("slug" to jsonOf(updated.slug.value), "domainPack" to jsonOf(updated.domainPack.value)).encode(), ContentType.Application.Json)
             }
             .onFailure { call.respond(HttpStatusCode.Conflict, it.message ?: "Gagal menetapkan pack") }

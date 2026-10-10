@@ -22,7 +22,7 @@ fun InteractiveBlock(state: PlayableState, modifier: Modifier = Modifier) {
         when (val phase = state.phase) {
             is BlockDataPhase.Loading -> {
                 Text(
-                    text = "Memuat…",
+                    text = "Memuat...",
                     style = MaterialTheme.typography.bodySmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(vertical = ClaySpacing.Xs)

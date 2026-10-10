@@ -192,7 +192,7 @@ object InvoiceAiMappingEngine {
         return if (labelOnly) {
             raw.copy(
                 confidence = minOf(raw.confidence, LABEL_ONLY_CONFIDENCE_CEILING),
-                explanation = "${raw.explanation} — terdeteksi sebagai label statis, bukan nilai data.",
+                explanation = "${raw.explanation} - terdeteksi sebagai label statis, bukan nilai data.",
                 suggestedPrefix = labelPrefixOf(text),
                 isStaticLabelOnly = true
             )

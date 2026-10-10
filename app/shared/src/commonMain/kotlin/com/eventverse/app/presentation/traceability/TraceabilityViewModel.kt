@@ -147,7 +147,7 @@ class TraceabilityViewModel(
                     scan = scan,
                     step = TraceScanStep.IDLE,
                     manualCode = "",
-                    info = "Kartu ini Lembar Kerja Rajut untuk size ${scan.sizeLabel} — " +
+                    info = "Kartu ini Lembar Kerja Rajut untuk size ${scan.sizeLabel} - " +
                         "dibaca di mesin, bukan diisi seperti kartu bundel."
                 )
             }
@@ -234,7 +234,7 @@ class TraceabilityViewModel(
         return when {
             result.shrinkagePcs > 0 -> "$base Susut ${result.shrinkagePcs} pcs."
             result.shrinkagePcs < 0 -> "$base Isinya ${-result.shrinkagePcs} pcs lebih banyak " +
-                "daripada yang tercatat masuk — kemungkinan ada bundel yang belum di-scan."
+                "daripada yang tercatat masuk - kemungkinan ada bundel yang belum di-scan."
             else -> "$base Angkanya cocok."
         }
     }

@@ -60,7 +60,7 @@ fun PrototypePatternGallery(
         ClayButton(text = "+ Pola baru", onClick = onNew, style = ClayButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
         when {
             !loaded -> Text(
-                "Memuat pola…",
+                "Memuat pola...",
                 style = MaterialTheme.typography.labelSmall,
                 color = WeMadeColors.OnSurfaceMuted
             )

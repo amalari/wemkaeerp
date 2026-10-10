@@ -428,7 +428,7 @@ fun AssignDepartmentModal(
                                     color = WeMadeColors.OnSurfaceMuted
                                 )
                                 ClayTag(
-                                    text = "↕ Scrollable",
+                                    text = "Scrollable",
                                     tint = WeMadeColors.Secondary,
                                     fontSize = 9.5.sp
                                 )
@@ -531,7 +531,7 @@ fun AssignDepartmentModal(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "▼ Gulir ke bawah untuk melihat jabatan lainnya",
+                                    text = "Gulir ke bawah untuk melihat jabatan lainnya",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = WeMadeColors.PrimaryDark

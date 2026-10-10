@@ -127,7 +127,7 @@ enum class EstimateBasis(val displayName: String) {
 enum class EstimateConfidence(val displayName: String, val badge: String) {
     HIGH("Akurasi tinggi", "TINGGI"),
     MEDIUM("Perlu konfirmasi produksi", "SEDANG"),
-    LOW("Kasar — wajib dicek sebelum dikirim", "RENDAH")
+    LOW("Kasar - wajib dicek sebelum dikirim", "RENDAH")
 }
 
 /** Satu artikel historis yang dipakai sebagai acuan, beserta skor kemiripannya. */
@@ -180,7 +180,7 @@ data class QuickQuotationEstimateResult(
         appendLine()
         appendLine("Perkiraan berat : ${estimatedWeightGrams.toInt()} gram/pcs")
         appendLine(
-            "*Harga per pcs  : ${currencyFormatter(suggestedPriceLow)} – ${currencyFormatter(suggestedPriceHigh)}*"
+            "*Harga per pcs  : ${currencyFormatter(suggestedPriceLow)} - ${currencyFormatter(suggestedPriceHigh)}*"
         )
         appendLine()
         if (input.notes.isNotBlank()) {

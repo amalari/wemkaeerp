@@ -74,7 +74,7 @@ fun RdResultSection(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
                         Text(
-                            text = "HASIL R&D — GRAMASI, WAKTU & BAHAN BAKU PER BAGIAN",
+                            text = "HASIL R&D - GRAMASI, WAKTU & BAHAN BAKU PER BAGIAN",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurface
@@ -310,7 +310,7 @@ fun RdResultSection(
         ClayCard(modifier = Modifier.fillMaxWidth()) {
             DynamicSectionTable(
                 sectionName = StageSectionNames.FINISHED_MEASUREMENTS,
-                hint = "Ukuran hasil jadi sampel — tambah baris sesuai kebutuhan (mis. P BADAN : 55 CM).",
+                hint = "Ukuran hasil jadi sampel - tambah baris sesuai kebutuhan (mis. P BADAN : 55 CM).",
                 rows = sheet.finishedMeasurements,
                 labelPlaceholder = "Label (mis. P BADAN)",
                 valuePlaceholder = "Nilai (mis. 55 CM)",

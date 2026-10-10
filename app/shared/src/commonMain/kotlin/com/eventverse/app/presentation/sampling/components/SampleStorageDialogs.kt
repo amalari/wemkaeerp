@@ -59,7 +59,7 @@ fun StoreSampleDialog(
 
     StorageDialogShell(
         title = "SIMPAN BARANG",
-        subtitle = "${order.spkNumber.value} • ${order.styleName}",
+        subtitle = "${order.spkNumber.value} · ${order.styleName}",
         error = error,
         onDismiss = onDismiss,
         confirmText = if (isSubmitting) "Menyimpan..." else "Simpan",
@@ -113,7 +113,7 @@ fun ReleaseFromStorageDialog(
 
     StorageDialogShell(
         title = "RILIS KIRIM KE BUYER",
-        subtitle = "${order.spkNumber.value} • ${order.clientName}",
+        subtitle = "${order.spkNumber.value} · ${order.clientName}",
         error = error,
         onDismiss = onDismiss,
         confirmText = when {

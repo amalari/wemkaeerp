@@ -34,7 +34,7 @@ enum class IpaymuTransactionStatus {
 
         fun fromApi(raw: String): IpaymuTransactionStatus =
             ALIASES[raw.trim().lowercase()]
-                ?: error("Status iPaymu tidak dikenal: '$raw' — tolak, jangan ditebak")
+                ?: error("Status iPaymu tidak dikenal: '$raw' - tolak, jangan ditebak")
     }
 }
 

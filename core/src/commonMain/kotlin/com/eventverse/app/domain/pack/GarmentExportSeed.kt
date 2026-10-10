@@ -37,7 +37,7 @@ internal object GarmentExportSeed {
 
     /** Urutan = urutan tampil di daftar PO. */
     val orders: List<Order> = listOf(
-        Order("NW-26-0412", nordic, hoodie, 6000, 890, "15 Des 2026", Stage.SEWING, "Jahit — Lini 2"),
+        Order("NW-26-0412", nordic, hoodie, 6000, 890, "15 Des 2026", Stage.SEWING, "Jahit - Lini 2"),
         Order("KA-26-0388", kestrel, polo, 4500, 640, "28 Nov 2026", Stage.CUTTING, "Meja potong 2"),
         Order("HP-26-0431", harbor, bomber, 3000, 1220, "20 Jan 2027", Stage.SAMPLING, "Menunggu approval PP sample"),
         Order("NW-26-0371", nordic, henley, 2400, 580, "10 Nov 2026", Stage.DONE, "Packing selesai")
@@ -60,7 +60,7 @@ internal object GarmentExportSeed {
         SampleJob("SP-1052", null, "Crew Tee (prospek Sakura)", "Proto sample", "Baru", "Sakura Trading", 5, "est. Nov 2026", false),
         SampleJob("SP-1048", "KA-26-0388", "Polo PL-118", "Size-set sample", "Dikerjakan", "Kestrel Apparel", 4, "20 Okt", false),
         SampleJob("SP-1046", "NW-26-0412", "Hoodie HF-210", "Fit sample rev.2", "Dikerjakan", "Nordic Wear", 3, "22 Okt", true),
-        SampleJob("SP-1043", "NW-26-0371", "Henley HT-044", "PP sample", "Selesai", "Nordic Wear", 2, "Disetujui — naik produksi", false)
+        SampleJob("SP-1043", "NW-26-0371", "Henley HT-044", "PP sample", "Selesai", "Nordic Wear", 2, "Disetujui - naik produksi", false)
     ).also { jobs -> jobs.forEach { j -> j.po?.let(::order) } }
 
     /** Baris layar. Semua rujukan PO/artikel diambil dari seed, bukan diketik ulang. */
@@ -97,8 +97,8 @@ internal object GarmentExportSeed {
         val o = orders.first { it.stage == Stage.DONE }
         return mapOf(
             "Dokumen" to "Packing List & Surat Jalan SJ-2209", "Nomor" to "0009/EXP/XI/2026",
-            "Penerima" to "${o.buyer.name} — ${o.buyer.country}",
-            "Isi" to "80 karton — ${o.qtyText} ${o.style.name} (PO ${o.po})",
+            "Penerima" to "${o.buyer.name} - ${o.buyer.country}",
+            "Isi" to "80 karton - ${o.qtyText} ${o.style.name} (PO ${o.po})",
             "Ekspedisi" to "FOB Tanjung Priok · kontainer 20' · ETD ${o.etd}"
         )
     }
@@ -121,7 +121,7 @@ internal object GarmentExportSeed {
     )
 
     fun qcRows(): List<Map<String, String>> = listOf(
-        "Jahitan 10–12 SPI, tidak ada loncat" to "ya",
+        "Jahitan 10-12 SPI, tidak ada loncat" to "ya",
         "Label komposisi & care sesuai spec ${nordic.name}" to "ya",
         "Lolos metal detector (syarat ekspor)" to "tidak",
         "Ukuran dalam toleransi ±1 cm (AQL 2.5)" to "ya"
@@ -130,9 +130,9 @@ internal object GarmentExportSeed {
     fun linimRows(): List<Map<String, String>> {
         val po = order("NW-26-0412")
         return listOf(
-            mapOf("Kolom" to "Lini 2", "Kartu" to "Rian — jahit kerah", "Detail" to "${po.po} · 320 pcs hari ini"),
-            mapOf("Kolom" to "Lini 2", "Kartu" to "Sinta — jahit badan", "Detail" to "${po.po} · 280 pcs hari ini"),
-            mapOf("Kolom" to "Lini 4", "Kartu" to "Agus — pasang lengan", "Detail" to "${po.po} · 255 pcs hari ini")
+            mapOf("Kolom" to "Lini 2", "Kartu" to "Rian - jahit kerah", "Detail" to "${po.po} · 320 pcs hari ini"),
+            mapOf("Kolom" to "Lini 2", "Kartu" to "Sinta - jahit badan", "Detail" to "${po.po} · 280 pcs hari ini"),
+            mapOf("Kolom" to "Lini 4", "Kartu" to "Agus - pasang lengan", "Detail" to "${po.po} · 255 pcs hari ini")
         )
     }
 }

@@ -92,7 +92,7 @@ class OperatorDeskBoardTest {
         val handoff = buildOperatorDeskBoard(listOf(o), SamplingPipelineStage.CUCI_SOFTENER.knitDefinition(), today, tz).doneToday.single()
         assertEquals(20, handoff.waitMinutes)
         assertEquals(95, handoff.workMinutes)
-        assertEquals("mulai 25/09 08:20 • selesai 25/09 09:55 • kerja 1j 35m • tunggu 20m", handoff.timingLine(tz))
+        assertEquals("mulai 25/09 08:20 · selesai 25/09 09:55 · kerja 1j 35m · tunggu 20m", handoff.timingLine(tz))
     }
 
     @Test

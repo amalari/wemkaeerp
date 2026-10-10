@@ -324,7 +324,7 @@ private fun DraggedPlaceholder(title: String, heightPx: Float) {
         ) {
             IconInbox(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
             Text(
-                text = "Memindahkan $title…",
+                text = "Memindahkan $title...",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted,

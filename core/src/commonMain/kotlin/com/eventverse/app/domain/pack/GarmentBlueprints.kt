@@ -28,7 +28,7 @@ object GarmentBlueprints {
     val FOB_FULL_PACKAGE = Blueprint(
         code = BlueprintCode("fob_full_package"),
         pack = GarmentDomainPack.CODE,
-        displayName = "FOB (Full Order / Buy) — Paket Lengkap",
+        displayName = "FOB (Full Order / Buy) - Paket Lengkap",
         shortBadge = "FOB Full Package",
         description = "Pengerjaan hulu-ke-hilir: Dari pengadaan bahan baku kain, aksesoris, pembuatan pola/sample, produksi massal, hingga ekspedisi ekspor/retail.",
         targetClientProfile = "Pabrik OEM, Ekspor Garmen, atau Konveksi Skala Menengah ke Atas",
@@ -48,7 +48,7 @@ object GarmentBlueprints {
     val CMT_MAKLOON = Blueprint(
         code = BlueprintCode("cmt_makloon"),
         pack = GarmentDomainPack.CODE,
-        displayName = "CMT (Cut, Make, Trim) — Jasa Jahit Makloon",
+        displayName = "CMT (Cut, Make, Trim) - Jasa Jahit Makloon",
         shortBadge = "CMT Jasa Jahit",
         description = "Pengerjaan jasa jahit murni. Pola potong & kain rol utama disediakan sepenuhnya oleh Buyer/Brand. Pengadaan bahan baku di-bypass.",
         targetClientProfile = "Vendor Makloon, Sub-kontraktor Jahit, Mitra Konveksi Rumahan/Sentra",

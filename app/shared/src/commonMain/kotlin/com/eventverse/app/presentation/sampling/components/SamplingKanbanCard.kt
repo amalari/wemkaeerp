@@ -176,7 +176,7 @@ private fun SamplingKanbanDragPlaceholder(cardHeightPx: Float) {
         ) {
             IconInbox(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted)
             Text(
-                text = "Memindahkan kartu…",
+                text = "Memindahkan kartu...",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted
@@ -388,7 +388,7 @@ private fun CarouselChevron(isNext: Boolean, modifier: Modifier = Modifier, colo
 @Composable
 private fun SamplingKanbanMetaBadges(order: SamplingOrder) {
     ClayFlowRow(spacing = ClaySpacing.Xs) {
-        val sizePrefix = if (!order.sizeLabel.isNullOrBlank()) "${order.sizeLabel} • " else ""
+        val sizePrefix = if (!order.sizeLabel.isNullOrBlank()) "${order.sizeLabel} · " else ""
         ClayTag(
             text = "$sizePrefix${order.sampleQuantity} Pcs",
             tint = WeMadeColors.Info

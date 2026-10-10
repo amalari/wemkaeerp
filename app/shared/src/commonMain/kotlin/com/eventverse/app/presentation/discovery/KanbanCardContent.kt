@@ -145,7 +145,7 @@ private fun RenderRichCardElements(
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
-                        text = rawValue.ifEmpty { "—" },
+                        text = rawValue.ifEmpty { "-" },
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
@@ -242,7 +242,7 @@ private fun RenderLegacyCardContent(
         verticalAlignment = Alignment.Top
     ) {
         Text(
-            text = card[state.config.titleField].ifEmpty { "—" },
+            text = card[state.config.titleField].ifEmpty { "-" },
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             maxLines = 2,

@@ -70,7 +70,7 @@ fun SuratJalanManifestCard(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "${manifest.subject.orderNumber} • ${manifest.subject.articleName}",
+                            text = "${manifest.subject.orderNumber} · ${manifest.subject.articleName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -101,7 +101,7 @@ fun SuratJalanManifestCard(
                     when (manifest.transferType) {
                         TransferType.INTERNAL_SITE_TRANSFER -> {
                             Text(
-                                text = "Rute: ${manifest.originLocationId?.value ?: "-"} ➔ ${manifest.destinationLocationId?.value ?: "-"}",
+                                text = "Rute: ${manifest.originLocationId?.value ?: "-"} -> ${manifest.destinationLocationId?.value ?: "-"}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = WeMadeColors.OnSurface
                             )
@@ -118,7 +118,7 @@ fun SuratJalanManifestCard(
                                 color = WeMadeColors.OnSurface
                             )
                             Text(
-                                text = "Target Kembali: ${manifest.expectedReturnDate ?: "-"} • Tarif Jasa: Rp ${manifest.unitServiceFeeIdr}/pcs",
+                                text = "Target Kembali: ${manifest.expectedReturnDate ?: "-"} · Tarif Jasa: Rp ${manifest.unitServiceFeeIdr}/pcs",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = WeMadeColors.Accent
                             )
@@ -130,7 +130,7 @@ fun SuratJalanManifestCard(
                                 color = WeMadeColors.OnSurface
                             )
                             Text(
-                                text = "Kemasan: ${manifest.totalCartons} dus/karung • Total: ${manifest.totalPcs} pcs",
+                                text = "Kemasan: ${manifest.totalCartons} dus/karung · Total: ${manifest.totalPcs} pcs",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = WeMadeColors.Success
                             )

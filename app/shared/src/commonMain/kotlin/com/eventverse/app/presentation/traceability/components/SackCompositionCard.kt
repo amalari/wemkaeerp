@@ -38,7 +38,7 @@ fun SackCompositionCard(
     modifier: Modifier = Modifier
 ) {
     ClayCard(modifier = modifier.fillMaxWidth()) {
-        Text("Isi Karung — Size $sizeLabel", style = MaterialTheme.typography.titleMedium)
+        Text("Isi Karung - Size $sizeLabel", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(ClaySpacing.Xs))
         Text(
             "Hanya bundel size $sizeLabel yang sudah dihitung dan belum dituang ke karung lain.",
@@ -63,7 +63,7 @@ fun SackCompositionCard(
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(TraceCodec.grouped(bundle.code), maxLines = 1)
                     Text(
-                        "${bundle.operatorName.ifBlank { "—" }} · ${bundle.shift.value.ifBlank { "—" }}",
+                        "${bundle.operatorName.ifBlank { "-" }} · ${bundle.shift.value.ifBlank { "-" }}",
                         color = WeMadeColors.OnSurfaceMuted,
                         maxLines = 1
                     )
@@ -97,7 +97,7 @@ fun SackCompositionCard(
 
         Spacer(Modifier.height(ClaySpacing.Lg))
         ClayButton(
-            text = if (isBusy) "Menutup…" else "Tutup Karung",
+            text = if (isBusy) "Menutup..." else "Tutup Karung",
             onClick = onClose,
             enabled = !isBusy && selectedCodes.isNotEmpty()
         )

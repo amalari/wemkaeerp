@@ -82,7 +82,7 @@ fun TShapeChartView(
                 result.peersInDepartment.size + 1
             }
             Text(
-                text = "Rekan Kerja Sejajar — Seluruh Tim Divisi $deptName ($totalCount Orang)",
+                text = "Rekan Kerja Sejajar - Seluruh Tim Divisi $deptName ($totalCount Orang)",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurfaceMuted
@@ -222,7 +222,7 @@ fun TShapeChartView(
                     result.peersInDepartment.size + 1
                 }
                 Text(
-                    text = "Kepala Tim / Supervisor — Divisi $deptName ($totalLeads Orang)",
+                    text = "Kepala Tim / Supervisor - Divisi $deptName ($totalLeads Orang)",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = WeMadeColors.OnSurfaceMuted,

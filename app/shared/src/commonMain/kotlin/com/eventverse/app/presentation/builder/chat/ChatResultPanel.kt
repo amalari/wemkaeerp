@@ -85,7 +85,7 @@ internal fun ChatResultPanel(
             if (patchPreview.isNotEmpty()) {
                 ClayCard(containerColor = WeMadeColors.SurfaceMuted, outlineColor = WeMadeColors.Warning) {
                     Text("Usulan belum diterapkan", style = typography.bodySmall, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
-                    patchPreview.forEach { Text("• $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
+                    patchPreview.forEach { Text("· $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
                 }
             }
             if (draft == null) {
@@ -96,7 +96,7 @@ internal fun ChatResultPanel(
                 2 -> DataFlowPane(draft = draft)
                 else -> if (draft.screens.isEmpty()) {
                     Text(
-                        "Belum ada prototype — minta agent membuatnya, mis. \"buat layar untuk modul QC\".",
+                        "Belum ada prototype - minta agent membuatnya, mis. \"buat layar untuk modul QC\".",
                         style = typography.bodyMedium,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -112,7 +112,7 @@ private fun FeaturesTab(groups: List<ModuleFeatures>) {
     groups.forEach { g ->
         ClayCard {
             Text(g.moduleName, style = typography.titleSmall, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
-            g.items.forEach { Text("• $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
+            g.items.forEach { Text("· $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
         }
     }
 }

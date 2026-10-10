@@ -340,7 +340,7 @@ class SamplingViewModel(
                         spkDetailFocusFlow = false,
                         spkDetailFocusCam = false,
                         spkCardToPrint = if (openSpkCardOnSuccess) updated.id else current.spkCardToPrint,
-                        statusMessage = "Lembar kerja tersimpan — SPK masuk tahap ${updated.stageFrame.nameOf(targetStage)}",
+                        statusMessage = "Lembar kerja tersimpan - SPK masuk tahap ${updated.stageFrame.nameOf(targetStage)}",
                         isErrorMessage = false
                     )
                 }

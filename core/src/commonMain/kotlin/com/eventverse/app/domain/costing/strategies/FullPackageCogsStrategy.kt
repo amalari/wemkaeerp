@@ -58,7 +58,7 @@ object FullPackageCogsStrategy : CostingFormulaStrategy {
         }
 
         if (bomPreview.unpricedLines.isNotEmpty()) {
-            warnings.add("${bomPreview.unpricedLines.size} baris BOM belum punya harga — biaya material tidak akurat")
+            warnings.add("${bomPreview.unpricedLines.size} baris BOM belum punya harga - biaya material tidak akurat")
         }
 
         // --- LABOR bucket

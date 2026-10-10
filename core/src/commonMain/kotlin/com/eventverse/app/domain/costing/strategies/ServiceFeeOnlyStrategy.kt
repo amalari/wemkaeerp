@@ -62,7 +62,7 @@ object ServiceFeeOnlyStrategy : CostingFormulaStrategy {
         } else {
             val samTotal = input.samBreakdown.totalMinutes()
             if (samTotal.isZero) {
-                warnings.add("serviceFeePerUnit belum dikonfigurasi dan SAM = 0 — ongkos jasa nol")
+                warnings.add("serviceFeePerUnit belum dikonfigurasi dan SAM = 0 - ongkos jasa nol")
             }
             params.laborRatePerSamMinute * samTotal
         }

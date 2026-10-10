@@ -195,7 +195,7 @@ fun Route.builderRoutes(
             call.gate() ?: return@post
             val text = (JsonParser.parse(call.receiveText()) as? JsonValue.Obj)?.string("text")?.trim()
             if (text.isNullOrBlank()) {
-                call.respond(HttpStatusCode.BadRequest, "Body wajib {\"text\":\"…\"}")
+                call.respond(HttpStatusCode.BadRequest, "Body wajib {\"text\":\"...\"}")
                 return@post
             }
             send(call.tenantContext.tenantId, text).fold(
@@ -211,7 +211,7 @@ fun Route.builderRoutes(
             call.gate() ?: return@post
             val messageId = (JsonParser.parse(call.receiveText()) as? JsonValue.Obj)?.string("messageId")
             if (messageId.isNullOrBlank()) {
-                call.respond(HttpStatusCode.BadRequest, "Body wajib {\"messageId\":\"…\"}")
+                call.respond(HttpStatusCode.BadRequest, "Body wajib {\"messageId\":\"...\"}")
                 return@post
             }
             // Pemilik draf baru = pemanggil nyata (fail-closed bila identitas tak bisa dihitung, seperti GET /draft).

@@ -103,7 +103,7 @@ internal fun SubmitSackForm(
                 }
             }
             if (isBundleCard && allowedRoutes.size < allActiveRoutes.size) {
-                FormCaption("Rute yang diredupkan lewat meja admin — tuang dulu bundel ini ke karung.")
+                FormCaption("Rute yang diredupkan lewat meja admin - tuang dulu bundel ini ke karung.")
             }
         }
 
@@ -134,7 +134,7 @@ internal fun SubmitSackForm(
                 label = "Jumlah pcs",
                 placeholder = "contoh: 120"
             )
-            FormCaption("Diantar langsung tanpa ACC admin — hitungan pcs yang dicocokkan di tujuan.")
+            FormCaption("Diantar langsung tanpa ACC admin - hitungan pcs yang dicocokkan di tujuan.")
         }
 
         ClayTextField(

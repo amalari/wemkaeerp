@@ -56,7 +56,7 @@ internal fun VendorDialogFrame(
                 ) {
                     ClayButton(text = "Batal", style = ClayButtonStyle.Ghost, onClick = onDismiss)
                     ClayButton(
-                        text = if (isSubmitting) "Menyimpan…" else confirmText,
+                        text = if (isSubmitting) "Menyimpan..." else confirmText,
                         enabled = confirmEnabled && !isSubmitting,
                         onClick = onConfirm
                     )

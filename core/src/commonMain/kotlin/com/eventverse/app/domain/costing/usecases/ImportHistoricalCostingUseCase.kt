@@ -109,7 +109,7 @@ class ImportHistoricalCostingUseCase(
         val style = styleName?.takeIf { it.isNotBlank() }
             ?: error("Nama artikel tidak ditemukan di berkas")
         val weight = netWeightGrams
-            ?: error("Berat bersih (gramasi) tidak ditemukan — tanpa ini artikel tak berguna sebagai acuan")
+            ?: error("Berat bersih (gramasi) tidak ditemukan - tanpa ini artikel tak berguna sebagai acuan")
         val hpp = hppPerUnitMinor
             ?: error("HPP per pcs tidak ditemukan di berkas")
 

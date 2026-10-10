@@ -47,7 +47,7 @@ internal fun ChatComposer(
             }
         )
         ClayButton(
-            text = if (busy) "Mengirim…" else "Kirim",
+            text = if (busy) "Mengirim..." else "Kirim",
             enabled = canSend,
             onClick = onSend
         )

@@ -104,7 +104,7 @@ internal fun WidgetDemandGateCard(canWrite: Boolean, modifier: Modifier = Modifi
             fontWeight = FontWeight.Bold
         )
         Text(
-            "Kosakata widget tertutup — menambah kind berarti mengubah renderer. Widget baru hanya " +
+            "Kosakata widget tertutup - menambah kind berarti mengubah renderer. Widget baru hanya " +
                 "layak dibangun bila istilah yang sama diminta cukup demand berbeda; di bawah ambang " +
                 "adalah derau, bukan peta jalan.",
             style = MaterialTheme.typography.labelSmall,
@@ -114,7 +114,7 @@ internal fun WidgetDemandGateCard(canWrite: Boolean, modifier: Modifier = Modifi
         val data = signals
         when {
             !canWrite -> Text(
-                "Sinyal demand hanya untuk superadmin platform — buku demand dijaga gerbang server.",
+                "Sinyal demand hanya untuk superadmin platform - buku demand dijaga gerbang server.",
                 style = MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
@@ -126,13 +126,13 @@ internal fun WidgetDemandGateCard(canWrite: Boolean, modifier: Modifier = Modifi
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
             )
             data == null -> Text(
-                "Memuat sinyal demand…",
+                "Memuat sinyal demand...",
                 style = MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
             )
             data.candidates.isEmpty() -> Text(
-                "Belum ada istilah yang menembus ambang ${data.minimum} demand — kosong = tidak ada " +
+                "Belum ada istilah yang menembus ambang ${data.minimum} demand - kosong = tidak ada " +
                     "widget baru yang layak dibangun saat ini.",
                 style = MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted,
@@ -140,7 +140,7 @@ internal fun WidgetDemandGateCard(canWrite: Boolean, modifier: Modifier = Modifi
             )
             else -> {
                 Text(
-                    "Kandidat widget/modul berikutnya (≥ ${data.minimum} demand berbeda):",
+                    "Kandidat widget/modul berikutnya (>= ${data.minimum} demand berbeda):",
                     style = MaterialTheme.typography.labelSmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(top = ClaySpacing.Sm)
@@ -148,7 +148,7 @@ internal fun WidgetDemandGateCard(canWrite: Boolean, modifier: Modifier = Modifi
                 data.candidates.take(CANDIDATES_SHOWN).forEach { candidate -> DemandCandidateCard(candidate) }
                 val hidden = data.candidates.size - CANDIDATES_SHOWN
                 if (hidden > 0) Text(
-                    "…dan $hidden kandidat lagi — antrean penuhnya di Buku Demand.",
+                    "...dan $hidden kandidat lagi - antrean penuhnya di Buku Demand.",
                     style = MaterialTheme.typography.labelSmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(top = ClaySpacing.Xs)

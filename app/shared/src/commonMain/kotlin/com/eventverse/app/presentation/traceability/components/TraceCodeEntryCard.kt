@@ -56,7 +56,7 @@ fun TraceCodeEntryCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ClayButton(
-                text = if (isBusy) "Memuat…" else "Buka Kartu",
+                text = if (isBusy) "Memuat..." else "Buka Kartu",
                 onClick = onSubmit,
                 enabled = isValid && !isBusy
             )
@@ -100,5 +100,5 @@ private fun checksumHint(code: String, isValid: Boolean): String = when {
     code.isBlank() -> "Kode tercetak di bawah kotak QR pada kartu."
     code.length < TraceCodec.LENGTH -> "Kurang ${TraceCodec.LENGTH - code.length} karakter lagi."
     isValid -> "Kode terbaca sah."
-    else -> "Kode belum cocok — periksa lagi, kemungkinan ada satu huruf yang tertukar."
+    else -> "Kode belum cocok - periksa lagi, kemungkinan ada satu huruf yang tertukar."
 }

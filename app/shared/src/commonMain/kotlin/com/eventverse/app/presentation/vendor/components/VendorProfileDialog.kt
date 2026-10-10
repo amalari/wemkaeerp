@@ -57,12 +57,12 @@ internal fun VendorProfileDialog(
             value = phone,
             onValueChange = { phone = it.filter { c -> c.isDigit() || c == '+' }.take(20) },
             label = "Nomor WA",
-            placeholder = "0812…",
+            placeholder = "0812...",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth()
         )
         ClayTextField(value = address, onValueChange = { address = it }, label = "Alamat", singleLine = false, minLines = 2, modifier = Modifier.fillMaxWidth())
-        ClayTextField(value = notes, onValueChange = { notes = it }, label = "Catatan", placeholder = "Spesialisasi, jam kerja, syarat min order…", singleLine = false, minLines = 2, modifier = Modifier.fillMaxWidth())
+        ClayTextField(value = notes, onValueChange = { notes = it }, label = "Catatan", placeholder = "Spesialisasi, jam kerja, syarat min order...", singleLine = false, minLines = 2, modifier = Modifier.fillMaxWidth())
         if (initial != null) {
             VendorFieldLabel("Status")
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {

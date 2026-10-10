@@ -319,7 +319,7 @@ fun MaterialEditorDialog(
                     )
                     Spacer(modifier = Modifier.width(ClaySpacing.Sm))
                     ClayButton(
-                        text = if (isSubmitting) "Menyimpan…" else "Simpan Bahan",
+                        text = if (isSubmitting) "Menyimpan..." else "Simpan Bahan",
                         onClick = {
                             if (name.isNotBlank()) {
                                 onSave(

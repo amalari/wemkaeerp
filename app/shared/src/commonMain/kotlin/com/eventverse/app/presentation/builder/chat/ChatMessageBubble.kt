@@ -66,7 +66,7 @@ internal fun ChatMessageBubble(
                     }
                     entry.summary.forEach { line ->
                         Text(
-                            text = "• $line",
+                            text = "· $line",
                             style = typography.bodySmall,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -81,7 +81,7 @@ internal fun ChatMessageBubble(
                             )
                             if (entry.hasPendingPatch) {
                                 ClayButton(
-                                    text = if (busy) "Memproses…" else "Terapkan",
+                                    text = if (busy) "Memproses..." else "Terapkan",
                                     enabled = !busy,
                                     onClick = onApply
                                 )

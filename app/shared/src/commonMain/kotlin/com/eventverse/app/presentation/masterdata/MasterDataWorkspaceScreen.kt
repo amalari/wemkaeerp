@@ -125,7 +125,7 @@ fun MasterDataWorkspaceScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "✕ Tutup",
+                        text = "Tutup",
                         fontSize = 12.sp,
                         color = WeMadeColors.OnSurfaceMuted,
                         modifier = Modifier.clickable { viewModel.onEvent(MasterDataUiEvent.DismissStatusMessage) }

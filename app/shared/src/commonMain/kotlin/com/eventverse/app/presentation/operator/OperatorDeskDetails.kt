@@ -52,7 +52,7 @@ private fun CamProgramReadOnly(order: SamplingOrder) {
         } else {
             cam.sections.forEach { section ->
                 Text(
-                    text = "• ${section.section}: " + section.rows
+                    text = "· ${section.section}: " + section.rows
                         .filter { it.isFilled }
                         .joinToString("; ") { "${it.label} : ${it.value}" },
                     fontSize = 11.sp,
@@ -74,7 +74,7 @@ private fun LinkingDepositSummary(order: SamplingOrder) {
         }
         order.finishingDeposits.forEach { dep ->
             Text(
-                text = "• ${dep.depositDate} ${dep.operatorName.ifBlank { "Operator" }}: ${dep.qtyPcs} Pcs (${dep.weightKg} Kg)",
+                text = "· ${dep.depositDate} ${dep.operatorName.ifBlank { "Operator" }}: ${dep.qtyPcs} Pcs (${dep.weightKg} Kg)",
                 fontSize = 11.sp,
                 color = WeMadeColors.OnSurface
             )

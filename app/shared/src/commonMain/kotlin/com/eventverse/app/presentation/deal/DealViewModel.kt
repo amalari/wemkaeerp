@@ -202,7 +202,7 @@ class DealViewModel(
                         isSaving = false,
                         samplingOrders = orders,
                         statusMessage = if (event.isApproved) {
-                            "Sampel di-ACC — spesifikasi terkunci sebagai acuan produksi."
+                            "Sampel di-ACC - spesifikasi terkunci sebagai acuan produksi."
                         } else {
                             "Revisi sampling dicatat."
                         },
@@ -414,7 +414,7 @@ class DealViewModel(
                         it.copy(
                             isSaving = false,
                             statusMessage = "${workOrders.size} SPK massal diterbitkan$sizeRingkas " +
-                                "— total $totalPcs pcs."
+                                "- total $totalPcs pcs."
                         )
                     }
                     changeStage(DealStage.IN_PRODUCTION)
@@ -466,7 +466,7 @@ class DealViewModel(
             val picked = pickPoFile()
             if (picked == null) {
                 _uiState.update {
-                    it.copy(statusMessage = "Upload berkas belum didukung di platform ini — gunakan input manual PO.")
+                    it.copy(statusMessage = "Upload berkas belum didukung di platform ini - gunakan input manual PO.")
                 }
                 return@launch
             }

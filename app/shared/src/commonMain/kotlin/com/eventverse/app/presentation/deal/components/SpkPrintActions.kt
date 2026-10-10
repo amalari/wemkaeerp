@@ -93,7 +93,7 @@ fun SpkPrintActions(
         )
         Spacer(Modifier.height(ClaySpacing.Xs))
         Text(
-            text = "Lembar kerja memuat QR, spek per panel, dan ukuran dari buyer — satu halaman per size.",
+            text = "Lembar kerja memuat QR, spek per panel, dan ukuran dari buyer - satu halaman per size.",
             fontSize = 11.sp,
             color = WeMadeColors.OnSurfaceMuted
         )
@@ -149,7 +149,7 @@ class PdfPrintLauncher internal constructor(
     fun open(request: suspend TraceabilityApiClient.(tenantSlug: String) -> Result<String>) {
         scope.launch {
             val tenantSlug = StoredTenantSlugProvider.currentTenantSlug()
-                ?: return@launch run { error = "Sesi tidak ditemukan — silakan login ulang." }
+                ?: return@launch run { error = "Sesi tidak ditemukan - silakan login ulang." }
             client.request(tenantSlug)
                 .onSuccess { url -> error = null; openInBrowser(url) }
                 .onFailure { error = "Gagal menyiapkan PDF: ${it.message ?: "kesalahan tidak dikenal"}" }

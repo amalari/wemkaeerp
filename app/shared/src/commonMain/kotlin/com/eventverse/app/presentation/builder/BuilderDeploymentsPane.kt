@@ -82,7 +82,7 @@ fun BuilderDeploymentsPane(modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis
             )
             ClayButton(
-                text = if (busy) "Memproses…" else "Deploy",
+                text = if (busy) "Memproses..." else "Deploy",
                 enabled = !busy,
                 onClick = {
                     scope.launch {

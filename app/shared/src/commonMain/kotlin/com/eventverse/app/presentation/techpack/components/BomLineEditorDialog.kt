@@ -140,7 +140,7 @@ fun BomLineEditorDialog(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "${item.code.value} — ${item.name}",
+                                            text = "${item.code.value} - ${item.name}",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = WeMadeColors.OnSurface

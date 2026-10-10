@@ -72,7 +72,7 @@ fun InvoiceDetailPane(
                     }
                     Spacer(modifier = Modifier.height(ClaySpacing.Xs))
                     Text(
-                        text = "Dibuat oleh: ${invoice.createdBy} • ${invoice.createdAt.toString().substringBefore('T')}",
+                        text = "Dibuat oleh: ${invoice.createdBy} · ${invoice.createdAt.toString().substringBefore('T')}",
                         fontSize = 11.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -166,7 +166,7 @@ fun InvoiceDetailPane(
                 }
                 if (invoice.billTo.phone.isNotBlank() || invoice.billTo.email.isNotBlank()) {
                     Text(
-                        text = "Telp/Email: ${invoice.billTo.phone} • ${invoice.billTo.email}",
+                        text = "Telp/Email: ${invoice.billTo.phone} · ${invoice.billTo.email}",
                         fontSize = 12.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -316,7 +316,7 @@ fun InvoiceDetailPane(
                         ) {
                             Column {
                                 Text(
-                                    text = "${pay.paidAt.toString().substringBefore('T')} • ${pay.method}",
+                                    text = "${pay.paidAt.toString().substringBefore('T')} · ${pay.method}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )

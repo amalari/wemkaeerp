@@ -111,7 +111,7 @@ fun AppTopBar(
                         color = WeMadeColors.Primary
                     )
                     Text(
-                        text = "•",
+                        text = "·",
                         color = WeMadeColors.OnSurfaceMuted
                     )
                 }

@@ -181,7 +181,7 @@ private fun StageAdvanceDialogHeader(
     ) {
         Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
-                text = "Lembar Kerja — ${targetStage.displayName}",
+                text = "Lembar Kerja - ${targetStage.displayName}",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
@@ -224,7 +224,7 @@ private fun PreviousStageSummary(order: SamplingOrder, targetStage: SamplingPipe
             )
             work.sections.forEach { section ->
                 Text(
-                    text = "• ${section.section}: " + section.rows
+                    text = "· ${section.section}: " + section.rows
                         .filter { it.isFilled }
                         .joinToString("; ") { "${it.label} : ${it.value}" },
                     fontSize = 11.sp,
@@ -293,7 +293,7 @@ fun DynamicSectionTable(
 
         if (rows.isEmpty()) {
             Text(
-                text = "Belum ada baris — tekan + untuk menambah",
+                text = "Belum ada baris - tekan + untuk menambah",
                 fontSize = 10.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )

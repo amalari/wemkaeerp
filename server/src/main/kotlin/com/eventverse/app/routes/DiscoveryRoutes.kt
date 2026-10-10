@@ -347,7 +347,7 @@ fun Route.discoveryRoutes(
             }
             if (DomainPackRegistry.isShipped(existing.draft.pack.code)) {
                 return@post call.respondText(
-                    "Pack ${existing.draft.pack.code.value} adalah pack bawaan — tidak perlu scaffold",
+                    "Pack ${existing.draft.pack.code.value} adalah pack bawaan - tidak perlu scaffold",
                     ContentType.Text.Plain, HttpStatusCode.Conflict
                 )
             }

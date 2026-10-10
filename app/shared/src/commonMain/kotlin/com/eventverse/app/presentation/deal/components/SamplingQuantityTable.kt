@@ -63,7 +63,7 @@ fun SamplingQuantityTable(
                     color = WeMadeColors.OnSurface
                 )
                 Text(
-                    text = "• Qty aktif jika POM terisi",
+                    text = "· Qty aktif jika POM terisi",
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

@@ -42,7 +42,7 @@ internal fun StepNarrative(
             onValueChange = onNarrativeChange,
             modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
             minLines = 4,
-            placeholder = { Text("Contoh: konveksi makloon dengan SPK jahit, klinik dengan antrean pasien per poli…") },
+            placeholder = { Text("Contoh: konveksi makloon dengan SPK jahit, klinik dengan antrean pasien per poli...") },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = WeMadeColors.Primary,
                 unfocusedBorderColor = WeMadeColors.Outline
@@ -53,14 +53,14 @@ internal fun StepNarrative(
             onValueChange = onHintChange,
             modifier = Modifier.fillMaxWidth().padding(top = ClaySpacing.Sm),
             singleLine = true,
-            placeholder = { Text("Industri (opsional): konveksi, bordir, sablon…") },
+            placeholder = { Text("Industri (opsional): konveksi, bordir, sablon...") },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = WeMadeColors.Primary,
                 unfocusedBorderColor = WeMadeColors.Outline
             )
         )
         ClayButton(
-            text = if (busy) "Menyusun…" else "Susun Draf Sistem",
+            text = if (busy) "Menyusun..." else "Susun Draf Sistem",
             onClick = onSubmit,
             enabled = !busy,
             modifier = Modifier.padding(top = ClaySpacing.Md)
@@ -120,7 +120,7 @@ internal fun StepBuild(
         )
         if (companyName.isBlank()) {
             Text(
-                "Nama perusahaan wajib diisi — ia menjadi judul lead di ledger tim kami.",
+                "Nama perusahaan wajib diisi - ia menjadi judul lead di ledger tim kami.",
                 style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.padding(top = ClaySpacing.Xs)
@@ -131,7 +131,7 @@ internal fun StepBuild(
         onBack = onBack,
         onBackLabel = "Kembali ke Estimasi",
         onNext = onSubmit,
-        onNextLabel = if (busy) "Mengirim…" else "Kunci & Bangun Sistem Ini",
+        onNextLabel = if (busy) "Mengirim..." else "Kunci & Bangun Sistem Ini",
         nextEnabled = !busy && companyName.isNotBlank(),
         nextStyle = ClayButtonStyle.Accent
     )
@@ -156,14 +156,14 @@ internal fun EstimasiPrice(p: JsonValue.Obj) {
         // tapi kalau ditulis apa adanya, prospek membacanya sebagai angka rusak.
         if ((low ?: 0.0) == 0.0 && (high ?: 0.0) == 0.0) {
             Text(
-                "Semua modul pada alur ini sudah tersedia — tidak ada biaya pembangunan tambahan." +
+                "Semua modul pada alur ini sudah tersedia - tidak ada biaya pembangunan tambahan." +
                     " Langganan: ${rupiah(monthly)}/bulan",
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
             )
         } else {
             Text(
-                "Biaya pembangunan sekali: ${low?.let { rupiah(it) } ?: "—"} – ${high?.let { rupiah(it) } ?: "—"}" +
-                    " • Langganan: ${rupiah(monthly)}/bulan",
+                "Biaya pembangunan sekali: ${low?.let { rupiah(it) } ?: "-"} - ${high?.let { rupiah(it) } ?: "-"}" +
+                    " · Langganan: ${rupiah(monthly)}/bulan",
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
             )
         }
@@ -172,7 +172,7 @@ internal fun EstimasiPrice(p: JsonValue.Obj) {
 
 /** Format Rupiah tanpa `String.format` (tidak tersedia di commonMain KMP). */
 internal fun rupiah(value: Double?): String {
-    if (value == null) return "—"
+    if (value == null) return "-"
     val n = value.toLong()
     val grouped = n.toString().reversed().chunked(3).joinToString(".").reversed()
     return "Rp $grouped"

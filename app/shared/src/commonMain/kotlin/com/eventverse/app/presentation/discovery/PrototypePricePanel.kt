@@ -82,7 +82,7 @@ private fun PriceBody(p: DraftPriceUi, loading: Boolean) {
                 Text(
                     when {
                         l.covered -> "${rupiah(l.monthlyIdr?.toDouble())}/bln"
-                        l.gapLowIdr != null && l.gapHighIdr != null -> "dibangun · ${rupiah(l.gapLowIdr.toDouble())}–${rupiah(l.gapHighIdr.toDouble())}/bln"
+                        l.gapLowIdr != null && l.gapHighIdr != null -> "dibangun · ${rupiah(l.gapLowIdr.toDouble())}-${rupiah(l.gapHighIdr.toDouble())}/bln"
                         else -> "dibangun · perlu survei"
                     },
                     style = MaterialTheme.typography.labelSmall,
@@ -98,14 +98,14 @@ private fun PriceBody(p: DraftPriceUi, loading: Boolean) {
         Text(
             when {
                 p.withheld -> "Biaya pembangunan modul baru ditahan sampai survei singkat bersama tim kami."
-                p.hasBuildCost -> "Modul baru: ${rupiah(p.gapLowMonthlyIdr?.toDouble())}–${rupiah(p.gapHighMonthlyIdr?.toDouble())}/bulan tambahan."
-                else -> "Semua modul terpilih sudah tersedia — tidak ada biaya pembangunan tambahan."
+                p.hasBuildCost -> "Modul baru: ${rupiah(p.gapLowMonthlyIdr?.toDouble())}-${rupiah(p.gapHighMonthlyIdr?.toDouble())}/bulan tambahan."
+                else -> "Semua modul terpilih sudah tersedia - tidak ada biaya pembangunan tambahan."
             },
             style = MaterialTheme.typography.labelSmall,
             color = WeMadeColors.OnSurfaceMuted
         )
         Text(
-            if (loading) "Menghitung ulang…" else "Estimasi untuk perencanaan, bukan penawaran mengikat.",
+            if (loading) "Menghitung ulang..." else "Estimasi untuk perencanaan, bukan penawaran mengikat.",
             style = MaterialTheme.typography.labelSmall,
             color = WeMadeColors.OnSurfaceMuted
         )

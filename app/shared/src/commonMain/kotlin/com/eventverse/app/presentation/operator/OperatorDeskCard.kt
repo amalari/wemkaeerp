@@ -62,7 +62,7 @@ fun OperatorDeskCard(
                 }
             }
             Text(
-                text = "${order.clientName} • ${order.styleName}",
+                text = "${order.clientName} · ${order.styleName}",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurface,

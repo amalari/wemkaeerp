@@ -46,7 +46,7 @@ fun Route.builderChatStreamRoutes(
         val body = runCatching { JsonParser.parse(call.receiveText()) as? JsonValue.Obj }.getOrNull()
         val text = body?.string("text")?.trim()
         if (text.isNullOrBlank()) {
-            call.respond(HttpStatusCode.BadRequest, "Body wajib {\"text\":\"…\"}")
+            call.respond(HttpStatusCode.BadRequest, "Body wajib {\"text\":\"...\"}")
             return@post
         }
         val moduleId = body.string("module")?.takeIf { it.isNotBlank() }

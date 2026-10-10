@@ -42,22 +42,22 @@ enum class BindingModuleSource(
     val iconKey: String
 ) {
     CRM_SALES(
-        displayName = "CRM — Klien & Prospek",
+        displayName = "CRM - Klien & Prospek",
         description = "Identitas pembeli yang dihasilkan pipeline penjualan.",
         iconKey = "user"
     ),
     INVOICING_DOCUMENT(
-        displayName = "Invoicing — Dokumen & Tagihan",
+        displayName = "Invoicing - Dokumen & Tagihan",
         description = "Nomor, tanggal, dan nominal yang dihitung mesin faktur.",
         iconKey = "receipt"
     ),
     ISSUER_TENANT(
-        displayName = "Penerbit — Profil Perusahaan",
+        displayName = "Penerbit - Profil Perusahaan",
         description = "Identitas dan rekening penerbit faktur (profil tenant).",
         iconKey = "database"
     ),
     ITEM_LINES(
-        displayName = "Baris Item — Tabel Faktur",
+        displayName = "Baris Item - Tabel Faktur",
         description = "Kolom per baris pekerjaan. Hanya berlaku di dalam tabel item.",
         iconKey = "layers"
     );

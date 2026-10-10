@@ -42,10 +42,10 @@ class ReleaseSampleFromStorageUseCase(
     suspend operator fun invoke(command: ReleaseSampleFromStorageCommand): Result<ReleasedSample> = runCatching {
         val order = command.order
         require(order.stageCode == ExitStages.STORAGE) {
-            "Pengiriman hanya dari penyimpanan — ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
+            "Pengiriman hanya dari penyimpanan - ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
         }
         val record = requireNotNull(storageRepository.findLatestByOrderId(order.tenantId, order.id)) {
-            "Catatan penyimpanan ${order.spkNumber.value} tidak ditemukan — simpan ulang barangnya dulu"
+            "Catatan penyimpanan ${order.spkNumber.value} tidak ditemukan - simpan ulang barangnya dulu"
         }
 
         val partialReason = command.partialReason?.trim()?.takeIf { it.isNotEmpty() }

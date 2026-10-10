@@ -44,14 +44,14 @@ val SUGGESTED_CAM_PARTS = listOf(
 
 private fun StageInputSection?.rowsForPart(name: String): List<StageInputRow> =
     this?.rows?.filter {
-        it.label.startsWith("$name •", ignoreCase = true) || it.label.equals(name, ignoreCase = true)
+        it.label.startsWith("$name ·", ignoreCase = true) || it.label.equals(name, ignoreCase = true)
     }.orEmpty()
 
 private fun List<StageInputRow>.asTags(): List<String> =
     flatMap { row -> row.value.split("\n").map { it.trim() }.filter { it.isNotBlank() } }
 
 private fun partName(label: String): String =
-    if (label.contains(" • ")) label.substringBefore(" • ").trim() else label.trim()
+    if (label.contains(" · ")) label.substringBefore(" · ").trim() else label.trim()
 
 /** Parsing List<StageInputSection> menjadi [CamProgramSheet]. */
 fun parseCamSections(sections: List<StageInputSection>): CamProgramSheet {
@@ -95,7 +95,7 @@ fun parseCamSections(sections: List<StageInputSection>): CamProgramSheet {
         val rawVal = row.value
         val (qty, notes) = when {
             rawVal.contains(" | ") -> rawVal.substringBefore(" | ").trim() to rawVal.substringAfter(" | ").trim()
-            rawVal.contains(" • ") -> rawVal.substringBefore(" • ").trim() to rawVal.substringAfter(" • ").trim()
+            rawVal.contains(" · ") -> rawVal.substringBefore(" · ").trim() to rawVal.substringAfter(" · ").trim()
             else -> rawVal.trim() to ""
         }
         AdditionalMaterialItem(

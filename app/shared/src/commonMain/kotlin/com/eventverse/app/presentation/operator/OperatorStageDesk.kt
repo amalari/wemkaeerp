@@ -273,7 +273,7 @@ private fun OperatorDeskColumnContent(
                     OperatorDeskCard(
                         order = order,
                         onClick = { onOpenDetail(order) },
-                        statusLine = claim?.let { "${it.operatorName} • mulai ${formatDeskTime(it.startedAt, timeZone)}" },
+                        statusLine = claim?.let { "${it.operatorName} · mulai ${formatDeskTime(it.startedAt, timeZone)}" },
                         details = { OperatorDeskDetails(order, board.stage.code) }
                     ) {
                         ClayButton(
@@ -315,7 +315,7 @@ private fun OperatorDeskColumnContent(
                     OperatorDeskCard(
                         order = handoff.order,
                         onClick = { onOpenDetail(handoff.order) },
-                        statusLine = "Ke ${handoff.order.deskLabelOf(handoff.audit.toCode)} • ${handoff.workerLabel}\n" +
+                        statusLine = "Ke ${handoff.order.deskLabelOf(handoff.audit.toCode)} · ${handoff.workerLabel}\n" +
                             handoff.timingLine(timeZone)
                     )
                 }

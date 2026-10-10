@@ -17,7 +17,7 @@ class PlanTraceAllocationUseCase(
     ): Result<TraceAllocationPlan> = runCatching {
         val base = workOrders.snapshot(tenantId, ref) ?: error("SPK ${ref.id} tidak ditemukan.")
         require(base.sizes.isNotEmpty()) {
-            "SPK ${base.spkNumber} belum punya rincian size — isi dulu jumlah per ukuran sebelum mencetak kartu."
+            "SPK ${base.spkNumber} belum punya rincian size - isi dulu jumlah per ukuran sebelum mencetak kartu."
         }
         val snapshot = base.copy(
             ordinal = containers.ensureWorkOrderOrdinal(tenantId, ref),

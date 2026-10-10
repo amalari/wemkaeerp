@@ -73,13 +73,13 @@ class HandleIpaymuNotificationUseCase(
         }
 
         require(notification.amountIdr == invoice.totalIdr.amount) {
-            "Nominal callback ${notification.amountIdr} ≠ total invoice ${invoice.totalIdr.amount}"
+            "Nominal callback ${notification.amountIdr} != total invoice ${invoice.totalIdr.amount}"
         }
 
         // Sumber kebenaran adalah API iPaymu, bukan isi callback (FR-PAY-3.3 butir 2).
         val check = gateway.checkStatus(notification.trxId).getOrThrow()
         require(check.sessionId.equals(invoice.ipaymuTrxId, ignoreCase = true)) {
-            "SessionId hasil cek '${check.sessionId}' ≠ sid tersimpan '${invoice.ipaymuTrxId}'"
+            "SessionId hasil cek '${check.sessionId}' != sid tersimpan '${invoice.ipaymuTrxId}'"
         }
         if (check.status != IpaymuTransactionStatus.PAID) {
             // PENDING/EXPIRED/FAILED: tidak ada perubahan status — callback dicatat & diabaikan.

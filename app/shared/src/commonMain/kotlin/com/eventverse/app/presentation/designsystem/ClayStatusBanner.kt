@@ -55,7 +55,7 @@ fun ClayStatusBanner(
         )
         Spacer(Modifier.width(ClaySpacing.Md))
         Text(
-            text = "✕ Tutup",
+            text = "Tutup",
             fontSize = 12.sp,
             color = WeMadeColors.OnSurfaceMuted,
             modifier = Modifier.clickable(onClick = onDismiss)

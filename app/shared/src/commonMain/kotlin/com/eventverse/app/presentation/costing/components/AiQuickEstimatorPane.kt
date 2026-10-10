@@ -135,7 +135,7 @@ fun AiQuickEstimatorPane(
 
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
             ClayButton(
-                text = if (state.isEstimating) "Menghitung…" else "⚡ Hitung Estimasi Harga",
+                text = if (state.isEstimating) "Menghitung..." else "Hitung Estimasi Harga",
                 onClick = { onEvent(CostingUiEvent.RunQuickEstimate) },
                 style = ClayButtonStyle.Accent,
                 enabled = form.isValid && !state.isEstimating
@@ -176,7 +176,7 @@ private fun MockupUploadCard(state: CostingUiState, onEvent: (CostingUiEvent) ->
                     color = WeMadeColors.OnSurface
                 )
                 Text(
-                    text = state.mockupImageUrl ?: "Opsional — AI membaca siluet dan jumlah kancing dari gambar.",
+                    text = state.mockupImageUrl ?: "Opsional - AI membaca siluet dan jumlah kancing dari gambar.",
                     fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     maxLines = 1,
@@ -185,7 +185,7 @@ private fun MockupUploadCard(state: CostingUiState, onEvent: (CostingUiEvent) ->
             }
             Spacer(Modifier.width(ClaySpacing.Md))
             ClayButton(
-                text = if (state.isAnalyzingMockup) "Membaca…" else "Pilih Gambar",
+                text = if (state.isAnalyzingMockup) "Membaca..." else "Pilih Gambar",
                 onClick = { onEvent(CostingUiEvent.PickAndAnalyzeMockup) },
                 style = ClayButtonStyle.Secondary,
                 enabled = !state.isAnalyzingMockup
@@ -260,7 +260,7 @@ private fun EstimateResultCard(result: QuickQuotationEstimateResult) {
             color = WeMadeColors.OnSurfaceMuted
         )
         Text(
-            text = "${result.suggestedPriceLow.formatRupiah()} – ${result.suggestedPriceHigh.formatRupiah()}",
+            text = "${result.suggestedPriceLow.formatRupiah()} - ${result.suggestedPriceHigh.formatRupiah()}",
             fontWeight = FontWeight.Black,
             fontSize = 22.sp,
             color = WeMadeColors.Success
@@ -269,7 +269,7 @@ private fun EstimateResultCard(result: QuickQuotationEstimateResult) {
         Spacer(Modifier.height(ClaySpacing.Md))
 
         Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-            ClayTag(text = "HPP ${result.hppLow.formatRupiah()} – ${result.hppHigh.formatRupiah()}", tint = WeMadeColors.Primary)
+            ClayTag(text = "HPP ${result.hppLow.formatRupiah()} - ${result.hppHigh.formatRupiah()}", tint = WeMadeColors.Primary)
             ClayTag(text = "Margin ${result.appliedMargin.asPercentageString()}", tint = WeMadeColors.Accent)
             ClayTag(text = "${result.estimatedWeightGrams.toInt()} g/pcs", tint = WeMadeColors.Teal)
             ClayTag(text = "${result.estimatedKnittingMinutes} menit rajut", tint = WeMadeColors.Info)
@@ -337,14 +337,14 @@ private fun EstimateResultCard(result: QuickQuotationEstimateResult) {
                     .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
                 horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
             ) {
-                Text("⚠", fontSize = 12.sp, color = WeMadeColors.Warning)
+                Text("!", fontSize = 12.sp, color = WeMadeColors.Warning)
                 Text(warning, fontSize = 11.sp, color = WeMadeColors.OnSurface)
             }
         }
 
         Spacer(Modifier.height(ClaySpacing.Lg))
         ClayButton(
-            text = "📋 Salin Format Penawaran WhatsApp",
+            text = "Salin Format Penawaran WhatsApp",
             onClick = {
                 clipboard.setText(
                     AnnotatedString(result.toWhatsAppSummary { money -> money.formatRupiah() })

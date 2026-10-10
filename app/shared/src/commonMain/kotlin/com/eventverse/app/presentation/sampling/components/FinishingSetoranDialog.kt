@@ -58,7 +58,7 @@ fun FinishingSetoranDialog(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "${order.spkNumber.value} • ${order.clientName}",
+                            text = "${order.spkNumber.value} · ${order.clientName}",
                             fontSize = 12.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )

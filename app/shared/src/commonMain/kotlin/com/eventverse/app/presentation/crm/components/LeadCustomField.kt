@@ -222,7 +222,7 @@ private fun TextEditor(
             onCommit(text.takeIf { it.isNotBlank() }?.let(buildCell))
         }
     } else {
-        Text(text = displayText(text).ifBlank { "—" }, fontSize = 13.sp, color = WeMadeColors.OnSurface)
+        Text(text = displayText(text).ifBlank { "-" }, fontSize = 13.sp, color = WeMadeColors.OnSurface)
     }
 }
 
@@ -266,7 +266,7 @@ private fun FileEditor(
 
     if (ref.isBlank() && !canUpload) {
         Text(
-            text = if (ref.isBlank()) "—" else fileRefDisplayName(ref),
+            text = if (ref.isBlank()) "-" else fileRefDisplayName(ref),
             fontSize = 13.sp,
             color = if (ref.isBlank()) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
         )
@@ -345,7 +345,7 @@ private fun SelectEditor(
     if (editable && onCommit != null) {
         Row {
             ClayBadge(
-                text = selectedOption?.label ?: "Pilih…",
+                text = selectedOption?.label ?: "Pilih...",
                 tint = selectedOption?.let { ComposeColor(parseHex(it.colorHex)) } ?: WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.clickable { expanded = true }
             )
@@ -363,7 +363,7 @@ private fun SelectEditor(
         }
     } else {
         ClayBadge(
-            text = selectedOption?.label ?: "—",
+            text = selectedOption?.label ?: "-",
             tint = selectedOption?.let { ComposeColor(parseHex(it.colorHex)) } ?: WeMadeColors.OnSurfaceMuted
         )
     }
@@ -401,7 +401,7 @@ private fun UserRefEditor(
             }
         }
     } else {
-        Text(text = selected?.name ?: "—", fontSize = 13.sp, color = WeMadeColors.OnSurface)
+        Text(text = selected?.name ?: "-", fontSize = 13.sp, color = WeMadeColors.OnSurface)
     }
 }
 

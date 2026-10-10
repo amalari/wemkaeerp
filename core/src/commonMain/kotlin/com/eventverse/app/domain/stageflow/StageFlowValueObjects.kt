@@ -15,7 +15,7 @@ import kotlin.jvm.JvmInline
 @JvmInline
 value class StageCode(val value: String) {
     init {
-        require(PATTERN.matches(value)) { "StageCode tidak valid: \"$value\" (A-Z, 0-9, _; 2–48 karakter)" }
+        require(PATTERN.matches(value)) { "StageCode tidak valid: \"$value\" (A-Z, 0-9, _; 2-48 karakter)" }
     }
 
     override fun toString(): String = value

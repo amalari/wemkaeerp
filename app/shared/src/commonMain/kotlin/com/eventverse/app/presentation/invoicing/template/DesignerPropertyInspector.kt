@@ -189,7 +189,7 @@ private fun TemplateSettings(
             leading = { IconZap(Modifier.size(13.dp)) }
         )
         Text(
-            text = "Menebak token data untuk teks yang sudah ada, misalnya \"Telp: 0812…\" menjadi isian " +
+            text = "Menebak token data untuk teks yang sudah ada, misalnya \"Telp: 0812...\" menjadi isian " +
                 "telepon klien. Label teks murni dibiarkan apa adanya.",
             fontSize = 10.sp,
             color = WeMadeColors.OnSurfaceMuted
@@ -306,7 +306,7 @@ private fun StaticTextSettings(
             label = null,
             singleLine = false,
             minLines = 3,
-            placeholder = "Tulis isi teks…"
+            placeholder = "Tulis isi teks..."
         )
 
         Text(
@@ -544,7 +544,7 @@ private fun FontSizeStepper(
         Spacer(modifier = Modifier.width(ClaySpacing.Sm))
 
         ClayButton(
-            text = "−",
+            text = "-",
             onClick = { onChange((fontSizePt - 1).coerceAtLeast(MIN_FONT_SIZE_PT)) },
             style = ClayButtonStyle.Ghost,
             fontSize = 12.sp

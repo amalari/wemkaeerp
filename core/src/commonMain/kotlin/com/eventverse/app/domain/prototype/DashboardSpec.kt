@@ -40,7 +40,7 @@ data class DashboardConfig(val tiles: List<TileSpec>) {
 object DashboardEvaluator {
     fun valueOf(tile: TileSpec, rowsOf: (moduleId: String) -> List<PrototypeRow>?): String {
         val count = tile.count ?: return tile.value.orEmpty()
-        val rows = rowsOf(count.moduleId) ?: return tile.value ?: "—"
+        val rows = rowsOf(count.moduleId) ?: return tile.value ?: "-"
         return "${rows.count(count::matches)}${count.suffix}"
     }
 }

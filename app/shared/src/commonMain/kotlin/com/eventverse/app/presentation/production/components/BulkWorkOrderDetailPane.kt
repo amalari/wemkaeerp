@@ -76,7 +76,7 @@ private fun HeaderCard(order: BulkWorkOrder) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${order.clientName} — ${order.styleName}",
+                    text = "${order.clientName} - ${order.styleName}",
                     fontSize = 12.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     maxLines = 2,
@@ -142,7 +142,7 @@ private fun HeaderCard(order: BulkWorkOrder) {
         )
         if (order.stockOwnership.requiresWasteReconciliation) {
             Text(
-                text = "Kain titipan klien — sisa kain dan perca wajib direkonsiliasi saat SPK ditutup.",
+                text = "Kain titipan klien - sisa kain dan perca wajib direkonsiliasi saat SPK ditutup.",
                 fontSize = 11.sp,
                 color = WeMadeColors.Warning
             )
@@ -157,7 +157,7 @@ private fun SizeBreakdownCard(order: BulkWorkOrder) {
         Spacer(Modifier.height(ClaySpacing.Md))
 
         if (order.sizeBreakdown.isEmpty()) {
-            EmptyHint("Belum ada rincian ukuran — SPK ini belum bisa diturunkan ke meja potong.")
+            EmptyHint("Belum ada rincian ukuran - SPK ini belum bisa diturunkan ke meja potong.")
             return@ClayCard
         }
 

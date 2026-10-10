@@ -50,7 +50,7 @@ object GarmentScreenSuggestions {
                 inlineCreate = true,
                 editableFields = listOf("Pembeli", "Produk", "Target Kirim")
             )
-        ).because("Dipilih karena PO dan prospek dibandingkan berderet — pembeli, produk, dan target kirim — lalu statusnya diubah langsung di baris."),
+        ).because("Dipilih karena PO dan prospek dibandingkan berderet - pembeli, produk, dan target kirim - lalu statusnya diubah langsung di baris."),
         ScreenSuggestion(
             GarmentModules.SAMPLING_ORDER, "Papan SPK Sampling", WidgetKind.KANBAN,
             GarmentExportSeed.samplingRows(),
@@ -90,7 +90,7 @@ object GarmentScreenSuggestions {
                 mapOf("Order aktif" to "2 PO"),
                 mapOf("SPK sampling berjalan" to "4 SPK"),
                 mapOf("Nilai order produksi (FOB)" to GarmentExportSeed.activeValueText()),
-                mapOf("Biaya terbesar" to "Kain — 58% dari HPP")
+                mapOf("Biaya terbesar" to "Kain - 58% dari HPP")
             ),
             dashboardHints = DashboardHints(
                 mapOf(

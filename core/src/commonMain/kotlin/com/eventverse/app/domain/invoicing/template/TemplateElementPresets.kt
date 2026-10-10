@@ -87,7 +87,7 @@ object TemplateElementFactory {
             elementId = elementId,
             rect = rect,
             zOrder = zOrder,
-            text = "Teks baru — klik dua kali untuk mengubah isinya.",
+            text = "Teks baru - klik dua kali untuk mengubah isinya.",
             style = TextStyleSpec(fontSizePt = 10)
         )
 

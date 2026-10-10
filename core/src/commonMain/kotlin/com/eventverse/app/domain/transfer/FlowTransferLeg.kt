@@ -32,7 +32,7 @@ data class FlowTransferLeg(
     }
 
     /** Ringkasan satu baris untuk konektor di panel alur, mis. `Gedung A → Gedung B`. */
-    val summary: String get() = "${origin.displayLabel} → ${destination.displayLabel}"
+    val summary: String get() = "${origin.displayLabel} -> ${destination.displayLabel}"
 
     companion object {
         /** Sepadan dengan lebar kolom `surat_jalan_manifests.leg_key`. */

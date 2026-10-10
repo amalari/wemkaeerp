@@ -53,7 +53,7 @@ fun QcDeskInspectionDialog(
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Lembar QC • ${order.spkNumber.value}",
+                        text = "Lembar QC · ${order.spkNumber.value}",
                         style = MaterialTheme.typography.titleLarge,
                         color = WeMadeColors.OnSurface,
                         modifier = Modifier.weight(1f)

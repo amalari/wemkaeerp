@@ -141,7 +141,7 @@ fun CrmKanbanBoard(
                         ClayTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
-                            placeholder = "Cari brand, kontak, nomor WA, kategori…",
+                            placeholder = "Cari brand, kontak, nomor WA, kategori...",
                             modifier = Modifier.width(280.dp).tutorialAnchor(GarmentTutorialAnchors.CRM_SEARCH)
                         )
 

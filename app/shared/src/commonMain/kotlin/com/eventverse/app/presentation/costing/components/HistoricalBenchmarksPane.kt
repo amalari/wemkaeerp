@@ -62,7 +62,7 @@ fun HistoricalBenchmarksPane(
             Spacer(Modifier.width(ClaySpacing.Md))
             if (state.canWrite) {
                 ClayButton(
-                    text = if (state.isImportingWorkbook) "Mengimpor…" else "📂 Import File Excel",
+                    text = if (state.isImportingWorkbook) "Mengimpor..." else "Import File Excel",
                     onClick = { onEvent(CostingUiEvent.PickAndImportWorkbook) },
                     style = ClayButtonStyle.Secondary,
                     enabled = !state.isImportingWorkbook
@@ -73,13 +73,13 @@ fun HistoricalBenchmarksPane(
         ClayTextField(
             value = state.benchmarkSearchQuery,
             onValueChange = { onEvent(CostingUiEvent.SetBenchmarkSearchQuery(it)) },
-            placeholder = "Cari nama artikel, klien, atau jenis benang…",
+            placeholder = "Cari nama artikel, klien, atau jenis benang...",
             leadingIcon = { IconSearch() },
             modifier = Modifier.fillMaxWidth()
         )
 
         when {
-            state.isLoadingBenchmarks -> CenteredNotice("Memuat arsip produk…")
+            state.isLoadingBenchmarks -> CenteredNotice("Memuat arsip produk...")
 
             state.benchmarks.isEmpty() -> EmptyArchiveNotice()
 
@@ -128,7 +128,7 @@ private fun BenchmarkRowCard(benchmark: CostingProductBenchmark) {
                         benchmark.clientName.takeIf { it.isNotBlank() },
                         benchmark.structure.yarnType.takeIf { it.isNotBlank() },
                         benchmark.structure.gauge?.let { "${it}GG" }
-                    ).joinToString(" • ").ifBlank { "Detail teknis tidak tercatat" },
+                    ).joinToString(" · ").ifBlank { "Detail teknis tidak tercatat" },
                     fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     maxLines = 1,

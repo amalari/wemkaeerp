@@ -128,7 +128,7 @@ object DeterministicScreenProposer : ScreenProposer {
             }
         }.take(ProposalLimits.TILES)
         // Tanpa modul bersumber, ubin tak mengarang angka: nilainya penanda kosong yang jujur.
-        return tiles.ifEmpty { listOf(TileSpec("Belum ada data untuk diringkas", value = "—")) }
+        return tiles.ifEmpty { listOf(TileSpec("Belum ada data untuk diringkas", value = "-")) }
     }
 
     /** Baris contoh berlabel jelas "Contoh …" — penanda bentuk, bukan data karangan yang tampak nyata. */

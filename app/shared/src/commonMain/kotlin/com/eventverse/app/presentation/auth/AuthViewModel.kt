@@ -209,7 +209,7 @@ class AuthViewModel(
                     it.copy(
                         isLoading = false,
                         authenticatedSession = session,
-                        successMessage = "Selamat datang, ${session.user.username.value}! (${session.user.email.value}) — Terkoneksi ke DB & JWT Aktif"
+                        successMessage = "Selamat datang, ${session.user.username.value}! (${session.user.email.value}) - Terkoneksi ke DB & JWT Aktif"
                     )
                 }
                 _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
@@ -266,7 +266,7 @@ class AuthViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            successMessage = "Persona aktif: ${persona.displayLabel} — sesi live dari server."
+                            successMessage = "Persona aktif: ${persona.displayLabel} - sesi live dari server."
                         )
                     }
                     _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
@@ -482,7 +482,7 @@ class AuthViewModel(
                 isLoading = false,
                 authenticatedSession = session,
                 tenantSlug = slug,
-                successMessage = "Selamat datang, ${user.username.value} (${user.email.value}) — Role: ${user.role.name}"
+                successMessage = "Selamat datang, ${user.username.value} (${user.email.value}) - Role: ${user.role.name}"
             )
         }
         if (announce) _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))

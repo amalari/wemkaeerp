@@ -44,7 +44,7 @@ class StoreSampleUseCase(
     suspend operator fun invoke(command: StoreSampleCommand): Result<StoredSample> = runCatching {
         val order = command.order
         require(order.stageCode == order.packingStage) {
-            "Hanya barang yang selesai dikemas yang bisa disimpan — ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
+            "Hanya barang yang selesai dikemas yang bisa disimpan - ${order.spkNumber.value} masih di ${order.currentStage.displayName}"
         }
         val advanced = advanceStage(
             AdvanceSamplingStageCommand(

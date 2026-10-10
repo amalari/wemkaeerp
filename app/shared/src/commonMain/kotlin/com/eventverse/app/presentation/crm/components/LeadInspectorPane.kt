@@ -261,7 +261,7 @@ fun LeadInspectorPane(
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         if (isLoadingActivities) {
                             Text(
-                                text = "Memuat riwayat update…",
+                                text = "Memuat riwayat update...",
                                 fontSize = 13.sp,
                                 color = WeMadeColors.OnSurfaceMuted,
                                 modifier = Modifier.align(Alignment.Center)
@@ -310,11 +310,11 @@ fun LeadInspectorPane(
                             ClayTextField(
                                 value = newCommentText,
                                 onValueChange = { newCommentText = it },
-                                placeholder = "Tulis update sales terbaru…",
+                                placeholder = "Tulis update sales terbaru...",
                                 modifier = Modifier.weight(1f)
                             )
                             ClayButton(
-                                text = if (isSubmittingActivity) "Kirim…" else "Kirim",
+                                text = if (isSubmittingActivity) "Kirim..." else "Kirim",
                                 style = ClayButtonStyle.Primary,
                                 enabled = newCommentText.isNotBlank() && !isSubmittingActivity,
                                 onClick = {

@@ -210,7 +210,7 @@ class QuickQuotationEstimatorTest {
 
         val summary = result.toWhatsAppSummary { money -> "Rp ${money.minorUnits / 100}" }
 
-        assertTrue(summary.contains("–"), "Ringkasan harus memuat rentang harga")
+        assertTrue(summary.contains("-"), "Ringkasan harus memuat rentang harga")
         assertTrue(summary.contains("estimasi awal"), "Ringkasan wajib memuat pagar komersial")
         assertTrue(summary.contains("100 pcs"))
         assertFalse(summary.contains("null"))

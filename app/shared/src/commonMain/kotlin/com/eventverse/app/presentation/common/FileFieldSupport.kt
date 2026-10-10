@@ -71,10 +71,10 @@ fun fieldFileErrorMessage(error: Throwable): String {
         // sampaikan batas kontrak (JANGAN menelan pesan server lalu mengarang batas berbeda).
         413 -> error.message?.takeIf { it.isNotBlank() }
             ?: "Ukuran berkas melebihi batas ${formatFileSize(FIELD_FILE_MAX_BYTES.toLong())}."
-        415 -> "Tipe berkas tidak didukung — gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV."
+        415 -> "Tipe berkas tidak didukung - gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV."
         503 -> "Penyimpanan berkas belum siap di server (env S3 belum diatur). Hubungi admin."
         403 -> "Anda tidak berwenang memproses berkas pada data ini."
-        404 -> "Data atau berkas tidak ditemukan — mungkin sudah dihapus."
+        404 -> "Data atau berkas tidak ditemukan - mungkin sudah dihapus."
         400 -> error.message?.takeIf { it.isNotBlank() } ?: "Permintaan unggah tidak sah."
         else -> error.message?.takeIf { it.isNotBlank() } ?: "Gagal memproses berkas (HTTP ${error.status})."
     }

@@ -255,7 +255,7 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: 
                     if (item.designCode != null) {
                         ClayBadge(
                             text = if (item.totalDealDesigns > 1) {
-                                "${item.designCode} • Desain ${item.designNumber} dari ${item.totalDealDesigns}"
+                                "${item.designCode} · Desain ${item.designNumber} dari ${item.totalDealDesigns}"
                             } else {
                                 item.designCode
                             },
@@ -269,7 +269,7 @@ private fun QcInspectionHeader(item: QcQueueItem, sizeLabel: String, isCompact: 
         }
 
         Text(
-            text = "${item.order.clientName} • ${item.order.styleName}",
+            text = "${item.order.clientName} · ${item.order.styleName}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = WeMadeColors.OnSurface
@@ -316,12 +316,12 @@ private fun QcSubmitBar(
         verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
     ) {
         val statusText = when {
-            inspectorName.isBlank() -> "Sesi tidak mengenali petugas — lembar tidak bisa ditandatangani."
+            inspectorName.isBlank() -> "Sesi tidak mengenali petugas - lembar tidak bisa ditandatangani."
             !form.isComplete && form.isRecheck ->
-                "Pemeriksaan ulang — tinggal ${form.requiredCount} titik yang dulu bermasalah (terisi ${form.filledCount})."
+                "Pemeriksaan ulang - tinggal ${form.requiredCount} titik yang dulu bermasalah (terisi ${form.filledCount})."
             !form.isComplete -> "Terisi ${form.filledCount} dari ${form.requiredCount} titik ukur."
-            form.flaggedCount > 0 -> "${form.flaggedCount} titik bermasalah — pcs ini tercatat perlu perbaikan."
-            else -> "Semua titik sesuai — pcs ini tercatat lolos."
+            form.flaggedCount > 0 -> "${form.flaggedCount} titik bermasalah - pcs ini tercatat perlu perbaikan."
+            else -> "Semua titik sesuai - pcs ini tercatat lolos."
         }
         val statusColor = when {
             inspectorName.isBlank() || !form.isComplete -> WeMadeColors.Warning
@@ -375,7 +375,7 @@ private fun QcSubmitBar(
         ClayButton(
             text = when {
                 form.isRecheck -> "Submit Hasil Perbaikan Pcs ke-${item.nextPieceNo}"
-                isLastPiece -> "Submit — SPK Selesai"
+                isLastPiece -> "Submit - SPK Selesai"
                 else -> "Submit & Lanjut Pcs ke-${item.nextPieceNo + 1}"
             },
             style = if (form.isComplete && form.flaggedCount > 0) ClayButtonStyle.Accent else ClayButtonStyle.Success,

@@ -68,7 +68,7 @@ fun ModuleNotEntitledCard(
                 color = WeMadeColors.OnSurface
             )
             Text(
-                text = "Ini bukan soal wewenang jabatan Anda — mengatur ulang matriks Hak Akses " +
+                text = "Ini bukan soal wewenang jabatan Anda - mengatur ulang matriks Hak Akses " +
                     "tidak akan membukanya.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted

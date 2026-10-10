@@ -89,7 +89,7 @@ object ProposedFlowValidator {
             .map { (archetype, duplicates) ->
                 "Slot \"${archetype.displayName}\" terisi ${duplicates.size} kebutuhan " +
                     "(${duplicates.joinToString(", ") { "\"${it.title}\"" }}). " +
-                    "Kemungkinan satu kebutuhan terpecah dua — periksa sebelum dihitung sebagai dua modul."
+                    "Kemungkinan satu kebutuhan terpecah dua - periksa sebelum dihitung sebagai dua modul."
             }
 
     /**
@@ -110,6 +110,6 @@ object ProposedFlowValidator {
     private fun unclassifiedWarnings(requirements: List<CapabilityRequirement>): List<String> =
         requirements.filter { it.isUnclassified }.map {
             "Kebutuhan \"${it.title}\" tidak cocok dengan slot mana pun dan diperlakukan sebagai " +
-                "modul kustom — ini yang paling mungkin jadi biaya pembangunan baru."
+                "modul kustom - ini yang paling mungkin jadi biaya pembangunan baru."
         }
 }

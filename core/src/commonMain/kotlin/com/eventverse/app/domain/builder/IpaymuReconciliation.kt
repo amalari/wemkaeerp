@@ -60,14 +60,14 @@ class ReconcileSubscriptionInvoicesUseCase(
             val check = runCatching { gateway.checkStatus(numeric).getOrThrow() }.fold(
                 onSuccess = { it },
                 onFailure = { e ->
-                    failures += "${invoice.number}: cek status gagal — ${e.message}"
+                    failures += "${invoice.number}: cek status gagal - ${e.message}"
                     null
                 }
             ) ?: continue
 
             if (!check.sessionId.equals(invoice.ipaymuTrxId, ignoreCase = true)) {
                 // Status milik transaksi lain — jangan pernah dipakai melunasi invoice ini.
-                failures += "${invoice.number}: sessionId hasil cek '${check.sessionId}' ≠ sid tersimpan"
+                failures += "${invoice.number}: sessionId hasil cek '${check.sessionId}' != sid tersimpan"
                 continue
             }
 
@@ -77,7 +77,7 @@ class ReconcileSubscriptionInvoicesUseCase(
                     note = "rekonsiliasi iPaymu: trx numerik $numeric (callback tidak diterima)"
                 ).fold(
                     onSuccess = { confirmedInvoices += it },
-                    onFailure = { e -> failures += "${invoice.number}: konfirmasi gagal — ${e.message}" }
+                    onFailure = { e -> failures += "${invoice.number}: konfirmasi gagal - ${e.message}" }
                 )
                 IpaymuTransactionStatus.PENDING -> stillPending++
                 IpaymuTransactionStatus.EXPIRED, IpaymuTransactionStatus.FAILED -> expiredOrFailed++

@@ -47,7 +47,7 @@ class FileFieldSupportTest {
             fieldFileErrorMessage(FieldFileHttpException(413, "   "))
         )
         assertEquals(
-            "Tipe berkas tidak didukung — gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV.",
+            "Tipe berkas tidak didukung - gunakan PDF, PNG, JPEG, WebP, TXT, atau CSV.",
             fieldFileErrorMessage(FieldFileHttpException(415, "unsupported"))
         )
         assertEquals(
@@ -59,7 +59,7 @@ class FileFieldSupportTest {
             fieldFileErrorMessage(FieldFileHttpException(403, "nope"))
         )
         assertEquals(
-            "Data atau berkas tidak ditemukan — mungkin sudah dihapus.",
+            "Data atau berkas tidak ditemukan - mungkin sudah dihapus.",
             fieldFileErrorMessage(FieldFileHttpException(404, "gone"))
         )
     }

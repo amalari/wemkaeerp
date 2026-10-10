@@ -274,7 +274,7 @@ private fun MockupPolaroidCard(
                 }
                 reference != null -> {
                     Text(
-                        text = "Memuat…",
+                        text = "Memuat...",
                         fontSize = 10.sp,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -537,7 +537,7 @@ private fun MockupZoomPreviewDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Memuat gambar…",
+                            text = "Memuat gambar...",
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )

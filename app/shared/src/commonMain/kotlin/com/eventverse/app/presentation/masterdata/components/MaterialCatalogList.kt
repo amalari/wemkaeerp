@@ -43,7 +43,7 @@ fun MaterialCatalogList(
             ClayTextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
-                placeholder = "Cari kode, nama, atau deskripsi…",
+                placeholder = "Cari kode, nama, atau deskripsi...",
                 leadingIcon = { IconSearch(color = WeMadeColors.OnSurfaceMuted) },
                 modifier = Modifier.weight(1f)
             )

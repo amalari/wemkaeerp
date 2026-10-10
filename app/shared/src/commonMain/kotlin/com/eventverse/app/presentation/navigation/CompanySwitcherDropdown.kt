@@ -53,7 +53,7 @@ data class CompanyTenantProfile(
                 name = "PT WeMade Garmen Ekspor",
                 preset = GarmentBlueprints.FOB_FULL_PACKAGE,
                 iconColor = Color(0xFF2563EB),
-                subtitle = "Pabrik Utama • 12 Line Produksi"
+                subtitle = "Pabrik Utama · 12 Line Produksi"
             ),
             CompanyTenantProfile(
                 id = "ten-demo-cmt",
@@ -61,7 +61,7 @@ data class CompanyTenantProfile(
                 name = "CV Berkah Makloon Jahit",
                 preset = GarmentBlueprints.CMT_MAKLOON,
                 iconColor = Color(0xFFD97706),
-                subtitle = "Unit Makloon Jahit • 8 Line Produksi"
+                subtitle = "Unit Makloon Jahit · 8 Line Produksi"
             ),
             CompanyTenantProfile(
                 id = "ten-demo-d2c",
@@ -69,7 +69,7 @@ data class CompanyTenantProfile(
                 name = "UrbanWear Studio Apparel",
                 preset = GarmentBlueprints.BRAND_D2C,
                 iconColor = Color(0xFF059669),
-                subtitle = "Workshop Studio • 4 Line Produksi"
+                subtitle = "Workshop Studio · 4 Line Produksi"
             )
         )
 
