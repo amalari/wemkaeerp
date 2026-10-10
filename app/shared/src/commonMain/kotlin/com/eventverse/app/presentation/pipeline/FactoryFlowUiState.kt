@@ -28,6 +28,8 @@ data class FactoryFlowUiState(
     val pipeline: CustomTenantPipeline? = null,
     val moduleCatalog: TenantModuleCatalogSnapshot = TenantModuleCatalogSnapshot.EMPTY,
     val isLoading: Boolean = true,
+    /** Hasil pemuatan alur tenant; AccessDenied/Failed menggantikan kanvas dengan kartu (Q2). */
+    val loadState: FactoryFlowLoadState = FactoryFlowLoadState.Loading,
     val isSaving: Boolean = false,
     val error: String? = null,
     /** Set when the topology shown is the preset template rather than persisted tenant data. */

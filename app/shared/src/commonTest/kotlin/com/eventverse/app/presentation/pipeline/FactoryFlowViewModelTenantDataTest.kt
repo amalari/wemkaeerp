@@ -77,7 +77,7 @@ class FactoryFlowViewModelTenantDataTest {
     }
 
     @Test
-    fun loadTenantPipeline_whenServerFails_shouldFallBackAndSaySo() = runTest {
+    fun loadTenantPipeline_whenServerFails_shouldBlockInsteadOfShowingPreset() = runTest {
         val remote = FakePipelineRemoteDataSource(
             pipeline = null,
             failure = IllegalStateException("Gagal memuat alur pabrik (HTTP 503)")
@@ -92,12 +92,11 @@ class FactoryFlowViewModelTenantDataTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
-        // A fallback must never be presented as the tenant's real configuration.
-        assertTrue(state.isOfflineFallback)
+        // Kegagalan tidak pernah menjadi preset (TRD-PLAT-012 Q2).
+        assertFalse(state.isOfflineFallback)
         assertFalse(state.isTenantDataLoaded)
         assertNull(state.pipeline)
-        assertNotNull(state.error)
-        assertTrue(state.snapshot.nodes.isNotEmpty(), "Kanvas tetap terisi template agar tidak kosong")
+        assertTrue(state.loadState is FactoryFlowLoadState.Failed)
     }
 
     @Test
@@ -113,7 +112,7 @@ class FactoryFlowViewModelTenantDataTest {
 
         viewModel.onEvent(FactoryFlowUiEvent.LoadTenantPipeline(tenantSlug))
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isOfflineFallback)
+        assertTrue(viewModel.uiState.value.loadState is FactoryFlowLoadState.Failed)
 
         remote.failure = null
         viewModel.onEvent(FactoryFlowUiEvent.Retry(tenantSlug))

@@ -130,7 +130,7 @@ class PipelineApiClient(
     private suspend fun HttpResponse.requireBody(action: String): String {
         val body = bodyAsText()
         if (!status.isSuccess()) {
-            error("Gagal $action (HTTP ${status.value}): $body")
+            throw PipelineRequestException(action, status.value, body)
         }
         return body
     }

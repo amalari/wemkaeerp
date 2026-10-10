@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
  * overlays that topology onto the preset template, which supplies only the operational
  * detail a graph cannot carry (WIP, cycle times, input ports).
  *
- * If the server cannot be reached the screen falls back to the preset template and says so,
- * rather than silently presenting template data as if it were the tenant's configuration.
+ * A failed load never becomes preset data: 403 -> [FactoryFlowLoadState.AccessDenied], anything else
+ * -> [FactoryFlowLoadState.Failed] (retryable). The preset appears only via an explicit preview.
  */
 class FactoryFlowViewModel(
     private val apiClient: PipelineRemoteDataSource = PipelineApiClient(),
@@ -125,7 +125,7 @@ class FactoryFlowViewModel(
     }
 
     private fun loadTenantPipeline(tenantSlug: String) {
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        _uiState.update { it.copy(isLoading = true, error = null, loadState = FactoryFlowLoadState.Loading) }
 
         scope.launch {
             apiClient.getPipeline(tenantSlug)
@@ -138,7 +138,7 @@ class FactoryFlowViewModel(
                         _uiState.update { it.copy(telemetry = readings, snapshot = it.withTelemetry(it.snapshot, readings)) }
                     }
                 }
-                .onFailure { cause -> fallBackToPreset(cause) }
+                .onFailure { cause -> blockLoad(cause) }
         }
     }
 
@@ -188,6 +188,7 @@ class FactoryFlowViewModel(
                 isSaving = false,
                 isOfflineFallback = false,
                 error = null,
+                loadState = FactoryFlowLoadState.Loaded,
                 // A node held from a previous topology may no longer exist.
                 selectedNode = null,
                 inspectingInputNode = null
@@ -195,19 +196,21 @@ class FactoryFlowViewModel(
         }
     }
 
-    private fun fallBackToPreset(cause: Throwable) {
-        _uiState.update { current ->
-            current.copy(
+    /**
+     * Kegagalan memuat TIDAK pernah menjadi preset (TRD-PLAT-012 Q2): 403 -> AccessDenied, selain itu Failed.
+     * Alur lama (bila ada) dibuang agar data basi tak tampak sebagai data tenant.
+     */
+    private fun blockLoad(cause: Throwable) {
+        _uiState.update {
+            it.copy(
                 pipeline = null,
-                snapshot = PipelineTelemetryOverlay.applyTo(
-                    PipelinePresetFactory.createSnapshot(current.selectedPreset, current.activeScenario),
-                    emptyList(),
-                    current.activeScenario
-                ),
                 isLoading = false,
                 isSaving = false,
-                isOfflineFallback = true,
-                error = cause.message ?: "Tidak dapat memuat alur tenant dari server."
+                isOfflineFallback = false,
+                error = null,
+                selectedNode = null,
+                inspectingInputNode = null,
+                loadState = FactoryFlowLoadState.fromFailure(cause)
             )
         }
     }
