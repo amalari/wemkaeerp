@@ -127,16 +127,31 @@ class AuthApiClient(
      * GET /api/public/auth/me
      * Memverifikasi JWT token ke backend dan mengambil profil user aktif dari DB.
      */
-    suspend fun verifySession(token: String): Result<UserSession> = runCatching {
-        val response = httpClient.get(resolveUrl("/api/public/auth/me")) {
-            header("Authorization", "Bearer $token")
-            accept(ContentType.Application.Json)
-        }
-        if (!response.status.isSuccess()) {
-            error("Sesi tidak valid (HTTP ${response.status.value}): ${response.bodyAsText()}")
+    suspend fun verifySession(token: String): Result<UserSession> {
+        val response = try {
+            httpClient.get(resolveUrl("/api/public/auth/me")) {
+                header("Authorization", "Bearer $token")
+                accept(ContentType.Application.Json)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(AuthApiError.Unreachable(e))
         }
         val text = response.bodyAsText()
-        parseUserSession(text) ?: error("Gagal mem-parsing profil user dari server: $text")
+        if (!response.status.isSuccess()) {
+            val status = response.status.value
+            return Result.failure(
+                AuthApiError.Rejected(
+                    status = status,
+                    serverMessage = text,
+                    message = "Sesi tidak valid (HTTP $status): $text",
+                    reason = response.headers[AuthRejectionReason.HEADER]
+                )
+            )
+        }
+        return parseUserSession(text)?.let { Result.success(it) }
+            ?: Result.failure(AuthApiError.Malformed("Gagal mem-parsing profil user dari server: $text"))
     }
 
     /** GET /api/public/onboarding/config → `platformBaseDomain` (`null` = mode lokal). */

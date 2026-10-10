@@ -131,6 +131,10 @@ fun Route.publicAuthRoutes(
             val tenantSlug = jwt.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
             // Tanpa fallback senyap ke "wemade-demo": token tenant-bound tanpa slug ditolak.
             if (tenantSlug == null && roleClaim != Role.PLATFORM_SUPERADMIN.name) {
+                call.response.headers.append(
+                    com.eventverse.app.domain.auth.AuthRejectionReason.HEADER,
+                    com.eventverse.app.domain.auth.AuthRejectionReason.TOKEN_WITHOUT_TENANT
+                )
                 call.respond(HttpStatusCode.Unauthorized, "Token tidak memuat tenant")
                 return@get
             }

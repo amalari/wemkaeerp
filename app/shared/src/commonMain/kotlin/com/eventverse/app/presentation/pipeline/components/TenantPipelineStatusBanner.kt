@@ -41,7 +41,7 @@ fun TenantPipelineStatusBanner(
         AnimatedVisibility(visible = state.isLoading) {
             StatusRow(
                 accent = WeMadeColors.Primary,
-                title = "Memuat konfigurasi alur tenant dari server…",
+                title = "Memuat konfigurasi alur tenant dari server...",
                 subtitle = null
             ) {
                 CircularProgressIndicator(

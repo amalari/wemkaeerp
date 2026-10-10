@@ -85,3 +85,12 @@ handoff act-as ke tenant host, semuanya 200. Fakta yang menjelaskan laporan lama
   disengaja (fail-closed); sesi lama dibersihkan dengan login ulang.
 - Jebakan alat: satu browser Playwright dipakai bersama beberapa agen, sehingga halaman bisa berpindah ke
   port agen lain di tengah uji. Pakai `browser.newContext()` sendiri.
+
+## Pesan sesi lama yang ramah (verifikasi sesi tersimpan)
+
+`/api/public/auth/me` menjawab 401 "Token tidak memuat tenant" untuk sesi tersimpan sebelum token wajib-slug. Klien dulu
+menampilkan "Sesi telah kedaluwarsa" untuk semua 401. Membedakannya lewat teks pesan rapuh, jadi server kini menambah header
+`X-Auth-Reason: token_without_tenant` (konstanta `AuthRejectionReason` di core), `verifySession` mengembalikan
+`AuthApiError.Rejected(reason=...)`, dan `AuthViewModel.sessionRejectedMessage` memetakan kode itu ke "Sesi lama tidak
+lagi berlaku. Silakan masuk ulang."; 401 lain tetap "kedaluwarsa". Jaringan mati pada verifikasi kini bertipe
+`Unreachable` (perilaku hapus-sesi tidak diubah). Tes: `SessionRestoreRejectionTest` (slug `bordir-uji`).

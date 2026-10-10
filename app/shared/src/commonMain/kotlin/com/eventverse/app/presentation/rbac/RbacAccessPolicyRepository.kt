@@ -177,12 +177,17 @@ class RbacAccessPolicyRepository(
                 }
             }
 
-            client.getDepartments(tenantSlug).onSuccess { remote ->
-                if (remote.isNotEmpty()) _departments.value = remote
-            }
+            // Divisi & karyawan dijaga gerbang Bagan Organisasi di server. Bila keputusan server menutupnya,
+            // tidak diminta sama sekali (tanpa 403 sia-sia di konsol, mis. persona tanpa jabatan di Factory Flow).
+            val readsOrgChart = server?.get(GarmentModules.ORG_CHART)?.config?.isAccessible ?: true
+            if (readsOrgChart) {
+                client.getDepartments(tenantSlug).onSuccess { remote ->
+                    if (remote.isNotEmpty()) _departments.value = remote
+                }
 
-            client.getEmployees(tenantSlug).onSuccess { remote ->
-                if (remote.isNotEmpty()) _employees.value = remote
+                client.getEmployees(tenantSlug).onSuccess { remote ->
+                    if (remote.isNotEmpty()) _employees.value = remote
+                }
             }
 
             if (readsRbac) {

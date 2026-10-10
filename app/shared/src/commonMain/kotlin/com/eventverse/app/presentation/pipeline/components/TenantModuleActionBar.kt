@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.pipeline.FactoryFlowUiState
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -30,11 +31,7 @@ fun TenantModuleActionBar(
     onToggleHideBypassed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    ClayFlowRow(modifier = modifier) {
         if (state.isTenantDataLoaded) {
             SummaryChip(
                 label = "${state.snapshot.activeModulesCount} modul aktif",

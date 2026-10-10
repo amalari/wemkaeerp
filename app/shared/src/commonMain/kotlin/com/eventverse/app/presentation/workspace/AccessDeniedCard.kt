@@ -18,6 +18,9 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.theme.WeMadeColors
 
+/** Label lencana kartu; kosakata pengguna, bukan nama enum `AccessLevel.NONE`. */
+internal const val ACCESS_DENIED_BADGE = "Tanpa Akses"
+
 /**
  * Ditampilkan ketika modul dibuka dengan wewenang `NONE`.
  *
@@ -49,7 +52,7 @@ fun AccessDeniedCard(
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.Error
             )
-            ClayBadge(text = "NONE", tint = WeMadeColors.Error)
+            ClayBadge(text = ACCESS_DENIED_BADGE, tint = WeMadeColors.Error)
         }
 
         Column(

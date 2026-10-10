@@ -24,6 +24,8 @@ import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
+import com.eventverse.app.presentation.designsystem.IconInbox
+import com.eventverse.app.presentation.designsystem.IconRestore
 import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.theme.WeMadeColors
 
@@ -209,7 +211,7 @@ fun PipelineNodeCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             if (node.isNewFromCatalog) {
-                                ClayTag(text = "Baru — belum aktif", tint = WeMadeColors.Info)
+                                ClayTag(text = "Baru - belum aktif", tint = WeMadeColors.Info)
                             }
                             if (node.automatedInputCount > 0) {
                                 ClayTag(
@@ -231,12 +233,18 @@ fun PipelineNodeCard(
                                 )
                             }
 
-                            Text(
-                                text = "Mapping ↗",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Primary
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = "Mapping",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WeMadeColors.Primary
+                                )
+                                IconArrowRight(modifier = Modifier.size(10.dp), color = WeMadeColors.Primary)
+                            }
                         }
                     }
 
@@ -339,12 +347,7 @@ fun PipelineNodeCard(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
-                                    Text(
-                                        text = "⤶ ◀- -",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = routeColor
-                                    )
+                                    IconRestore(modifier = Modifier.size(13.dp), color = routeColor)
                                     Column {
                                         Text(
                                             text = route.triggerReason,
@@ -383,12 +386,7 @@ fun PipelineNodeCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(
-                                text = "📥 ◀╌╌",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.Error
-                            )
+                            IconInbox(modifier = Modifier.size(13.dp), color = WeMadeColors.Error)
                             Text(
                                 text = inboundBadge,
                                 fontSize = 11.sp,
