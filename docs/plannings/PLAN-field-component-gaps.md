@@ -155,7 +155,7 @@ Pengecualian Kontrak 8: bila TRD belum selesai, tipe ini **ditolak**, tidak dipe
 | # | Keputusan | Rekomendasi | Alasan |
 |---|---|---|---|
 | **D1** | Date picker: komponen Material 3 `DatePicker` atau komponen Clay buatan sendiri | **Clay buatan sendiri di `designsystem/`**, mengembalikan string | Bahasa visual Clay (outline tebal, hard shadow); perilaku seragam di 5 target; buta domain |
-| **D2** | Menyatukan dua kosakata (prototype vs CRM) | **Tidak sekarang**; aturan berlaku per kosakata, tulis keputusan di tiap irisan | Menyentuh CRM yang berjalan; manfaat penyatuan baru terasa setelah tipe ke-6 |
+| **D2** | Menyatukan dua kosakata (prototype vs CRM) | ~~Tidak sekarang~~ **Diputuskan 2026-10-10: DISATUKAN** — CRM migrasi ke kosakata prototype; premis "menyentuh CRM yang berjalan" gugur (CRM belum dipakai user — 1 lead demo). Rencana: [`PLAN-unify-field-vocabulary.md`](PLAN-unify-field-vocabulary.md) | Pemilik keputusan, 2026-10-10 |
 | **D3** | Mata uang sebagai parameter `format` pada `NUMBER` (prototype) | **Ya** | Sejalan KDoc CRM: penyimpanan identik, hanya render yang beda |
 | **D4** | Kontrak 8 (komponen belum ada ≠ dipalsukan jadi `TEXT`) berlaku untuk codec yang ada | **Ya**; periksa dulu apakah ada fallback senyap saat ini | Mencegah data berubah tanpa jejak |
 | **D5** | Kerangka kustom: label bebas atau petunjuk dari daftar tertutup | **Petunjuk tertutup** (mis. `TABEL`, `FORM`, `KARTU_ANGKA`, `AKSI`) + label singkat | Label bebas mengarah ke "UI bebas" yang sengaja dihindari; petunjuk menandai blok mana yang kelak bisa menjadi blok sungguhan |

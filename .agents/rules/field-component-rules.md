@@ -136,10 +136,13 @@ tak sah ditolak oleh codec (bukan fallback senyap), dan kerangka hanya berlaku u
 
 ---
 
-## 6. Keputusan Terbuka (belum diputuskan)
+## 6. Keputusan Kosakata (diputuskan 2026-10-10)
 
-- **Menyatukan dua kosakata** (prototype vs CRM)? Keduanya bergerak terpisah dan mulai menyimpang (CRM punya
-  `LongText`, `UserRef`, `DateField(withTime)`; prototype hanya 5 tipe). Menyatukan menyederhanakan agent dan
-  generator tetapi menyentuh CRM yang sudah berjalan. Sampai ada keputusan, aturan §2 berlaku untuk **masing-masing**.
-- Tes paritas Kontrak 7 belum ada untuk kedua kosakata; membuatnya adalah bagian pekerjaan pertama
-  (`PLAN-field-component-gaps.md`).
+- **Dua kosakata DISATUKAN — CRM migrasi ke kosakata prototype** (`EntitySpec.FieldType` + parameter `FieldSpec`).
+  Diputuskan pemilik dengan premis terverifikasi: CRM belum dipakai user nyata (1 lead demo; definisi tersimpan
+  hanya CHECKBOX/SINGLE_SELECT/TEXT). Rencana: [`docs/plannings/PLAN-unify-field-vocabulary.md`](../../docs/plannings/PLAN-unify-field-vocabulary.md).
+  Selama migrasi: parser kompatibilitas kode legacy CRM (`SINGLE_SELECT`→ENUM, `CHECKBOX`→BOOL) wajib ada di satu
+  tempat dan kode lama tetap terbaca (Kontrak 4 — tanpa migrasi data). Setelah selesai, aturan pendaftaran Kontrak 4
+  berlaku SATU kosakata saja; CRM mewarisi tipe baru (TIME, USER_REF) otomatis.
+- ~~Tes paritas Kontrak 7 belum ada untuk kedua kosakata~~ — sudah ada untuk keduanya
+  (`PrototypeFieldType*ParityTest`, `CrmFieldTypeParityTest`, `LeadFieldControlParityTest`).
