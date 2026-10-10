@@ -245,7 +245,7 @@ class FieldFileTenantIsolationTest {
     // ---- Unggah: ref selalu berawalan tenant pemanggil ----------------------------------------------
 
     @Test fun `unggah menghasilkan ref berawalan tenant pemanggil sebagai segmen utuh`() = testApplication {
-        val storage = installApp()
+        val storage = installApp(rows = rowsFor("quality_control", ""))
         val r = client.post("$qcBase/upload?fileName=scan.pdf&contentType=application/pdf") {
             asStaff(slug, roleId); setBody(ByteArray(8))
         }

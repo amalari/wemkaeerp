@@ -49,8 +49,8 @@ internal val ALLOWED_FIELD_FILE_MIME_TYPES = setOf(
  * Gerbang (Kontrak 7 — RBAC paling awal, sebelum body dibaca):
  * - `POST /api/tenant/modules/{moduleCode}/records/{recordId}/fields/{fieldKey}/upload` — modul
  *   induk pada path wajib OPERATE (`requireModuleAccess`); modul tak dikenal = 403 (fail-closed).
- * - `GET  .../download` — modul induk wajib VIEW; ref dibaca dari nilai field record
- *   ([recordRows]); record/ref tidak ada = 404.
+ * - `GET  .../download` — modul induk wajib VIEW; ref dibaca dari nilai field record ([recordRows]).
+ * - Keduanya lewat [requireReachableRecord]: record ada (404) + jangkauan data modul hierarkis (403).
  * - `POST/GET /api/tenant/crm/leads/{leadId}/fields/{fieldId}/upload|download` — gerbang modul CRM
  *   (pola [CrmRoutes]); lead wajib ada + PIC dalam jangkauan data pemanggil.
  *
@@ -91,6 +91,8 @@ fun Route.fieldFileRoutes(
                 call.respond(HttpStatusCode.NotFound, "Modul tidak tersedia untuk tenant ini.")
                 return@post
             }
+            // Record wajib ada + dalam jangkauan data (modul hierarkis) SEBELUM storage/body disentuh (TRD-FIELD-004).
+            call.requireReachableRecord(tenant, module, call.parameters["recordId"].orEmpty(), decision, recordRows[module.value], employeeRepository) ?: return@post
             if (!objectStorage.isConfigured) {
                 call.rejectStorageUnavailable()
                 return@post
@@ -157,12 +159,7 @@ fun Route.fieldFileRoutes(
                 return@get
             }
 
-            val rows = recordRows[module.value]
-            val row = rows?.find(tenant.tenantId, call.parameters["recordId"].orEmpty())
-            if (row == null) {
-                call.respond(HttpStatusCode.NotFound, "Record tidak ditemukan")
-                return@get
-            }
+            val row = call.requireReachableRecord(tenant, module, call.parameters["recordId"].orEmpty(), decision, recordRows[module.value], employeeRepository) ?: return@get
             val rawRef = row.values[call.parameters["fieldKey"]]?.takeIf { FileRef.isValid(it) }
             if (rawRef == null) {
                 call.respond(HttpStatusCode.NotFound, "Field tidak berisi referensi berkas yang sah")

@@ -4,6 +4,9 @@ import com.eventverse.app.asStaff
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
+import com.eventverse.app.domain.discovery.handoff.RecordOwnerSource
+import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
@@ -106,6 +109,71 @@ class FieldFileRecordScopeTest {
         val r = client.get("$soBase/download") { asStaff(g.SLUG, g.ROLE_ID) }
         assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
         assertTrue(storage.downloadCalls.isEmpty())
+    }
+
+    /** Penyimpan baris yang juga sumber pemilik: prasyarat modul HIERARCHICAL di rute generik (A2). */
+    private class OwnedRows(
+        private val inner: PrototypeRowRepository,
+        private val owners: Map<String, OrgNodeId>
+    ) : PrototypeRowRepository by inner, RecordOwnerSource {
+        override suspend fun ownerOf(tenantId: TenantId, recordId: String): OrgNodeId? = owners[recordId]
+    }
+
+    private fun soRows(owner: OrgNodeId?, value: String? = null) = mapOf(
+        "sampling_order" to OwnedRows(g.rows(row("rec-1", value)), listOfNotNull(owner?.let { "rec-1" to it }).toMap())
+    )
+
+    private val soRef = "fields/abc/sampling_order/rec-1/lampiran-abc123-scan.pdf"
+
+    @Test fun `upload_hierarchical_otherOwnersRecord_403`() = testApplication {
+        val storage = installFieldGateApp(soOwnData, rows = soRows(g.otherId))
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
+        assertTrue(storage.stored.isEmpty())
+    }
+
+    @Test fun `upload_hierarchical_ownRecord_201`() = testApplication {
+        val storage = installFieldGateApp(soOwnData, rows = soRows(g.staffId))
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
+        assertEquals(1, storage.stored.size)
+    }
+
+    @Test fun `upload_hierarchical_recordWithoutOwner_ownDataScope_403`() = testApplication {
+        installFieldGateApp(soOwnData, rows = soRows(owner = null))
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
+    }
+
+    @Test fun `upload_hierarchical_allTenantScope_otherOwner_201`() = testApplication {
+        val all = mapOf(GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA))
+        installFieldGateApp(all, rows = soRows(g.otherId))
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
+    }
+
+    @Test fun `upload_hierarchical_recordMissing_404`() = testApplication {
+        installFieldGateApp(soOwnData, rows = soRows(g.staffId))
+        val r = client.post("/api/tenant/modules/sampling_order/records/rec-9/fields/lampiran$upload") {
+            asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8))
+        }
+        assertEquals(HttpStatusCode.NotFound, r.status, r.bodyAsText())
+    }
+
+    private val soViewOwnData = mapOf(GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.VIEW, DataScope.OWN_DATA_ONLY))
+
+    @Test fun `download_hierarchical_outOfScope_403`() = testApplication {
+        val storage = installFieldGateApp(soViewOwnData, rows = soRows(g.otherId, soRef))
+        val r = client.get("$soBase/download") { asStaff(g.SLUG, g.ROLE_ID) }
+        assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
+        assertTrue(storage.downloadCalls.isEmpty())
+    }
+
+    @Test fun `download_hierarchical_ownRecord_200`() = testApplication {
+        val storage = installFieldGateApp(soViewOwnData, rows = soRows(g.staffId, soRef))
+        val r = client.get("$soBase/download") { asStaff(g.SLUG, g.ROLE_ID) }
+        assertEquals(HttpStatusCode.OK, r.status, r.bodyAsText())
+        assertEquals(listOf(soRef), storage.downloadCalls)
     }
 
     // ---- Pack non-default (layanan, GLOBAL_ONLY) -------------------------------------------------------
