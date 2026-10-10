@@ -3,13 +3,14 @@ package com.eventverse.app.routes
 import com.eventverse.app.asStaff
 import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.discovery.handoff.RecordOwnerSource
 import com.eventverse.app.domain.orgchart.OrgNodeId
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.DataScope
@@ -228,7 +229,7 @@ class FieldFileRecordScopeTest {
         val leads = InMemoryCrmLeadRepository()
         val defs = InMemoryCustomFieldDefinitionRepository()
         runBlocking {
-            defs.save(g.definition(fieldId, "lampiran", FieldType.File))
+            defs.save(g.definition(fieldId, "lampiran", CrmFieldType(FieldType.FILE)))
             val attrs = leadRef?.let { CustomAttributes.EMPTY.with(CustomFieldId(fieldId), CustomAttributes.textCell(it)) } ?: CustomAttributes.EMPTY
             leads.save(g.lead("lead-1", attrs = attrs))
         }

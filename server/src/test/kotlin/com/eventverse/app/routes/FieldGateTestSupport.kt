@@ -6,7 +6,7 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldDefinition
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.FieldKey
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.customfield.OwnerResource
 import com.eventverse.app.domain.discovery.handoff.InMemoryPrototypeRowRepository
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
@@ -86,7 +86,7 @@ internal object FieldGate {
         createdAt = Instant.fromEpochMilliseconds(0), updatedAt = Instant.fromEpochMilliseconds(0)
     )
 
-    fun definition(id: String, key: String, type: FieldType) = CustomFieldDefinition(
+    fun definition(id: String, key: String, type: CrmFieldType) = CustomFieldDefinition(
         id = CustomFieldId(id), tenantId = tenantId, ownerResource = OwnerResource.CRM_SALES,
         key = FieldKey(key), label = key.replaceFirstChar { it.uppercase() }, type = type, position = 1.0
     )

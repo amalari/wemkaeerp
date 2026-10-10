@@ -427,8 +427,12 @@ Sebelum merge: `scripts/audit-variability.sh` (melapor, tidak memblokir).
 
 **Konfigurasi AI lintas tool**: `.claude/` adalah satu-satunya sumber kebenaran. Setelah mengubah
 `CLAUDE.md`, rules, atau skill `wemade-*`, jalankan `scripts/sync-agent-config.sh` agar Cline
-(`.clinerules`, `.cline/skills`) dan Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`) ikut
-terbarui. `AGENTS.md` adalah **file hasil generate** — jangan disunting langsung.
+(`.clinerules`, `.cline/skills`), Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`), dan
+Codex (`.codex/`, `.agents/skills/`) ikut terbarui. Semua skill sumber disinkronkan;
+commands menjadi skills dan agents menjadi TOML Codex. Default khusus Codex ada di
+`.claude/codex/config.toml`; MCP bersumber dari `.mcp.json`. Jalankan `--check` untuk
+memeriksa drift dan baca `.codex/sync-report.json` untuk batas kompatibilitas permissions.
+`AGENTS.md` dan output Codex adalah **file hasil generate** — jangan disunting langsung.
 
 ---
 

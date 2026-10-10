@@ -3,8 +3,9 @@ package com.eventverse.app.routes
 import com.eventverse.app.asStaff
 import com.eventverse.app.domain.crm.LeadId
 import com.eventverse.app.domain.customfield.CustomFieldId
-import com.eventverse.app.domain.customfield.FieldType
+import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.DataScope
@@ -46,7 +47,7 @@ class CrmRelationTargetGateTest {
         rows: Map<String, com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository> = emptyMap()
     ): InMemoryCrmLeadRepository {
         val defs = InMemoryCustomFieldDefinitionRepository()
-        runBlocking { defs.save(g.definition(relId, "rujukan", FieldType.Relation(target))) }
+        runBlocking { defs.save(g.definition(relId, "rujukan", CrmFieldType(FieldType.RELATION, targetResource = target))) }
         installFieldGateApp(permissions, leads = leads, definitions = defs, rows = rows)
         return leads
     }
