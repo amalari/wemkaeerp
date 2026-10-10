@@ -32,6 +32,7 @@ fun ClayGuardedButton(
     style: ClayButtonStyle = ClayButtonStyle.Primary,
     lockedHint: String? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 9.dp),
+    maxLines: Int = Int.MAX_VALUE,
     leading: (@Composable () -> Unit)? = null
 ) {
     Column(
@@ -45,6 +46,7 @@ fun ClayGuardedButton(
             enabled = enabled,
             style = style,
             contentPadding = contentPadding,
+            maxLines = maxLines,
             leading = leading
         )
 

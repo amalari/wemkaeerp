@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ fun ClayButton(
     fontSize: TextUnit = 13.sp,
     offset: Dp = ClayOffset.Small,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 9.dp),
+    maxLines: Int = Int.MAX_VALUE,
     leading: (@Composable () -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -95,7 +97,9 @@ fun ClayButton(
             text = text,
             fontSize = fontSize,
             fontWeight = FontWeight.Bold,
-            color = label.copy(alpha = alpha)
+            color = label.copy(alpha = alpha),
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

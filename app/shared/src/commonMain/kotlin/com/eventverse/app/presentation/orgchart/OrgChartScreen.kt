@@ -64,20 +64,70 @@ fun OrgChartScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var confirmRestore by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
 
     // OPERATE boleh menambah dan mengubah; MANAGE juga boleh menghapus, mengarsipkan, dan memulihkan
     // preset. Tanpa pembedaan ini, "Hanya Lihat" hanya berarti menunya terlihat.
     val canWrite = access.canWrite
     val canManage = access.canManage
 
-    Box(
+    val formPanel: @Composable (Modifier) -> Unit = { m ->
+        EmployeeFormPanel(
+            state = state,
+            onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateName(it)) },
+            onEmailChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEmail(it)) },
+            onPhoneChange = { viewModel.onEvent(OrgChartUiEvent.UpdatePhone(it)) },
+            onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
+            onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
+            onTierChange = { viewModel.onEvent(OrgChartUiEvent.SelectTier(it)) },
+            onLevelChange = { viewModel.onEvent(OrgChartUiEvent.SelectLevel(it)) },
+            onSuperiorChange = { viewModel.onEvent(OrgChartUiEvent.SelectReportsTo(it)) },
+            onRoleTitleChange = { viewModel.onEvent(OrgChartUiEvent.UpdateRoleTitle(it)) },
+            onSuccessionActionChange = { viewModel.onEvent(OrgChartUiEvent.SelectSuccessionAction(it)) },
+            onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEmployee) },
+            onReset = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
+            onAddDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
+            onEditDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(it)) },
+            onAddTierClick = { viewModel.onEvent(OrgChartUiEvent.OpenAddTierModal) },
+            onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
+            onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
+            onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
+            canWrite = canWrite,
+            canManage = canManage,
+            modifier = m
+        )
+    }
+    val chartPanel: @Composable (Modifier) -> Unit = { m ->
+        ChartPreviewPanel(
+            state = state,
+            onSelectNode = { viewModel.onEvent(OrgChartUiEvent.SelectExistingEmployee(it)) },
+            onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
+            onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
+            onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
+            onAddDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
+            onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) },
+            onToggleArchived = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
+            showArchivedPanel = state.showArchivedPanel,
+            canWrite = canWrite,
+            canManage = canManage,
+            modifier = m
+        )
+    }
+
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(WeMadeColors.Background)
     ) {
+        // Sempit: seluruh halaman (header + panel) di-scroll sebagai satu kolom dan panel bertinggi tetap.
+        // Dua panel berdampingan butuh ~880dp (form 420 + bagan); header yang membungkus bisa makan >400dp
+        // di layar telepon, jadi men-scroll hanya area panel menyisakan jendela kecil.
+        val compact = maxWidth < OrgChartSideBySideMinWidth + 48.dp
+        val bodySlot = Modifier.fillMaxWidth()
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .then(if (compact) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(24.dp)
         ) {
             // 1. Top Header Bar
@@ -92,7 +142,7 @@ fun OrgChartScreen(
                 onToggleResetMenu = { viewModel.onEvent(OrgChartUiEvent.ToggleResetMenu) },
                 onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                 onAddNewDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
-                onClearAllData = { viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty) },
+                onClearAllData = { confirmClear = true },
                 onRestorePresets = { confirmRestore = true },
                 isLoadFailed = state.loadState is OrgChartLoadState.Failed
             )
@@ -108,62 +158,23 @@ fun OrgChartScreen(
             // 2. Main Split-View Layout (Form Left, Live Chart Right); memuat/galat menggantikan seluruhnya
             val loadState = state.loadState
             if (loadState is OrgChartLoadState.Loading) {
-                OrgChartLoadingView(modifier = Modifier.weight(1f))
+                OrgChartLoadingView(modifier = if (compact) bodySlot.height(OrgChartStackedPanelHeight / 2) else Modifier.weight(1f))
             } else if (loadState is OrgChartLoadState.Failed) {
                 OrgChartFailedView(
                     message = loadState.message,
                     onRetry = { viewModel.onEvent(OrgChartUiEvent.Reload) },
-                    modifier = Modifier.weight(1f)
+                    modifier = if (compact) bodySlot.height(OrgChartStackedPanelHeight / 2) else Modifier.weight(1f)
                 )
-            } else Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+            } else if (!compact) Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // SISI KIRI: Form Input Karyawan (Hanya tampil jika berwenang mengedit)
-                if (canWrite) {
-                    EmployeeFormPanel(
-                        state = state,
-                        onNameChange = { viewModel.onEvent(OrgChartUiEvent.UpdateName(it)) },
-                        onEmailChange = { viewModel.onEvent(OrgChartUiEvent.UpdateEmail(it)) },
-                        onPhoneChange = { viewModel.onEvent(OrgChartUiEvent.UpdatePhone(it)) },
-                        onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
-                        onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
-                        onTierChange = { viewModel.onEvent(OrgChartUiEvent.SelectTier(it)) },
-                        onLevelChange = { viewModel.onEvent(OrgChartUiEvent.SelectLevel(it)) },
-                        onSuperiorChange = { viewModel.onEvent(OrgChartUiEvent.SelectReportsTo(it)) },
-                        onRoleTitleChange = { viewModel.onEvent(OrgChartUiEvent.UpdateRoleTitle(it)) },
-                        onSuccessionActionChange = { viewModel.onEvent(OrgChartUiEvent.SelectSuccessionAction(it)) },
-                        onSave = { viewModel.onEvent(OrgChartUiEvent.SaveEmployee) },
-                        onReset = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
-                        onAddDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
-                        onEditDepartmentClick = { viewModel.onEvent(OrgChartUiEvent.OpenEditDeptModal(it)) },
-                        onAddTierClick = { viewModel.onEvent(OrgChartUiEvent.OpenAddTierModal) },
-                        onEditTierClick = { deptId, tier -> viewModel.onEvent(OrgChartUiEvent.OpenEditTierModal(deptId, tier)) },
-                        onDeleteEmployee = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveEmployee(it)) },
-                        onDeleteDepartment = { viewModel.onEvent(OrgChartUiEvent.RequestArchiveDepartment(it)) },
-                        canWrite = canWrite,
-                        canManage = canManage,
-                        modifier = Modifier.width(420.dp)
-                    )
-                }
-
-                // SISI KANAN: Live Org Chart Preview (60% weight)
-                ChartPreviewPanel(
-                    state = state,
-                    onSelectNode = { viewModel.onEvent(OrgChartUiEvent.SelectExistingEmployee(it)) },
-                    onDeptChange = { viewModel.onEvent(OrgChartUiEvent.SelectDepartment(it)) },
-                    onSelectDireksi = { viewModel.onEvent(OrgChartUiEvent.SelectDireksi) },
-                    onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
-                    onAddDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
-                    onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) },
-                    onToggleArchived = { viewModel.onEvent(OrgChartUiEvent.ToggleArchivedPanel) },
-                    showArchivedPanel = state.showArchivedPanel,
-                    canWrite = canWrite,
-                    canManage = canManage,
-                    modifier = Modifier.weight(1f)
-                )
+                if (canWrite) formPanel(Modifier.width(420.dp))
+                chartPanel(Modifier.weight(1f))
+            } else Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                // Panel bertinggi tetap: isinya scroll sendiri, dan scroll bersarang tanpa tinggi tetap akan crash.
+                chartPanel(bodySlot.height(OrgChartStackedPanelHeight))
+                if (canWrite) formPanel(bodySlot.height(OrgChartStackedPanelHeight))
             }
         }
 
@@ -174,6 +185,15 @@ fun OrgChartScreen(
                 viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets)
             },
             onDismiss = { confirmRestore = false }
+        )
+
+        OrgChartClearConfirmDialog(
+            isOpen = confirmClear,
+            onConfirm = {
+                confirmClear = false
+                viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty)
+            },
+            onDismiss = { confirmClear = false }
         )
 
         // Modal Dialog: Buat Divisi Baru
@@ -434,154 +454,6 @@ private fun ArchivedPanel(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun OrgChartHeader(
-    totalEmployees: Int?,
-    totalDepartments: Int?,
-    isResetMenuOpen: Boolean,
-    accessLevel: AccessLevel,
-    isDepartmentLocked: Boolean = false,
-    lockedDepartmentName: String? = null,
-    onToggleResetMenu: () -> Unit,
-    onAddNewEmployee: () -> Unit,
-    onAddNewDepartment: () -> Unit,
-    onClearAllData: () -> Unit,
-    onRestorePresets: () -> Unit,
-    isLoadFailed: Boolean = false
-) {
-    val canWrite = accessLevel.isAtLeast(AccessLevel.OPERATE)
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-            ) {
-                Text(
-                    text = "Bagan Struktur Organisasi & Karyawan",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                ClayTag(
-                    text = "T-Shape Dynamic Org",
-                    tint = WeMadeColors.Primary,
-                    fontSize = 11.sp
-                )
-                if (isDepartmentLocked && lockedDepartmentName != null) {
-                    ClayTag(
-                        text = "Divisi: $lockedDepartmentName",
-                        tint = WeMadeColors.Warning,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(ClaySpacing.Xs))
-            Text(
-                text = if (isDepartmentLocked && lockedDepartmentName != null) {
-                    "Menampilkan bagan struktur khusus divisi $lockedDepartmentName sesuai batasan wewenang data Anda."
-                } else {
-                    "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik, atau mulai dari struktur kosong."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-        ) {
-            if (totalEmployees != null) HeaderBadge(label = "Total Karyawan", value = "$totalEmployees Orang")
-            if (totalDepartments != null) HeaderBadge(label = "Divisi Aktif", value = "$totalDepartments Divisi")
-            ClayBadge(text = accessLevel.badgeLabel(), tint = accessLevel.tint(), dot = true)
-
-            // Tombol Opsi Preset, Divisi Baru, dan Tambah Karyawan hanya tampil untuk pengguna dengan wewenang tulis
-            if (canWrite) {
-                Box {
-                    ClayGuardedButton(
-                        text = "Opsi Struktur",
-                        onClick = onToggleResetMenu,
-                        enabled = accessLevel.isAtLeast(AccessLevel.MANAGE),
-                        lockedHint = "Butuh wewenang ${AccessLevel.MANAGE.displayName}.",
-                        style = ClayButtonStyle.Secondary,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                    )
-
-                    DropdownMenu(
-                        expanded = isResetMenuOpen,
-                        onDismissRequest = onToggleResetMenu
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.Error)
-                                    Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
-                                }
-                            },
-                            onClick = onClearAllData
-                        )
-                        HorizontalDivider(color = WeMadeColors.Border)
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("Pulihkan Contoh yang Hilang", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-                                    Text("Server menambah contoh yang belum ada", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
-                                }
-                            },
-                            onClick = onRestorePresets
-                        )
-                    }
-                }
-
-                ClayGuardedButton(
-                    text = "+ Divisi Baru",
-                    onClick = onAddNewDepartment,
-                    enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
-                    lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
-                    style = ClayButtonStyle.Secondary,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                )
-
-                if (!isLoadFailed) ClayGuardedButton(
-                    text = "+ Tambah Karyawan",
-                    onClick = onAddNewEmployee,
-                    enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
-                    lockedHint = "Butuh wewenang ${AccessLevel.OPERATE.displayName}.",
-                    style = ClayButtonStyle.Primary,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderBadge(label: String, value: String) {
-    Box(
-        modifier = Modifier
-            .clayFlat(
-                shape = ClayShapes.Chip,
-                background = WeMadeColors.Surface,
-                outline = WeMadeColors.Outline,
-                borderWidth = ClayBorder.Medium
-            )
-            .padding(horizontal = 12.dp, vertical = 7.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-        ) {
-            Text(text = value, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-            Text(text = label, fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
         }
     }
 }
@@ -1428,16 +1300,13 @@ private fun ChartPreviewPanel(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Chart Panel Header
-            Row(
+            ClayFlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                spacing = ClaySpacing.Md,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                    ) {
+                    ClayFlowRow {
                         Text(
                             text = "Pratinjau Struktur Organisasi (Live Org Chart)",
                             style = MaterialTheme.typography.titleMedium,
@@ -1463,10 +1332,7 @@ private fun ChartPreviewPanel(
                     )
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                ClayFlowRow {
                     if (canManage) {
                         ClayButton(
                             text = if (showArchivedPanel) "Tutup Arsip" else "Lihat Arsip",
@@ -2379,3 +2245,6 @@ private fun EditTierDialog(
     )
 }
 
+
+private val OrgChartSideBySideMinWidth = 880.dp
+private val OrgChartStackedPanelHeight = 600.dp

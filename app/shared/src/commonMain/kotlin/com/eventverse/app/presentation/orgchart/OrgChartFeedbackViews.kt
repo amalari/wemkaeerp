@@ -77,10 +77,14 @@ internal fun OrgChartToastBanner(message: String?, onDismiss: () -> Unit) {
     }
 }
 
-/** Konfirmasi sebelum "Pulihkan Contoh yang Hilang" pada tenant yang sudah berisi (aksi menambah data). */
+/** Dialog konfirmasi generik Org Chart. `destructive` menjadikan tombol konfirmasi merah (Danger). */
 @Composable
-internal fun OrgChartRestoreConfirmDialog(
+internal fun OrgChartConfirmDialog(
     isOpen: Boolean,
+    title: String,
+    message: String,
+    confirmLabel: String,
+    destructive: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -89,22 +93,21 @@ internal fun OrgChartRestoreConfirmDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Pulihkan Contoh yang Hilang?",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
             )
         },
         text = {
-            Text(
-                text = "Server akan menambahkan divisi dan staf contoh yang belum ada. Data yang sudah Anda " +
-                    "susun tidak dihapus, tetapi daftar bisa bertambah.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = WeMadeColors.OnSurface
-            )
+            Text(text = message, style = MaterialTheme.typography.bodyMedium, color = WeMadeColors.OnSurface)
         },
         confirmButton = {
-            ClayButton(onClick = onConfirm, text = "Ya, Pulihkan", style = ClayButtonStyle.Primary)
+            ClayButton(
+                onClick = onConfirm,
+                text = confirmLabel,
+                style = if (destructive) ClayButtonStyle.Danger else ClayButtonStyle.Primary
+            )
         },
         dismissButton = {
             ClayButton(onClick = onDismiss, text = "Batal", style = ClayButtonStyle.Ghost)
@@ -112,3 +115,30 @@ internal fun OrgChartRestoreConfirmDialog(
         containerColor = WeMadeColors.Surface
     )
 }
+
+/** Konfirmasi sebelum "Pulihkan Contoh yang Hilang" pada tenant yang sudah berisi (aksi menambah data). */
+@Composable
+internal fun OrgChartRestoreConfirmDialog(isOpen: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) =
+    OrgChartConfirmDialog(
+        isOpen = isOpen,
+        title = "Pulihkan Contoh yang Hilang?",
+        message = "Server akan menambahkan divisi dan staf contoh yang belum ada. Data yang sudah Anda " +
+            "susun tidak dihapus, tetapi daftar bisa bertambah.",
+        confirmLabel = "Ya, Pulihkan",
+        destructive = false,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    )
+
+/** Konfirmasi sebelum "Mulai dari Kosong": menghapus seluruh divisi dan karyawan pada tampilan. */
+@Composable
+internal fun OrgChartClearConfirmDialog(isOpen: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) =
+    OrgChartConfirmDialog(
+        isOpen = isOpen,
+        title = "Kosongkan Seluruh Struktur?",
+        message = "Semua divisi dan karyawan pada bagan akan dikosongkan. Anda harus menyusun ulang dari awal.",
+        confirmLabel = "Ya, Kosongkan",
+        destructive = true,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    )
