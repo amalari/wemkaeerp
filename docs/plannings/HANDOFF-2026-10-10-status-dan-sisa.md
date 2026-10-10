@@ -30,14 +30,17 @@ Q1/2/3/5/7 disetujui pengguna — lihat §5).
 
 | Pekerjaan | Branch / worktree | Komit | Status |
 |---|---|---|---|
-| **Track A** (celah rute FILE/RELATION): A1 tes merah, A2 `FieldFileRecordGate`, A3 ikatan `recordId`, A4 `authorizeRelationTarget` | `worktree-agent-a2a4c73c4c9b00cb6` (`.claude/worktrees/agent-a2a4c73c4c9b00cb6`, terkunci) | `79df6847`, `ecc9975c`, `9c771f7e`, `ce44e3e1` | 4 komit ada; agen **belum melapor akhir** — verifikasi (`:server:test`, `:core:jvmTest`), status TRD, teaching doc `teaching-field-file-relation-record-gate.md` **[TAK TERVERIFIKASI selesai]** |
+| **Track A** (celah rute FILE/RELATION): A1 tes merah, A2 `FieldFileRecordGate`, A3 ikatan `recordId`, A4 `authorizeRelationTarget` | `worktree-agent-a2a4c73c4c9b00cb6` (`.claude/worktrees/agent-a2a4c73c4c9b00cb6`, terkunci) | `79df6847`, `ecc9975c`, `9c771f7e`, `ce44e3e1`, docs `134c0536` | **Selesai** (laporan akhir diterima; basis `8ae0a07c`). Menurut agen: server 791 tes (5 skip), core 1834, app:shared + Wasm/JS hijau, audit 0 temuan; A1 = 26 tes, 14 merah pada kode lama. Teaching doc `teaching-field-file-relation-record-gate.md` dan TRD v0.2 ada di branch. **Belum diverifikasi ulang di worktree bersih oleh integrator.** |
 | **Track B (B1+B2)**: `Contribution.rows` (F0), `relationProblem` di generator, penolakan target HIERARCHICAL | `worktree-agent-a5bacf93a917b548a` | `4f687dbd`, `00ab7468` | **Selesai**; agen: core 1846 / server 762 tes hijau di basis `8ae0a07c` |
 
 **Cara melanjutkan (urutan yang disarankan):**
 1. `cd /Volumes/amalari/Projects/wemkaeerp && git branch --show-current` (harus `main`). Cek
    `git -C .claude/worktrees/agent-a2a4c73c4c9b00cb6 status --short` dan `git log main..worktree-agent-a2a4c73c4c9b00cb6`.
-   Bila Track A belum lengkap (tes/dokumen), lanjutkan di worktree itu (atau `SendMessage` ke agen
-   `a2a4c73c4c9b00cb6` bila sesi agen masih hidup).
+   Track A sudah selesai (lihat tabel). Catatan dari agen Track A yang perlu keputusan/diketahui:
+   (a) field FILE bertanda `isRequired` tidak bisa dipenuhi saat create (aturan Q1) — harus opsional atau
+   diisi lewat edit; (b) target RELATION di luar pack tenant pada tulis CRM kini 404 (dulu 400) karena
+   gerbangnya dibagi dengan rute opsi (tafsiran FR-3.4); (c) produksi masih tanpa sumber baris
+   sehingga rute generik HIERARCHICAL menjawab 403 sampai ada modul yang menyuplai `RecordOwnerSource`.
 2. Merge **Track A dulu**, lalu **Track B**. Konflik yang diperkirakan kecil di
    `server/.../SpecRoutesWriter.kt` (Track B menyisipkan 5 titik `relationProblem`; Track A A3 bisa
    menambah `fileOwnershipProblem(recordId)`). Selesaikan sekali.
