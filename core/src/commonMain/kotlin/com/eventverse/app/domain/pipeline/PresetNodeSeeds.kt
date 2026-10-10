@@ -379,7 +379,7 @@ internal object PresetNodeSeeds {
                     isWorkmanshipDefect -> "Cacat jahitan loncat & obras miring (Reject rate 3.6%). 95 pcs dialihkan ke stasiun permak/rework."
                     else -> "Tingkat cacat terkendali di 1.2% (standar toleransi ekspor < 2.5%)."
                 },
-                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
+                activeFeedbackBadge = "Disposisi QC: Retur Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(
@@ -761,7 +761,7 @@ internal object PresetNodeSeeds {
                     isWorkmanshipDefect -> "Cacat jahitan melebihi toleransi brand (Reject rate 3.4%). 60 pcs dikembalikan ke meja alterasi."
                     else -> "Kerapihan jahitan lolos audit perwakilan brand."
                 },
-                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Bahan Buyer (Tahap 3) & Rework Jahit (Tahap 4)",
+                activeFeedbackBadge = "Disposisi QC: Retur Bahan Buyer (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(
@@ -1147,7 +1147,7 @@ internal object PresetNodeSeeds {
                     isWorkmanshipDefect -> "Cacat jahitan rantai leher pada 75 pcs kaos (Reject 3.2%). Dialihkan ke stasiun rework."
                     else -> "Inspeksi teliti, 100% item dipastikan bebas noda dan benang sisa."
                 },
-                activeFeedbackBadge = "Disposisi QC: ⤶ Retur Gudang Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
+                activeFeedbackBadge = "Disposisi QC: Retur Gudang Bahan (Tahap 3) & Rework Jahit (Tahap 4)",
                 downstreamModuleCodes = listOf(GarmentModules.FULFILLMENT.code),
                 feedbackRoutes = listOf(
                     PipelineFeedbackRoute(

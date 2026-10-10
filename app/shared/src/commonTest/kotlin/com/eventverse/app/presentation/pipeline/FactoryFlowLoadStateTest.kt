@@ -116,4 +116,29 @@ class FactoryFlowLoadStateTest {
         assertIs<FactoryFlowLoadState.AccessDenied>(vm.uiState.value.loadState)
         assertNull(vm.uiState.value.pipeline)
     }
+
+    @Test
+    fun load_403_shouldSendOnlyThePipelineRequestAndNoSecondaryCalls() = runTest {
+        val remote = FakePipelineRemoteDataSource(
+            failure = PipelineRequestException("memuat alur pabrik", 403, "Ditolak")
+        )
+        val vm = viewModel(remote, this)
+        vm.onEvent(FactoryFlowUiEvent.LoadTenantPipeline(slug))
+        advanceUntilIdle()
+        // Hanya "get": katalog modul (dan stage-flow/telemetri) tidak dikirim setelah AccessDenied.
+        assertEquals(listOf("get"), remote.calls)
+
+        vm.onEvent(FactoryFlowUiEvent.Retry(slug))
+        advanceUntilIdle()
+        assertEquals(listOf("get", "get"), remote.calls)
+    }
+
+    @Test
+    fun load_success_shouldSendSecondaryCallsAfterThePipeline() = runTest {
+        val remote = FakePipelineRemoteDataSource(pipeline = nonDefaultPipeline())
+        val vm = viewModel(remote, this)
+        vm.onEvent(FactoryFlowUiEvent.LoadTenantPipeline(slug))
+        advanceUntilIdle()
+        assertEquals(listOf("get", "catalog"), remote.calls)
+    }
 }

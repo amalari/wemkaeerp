@@ -11,7 +11,13 @@ package com.eventverse.app.infrastructure.api
 sealed class AuthApiError(message: String, cause: Throwable? = null) : Exception(message, cause) {
 
     /** Server menjawab dengan status bukan 2xx. [message] sudah berupa teks siap tampil. */
-    class Rejected(val status: Int, val serverMessage: String, message: String) : AuthApiError(message)
+    class Rejected(
+        val status: Int,
+        val serverMessage: String,
+        message: String,
+        /** Kode alasan bertipe dari header server ([com.eventverse.app.domain.auth.AuthRejectionReason]); null bila tak ada. */
+        val reason: String? = null
+    ) : AuthApiError(message)
 
     /** Tidak ada jawaban HTTP sama sekali (koneksi ditolak, DNS, timeout, proxy dev mati). */
     class Unreachable(cause: Throwable) : AuthApiError("Server tidak dapat dihubungi", cause)

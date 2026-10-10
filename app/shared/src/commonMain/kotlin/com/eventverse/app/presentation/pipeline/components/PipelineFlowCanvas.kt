@@ -205,7 +205,7 @@ private fun MacroProcessStepper(
                         )
                         if (!isStageBypassed) {
                             Text(
-                                text = "•",
+                                text = "·",
                                 fontSize = 9.sp,
                                 color = if (isSelected) Color.White.copy(alpha = 0.85f) else WeMadeColors.OnSurfaceMuted
                             )

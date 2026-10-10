@@ -108,7 +108,7 @@ fun RenameModuleDialog(
         },
         confirmButton = {
             ClayButton(
-                text = if (isSaving) "Menyimpan…" else "Simpan",
+                text = if (isSaving) "Menyimpan..." else "Simpan",
                 onClick = { onConfirm(trimmedName) },
                 enabled = !isSaving && trimmedName.isNotBlank() && trimmedName != node.title,
                 fontSize = 12.sp

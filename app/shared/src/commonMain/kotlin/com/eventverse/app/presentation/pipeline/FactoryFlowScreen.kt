@@ -19,21 +19,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
-import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
-import com.eventverse.app.presentation.designsystem.ClayTag
-import com.eventverse.app.presentation.designsystem.clayFlat
 import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.pipeline.components.FactoryFlowBlockedCard
-import com.eventverse.app.presentation.pipeline.components.IconFlowGraph
+import com.eventverse.app.presentation.pipeline.components.FactoryFlowHeader
 import com.eventverse.app.presentation.pipeline.components.NodeInputInspectorModal
 import com.eventverse.app.presentation.pipeline.components.NodeInspectorDrawer
 import com.eventverse.app.presentation.pipeline.components.PipelineFlowCanvas
 import com.eventverse.app.presentation.pipeline.components.RenameModuleDialog
-import com.eventverse.app.presentation.pipeline.components.TenantModuleActionBar
 import com.eventverse.app.presentation.pipeline.components.TenantModulePanel
 import com.eventverse.app.presentation.pipeline.components.TenantPipelineStatusBanner
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -96,67 +92,15 @@ fun FactoryFlowScreen(
                 )
             }
 
-            // Top Header: Title + Presentation Mode Pill
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clayFlat(
-                                shape = ClayShapes.Tile,
-                                background = WeMadeColors.PrimaryContainer,
-                                outline = WeMadeColors.Outline,
-                                borderWidth = ClayBorder.Medium
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconFlowGraph(
-                            modifier = Modifier.size(24.dp),
-                            color = WeMadeColors.Primary
-                        )
-                    }
-
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Alur Operasional Pabrik",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WeMadeColors.OnSurface
-                            )
-                            ClayTag(
-                                text = companyLabel,
-                                tint = WeMadeColors.Primary,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        Text(
-                            text = state.pipelineName
-                                ?: "Visualisasi alur kerja modul dari order hingga pengiriman, dilengkapi deteksi bottleneck dan kontrak data antar divisi.",
-                            fontSize = 13.sp,
-                            color = WeMadeColors.OnSurfaceMuted
-                        )
-                    }
-                }
-
-                // Entry point to per-tenant module provisioning.
-                TenantModuleActionBar(
-                    state = state,
-                    onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) },
-                    onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) }
-                )
-            }
+            // Judul + badge tenant + aksi modul; menumpuk di lebar sempit dan menyembunyikan aksi saat diblokir.
+            FactoryFlowHeader(
+                companyLabel = companyLabel,
+                subtitle = state.pipelineName
+                    ?: "Visualisasi alur kerja modul dari order hingga pengiriman, dilengkapi deteksi bottleneck dan kontrak data antar divisi.",
+                state = state,
+                onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) },
+                onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) }
+            )
 
             // Data provenance / progress / failure feedback
             TenantPipelineStatusBanner(
@@ -307,7 +251,7 @@ private fun ExecutivePresentationBanner(
         }
 
         ClayButton(
-            text = "✕ Tutup Presentasi",
+            text = "Tutup Presentasi",
             onClick = onExit,
             style = ClayButtonStyle.Secondary,
             fontSize = 11.sp,

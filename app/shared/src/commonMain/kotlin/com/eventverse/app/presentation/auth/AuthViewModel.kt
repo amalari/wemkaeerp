@@ -50,6 +50,15 @@ class AuthViewModel(
 
         const val MSG_SLUG_REQUIRED = "Pilih/isi kode pabrik terlebih dahulu."
 
+        const val MSG_SESSION_EXPIRED = "Sesi telah kedaluwarsa. Silakan masuk kembali."
+
+        const val MSG_SESSION_STALE = "Sesi lama tidak lagi berlaku. Silakan masuk ulang."
+
+        /** Pesan verifikasi sesi tersimpan yang gagal; dibedakan lewat kode alasan bertipe, bukan teks pesan. */
+        fun sessionRejectedMessage(cause: Throwable): String =
+            if ((cause as? AuthApiError.Rejected)?.reason == AuthRejectionReason.TOKEN_WITHOUT_TENANT) MSG_SESSION_STALE
+            else MSG_SESSION_EXPIRED
+
         const val MSG_SESSION_NO_TENANT = "Sesi tersimpan tidak menyebut pabrik. Silakan masuk kembali."
     }
 
@@ -97,14 +106,14 @@ class AuthViewModel(
                     _uiState.update { it.copy(authenticatedSession = verifiedSession) }
                     restorePersonaFrom(verifiedSession)
                     PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(verifiedSession))
-                }.onFailure {
+                }.onFailure { cause ->
                     // Token expired or invalid: clear session
                     PlatformLocalStorage.removeItem(STORAGE_KEY)
                     sessionStorage.clearSession()
                     _uiState.update {
                         it.copy(
                             authenticatedSession = null,
-                            errorMessage = "Sesi telah kedaluwarsa. Silakan masuk kembali."
+                            errorMessage = sessionRejectedMessage(cause)
                         )
                     }
                 }
