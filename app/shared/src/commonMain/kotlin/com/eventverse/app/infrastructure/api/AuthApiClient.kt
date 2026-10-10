@@ -7,6 +7,7 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.CancellationException
 
 class AuthApiClient(
     private val clientProvider: () -> HttpClient = { HttpClient() },
@@ -23,19 +24,46 @@ class AuthApiClient(
      * POST /api/public/auth/demo
      * Mengautentikasi pengguna demo langsung ke database PostgreSQL melalui backend Ktor,
      * mengembalikan real signed JWT token dan User data.
+     *
+     * Gagal selalu berupa [AuthApiError]: [AuthApiError.Rejected] (server menolak) atau
+     * [AuthApiError.Unreachable] (tidak terjangkau). Tidak ada sesi pengganti.
      */
-    suspend fun loginDemo(
-        tenantSlug: String = "wemade-demo",
-        role: String = "TENANT_ADMIN"
-    ): Result<UserSession> = runCatching {
-        val response = httpClient.post(resolveUrl("/api/public/auth/demo?tenantSlug=$tenantSlug&role=$role")) {
-            accept(ContentType.Application.Json)
+    suspend fun loginDemo(tenantSlug: String, role: String = "TENANT_ADMIN"): Result<UserSession> =
+        demoSession("Autentikasi Demo gagal") {
+            post(resolveUrl("/api/public/auth/demo?tenantSlug=${tenantSlug.encodeURLParameter()}&role=$role")) {
+                accept(ContentType.Application.Json)
+            }
         }
-        if (!response.status.isSuccess()) {
-            error("Autentikasi Demo gagal (HTTP ${response.status.value}): ${response.bodyAsText()}")
+
+    /**
+     * Jalur bersama login demo/persona (endpoint dan gerbang yang sama). Membedakan galat HTTP dari
+     * galat jaringan. 404 tanpa isi = login demo dimatikan di server (`WEMADE_DEMO_LOGIN`); 404 berisi
+     * = tenant tidak ada, jadi pesan server dipakai apa adanya.
+     */
+    private suspend fun demoSession(
+        failLabel: String,
+        request: suspend HttpClient.() -> HttpResponse
+    ): Result<UserSession> {
+        val response = try {
+            httpClient.request()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(AuthApiError.Unreachable(e))
         }
         val text = response.bodyAsText()
-        parseUserSession(text) ?: error("Gagal mem-parsing sesi pengguna dari server: $text")
+        if (!response.status.isSuccess()) {
+            val status = response.status.value
+            val message = when {
+                status == 404 && text.isBlank() -> "Login demo dimatikan di server ini"
+                text.isNotBlank() -> text.trim()
+                else -> "$failLabel (HTTP $status)"
+            }
+            return Result.failure(AuthApiError.Rejected(status, text, message))
+        }
+        val session = parseUserSession(text)
+            ?: return Result.failure(AuthApiError.Malformed("Gagal mem-parsing sesi pengguna dari server"))
+        return Result.success(session)
     }
 
     /**
@@ -48,25 +76,21 @@ class AuthApiClient(
      * bertanda tangan. Client tidak pernah merakit sesi sendiri, supaya wewenang yang tampil di
      * layar selalu berasal dari sumber yang sama dengan wewenang yang ditegakkan server.
      */
-    suspend fun loginPersona(persona: TestingPersona): Result<UserSession> = runCatching {
-        val response = httpClient.post(resolveUrl("/api/public/auth/demo")) {
-            accept(ContentType.Application.Json)
-            contentType(ContentType.Application.FormUrlEncoded)
-            setBody(
-                buildList {
-                    add("tenantSlug" to persona.tenantSlug)
-                    add("username" to persona.name)
-                    persona.roleId?.let { add("role" to it.value) }
-                    persona.departmentId?.let { add("departmentId" to it) }
-                }.formUrlEncode()
-            )
+    suspend fun loginPersona(persona: TestingPersona): Result<UserSession> =
+        demoSession("Login persona gagal") {
+            post(resolveUrl("/api/public/auth/demo")) {
+                accept(ContentType.Application.Json)
+                contentType(ContentType.Application.FormUrlEncoded)
+                setBody(
+                    buildList {
+                        add("tenantSlug" to persona.tenantSlug)
+                        add("username" to persona.name)
+                        persona.roleId?.let { add("role" to it.value) }
+                        persona.departmentId?.let { add("departmentId" to it) }
+                    }.formUrlEncode()
+                )
+            }
         }
-        if (!response.status.isSuccess()) {
-            error("Login persona gagal (HTTP ${response.status.value}): ${response.bodyAsText()}")
-        }
-        val text = response.bodyAsText()
-        parseUserSession(text) ?: error("Gagal mem-parsing sesi persona dari server: $text")
-    }
 
     /**
      * POST /api/public/auth/google
