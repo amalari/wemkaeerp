@@ -47,7 +47,7 @@ class CreateLeadUseCase(
         newId: () -> String
     ): Result<CrmLead> = runCatching {
         val definitions = customFieldRepository.findActiveByResource(tenantId, OwnerResource.CRM_SALES)
-        val errors = CustomFieldValidation.validateForCreate(definitions, customValues)
+        val errors = CustomFieldValidation.validateForCreate(tenantId, definitions, customValues)
         if (errors.isNotEmpty()) throw LeadValidationException(errors)
 
         val now = Clock.System.now()

@@ -61,7 +61,7 @@ class CreateMaterialItemUseCase(
 
         // 3. Custom field validation
         val definitions = customFieldRepository.findActiveByResource(command.tenantId, OwnerResource.MASTER_DATA_MATERIAL)
-        val errors = CustomFieldValidation.validateForCreate(definitions, command.customValues)
+        val errors = CustomFieldValidation.validateForCreate(command.tenantId, definitions, command.customValues)
         if (errors.isNotEmpty()) throw MaterialValidationException(errors)
 
         var attributes = CustomAttributes.EMPTY

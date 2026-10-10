@@ -17,14 +17,12 @@ import com.eventverse.app.shared.json.jsonOf
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
-import org.slf4j.LoggerFactory
 
 /**
  * Batas ukuran satu berkas field (C8, TRD-FIELD-002 K3/R2): 10 MB, sama dengan PO.
@@ -43,8 +41,6 @@ internal val ALLOWED_FIELD_FILE_MIME_TYPES = setOf(
     "text/csv"
 )
 
-private val log = LoggerFactory.getLogger("FieldFileRoutes")
-
 /**
  * Endpoint unggah/unduh berkas untuk tipe field `FILE` (C8, TRD-FIELD-002 §4.4 — kontrak persis,
  * jangan diubah). Berkas hidup di [ObjectStorage]; sel field hanya menyimpan string [FileRef] yang
@@ -61,7 +57,9 @@ private val log = LoggerFactory.getLogger("FieldFileRoutes")
  * Urutan tolakan setelah RBAC (FR-3): **503** storage belum `isConfigured` (pesan menyebut env) →
  * **400** `fileName` kosong / body kosong → **415** tipe konten di luar
  * [ALLOWED_FIELD_FILE_MIME_TYPES] (dicek dari query, sebelum body dibaca) → **413** >
- * [MAX_FIELD_FILE_BYTES] → **404** record/ref tak ada (unduh). 413/415/503 dicatat WARN tanpa isi
+ * [MAX_FIELD_FILE_BYTES] (`Content-Length` dicek dulu, stream berbatas — lihat [readBoundedBody]) →
+ * **404** record/ref tak ada (unduh) → **403** ref bukan milik tenant/modul pemanggil (unduh,
+ * [requireOwnFileRef]; sabuk kedua setelah `FileRef.isValidFor` di semua jalur tulis). 413/415/503 dicatat WARN tanpa isi
  * body. Metadata lewat query parameter, byte lewat body raw — satu request, tanpa multipart
  * (pola `DealRoutes` yang terbukti).
  *
@@ -80,7 +78,7 @@ fun Route.fieldFileRoutes(
     route("/api/tenant/modules/{moduleCode}/records/{recordId}/fields/{fieldKey}") {
 
         post("/upload") {
-            val tenant = call.requireTenant() ?: return@post
+            val tenant = call.requireFieldFileTenant() ?: return@post
             // Modul induk tak dikenal = keputusan RBAC tak bisa dihitung = 403 (Kontrak 7, fail-closed).
             val module = BusinessModules.fromCode(call.parameters["moduleCode"])
             if (module == null) {
@@ -110,13 +108,9 @@ fun Route.fieldFileRoutes(
                 return@post
             }
 
-            val bytes = call.receive<ByteArray>()
+            val bytes = call.readBoundedBody() ?: return@post
             if (bytes.isEmpty()) {
                 call.respond(HttpStatusCode.BadRequest, "Body berkas kosong")
-                return@post
-            }
-            if (bytes.size > MAX_FIELD_FILE_BYTES) {
-                call.rejectPayloadTooLarge()
                 return@post
             }
 
@@ -146,7 +140,7 @@ fun Route.fieldFileRoutes(
         }
 
         get("/download") {
-            val tenant = call.requireTenant() ?: return@get
+            val tenant = call.requireFieldFileTenant() ?: return@get
             val module = BusinessModules.fromCode(call.parameters["moduleCode"])
             if (module == null) {
                 call.respond(HttpStatusCode.Forbidden, "Modul tidak dikenal: ${call.parameters["moduleCode"]}")
@@ -169,11 +163,13 @@ fun Route.fieldFileRoutes(
                 call.respond(HttpStatusCode.NotFound, "Record tidak ditemukan")
                 return@get
             }
-            val ref = row.values[call.parameters["fieldKey"]]?.takeIf { FileRef.isValid(it) }
-            if (ref == null) {
+            val rawRef = row.values[call.parameters["fieldKey"]]?.takeIf { FileRef.isValid(it) }
+            if (rawRef == null) {
                 call.respond(HttpStatusCode.NotFound, "Field tidak berisi referensi berkas yang sah")
                 return@get
             }
+            // Sabuk kedua: hanya ref milik tenant ini & modul ini yang boleh sampai ke ObjectStorage.
+            val ref = call.requireOwnFileRef(tenant, rawRef, module.value) ?: return@get
 
             objectStorage.downloadUrl(ref)
                 .onSuccess { url ->
@@ -189,7 +185,7 @@ fun Route.fieldFileRoutes(
     route("/api/tenant/crm/leads/{leadId}/fields/{fieldId}") {
 
         post("/upload") {
-            val tenant = call.requireTenant() ?: return@post
+            val tenant = call.requireFieldFileTenant() ?: return@post
             val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireCrmAccess(decision, AccessLevel.OPERATE)) return@post
             if (!objectStorage.isConfigured) {
@@ -208,13 +204,9 @@ fun Route.fieldFileRoutes(
                 return@post
             }
 
-            val bytes = call.receive<ByteArray>()
+            val bytes = call.readBoundedBody() ?: return@post
             if (bytes.isEmpty()) {
                 call.respond(HttpStatusCode.BadRequest, "Body berkas kosong")
-                return@post
-            }
-            if (bytes.size > MAX_FIELD_FILE_BYTES) {
-                call.rejectPayloadTooLarge()
                 return@post
             }
 
@@ -251,7 +243,7 @@ fun Route.fieldFileRoutes(
         }
 
         get("/download") {
-            val tenant = call.requireTenant() ?: return@get
+            val tenant = call.requireFieldFileTenant() ?: return@get
             val decision = call.crmDecision(tenant, roleRepository, moduleAssignmentRepository)
             if (!call.requireCrmAccess(decision, AccessLevel.VIEW)) return@get
             if (!objectStorage.isConfigured) {
@@ -268,14 +260,15 @@ fun Route.fieldFileRoutes(
             if (!call.requireReachableOwner(reach, lead.ownerEmployeeId)) return@get
 
             // Sel custom field = sel ter-tag {"t":...,"v":"<ref>"}; ambil v-nya dan wajibkan bentuk FileRef.
-            val ref = lead.customAttributes
+            val rawRef = lead.customAttributes
                 .rawCell(CustomFieldId(call.parameters["fieldId"].orEmpty()))
                 ?.string("v")
                 ?.takeIf { FileRef.isValid(it) }
-            if (ref == null) {
+            if (rawRef == null) {
                 call.respond(HttpStatusCode.NotFound, "Field tidak berisi referensi berkas yang sah")
                 return@get
             }
+            val ref = call.requireOwnFileRef(tenant, rawRef, GarmentModules.CRM_SALES.value) ?: return@get
 
             objectStorage.downloadUrl(ref)
                 .onSuccess { url ->
@@ -287,33 +280,4 @@ fun Route.fieldFileRoutes(
                 .onFailure { call.respond(HttpStatusCode.InternalServerError, it.message ?: "Gagal membuat URL unduh") }
         }
     }
-}
-
-/** 503 + WARN tanpa isi body; pesan menyebut env yang harus diisi (FR-3). */
-private suspend fun ApplicationCall.rejectStorageUnavailable() {
-    log.warn("FIELD FILE ditolak 503: object storage belum dikonfigurasi (S3_ENDPOINT/S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET_FILES)")
-    respond(
-        HttpStatusCode.ServiceUnavailable,
-        "Object storage belum dikonfigurasi (S3_ENDPOINT/S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET_FILES)."
-    )
-}
-
-/** 415 + WARN tanpa isi body — hanya nama tipe yang dicatat. */
-private suspend fun ApplicationCall.rejectUnsupportedMediaType(contentType: String) {
-    log.warn("FIELD FILE ditolak 415: tipe konten '{}' di luar allowlist", contentType)
-    respond(HttpStatusCode.UnsupportedMediaType, "Tipe berkas $contentType tidak diizinkan")
-}
-
-/** 413 + WARN tanpa isi body — hanya ukuran yang dicatat. */
-private suspend fun ApplicationCall.rejectPayloadTooLarge() {
-    log.warn("FIELD FILE ditolak 413: ukuran melebihi {} MB", MAX_FIELD_FILE_BYTES / (1024 * 1024))
-    respond(HttpStatusCode.PayloadTooLarge, "Ukuran berkas melebihi ${MAX_FIELD_FILE_BYTES / (1024 * 1024)} MB")
-}
-
-private suspend fun ApplicationCall.requireTenant(): com.eventverse.app.domain.tenant.TenantContext? {
-    val tenant = tenantContextOrNull
-    if (tenant == null) {
-        respond(HttpStatusCode.NotFound, "No tenant context found")
-    }
-    return tenant
 }

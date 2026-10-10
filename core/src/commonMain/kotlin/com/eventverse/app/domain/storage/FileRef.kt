@@ -18,6 +18,22 @@ value class FileRef private constructor(val value: String) {
                 raw.length <= 300 && raw.none { it == '\n' || it == '\r' }
 
         /**
+         * Kepemilikan (hardening lintas tenant): [isValid] SAJA hanya memeriksa bentuk, sehingga tenant A bisa
+         * menulis `fields/<tenantB>/...` ke selnya lalu meminta URL unduh objek tenant B. Ref sah untuk
+         * [tenantId] hanya bila bentuknya sah DAN segmen pertama setelah `fields/` sama persis dengan
+         * [tenantId] (perbandingan satu segmen utuh — tenant `abc` tidak cocok dengan `abcd`), diikuti
+         * minimal segmen modul, record, dan nama. [moduleCode] diisi oleh rute yang tahu modulnya (unduh):
+         * segmen kedua harus sama. recordId sengaja tidak dicocokkan — alur "record baru" mengunggah dengan
+         * id sementara sebelum record tersimpan. Tanpa fallback ke [isValid]; [tenantId] kosong = tidak sah.
+         */
+        fun isValidFor(tenantId: String, raw: String, moduleCode: String? = null): Boolean {
+            if (tenantId.isBlank() || !isValid(raw)) return false
+            val segments = raw.removePrefix(PREFIX).split('/')
+            if (segments.size < 4 || segments.any { it.isEmpty() }) return false
+            return segments[0] == tenantId && (moduleCode == null || segments[1] == moduleCode)
+        }
+
+        /**
          * Dipakai server saat menyusun key (bukan klien): `{PREFIX}{tenantId}/{moduleCode}/{recordId}/
          * {fieldKey}-{acak}-{fileName}` — ref yang tersimpan di sel SELALU berawalan `fields/` (kontrak
          * [isValid]); pemetaan ke layout bucket tenant-first (`{tenantId}/fields/...`, konvensi sweep

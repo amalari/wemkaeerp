@@ -14,6 +14,7 @@
 | 0.1 | 2026-10-08 | Kilo (riset dari kode) | Verifikasi jalur unggah selesai: **server SUDAH punya object storage** (bukti §4.1) |
 | 0.2 | 2026-10-08 | User | R1–R3 disetujui dengan opsi default dokumen; R4 dititipkan ke Track C; gerbang Irisan 4b dinyatakan lewat |
 | 0.3 | 2026-10-09 | Kilo (implementasi A0) | Klarifikasi FR-4/FR-5: **ref di sel** = `fields/{tenantId}/...` (kontrak `FileRef.isValid`), **layout bucket** = tenant-first `{tenantId}/fields/...` dipetakan adapter Track B — dua keputusan berbeda, jangan dicampur |
+| 0.4 | 2026-10-10 | Claude (hardening keamanan) | Audit: ref FILE lintas tenant + DoS memori unggah; lihat §Keamanan di bawah (`FileRef.isValidFor`, `readBoundedBody`) |
 
 - **Summary & Business Context**: Kosakata field belum punya tipe berkas (scan PO, foto, lampiran).
   C8 ditandai **Besar** karena butuh penyimpanan objek dan keputusan gate unduh. Pertanyaan plan
@@ -295,6 +296,35 @@ Tanpa perubahan (verifikasi): `NumberFormatting.kt`, `KoogDiscoveryNumberFormatV
   file route; perluasan = satu perubahan + tes; jangan longgarkan per fitur.
 - **Kompresi/ukuran gambar di klien** belum ada — foto kamera HP bisa 8 MB langsung; Track C wajib
   menampilkan sisa batas + error jelas; kompresi gambar di luar cakupan v1 (dicatat).
+
+## Keamanan: isolasi tenant ref & batas memori unggah (v0.4, 2026-10-10)
+
+**Temuan (audit)**: `FileRef.isValid` hanya memeriksa BENTUK. Tenant A dapat menulis sel FILE
+`fields/<tenantB>/<modul>/<record>/<field>-<hex>-<nama>` lewat jalur tulis mana pun, lalu `GET .../download`
+membuat URL bertanda tangan 15 menit untuk objek tenant B (adapter S3 memetakan bucket dari segmen tenant
+**di dalam ref**, bukan tenant pemanggil). Terpisah: `receive<ByteArray>()` memuat seluruh body sebelum
+cek 10 MB (DoS memori).
+
+**Perbaikan (defense in depth)**
+- `FileRef.isValidFor(tenantId, raw, moduleCode?)`: bentuk sah + segmen pertama setelah `fields/` **sama
+  persis** dengan tenant (satu segmen utuh; `abc` != `abcd`) + >= 4 segmen tak kosong; modul dicocokkan bila
+  rute tahu modulnya. recordId sengaja tidak dicocokkan (alur record baru memakai id sementara).
+- **Tulis** (tanpa fallback ke `isValid`): CRM/master data lewat `CustomFieldValidation.validateForCreate/
+  validateForPatch(tenantId, ...)` (ref asing = `TypeMismatch` -> 400); modul hasil generator lewat
+  `EntitySpec.fileOwnershipProblem(tenantId, values)` yang dipanggil kode rute **yang digenerate** sebelum
+  reducer (reducer tetap tenant-buta karena dipakai klien/port in-memory).
+- **Unduh** (sabuk kedua, `requireOwnFileRef`): ref asing/modul lain = **403** sebelum `ObjectStorage.downloadUrl`
+  (403, bukan 404: ref berasal dari sel tenant itu sendiri sehingga tidak ada keberadaan yang perlu
+  disembunyikan, dan 403 membuat percobaan penyerangan terlihat di log WARN tanpa key lengkap).
+- `S3ObjectStorage.bucketKey` tetap gagal keras untuk ref tak sah (kini juga menolak `..`), tidak diam-diam.
+- **Unggah**: `readBoundedBody()` menolak `Content-Length` > 10 MB dengan 413 tanpa membaca body, dan membaca
+  stream paling banyak batas + 1 byte (chunked/header bohong). Gerbang modul 403 tetap mendahului pembacaan body.
+- Tes: `FieldFileTenantIsolationTest`, `FieldFileRoutesTest` (413), `FileOwnershipTest` (core).
+
+**Sisa (belum dikerjakan)**: DataScope pada unggah modul generik; validasi keberadaan target RELATION di
+modul hasil generate; sniffing MIME isi berkas (allowlist masih dari query `contentType`); modul layanan
+(`LayananChangeRequestRoutes`) belum punya field FILE sehingga belum memanggil `fileOwnershipProblem` —
+wajib ditambahkan bila spec-nya memuat FILE.
 
 ## Keputusan (disetujui user, 2026-10-08)
 - **R1** ✅: penomoran seri per domain (`TRD-FIELD-001/002`) dipertahankan; konsisten dengan keputusan R1 TRD-FIELD-001.
