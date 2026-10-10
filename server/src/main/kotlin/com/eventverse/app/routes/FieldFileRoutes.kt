@@ -166,7 +166,7 @@ fun Route.fieldFileRoutes(
                 return@get
             }
             // Sabuk kedua: hanya ref milik tenant ini & modul ini yang boleh sampai ke ObjectStorage.
-            val ref = call.requireOwnFileRef(tenant, rawRef, module.value) ?: return@get
+            val ref = call.requireOwnFileRef(tenant, rawRef, module.value, row.id) ?: return@get
 
             objectStorage.downloadUrl(ref)
                 .onSuccess { url ->
@@ -265,7 +265,7 @@ fun Route.fieldFileRoutes(
                 call.respond(HttpStatusCode.NotFound, "Field tidak berisi referensi berkas yang sah")
                 return@get
             }
-            val ref = call.requireOwnFileRef(tenant, rawRef, GarmentModules.CRM_SALES.value) ?: return@get
+            val ref = call.requireOwnFileRef(tenant, rawRef, GarmentModules.CRM_SALES.value, lead.id.value) ?: return@get
 
             objectStorage.downloadUrl(ref)
                 .onSuccess { url ->

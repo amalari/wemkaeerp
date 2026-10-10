@@ -55,7 +55,7 @@ object CustomFieldValidation {
             when {
                 def.isRequired && (cell == null || !hasMeaningfulValue(cell)) ->
                     CustomFieldValidationError.Required(def.id, def.label)
-                cell != null -> validateType(tenantId, def, cell)
+                cell != null -> validateType(tenantId, null, def, cell)
                 else -> null
             }
         }
@@ -67,6 +67,7 @@ object CustomFieldValidation {
      */
     fun validateForPatch(
         tenantId: TenantId,
+        recordId: String,
         definitions: List<CustomFieldDefinition>,
         recordCreatedAt: Instant,
         patch: Map<CustomFieldId, JsonValue.Obj?>
@@ -83,14 +84,14 @@ object CustomFieldValidation {
             if (requiredNow && (cell == null || !hasMeaningfulValue(cell))) {
                 CustomFieldValidationError.Required(fieldId, def.label)
             } else if (cell != null) {
-                validateType(tenantId, def, cell)
+                validateType(tenantId, recordId, def, cell)
             } else {
                 null
             }
         }
     }
 
-    private fun validateType(tenantId: TenantId, def: CustomFieldDefinition, cell: JsonValue.Obj): CustomFieldValidationError? {
+    private fun validateType(tenantId: TenantId, recordId: String?, def: CustomFieldDefinition, cell: JsonValue.Obj): CustomFieldValidationError? {
         val v = cell.entries["v"]
         return when (def.type) {
             is FieldType.Text, is FieldType.LongText ->
@@ -133,10 +134,14 @@ object CustomFieldValidation {
 
             // C8 (TRD-FIELD-002 FR-5): sel = FileRef sah (key `fields/...`, tanpa `..`) DAN milik tenant
             // penulis (`isValidFor`, bukan `isValid` — ref `fields/<tenantLain>/...` memberi URL unduh objek
-            // tenant lain). Referensi rusak/asing = TypeMismatch — TIDAK pernah fallback ke teks/TEXT.
+            // tenant lain) DAN terikat ke record yang ditulis (TRD-FIELD-004 FR-1.3: ref berkas record X tak sah
+            // di record Y). [recordId] `null` = record baru (create): belum ada berkas yang mungkin sah, jadi ditolak.
+            // Referensi rusak/asing = TypeMismatch — TIDAK pernah fallback ke teks/TEXT.
             is FieldType.File -> {
                 val raw = (v as? JsonValue.Str)?.value
-                if (raw == null || !com.eventverse.app.domain.storage.FileRef.isValidFor(tenantId.value, raw)) mismatch(def) else null
+                val ok = raw != null && recordId != null &&
+                    com.eventverse.app.domain.storage.FileRef.isValidFor(tenantId.value, raw, recordId = recordId)
+                if (ok) null else mismatch(def)
             }
         }
     }

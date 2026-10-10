@@ -210,12 +210,19 @@ data class EntitySpec(
      * pesan galat untuk field FILE pertama yang berisi ref bukan milik [tenantId], atau `null` bila bersih.
      * Kosong = belum diisi (dilewati); bentuk rusak dilaporkan reducer, bukan di sini. Reducer sengaja tetap
      * tenant-buta (dipakai klien/port in-memory), jadi route server wajib memanggil ini SEBELUM reducer.
+     *
+     * [recordId] (TRD-FIELD-004 FR-1.3, **wajib** — tanpa default agar kompilator memaksa tiap pemanggil memutuskan):
+     * id record yang sedang ditulis, dan ref harus terikat padanya. `null` = record BARU (POST): belum ada berkas
+     * yang mungkin sah, jadi nilai FILE terisi ditolak (unggah dilakukan setelah record tersimpan).
      */
-    fun fileOwnershipProblem(tenantId: String, values: Map<String, String>): String? =
+    fun fileOwnershipProblem(tenantId: String, recordId: String?, values: Map<String, String>): String? =
         fields.firstNotNullOfOrNull { f ->
             val v = values[f.key].orEmpty()
-            if (f.type == FieldType.FILE && v.isNotEmpty() && !FileRef.isValidFor(tenantId, v)) {
-                "'${f.label}' merujuk berkas yang bukan milik tenant ini."
-            } else null
+            when {
+                f.type != FieldType.FILE || v.isEmpty() -> null
+                recordId == null -> "'${f.label}' tidak dapat diisi saat membuat data baru; unggah berkas setelah data tersimpan."
+                !FileRef.isValidFor(tenantId, v, recordId = recordId) -> "'${f.label}' merujuk berkas yang bukan milik data ini."
+                else -> null
+            }
         }
 }

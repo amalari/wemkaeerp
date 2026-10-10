@@ -4,6 +4,7 @@ import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlin.test.Test
@@ -167,8 +168,24 @@ class CrmFieldTypeParityTest {
     fun validation_everySample_acceptsValidCell() {
         samples.forEach { t ->
             val d = def(t)
-            assertEquals(emptyList(), CustomFieldValidation.validateForCreate(tenant, listOf(d), mapOf(d.id to validCell(t))), t.code)
+            val cells = mapOf(d.id to validCell(t))
+            // FILE terikat ke record yang SUDAH ada (TRD-FIELD-004 FR-1.3): sampel sah hanya lewat patch record `l-1`;
+            // pada create ditolak (lihat validation_file_*). Tipe lain: create.
+            val errors = if (t is FieldType.File) {
+                CustomFieldValidation.validateForPatch(tenant, "l-1", listOf(d), Instant.fromEpochMilliseconds(0), cells)
+            } else {
+                CustomFieldValidation.validateForCreate(tenant, listOf(d), cells)
+            }
+            assertEquals(emptyList(), errors, t.code)
         }
+    }
+
+    @Test
+    fun validation_file_onCreate_isRejected_andRefOfAnotherRecord_isRejectedOnPatch() {
+        val d = def(FieldType.File, "cf-file")
+        val ref = mapOf(d.id to validCell(FieldType.File))
+        assertEquals(1, CustomFieldValidation.validateForCreate(tenant, listOf(d), ref).size, "record baru belum punya berkas")
+        assertEquals(1, CustomFieldValidation.validateForPatch(tenant, "l-2", listOf(d), Instant.fromEpochMilliseconds(0), ref).size, "ref record l-1 di record l-2")
     }
 
     @Test
