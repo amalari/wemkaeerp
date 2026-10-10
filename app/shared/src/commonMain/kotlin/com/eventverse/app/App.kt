@@ -1,11 +1,8 @@
 package com.eventverse.app
 
 import com.eventverse.app.domain.rbac.isScopeSupported
-
 import com.eventverse.app.domain.rbac.isFoundation
-
 import com.eventverse.app.domain.rbac.isOperational
-
 import com.eventverse.app.domain.rbac.isGovernance
 
 import com.eventverse.app.domain.rbac.isHierarchical
@@ -89,6 +86,8 @@ import com.eventverse.app.presentation.navigation.AppTopBar
 import com.eventverse.app.presentation.navigation.LocalAppNavigator
 import com.eventverse.app.presentation.navigation.AuthGuardCard
 import com.eventverse.app.presentation.navigation.GenericModuleRoute
+import com.eventverse.app.presentation.navigation.TenantBound
+import com.eventverse.app.presentation.navigation.explicitTenantSlug
 import com.eventverse.app.presentation.navigation.moduleFromGenericPath
 import com.eventverse.app.presentation.navigation.studioDrawerSection
 import com.eventverse.app.presentation.navigation.buildNavMenu
@@ -357,12 +356,14 @@ fun App() {
                                     )
                                 }
                             ) { access ->
-                                OrgChartScreen(
-                                    tenantSlug = session?.tenantSlug ?: "wemade-demo",
-                                    access = access,
-                                    viewerDepartmentId = activePersona?.departmentId ?: session?.user?.departmentId,
-                                    viewerEmployeeId = activePersona?.sourceEmployeeId?.value ?: session?.user?.id?.value
-                                )
+                                TenantBound(session?.tenantSlug) { slug ->
+                                    OrgChartScreen(
+                                        tenantSlug = slug,
+                                        access = access,
+                                        viewerDepartmentId = activePersona?.departmentId ?: session?.user?.departmentId,
+                                        viewerEmployeeId = activePersona?.sourceEmployeeId?.value ?: session?.user?.id?.value
+                                    )
+                                }
                             }
                         }
                         AppNavScreen.DYNAMIC_RBAC -> {
@@ -433,10 +434,7 @@ fun App() {
                                     )
                                 }
                             ) { access ->
-                                FactoryFlowScreen(
-                                    tenantSlug = session?.tenantSlug ?: "wemade-demo",
-                                    access = access
-                                )
+                                TenantBound(session?.tenantSlug) { slug -> FactoryFlowScreen(tenantSlug = slug, access = access) }
                             }
                         }
                         // Sembilan modul operasional berbagi satu layar kerja. Gerbangnya ganda:
@@ -458,7 +456,7 @@ fun App() {
                                         navigateTo(AppNavScreen.LOGIN)
                                     })
                                 }
-                            ) { com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(tenantSlug = session?.tenantSlug ?: "wemade-demo") }
+                            ) { TenantBound(session?.tenantSlug) { slug -> com.eventverse.app.presentation.traceability.TraceabilityWorkspaceScreen(tenantSlug = slug) } }
                         }
                         // FULFILLMENT punya layar kerjanya sendiri (kurir antar karung),
                         // tapi gerbangnya tetap ganda seperti modul lain: sesi dulu, baru wewenang.
@@ -468,9 +466,9 @@ fun App() {
                                 val decision = accessDecisions[module] ?: AccessDecision(
                                     ModuleAccessConfig(), AccessSource.NONE, ModuleAccessConfig(), ModuleAccessConfig()
                                 )
-                                when (screen) {
-                                    AppNavScreen.FULFILLMENT -> FulfillmentWorkspaceScreen(decision, activePersona)
-                                    else -> com.eventverse.app.presentation.fulfillment.FulfillmentRouteSettingsScreen(decision, activePersona)
+                                TenantBound(activePersona?.tenantSlug ?: session?.tenantSlug) { slug ->
+                                    if (screen == AppNavScreen.FULFILLMENT) FulfillmentWorkspaceScreen(decision, activePersona, tenantSlug = slug)
+                                    else com.eventverse.app.presentation.fulfillment.FulfillmentRouteSettingsScreen(decision, activePersona, tenantSlug = slug)
                                 }
                             } else {
                                 AuthGuardCard(
@@ -581,9 +579,11 @@ fun App() {
             // Syarat perannya diulang di sini, bukan hanya di tombol pembukanya: state boolean bisa
             // tertinggal menyala saat pengguna berpindah akun, dan rute `/api/admin/**` di server
             // tetap menolak pemanggil non-superadmin apa pun yang terjadi di layar.
-            if (showTenantEntitlementDialog && session?.user?.role == Role.PLATFORM_SUPERADMIN) {
+            // Menulis entitlement: tanpa tenant terpilih dialog tidak dibuka (tidak menebak tenant demo).
+            val entitlementSlug = explicitTenantSlug(session?.tenantSlug)
+            if (showTenantEntitlementDialog && session?.user?.role == Role.PLATFORM_SUPERADMIN && entitlementSlug != null) {
                 TenantModuleEntitlementDialog(
-                    tenantSlug = session.tenantSlug ?: "wemade-demo",
+                    tenantSlug = entitlementSlug,
                     onDismiss = { showTenantEntitlementDialog = false },
                     onSaved = { granted ->
                         // Drawer ikut berubah tanpa memuat ulang halaman: entitlement adalah salah

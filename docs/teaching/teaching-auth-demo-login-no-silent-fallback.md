@@ -33,3 +33,30 @@ Slug kosong juga diam-diam menjadi `wemade-demo`.
   fallback senyapnya tetap ada.
 - `LoginScreen.kt` placeholder "contoh: wemade-demo" (teks bantuan saja).
 - Server `PublicDemoAuthRoutes`: `field("tenantSlug") ?: "wemade-demo"` saat param tak dikirim.
+
+## Putaran 2: audit sisa fallback `wemade-demo` / `ten-default`
+
+Audit `grep 'wemade-demo\|ten-default'` di `core`, `app/shared`, `server` (src/main). Tiap temuan
+diklasifikasi: (1) fallback senyap berbahaya -> tolak / keadaan "tenant belum dipilih"; (2) default sah -> biarkan.
+
+| Lokasi | Tindakan | Alasan |
+|---|---|---|
+| `AuthViewModel` pemulihan sesi (`?: "wemade-demo"`, `?: TenantId("ten-default")`) | (1) diganti | Sesi tersimpan tanpa slug (bukan superadmin platform) dianggap tidak valid: storage dibersihkan, kembali ke login dengan `MSG_SESSION_NO_TENANT`. Superadmin tanpa tenant tetap masuk, tanpa `TenantSession` tebakan |
+| `AuthViewModel.restorePersonaFrom` | (1) diganti | Tanpa slug eksplisit tidak ada persona (sama seperti tenantId null) |
+| `AuthViewModel` login demo + `applyVerifiedSession` (`ten-default`) | (1) diganti | Satu helper `storeTenantSession`: `TenantSession` hanya ditulis bila tenantId DAN slug ada; selain itu storage dikosongkan |
+| `PublicDemoAuthRoutes` `field("tenantSlug") ?: "wemade-demo"` | (1) diganti | Tanpa `tenantSlug` -> 400 "Parameter tenantSlug wajib diisi". Gerbang mati tetap 404 lebih dulu |
+| `App.kt` OrgChart/FactoryFlow/Traceability, dialog entitlement | (1) diganti | `TenantBound(slug)` menampilkan "Pilih tenant terlebih dahulu" alih-alih memuat data tenant demo; dialog entitlement (menulis!) tidak dibuka tanpa slug |
+| `App.kt` Fulfillment (via persona) | (1) diganti | Layar menerima `tenantSlug` eksplisit dari `TenantBound` |
+| `ModuleWorkspaceScreen` `resolvedSlug` | (1) diganti | Persona tanpa slug -> `TenantNotSelectedView` |
+| `FactoryFlowScreen` parameter default | (1) diganti | `tenantSlug` wajib; label perusahaan memakai slug sendiri bila bukan profil demo |
+| `CompanyTenantProfile.findBySlug/findByPreset` (`?: ALL.first()`) | (1) diganti | Mengembalikan null; tenant tak dikenal tidak lagi tampil sebagai "PT WeMade Garmen Ekspor" |
+| `AppTopBar` (`?: "wemade-demo"`) | (1) diganti | Persona switcher tidak tampil tanpa slug; company switcher menerima string kosong = belum ada tenant terpilih |
+| `LoginUiState.tenantSlug` default, `LoginScreen` placeholder | (2) dibiarkan | Pra-isi kolom dan teks bantuan; pengguna bisa mengosongkan, dan slug kosong ditolak |
+| `PublicDemoAuthRoutes.DEFAULT_DEMO_TENANTS` | (2) dibiarkan | Tenant demo resmi di `DemoLoginPolicy` (gerbang) |
+| `InMemoryTenantRepository`, `InMemoryTenantPipelineRepository` | (2) dibiarkan | Seed in-memory untuk dev/test, bukan jalur keputusan |
+| `DynamicRbacViewModel` KDoc | (2) dibiarkan | Komentar riwayat |
+
+Pelajaran: fallback yang "aman karena sesi server selalu punya slug" tetap berbahaya, karena
+kasus tanpa slug yang sah (superadmin platform) lalu diam-diam membaca/menulis data tenant demo.
+Tes: `DemoLoginNoSilentFallbackTest` (restore), `DemoAuthGateApiTest` (400 tanpa slug, `bordir-uji-gate`),
+`TenantBoundTest`.

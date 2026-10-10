@@ -102,7 +102,8 @@ fun ModuleWorkspaceScreen(
         return
     }
 
-    val resolvedSlug = persona?.tenantSlug?.takeIf { it.isNotBlank() } ?: "wemade-demo"
+    val resolvedSlug = persona?.tenantSlug?.takeIf { it.isNotBlank() }
+        ?: return com.eventverse.app.presentation.navigation.TenantNotSelectedView(modifier)
 
     // B6e: layar khusus per modul dari registry (data), bukan rantai `if (module == X)`. Modul tanpa entri —
     // termasuk modul pack lain — memakai layar generik di bawah.

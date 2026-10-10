@@ -48,10 +48,8 @@ fun FulfillmentRouteSettingsScreen(
     decision: AccessDecision,
     persona: TestingPersona?,
     modifier: Modifier = Modifier,
-    viewModel: FulfillmentViewModel = run {
-        val tenantSlug = persona?.tenantSlug ?: "wemade-demo"
-        remember(tenantSlug) { FulfillmentViewModel(tenantSlug = tenantSlug) }
-    }
+    tenantSlug: String,
+    viewModel: FulfillmentViewModel = remember(tenantSlug) { FulfillmentViewModel(tenantSlug = tenantSlug) }
 ) {
     val state by viewModel.uiState.collectAsState()
     val navigator = LocalAppNavigator.current
