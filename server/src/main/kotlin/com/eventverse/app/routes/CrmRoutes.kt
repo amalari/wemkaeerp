@@ -174,7 +174,7 @@ fun Route.crmRoutes(
                 return@post call.respond(HttpStatusCode.BadRequest, it.message ?: "Body tidak valid") }
             if (!call.requireReachableOwner(reach, req.ownerEmployeeId)) return@post
             if (relationTargetResolver != null &&
-                !call.rejectMissingRelationTargets(tenant.tenantId, customFieldRepository, req.customValues, relationTargetResolver)
+                !call.rejectMissingRelationTargets(tenant, customFieldRepository, req.customValues, relationTargetResolver, roleRepository, moduleAssignmentRepository, employeeRepository)
             ) return@post
 
             createLeadUseCase(
@@ -222,7 +222,7 @@ fun Route.crmRoutes(
                 val req = CrmLeadCodec.decodePatchRequest(call.receiveText())
                 if (req.ownerEmployeeIdSet && !call.requireReachableOwner(reach, req.ownerEmployeeId)) return@patch
                 if (relationTargetResolver != null &&
-                    !call.rejectMissingRelationTargets(tenant.tenantId, customFieldRepository, req.customValues, relationTargetResolver)
+                    !call.rejectMissingRelationTargets(tenant, customFieldRepository, req.customValues, relationTargetResolver, roleRepository, moduleAssignmentRepository, employeeRepository)
                 ) return@patch
 
                 val patch = LeadPatch(

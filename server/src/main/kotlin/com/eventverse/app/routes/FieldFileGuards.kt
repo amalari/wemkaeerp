@@ -66,17 +66,19 @@ internal suspend fun ApplicationCall.readBoundedBody(): ByteArray? {
 }
 
 /**
- * Sabuk kedua isolasi tenant pada unduh: ref yang dibaca dari sel HARUS milik tenant pemanggil
- * (dan modul pada path, bila [moduleCode] diberikan) sebelum menyentuh `ObjectStorage`. Ref asing = 403,
+ * Sabuk kedua isolasi tenant pada unduh: ref yang dibaca dari sel HARUS milik tenant pemanggil, modul pada path
+ * (bila [moduleCode] diberikan), dan **record** pada path ([recordId], wajib — TRD-FIELD-004 FR-1.3: ref berkas
+ * record lain yang tertulis di sel ini tidak boleh diunduh lewat gerbang record ini) sebelum menyentuh
+ * `ObjectStorage`. Ref asing = 403,
  * dicatat WARN tanpa key lengkap (hanya segmen tenant yang diklaim, bukan path objek).
  * Mengembalikan ref bila sah; `null` bila sudah menjawab 403.
  */
-internal suspend fun ApplicationCall.requireOwnFileRef(tenant: TenantContext, ref: String, moduleCode: String?): String? {
-    if (FileRef.isValidFor(tenant.tenantId.value, ref, moduleCode)) return ref
+internal suspend fun ApplicationCall.requireOwnFileRef(tenant: TenantContext, ref: String, moduleCode: String?, recordId: String): String? {
+    if (FileRef.isValidFor(tenant.tenantId.value, ref, moduleCode, recordId)) return ref
     log.warn(
         "FIELD FILE ditolak 403: ref bukan milik tenant {} (segmen tenant pada ref: '{}')",
         tenant.tenantId.value, ref.removePrefix(FileRef.PREFIX).substringBefore('/').take(40)
     )
-    respond(HttpStatusCode.Forbidden, "Referensi berkas bukan milik tenant ini.")
+    respond(HttpStatusCode.Forbidden, "Referensi berkas bukan milik data ini.")
     return null
 }

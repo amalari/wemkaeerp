@@ -59,27 +59,52 @@ class FileOwnershipTest {
 
     @Test
     fun fileOwnershipProblem_foreignRefInAnyFileField_isReported() {
-        val problem = entity.fileOwnershipProblem("abc", mapOf("lampiran" to own, "sketsa" to foreign))
+        val problem = entity.fileOwnershipProblem("abc", "r-1", mapOf("lampiran" to own, "sketsa" to foreign))
         assertNotNull(problem)
         assertTrue("Sketsa" in problem, problem)
     }
 
     @Test
     fun fileOwnershipProblem_ownEmptyAndMissing_isClean() {
-        assertNull(entity.fileOwnershipProblem("abc", mapOf("lampiran" to own, "sketsa" to "", "nama" to "x")))
-        assertNull(entity.fileOwnershipProblem("abc", emptyMap()))
+        assertNull(entity.fileOwnershipProblem("abc", "r-1", mapOf("lampiran" to own, "sketsa" to "", "nama" to "x")))
+        assertNull(entity.fileOwnershipProblem("abc", "r-1", emptyMap()))
+        assertNull(entity.fileOwnershipProblem("abc", null, emptyMap()), "record baru tanpa nilai FILE bersih")
     }
 
     @Test
     fun fileOwnershipProblem_ignoresNonFileFieldsEvenIfTheyLookLikeRefs() {
-        assertNull(entity.fileOwnershipProblem("abc", mapOf("nama" to foreign)))
+        assertNull(entity.fileOwnershipProblem("abc", "r-1", mapOf("nama" to foreign)))
     }
 
     @Test
     fun fileOwnershipProblem_pack2Tenant_samePackShapeDifferentTenant() {
         val other = EntitySpec("pesanan_sablon", "Pesanan sablon", listOf(FieldSpec("desain", "Desain", FieldType.FILE)))
-        assertNull(other.fileOwnershipProblem("sablon-uji", mapOf("desain" to "fields/sablon-uji/pesanan_sablon/r-9/desain-a1b2c3-x.png")))
-        assertNotNull(other.fileOwnershipProblem("sablon-uji", mapOf("desain" to "fields/bordir-uji/pesanan_sablon/r-9/desain-a1b2c3-x.png")))
+        assertNull(other.fileOwnershipProblem("sablon-uji", "r-9", mapOf("desain" to "fields/sablon-uji/pesanan_sablon/r-9/desain-a1b2c3-x.png")))
+        assertNotNull(other.fileOwnershipProblem("sablon-uji", "r-9", mapOf("desain" to "fields/bordir-uji/pesanan_sablon/r-9/desain-a1b2c3-x.png")))
+    }
+
+    // ---- Ikatan recordId (TRD-FIELD-004 FR-1.3) -------------------------------------------------------
+
+    @Test
+    fun isValidFor_recordId_bindsRefToItsRecord() {
+        assertTrue(FileRef.isValidFor("abc", own, "pesanan_bordir", "r-1"))
+        assertFalse(FileRef.isValidFor("abc", own, "pesanan_bordir", "r-2"), "ref record r-1 tidak sah di r-2")
+        assertFalse(FileRef.isValidFor("abc", own, recordId = "r-"), "satu segmen utuh, bukan awalan")
+        assertTrue(FileRef.isValidFor("abc", own), "tanpa recordId = perilaku lama (hanya domain)")
+    }
+
+    @Test
+    fun fileOwnershipProblem_refOfAnotherRecord_isReported() {
+        val problem = entity.fileOwnershipProblem("abc", "r-2", mapOf("lampiran" to own))
+        assertNotNull(problem)
+        assertTrue("Lampiran" in problem, problem)
+    }
+
+    @Test
+    fun fileOwnershipProblem_newRecord_rejectsAnyFileValue() {
+        val problem = entity.fileOwnershipProblem("abc", null, mapOf("lampiran" to own))
+        assertNotNull(problem, "record baru belum mungkin punya berkas sendiri")
+        assertNull(entity.fileOwnershipProblem("abc", null, mapOf("lampiran" to "", "nama" to "x")), "kosong tetap boleh")
     }
 
     // ---- Generator rute: kode hasil generate ikut memeriksa kepemilikan -----------------------------
@@ -87,12 +112,10 @@ class FileOwnershipTest {
     @Test
     fun generatedRoutes_checkFileOwnershipInPostAndPut_beforeReducer() {
         val routes = SpecRoutesWriter.routesFile("bordir_uji", SpecTable.of("bordir_uji", entity))
-        assertTrue("private fun fileProblem(tenantId: String, values: Map<String, String>)" in routes, "fungsi fileProblem harus ada")
-        assertEquals(
-            2, Regex("fileProblem\\(tenant\\.tenantId\\.value, values\\)").findAll(routes).count(),
-            "fileProblem(tenant.tenantId.value, values) dipanggil di POST dan PUT"
-        )
-        assertTrue("fileOwnershipProblem(tenantId, values)" in routes, "memakai aturan tunggal EntitySpec.fileOwnershipProblem")
+        assertTrue("private fun fileProblem(tenantId: String, recordId: String?, values: Map<String, String>)" in routes, "fungsi fileProblem harus ada")
+        assertEquals(1, Regex("fileProblem\\(tenant\\.tenantId\\.value, null, values\\)").findAll(routes).count(), "POST: record baru (null) menolak nilai FILE")
+        assertEquals(1, Regex("fileProblem\\(tenant\\.tenantId\\.value, id, values\\)").findAll(routes).count(), "PUT: ref terikat ke {id}")
+        assertTrue("fileOwnershipProblem(tenantId, recordId, values)" in routes, "memakai aturan tunggal EntitySpec.fileOwnershipProblem")
         listOf("POST" to "post {", "PUT" to "put(\"/{id}\") {").forEach { (name, marker) ->
             val body = routes.substringAfter(marker)
             assertTrue(body.indexOf("fileProblem(") < body.indexOf("PrototypeReducer.reduce"), "$name: cek kepemilikan sebelum reducer")

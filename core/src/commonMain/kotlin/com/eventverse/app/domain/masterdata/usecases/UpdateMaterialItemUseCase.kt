@@ -66,7 +66,7 @@ class UpdateMaterialItemUseCase(
 
         if (command.customValues.isNotEmpty()) {
             val definitions = customFieldRepository.findActiveByResource(command.tenantId, OwnerResource.MASTER_DATA_MATERIAL)
-            val errors = CustomFieldValidation.validateForPatch(command.tenantId, definitions, updated.createdAt, command.customValues)
+            val errors = CustomFieldValidation.validateForPatch(command.tenantId, updated.id.value, definitions, updated.createdAt, command.customValues)
             if (errors.isNotEmpty()) throw MaterialValidationException(errors)
 
             var attrs = updated.customAttributes
