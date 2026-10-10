@@ -314,3 +314,28 @@ Tes merah lebih dulu (A1: 14 dari 26 merah terhadap kode lama), lalu hijau; `:se
 - **Q6 — `nosniff` di mana ditegakkan?** Rekomendasi: bucket policy/reverse proxy (infra), dicatat di runbook; bukan kode aplikasi. Perlu keputusan pemilik infra.
 - **Q7 — Magic byte: 415 atau 400?** Rekomendasi: 415 (sama dengan allowlist) agar klien punya satu penanganan.
 - **Q8 — Wiring produksi (F0) benar-benar kosong?** Dari `server/src/main` ya; **[TAK TERVERIFIKASI]** terhadap konfigurasi deployment di luar repo. Rekomendasi: konfirmasi ke pemilik deployment sebelum A/B1, karena menentukan apakah unduh generik hari ini 404 di produksi.
+
+---
+
+## Status Track B (ditulis oleh pelaksana Track B; Track A dicatat oleh pelaksana lain — seksi ini sengaja terpisah agar tak konflik)
+
+| Butir | Status | Bukti |
+| :-- | :-- | :-- |
+| **B1** `Contribution.rows` + `DomainRouteWiring` (FR-2.3, F0) | **Selesai** | `TenantPackContributions.Contribution.rows` (wajib, tanpa default), `mergeRows` (fail-loud: kunci di luar pack / modul ganda ditolak; parameter tes `fieldFileRecordRows` menang), dipakai `DomainRouteWiring` untuk unduh FILE **dan** `RelationTargetRegistry`. Tes: `TenantPackContributionsRowsTest` (6). |
+| **B2** `relationProblem` generator + normalisasi target (FR-2.1/2.2) + Q3 | **Selesai** | `relationTargetResource` / `EntitySpec.relationTargetProblem` (core, `prototype/RelationTargets.kt`); emisi di `SpecRoutesRelationEmitter` (kosong bila tanpa RELATION = keluaran identik); `registerRoutes` menerima resolver; Q3 ditolak di generator dan validator usulan (`RelationTargetPolicy`). Tes: `RelationTargetRulesTest` (9), `SpecRoutesRelationEmissionTest` (7). |
+| **B3** magic byte + header adapter (FR-4.x) | **Ditunda** | menyentuh berkas Track A (`FieldFileRoutes`, `S3ObjectStorage`). |
+
+**Verifikasi F0 dari kode HEAD (bukan salinan TRD)**: `Application.kt` mendeklarasikan `fieldFileRecordRows = emptyMap()`
+sebagai default dan meneruskannya ke `DomainRouteWiring`; pemasok non-kosong satu-satunya hanya tiga tes
+(`FieldFileRoutesTest`, `FieldFileTenantIsolationTest`, `RelationRoutesTest`). Tidak ada kode `server/src/main` lain yang
+mengisinya. Benar untuk `server/src/main`; **Q8 tetap terbuka** untuk konfigurasi deployment di luar repo (asumsi:
+tidak ada wiring di luar repo yang menyuntik `fieldFileRecordRows`; bila ada, parameter tetap menang atas kontribusi).
+
+**Catatan keputusan**: validasi keberadaan RELATION ditaruh di core (`relationTargetProblem`) dan kode yang digenerate hanya
+memanggilnya (pola `fileOwnershipProblem`), jadi aturan normalisasi/keberadaan teruji tanpa mengompilasi kode hasil generate.
+Q3 diberlakukan juga di validator usulan (jalur "registrasi" pack hasil generate) agar ditolak sedini mungkin.
+
+**Dampak ke `layanan_change_request`**: berkas terkomit `LayananChangeRequestRoutes.kt` **tidak diubah** (masih basi: tanpa
+`lampiran`/`rujukan`, = Track C1). Keluaran generator terbaru untuk pilot kini memuat `relationProblem`; diverifikasi
+dikompilasi (dicoba sementara lalu dikembalikan). Kontribusi layanan sudah menyuplai `rows` sehingga unduh FILE dan resolver
+RELATION punya sumber baris produksi begitu C1 menerapkan hasil regenerasi.

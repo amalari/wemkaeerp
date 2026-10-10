@@ -21,10 +21,11 @@ internal object SpecRoutesWriter {
         val timeCols = t.columns.filter { it.field.type == FieldType.TIME }
         val validatedTextCols = t.columns.filter { it.field.type == FieldType.TEXT && it.field.validation != TextValidation.NONE }
         val multiCols = t.columns.filter { it.field.type == FieldType.MULTI_SELECT }
+        val relation = SpecRoutesRelationEmitter(t)
         return buildString {
             appendLine("package com.eventverse.app.routes")
             appendLine()
-            listOf(
+            (listOf(
                 "com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository", "com.eventverse.app.domain.pack.DomainPackRegistry",
                 "com.eventverse.app.domain.pack.ModuleId",
                 "com.eventverse.app.domain.prototype.EntitySpec", "com.eventverse.app.domain.prototype.FieldSpec",
@@ -41,7 +42,7 @@ internal object SpecRoutesWriter {
                 "io.ktor.server.response.respond", "io.ktor.server.response.respondText", "io.ktor.server.routing.Route",
                 "io.ktor.server.routing.delete", "io.ktor.server.routing.get", "io.ktor.server.routing.post",
                 "io.ktor.server.routing.put", "io.ktor.server.routing.route", "kotlinx.datetime.LocalDate", "kotlinx.datetime.LocalDateTime", "java.util.UUID"
-            ).forEach { appendLine("import $it") }
+            ) + relation.imports).forEach { appendLine("import $it") }
             appendLine()
             appendLine("// KANDIDAT PR (hasil generator) — modul ${SpecNaming.kString(moduleId)}. Setelah diterapkan milik tim.")
             appendLine("private val MODULE = ModuleId(${SpecNaming.kString(moduleId)})")
@@ -60,7 +61,7 @@ internal object SpecRoutesWriter {
             appendLine("fun Route.$fn(")
             appendLine("    repository: PrototypeRowRepository,")
             appendLine("    roleRepository: RoleRepository,")
-            appendLine("    moduleAssignmentRepository: ModuleAssignmentRepository")
+            appendLine("    moduleAssignmentRepository: ModuleAssignmentRepository" + relation.routeParam)
             appendLine(") {")
             appendLine("    suspend fun ApplicationCall.authorized(required: AccessLevel): TenantContext? {")
             appendLine("        val tenant = tenantContextOrNull ?: run { respond(HttpStatusCode.NotFound, \"No tenant context found\"); return null }")
@@ -96,7 +97,7 @@ internal object SpecRoutesWriter {
             appendLine("            val tenant = call.authorized(AccessLevel.OPERATE) ?: return@post")
             appendLine("            val values = call.bodyValues() ?: return@post")
             appendLine("            val row = PrototypeRow(ID_PREFIX + \"-\" + UUID.randomUUID(), values)")
-            appendLine("            val problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values) ?: fileProblem(tenant.tenantId.value, null, values)")
+            appendLine("            val problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values) ?: fileProblem(tenant.tenantId.value, null, values)" + relation.chain)
             appendLine("                ?: PrototypeReducer.reduce(SPEC, PrototypeStore(), PrototypeAction.Create(ENTITY_ID, row)).exceptionOrNull()?.message")
             appendLine("            if (problem != null) return@post call.respond(HttpStatusCode.BadRequest, problem)")
             appendLine("            repository.save(tenant.tenantId, row)")
@@ -107,7 +108,7 @@ internal object SpecRoutesWriter {
             appendLine("            val id = call.parameters[\"id\"].orEmpty()")
             appendLine("            val values = call.bodyValues() ?: return@put")
             appendLine("            val current = repository.find(tenant.tenantId, id) ?: return@put call.respond(HttpStatusCode.NotFound, \"Data tidak ditemukan.\")")
-            appendLine("            var problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values) ?: fileProblem(tenant.tenantId.value, id, values)")
+            appendLine("            var problem = dateProblem(values) ?: timeProblem(values) ?: textProblem(values) ?: multiProblem(values) ?: fileProblem(tenant.tenantId.value, id, values)" + relation.chain)
             appendLine("            var store = PrototypeStore(mapOf(ENTITY_ID to listOf(current)))")
             appendLine("            if (problem == null) {")
             appendLine("                for ((key, value) in values) {")
@@ -156,6 +157,7 @@ internal object SpecRoutesWriter {
             appendLine()
             appendLine("/** Field FILE: ref wajib milik tenant DAN record penulis (`fields/<tenantId>/<modul>/<recordId>/...`); recordId null = record baru (ditolak). Reducer tenant-buta, jadi tanpa ini tenant/record lain bisa mengunduh objek ini. */")
             appendLine("private fun fileProblem(tenantId: String, recordId: String?, values: Map<String, String>): String? = SPEC.entities.single().fileOwnershipProblem(tenantId, recordId, values)")
+            relation.helper().forEach { appendLine(it) }
             appendLine()
             appendLine("/** Field MULTI_SELECT: nilai wajib array JSON nama opsi (aturan tunggal `FieldSpec.accepts`). */")
             appendLine("private fun multiProblem(values: Map<String, String>): String? = MULTI_FIELDS.firstNotNullOfOrNull { f ->")
