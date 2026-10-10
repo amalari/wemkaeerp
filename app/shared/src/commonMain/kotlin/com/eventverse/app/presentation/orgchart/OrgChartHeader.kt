@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,7 +51,6 @@ internal fun OrgChartHeader(
     onToggleResetMenu: () -> Unit,
     onAddNewEmployee: () -> Unit,
     onAddNewDepartment: () -> Unit,
-    onClearAllData: () -> Unit,
     onRestorePresets: () -> Unit,
     isLoadFailed: Boolean = false
 ) {
@@ -89,7 +87,7 @@ internal fun OrgChartHeader(
                 text = if (isDepartmentLocked && lockedDepartmentName != null) {
                     "Menampilkan bagan struktur khusus divisi $lockedDepartmentName sesuai batasan wewenang data Anda."
                 } else {
-                    "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik, atau mulai dari struktur kosong."
+                    "Kelola struktur pelaporan, atur divisi fleksibel sesuai kebutuhan pabrik."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = WeMadeColors.OnSurfaceMuted
@@ -119,16 +117,6 @@ internal fun OrgChartHeader(
                         expanded = isResetMenuOpen,
                         onDismissRequest = onToggleResetMenu
                     ) {
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("Mulai dari Kosong", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.Error)
-                                    Text("Kosongkan semua karyawan & divisi", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
-                                }
-                            },
-                            onClick = { onToggleResetMenu(); onClearAllData() }
-                        )
-                        HorizontalDivider(color = WeMadeColors.Border)
                         DropdownMenuItem(
                             text = {
                                 Column {

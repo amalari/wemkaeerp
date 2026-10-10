@@ -53,9 +53,6 @@ class OrgChartViewModelScopingTest {
 
         viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets)
         assertEquals(1, viewModel.uiState.value.departments.size)
-
-        viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty)
-        assertTrue(viewModel.uiState.value.employees.isNotEmpty())
     }
 
     @Test
@@ -141,9 +138,6 @@ class OrgChartViewModelScopingTest {
         // 5. Mutating operations blocked
         viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee)
         assertFalse(viewModel.uiState.value.isCreatingNew)
-
-        viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty)
-        assertTrue(viewModel.uiState.value.employees.isNotEmpty())
     }
 
     @Test

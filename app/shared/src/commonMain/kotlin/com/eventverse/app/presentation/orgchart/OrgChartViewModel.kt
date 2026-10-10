@@ -547,26 +547,6 @@ class OrgChartViewModel(
                 _uiState.update { it.copy(isResetMenuOpen = !it.isResetMenuOpen) }
             }
 
-            is OrgChartUiEvent.ClearAllDataToEmpty -> {
-                if (!access.canManage || isScoped) return
-                _uiState.update { state ->
-                    state.copy(
-                        employees = emptyList(),
-                        departments = emptyList(),
-                        selectedDepartment = null,
-                        selectedEmployeeId = null,
-                        isCreatingNew = true,
-                        nameInput = "",
-                        emailInput = "",
-                        phoneInput = "",
-                        selectedReportsToId = null,
-                        roleTitleInput = "",
-                        isResetMenuOpen = false,
-                        toastMessage = "Struktur organisasi berhasil dikosongkan. Anda dapat mulai menyusun dari awal!"
-                    )
-                }
-            }
-
             is OrgChartUiEvent.RestoreDefaultPresets -> {
                 if (!access.canManage || isScoped) return
                 if (_uiState.value.isRestoringPresets) return
