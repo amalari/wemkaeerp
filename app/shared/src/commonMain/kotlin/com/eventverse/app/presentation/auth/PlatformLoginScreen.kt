@@ -167,5 +167,6 @@ private fun PlatformDemoButton(
     fontSize = 12.sp,
     offset = ClayOffset.Small,
     contentPadding = PaddingValues(horizontal = ClaySpacing.Md, vertical = 9.dp),
+    maxLines = 1,
     modifier = modifier
 )
