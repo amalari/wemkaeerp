@@ -3,6 +3,7 @@ package com.eventverse.app.domain.prototype
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -62,6 +63,28 @@ class DeterministicSpecOpProposerTest {
         assertEquals(
             listOf(SpecOp.RenameFieldLabel("tiket", "Peminta", "Dilaporkan oleh")),
             proposer.propose("ganti nama Peminta jadi Dilaporkan oleh", tiket).getOrThrow()
+        )
+    }
+
+    @Test
+    fun addField_timeViaBertipeSuffix_closedVocabulary() = runTest {
+        assertEquals(
+            listOf(SpecOp.AddField("tiket", FieldSpec("Jam Mulai", "Jam Mulai", FieldType.TIME))),
+            proposer.propose("tambah kolom Jam Mulai bertipe TIME", tiket).getOrThrow()
+        )
+        assertEquals(
+            listOf(SpecOp.AddField("tiket", FieldSpec("Jam Selesai", "Jam Selesai", FieldType.TIME))),
+            proposer.propose("tambah field Jam Selesai bertipe time", tiket).getOrThrow()
+        )
+        val err = assertNotNull(
+            proposer.propose("tambah kolom Catatan bertipe bintang", tiket).exceptionOrNull(),
+            "kalimat bertipe tak dikenal harus ditolak"
+        )
+        assertTrue(err.message?.contains("belum didukung") == true, err.message)
+        // Tanpa akhiran bertipe: tetap TEXT (perilaku lama tidak berubah).
+        assertEquals(
+            listOf(SpecOp.AddField("tiket", FieldSpec("Prioritas", "Prioritas", FieldType.TEXT))),
+            proposer.propose("tambah kolom Prioritas", tiket).getOrThrow()
         )
     }
 

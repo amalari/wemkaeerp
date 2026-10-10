@@ -6,7 +6,9 @@ import com.eventverse.app.domain.discovery.WidgetKind
  * Pengusul operasi berbasis **kata kunci Indonesia** — tanpa LLM, tanpa jaringan, deterministik
  * (butir B5). Kalimat yang dikenal (huruf besar/kecil bebas, nama baru dipakai apa adanya):
  *  - "tambah(kan) status X" / "… setelah Y" → [SpecOp.AddEnumOption]
- *  - "tambah(kan) kolom|field X"           → [SpecOp.AddField] (teks, tidak wajib)
+ *  - "tambah(kan) kolom|field X"            → [SpecOp.AddField] (teks, tidak wajib)
+ *  - "tambah(kan) kolom|field X bertipe time" → [SpecOp.AddField] bertipe [FieldType.TIME] (C6/D7);
+ *    akhiran `bertipe <lain>` **ditolak** dengan pesan — kosakata tipe pengusul tertutup, bukan ditebak.
  *  - "(ganti|ubah) nama X (jadi|menjadi|→) Z" → [SpecOp.RenameEnumOption] bila X opsi status,
  *    selain itu [SpecOp.RenameFieldLabel] bila X field — dicocokkan case-insensitive ke layar.
  *  - "(izinkan|bolehkan) X ke Y"           → [SpecOp.AddTransition] (keduanya opsi yang ada)
@@ -30,6 +32,8 @@ class DeterministicSpecOpProposer : SpecOpProposer {
 
     private companion object {
         val ADD = Regex("""^tambah(?:kan)?\s+(status|kolom|field)\s+(.+)$""", RegexOption.IGNORE_CASE)
+        /** C6/D7: akhiran tipe pada "tambah kolom|field"; satu-satunya anggota: `time`. */
+        val TYPED = Regex("""^(.+?)\s+bertipe\s+(\S+)$""", RegexOption.IGNORE_CASE)
         val AFTER = Regex("""^(.*?)\s+setelah\s+(.+)$""", RegexOption.IGNORE_CASE)
         val RENAME = Regex("""^(?:ganti|ubah)\s+nama\s+(?:(?:status|kolom|field)\s+)?(.+?)\s+(?:jadi|menjadi|->|→)\s+(.+)$""", RegexOption.IGNORE_CASE)
         val ALLOW = Regex("""^(?:izinkan|bolehkan|boleh)\s+(.+?)\s+ke\s+(.+)$""", RegexOption.IGNORE_CASE)
@@ -92,6 +96,13 @@ class DeterministicSpecOpProposer : SpecOpProposer {
         private fun parseAdd(m: MatchResult): SpecOp {
             val rest = m.groupValues[2].trim()
             if (!m.groupValues[1].equals("status", ignoreCase = true)) {
+                TYPED.find(rest)?.let { tm ->
+                    val typeWord = tm.groupValues[2].equals("time", ignoreCase = true)
+                    require(typeWord) { "Tipe '${tm.groupValues[2]}' belum didukung pengusul ini; yang bisa: time." }
+                    val label = tm.groupValues[1].trim()
+                    require(label.isNotBlank()) { EXAMPLES }
+                    return SpecOp.AddField(entity.id, FieldSpec(label, label, FieldType.TIME))
+                }
                 require(rest.isNotBlank()) { EXAMPLES }
                 return SpecOp.AddField(entity.id, FieldSpec(rest, rest, FieldType.TEXT))
             }
