@@ -148,6 +148,15 @@ internal fun screenCatalogJson(packs: List<DomainPack>): String = jsonObjectOf(
             jsonObjectOf("name" to jsonOf(t.name), "note" to jsonOf(KoogDiscoveryFieldTypeVocabulary.note(t)))
         }
     ),
+    // SP-C0 lanjutan: format nilai seed tinggal di katalog (on-demand), bukan di prompt sistem —
+    // prompt hanya menyebut penunjuknya (lihat KoogDiscoveryPrompt aturan 11).
+    "seedFormat" to jsonObjectOf(
+        "note" to jsonOf(
+            "Nilai seed ditulis sebagai string sesuai tipe fieldnya: angka \"5\", tanggal \"2026-03-01\"," +
+                " BOOL \"ya\"/\"tidak\", jam \"09:30\", MULTI_SELECT array JSON nama opsi, RELATION/FILE kosong." +
+                " Rincian per tipe lihat `fieldTypes`."
+        )
+    ),
     "numberFormats" to KoogDiscoveryNumberFormatVocabulary.catalogJson(),
     "fieldParams" to KoogDiscoveryDateTimeValidationVocabulary.catalogJson(),
     // C7 (TRD-FIELD-001 FR-6): aturan target RELATION + R1 ModuleReferenceRules (modul target yang sah dirujuk).

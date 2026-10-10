@@ -23,7 +23,7 @@ Sisa terbuka (follow-up, bukan celah tabel C1–C10):
 1. ~~`AddCustomFieldDialog` CRM belum menawarkan opsi "tanggal berwaktu"~~ **Selesai (2026-10-10)**: opsi "Tanggal berwaktu" (`DateField(withTime = true)`, config `{"withTime": true}`) ditambahkan.
 2. MULTI_SELECT untuk kosakata CRM sengaja tidak disentuh (keputusan TRD-FIELD-003); **demikian juga tipe TIME untuk kosakata CRM** — TIME baru terdaftar di kosakata prototype; pendaftaran TIME CRM menyusul bila ada kebutuhan nyata.
 3. ~~Cek visual dengan mata untuk `ClayTimePicker` dan alur tanggal berwaktu CRM~~ **Selesai (2026-10-10)**: alur CRM (kalender → langkah jam → commit `2026-10-15T09:10` → persist) diverifikasi di tenant `wemade-demo` lewat browser. Sisa: layar **discovery** (form blok/tabel inline/kanban) dengan field TIME di tenant non-garment belum dicek mata.
-4. Anggaran prompt sistem Koog hampir penuh (~7.997/8.000 karakter setelah TIME masuk) — pertimbangkan naikkan anggaran atau pindahkan pedoman seed ke katalog sebelum anggota kosakata berikutnya.
+4. ~~Anggaran prompt sistem Koog hampir penuh~~ **Diselesaikan (2026-10-10)**: cheat-sheet format nilai seed dipindah dari prompt sistem ke katalog `screen_catalog()` (`seedFormat` + `fieldTypes`); prompt hanya menyisakan penunjuk. Anggaran 8.000 dipertahankan sebagai pagar tetap — tambahan kosakata berikutnya wajib menaruh konten referensi di katalog, bukan di prompt.
 
 ## 0. Temuan terverifikasi
 

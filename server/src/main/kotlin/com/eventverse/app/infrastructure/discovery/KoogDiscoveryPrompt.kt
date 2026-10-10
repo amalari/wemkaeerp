@@ -110,8 +110,8 @@ internal object KoogDiscoveryPrompt {
             yang bukan alur kerja — level stok (Tersedia/Menipis/Habis), status pembayaran, status
             aktif/nonaktif — KOSONGKAN `transitions` (artinya bebas berpindah), jangan menggambar
             siklus perpindahan.
-            Maksimal 12 field per entity; `seed` maksimal 8 baris objek string — angka ditulis "5",
-            tanggal "2026-03-01", BOOL "ya"/"tidak", dan field wajib terisi di setiap baris.
+            Maksimal 12 field per entity; `seed` maksimal 8 baris objek string, tiap field wajib terisi;
+            format nilai per tipe lihat `screen_catalog()`.
         12. `view` mengikuti widget (lihat contoh): TABLE {columns, inlineCreate, editableFields} dengan
             kolom = kunci field; KANBAN {card:[{field,style}], columnMeta, detailFormFields} dengan kolom
             papan = opsi statusField; FORM {fields, submitLabel} yang memuat semua field wajib;
