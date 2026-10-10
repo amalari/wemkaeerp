@@ -198,13 +198,13 @@ menghitung biaya).
 
 ```bash
 # 1. Satu panggilan per (peran × fase)
-curl -X POST localhost:8080/api/admin/module-dev/builds/<BUILD_ID>/effort \
+curl -X POST localhost:8081/api/admin/module-dev/builds/<BUILD_ID>/effort \
   -H "Authorization: Bearer <SUPERADMIN_JWT>" \
   -d '{"entryId":"e-1","role":"BACKEND","phase":"IMPLEMENTATION",
        "hours":34.0,"hourlyRateIdr":138000}'
 
 # 2. Tutup build-nya
-curl -X POST localhost:8080/api/admin/module-dev/builds/<BUILD_ID>/complete \
+curl -X POST localhost:8081/api/admin/module-dev/builds/<BUILD_ID>/complete \
   -H "Authorization: Bearer <SUPERADMIN_JWT>" \
   -d '{"revisionRoundCount":2,"leadTimeDays":18,
        "discoveredScopeDelta":"kompresi & orientasi EXIF foto HP tidak terhitung"}'

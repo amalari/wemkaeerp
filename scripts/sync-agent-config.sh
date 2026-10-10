@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Sinkronisasi konfigurasi AI: .claude/ (sumber kebenaran) → Cline & Gemini/Antigravity.
+# Sinkronisasi konfigurasi AI: .claude/ → Codex, Cline & Gemini/Antigravity.
 #   scripts/sync-agent-config.sh          → tulis
 #   scripts/sync-agent-config.sh --check  → hanya periksa; exit 1 bila ada yang menyimpang
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CHECK=${1:-}
+case "$CHECK" in ''|--check) ;; *) echo 'Usage: scripts/sync-agent-config.sh [--check]' >&2; exit 2 ;; esac
 drift=0
 tmp=$(mktemp -d)
+trap 'rm -f "$tmp/AGENTS.md" "$tmp/GEMINI.md"; rmdir "$tmp"' EXIT
 
 # Skill milik proyek yang dibagikan ke .agents/ (Gemini). Skill lain di .agents/ sengaja TIDAK
 # disentuh: sebagian tercampur proyek lain (lihat docs/teaching/teaching-claude-config-skills-rules-sync.md).
-SHARED_SKILLS=(wemade-feature-discovery wemade-feature-workflow)
+# Seluruh skill sumber, termasuk references/scripts/assets, dikelola oleh sinkronisasi.
 
 generate_agents_md() {
   {
@@ -65,11 +67,7 @@ put "$tmp/GEMINI.md" GEMINI.md
 for rule in .claude/rules/*.md; do put "$rule" ".agents/rules/$(basename "$rule")"; done
 
 # 4. Skill proyek → .agents/skills
-for skill in "${SHARED_SKILLS[@]}"; do
-  while IFS= read -r -d '' f; do
-    put "$f" ".agents/skills/${f#.claude/skills/}"
-  done < <(find ".claude/skills/$skill" -type f -print0)
-done
+# Converter di langkah 6 mengelola seluruh skills dengan manifest.
 
 # 5. Symlink Cline
 check_link() { # $1 path, $2 target
@@ -79,11 +77,15 @@ check_link() { # $1 path, $2 target
   fi
 }
 check_link .clinerules .claude/rules
-mkdir -p .cline
+[ -n "$CHECK" ] || mkdir -p .cline
 check_link .cline/skills ../.claude/skills
+
+# 6. Konversi command, custom agents, hooks, MCP dan laporan kompatibilitas Codex.
+python3 scripts/sync_codex_config.py ${CHECK:+"$CHECK"} || drift=1
 
 if [ -n "$CHECK" ]; then
   [ $drift -eq 0 ] && echo "Konfigurasi AI sinkron." || { echo "Jalankan: scripts/sync-agent-config.sh"; exit 1; }
 else
-  echo "Sinkron: AGENTS.md, .agents/{AGENTS.md,rules,skills/${SHARED_SKILLS[*]}}, GEMINI.md, .clinerules, .cline/skills"
+  [ $drift -eq 0 ] || exit 1
+  echo "Sinkron: AGENTS.md, seluruh skills, commands, agents, hooks, MCP, Gemini & Cline."
 fi

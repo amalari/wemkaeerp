@@ -1,0 +1,5 @@
+# Codex-specific defaults; shared instructions remain in .claude/CLAUDE.md.
+# Generated AGENTS.md is ~84 KiB. Leave room for global and nested guidance.
+project_doc_max_bytes = 131072
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"

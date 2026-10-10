@@ -2,13 +2,13 @@
 name: task-to-github-projects
 description: >
   Convert brainstormed features, plans, or task breakdowns into structured GitHub Issues
-  and link them to GitHub Projects (v2) using GitHub MCP. Activate when the user wants to
+  and link them to GitHub Projects (v2) using the `gh` CLI. Activate when the user wants to
   export/sync tasks, brainstorm results, or implementation plans to GitHub Projects or Issues.
 ---
 
 # Task to GitHub Projects Skill
 
-Convert brainstormed ideas, technical specifications, and architectural plans into structured GitHub Issues and assign them to GitHub Projects (v2) via the GitHub MCP server.
+Convert brainstormed ideas, technical specifications, and architectural plans into structured GitHub Issues and assign them to GitHub Projects (v2).
 
 ---
 
@@ -23,21 +23,13 @@ Trigger this skill when:
 
 ## Prerequisites
 
-1. **GitHub MCP Server** configured in `~/.gemini/config/mcp_config.json`:
-   ```json
-   "github": {
-     "command": "npx",
-     "args": ["-y", "@modelcontextprotocol/server-github"],
-     "env": {
-       "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_GITHUB_PAT>"
-     }
-   }
-   ```
-2. **Token Scopes Needed**:
-   - Classic PAT: `repo`, `project`, `read:org`
-   - Fine-grained PAT:
-     - **Repository permissions**: Issues (`Read and write`), Metadata (`Read-only`)
-     - **Organization / Account permissions**: Projects (`Read and write`)
+Execute via the **`gh` CLI** (already available in this environment; see the harness's own "Use the `gh` CLI for GitHub operations" guidance) rather than a GitHub MCP server:
+
+1. Confirm authentication: `gh auth status`.
+2. Confirm the target repo's remote: `gh repo view --json nameWithOwner`.
+3. Projects v2 operations go through `gh project` (e.g. `gh project item-add`, `gh project field-list`) — run `gh project --help` if the target project number/owner isn't already known.
+
+If a GitHub MCP server is connected in this session instead, prefer its tools over shelling out to `gh` for the same operations — don't do both.
 
 ---
 
@@ -50,7 +42,7 @@ Trigger this skill when:
             ↓
   2. User Review & Approval (Confirm Repos, Labels & Milestones)
             ↓
-  3. GitHub MCP Execution (Create Issues & Link to Project Board)
+  3. Execution via `gh` CLI (Create Issues & Link to Project Board)
             ↓
   4. Output Summary Table & Direct Links
 ```
@@ -62,10 +54,10 @@ Trigger this skill when:
 Break down the brainstormed content into well-scoped, atomic issues:
 
 #### Issue Structure Template:
-- **Title**: `[<Domain/Feature>] <Imperative Verb Action>` (e.g., `[Event] Implement EventRepository interface and SQLDelight driver`)
+- **Title**: `[<Domain/Feature>] <Imperative Verb Action>` (e.g., `[Pipeline] Implement TenantEntitlementRepository and Postgres binding`)
 - **Labels**:
   - Type: `type:feature`, `type:bug`, `type:refactor`, `type:task`, `type:docs`
-  - Domain/Area: `domain:event`, `domain:ticket`, `layer:core`, `layer:ui`, `layer:server`
+  - Domain/Area: `domain:pipeline`, `domain:rbac`, `layer:core`, `layer:app-shared`, `layer:server`
   - Priority: `priority:p0-critical`, `priority:p1-high`, `priority:p2-medium`, `priority:p3-low`
 - **Body Markdown**:
   ```markdown
@@ -90,26 +82,28 @@ Break down the brainstormed content into well-scoped, atomic issues:
 
 ### Step 2: Confirmation Before Publishing
 
-Before executing MCP commands, summarize the planned issues to the user:
-- Target Repository: `owner/repo`
+Before creating anything, summarize the planned issues to the user:
+- Target Repository: `owner/repo` (from `gh repo view`)
 - Target Project Name/Number (if applicable)
 - Table of proposed issues (Title, Labels, Priority)
 
-Ask for quick confirmation or adjustments.
+Ask for quick confirmation or adjustments — issue/project creation is outward-facing and hard to fully undo.
 
 ---
 
-### Step 3: GitHub MCP Execution
-
-Use the GitHub MCP tools to create issues and link them to the project board:
+### Step 3: Execution via `gh` CLI
 
 1. **Create the Issues**:
-   - Call MCP tool `create_issue` with `owner`, `repo`, `title`, `body`, and `labels`.
-   - Record returned issue numbers and node IDs / URLs.
+   ```bash
+   gh issue create --title "<title>" --body "<body>" --label "type:feature,domain:pipeline"
+   ```
+   Record the returned issue numbers and URLs.
 
 2. **Add to GitHub Project (Projects v2)**:
-   - If adding to a project board:
-     - Use `add_issue_to_project` / `update_project_item_field` to assign status (e.g., `Todo`, `Backlog`) and priority/size fields.
+   ```bash
+   gh project item-add <project-number> --owner <owner> --url <issue-url>
+   ```
+   Then set status/priority/size fields with `gh project item-edit` as needed.
 
 ---
 
@@ -119,13 +113,13 @@ Present a clean markdown table showing the created artifacts:
 
 | # | Issue Title | Labels | GitHub Link | Project Status |
 |---|---|---|---|---|
-| #101 | `[Event] Add Event domain model` | `domain:event`, `type:feature` | [#101](https://github.com/owner/repo/issues/101) | `Todo` |
-| #102 | `[Event] Create EventListViewModel` | `layer:ui`, `type:feature` | [#102](https://github.com/owner/repo/issues/102) | `Todo` |
+| #101 | `[Pipeline] Add TenantModuleEntitlement domain model` | `domain:pipeline`, `type:feature` | [#101](https://github.com/owner/repo/issues/101) | `Todo` |
+| #102 | `[Admin] Create AdminRoutes entitlement endpoints` | `layer:server`, `type:feature` | [#102](https://github.com/owner/repo/issues/102) | `Todo` |
 
 ---
 
 ## Best Practices & Guidelines
 
 1. **Keep tasks atomic**: Each issue should be completable in 1-3 days or represent a single cohesive pull request.
-2. **Follow DDD and Project Rules**: Align labels and scope with the project's architecture (`core`, `app/shared`, `server`).
-3. **Avoid duplicate issues**: If issues may already exist, check existing issues in the repo first using MCP `list_issues` or `search_issues`.
+2. **Follow DDD and Project Rules**: Align labels and scope with the project's architecture (`core`, `app/shared`, `server`) — see `.claude/CLAUDE.md`.
+3. **Avoid duplicate issues**: Check for existing issues first with `gh issue list --search "<keywords>"`.

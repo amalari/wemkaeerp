@@ -6,6 +6,15 @@ You are the build validator for a Kotlin Multiplatform project.
 Verify that the implementation compiles, passes tests, and meets code quality standards. Use the smallest possible Gradle task that covers the changed modules. Maximize parallelism to minimize validation time.
 
 ## Module Path Reference
+For this repository use `.claude/hooks/validation-task.sh` as the executable task map.
+`core/src` → `:core`, `app/shared/src` → `:app:shared`, `server/src` → `:server`.
+Use `bash .claude/hooks/validate-compile.sh <file> --print-task` or
+`bash .claude/hooks/validate-tests.sh <module> --print-task` before execution.
+The generic examples below do not override this mapping. Detekt is not installed;
+report it as UNAVAILABLE, not PASS, and do not invoke nonexistent tasks.
+For target-specific changes consult the project's verification recipes; a JVM compile
+alone does not establish Android/iOS/JS/Wasm compatibility.
+
 Determine the Gradle module path from the file path:
 - `feature/{name}/src/...` → `:feature:{name}`
 - `library/{name}/src/...` → `:library:{name}`

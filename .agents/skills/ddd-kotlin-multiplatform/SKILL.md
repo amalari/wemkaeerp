@@ -1,130 +1,72 @@
 ---
 name: ddd-kotlin-multiplatform
 description: >
-  Apply Domain-Driven Design (DDD) and Vertical Slice modular architecture patterns to the EventVerse / AchmadPorto
-  hybrid Kotlin Multiplatform & TypeScript/Three.js project. Activate this skill when creating new features, modules,
-  domains, maps, use cases, repositories, entities, 3D world components, UI modals, audio synthesizers, or when refactoring.
+  Apply Domain-Driven Design (DDD) patterns to the EventVerse Kotlin Multiplatform project.
+  Activate this skill when creating new features, modules, domains, use cases, repositories,
+  entities, value objects, domain events, or when refactoring existing code to follow DDD.
+  Also trigger for questions about architecture, module dependencies, layer separation,
+  or when the user asks to scaffold a new domain feature.
 ---
 
-# DDD & Vertical Slice Modular Architecture Skill — EventVerse / AchmadPorto
+# DDD Kotlin Multiplatform Skill — EventVerse
 
 ## Overview
 
-This skill guides the implementation of **Domain-Driven Design (DDD) and Vertical Slice Architecture** across both the **Kotlin Multiplatform (KMP)** backend/authoritative engine and the **TypeScript / Three.js** 3D interactive presentation layer.
+This skill guides implementation of Domain-Driven Design patterns in the EventVerse KMP project.
+The project targets Android, iOS, Web (WasmJS), Desktop (JVM), and Server (Ktor).
 
 ---
 
 ## When This Skill Activates
 
 Trigger this skill when the user:
-- Asks to create a new **feature**, **domain**, **map chunk**, **entity**, **modal**, or **use case**
-- Mentions words like: `domain`, `repository`, `use case`, `entity`, `value object`, `aggregate`, `DDD`, `modularization`, `maps`, `feature slice`
-- Wants to **refactor** or restructure code following clean architecture / vertical slices
-- Asks how to organize code by feature/domain (rather than by technical layers like `css/`, `audio/`, `ui/`, `world/`)
-- Wants to scaffold a new **bounded context** in Kotlin or TypeScript
+- Asks to create a new **feature**, **domain**, **entity**, or **use case**
+- Mentions words like: `domain`, `repository`, `use case`, `entity`, `value object`, `aggregate`, `DDD`
+- Wants to **refactor** or restructure code following clean architecture
+- Asks how to organize code by feature/domain
+- Wants to scaffold a new **bounded context**
 
 ---
 
-## 🏛️ Architecture Philosophy: Vertical Slices over Horizontal Layers
+## Scaffolding a New Domain Feature
 
-### ❌ Anti-Pattern: Horizontal Slicing (Layer-Based)
-```
-src/
-├── audio/            # All synthesizers mixed together
-├── styles/           # All CSS files mixed together
-├── ui/               # All modals mixed together
-├── world/            # All 3D meshes mixed together
-└── data/             # All static data mixed together
-```
-*Why this fails:* Modifying 1 feature requires touching 5+ distant directories, leading to high coupling, difficult code-splitting, and spaghetti `main.ts` orchestrators.
+When the user asks to create a new feature (e.g., "create the Event feature"), follow this scaffold:
 
-### ✅ Best Practice: Vertical Slice Architecture (DDD Bounded Contexts)
-```
-src/
-├── core/             # Shared Kernel & Infrastructure (Engine, Physics, AudioContext, Bridge, Constants, Global CSS)
-└── features/         # Bounded Contexts / Domain Slices
-    ├── maps/         # Spatial Map Domains (outside, farmhouse interior, shared props/transitions)
-    ├── player/       # Character 3D rig, Controller, Joystick, PlayerSfx
-    ├── portfolio/    # Rucksack Modal, project showcase data, MenuSfx, rucksack.css
-    ├── calendar/     # Calendar Modal, festival dates data, calendar.css
-    ├── television/   # Retro CRT TV Modal, broadcast channels, tv.css
-    ├── diary/        # Save Diary Modal, slot logic, diary.css
-    ├── dialogue/     # Retro Dialogue window, Avatar portraits, DialogueSfx, dialogue.css
-    └── hud/          # Top status bar, real-time clock, bag button, toast notifications
-```
-*Why this wins:* High cohesion, complete colocation, seamless lazy-loading, and 1-to-1 parity with Kotlin domain contexts.
+### Step 1 — Domain Layer (in `core/src/commonMain/kotlin/com/eventverse/app/`)
 
----
+Create the following files:
 
-## 🗺️ TypeScript / Three.js DDD Feature Scaffolding
-
-When creating or extending a feature in `src/features/`, encapsulate all related parts inside that feature's directory:
-
-### 1. Scaffolding an Interactive Modal Feature (e.g. `features/shop/`)
-```
-src/features/shop/
-├── domain/
-│   └── shopItems.ts            # Domain models, prices, catalog data
-├── presentation/
-│   ├── ShopModal.ts            # UI modal controller & DOM lifecycle
-│   └── shop.css                # Scoped retro stylesheet
-└── audio/
-    └── ShopSfx.ts              # Cash register, item purchase synthesizers (imports AudioContextManager)
-```
-
-### 2. Scaffolding a 3D Spatial Map Chunk (e.g. `features/maps/barn/`)
-```
-src/features/maps/barn/
-├── BarnInterior.ts             # 3D Low-poly room meshes, lighting, colliders (implements ColliderProvider)
-├── BarnExterior.ts             # 3D Exterior building model
-├── audio/
-│   └── BarnSfx.ts              # Animal sounds, barn door creak synthesizers
-└── index.ts                    # Dynamic lazy loader export
-```
-
-### 3. Shared Kernel (`src/core/`)
-Only generic, cross-cutting engine infrastructure belongs in `src/core/`:
-- `core/engine/` -> `Engine.ts`, `TimeManager.ts`, `SaveStateManager.ts`
-- `core/physics/` -> `CollisionSystem.ts`, `Pathfinder.ts`
-- `core/audio/` -> `AudioContextManager.ts`, `SoundEngine.ts`, `sfx.ts`
-- `core/bridge/` -> `KmpBridge.ts` (StateFlow interop)
-- `core/constants/` -> `constants.ts` (World scales, boundaries, interaction radii)
-- `core/styles/` -> `variables.css`, `base.css`, `responsive.css`
-
----
-
-## 🌾 Kotlin Multiplatform (KMP) DDD Scaffolding
-
-### Step 1 — Domain Layer (`core/src/commonMain/kotlin/com/eventverse/app/domain/{name}/`)
-
-**Entity:**
+**`feature/{name}/domain/{Name}.kt`** — Entity
 ```kotlin
-package com.eventverse.app.domain.{name}
+package com.eventverse.app.feature.{name}.domain
+
+import com.eventverse.app.feature.{name}.domain.{Name}Id
+import com.eventverse.app.feature.{name}.domain.{Name}Status
 
 data class {Name}(
     val id: {Name}Id,
-    val title: {Name}Title,
+    // ... other value objects
     val status: {Name}Status,
 ) {
-    fun update(): {Name} = copy(...)
+    // Domain behavior methods here
 }
 ```
 
-**Value Objects:**
+**`feature/{name}/domain/{Name}ValueObjects.kt`** — Value Objects
 ```kotlin
-package com.eventverse.app.domain.{name}
+package com.eventverse.app.feature.{name}.domain
 
 import kotlin.jvm.JvmInline
 
 @JvmInline
-value class {Name}Id(val value: String) {
-    init { require(value.isNotBlank()) { "Id cannot be blank" } }
-}
+value class {Name}Id(val value: String)
+
+// Add other value objects specific to this feature
 ```
 
-**Repository Interface:**
+**`feature/{name}/domain/{Name}Repository.kt`** — Repository Interface
 ```kotlin
-package com.eventverse.app.domain.{name}
+package com.eventverse.app.feature.{name}.domain
 
 interface {Name}Repository {
     suspend fun findById(id: {Name}Id): {Name}?
@@ -132,44 +74,162 @@ interface {Name}Repository {
 }
 ```
 
-### Step 2 — Application Layer (`app/shared/src/commonMain/kotlin/com/eventverse/app/`)
-
-**Use Case:**
+**`feature/{name}/domain/{Name}DomainEvents.kt`** — Domain Events
 ```kotlin
-package com.eventverse.app.domain.{name}.usecase
+package com.eventverse.app.feature.{name}.domain
+
+import kotlinx.datetime.Instant
+
+// Use sealed interface, not sealed class
+sealed interface {Name}DomainEvent
+
+data class {Name}Created(
+    val id: {Name}Id,
+    val occurredAt: Instant,
+) : {Name}DomainEvent
+```
+
+### Step 2 — Application Layer (in `app/shared/src/commonMain/`)
+
+**`feature/{name}/application/{Verb}{Name}UseCase.kt`** — Use Case
+```kotlin
+package com.eventverse.app.feature.{name}.application
 
 class {Verb}{Name}UseCase(
     private val repository: {Name}Repository,
 ) {
     suspend operator fun invoke(command: {Verb}{Name}Command): Result<Unit> = runCatching {
-        val entity = repository.findById(command.id) ?: error("Not found")
-        repository.save(entity)
+        // 1. Load aggregate
+        // 2. Execute domain logic
+        // 3. Save & publish events
     }
+}
+
+data class {Verb}{Name}Command(
+    // command fields
+)
+```
+
+### Step 3 — Presentation Layer (in `app/shared/src/commonMain/`)
+
+**`feature/{name}/presentation/{Name}ListViewModel.kt`**
+```kotlin
+package com.eventverse.app.feature.{name}.presentation
+
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class {Name}ListViewModel(
+    private val getUseCase: Get{Name}ListUseCase,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow({Name}ListUiState())
+    val uiState: StateFlow<{Name}ListUiState> = _uiState.asStateFlow()
+
+    fun onEvent(event: {Name}ListUiEvent) {
+        when (event) {
+            is {Name}ListUiEvent.Load -> load()
+        }
+    }
+
+    private fun load() { /* ... */ }
 }
 ```
 
-### Step 3 — Presentation Layer (`app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/`)
-
-**ViewModel & MVI:**
+**`feature/{name}/presentation/{Name}ListUiModel.kt`**
 ```kotlin
-class {Name}ViewModel(
-    private val getUseCase: Get{Name}UseCase,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow({Name}UiState())
-    val uiState: StateFlow<{Name}UiState> = _uiState.asStateFlow()
+package com.eventverse.app.feature.{name}.presentation
+
+data class {Name}ListUiState(
+    val items: List<{Name}UiModel> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+)
+
+sealed interface {Name}ListUiEvent {
+    data object Load : {Name}ListUiEvent
 }
+
+data class {Name}UiModel(
+    val id: String,
+    // UI-friendly fields (no domain types)
+)
 ```
 
 ---
 
-## 📋 Full-Stack DDD Checklist
+## Dependency Rules Checklist
 
-Before committing changes:
-- [ ] TypeScript files are grouped by **Feature / Map / Domain**, NOT by technical layer (`css`, `audio`, `ui`).
-- [ ] 3D scenes, UI modals, audio synthesizers, domain data, and CSS for a feature live together in `src/features/{featureName}/`.
-- [ ] CSS files are imported via `src/style.css` following the feature hierarchy.
-- [ ] `src/main.ts` remains a lean **Composition Root** (~400 lines max) delegating to feature controllers.
-- [ ] Domain types in `core/` (Kotlin) have zero imports from `app/` or framework libraries.
-- [ ] TypeScript contracts in `src/core/bridge/KmpBridge.ts` match Kotlin bridge in `app/webApp/src/jsMain/kotlin/.../PortfolioJsRuntimeBridge.kt`.
-- [ ] `npx tsc --noEmit` and `npm run build` pass without errors.
-- [ ] `./gradlew check` passes with all tests green.
+Before writing any code, verify:
+- [ ] Domain types in `core/` have zero imports from `app/`, server, or framework libraries
+- [ ] Use Cases only import from `domain/` interfaces
+- [ ] ViewModel only imports from `application/` use cases and UI models
+- [ ] Infrastructure implementations import from `domain/` interfaces only (no leaking domain logic)
+
+---
+
+## Kotlin KMP-Specific Rules
+
+1. **Date/Time**: Always use `kotlinx.datetime.Instant` and `kotlinx.datetime.Clock`
+2. **Coroutines**: All async operations use `suspend fun` with `kotlinx.coroutines`
+3. **Platform expect/actual**: Place `expect` declarations in `commonMain`, implementations in platform-specific source sets
+4. **No java.* imports in commonMain** except `@JvmInline` for value classes
+
+---
+
+## Common Patterns
+
+### Result Handling in Use Cases
+```kotlin
+suspend operator fun invoke(command: Command): Result<Output> = runCatching {
+    // throws are caught automatically
+    val entity = repository.findById(command.id) ?: error("Not found: ${command.id}")
+    // ... logic
+    Output(...)
+}
+```
+
+### Mapping Domain → UiModel
+```kotlin
+fun Event.toUiModel(): EventUiModel = EventUiModel(
+    id = id.value,
+    title = title.value,
+    statusLabel = status.displayName(),
+)
+```
+
+### Expect/Actual for Platform Differences
+```kotlin
+// commonMain
+expect fun generateId(): String
+
+// androidMain / jvmMain
+actual fun generateId(): String = java.util.UUID.randomUUID().toString()
+
+// wasmJsMain / jsMain
+actual fun generateId(): String = js("crypto.randomUUID()") as String
+```
+
+---
+
+## Anti-Pattern Examples to Avoid
+
+```kotlin
+// ❌ Anemic domain model
+data class Event(var title: String, var status: String)
+class EventService { fun publish(event: Event) { event.status = "published" } }
+
+// ✅ Rich domain model
+data class Event(val title: EventTitle, val status: EventStatus) {
+    fun publish(): Event = copy(status = EventStatus.PUBLISHED)
+}
+```
+
+```kotlin
+// ❌ String primitive obsession
+data class CreateEventCommand(val eventId: String, val creatorId: String)
+
+// ✅ Typed with Value Objects
+data class CreateEventCommand(val eventId: EventId, val creatorId: UserId)
+```
