@@ -142,9 +142,13 @@ class DomainRouteWiring(
         ?: com.eventverse.app.infrastructure.storage.S3ObjectStorage()
     private val leadActivityRepo = leadActivityRepository ?: PostgresLeadActivityRepository()
     private val customFieldRepo = customFieldDefinitionRepository ?: PostgresCustomFieldDefinitionRepository()
+    // Sumber baris per modul (TRD-FIELD-004 B1): kontribusi pack terdaftar = produksi; parameter tes menang.
+    private val recordRows = com.eventverse.app.tenant.TenantPackContributions.mergeRows(
+        com.eventverse.app.tenant.TenantPackContributions.all, fieldFileRecordRows
+    )
     // C7 (TRD-FIELD-001 Track B): sumber opsi rujukan & resolver target. Modul target = modul handoff
     // (recordRows) atau CRM; tanpa entri = tidak ada opsi/target (fail-closed).
-    private val relationTargetRegistryFor = com.eventverse.app.relation.RelationTargetRegistry.default(crmLeadRepo, fieldFileRecordRows)
+    private val relationTargetRegistryFor = com.eventverse.app.relation.RelationTargetRegistry.default(crmLeadRepo, recordRows)
     private val relationTargetResolver = com.eventverse.app.relation.RegistryRelationTargetResolver(relationTargetRegistryFor)
     private val samplingOrderRepo = samplingOrderRepository ?: PostgresSamplingOrderRepository()
     private val bulkWorkOrderRepo = PostgresBulkWorkOrderRepository(); private val traceContainerRepo = PostgresTraceContainerRepository(); private val internalTransferRepo = PostgresInternalTransferRepository()
@@ -247,7 +251,7 @@ class DomainRouteWiring(
             moduleAssignmentRepository = assignmentRepo,
             crmLeadRepository = crmLeadRepo,
             employeeRepository = empRepo,
-            recordRows = fieldFileRecordRows
+            recordRows = recordRows
         )
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,
