@@ -24,6 +24,7 @@ Sisa terbuka (follow-up, bukan celah tabel C1–C10):
 2. MULTI_SELECT untuk kosakata CRM sengaja tidak disentuh (keputusan TRD-FIELD-003); **demikian juga tipe TIME untuk kosakata CRM** — TIME baru terdaftar di kosakata prototype; pendaftaran TIME CRM menyusul bila ada kebutuhan nyata.
 3. ~~Cek visual dengan mata untuk `ClayTimePicker` dan alur tanggal berwaktu CRM~~ **Selesai (2026-10-10)**: alur CRM (kalender → langkah jam → commit `2026-10-15T09:10` → persist) diverifikasi di tenant `wemade-demo` lewat browser. Sisa: layar **discovery** (form blok/tabel inline/kanban) dengan field TIME di tenant non-garment belum dicek mata.
 4. ~~Anggaran prompt sistem Koog hampir penuh~~ **Diselesaikan (2026-10-10)**: cheat-sheet format nilai seed dipindah dari prompt sistem ke katalog `screen_catalog()` (`seedFormat` + `fieldTypes`); prompt hanya menyisakan penunjuk. Anggaran 8.000 dipertahankan sebagai pagar tetap — tambahan kosakata berikutnya wajib menaruh konten referensi di katalog, bukan di prompt.
+5. ~~KDoc `customfield/FieldType.kt` masih menyebut `File` ditunda; pengecualian C10 belum ditulis di aturan~~ **Selesai (2026-10-10)**: KDoc dikoreksi (File/Relation ada, D2 disebut); pengecualian `CUSTOM_SCREEN` kerangka ditulis di Kontrak 8.
 
 ## 0. Temuan terverifikasi
 
@@ -132,7 +133,7 @@ Masalah: agent tidak bisa menyebut "Keranjang" atau "Pembayaran" pada layar kust
 | **C** | Renderer menggambar blok dari data, tampil sebagai sketsa (bukan interaktif); cek visual di dua pack | `app/shared/presentation/discovery` |
 
 Bukan tipe field, jadi aturan `field-component-rules.md` hanya berlaku sebagian (katalog agent dan codec menolak nilai tak dikenal); aturan itu
-perlu mencatat pengecualian ini agar tidak dianggap terlupa. **Tetap non-interaktif** (keputusan D6).
+pengecualian ini kini dicatat di `field-component-rules.md` Kontrak 8 (2026-10-10). **Tetap non-interaktif** (keputusan D6).
 
 ### Irisan 4 — `RELATION`, `FILE` (C7, C8)
 Dua sub-irisan terpisah (4a `RELATION`, 4b `FILE`), masing-masing dengan TRD sendiri sebagai **gerbang awal** dan A0 sendiri. 4a dan 4b tidak berbagi kontrak baru sehingga boleh jalan paralel, selama A0 mereka berurutan (berbagi `EntitySpec.kt`).

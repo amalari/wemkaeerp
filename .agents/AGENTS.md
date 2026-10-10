@@ -938,6 +938,13 @@ Pilihannya: (a) tolak dengan pesan yang jelas, (b) pakai `CUSTOM_SCREEN` sebagai
 sebagai permintaan pembuatan komponen lewat antrean build (TRD-PLAT-006/007). Memetakan ke `TEXT` mengubah data
 tanpa jejak.
 
+**Pengecualian sah: `CUSTOM_SCREEN` sebagai kerangka (C10).** Layar yang butuh komponen belum ada boleh diusulkan
+sebagai `ViewProposal.Skeleton` berisi `SkeletonBlock` (label singkat, lebar `FULL`/`HALF`, hint dari daftar tertutup
+`TABLE`/`FORM`/`METRIC_CARDS`/`ACTIONS`). Ini cara sah **menolak tanpa memalsukan**: sketsa non-interaktif untuk
+dinilai, bukan data yang tersimpan sebagai tipe lain. Batasnya: kerangka **bukan tipe field** dan tidak
+menggantikan entri di kosakata mana pun; field tetap wajib bertipe yang terdaftar (tak dikenal ditolak). Hint/lebar
+tak sah ditolak oleh codec (bukan fallback senyap), dan kerangka hanya berlaku untuk `CUSTOM_SCREEN`.
+
 ---
 
 ## 3. Alur Kerja Saat Menambah Komponen/Tipe
