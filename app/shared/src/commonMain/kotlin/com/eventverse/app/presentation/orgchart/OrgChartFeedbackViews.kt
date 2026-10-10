@@ -129,16 +129,3 @@ internal fun OrgChartRestoreConfirmDialog(isOpen: Boolean, onConfirm: () -> Unit
         onConfirm = onConfirm,
         onDismiss = onDismiss
     )
-
-/** Konfirmasi sebelum "Mulai dari Kosong": menghapus seluruh divisi dan karyawan pada tampilan. */
-@Composable
-internal fun OrgChartClearConfirmDialog(isOpen: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) =
-    OrgChartConfirmDialog(
-        isOpen = isOpen,
-        title = "Kosongkan Seluruh Struktur?",
-        message = "Semua divisi dan karyawan pada bagan akan dikosongkan. Anda harus menyusun ulang dari awal.",
-        confirmLabel = "Ya, Kosongkan",
-        destructive = true,
-        onConfirm = onConfirm,
-        onDismiss = onDismiss
-    )

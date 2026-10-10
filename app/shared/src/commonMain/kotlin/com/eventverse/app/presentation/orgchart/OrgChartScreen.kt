@@ -64,7 +64,6 @@ fun OrgChartScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var confirmRestore by remember { mutableStateOf(false) }
-    var confirmClear by remember { mutableStateOf(false) }
 
     // OPERATE boleh menambah dan mengubah; MANAGE juga boleh menghapus, mengarsipkan, dan memulihkan
     // preset. Tanpa pembedaan ini, "Hanya Lihat" hanya berarti menunya terlihat.
@@ -142,7 +141,6 @@ fun OrgChartScreen(
                 onToggleResetMenu = { viewModel.onEvent(OrgChartUiEvent.ToggleResetMenu) },
                 onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                 onAddNewDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
-                onClearAllData = { confirmClear = true },
                 onRestorePresets = { confirmRestore = true },
                 isLoadFailed = state.loadState is OrgChartLoadState.Failed
             )
@@ -185,15 +183,6 @@ fun OrgChartScreen(
                 viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets)
             },
             onDismiss = { confirmRestore = false }
-        )
-
-        OrgChartClearConfirmDialog(
-            isOpen = confirmClear,
-            onConfirm = {
-                confirmClear = false
-                viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty)
-            },
-            onDismiss = { confirmClear = false }
         )
 
         // Modal Dialog: Buat Divisi Baru

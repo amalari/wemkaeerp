@@ -57,3 +57,16 @@ Akar masalah (tiga, bukan satu):
   jadi `OrgChartConfirmDialog` generik; dialog pemulihan dan pengosongan hanya pembungkus teks (Aturan Tiga Kali).
 - Catatan: aksi "Mulai dari Kosong" hanya mengosongkan state lokal, tidak menghapus di server; perlu keputusan
   terpisah. `DropdownMenu` Material masih berbayangan blur (celah komponen: belum ada `ClayDropdownMenu`).
+
+## Putaran 3 - "Mulai dari Kosong" dihapus; banner 409 diverifikasi
+- Keputusan: aksi "Mulai dari Kosong" **dihapus**, bukan diperbaiki. Ia hanya mengosongkan state lokal (server tak
+  dihapus), jadi data kembali setelah reload - UI yang berbohong lebih buruk daripada UI yang tidak punya tombol.
+  Ikut dibuang: `OrgChartClearConfirmDialog`, event `ClearAllDataToEmpty`, handler VM, state `confirmClear`.
+  `OrgChartConfirmDialog` generik tetap dipakai pemulihan contoh. Bila kelak ada "reset" sungguhan, ia harus
+  endpoint server (fail-closed, teruji 403) dengan konfirmasi destruktif - bukan event lokal.
+- Verifikasi visual 409: tenant tanpa contoh dibuat lewat jalur resmi (draf Discovery klinik -> kunci -> handoff
+  superadmin => pack `klinik`, `StarterOrgChartPolicy` menolak karena pack bukan garment). "Muat contoh" memunculkan
+  banner "Peringatan: ..." berwarna amber (bukan hijau); menu hanya berisi "Pulihkan Contoh yang Hilang" di 1280dp
+  dan 360dp; dialog pemulihan berjalan dan menghasilkan peringatan yang sama.
+- Jebakan uji: login demo superadmin pada tenant hasil handoff memberi level "Terkunci" (tanpa entitlement
+  modul); pakai login demo Owner (tanpa `role`) dan `WEMADE_DEMO_TENANTS=<slug>` agar tenant itu boleh demo-login.

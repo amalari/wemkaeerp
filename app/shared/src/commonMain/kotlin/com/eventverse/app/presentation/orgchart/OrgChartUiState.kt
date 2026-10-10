@@ -233,7 +233,6 @@ sealed interface OrgChartUiEvent {
 
     // Reset / Blank Slate & Preset Restores
     data object ToggleResetMenu : OrgChartUiEvent
-    data object ClearAllDataToEmpty : OrgChartUiEvent
     data object RestoreDefaultPresets : OrgChartUiEvent
 
     /** "Coba lagi" setelah [OrgChartLoadState.Failed]. */
