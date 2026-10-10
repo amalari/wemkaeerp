@@ -35,6 +35,8 @@ oldest=$(ls -tr $r/*.xml | head -1 | xargs stat -f %Sm -t %T)"; done
 
 ## Token uji lewat API
 
+Endpoint demo **bawaan mati (404)**: jalankan server dengan `WEMADE_DEMO_LOGIN=on` (dan `WEMADE_DEMO_TENANTS=bordir-uji,...` untuk tenant uji selain `wemade-demo`). Tombol "Demo Mode" di `/login` juga butuh ini.
+
 ```bash
 tok(){ curl -s -X POST localhost:8081/api/public/auth/demo -d "tenantSlug=$1" -d "username=$2" ${3:+-d "role=$3"} \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])'; }

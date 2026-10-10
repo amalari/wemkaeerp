@@ -5,7 +5,6 @@ import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.tenant.HostSurface
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantRepository
-import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.auth.GoogleAuthService
 import com.eventverse.app.infrastructure.auth.JwtTokenService
 import io.ktor.http.ContentType
@@ -33,7 +32,9 @@ fun Route.publicAuthRoutes(
     repository: TenantRepository,
     userRepo: UserRepository,
     roleRepo: RoleRepository,
-    platformBaseDomain: String? = null
+    platformBaseDomain: String? = null,
+    /** Bawaan mati (aman); lihat [DemoLoginPolicy]. */
+    demoLoginPolicy: DemoLoginPolicy = DemoLoginPolicy()
 ) {
     route("/api/public/auth") {
         get("/google/url") {
@@ -94,96 +95,7 @@ fun Route.publicAuthRoutes(
             }
         }
 
-        post("/demo") {
-            val params = runCatching { call.receiveParameters() }.getOrNull()
-            val tenantSlug = params?.get("tenantSlug")?.ifBlank { null }
-                ?: call.request.queryParameters["tenantSlug"]?.ifBlank { null }
-                ?: "wemade-demo"
-
-            val tenant = repository.findBySlug(TenantSlug(tenantSlug))
-            if (tenant == null) {
-                call.respond(HttpStatusCode.NotFound, "Tenant dengan slug '$tenantSlug' tidak ditemukan")
-                return@post
-            }
-
-            fun field(name: String): String? = params?.get(name)?.ifBlank { null }
-                ?: call.request.queryParameters[name]?.ifBlank { null }
-
-            val requestedRole = field("role")
-            val isSuperAdmin = requestedRole.equals("PLATFORM_SUPERADMIN", ignoreCase = true) ||
-                requestedRole.equals("superadmin", ignoreCase = true)
-
-            // Persona pengujian: nama bebas + jabatan rakitan tenant + divisi. Dikenali dari
-            // adanya `username`, karena login demo lama tidak pernah mengirimkannya.
-            val personaName = field("username")
-            if (!isSuperAdmin && personaName != null) {
-                val personaResult = resolvePersonaUser(
-                    userRepo = userRepo,
-                    roleRepo = roleRepo,
-                    tenantId = tenant.id,
-                    personaName = personaName,
-                    tenantSlug = tenantSlug,
-                    requestedRoleId = requestedRole,
-                    departmentId = field("departmentId")
-                )
-
-                personaResult
-                    .onSuccess { personaUser ->
-                        val personaToken = jwtTokenService.generateToken(personaUser, tenantSlug)
-                        call.respondText(
-                            authSessionJson(personaUser, personaToken.value, tenantSlug),
-                            contentType = ContentType.Application.Json
-                        )
-                    }
-                    .onFailure {
-                        call.respond(
-                            HttpStatusCode.BadRequest,
-                            it.message ?: "Gagal menyiapkan persona pengujian"
-                        )
-                    }
-                return@post
-            }
-
-            // Query real user from DB for this tenant or create fallback
-            val user = if (isSuperAdmin) {
-                userRepo.findByEmail(EmailAddress("superadmin@wemade.id"))
-                    ?: run {
-                        val superadmin = User(
-                            id = UserId("usr-superadmin-001"),
-                            tenantId = tenant.id,
-                            username = Username("superadmin_apps"),
-                            email = EmailAddress("superadmin@wemade.id"),
-                            role = Role.PLATFORM_SUPERADMIN,
-                            isActive = true
-                        )
-                        userRepo.save(superadmin)
-                        superadmin
-                    }
-            } else {
-                userRepo.findAllByTenant(tenant.id)
-                    .firstOrNull { it.role == Role.TENANT_ADMIN }
-                    ?: userRepo.findByEmail(EmailAddress("student.achmad@gmail.com"))
-                    ?: run {
-                        val fallback = User(
-                            id = UserId("usr-owner-001"),
-                            tenantId = tenant.id,
-                            username = Username("achmad_owner"),
-                            email = EmailAddress("student.achmad@gmail.com"),
-                            role = Role.TENANT_ADMIN,
-                            isActive = true
-                        )
-                        userRepo.save(fallback)
-                        fallback
-                    }
-            }
-
-            val sessionToken = jwtTokenService.generateToken(user, tenantSlug)
-
-            call.respondText(
-                authSessionJson(user, sessionToken.value, tenantSlug),
-                contentType = ContentType.Application.Json
-            )
-        }
+        demoAuthRoutes(demoLoginPolicy, jwtTokenService, repository, userRepo, roleRepo)
 
         get("/me") {
             val authHeader = call.request.header("Authorization") ?: ""
@@ -201,7 +113,14 @@ fun Route.publicAuthRoutes(
 
             val jwt = verifyResult.getOrThrow()
             val userId = jwt.subject ?: ""
-            val tenantSlug = jwt.getClaim("tenant_slug").asString() ?: "wemade-demo"
+            // Fail-closed: klaim slug kosong tidak boleh jatuh ke tenant bawaan. Superadmin
+            // platform memang tak terikat tenant, jadi hanya ia yang boleh tanpa slug.
+            val tenantSlug = jwt.getClaim("tenant_slug").asString()?.takeIf { it.isNotBlank() }
+            val claimedRole = jwt.getClaim("role").asString()
+            if (tenantSlug == null && claimedRole != Role.PLATFORM_SUPERADMIN.name) {
+                call.respond(HttpStatusCode.Forbidden, "Token tidak membawa tenant; sesi ditolak.")
+                return@get
+            }
             val username = jwt.getClaim("username").asString() ?: ""
             val email = jwt.getClaim("email").asString() ?: ""
             val roleName = jwt.getClaim("role").asString()
@@ -227,7 +146,7 @@ fun Route.publicAuthRoutes(
             )
 
             call.respondText(
-                authSessionJson(user, token, tenantSlug),
+                authSessionJson(user, token, tenantSlug.orEmpty()),
                 contentType = ContentType.Application.Json
             )
         }
@@ -255,79 +174,4 @@ internal fun authSessionJson(user: User, token: String, tenantSlug: String): Str
         "\"customRoleId\":${nullableJson(user.customRoleId)}," +
         "\"permissions\":[$permissionsJson]}," +
         "\"tenantSlug\":\"$tenantSlug\"}"
-}
-
-/**
- * Menemukan atau membuat akun untuk sebuah persona pengujian.
- *
- * Tiga hal yang membuat fungsi ini tidak sesederhana "insert user":
- *
- *  1. **Idempoten.** `users.email` UNIQUE dan `uq_tenant_username` UNIQUE. Login persona yang sama
- *     dua kali harus menemukan baris yang sama, bukan menabrak constraint. Karena itu email dan id
- *     diturunkan secara deterministik dari nama persona, bukan diacak.
- *  2. **Dua sumbu identitas.** `Role` platform menentukan izin tingkat sistem; `custom_role_id`
- *     menentukan isi layar. Jabatan tenant dipetakan ke `Role` yang paling mendekati agar izin
- *     sistem tidak melebar, sementara id jabatan aslinya disimpan apa adanya.
- *  3. **Jabatan harus nyata.** Id jabatan yang tidak ada di tenant ini ditolak, bukan diabaikan
- *     diam-diam — persona dengan jabatan hantu akan tampak "tidak punya akses apa pun" dan
- *     dilaporkan sebagai kerusakan.
- */
-private suspend fun resolvePersonaUser(
-    userRepo: UserRepository,
-    roleRepo: RoleRepository,
-    tenantId: TenantId,
-    personaName: String,
-    tenantSlug: String,
-    requestedRoleId: String?,
-    departmentId: String?
-): Result<User> = runCatching {
-    val trimmedName = personaName.trim()
-    require(trimmedName.isNotBlank()) { "Nama persona tidak boleh kosong" }
-
-    val slug = trimmedName.lowercase()
-        .replace("[^a-z0-9]+".toRegex(), "-")
-        .trim('-')
-        .ifBlank { "anon" }
-
-    val customRole = requestedRoleId
-        ?.takeIf { it.isNotBlank() }
-        ?.let { roleId ->
-            roleRepo.findById(tenantId, com.eventverse.app.domain.rbac.RoleId(roleId))
-                ?: error("Jabatan '$roleId' tidak ditemukan pada tenant ini")
-        }
-
-    val email = EmailAddress("persona-$tenantSlug-$slug@testing.local")
-    val existing = userRepo.findByEmail(email)
-
-    val persona = User(
-        id = existing?.id ?: UserId("usr-persona-$slug".take(64)),
-        tenantId = tenantId,
-        username = Username("persona_${slug.replace('-', '_')}".take(50)),
-        email = email,
-        role = platformRoleFor(customRole?.name, requestedRoleId),
-        isActive = true,
-        departmentId = departmentId?.takeIf { it.isNotBlank() } ?: customRole?.departmentId,
-        customRoleId = customRole?.id?.value
-    )
-
-    userRepo.save(persona).getOrThrow()
-}
-
-/**
- * Memetakan jabatan rakitan tenant ke [Role] platform yang paling mendekati.
- *
- * Default-nya sengaja [Role.OPERATOR] — wewenang tersempit. Jabatan yang tidak dikenali sebaiknya
- * membuat persona melihat terlalu sedikit, bukan terlalu banyak: yang pertama dilaporkan penguji,
- * yang kedua lolos tanpa disadari.
- */
-private fun platformRoleFor(roleName: String?, roleId: String?): Role {
-    val haystack = "${roleName.orEmpty()} ${roleId.orEmpty()}".lowercase()
-    return when {
-        haystack.contains("owner") || haystack.contains("direktur") -> Role.TENANT_ADMIN
-        haystack.contains("sales") || haystack.contains("penjualan") -> Role.SALES
-        haystack.contains("ppic") || haystack.contains("produksi") -> Role.PPIC_SUPERVISOR
-        haystack.contains("qc") || haystack.contains("quality") -> Role.QC_INSPECTOR
-        haystack.contains("gudang") || haystack.contains("warehouse") || haystack.contains("logistik") -> Role.WAREHOUSE
-        else -> Role.OPERATOR
-    }
 }

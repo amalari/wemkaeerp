@@ -199,6 +199,12 @@ val TenantResolutionPlugin = createApplicationPlugin(
         val requestedId = call.request.header("X-Tenant-ID")?.trim()?.takeIf { it.isNotBlank() }
 
         if (principal.isTenantBound) {
+            // Fail-closed: token tenant-bound tanpa klaim slug tidak bisa diverifikasi terhadap
+            // header/subdomain, jadi ditolak — bukan diam-diam dilewati pemeriksaan di bawah.
+            if (principal.tenantSlug == null) {
+                call.respond(HttpStatusCode.Forbidden, "Token tidak membawa tenant; sesi ditolak.")
+                return@onCall
+            }
             // Refuse loudly instead of quietly serving the caller's own tenant: a client
             // asking for another tenant's data is a bug or an attack, and either way the
             // caller must not be told the request succeeded against something else.

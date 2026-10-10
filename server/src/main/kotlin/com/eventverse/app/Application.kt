@@ -182,7 +182,8 @@ fun Application.module(
     builderProbe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe? = null,
     builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null,
     builderBillingInvoices: com.eventverse.app.domain.builder.SubscriptionInvoiceRepository? = null,
-    builderBillingPreview: com.eventverse.app.domain.builder.TenantBillingPreviewSource? = null
+    builderBillingPreview: com.eventverse.app.domain.builder.TenantBillingPreviewSource? = null,
+    demoLoginPolicy: com.eventverse.app.routes.DemoLoginPolicy? = null // null = baca env WEMADE_DEMO_LOGIN (bawaan mati)
 ) {
     val repository = DatabaseFactory.init().let { tenantRepository ?: PostgresTenantRepository() } // init idempoten & tanpa syarat: repo lain default-nya Postgres, tes tak boleh bergantung pada urutan
     val userRepo = userRepository ?: PostgresUserRepository()
@@ -247,7 +248,7 @@ fun Application.module(
             platformBaseDomain = platformBaseDomain
         )
 
-        publicAuthRoutes(googleAuthService, authenticateWithGoogleUseCase, jwtTokenService, repository, userRepo, roleRepo, platformBaseDomain)
+        publicAuthRoutes(googleAuthService, authenticateWithGoogleUseCase, jwtTokenService, repository, userRepo, roleRepo, platformBaseDomain, demoLoginPolicy ?: com.eventverse.app.routes.DemoLoginPolicy.fromEnv())
         // discovery-M3: login di `app.` → tiket sekali pakai → sesi di `<slug>.`
         sessionHandoffRoutes(SessionHandoffTicketService(), jwtTokenService, repository, userRepo, platformBaseDomain, auditLogRepo)
 
