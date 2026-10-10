@@ -1,5 +1,6 @@
 package com.eventverse.app.tenant
 
+import com.eventverse.app.domain.customfield.RelationTargetResolver
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
@@ -32,8 +33,11 @@ object TenantPackContributions {
          * modul tanpa entri = fail-closed (404 / `false`), bukan fallback. Instans yang sama dipakai route modul.
          */
         val rows: Map<String, PrototypeRowRepository>,
-        /** Mendaftarkan route modul ke aplikasi. */
-        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository) -> Unit
+        /**
+         * Mendaftarkan route modul ke aplikasi. Argumen ketiga = resolver RELATION wiring (route hasil generate
+         * yang punya field RELATION wajib menerimanya; modul tanpa RELATION mengabaikannya).
+         */
+        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository, RelationTargetResolver) -> Unit
     )
 
     // Satu instans per modul: route-nya dan registri sumber baris memakai penyimpan yang sama.
@@ -45,7 +49,7 @@ object TenantPackContributions {
             tables = mapOf(LayananPilotPack.CHANGE_REQUEST to setOf("change_requests")),
             routePrefixes = mapOf("/api/tenant/modules/layanan_change_request" to LayananPilotPack.CHANGE_REQUEST),
             rows = mapOf(LayananPilotPack.CHANGE_REQUEST.value to layananChangeRequestRows),
-            registerRoutes = { roles, assignments ->
+            registerRoutes = { roles, assignments, _ ->
                 layananChangeRequestRoutes(
                     layananChangeRequestRows, roles, assignments
                 )

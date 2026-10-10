@@ -28,7 +28,7 @@ class TenantPackContributionsRowsTest {
         tables = emptyMap(),
         routePrefixes = emptyMap(),
         rows = rows,
-        registerRoutes = { _, _ -> }
+        registerRoutes = { _, _, _ -> }
     )
 
     @Test fun `rows_registeredContribution_exposesGeneratedModuleSourceWithoutInjection`() {

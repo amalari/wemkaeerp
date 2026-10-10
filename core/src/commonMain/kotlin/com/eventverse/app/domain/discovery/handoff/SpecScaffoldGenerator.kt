@@ -2,6 +2,7 @@ package com.eventverse.app.domain.discovery.handoff
 
 import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
 import com.eventverse.app.domain.pack.ModuleDefinition
+import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeSpec
 
 /**
@@ -18,6 +19,7 @@ internal object SpecScaffoldGenerator {
         require(migrationVersion > 0) { "Versi migrasi harus positif." }
         require(spec.entities.size == 1) { "Generator v1 mendukung tepat satu entitas per modul (spec punya ${spec.entities.size})." }
         require(packExpression.isNotBlank()) { "packExpression (ekspresi Kotlin pack modul untuk test gerbang) wajib diisi." }
+        rejectHierarchicalRelationTargets(spec, module)
         val table = SpecTable.of(module.id.value, spec.entities.single())
         val schema = module.id.value
         val pascal = SpecNaming.pascal(schema)
@@ -36,6 +38,17 @@ internal object SpecScaffoldGenerator {
         )
     }
 
+    /** Q3 TRD-FIELD-004: target RELATION ke modul HIERARCHICAL ditolak di build; target modul sendiri/tanpa ':' dilewati. */
+    private fun rejectHierarchicalRelationTargets(spec: PrototypeSpec, module: ModuleDefinition) {
+        spec.entities.single().fields.filter { it.type == FieldType.RELATION }.forEach { f ->
+            val target = requireNotNull(f.target) { "Field RELATION '${f.key}' tanpa target" }
+            val targetModule = target.substringBefore(':', missingDelimiterValue = module.id.value)
+            if (targetModule == module.id.value) return@forEach
+            val problem = RelationTargetPolicy.hierarchicalTargetProblem(targetModule, f.key)
+            require(problem == null) { problem.orEmpty() }
+        }
+    }
+
     /** Titik pendaftaran manual (anatomi `module-integration-rules.md` §5) — keputusan manusia, bukan generator. */
     private fun wiring(schema: String, pascal: String, t: SpecTable): String = buildString {
         val fn = SpecNaming.camel(schema) + "Routes"
@@ -46,7 +59,9 @@ internal object SpecScaffoldGenerator {
         appendLine("2. **`RouteOwnership.moduleRoutes`** (server/.../routes/RouteOwnership.kt) — dijaga `RouteOwnershipTest`:")
         appendLine("   `\"/api/tenant/modules/$schema\" to RouteOwner.Module(ModuleId(\"$schema\")),`")
         appendLine("3. **`DomainRouteWiring.registerIn`** (server/.../routes/DomainRouteWiring.kt):")
-        appendLine("   `$fn(Postgres${pascal}Repository(), roleRepo, assignmentRepo)`")
+        val hasRelation = t.entity.fields.any { it.type == FieldType.RELATION }
+        appendLine("   `$fn(Postgres${pascal}Repository(), roleRepo, assignmentRepo" + (if (hasRelation) ", relationTargetResolver" else "") + ")`")
+        if (hasRelation) appendLine("   (`relationTargetResolver` = resolver registri wiring; sumber baris modul ini wajib terdaftar di `Contribution.rows`, kalau tidak setiap nilai RELATION ditolak 400.)")
         appendLine("4. **Pack**: modul harus ada di pack tenant (pack data berprefiks `${schema.substringBefore('_')}_`, didaftarkan lewat `DomainPackRegistry.register`).")
         appendLine("5. **Wewenang jabatan** (`custom_roles.module_permissions`, kunci NAME `${t.entity.id.uppercase()}`→ lihat migrasi) dan entitlement/kuota: keputusan bisnis.")
         appendLine("6. Jalankan: `ModuleSchemaOwnershipTest`, `RouteOwnershipTest`, `RouteGateTest` (butuh Postgres) dan test gerbang yang ikut digenerate.")
