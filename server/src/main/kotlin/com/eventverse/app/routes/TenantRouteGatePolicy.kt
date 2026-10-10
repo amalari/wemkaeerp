@@ -96,6 +96,8 @@ internal object TenantRouteGatePolicy {
                 GateRule(if (read) VIEW else OPERATE, listOf(FULFILLMENT))
             // Tulis topologi alur sudah fail-closed di PipelineRoutes (Factory Flow MANAGE).
             path.startsWith("/api/tenant/pipeline") -> if (read) GateRule(VIEW, listOf(FACTORY_FLOW)) else null
+            // Pemetaan simpul-ke-gedung (TRD-PLAT-012): baca digerbang di sini; PUT fail-closed di TenantLocationRoutes (MANAGE).
+            path.startsWith("/api/tenant/locations") -> if (read) GateRule(VIEW, listOf(FACTORY_FLOW)) else null
             path.startsWith("/api/tenant/billing-preview") || path.startsWith("/api/tenant/customization-requests") ->
                 GateRule(MANAGE, listOf(DYNAMIC_RBAC))
             else -> null
