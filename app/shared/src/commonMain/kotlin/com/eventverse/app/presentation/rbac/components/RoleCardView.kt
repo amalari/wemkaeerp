@@ -174,7 +174,7 @@ fun RoleCardList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Belum ada jabatan yang terdaftar atau sesuai pencarian.",
+                text = "Tidak ada jabatan yang cocok dengan pencarian.",
                 fontSize = 13.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )

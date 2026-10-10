@@ -224,15 +224,17 @@ fun DynamicRbacScreen(
                         )
                     }
 
-                    RbacViewMode.PER_ROLE -> {
-                        val filteredRoles = state.roles.filter { role ->
-                            state.searchQuery.isBlank() ||
-                                role.name.contains(state.searchQuery, ignoreCase = true) ||
-                                role.description.contains(state.searchQuery, ignoreCase = true)
-                        }
-
-                        RoleCardList(
-                            roles = filteredRoles,
+                    RbacViewMode.PER_ROLE -> when (val list = RbacRoleListState.of(state.roles, state.searchQuery)) {
+                        // Tenant tanpa jabatan sama sekali: keadaan kosong yang berguna, bukan daftar abu-abu.
+                        RbacRoleListState.NoRoles -> RbacEmptyView(
+                            message = "Belum ada jabatan di ${ActiveTenantPack.current.term(VocabularyKey.WORKPLACE)} ini.",
+                            createLabel = "Buat jabatan",
+                            canCreate = canManage,
+                            onCreate = { onWriteEvent(DynamicRbacUiEvent.OpenCreateModal()) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        else -> RoleCardList(
+                            roles = (list as? RbacRoleListState.Showing)?.roles.orEmpty(),
                             departments = state.departments,
                             assignments = state.moduleAssignments,
                             onOpenAssignModal = { role, dept, existing, initialMod ->

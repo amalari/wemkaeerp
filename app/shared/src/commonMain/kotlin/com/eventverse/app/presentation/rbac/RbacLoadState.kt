@@ -4,6 +4,7 @@ import com.eventverse.app.domain.orgchart.Department
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.CustomRole
 import com.eventverse.app.domain.rbac.DepartmentModuleAssignment
+import com.eventverse.app.presentation.common.FriendlyErrors
 
 /**
  * Keadaan pemuatan layar Hak Akses (TRD-PLAT-010 K1/K5). Empat keadaan yang berbeda dan TIDAK dicampur:
@@ -31,7 +32,7 @@ sealed interface RbacLoadState {
             return if (r.isEmpty() && d.isEmpty()) Empty else Loaded
         }
 
-        private fun message(cause: Throwable): String =
-            cause.message?.takeIf { it.isNotBlank() } ?: "Gagal memuat hak akses."
+        /** Teks ramah (proxy/gateway -> "Server tidak dapat dihubungi"), bukan teks mentah transport. */
+        private fun message(cause: Throwable): String = FriendlyErrors.friendly(cause, "Gagal memuat hak akses.")
     }
 }
