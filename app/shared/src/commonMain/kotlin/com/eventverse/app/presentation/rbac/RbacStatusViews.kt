@@ -3,6 +3,9 @@ package com.eventverse.app.presentation.rbac
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,7 +51,7 @@ internal fun RbacEmptyView(
     onCreate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
+    ScrollCenter(modifier) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
@@ -75,7 +78,7 @@ internal fun RbacEmptyView(
 /** Galat pemuatan: pesan + "Coba lagi". Tidak menampilkan data basi atau contoh. */
 @Composable
 internal fun RbacFailedView(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
+    ScrollCenter(modifier) {
         ClayCard(
             modifier = Modifier.fillMaxWidth(),
             shape = ClayShapes.Panel,
@@ -105,10 +108,24 @@ internal fun RbacFailedView(message: String, onRetry: () -> Unit, modifier: Modi
     }
 }
 
+/**
+ * Pusat-vertikal yang bisa di-scroll: terpusat bila muat, tergulir bila isinya lebih tinggi dari ruang
+ * (layar 360dp). Urutan modifier penting: fillMaxSize dulu, baru scroll (pola Org Chart, Putaran 2).
+ */
+@Composable
+private fun ScrollCenter(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ClaySpacing.Xxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        content = content
+    )
+}
+
 /** Sesi belum membawa tenant (mis. superadmin platform): tidak ada tenant bawaan yang boleh ditebak. */
 @Composable
 internal fun RbacNoTenantView(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
+    ScrollCenter(modifier) {
         Text(
             text = "Pilih tenant terlebih dahulu untuk mengatur hak akses.",
             style = MaterialTheme.typography.bodyMedium,

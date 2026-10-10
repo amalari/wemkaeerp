@@ -104,10 +104,13 @@ fun DynamicRbacScreen(
                 .padding(24.dp)
         ) {
             // 1. Top Navigation & Header
-            ScreenHeader(
-                totalRoles = state.roles.size,
-                totalModules = state.totalActiveModules,
-                totalUsers = state.totalUsers,
+            RbacScreenHeader(
+                chips = RbacHeaderChips.forState(
+                    loadState = state.loadState,
+                    totalRoles = state.roles.size,
+                    totalModules = state.totalActiveModules,
+                    totalUsers = state.totalUsers
+                ),
                 onBackToLogin = onBackToLogin
             )
 
@@ -150,67 +153,10 @@ fun DynamicRbacScreen(
             }
 
             // 2. View Mode Switcher Bar (3 Tabs: Per Modul, Per Divisi, Per Jabatan)
-            Row(
-                modifier = Modifier
-                    .clayFlat(
-                        shape = ClayShapes.Chip,
-                        background = WeMadeColors.SurfaceMuted,
-                        outline = WeMadeColors.Border
-                    )
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RbacViewMode.entries.forEach { mode ->
-                    val isSelected = state.viewMode == mode
-                    Box(
-                        modifier = Modifier
-                            .then(
-                                if (isSelected) {
-                                    Modifier.clayFlat(
-                                        shape = RoundedCornerShape(8.dp),
-                                        background = WeMadeColors.Surface,
-                                        outline = WeMadeColors.Outline,
-                                        borderWidth = 1.5.dp
-                                    )
-                                } else {
-                                    Modifier.clip(RoundedCornerShape(8.dp))
-                                }
-                            )
-                            .clickable { viewModel.onEvent(DynamicRbacUiEvent.SetViewMode(mode)) }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            when (mode) {
-                                RbacViewMode.PER_MODULE -> IconLayers(
-                                    modifier = Modifier.size(14.dp),
-                                    color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
-                                )
-
-                                RbacViewMode.PER_DEPARTMENT -> IconPackage(
-                                    modifier = Modifier.size(14.dp),
-                                    color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
-                                )
-
-                                RbacViewMode.PER_ROLE -> IconUser(
-                                    modifier = Modifier.size(14.dp),
-                                    color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
-                                )
-                            }
-                            Text(
-                                text = mode.label,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) WeMadeColors.PrimaryDark else WeMadeColors.OnSurfaceMuted
-                            )
-                        }
-                    }
-                }
-            }
+            RbacViewModeTabs(
+                selected = state.viewMode,
+                onSelect = { viewModel.onEvent(DynamicRbacUiEvent.SetViewMode(it)) }
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -370,97 +316,6 @@ fun DynamicRbacScreen(
         )
     }
 }
-
-@Composable
-private fun ScreenHeader(
-    totalRoles: Int,
-    totalModules: Int,
-    totalUsers: Int?,
-    onBackToLogin: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "Pengaturan Hak Akses & Jabatan Pabrik",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = WeMadeColors.OnSurface
-                )
-                ClayTag(
-                    text = "Dynamic Module RBAC",
-                    tint = WeMadeColors.Primary,
-                    fontSize = 11.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Kelola struktur peran dan batasan modul konveksi tanpa terminologi teknis yang rumit.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-        }
-
-        // Quick Metric Badges & Back Button
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            HeaderStatChip(label = "Jabatan", value = "$totalRoles")
-            HeaderStatChip(label = "Modul SaaS", value = "$totalModules")
-            // Hanya angka nyata dari server; tak terbaca = chip disembunyikan, bukan 0 yang menyesatkan.
-            if (totalUsers != null) HeaderStatChip(label = "Total Karyawan", value = "$totalUsers")
-
-            ClayButton(
-                text = "Ke Halaman Login",
-                onClick = onBackToLogin,
-                style = ClayButtonStyle.Ghost,
-                fontSize = 12.sp,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun HeaderStatChip(label: String, value: String) {
-    Box(
-        modifier = Modifier
-            .clayFlat(
-                shape = ClayShapes.Chip,
-                background = WeMadeColors.Surface,
-                outline = WeMadeColors.Border
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = value,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.PrimaryDark
-            )
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                color = WeMadeColors.OnSurfaceMuted
-            )
-        }
-    }
-}
-
 
 @Composable
 private fun ToastAlertBanner(
