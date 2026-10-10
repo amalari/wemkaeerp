@@ -122,7 +122,8 @@ class InteractiveFormState(
                 FieldType.ENUM -> f.options.firstOrNull().orEmpty()
                 // A0 (TRD-FIELD-003): MULTI_SELECT default kosong (belum ada pilihan); chip = Track C.
                 // C6: TIME default kosong (belum diisi) — picker yang menandai bentuk, bukan jam karangan.
-                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE -> ""
+                // A0 (penyatuan kosakata): USER_REF default kosong — id pengguna tidak dikarang.
+                FieldType.TEXT, FieldType.LONG_TEXT, FieldType.NUMBER, FieldType.DATE, FieldType.TIME, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, FieldType.USER_REF -> ""
             }
         }
     }

@@ -116,7 +116,9 @@ object DeterministicScreenProposer : ScreenProposer {
         FieldType.BOOL -> CardElement(f.key, CardStyle.FLAG)
         // A0 (TRD-FIELD-003): gaya tampil kartu MULTI_SELECT ditetapkan Track C; di sini tidak tampil di kartu.
         // C6: TIME juga belum tampil di kartu (belum ada gaya kartu jam) — sama seperti tipe teks lainnya.
-        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE -> null
+        // A0 (penyatuan kosakata): USER_REF tidak tampil di kartu usulan deterministik — id pengguna bukan
+        // isi kartu yang dibaca berderet (pola RELATION).
+        FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.MULTI_SELECT, FieldType.RELATION, FieldType.FILE, FieldType.USER_REF -> null
     }
 
     /** Satu ubin per modul lain yang slotnya punya status: jumlah baris berstatus **awal** (antrean yang menunggu). */

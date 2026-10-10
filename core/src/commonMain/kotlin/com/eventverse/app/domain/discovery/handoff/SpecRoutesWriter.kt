@@ -178,7 +178,10 @@ internal object SpecRoutesWriter {
                 // C7: target RELATION wajib ikut tercetak — FieldSpec RELATION tanpa target ditolak validasi.
                 (if (f.target != null) ", target = " + SpecNaming.kString(f.target) else "") +
                 // A0 (TRD-FIELD-003): maxSelections MULTI_SELECT ikut tercetak (bukan null → tidak ditulis).
-                (if (f.maxSelections != null) ", maxSelections = " + f.maxSelections else "") + ")"
+                (if (f.maxSelections != null) ", maxSelections = " + f.maxSelections else "") +
+                // A0 (penyatuan kosakata): decimals NUMBER ikut tercetak — SPEC di route wajib membawa
+                // invarian yang sama dengan prototype (aturan tunggal FieldSpec).
+                (if (f.decimals != null) ", decimals = " + f.decimals else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

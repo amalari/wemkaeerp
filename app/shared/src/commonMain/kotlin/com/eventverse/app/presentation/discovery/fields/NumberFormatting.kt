@@ -78,10 +78,12 @@ fun formatNumberForDisplay(stored: String, format: NumberFormat, currencyCode: S
 /**
  * Teks lengkap (mis. tempelan "Rp 12.000" atau "12,5 %") -> string simpan; null bila bukan angka sah.
  * Aturan: bila ada `,` maka `,` = desimal dan `.` = ribuan; tanpa `,`, `.` dibaca ribuan hanya bila pola `1.234.567`
- * (kelompok tiga digit), selain itu desimal (`12.5`). Kosong -> "". Pecahan maks 4 digit (tolak, bukan bulatkan).
+ * (kelompok tiga digit), selain itu desimal (`12.5`). Kosong -> "". Pecahan maks [maxFractionDigits] digit
+ * (tolak, bukan bulatkan); [decimals] field (bila diisi) memperketat batasnya (petunjuk pembulatan masukan, A0).
  */
-fun parseNumberInput(text: String, format: NumberFormat): String? {
+fun parseNumberInput(text: String, format: NumberFormat, decimals: Int? = null): String? {
     if (text.isBlank()) return ""
+    val maxFractionDigits = decimals ?: MAX_FRACTION_DIGITS
     val cleaned = text.filterNot { it.isWhitespace() || it.isLetter() || it == '%' }
     val negative = cleaned.startsWith("-")
     val body = if (negative) cleaned.substring(1) else cleaned
@@ -108,7 +110,7 @@ fun parseNumberInput(text: String, format: NumberFormat): String? {
         }
     }
     if (integerPart.isEmpty() || !integerPart.all { it in '0'..'9' }) return null
-    if (!fractionPart.all { it in '0'..'9' } || fractionPart.length > MAX_FRACTION_DIGITS) return null
+    if (!fractionPart.all { it in '0'..'9' } || fractionPart.length > maxFractionDigits) return null
     val integer = integerPart.trimStart('0').ifEmpty { "0" }
     val isZero = integer == "0" && fractionPart.all { it == '0' }
     val sign = if (negative && !isZero) "-" else ""
@@ -117,16 +119,19 @@ fun parseNumberInput(text: String, format: NumberFormat): String? {
 
 /**
  * Masukan saat mengetik: terima keadaan antara ("", "-", "12.", ",5"); `,` dan `.` sama-sama dianggap desimal,
- * maks 4 digit pecahan. Teks bergrup/berawalan hasil tempel diurai lewat [parseNumberInput]. null = tolak ketikan.
+ * maks [MAX_FRACTION_DIGITS] digit pecahan — atau [decimals] field bila diisi (A0: petunjuk pembulatan masukan;
+ * `0` = bilangan bulat, ketikan digit di belakang pemisah ditolak). Teks bergrup/berawalan hasil tempel diurai
+ * lewat [parseNumberInput]. null = tolak ketikan.
  */
-fun normalizeNumberTyping(input: String, format: NumberFormat): String? {
+fun normalizeNumberTyping(input: String, format: NumberFormat, decimals: Int? = null): String? {
     if (input.isEmpty()) return ""
     if (TYPING.matches(input)) {
         val stored = input.replace(',', '.')
         val fraction = if ('.' in stored) stored.substringAfter('.') else ""
-        return if (fraction.length > MAX_FRACTION_DIGITS) null else stored
+        val maxFraction = decimals ?: MAX_FRACTION_DIGITS
+        return if (fraction.length > maxFraction) null else stored
     }
-    return parseNumberInput(input, format)
+    return parseNumberInput(input, format, decimals)
 }
 
 /** Teks tampil sebuah nilai menurut spesifikasi field; NUMBER diformat, DATE withTime diberi spasi (JJ:MM), sisanya apa adanya. */
@@ -137,7 +142,9 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     // call site (tabel/kanban); di sini nilai tersimpan apa adanya (fallback id).
     // C8 Track C: FILE tampil sebagai nama berkasnya saja (segmen terakhir ref) — bukan path `fields/...`.
     // C6: TIME tampil apa adanya — bentuk simpan `JJ:MM` memang bentuk tampilnya (pola DATE tanpa withTime).
-    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
+    // A0 (penyatuan kosakata): USER_REF tampil apa adanya (id pengguna); resolusi nama menyusul bila ada
+    // penyuplai label pengguna (pola RELATION).
+    FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION, FieldType.USER_REF -> stored
     // C (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON kanonik); belum ada pilihan -> "—";
     // nilai tak sah (bukan array JSON) ditampilkan apa adanya, tidak disembunyikan (pola DATE).
     FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ")?.ifEmpty { "-" } ?: stored.ifEmpty { "-" }

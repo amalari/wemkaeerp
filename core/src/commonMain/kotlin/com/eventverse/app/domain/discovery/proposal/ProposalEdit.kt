@@ -102,6 +102,8 @@ private fun FieldProposal.accepts(v: String): Boolean = when (type) {
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> true
     // C7: bentuk id rujukan sama dengan FieldSpec.accepts (keberadaan target diverifikasi server).
     com.eventverse.app.domain.prototype.FieldType.RELATION -> v.isNotBlank() && !v.contains("..")
+    // A0 (penyatuan kosakata): bentuk id pengguna sama dengan RELATION; keberadaan `users.id` diverifikasi server.
+    com.eventverse.app.domain.prototype.FieldType.USER_REF -> v.isNotBlank() && !v.contains("..")
     // C8: bentuk FileRef (key `fields/...`).
     com.eventverse.app.domain.prototype.FieldType.FILE -> com.eventverse.app.domain.storage.FileRef.isValid(v)
 }
@@ -120,6 +122,8 @@ private fun FieldProposal.sampleValue(): String = when (type) {
     com.eventverse.app.domain.prototype.FieldType.LONG_TEXT -> "contoh"
     // Keputusan R2 TRD-FIELD-001: seed RELATION = kosong di v1 (tidak mengarang id target).
     com.eventverse.app.domain.prototype.FieldType.RELATION -> ""
+    // A0 (penyatuan kosakata): seed USER_REF = kosong — id pengguna platform tidak dikarang di contoh.
+    com.eventverse.app.domain.prototype.FieldType.USER_REF -> ""
     // C8 (TRD-FIELD-002): seed FILE = kosong di v1 (tidak mengarang referensi objek yang tak ada).
     com.eventverse.app.domain.prototype.FieldType.FILE -> ""
 }

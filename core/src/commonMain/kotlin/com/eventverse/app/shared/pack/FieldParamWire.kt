@@ -42,4 +42,11 @@ internal object FieldParamWire {
      * tipe JSON salah ditolak (bukan jatuh ke bawaan). Rentang `1..options.size` divalidasi `FieldSpec`, bukan di sini.
      */
     fun maxSelections(obj: JsonValue.Obj): Int? = obj.strictOptInt("maxSelections")
+
+    /**
+     * Kunci `decimals` (A0, penyatuan kosakata): bilangan bulat opsional atau `null`; absen/`null` = tanpa batas
+     * khusus, tipe JSON salah ditolak (bukan jatuh ke bawaan). Rentang `0..MAX_NUMBER_DECIMALS` dan aturan
+     * "hanya NUMBER" divalidasi `FieldSpec`, bukan di sini (satu sumber aturan).
+     */
+    fun decimals(obj: JsonValue.Obj): Int? = obj.strictOptInt("decimals")
 }

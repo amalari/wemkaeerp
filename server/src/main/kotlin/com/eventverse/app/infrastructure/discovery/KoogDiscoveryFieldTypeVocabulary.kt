@@ -44,6 +44,10 @@ internal object KoogDiscoveryFieldTypeVocabulary {
         // C8 (TRD-FIELD-002 FR-7): unggah berkas; seed kosong; butuh server ber-S3.
         FieldType.FILE -> "unggah berkas (pdf/gambar/teks); di seed WAJIB kosong — referensi diisi lewat unggahan nyata; " +
             "butuh server ber-S3 (bila storage belum terkonfigurasi, semua field FILE ditolak 503)"
+        // A0 (penyatuan kosakata): rujukan ORANG (users.id), bukan record entitas; seed kosong.
+        FieldType.USER_REF -> "rujukan ke pengguna platform (orang/PIC yang bertanggung jawab: penanggung jawab pesanan, " +
+            "petugas penanggung jawab dokumen); nilai = id SATU pengguna, diisi lewat data nyata — di seed WAJIB kosong; " +
+            "BEDA dengan RELATION: RELATION menunjuk record entitas/modul lain, USER_REF menunjuk orang"
     }
 
     /** Aturan prompt: daftar tipe + pemilihan ENUM vs MULTI_SELECT vs TEXT/LONG_TEXT. Satu baris (disisipkan ke teks ber-indentasi). */

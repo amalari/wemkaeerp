@@ -19,6 +19,8 @@ object PrototypeFieldTypeSampleFields {
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
         FieldType.RELATION -> FieldSpec("rujukan_po", "Rujukan PO", type, required = required, target = "pesanan")
         FieldType.FILE -> FieldSpec("lampiran_scan", "Lampiran scan", type, required = required)
+        // A0 (penyatuan kosakata): PIC pesanan — orang yang dirujuk, bukan record entitas (bukan RELATION).
+        FieldType.USER_REF -> FieldSpec("pic_pesanan", "PIC pesanan", type, required = required)
     }
 
     /** Satu field per tipe, urutan [FieldType.entries]. */
@@ -38,5 +40,7 @@ object PrototypeFieldTypeSampleFields {
         FieldType.BOOL -> "ya"
         FieldType.RELATION -> "po-001"
         FieldType.FILE -> "fields/ten-bordir/pesanan_bordir/r-1/lampiran_scan-a1b2c3-scan.pdf"
+        // A0: contoh id pengguna platform (bentuk sah: non-blank, tanpa ".."); seed usulan tetap kosong.
+        FieldType.USER_REF -> "usr-1"
     }
 }

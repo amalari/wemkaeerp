@@ -122,6 +122,8 @@ internal object SpecPostgresWriter {
             FieldType.BOOL -> "bool($n).default(false)"
             // C7: rujukan logis (tanpa REFERENCES — lihat SpecColumns.sqlDefinition).
             FieldType.RELATION -> "varchar($n, 64)"
+            // A0 (penyatuan kosakata): id pengguna platform (users.id) — pola RELATION, panjang pola ENUM.
+            FieldType.USER_REF -> "varchar($n, 120)"
         }
         return if (c.field.required || c.field.type == FieldType.BOOL) base else "$base.nullable()"
     }
@@ -131,7 +133,8 @@ internal object SpecPostgresWriter {
         val raw = "row[${SpecNaming.kString(c.field.key)}]"
         val optional = !c.field.required
         return when (c.field.type) {
-            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE -> if (optional) "$raw.ifBlank { null }" else raw
+            // A0: USER_REF ikut keluarga string (id pengguna disimpan apa adanya, kosong → null opsional).
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE, FieldType.USER_REF -> if (optional) "$raw.ifBlank { null }" else raw
             // A0 (TRD-FIELD-003): "" ↔ null (belum diisi); array ditulis dari string JSON kanonik.
             FieldType.MULTI_SELECT -> if (optional) "MultiSelectValues.parse($raw)" else "MultiSelectValues.parse($raw).orEmpty()"
             FieldType.NUMBER -> if (optional) "$raw.takeIf { it.isNotBlank() }?.toBigDecimal()" else "$raw.toBigDecimal()"
@@ -148,7 +151,8 @@ internal object SpecPostgresWriter {
     private fun readExpr(c: SpecColumn, tbl: String): String {
         val cell = "r[$tbl.${c.prop}]"
         return when (c.field.type) {
-            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE -> if (c.field.required) cell else "($cell ?: \"\")"
+            // A0: USER_REF ikut keluarga string (id pengguna baca-tulis apa adanya).
+            FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE, FieldType.USER_REF -> if (c.field.required) cell else "($cell ?: \"\")"
             // A0 (TRD-FIELD-003): baca larik → string JSON kanonik (urut menurut options); null ↔ "".
             FieldType.MULTI_SELECT -> {
                 val opts = c.field.options.joinToString(", ") { SpecNaming.kString(it) }

@@ -29,6 +29,7 @@ import com.eventverse.app.shared.json.jsonArrayOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -258,5 +259,39 @@ class PrototypeFieldTypeCodecParityTest {
         val tampered = raw.replace("\"format\":\"CURRENCY\"", "\"format\":\"RUPIAH\"")
         val error = assertFailsWith<DiscoveryDraftDecodeException>("format tak dikenal harus ditolak") { DiscoveryDraftCodec.decode(tampered) }
         assertTrue(error.path.endsWith(".format"), error.path)
+    }
+
+    // ---- A0 (penyatuan kosakata, PLAN-unify §3): parameter decimals NUMBER di kawat -------------
+
+    /**
+     * `decimals` ikut kawat layar interaktif dan SpecOp AddField; bawaan (`null`) tidak ditulis
+     * (dokumen lama byte-identik); tipe JSON salah dan nilai di luar `0..6` ditolak — bukan jatuh ke bawaan.
+     */
+    @Test
+    fun decimals_roundTrips_throughInteractiveScreenAndSpecOpWire_andWrongShapeIsRejected() {
+        fun screenOfField(f: FieldSpec, row: PrototypeRow) = InteractiveScreen(
+            PrototypeSpec(
+                listOf(EntitySpec("e", "E", listOf(f))),
+                listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf(f.key))))
+            ),
+            mapOf("e" to listOf(row))
+        )
+        val withDecimals = screenOfField(FieldSpec("tarif", "Tarif", FieldType.NUMBER, decimals = 2), PrototypeRow("r1", mapOf("tarif" to "12.5")))
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(withDecimals))
+        assertEquals(2, decoded.spec.entities.single().fields.single().decimals)
+
+        val op = SpecOp.AddField("e", FieldSpec("tarif", "Tarif", FieldType.NUMBER, decimals = 6))
+        assertEquals(op, SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow(), "AddField membawa decimals utuh")
+
+        val plain = screenOfField(FieldSpec("tarif", "Tarif", FieldType.NUMBER), PrototypeRow("r1", mapOf("tarif" to "12")))
+        assertFalse("\"decimals\"" in InteractiveScreenCodec.encode(plain).encode(), "bawaan null tidak ditulis (dokumen lama byte-identik)")
+
+        val raw = InteractiveScreenCodec.encode(withDecimals).encode()
+        listOf("\"decimals\":1.5", "\"decimals\":\"2\"", "\"decimals\":true").forEach { bad ->
+            val result = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"decimals\":2", bad)) as JsonValue.Obj) }
+            assertTrue(result.isFailure, "tipe JSON salah harus ditolak: $bad")
+        }
+        val outOfRange = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"decimals\":2", "\"decimals\":7")) as JsonValue.Obj) }
+        assertTrue(outOfRange.isFailure, "decimals 7 di luar rentang ditolak invarian FieldSpec saat decode, bukan diredam")
     }
 }

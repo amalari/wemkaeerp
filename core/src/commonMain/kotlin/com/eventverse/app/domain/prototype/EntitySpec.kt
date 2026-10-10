@@ -28,8 +28,19 @@ import com.eventverse.app.domain.storage.FileRef
  *   [FieldSpec.target].
  * - [FILE]: referensi objek `FileRef` (string key) — byte hidup di `ObjectStorage`, TIDAK PERNAH di
  *   kolom/jsonb (TRD-FIELD-002 FR-2); seed v1 wajib kosong.
+ * - [USER_REF]: id **satu** pengguna platform (`users.id`) — orang yang dirujuk (PIC/penanggung jawab),
+ *   bukan record entitas (bedakan dari [RELATION] yang menunjuk baris modul); kolom SQL `VARCHAR(120)`
+ *   tanpa `REFERENCES` (pola [RELATION]: rujukan logis, pagar J3); tanpa parameter; seed wajib kosong —
+ *   id pengguna diisi lewat data nyata. Parser kompatibilitas kode legacy CRM: `CrmLegacyTypeCode`.
  */
-enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, TIME, ENUM, MULTI_SELECT, BOOL, RELATION, FILE }
+enum class FieldType { TEXT, LONG_TEXT, NUMBER, DATE, TIME, ENUM, MULTI_SELECT, BOOL, RELATION, FILE, USER_REF }
+
+/**
+ * Batas atas parameter [FieldSpec.decimals] untuk [FieldType.NUMBER]: 6 = presisi desimal maksimum yang
+ * wajar untuk jumlah/rata-rata operasional (padanan CRM `Number.decimals` memakai rentang 0..6 sama).
+ * Masukan yang lebih presisi dari parameter dibatasi/dibulatkan saat mengetik — bukan disimpan mentah.
+ */
+const val MAX_NUMBER_DECIMALS = 6
 
 /**
  * Varian tampilan [FieldType.NUMBER] (C4 Irisan 2, keputusan D3): penyimpanan, filter, urutan, dan
@@ -85,7 +96,15 @@ data class FieldSpec(
      * A0 (TRD-FIELD-003): batas jumlah pilihan untuk [FieldType.MULTI_SELECT]. `null` = hanya dibatasi jumlah
      * [options]. Wajib hanya untuk MULTI_SELECT; bila diisi `1..options.size`. Wajib `null` untuk tipe lain.
      */
-    val maxSelections: Int? = null
+    val maxSelections: Int? = null,
+    /**
+     * A0 (penyatuan kosakata, PLAN-unify-field-vocabulary §3): petunjuk pembulatan **masukan/tampilan** angka —
+     * `null` = tanpa batas khusus (masukan dibatasi maksimum 4 digit pecahan), `0` = bilangan bulat saja.
+     * Hanya sah untuk [FieldType.NUMBER]; BUKAN skala kolom — kolom tetap `NUMERIC(18,4)` (lihat
+     * `SpecColumns.sqlDefinition`). Bila diisi wajib `0..[MAX_NUMBER_DECIMALS]`: 6 adalah presisi desimal
+     * maksimum yang wajar untuk jumlah/rata-rata; ketikan yang lebih presisi dibatasi sesuai parameter ini.
+     */
+    val decimals: Int? = null
 ) {
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
@@ -104,6 +123,16 @@ data class FieldSpec(
         } else {
             require(maxSelections == null) {
                 "Field '$key' bertipe ${type.name}, bukan MULTI_SELECT, jadi tidak boleh punya maxSelections"
+            }
+        }
+        // A0 (penyatuan kosakata): decimals = petunjuk pembulatan masukan NUMBER; tipe lain tidak boleh membawanya.
+        if (type == FieldType.NUMBER) {
+            require(decimals == null || decimals in 0..MAX_NUMBER_DECIMALS) {
+                "Field NUMBER '$key' decimals wajib null atau 0..$MAX_NUMBER_DECIMALS, dapat $decimals"
+            }
+        } else {
+            require(decimals == null) {
+                "Field '$key' bertipe ${type.name}, bukan NUMBER, jadi tidak boleh punya decimals"
             }
         }
         require(type == FieldType.NUMBER || format == NumberFormat.PLAIN) {
@@ -150,6 +179,9 @@ data class FieldSpec(
             FieldType.BOOL -> value == "ya" || value == "tidak"
             // C7: id target non-blank tanpa ".."; keberadaan target diverifikasi server, bukan klien.
             FieldType.RELATION -> value.isNotBlank() && !value.contains("..")
+            // A0 (penyatuan kosakata): id pengguna platform — bentuk sama dengan RELATION (non-blank, tanpa
+            // ".."); keberadaan user `users.id` diverifikasi server saat tulis nilai, bukan di sini.
+            FieldType.USER_REF -> value.isNotBlank() && !value.contains("..")
             // C8: kosong = belum diisi; selain itu wajib FileRef sah (bentuk key, bukan keberadaan objek).
             FieldType.FILE -> FileRef.isValid(value)
         }

@@ -55,5 +55,10 @@ internal fun SpecColumn.sqlDefinition(): String {
         // (pagar J3 TRD-PLAT-004; promosi modul = salin + prefiks baru mematahkan FK fisik). Keberadaan
         // target divalidasi saat tulis nilai, bukan oleh DB.
         FieldType.RELATION -> "VARCHAR(64)$notNull"
+        // A0 (penyatuan kosakata): id pengguna platform (`users.id`) — VARCHAR(120) TANPA `REFERENCES`
+        // (pola RELATION: rujukan logis, pagar J3); keberadaan user divalidasi saat tulis nilai.
+        // [FieldSpec.decimals] NUMBER sengaja TIDAK mengubah kolom: NUMERIC(18,4) tetap — decimals adalah
+        // petunjuk pembulatan masukan/tampilan, bukan skala kolom.
+        FieldType.USER_REF -> "VARCHAR(120)$notNull"
     }
 }

@@ -38,6 +38,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.MULTI_SELECT -> "TEXT[]"
         FieldType.BOOL -> "BOOLEAN"
         FieldType.RELATION -> "VARCHAR(64)"
+        FieldType.USER_REF -> "VARCHAR(120)"
     }
 
     private fun expectedExposed(type: FieldType): String = when (type) {
@@ -49,6 +50,7 @@ class PrototypeFieldTypeSqlParityTest {
         FieldType.MULTI_SELECT -> "array<"
         FieldType.BOOL -> "bool("
         FieldType.RELATION -> "varchar("
+        FieldType.USER_REF -> "varchar("
     }
 
     @Test
@@ -276,5 +278,51 @@ class PrototypeFieldTypeSqlParityTest {
         assertFalse(f.accepts("/absolut/fields/scan.pdf"), "awalan absolut ditolak")
         assertFalse(f.accepts("scan.pdf"), "tanpa namespace fields/ ditolak")
         assertFalse(f.accepts("fields/ten/r-1/baris\nbaru.pdf"), "kontrol/baris baru ditolak")
+    }
+
+    // ---- A0 (penyatuan kosakata, PLAN-unify §3): parameter decimals NUMBER + tipe USER_REF ------
+
+    /** decimals: hanya NUMBER; `null` atau `0..6` (0, 2, 6 sah; -1 dan 7 ditolak, bukan dibulatkan). */
+    @Test
+    fun fieldSpec_decimals_onlyForNumber_withinZeroToSix() {
+        listOf(0, 2, 6).forEach { d ->
+            assertEquals(d, FieldSpec("k", "K", FieldType.NUMBER, decimals = d).decimals, "decimals=$d sah")
+        }
+        listOf(-1, 7).forEach { d ->
+            assertTrue(runCatching { FieldSpec("k", "K", FieldType.NUMBER, decimals = d) }.isFailure, "decimals=$d harus ditolak")
+        }
+        FieldType.entries.filter { it != FieldType.NUMBER }.forEach { type ->
+            assertTrue(runCatching { FieldSpec("k", "K", type, decimals = 2) }.isFailure, "$type dengan decimals harus ditolak")
+        }
+    }
+
+    /** decimals = petunjuk pembulatan masukan/tampilan, BUKAN skala kolom — kolom tetap NUMERIC(18,4). */
+    @Test
+    fun sqlDefinition_numberColumn_ignoresDecimals_staysNumeric184() {
+        val whole = table(FieldSpec("tarif", "Tarif", FieldType.NUMBER, decimals = 0)).columns.single().sqlDefinition()
+        assertEquals("NUMERIC(18,4)", whole, "decimals=0 tidak mengubah skala kolom")
+        val required = table(FieldSpec("tarif", "Tarif", FieldType.NUMBER, decimals = 6, required = true)).columns.single().sqlDefinition()
+        assertEquals("NUMERIC(18,4) NOT NULL", required, "decimals=6 wajib tetap NUMERIC(18,4)")
+    }
+
+    /** USER_REF (A0): id pengguna — non-blank tanpa ".."; kosong = belum diisi; bentuk lain ditolak. */
+    @Test
+    fun accepts_userRefField_acceptsSingleUserIdShape() {
+        val f = fieldFor(FieldType.USER_REF)
+        assertTrue(f.accepts(""), "kosong = belum diisi")
+        assertTrue(f.accepts("usr-1"), "id pengguna sah")
+        assertFalse(f.accepts("   "), "blank bukan id")
+        assertFalse(f.accepts("../usr"), "path traversal ditolak")
+        assertFalse(f.accepts("usr..1"), "..' ditolak di mana pun")
+    }
+
+    /** USER_REF (A0): kolom VARCHAR(120) TANPA `REFERENCES` — pola RELATION (rujukan logis, pagar J3). */
+    @Test
+    fun sqlDefinition_userRefColumn_plainVarchar120_neverEmitsReferences() {
+        val sql = table(fieldFor(FieldType.USER_REF, required = true)).columns.single().sqlDefinition()
+        assertTrue(sql.startsWith("VARCHAR(120)") && "NOT NULL" in sql, sql)
+        assertFalse("REFERENCES" in sql.uppercase(), "USER_REF tidak boleh punya FK fisik: $sql")
+        val optional = table(fieldFor(FieldType.USER_REF)).columns.single().sqlDefinition()
+        assertFalse("REFERENCES" in optional.uppercase(), optional)
     }
 }

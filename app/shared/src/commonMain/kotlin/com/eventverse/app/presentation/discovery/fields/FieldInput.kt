@@ -67,6 +67,10 @@ import kotlinx.coroutines.launch
  * - FILE -> [ClayFileField] (C8/TRD-FIELD-002 Track C): unggah pertama/ganti/hapus lewat
  *   [FileFieldOps] bila record sudah punya id server; byte tidak pernah lewat sel, hanya key
  *   `fields/...`. Tanpa ops = chip baca-saja / penjelasan bahwa unggah menyusul setelah data ada.
+ * - USER_REF -> satu baris teks id pengguna platform (A0 penyatuan kosakata; pola keluarga teks satu
+ *   baris yang sama dengan kontrol CRM hari ini — pemilih pengguna menyusul bila ada penyuplai opsi);
+ *   nilai = id `users.id` tunggal yang diverifikasi server.
+ * [FieldSpec.decimals] pada NUMBER membatasi digit pecahan saat mengetik (petunjuk pembulatan masukan, A0).
  */
 @Composable
 fun FieldInput(
@@ -157,7 +161,8 @@ fun FieldInput(
                     value = value,
                     onValueChange = { input ->
                         // Kirim string simpan (titik desimal, tanpa ribuan/simbol); ketikan tak sah ditolak.
-                        normalizeNumberTyping(input, field.format)?.let(onValueChange)
+                        // A0: `decimals` field memperketat batas digit pecahan saat mengetik (petunjuk pembulatan).
+                        normalizeNumberTyping(input, field.format, field.decimals)?.let(onValueChange)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Contoh: 100",
@@ -268,6 +273,23 @@ fun FieldInput(
                         color = if (display.missing) WeMadeColors.OnSurfaceMuted else WeMadeColors.OnSurface
                     )
                 }
+            }
+            // A0 (penyatuan kosakata): nilai USER_REF = id SATU pengguna platform (`users.id`) yang
+            // diverifikasi server saat tulis (bentuk sah dijaga `FieldSpec.accepts`). Kontrol = keluarga
+            // teks satu baris — pola yang sama dengan input teks CRM hari ini; pemilih pengguna khusus
+            // menyusul bila ada penyuplai opsi (Kontrak 8: tidak memalsukan kontrol yang belum ada).
+            FieldType.USER_REF -> {
+                ClayTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = if (compact) field.label else "Id pengguna, contoh: usr-1",
+                    enabled = enabled,
+                    isError = shownError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardActions = keyboardActions
+                )
             }
             // C8 (TRD-FIELD-002 Track C): nilai FILE = key `fields/...` (byte di ObjectStorage).
             // Unggah/ganti/hapus hanya bila [fileOps] tersedia (record sudah ber-id server);

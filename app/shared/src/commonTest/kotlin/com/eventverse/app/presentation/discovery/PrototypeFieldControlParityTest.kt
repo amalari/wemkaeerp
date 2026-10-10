@@ -41,7 +41,8 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_multi", "Label Ganda", FieldType.MULTI_SELECT, options = listOf("A", "B", "C")),
             FieldSpec("f_bool", "Aktif", FieldType.BOOL),
             FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan"),
-            FieldSpec("f_file", "Lampiran", FieldType.FILE)
+            FieldSpec("f_file", "Lampiran", FieldType.FILE),
+            FieldSpec("f_user", "PIC", FieldType.USER_REF)
         )
 
         // Verifikasi semua entri FieldType tercakup dalam daftar uji
@@ -71,6 +72,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("tidak", formState.formValues["f_bool"])
         assertEquals("", formState.formValues["f_rel"], "RELATION harus memiliki nilai awal string kosong")
         assertEquals("", formState.formValues["f_file"], "FILE harus memiliki nilai awal string kosong")
+        assertEquals("", formState.formValues["f_user"], "USER_REF harus memiliki nilai awal string kosong (id pengguna tidak dikarang)")
 
         // 2. Table State startInlineCreate menghasilkan nilai inline terdefinisi
         val tableHints = TableHints(
@@ -89,7 +91,8 @@ class PrototypeFieldControlParityTest {
             "f_multi" to """["A","C"]""",
             "f_bool" to "ya",
             "f_rel" to "pesanan-1",
-            "f_file" to "fields/ten/item/i-1/lampiran-a1b2c3-scan.pdf"
+            "f_file" to "fields/ten/item/i-1/lampiran-a1b2c3-scan.pdf",
+            "f_user" to "usr-1"
         )
         val tableScreen = requireNotNull(
             InteractiveScreenFactory.table("scr-table-parity", "Uji Tabel", listOf(sampleRow), tableHints)
@@ -105,6 +108,7 @@ class PrototypeFieldControlParityTest {
         assertEquals("tidak", tableState.inlineValues["f_bool"])
         assertEquals("", tableState.inlineValues["f_rel"], "RELATION inline harus kosong")
         assertEquals("", tableState.inlineValues["f_file"], "FILE inline harus kosong")
+        assertEquals("", tableState.inlineValues["f_user"], "USER_REF inline harus kosong (A0 penyatuan kosakata)")
     }
 
     @Test
