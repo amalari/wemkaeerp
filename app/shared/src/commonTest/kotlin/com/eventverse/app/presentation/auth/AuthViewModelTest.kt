@@ -72,27 +72,6 @@ class AuthViewModelTest {
         assertNull(viewModel.uiState.value.authenticatedSession)
     }
 
-    @Test
-    fun logout_clears_active_session() = testScope.runTest {
-        viewModel.onEvent(LoginUiEvent.SubmitDemoLogin)
-        testScheduler.advanceUntilIdle()
-        assertNotNull(viewModel.uiState.value.authenticatedSession)
-
-        viewModel.onEvent(LoginUiEvent.Logout)
-        assertNull(viewModel.uiState.value.authenticatedSession)
-        assertNull(sessionStorage.currentSession.value)
-    }
-
-    @Test
-    fun demo_superadmin_login_authenticates_with_platform_superadmin_role() = testScope.runTest {
-        viewModel.onEvent(LoginUiEvent.SubmitDemoSuperAdminLogin)
-        testScheduler.advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        val session = state.authenticatedSession
-        assertNotNull(session)
-        assertEquals(Role.PLATFORM_SUPERADMIN, session.user.role)
-        assertEquals("superadmin_apps", session.user.username.value)
-        assertEquals("WeMade Platform Admin", sessionStorage.currentSession.value!!.name)
-    }
+    // logout_clears_active_session & demo_superadmin_login_...: dulu bergantung pada sesi OFFLINE
+    // (server tak ada -> sesi palsu). Dipindah ke DemoLoginNoSilentFallbackTest dengan server palsu.
 }

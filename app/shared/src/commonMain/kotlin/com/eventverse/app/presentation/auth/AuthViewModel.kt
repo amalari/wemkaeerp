@@ -6,6 +6,8 @@ import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.tenant.TenantSlug
 import com.eventverse.app.infrastructure.api.AuthApiClient
+import com.eventverse.app.infrastructure.api.AuthApiError
+import com.eventverse.app.presentation.common.FriendlyErrors
 import com.eventverse.app.infrastructure.navigation.PlatformHost
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.domain.rbac.TestingPersona
@@ -46,6 +48,8 @@ class AuthViewModel(
 
         /** Pendaratan di subdomain tenant: aplikasi hasil generate (bukan Builder, yang tinggal di `app.`). */
         const val APP_LANDING_PATH = "/login"
+
+        const val MSG_SLUG_REQUIRED = "Pilih/isi kode pabrik terlebih dahulu."
     }
 
     /** Dari `/config`; dipakai menyusun origin tenant saat handoff. */
@@ -158,15 +162,24 @@ class AuthViewModel(
         }
     }
 
+    /**
+     * Login demo. Gagal APA PUN (403 bukan tenant demo, 404 demo dimatikan, jaringan mati) = pesan di
+     * UI tanpa sesi. Dulu galat apa pun membuat sesi offline berisi identitas tenant lain; itu
+     * menutupi penolakan gerbang server dan menghasilkan token yang ditolak semua endpoint.
+     */
     private fun handleDemoLogin(targetRole: Role = Role.TENANT_ADMIN) {
-        val currentSlug = _uiState.value.tenantSlug.ifBlank { "wemade-demo" }
+        val currentSlug = _uiState.value.tenantSlug.trim()
+        if (currentSlug.isBlank()) {
+            _uiState.update { it.copy(isLoading = false, errorMessage = MSG_SLUG_REQUIRED) }
+            return
+        }
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         scope.launch {
             val result = authApiClient.loginDemo(currentSlug, role = targetRole.name)
             if (_uiState.value.hostSurface is HostSurface.Platform && targetRole != Role.PLATFORM_SUPERADMIN) {
                 result.onSuccess { applyVerifiedSession(it, fallbackSlug = currentSlug, restorePersona = true) }
-                    .onFailure { e -> _uiState.update { it.copy(isLoading = false, errorMessage = e.message) } }
+                    .onFailure { e -> failLogin(e) }
                 return@launch
             }
             result.onSuccess { session ->
@@ -195,52 +208,18 @@ class AuthViewModel(
                     )
                 }
                 _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
-            }.onFailure { error ->
-                // Fallback offline session jika backend offline
-                val fallbackUser = if (targetRole == Role.PLATFORM_SUPERADMIN) {
-                    User(
-                        id = UserId("usr-superadmin-001"),
-                        tenantId = TenantId("ten-$currentSlug"),
-                        username = Username("superadmin_apps"),
-                        email = EmailAddress("superadmin@wemade.id"),
-                        role = Role.PLATFORM_SUPERADMIN,
-                        isActive = true
-                    )
-                } else {
-                    User(
-                        id = UserId("usr-owner-001"),
-                        tenantId = TenantId("ten-$currentSlug"),
-                        username = Username("achmad_owner"),
-                        email = EmailAddress("student.achmad@gmail.com"),
-                        role = Role.TENANT_ADMIN,
-                        isActive = true
-                    )
-                }
-                val offlineSession = UserSession(
-                    user = fallbackUser,
-                    token = AuthToken("jwt-offline-token-${kotlin.random.Random.nextInt(100000, 999999)}"),
-                    tenantSlug = currentSlug
-                )
-                PlatformLocalStorage.setItem(STORAGE_KEY, AuthApiClient.serializeSession(offlineSession))
-                sessionStorage.setSession(
-                    TenantSession(
-                        tenantId = fallbackUser.tenantId ?: TenantId("ten-default"),
-                        slug = TenantSlug(currentSlug),
-                        name = if (targetRole == Role.PLATFORM_SUPERADMIN) "WeMade Platform Admin" else "Pabrik $currentSlug",
-                        tier = SubscriptionTier.PRO
-                    )
-                )
-                restorePersonaFrom(offlineSession)
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        authenticatedSession = offlineSession,
-                        successMessage = "Mode Demo Offline: ${fallbackUser.username.value} (${fallbackUser.role.name})"
-                    )
-                }
-                _uiEffect.emit(LoginUiEffect.NavigateToDashboard(offlineSession))
-            }
+            }.onFailure { e -> failLogin(e) }
         }
+    }
+
+    /** Satu pintu galat login demo/persona: pesan jelas, tanpa sesi, tanpa tulis storage. */
+    private fun failLogin(cause: Throwable) {
+        _uiState.update { it.copy(isLoading = false, errorMessage = loginFailureMessage(cause)) }
+    }
+
+    private fun loginFailureMessage(cause: Throwable): String = when (cause) {
+        is AuthApiError.Unreachable -> FriendlyErrors.UNREACHABLE
+        else -> FriendlyErrors.friendly(cause, "Login gagal.")
     }
 
     /**
@@ -250,10 +229,9 @@ class AuthViewModel(
      * berganti persona tanpa keluar lebih dulu. Keduanya melewati server yang sama, jadi tidak ada
      * jalur "cepat" yang menghasilkan wewenang berbeda dari jalur normal.
      *
-     * Kegagalan jaringan jatuh ke sesi offline agar pengujian UI tidak terhenti saat backend belum
-     * dijalankan. Token offline itu **tidak pernah** diterima server — ia hanya membuka gerbang di
-     * client — dan itulah sebabnya statusnya dinyatakan terang-terangan di pesan sukses, bukan
-     * disamarkan sebagai login biasa.
+     * Tidak ada sesi offline. Keputusan: token offline tidak pernah diterima server (semua endpoint
+     * menolaknya) dan wewenangnya hanya dihitung lokal, jadi ia menyesatkan pengujian; kegagalan
+     * jaringan juga tampil sebagai pesan jelas ([FriendlyErrors.UNREACHABLE]), sama seperti 403/404.
      */
     fun handlePersonaLogin(persona: TestingPersona) {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -270,31 +248,7 @@ class AuthViewModel(
                     }
                     _uiEffect.emit(LoginUiEffect.NavigateToDashboard(session))
                 }
-                .onFailure {
-                    val offlineSession = UserSession(
-                        user = User(
-                            id = UserId(persona.userId),
-                            tenantId = persona.tenantId,
-                            username = Username(persona.syntheticUsername),
-                            email = EmailAddress(persona.syntheticEmail),
-                            role = Role.OPERATOR,
-                            isActive = true,
-                            departmentId = persona.departmentId,
-                            customRoleId = persona.roleId?.value
-                        ),
-                        token = AuthToken("offline-persona-${persona.userId}"),
-                        tenantSlug = persona.tenantSlug
-                    )
-                    applyPersonaSession(offlineSession, persona, persona.tenantSlug)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Persona aktif: ${persona.displayLabel} — mode offline, " +
-                                "wewenang dihitung lokal dan tidak ditegakkan server."
-                        )
-                    }
-                    _uiEffect.emit(LoginUiEffect.NavigateToDashboard(offlineSession))
-                }
+                .onFailure { e -> failLogin(e) }
         }
     }
 
