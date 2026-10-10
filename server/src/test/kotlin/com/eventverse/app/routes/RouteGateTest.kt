@@ -49,6 +49,12 @@ class RouteGateTest {
 
     private val slug = "gate-probe"
 
+    /** Prefix yang wajib menolak token tanpa jabatan dan divisi: Bagan Organisasi (PLAT-011) + Factory Flow (PLAT-012). */
+    private val identityFreePrefixes = listOf(
+        "/api/tenant/employees", "/api/tenant/departments",
+        "/api/tenant/pipeline", "/api/tenant/locations", "/api/tenant/stage-flow"
+    )
+
     @Test
     fun everyTenantRoute_deniesMemberWithoutModuleAccess_orIsInLedger() = testApplication {
         DatabaseFactory.init()
@@ -112,11 +118,12 @@ class RouteGateTest {
     /**
      * TRD-PLAT-011: probe yang dulu tak ada — token **tanpa `customRoleId` dan tanpa `departmentId`** (peran SALES).
      * Probe di atas memakai jabatan tak dikenal sehingga selalu NONE; token tanpa identitas dulu dibaca "tidak
-     * diketahui" dan lolos pada rute Bagan Organisasi. Dibatasi ke rute karyawan/divisi (rute modul lain punya
-     * pola serupa yang dicatat sebagai tindak lanjut, mis. Factory Flow).
+     * diketahui" dan lolos pada rute Bagan Organisasi. TRD-PLAT-012: diperluas ke prefix Factory Flow
+     * (`pipeline`, `locations`, `stage-flow`) — di sana `GET /locations` dulu lolos. Rute `openByDesign`
+     * dikecualikan; prefix modul lain menyusul bila terbukti perlu (Q5).
      */
     @Test
-    fun orgChartRoutes_denyMemberCarryingNoFactoryIdentity() = testApplication {
+    fun identityFreeProbe_deniesMemberCarryingNoFactoryIdentity_onGuardedPrefixes() = testApplication {
         DatabaseFactory.init()
         val tenants = InMemoryTenantRepository()
         runBlocking {
@@ -138,15 +145,15 @@ class RouteGateTest {
             )
             monitor.subscribe(ApplicationStarted) {
                 routes = pluginOrNull(RoutingRoot)?.getAllRoutes().orEmpty().mapNotNull(::methodAndPath)
-                    .filter { it.substringAfter(' ').let { p -> p.startsWith("/api/tenant/employees") || p.startsWith("/api/tenant/departments") } }
+                    .filter { it.substringAfter(' ').let { p -> identityFreePrefixes.any(p::startsWith) } }
                     .distinct()
             }
         }
         startApplication()
-        assertTrue(routes.size >= 10, "Enumerasi route Org Chart gagal: ${routes.size} route")
+        assertTrue(routes.size >= 20, "Enumerasi route berprefiks terjaga gagal: ${routes.size} route")
 
         val token = TestAuth.tenantToken(slug, Role.SALES)
-        val notDenied = routes.filter { route ->
+        val notDenied = (routes - RouteGateLedger.openByDesign).filter { route ->
             val (method, path) = route.split(' ', limit = 2)
             val status = runCatching {
                 client.request(path.replace(Regex("\\{[^}]+}"), "x1")) {
@@ -159,7 +166,7 @@ class RouteGateTest {
             }.getOrDefault(-1)
             status != 401 && status != 403
         }
-        if (notDenied.isNotEmpty()) fail("Rute Org Chart meloloskan token tanpa identitas pabrik:\n" + notDenied.sorted().joinToString("\n") { "  $it" })
+        if (notDenied.isNotEmpty()) fail("Rute berprefiks terjaga meloloskan token tanpa identitas pabrik:\n" + notDenied.sorted().joinToString("\n") { "  $it" })
     }
 
     /** `/api/tenant/x/(method:GET)` → `GET /api/tenant/x`. */

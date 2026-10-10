@@ -78,6 +78,15 @@ class TenantRouteGatePolicyTest {
     }
 
     @Test
+    fun locations_readIsGatedByFactoryFlowView_andWriteIsLeftToItsOwnFailClosedGuard() {
+        assertEquals(
+            GateRule(VIEW, listOf(com.eventverse.app.domain.pack.GarmentModules.FACTORY_FLOW)),
+            rule(HttpMethod.Get, "/api/tenant/locations")
+        )
+        assertNull(rule(HttpMethod.Put, "/api/tenant/locations"))
+    }
+
+    @Test
     fun workQueue_isProductionFloorOnly_andUnrelatedPathsAreNotGovernedHere() {
         assertEquals(setOf(OPERATOR_EXEC, PRODUCTION_MRP), rule(HttpMethod.Post, "/api/tenant/work-queue/cards/output")!!.modules.toSet())
         assertNull(rule(HttpMethod.Get, "/api/tenant/invoicing"))

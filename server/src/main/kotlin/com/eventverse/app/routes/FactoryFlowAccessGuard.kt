@@ -77,9 +77,13 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
     roleRepository: RoleRepository?,
     moduleAssignmentRepository: ModuleAssignmentRepository?
 ): AccessDecision? {
-    val principal = callerPrincipalOrNull ?: return null
     if (roleRepository == null || moduleAssignmentRepository == null) return null
-    if (principal.customRoleId == null && principal.departmentId == null) return null
+    val principal = callerPrincipalOrNull
+    // TRD-PLAT-012: tanpa principal, atau tanpa jabatan dan divisi, dulu `null` (lolos). Kini diputuskan lewat
+    // moduleDecision (jalur yang sama dengan gerbang): Owner/superadmin MANAGE, peran lain NONE -> 403.
+    if (principal == null || (principal.customRoleId == null && principal.departmentId == null)) {
+        return moduleDecision(GarmentModules.FACTORY_FLOW, tenant, roleRepository, moduleAssignmentRepository)
+    }
 
     val role = principal.customRoleId
         ?.let { runCatching { RoleId(it) }.getOrNull() }
@@ -113,10 +117,9 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
  *
  * Mengembalikan `false` **dan sudah menjawab 403**; pemanggil tinggal `return@put`.
  *
- * Wewenang yang tidak dapat dihitung (`decision == null`) dibiarkan lewat, mengikuti pola
- * [orgChartDecision]: pemasangan route lama dan sebagian pengujian tidak menyuntikkan
- * repository wewenang sama sekali, dan menutup total di situ mematikan fitur alih-alih
- * menjaganya.
+ * `decision == null` kini hanya berarti repository wewenang tidak terpasang (pemasangan lama dan
+ * sebagian pengujian), dan itu dibiarkan lewat mengikuti [orgChartDecision]. Pemanggil tanpa
+ * jabatan/divisi tidak lagi `null` bila repository terpasang (TRD-PLAT-012).
  */
 internal suspend fun ApplicationCall.requireFactoryFlowAccess(
     decision: AccessDecision?,
