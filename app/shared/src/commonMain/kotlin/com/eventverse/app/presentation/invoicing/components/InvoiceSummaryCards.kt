@@ -85,7 +85,7 @@ private fun SummaryMetricCard(
                 color = WeMadeColors.OnSurfaceMuted
             )
             ClayBadge(
-                text = "●",
+                text = "·",
                 tint = tint,
                 fontSize = 10.sp
             )

@@ -65,7 +65,7 @@ fun AccessDeniedCard(
                 color = WeMadeColors.OnSurface
             )
             Text(
-                text = "$personaName — $roleTitle, divisi $departmentName.",
+                text = "$personaName - $roleTitle, divisi $departmentName.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )

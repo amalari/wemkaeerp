@@ -181,7 +181,7 @@ fun DesignerToolbar(
 
                 if (state.prefillData != null) {
                     ClayButton(
-                        text = if (state.isSaving) "Menerbitkan…" else "Simpan & Pratinjau Faktur",
+                        text = if (state.isSaving) "Menerbitkan..." else "Simpan & Pratinjau Faktur",
                         enabled = !state.isSaving,
                         onClick = { onEvent(TemplateDesignerUiEvent.SaveAndCreateInvoice()) },
                         style = ClayButtonStyle.Primary,
@@ -190,7 +190,7 @@ fun DesignerToolbar(
                     )
                 } else {
                     ClayButton(
-                        text = if (state.isSaving) "Menyimpan…" else "Simpan Template",
+                        text = if (state.isSaving) "Menyimpan..." else "Simpan Template",
                         enabled = !state.isSaving,
                         onClick = { onEvent(TemplateDesignerUiEvent.SaveTemplate) },
                         style = ClayButtonStyle.Primary,

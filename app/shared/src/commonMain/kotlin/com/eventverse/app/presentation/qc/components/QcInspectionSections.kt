@@ -128,7 +128,7 @@ private fun QcPomInputRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "Target ${formatCm(field.targetCm)} cm  •  ±1.0 cm",
+                text = "Target ${formatCm(field.targetCm)} cm  ·  ±1.0 cm",
                 style = MaterialTheme.typography.labelSmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,
@@ -148,7 +148,7 @@ private fun QcPomInputRow(
         ClayTextField(
             value = noteText,
             onValueChange = onNoteChange,
-            placeholder = "Catatan titik ini — kosongkan bila tidak ada temuan",
+            placeholder = "Catatan titik ini - kosongkan bila tidak ada temuan",
             focusColor = if (hasNote) WeMadeColors.Error else WeMadeColors.Primary,
             modifier = Modifier.weight(1f)
         )
@@ -209,7 +209,7 @@ private fun QcPomInputBlockCompact(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Target ${formatCm(field.targetCm)} cm  •  ±1.0 cm",
+                    text = "Target ${formatCm(field.targetCm)} cm  ·  ±1.0 cm",
                     style = MaterialTheme.typography.labelSmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     maxLines = 1,
@@ -275,7 +275,7 @@ private fun QcDeviationBadge(deviation: Double?, isWithinTolerance: Boolean?, ha
 }
 
 private fun signed(deviation: Double?): String {
-    val value = deviation ?: return "—"
+    val value = deviation ?: return "-"
     val prefix = if (value >= 0) "+" else "-"
     return "$prefix${formatCm(kotlin.math.abs(value))} cm"
 }

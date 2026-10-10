@@ -49,7 +49,7 @@ fun PrototypeRenderer(
             // menggantung tanpa penjelasan.
             ClayCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "Draf ini belum punya layar pratinjau. Deskriptor layar diusulkan oleh agent LLM — " +
+                    "Draf ini belum punya layar pratinjau. Deskriptor layar diusulkan oleh agent LLM - " +
                         "jalankan server dengan DISCOVERY_AGENT=koog dan DEEPSEEK_API_KEY terisi untuk melihatnya, " +
                         "atau pilih pola Studio setelah modul dibangun.",
                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
@@ -311,7 +311,7 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
             }
             if (widget == "PRINT") {
                 Text(
-                    "Dokumen ini contoh tata letak cetak — isi nyata menyusul setelah modul dibangun.",
+                    "Dokumen ini contoh tata letak cetak - isi nyata menyusul setelah modul dibangun.",
                     style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                     color = WeMadeColors.OnSurfaceMuted
                 )

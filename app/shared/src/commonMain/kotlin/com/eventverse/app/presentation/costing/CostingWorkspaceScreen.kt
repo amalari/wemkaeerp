@@ -137,7 +137,7 @@ fun CostingWorkspaceScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "✕ Tutup",
+                        text = "Tutup",
                         fontSize = 12.sp,
                         color = WeMadeColors.OnSurfaceMuted,
                         modifier = Modifier.clickable { viewModel.onEvent(CostingUiEvent.DismissStatusMessage) }
@@ -395,7 +395,7 @@ private fun CostingSheetCard(
             }
 
             Text(
-                text = "Tech Pack: ${sheet.techPackId} • Qty: ${sheet.orderQuantity} pcs",
+                text = "Tech Pack: ${sheet.techPackId} · Qty: ${sheet.orderQuantity} pcs",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )
@@ -430,7 +430,7 @@ private fun CostingDetailTab(
         ) {
             Column {
                 Text("Lembar HPP #${sheet.number.value}", fontWeight = FontWeight.Black, fontSize = 18.sp)
-                Text("Behavior: ${sheet.behavior.code.uppercase()} • Status: ${sheet.status.displayName}", fontSize = 13.sp, color = WeMadeColors.OnSurfaceMuted)
+                Text("Behavior: ${sheet.behavior.code.uppercase()} · Status: ${sheet.status.displayName}", fontSize = 13.sp, color = WeMadeColors.OnSurfaceMuted)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
@@ -563,7 +563,7 @@ private fun CostingBucketsTab(
                 ) {
                     Column {
                         Text(bucket.label, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("Kategori: ${bucket.kind.name} • Kepemilikan: ${bucket.ownership.code}", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
+                        Text("Kategori: ${bucket.kind.name} · Kepemilikan: ${bucket.ownership.code}", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
                     }
 
                     Text(
@@ -610,7 +610,7 @@ private fun CostingDriftTab(
                         Text("Pergeseran Biaya Terdeteksi: ${drift.deltaPercent}%", fontWeight = FontWeight.Black, color = WeMadeColors.Error)
                         Text("Selisih per unit: Rp ${drift.deltaPerUnit.minorUnits.toFormattedIdr()}", fontSize = 13.sp)
                         if (drift.isSignificant) {
-                            Text("⚠️ Pergeseran > 2%! Disarankan membuat lembar revisi baru.", color = WeMadeColors.Error, fontWeight = FontWeight.Bold)
+                            Text("Pergeseran > 2%! Disarankan membuat lembar revisi baru.", color = WeMadeColors.Error, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -648,7 +648,7 @@ private fun CostingRateCardTab(
         }
 
         if (rateCard != null) {
-            Text("Versi: ${rateCard.version} • Berlaku sejak: ${rateCard.effectiveFrom}", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
+            Text("Versi: ${rateCard.version} · Berlaku sejak: ${rateCard.effectiveFrom}", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted)
 
             rateCard.laborRatePerSamMinute?.let {
                 RateCardRow("Tarif Tenaga Kerja", "Rp ${it.minorUnits.toFormattedIdr()} / SAM-menit")

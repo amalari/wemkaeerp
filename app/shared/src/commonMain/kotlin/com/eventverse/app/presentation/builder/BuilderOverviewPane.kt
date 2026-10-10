@@ -144,7 +144,7 @@ fun BuilderOverviewPane(
                         .padding(ClaySpacing.Xxl),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Memuat data project…", color = WeMadeColors.OnSurfaceMuted)
+                    Text("Memuat data project...", color = WeMadeColors.OnSurfaceMuted)
                 }
             }
             error != null -> {

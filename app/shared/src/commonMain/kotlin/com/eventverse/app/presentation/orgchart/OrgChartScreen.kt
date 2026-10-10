@@ -622,7 +622,7 @@ private fun EmployeeFormPanel(
                                         )
                                         val supDeptLabel = currentSuperiorNode.department?.shortName ?: "Direksi"
                                         Text(
-                                            text = "${currentSuperiorNode.roleTitle} • Divisi $supDeptLabel",
+                                            text = "${currentSuperiorNode.roleTitle} · Divisi $supDeptLabel",
                                             fontSize = 10.sp,
                                             color = activeDeptColor
                                         )
@@ -678,9 +678,9 @@ private fun EmployeeFormPanel(
                                                 )
                                             }
                                             val subtitle = if (isLeaderExec) {
-                                                "${leader.roleTitle} → Melapor ke Direksi (Bebas pilih divisi)"
+                                                "${leader.roleTitle} -> Melapor ke Direksi (Bebas pilih divisi)"
                                             } else {
-                                                "${leader.roleTitle} → Otomatis Divisi ${leader.department?.shortName ?: ""}"
+                                                "${leader.roleTitle} -> Otomatis Divisi ${leader.department?.shortName ?: ""}"
                                             }
                                             Text(
                                                 subtitle,
@@ -1707,7 +1707,7 @@ private fun AddTierDialog(
                 )
 
                 Text(
-                    text = "💡 Tingkat ini akan otomatis terdaftar sebagai opsi hirarki dinamis khusus pada divisi $departmentName.",
+                    text = "Tingkat ini akan otomatis terdaftar sebagai opsi hirarki dinamis khusus pada divisi $departmentName.",
                     fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     lineHeight = 16.sp
@@ -1937,7 +1937,7 @@ private fun EmailConflictDialog(
                                 color = WeMadeColors.OnSurface
                             )
                             ClayTag(
-                                text = if (isArchived) "📦 DIARSIPKAN" else "🟢 AKTIF",
+                                text = if (isArchived) "DIARSIPKAN" else "AKTIF",
                                 tint = if (isArchived) WeMadeColors.Warning else WeMadeColors.Success,
                                 fontSize = 10.sp
                             )
@@ -2208,7 +2208,7 @@ private fun EditTierDialog(
                 )
 
                 Text(
-                    text = "💡 Perubahan nama tingkat wewenang akan diterapkan pada struktur hirarki divisi ini.",
+                    text = "Perubahan nama tingkat wewenang akan diterapkan pada struktur hirarki divisi ini.",
                     fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     lineHeight = 16.sp

@@ -37,7 +37,7 @@ fun SamplingOrder.resetProcessFlowToDefault(updatedAt: Instant): SamplingOrder =
 
 /** Tag fase khusus desain ini (× Sampling pada Cuci, dst.). */
 fun SamplingOrder.withPhaseTags(tags: StagePhaseTags, updatedAt: Instant): SamplingOrder {
-    require(!isFlowLocked) { "Alur sudah final sejak Program CAM — tag fase tidak bisa diubah lagi" }
+    require(!isFlowLocked) { "Alur sudah final sejak Program CAM - tag fase tidak bisa diubah lagi" }
     return copy(stagePhaseTags = tags.normalized, updatedAt = updatedAt)
 }
 

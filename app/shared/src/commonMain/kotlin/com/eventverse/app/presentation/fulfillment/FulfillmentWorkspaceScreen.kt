@@ -273,7 +273,7 @@ private fun ScanEntryCard(enabled: Boolean, onScanned: (String) -> Unit) {
                     value = manualCode,
                     onValueChange = { manualCode = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = "W1SK-…. atau W1SB-….",
+                    placeholder = "W1SK-.... atau W1SB-....",
                     enabled = enabled
                 )
                 ClayButton(

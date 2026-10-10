@@ -305,7 +305,7 @@ class DeploymentUseCaseTest {
         tenants.rows[demo] = tenant(status = TenantStatus.TRIAL)
         deploy(demo).getOrThrow()
 
-        assertTrue(rollback(demo).isFailure, "snapshot #1 tidak punya packVersion — tidak ada yang di-pin")
+        assertTrue(rollback(demo).isFailure, "snapshot #1 tidak punya packVersion - tidak ada yang di-pin")
     }
 
 

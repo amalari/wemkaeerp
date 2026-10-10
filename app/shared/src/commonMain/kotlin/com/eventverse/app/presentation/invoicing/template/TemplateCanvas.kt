@@ -958,7 +958,7 @@ private class InvoiceFontFaces(val nunito: FontFamily, val fredoka: FontFamily) 
  * setelah faktur dicetak.
  */
 private val LocalInvoiceFontFaces = staticCompositionLocalOf<InvoiceFontFaces> {
-    error("LocalInvoiceFontFaces belum dipasang — bungkus kanvas dengan ProvideInvoiceFontFaces.")
+    error("LocalInvoiceFontFaces belum dipasang - bungkus kanvas dengan ProvideInvoiceFontFaces.")
 }
 
 @Composable

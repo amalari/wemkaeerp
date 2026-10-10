@@ -165,7 +165,7 @@ fun QcInspectorWorkspaceScreen(
                     if (isViewingDetail) {
                         QcCompactDetailBackBar(
                             label = if (selectedItem?.designCode != null) {
-                                "${selectedItem.spk} • ${selectedItem.designCode}"
+                                "${selectedItem.spk} · ${selectedItem.designCode}"
                             } else {
                                 selectedItem?.spk.orEmpty()
                             },

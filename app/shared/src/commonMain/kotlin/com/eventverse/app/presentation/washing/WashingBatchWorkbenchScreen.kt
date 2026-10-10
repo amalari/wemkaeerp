@@ -224,7 +224,7 @@ fun WashingBatchWorkbenchScreen(
                                 IconPackage(modifier = Modifier.size(24.dp), color = WeMadeColors.Primary)
                                 Column {
                                     Text(
-                                        text = "Batch ${batch.batchCode} • ${batch.machineDrumNo}",
+                                        text = "Batch ${batch.batchCode} · ${batch.machineDrumNo}",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = WeMadeColors.OnSurface
@@ -275,7 +275,7 @@ fun WashingBatchWorkbenchScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Isi: ${batch.totalBundles} Bundle (${batch.totalInputPcs} Pcs) • Seluruh foto bundle terverifikasi",
+                                text = "Isi: ${batch.totalBundles} Bundle (${batch.totalInputPcs} Pcs) · Seluruh foto bundle terverifikasi",
                                 fontSize = 12.sp,
                                 color = WeMadeColors.OnSurface
                             )

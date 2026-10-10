@@ -32,9 +32,9 @@ fun InterviewSession.pendingGuesses(step: InterviewStep, pack: DomainPack): List
         InterviewStep.G1_DIVISI -> divisions.filter { it.source == ItemSource.GUESS }.map { Guess(it.code.value, it.name, 70) }
         InterviewStep.G2_PERAN -> roles.filter { it.source == ItemSource.GUESS }.map { Guess(it.roleKey.value, it.label, 70) }
         InterviewStep.G3_MODUL -> links.filter { it.confirmed == Confirmation.GUESSED }
-            .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} → ${moduleName(it.moduleId)}", it.confidence ?: 70, it.origin) }
+            .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} -> ${moduleName(it.moduleId)}", it.confidence ?: 70, it.origin) }
         InterviewStep.G4_SAMBUNGAN -> handoffs.filter { it.confirmed == Confirmation.GUESSED }
-            .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} → ${moduleName(it.to)}", 60) }
+            .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} -> ${moduleName(it.to)}", 60) }
         InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
         InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> emptyList()
     }

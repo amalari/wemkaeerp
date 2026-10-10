@@ -277,7 +277,7 @@ private fun FlowPanelHeader(
             when (val currentScope = state.scope) {
                 is ProcessFlowScope.Design -> Text(
                     text = if (isLocked) {
-                        "Alur ${currentScope.spkNumber} sudah dikunci sejak masuk Program CAM — " +
+                        "Alur ${currentScope.spkNumber} sudah dikunci sejak masuk Program CAM - " +
                             "tidak bisa diubah lagi."
                     } else {
                         "Menyesuaikan alur khusus untuk ${currentScope.spkNumber} " +
@@ -340,7 +340,7 @@ private fun FlowScopeSelector(
 
     val currentLabel = when (currentScope) {
         is ProcessFlowScope.DefaultTenant -> "Template Default Pabrik"
-        is ProcessFlowScope.Design -> "${currentScope.spkNumber} • ${currentScope.styleName}"
+        is ProcessFlowScope.Design -> "${currentScope.spkNumber} · ${currentScope.styleName}"
     }
 
     Box {
@@ -385,7 +385,7 @@ private fun FlowScopeSelector(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = "${item.spkNumber} • ${item.styleName}",
+                            text = "${item.spkNumber} · ${item.styleName}",
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )

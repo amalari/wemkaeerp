@@ -61,18 +61,18 @@ class SubmitTransferUseCase(
         when (mode) {
             HandoverMode.ADMIN_HUB -> {
                 require(container.isSack) {
-                    "Rute ${known.label} lewat meja admin, jadi yang dikirim harus karung — " +
+                    "Rute ${known.label} lewat meja admin, jadi yang dikirim harus karung - " +
                         "${TraceCodec.grouped(code)} adalah kartu bundel. Tuang dulu ke karung."
                 }
                 require(container.state == TraceContainerState.CLOSED) {
-                    "Karung ${TraceCodec.grouped(code)} belum ditutup — hitung dan tutup dulu isinya sebelum dikirim."
+                    "Karung ${TraceCodec.grouped(code)} belum ditutup - hitung dan tutup dulu isinya sebelum dikirim."
                 }
             }
             HandoverMode.DIRECT -> {
                 val siap = (container.isSack && container.state == TraceContainerState.CLOSED) ||
                     (container.isBundle && container.state == TraceContainerState.TALLIED)
                 require(siap) {
-                    "Wadah ${TraceCodec.grouped(code)} berstatus ${container.state.displayName} — " +
+                    "Wadah ${TraceCodec.grouped(code)} berstatus ${container.state.displayName} - " +
                         "bundel harus sudah dihitung, atau karung harus sudah ditutup, sebelum diantar."
                 }
             }
@@ -86,7 +86,7 @@ class SubmitTransferUseCase(
         // bisa dipakai. Sumber jujurnya hitungan setoran operator, yang dipasok pemanggil.
         val declaredPcs = declaredPcsOverride
             ?: container.declaredPcs.takeIf { it > 0 }
-            ?: error("Jumlah pcs wajib diisi untuk ${TraceCodec.grouped(code)} — kartu bundel tidak menyimpan hitungan baju jadi.")
+            ?: error("Jumlah pcs wajib diisi untuk ${TraceCodec.grouped(code)} - kartu bundel tidak menyimpan hitungan baju jadi.")
 
         val transfer = InternalTransfer(
             id = SackTransferId("trf_${code.value}_${now.toEpochMilliseconds()}"),

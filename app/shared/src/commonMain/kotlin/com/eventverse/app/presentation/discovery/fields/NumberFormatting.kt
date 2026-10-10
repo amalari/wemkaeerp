@@ -140,6 +140,6 @@ fun FieldSpec.displayValue(stored: String): String = when (type) {
     FieldType.TEXT, FieldType.LONG_TEXT, FieldType.TIME, FieldType.ENUM, FieldType.BOOL, FieldType.RELATION -> stored
     // C (TRD-FIELD-003): tampil daftar label dipisah ", " (dari array JSON kanonik); belum ada pilihan -> "—";
     // nilai tak sah (bukan array JSON) ditampilkan apa adanya, tidak disembunyikan (pola DATE).
-    FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ")?.ifEmpty { "—" } ?: stored.ifEmpty { "—" }
+    FieldType.MULTI_SELECT -> MultiSelectValues.parse(stored)?.joinToString(", ")?.ifEmpty { "-" } ?: stored.ifEmpty { "-" }
     FieldType.FILE -> fileRefDisplayName(stored)
 }

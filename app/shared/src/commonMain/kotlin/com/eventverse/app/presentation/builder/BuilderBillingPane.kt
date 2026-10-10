@@ -160,7 +160,7 @@ fun BuilderBillingPane(modifier: Modifier = Modifier) {
                             )
                             Spacer(Modifier.width(ClaySpacing.Sm))
                             ClayButton(
-                                text = if (busyInvoice == invoice.id) "Menyiapkan…" else "Unduh PDF",
+                                text = if (busyInvoice == invoice.id) "Menyiapkan..." else "Unduh PDF",
                                 style = ClayButtonStyle.Secondary,
                                 fontSize = 12.sp,
                                 enabled = busyInvoice == null && invoice.id.isNotBlank(),

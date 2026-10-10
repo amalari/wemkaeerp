@@ -56,13 +56,13 @@ internal fun LeadAiDraftSection(
             ClayTextField(
                 value = state.text,
                 onValueChange = onTextChange,
-                placeholder = "Tempel chat WhatsApp atau catatan pameran…",
+                placeholder = "Tempel chat WhatsApp atau catatan pameran...",
                 singleLine = false,
                 modifier = Modifier.fillMaxWidth()
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 ClayButton(
-                    text = if (state.isExtracting) "Membaca…" else "Isi dengan AI",
+                    text = if (state.isExtracting) "Membaca..." else "Isi dengan AI",
                     onClick = onExtract,
                     enabled = state.canExtract,
                     fontSize = 12.sp
@@ -70,7 +70,7 @@ internal fun LeadAiDraftSection(
                 Text("Periksa hasilnya sebelum menyimpan.", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted, modifier = Modifier.weight(1f))
             }
             if (state.partial) {
-                Text("AI tidak tersedia — hanya nomor, email, dan jumlah pcs yang terisi.", fontSize = 11.sp, color = WeMadeColors.Warning)
+                Text("AI tidak tersedia - hanya nomor, email, dan jumlah pcs yang terisi.", fontSize = 11.sp, color = WeMadeColors.Warning)
             }
             state.issues.forEach { issue ->
                 Text("${fieldLabel(issue.field)}: ${issue.message}", fontSize = 11.sp, color = WeMadeColors.Warning, modifier = Modifier.padding(start = 2.dp))

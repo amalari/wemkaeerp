@@ -86,7 +86,7 @@ object InterviewValidator {
         }
         val dupLinks = mutableMapOf<Pair<RoleKey, ModuleId>, Int>()
         session.links.forEachIndexed { i, l ->
-            dupLinks[l.roleKey to l.moduleId]?.let { add("$at.links[$i]", "Tautan peran '${l.roleKey.value}' → '${l.moduleId.value}' sudah ada di $at.links[$it]") }
+            dupLinks[l.roleKey to l.moduleId]?.let { add("$at.links[$i]", "Tautan peran '${l.roleKey.value}' -> '${l.moduleId.value}' sudah ada di $at.links[$it]") }
                 ?: run { dupLinks[l.roleKey to l.moduleId] = i }
         }
 

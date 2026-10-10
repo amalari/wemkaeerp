@@ -177,7 +177,7 @@ fun SamplingSpkDetailDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
-                            text = "Detail SPK — ${order.spkNumber.value}",
+                            text = "Detail SPK - ${order.spkNumber.value}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = WeMadeColors.OnSurface
@@ -367,9 +367,9 @@ fun SamplingSpkDetailDialog(
 private fun DraftSaveIndicator(status: DraftSaveStatus) {
     val (text, color) = when (status) {
         DraftSaveStatus.Idle -> return
-        DraftSaveStatus.Saving -> "Menyimpan…" to WeMadeColors.OnSurfaceMuted
+        DraftSaveStatus.Saving -> "Menyimpan..." to WeMadeColors.OnSurfaceMuted
         DraftSaveStatus.Saved -> "Tersimpan" to WeMadeColors.Success
-        is DraftSaveStatus.Failed -> "Gagal menyimpan — ubah lagi untuk mencoba ulang" to WeMadeColors.Error
+        is DraftSaveStatus.Failed -> "Gagal menyimpan - ubah lagi untuk mencoba ulang" to WeMadeColors.Error
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
         // Glyph ✓ tidak ada di Nunito (tampil tofu di web) — pakai ikon vektor.

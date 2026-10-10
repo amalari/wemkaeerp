@@ -85,7 +85,7 @@ fun CrmMobileKanbanView(
         ClayTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            placeholder = "Cari brand atau kontak…",
+            placeholder = "Cari brand atau kontak...",
             modifier = Modifier.fillMaxWidth().padding(bottom = ClaySpacing.Md)
         )
 

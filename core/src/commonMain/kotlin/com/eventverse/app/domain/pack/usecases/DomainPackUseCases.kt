@@ -75,7 +75,7 @@ class ResolveDomainPackVersionUseCase(private val repository: DomainPackReposito
         require(version > 0) { "Versi pack harus positif: $version" }
         val stored = repository.findVersion(code, version) ?: return null
         require(stored.status == DomainPackStatus.LOCKED) {
-            "Pack ${code.value} versi $version belum terkunci (status ${stored.status}) — tidak boleh dipin tenant"
+            "Pack ${code.value} versi $version belum terkunci (status ${stored.status}) - tidak boleh dipin tenant"
         }
         return stored.pack.takeIf { runCatching { DomainPackRegistry.register(it) }.isSuccess }
     }

@@ -48,7 +48,7 @@ private fun ScreenProposal.applyOne(edit: ProposalEdit): ScreenProposal {
         }
         is ProposalEdit.ReplaceField -> {
             if (e.fields.none { it.key == edit.key }) throw ProposalEditException("Field '${edit.key}' tidak ada")
-            if (edit.field.key != edit.key) throw ProposalEditException("Mengganti field tidak boleh mengubah kuncinya ('${edit.key}' ≠ '${edit.field.key}')")
+            if (edit.field.key != edit.key) throw ProposalEditException("Mengganti field tidak boleh mengubah kuncinya ('${edit.key}' != '${edit.field.key}')")
             if (e.statusField == edit.key && edit.field.type != e.fields.first { it.key == edit.key }.type) {
                 throw ProposalEditException("Tipe field status '${edit.key}' tidak boleh diganti")
             }

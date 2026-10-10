@@ -146,7 +146,7 @@ fun SetPriceDialog(
                     )
                     Spacer(modifier = Modifier.width(ClaySpacing.Sm))
                     ClayButton(
-                        text = if (isSubmitting) "Menyimpan…" else "Simpan Tarif",
+                        text = if (isSubmitting) "Menyimpan..." else "Simpan Tarif",
                         onClick = {
                             val amount = amountStr.toLongOrNull() ?: 0L
                             val perD = perQtyStr.toDoubleOrNull() ?: 1.0

@@ -32,7 +32,7 @@ internal object PackSuggestionMapping {
             WidgetKind.CUSTOM_SCREEN -> base(s, rationale).copy(entity = null, view = ViewProposal.None)
         }
         val extraForm = s.formHints?.takeIf { s.widget != WidgetKind.FORM }
-            ?.let { form(s, rationale, "${s.moduleId.value}-form", "${s.title} — formulir") }
+            ?.let { form(s, rationale, "${s.moduleId.value}-form", "${s.title} - formulir") }
         return listOfNotNull(primary, extraForm)
     }
 
@@ -106,7 +106,7 @@ internal object PackSuggestionMapping {
     }
 
     private fun dashboard(s: ScreenSuggestion, rationale: String): ScreenProposal {
-        require(s.sampleRows.isNotEmpty() && s.sampleRows.all { it.size == 1 }) { "Dasbor ${s.moduleId.value} butuh baris satu-pasang (label → angka)" }
+        require(s.sampleRows.isNotEmpty() && s.sampleRows.all { it.size == 1 }) { "Dasbor ${s.moduleId.value} butuh baris satu-pasang (label -> angka)" }
         val counts = s.dashboardHints?.counts.orEmpty()
         val tiles = s.sampleRows.map { r -> r.entries.single().let { (label, value) -> TileSpec(label, value, counts[label]) } }
         return base(s, rationale).copy(view = ViewProposal.Dashboard(tiles))

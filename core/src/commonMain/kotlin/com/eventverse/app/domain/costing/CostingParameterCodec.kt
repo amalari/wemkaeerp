@@ -126,7 +126,7 @@ object CostingParameterCodec {
                     KEY_SERVICE_FEE_PER_PCS_IDR, KEY_INCLUDE_FABRIC_COST, KEY_RETAIL_MARKUP_PERCENT,
                     KEY_MARKETPLACE_FEE_PERCENT, KEY_PACKING_COST_PER_ORDER_IDR, KEY_PACKING_COST_PER_PCS_IDR,
                     KEY_LABOR_RATE_PER_SAM_MINUTE_IDR, KEY_SUBCONTRACT_RATE_PER_SAM_MINUTE_IDR)) return@forEach
-            warnings.add("Kunci parameter tidak dikenal: '$key' — diabaikan")
+            warnings.add("Kunci parameter tidak dikenal: '$key' - diabaikan")
         }
 
         // Override params parsing

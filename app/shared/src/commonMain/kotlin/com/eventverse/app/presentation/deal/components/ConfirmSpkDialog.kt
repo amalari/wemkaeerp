@@ -41,7 +41,7 @@ internal fun RevisionNotesDialog(
             contentPadding = PaddingValues(ClaySpacing.Xxl)
         ) {
             Text(
-                text = "Ajukan Revisi — $designCode",
+                text = "Ajukan Revisi - $designCode",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.OnSurface
@@ -56,7 +56,7 @@ internal fun RevisionNotesDialog(
             ClayTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                placeholder = "Catatan revisi… (mis. warna terlalu gelap, ganti ke Navy Tua)",
+                placeholder = "Catatan revisi... (mis. warna terlalu gelap, ganti ke Navy Tua)",
                 singleLine = false,
                 minLines = 4
             )
@@ -219,7 +219,7 @@ internal fun ConfirmSpkDialog(
                             color = WeMadeColors.OnSurfaceMuted
                         )
                         Text(
-                            text = order.styleName.ifBlank { "—" },
+                            text = order.styleName.ifBlank { "-" },
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = WeMadeColors.OnSurface
@@ -408,7 +408,7 @@ internal fun ConfirmSpkDialog(
                             )
                             missingReqs.forEach { req ->
                                 Text(
-                                    text = "• $req",
+                                    text = "· $req",
                                     fontSize = 12.sp,
                                     color = WeMadeColors.Error
                                 )
@@ -443,7 +443,7 @@ internal fun ConfirmSpkDialog(
                             )
                             warnings.forEach { warn ->
                                 Text(
-                                    text = "• $warn",
+                                    text = "· $warn",
                                     fontSize = 12.sp,
                                     color = WeMadeColors.OnSurface
                                 )

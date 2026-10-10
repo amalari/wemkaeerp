@@ -112,7 +112,7 @@ fun Route.samplingFlowRoutes(
         val tags = StagePhaseTagsCodec.decode(body?.entries?.get("stagePhaseTags"))
             ?: return@put call.respond(HttpStatusCode.BadRequest, "Missing stagePhaseTags")
         if (order.isFlowLocked) {
-            return@put call.respond(HttpStatusCode.UnprocessableEntity, "Alur sudah final sejak Program CAM — tag fase tidak bisa diubah lagi")
+            return@put call.respond(HttpStatusCode.UnprocessableEntity, "Alur sudah final sejak Program CAM - tag fase tidak bisa diubah lagi")
         }
 
         // Tahap yang dilompati tidak lagi punya leg masuk; Surat Jalan yang sudah terbit untuk

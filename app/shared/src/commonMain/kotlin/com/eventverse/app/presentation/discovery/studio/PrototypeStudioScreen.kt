@@ -103,7 +103,7 @@ fun PrototypeStudioScreen(
         val pack = selectedPack
         val moduleId = sourceModuleId
         if (pack == null || moduleId == null) {
-            notice = "Pilih pack dan modul asal dulu — kerangka dipanen dari kosakata modulnya."
+            notice = "Pilih pack dan modul asal dulu - kerangka dipanen dari kosakata modulnya."
             return
         }
         val harvested = PrototypePatternUi.skeletonFrom(pack, moduleId, draft.widgetCode)
@@ -111,7 +111,7 @@ fun PrototypeStudioScreen(
             notice = "Widget '${draft.widgetLabel}' tidak punya bentuk baku untuk modul itu. Tambah baris manual."
         } else {
             draft = draft.copy(rows = harvested)
-            notice = "Kerangka '${sourceModule?.displayName ?: moduleId}' dimuat — sunting seperlunya."
+            notice = "Kerangka '${sourceModule?.displayName ?: moduleId}' dimuat - sunting seperlunya."
         }
     }
 
@@ -165,7 +165,7 @@ fun PrototypeStudioScreen(
         }
         if (!canWrite) {
             Text(
-                "Menyimpan pola adalah wewenang superadmin platform — server menolak peran lain (403). " +
+                "Menyimpan pola adalah wewenang superadmin platform - server menolak peran lain (403). " +
                     "Isi pola tetap bisa dibaca dan disalin dari sini.",
                 style = MaterialTheme.typography.labelSmall,
                 color = WeMadeColors.OnSurfaceMuted
@@ -274,7 +274,7 @@ fun PrototypeStudioScreen(
                     )
                     if (moduleMatches.size > shownModules.size) {
                         Text(
-                            "Menampilkan ${shownModules.size} dari ${moduleMatches.size} modul — persempit pencarian.",
+                            "Menampilkan ${shownModules.size} dari ${moduleMatches.size} modul - persempit pencarian.",
                             style = MaterialTheme.typography.labelSmall,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -297,7 +297,7 @@ fun PrototypeStudioScreen(
                 ClayCard(modifier = Modifier.fillMaxWidth()) {
                     Text("Pratinjau", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        "Digambar renderer yang sama dengan pratinjau draf prospek — bukan renderer kedua.",
+                        "Digambar renderer yang sama dengan pratinjau draf prospek - bukan renderer kedua.",
                         style = MaterialTheme.typography.labelSmall,
                         color = WeMadeColors.OnSurfaceMuted
                     )
@@ -324,7 +324,7 @@ fun PrototypeStudioScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ClayButton(
-                        text = if (busy) "Menyimpan…" else "Simpan pola",
+                        text = if (busy) "Menyimpan..." else "Simpan pola",
                         onClick = ::save,
                         enabled = canWrite && !busy && draft.name.isNotBlank() && draft.rows.isNotEmpty(),
                         style = ClayButtonStyle.Accent
@@ -339,7 +339,7 @@ fun PrototypeStudioScreen(
                         style = ClayButtonStyle.Secondary
                     )
                     Text(
-                        "Nama wajib diisi & minimal satu baris — pola tanpa bentuk tidak berguna saat dipakai.",
+                        "Nama wajib diisi & minimal satu baris - pola tanpa bentuk tidak berguna saat dipakai.",
                         style = MaterialTheme.typography.labelSmall,
                         color = WeMadeColors.OnSurfaceMuted,
                         modifier = Modifier.weight(1f, fill = false)

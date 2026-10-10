@@ -247,7 +247,7 @@ private fun DataSourceStrip(state: TemplateDesignerUiState) {
         )
 
         Text(
-            text = "•",
+            text = "·",
             fontSize = 11.sp,
             color = WeMadeColors.OnSurfaceMuted
         )

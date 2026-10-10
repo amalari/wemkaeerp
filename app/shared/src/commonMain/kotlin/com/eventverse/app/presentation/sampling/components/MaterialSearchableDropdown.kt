@@ -173,7 +173,7 @@ fun MaterialSearchableDropdown(
                         )
                     } else {
                         filteredMaterials.forEach { item ->
-                            val itemLabel = "${item.code.value} — ${item.name}"
+                            val itemLabel = "${item.code.value} - ${item.name}"
                             val isSelected = searchQuery.equals(itemLabel, ignoreCase = true) ||
                                 searchQuery.equals(item.name, ignoreCase = true)
 

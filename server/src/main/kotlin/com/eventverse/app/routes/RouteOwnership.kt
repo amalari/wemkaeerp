@@ -82,7 +82,7 @@ object RouteOwnership {
         // berkas tipe field FILE (TRD-FIELD-002) yang wewenangnya dihitung dari modul induk pada path.
         listOf(
             "/api/tenant/modules" to RouteOwner.Platform(
-                "unggah/unduh berkas tipe field FILE (TRD-FIELD-002) — gerbang modul induk per path"
+                "unggah/unduh berkas tipe field FILE (TRD-FIELD-002) - gerbang modul induk per path"
             )
         )
 

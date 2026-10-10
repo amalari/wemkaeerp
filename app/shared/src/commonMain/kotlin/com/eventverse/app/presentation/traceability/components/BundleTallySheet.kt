@@ -90,7 +90,7 @@ fun BundleTallySheet(
 
         Spacer(Modifier.height(ClaySpacing.Lg))
         ClayButton(
-            text = if (isBusy) "Menyimpan…" else "Simpan Hitungan Bundel",
+            text = if (isBusy) "Menyimpan..." else "Simpan Hitungan Bundel",
             onClick = onSave,
             enabled = !isBusy
         )

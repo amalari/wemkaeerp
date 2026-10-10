@@ -34,7 +34,7 @@ data class RoleModuleLink(
     val confidence: Int? = null,
     val basisRef: BasisRef? = null
 ) {
-    init { require(confidence == null || confidence in 0..100) { "RoleModuleLink.confidence harus 0–100" } }
+    init { require(confidence == null || confidence in 0..100) { "RoleModuleLink.confidence harus 0-100" } }
 }
 
 /** Serah-terima hasil G4: [from] menyerahkan dokumen bertipe [portType] ke [to]. */

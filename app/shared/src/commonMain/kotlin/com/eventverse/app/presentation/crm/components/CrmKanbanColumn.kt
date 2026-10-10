@@ -106,7 +106,7 @@ fun CrmKanbanColumn(
         Text(
             text = when {
                 isDropTarget -> "Lepas kartu untuk pindah ke ${stage.displayName}"
-                stage == LeadStage.NEW_LEAD -> "Inquiry masuk • nilai belum diestimasi"
+                stage == LeadStage.NEW_LEAD -> "Inquiry masuk · nilai belum diestimasi"
                 stage == LeadStage.FOLLOW_UP -> "Sedang digali kebutuhannya"
                 stage == LeadStage.QUALIFIED -> "Total: ${formatRupiah(totalValue)}"
                 else -> "${leads.size} prospek dibatalkan"

@@ -107,7 +107,7 @@ fun CreateLeadDialog(
                     placeholder = "Misal: Budi / Bu Dewi", modifier = Modifier.fillMaxWidth()
                 )
                 FieldWithError(
-                    error = "Nomor handphone Indonesia: 10–13 digit (diawali 08, 628, atau +628)".takeIf { !form.isPhoneValid }
+                    error = "Nomor handphone Indonesia: 10-13 digit (diawali 08, 628, atau +628)".takeIf { !form.isPhoneValid }
                 ) {
                     ClayTextField(
                         value = form.phone, onValueChange = { form.update(LeadDraftFields.WHATSAPP, it) },

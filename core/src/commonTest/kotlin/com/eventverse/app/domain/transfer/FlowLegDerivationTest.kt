@@ -109,7 +109,7 @@ class FlowLegDerivationTest {
         assertEquals(TransferType.INTERNAL_SITE_TRANSFER, leg.transferType)
         assertEquals(FlowNodeRef.Stage(SamplingPipelineStage.MACHINE_KNITTING), leg.fromNode)
         assertEquals(FlowNodeRef.Stage(SamplingPipelineStage.LINKING_ASSEMBLY), leg.toNode)
-        assertEquals("Gedung A → Gedung B", leg.summary)
+        assertEquals("Gedung A -> Gedung B", leg.summary)
     }
 
     @Test
@@ -131,7 +131,7 @@ class FlowLegDerivationTest {
         assertEquals(
             emptyList(),
             legs,
-            "Tanpa satu pun pemetaan, gerbang harus terbuka — bukan mengunci pabrik"
+            "Tanpa satu pun pemetaan, gerbang harus terbuka - bukan mengunci pabrik"
         )
     }
 
@@ -214,7 +214,7 @@ class FlowLegDerivationTest {
             legs.map { it.transferType },
             "Serah terima langsung antar vendor tetap tercatat sebagai pengiriman keluar"
         )
-        assertEquals("CV Jaya → CV Warna", legs[1].summary)
+        assertEquals("CV Jaya -> CV Warna", legs[1].summary)
     }
 
     @Test
@@ -307,7 +307,7 @@ class FlowLegDerivationTest {
         val first = derive(config = cfg).map { it.legKey }
         val second = derive(config = cfg).map { it.legKey }
 
-        assertEquals(first, second, "Kunci leg harus deterministik — ia jembatan ke dokumen tersimpan")
+        assertEquals(first, second, "Kunci leg harus deterministik - ia jembatan ke dokumen tersimpan")
         assertTrue(first.all { it.length <= FlowTransferLeg.MAX_LEG_KEY_LENGTH })
     }
 

@@ -104,7 +104,7 @@ fun DemandLedgerScreen(isSuperadmin: Boolean, modifier: Modifier = Modifier) {
         if (data == null) {
             if (!loaded) {
                 Text(
-                    "Memuat…",
+                    "Memuat...",
                     style = MaterialTheme.typography.bodySmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(top = ClaySpacing.Md)
@@ -115,14 +115,14 @@ fun DemandLedgerScreen(isSuperadmin: Boolean, modifier: Modifier = Modifier) {
 
         // Kandidat Rule of Three di atas: inilah yang menentukan widget/modul berikutnya.
         Text(
-            "Kandidat Rule of Three (≥ ${data.minimum} demand berbeda)",
+            "Kandidat Rule of Three (>= ${data.minimum} demand berbeda)",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = ClaySpacing.Lg)
         )
         if (data.candidates.isEmpty()) {
             Text(
-                "Belum ada istilah yang menembus ambang — di bawah ambang adalah derau, bukan peta jalan.",
+                "Belum ada istilah yang menembus ambang - di bawah ambang adalah derau, bukan peta jalan.",
                 style = MaterialTheme.typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier.padding(top = ClaySpacing.Sm)
@@ -154,7 +154,7 @@ fun DemandLedgerScreen(isSuperadmin: Boolean, modifier: Modifier = Modifier) {
                     }
                 }
                 Text(
-                    listOfNotNull(d.agentRef, d.createdAt?.take(10)).joinToString(" • "),
+                    listOfNotNull(d.agentRef, d.createdAt?.take(10)).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(top = ClaySpacing.Sm)

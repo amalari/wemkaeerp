@@ -17,7 +17,7 @@ internal fun SamplingOrder.requireStageGate(target: StageCode) {
         camInput?.section(name)?.hasFilledRow != true
     }
     require(missing.isEmpty()) {
-        "Lembar Program CAM belum lengkap — isi dulu: ${missing.joinToString(", ")}"
+        "Lembar Program CAM belum lengkap - isi dulu: ${missing.joinToString(", ")}"
     }
 }
 

@@ -74,7 +74,7 @@ internal fun VendorAssignDialog(
     val isListedPrice = listed != null && listed.unit == unit && listed.priceIdr == price
 
     VendorDialogFrame(
-        title = "Tunjuk Vendor — ${need.processName}",
+        title = "Tunjuk Vendor - ${need.processName}",
         subtitle = "${need.subjectLabel} · ${need.clientName} · ${need.styleName}",
         confirmText = "Tunjuk Vendor",
         confirmEnabled = selected != null && price != null && qty != null && returnValid,
@@ -152,7 +152,7 @@ internal fun VendorAssignDialog(
         ClayTextField(
             value = returnText,
             onValueChange = { returnText = it.take(10) },
-            label = if (returnValid) "Estimasi kembali (YYYY-MM-DD)" else "Estimasi kembali — format tanggal salah",
+            label = if (returnValid) "Estimasi kembali (YYYY-MM-DD)" else "Estimasi kembali - format tanggal salah",
             focusColor = if (returnValid) WeMadeColors.Primary else WeMadeColors.Error,
             modifier = Modifier.fillMaxWidth()
         )
@@ -160,7 +160,7 @@ internal fun VendorAssignDialog(
 
         if (listed != null && qty != null && qty < listed.minQuantity) {
             Text(
-                text = "Di bawah minimum order vendor (${listed.minQuantity} pcs) — pastikan vendor bersedia.",
+                text = "Di bawah minimum order vendor (${listed.minQuantity} pcs) - pastikan vendor bersedia.",
                 fontSize = 11.sp,
                 color = WeMadeColors.Warning
             )

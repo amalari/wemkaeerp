@@ -243,7 +243,7 @@ fun InvoiceTemplateGalleryScreen(
         // Grid Kartu Template
         if (isLoading) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text("Memuat daftar tata letak faktur…", fontSize = 13.sp, color = WeMadeColors.OnSurfaceMuted)
+                Text("Memuat daftar tata letak faktur...", fontSize = 13.sp, color = WeMadeColors.OnSurfaceMuted)
             }
         } else if (filteredTemplates.isEmpty()) {
             Box(
@@ -553,7 +553,7 @@ private fun CreateTemplateDialog(
                     )
                     Spacer(modifier = Modifier.width(ClaySpacing.Sm))
                     ClayButton(
-                        text = if (isSaving) "Membuat…" else "Buat & Buka Desainer",
+                        text = if (isSaving) "Membuat..." else "Buat & Buka Desainer",
                         enabled = !isSaving && name.isNotBlank(),
                         onClick = {
                             scope.launch {

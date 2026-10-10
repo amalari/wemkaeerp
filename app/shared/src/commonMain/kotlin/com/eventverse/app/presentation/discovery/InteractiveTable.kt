@@ -60,7 +60,7 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                 value = state.query,
                 onValueChange = { state.query = it },
                 modifier = Modifier.weight(1f),
-                placeholder = "Cari di tabel…"
+                placeholder = "Cari di tabel..."
             )
             if (state.config.inlineCreate && !state.isCreatingInline) {
                 ClayButton(
@@ -185,7 +185,7 @@ private fun StatusCell(row: PrototypeRow, column: String, state: InteractiveTabl
     var open by remember { mutableStateOf(false) }
     Box(modifier = Modifier.width(ColumnWidth)) {
         ClayBadge(
-            text = row[column].ifEmpty { "—" },
+            text = row[column].ifEmpty { "-" },
             tint = WeMadeColors.Primary,
             modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { open = true }
         )

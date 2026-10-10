@@ -39,13 +39,13 @@ fun DeskHandoff.timingLine(timeZone: TimeZone): String {
         else -> "selesai"
     }
     val done = formatDeskTime(audit.at, timeZone)
-    val started = audit.workStartedAt ?: return "$endVerb $done • tanpa Mulai"
+    val started = audit.workStartedAt ?: return "$endVerb $done · tanpa Mulai"
     return buildList {
         add("mulai ${formatDeskTime(started, timeZone)}")
         add("$endVerb $done")
         workMinutes?.let { add("kerja ${formatDeskDuration(it)}") }
         waitMinutes?.let { add("tunggu ${formatDeskDuration(it)}") }
-    }.joinToString(" • ")
+    }.joinToString(" · ")
 }
 
 /** Apa yang terjadi pada kartu di entri ini, dalam bahasa lantai produksi. */

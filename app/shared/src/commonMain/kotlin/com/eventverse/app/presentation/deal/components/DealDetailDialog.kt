@@ -300,7 +300,7 @@ private fun SamplingTabContent(
                 roots.isEmpty() ->
                     "Belum ada desain sampling. Tambahkan desain pertama di bawah."
                 state.productionUnlocked ->
-                    "Semua desain sudah di-ACC — Tab Produksi Massal terbuka."
+                    "Semua desain sudah di-ACC - Tab Produksi Massal terbuka."
                 else ->
                     "${state.approvedDesigns.size} dari ${roots.size} Desain sudah di-ACC"
             },
@@ -790,7 +790,7 @@ private fun SamplingDesignCard(
                     )
                 }
                 Text(
-                    text = "Hanya Baca • Acuan Produksi",
+                    text = "Hanya Baca · Acuan Produksi",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = WeMadeColors.OnSurfaceMuted
@@ -1045,7 +1045,7 @@ private fun SamplingDesignCard(
                     value = displayedNotes,
                     onValueChange = { if (!isFormReadOnly) notesInput = it },
                     label = "Catatan",
-                    placeholder = "Penempatan bahan, catatan khusus… detail teknis diisi tim sampling.",
+                    placeholder = "Penempatan bahan, catatan khusus... detail teknis diisi tim sampling.",
                     singleLine = false,
                     minLines = 3,
                     readOnly = isFormReadOnly
@@ -1135,8 +1135,8 @@ private fun SamplingDesignCard(
                                         ) {
                                             val label = buildString {
                                                 append("SPK #${spk.spkNumber.value}")
-                                                spk.sizeLabel?.let { append(" • $it (${spk.sampleQuantity} pcs)") }
-                                                append(" • ${spk.currentStage.displayName}")
+                                                spk.sizeLabel?.let { append(" · $it (${spk.sampleQuantity} pcs)") }
+                                                append(" · ${spk.currentStage.displayName}")
                                             }
                                             ClayTag(
                                                 text = label,
@@ -1388,7 +1388,7 @@ private fun RevisionCarryOverCallout(revision: Int) {
             )
             Spacer(Modifier.height(ClaySpacing.Xxs))
             Text(
-                text = "Foto mockup, size chart, biaya sampling, dan catatan otomatis ditarik dari revisi sebelumnya — cukup ubah bagian yang diperlukan.",
+                text = "Foto mockup, size chart, biaya sampling, dan catatan otomatis ditarik dari revisi sebelumnya - cukup ubah bagian yang diperlukan.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurface
             )
@@ -1770,7 +1770,7 @@ private fun MassProductionTabContent(
             Text(
                 text = "Mengacu pada Sampel ACC: " +
                     state.approvedDesigns.joinToString(" | ") { "#${it.spkNumber.value} (${it.styleName})" } +
-                    " — pola & benang terkunci.",
+                    " - pola & benang terkunci.",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WeMadeColors.OnSurface,
@@ -1864,7 +1864,7 @@ private fun MassProductionTabContent(
         }
         if (orderLines.isEmpty()) {
             Text(
-                text = "Belum ada rincian ukuran — tambahkan lewat PO manual di bawah.",
+                text = "Belum ada rincian ukuran - tambahkan lewat PO manual di bawah.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
             )

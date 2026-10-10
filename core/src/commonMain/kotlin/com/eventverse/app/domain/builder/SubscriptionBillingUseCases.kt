@@ -55,7 +55,7 @@ class IssueSubscriptionInvoiceUseCase(
             )
         }
         require(lines.isNotEmpty()) {
-            "Tidak ada baris tagihan untuk tenant ini — periksa modul aktif & harga katalog"
+            "Tidak ada baris tagihan untuk tenant ini - periksa modul aktif & harga katalog"
         }
 
         val sequence = existing.count { it.period == period } + 1

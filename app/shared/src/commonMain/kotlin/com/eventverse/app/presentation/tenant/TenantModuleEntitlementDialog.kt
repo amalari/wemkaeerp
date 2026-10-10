@@ -200,7 +200,7 @@ fun TenantModuleEntitlementDialog(
 
                     when {
                         isBusy && view == null -> Text(
-                            text = "Memuat data tenant…",
+                            text = "Memuat data tenant...",
                             fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -275,7 +275,7 @@ fun TenantModuleEntitlementDialog(
                             style = ClayButtonStyle.Secondary
                         )
                         ClayButton(
-                            text = if (isBusy) "Menyimpan…" else "Simpan Entitlement",
+                            text = if (isBusy) "Menyimpan..." else "Simpan Entitlement",
                             onClick = {
                                 if (modulesToAutoBypass.isNotEmpty()) {
                                     showImpactConfirmation = true
@@ -415,7 +415,7 @@ private fun ImpactConfirmationView(
                 enabled = !isBusy
             )
             ClayButton(
-                text = if (isBusy) "Memproses…" else "Ya, Nonaktifkan dari Alur & Simpan",
+                text = if (isBusy) "Memproses..." else "Ya, Nonaktifkan dari Alur & Simpan",
                 onClick = onConfirm,
                 enabled = !isBusy
             )
@@ -464,7 +464,7 @@ private fun DialogHeader(view: TenantAdminView?, tenantSlug: String) {
     }
 }
 
-private fun quotaLabel(max: Int): String = if (max == Int.MAX_VALUE) "∞" else max.toString()
+private fun quotaLabel(max: Int): String = if (max == Int.MAX_VALUE) "Bebas" else max.toString()
 
 @Composable
 private fun ModuleGroup(

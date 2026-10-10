@@ -15,7 +15,7 @@ data class RelationDisplay(val text: String, val missing: Boolean)
  */
 fun relationDisplay(stored: String, labelFor: ((String) -> String?)?): RelationDisplay {
     val id = stored.trim()
-    if (id.isEmpty()) return RelationDisplay(text = "—", missing = false)
+    if (id.isEmpty()) return RelationDisplay(text = "-", missing = false)
     val label = labelFor?.invoke(id)
     return when {
         label != null -> RelationDisplay(text = label, missing = false)

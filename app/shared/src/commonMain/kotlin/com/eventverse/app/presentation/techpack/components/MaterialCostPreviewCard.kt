@@ -47,7 +47,7 @@ fun MaterialCostPreviewCard(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "ℹ️ Estimasi Biaya Bahan Baku Murni (Bukan HPP Akhir)",
+                    text = "Estimasi Biaya Bahan Baku Murni (Bukan HPP Akhir)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = WeMadeColors.Info
@@ -240,7 +240,7 @@ fun MaterialCostPreviewCard(
                         .padding(ClaySpacing.Sm)
                 ) {
                     Text(
-                        text = "⚠️ Terdapat bahan baku yang belum memiliki tarif standar aktif di Master Data. Total biaya di atas belum mencakup seluruh baris BOM.",
+                        text = "Terdapat bahan baku yang belum memiliki tarif standar aktif di Master Data. Total biaya di atas belum mencakup seluruh baris BOM.",
                         fontSize = 11.sp,
                         color = WeMadeColors.Warning,
                         fontWeight = FontWeight.SemiBold

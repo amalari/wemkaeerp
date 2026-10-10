@@ -104,7 +104,7 @@ class AdvanceSamplingStageUseCase(
         if (command.custodyRecorded) return
         when (command.target) {
             ExitStages.STORAGE -> throw IllegalArgumentException(
-                "Masukkan ke penyimpanan lewat \"Simpan\" — lokasi dan penerima simpan wajib dicatat."
+                "Masukkan ke penyimpanan lewat \"Simpan\" - lokasi dan penerima simpan wajib dicatat."
             )
             ExitStages.DELIVERY -> throw IllegalArgumentException(
                 "Pengiriman ke buyer hanya dari penyimpanan, lewat \"Rilis Kirim\" dengan PIC tercatat."

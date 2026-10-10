@@ -44,7 +44,7 @@ fun SpkDetailDialog(
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "SPK • ${order.spkNumber.value}",
+                        text = "SPK · ${order.spkNumber.value}",
                         style = MaterialTheme.typography.titleLarge,
                         color = WeMadeColors.OnSurface,
                         modifier = Modifier.weight(1f)

@@ -7,7 +7,7 @@ package com.eventverse.app.domain.discovery.interview
 data class Guess(val key: String, val label: String, val confidence: Int, val origin: ModuleOrigin? = null) {
     init {
         require(key.isNotBlank()) { "Guess.key kosong" }
-        require(confidence in 0..100) { "Guess.confidence harus 0–100" }
+        require(confidence in 0..100) { "Guess.confidence harus 0-100" }
     }
 }
 

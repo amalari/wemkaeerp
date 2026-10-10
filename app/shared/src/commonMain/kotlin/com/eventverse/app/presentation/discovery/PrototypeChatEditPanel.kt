@@ -221,7 +221,7 @@ fun PrototypeChatEditPanel(
                 )
 
                 ClayButton(
-                    text = if (isSubmitting) "Memproses…" else "Terapkan",
+                    text = if (isSubmitting) "Memproses..." else "Terapkan",
                     style = ClayButtonStyle.Primary,
                     enabled = !isSubmitting && messageText.isNotBlank(),
                     onClick = { executeEdit(messageText) }

@@ -240,7 +240,7 @@ fun WashingBatchEntryDialog(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "${card.subject.orderNumber} • ${card.subject.articleName}",
+                                    text = "${card.subject.orderNumber} · ${card.subject.articleName}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = WeMadeColors.OnSurface

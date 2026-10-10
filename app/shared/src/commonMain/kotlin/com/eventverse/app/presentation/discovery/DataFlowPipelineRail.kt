@@ -225,7 +225,7 @@ internal fun StationInspectorCard(
                     )
                     if (flow.incoming.isEmpty()) {
                         Text(
-                            text = "Titik inisiasi awal — menerima pesanan/draf dari luar sistem.",
+                            text = "Titik inisiasi awal - menerima pesanan/draf dari luar sistem.",
                             style = typography.bodySmall,
                             fontSize = 10.sp,
                             color = WeMadeColors.OnSurfaceMuted

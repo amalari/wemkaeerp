@@ -62,7 +62,7 @@ fun SpkDetailPanel(
         } else {
             order.sizeMode.displayName
         }
-        SpkDetailRow("Jumlah", "${order.sampleQuantity} Pcs • $sizeDesc")
+        SpkDetailRow("Jumlah", "${order.sampleQuantity} Pcs · $sizeDesc")
         SpkDetailRow("Ukuran", if (!sizeLabel.isNullOrBlank()) sizeLabel else activeSizeLabels(order))
         SpkDetailRow("Deadline Program", formatSpkDate(order.deadlineProgram))
         SpkDetailRow("Deadline Finishing", formatSpkDate(order.deadlineFinishing))
@@ -112,7 +112,7 @@ private fun activeSizeLabels(order: SamplingOrder): String {
 /** "25/09/2026", atau "—" bila tenggat belum ditetapkan tim sampling. */
 private fun formatSpkDate(date: LocalDate?): String = date?.let { d ->
     "${d.dayOfMonth.toString().padStart(2, '0')}/${d.monthNumber.toString().padStart(2, '0')}/${d.year}"
-} ?: "—"
+} ?: "-"
 
 @Composable
 private fun SpkDetailRow(label: String, value: String) {

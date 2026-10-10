@@ -108,7 +108,7 @@ fun BuilderBuildQueuePane(modifier: Modifier = Modifier) {
 
         if (rows.isEmpty() && error == null) {
             Text(
-                text = "Antrean kosong — semua modul yang diminta tenant sudah tersedia.",
+                text = "Antrean kosong - semua modul yang diminta tenant sudah tersedia.",
                 style = typography.bodySmall,
                 color = WeMadeColors.OnSurfaceMuted
             )

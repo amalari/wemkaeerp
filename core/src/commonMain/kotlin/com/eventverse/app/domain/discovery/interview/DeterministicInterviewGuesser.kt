@@ -38,9 +38,9 @@ object DeterministicInterviewGuesser : InterviewGuesser {
             InterviewStep.G2_PERAN -> p.roles.filter { r -> known?.roles?.none { it.roleKey == r.roleKey } != false }
                 .map { Guess(it.roleKey.value, it.label, CONFIDENCE_ROLE) }
             InterviewStep.G3_MODUL -> p.links.filter { l -> known?.links?.none { it.roleKey == l.roleKey && it.moduleId == l.moduleId } != false }
-                .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} → ${moduleName(it.moduleId)}", CONFIDENCE_ROLE, it.origin) }
+                .map { Guess("${it.roleKey.value}:${it.moduleId.value}", "${roleLabel[it.roleKey]} -> ${moduleName(it.moduleId)}", CONFIDENCE_ROLE, it.origin) }
             InterviewStep.G4_SAMBUNGAN -> p.handoffs.filter { h -> known?.handoffs?.none { it.from == h.from && it.to == h.to } != false }
-                .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} → ${moduleName(it.to)}", CONFIDENCE_HANDOFF) }
+                .map { Guess("${it.from.value}>${it.to.value}", "${moduleName(it.from)} -> ${moduleName(it.to)}", CONFIDENCE_HANDOFF) }
             InterviewStep.F0_BISNIS, InterviewStep.F1_TUJUAN, InterviewStep.F2_SPEK,
             InterviewStep.G5_RINGKASAN, InterviewStep.DONE -> emptyList()
         }

@@ -81,7 +81,7 @@ fun Route.builderDeploymentRoutes(
             val force = call.request.queryParameters["force"] == "true"
             rollback(tenant.tenantId, force).fold(
                 onSuccess = { d ->
-                    call.audit(auditLog, "rollback → pin ${d.packVersion?.let { "v$it" } ?: "rev ${d.blueprintRevision}"}${if (force) " (force)" else ""}")
+                    call.audit(auditLog, "rollback -> pin ${d.packVersion?.let { "v$it" } ?: "rev ${d.blueprintRevision}"}${if (force) " (force)" else ""}")
                     call.respondText(deploymentJson(d), ContentType.Application.Json)
                 },
                 onFailure = { e ->

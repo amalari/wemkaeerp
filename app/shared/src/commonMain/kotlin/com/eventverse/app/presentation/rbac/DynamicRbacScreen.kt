@@ -139,7 +139,7 @@ fun DynamicRbacScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Mode Baca Saja — matriks wewenang hanya dapat diubah oleh " +
+                            text = "Mode Baca Saja - matriks wewenang hanya dapat diubah oleh " +
                                 "jabatan dengan akses ${AccessLevel.MANAGE.displayName}.",
                             modifier = Modifier.weight(1f, fill = false),
                             fontSize = 12.sp,

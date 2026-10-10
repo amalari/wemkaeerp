@@ -167,7 +167,7 @@ private fun ModuleHeader(
         }
 
         Text(
-            text = persona?.let { "${it.name} — ${it.roleTitle}, divisi ${it.departmentName}" }
+            text = persona?.let { "${it.name} - ${it.roleTitle}, divisi ${it.departmentName}" }
                 ?: "Belum ada persona aktif.",
             fontSize = 12.sp,
             color = WeMadeColors.OnSurfaceMuted
@@ -228,12 +228,12 @@ private fun AccessProvenanceCard(decision: AccessDecision, persona: TestingPerso
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
         ) {
             ProvenanceRow(
-                label = "Dari jabatan “$roleName”",
+                label = "Dari jabatan '$roleName'",
                 level = decision.fromRole.level,
                 isDecisive = decision.source == AccessSource.ROLE
             )
             ProvenanceRow(
-                label = "Dari divisi “$deptName”",
+                label = "Dari divisi '$deptName'",
                 level = decision.fromDepartment.level,
                 isDecisive = decision.source == AccessSource.DEPARTMENT
             )
@@ -242,7 +242,7 @@ private fun AccessProvenanceCard(decision: AccessDecision, persona: TestingPerso
         if (decision.grantedByDepartmentOnly) {
             Text(
                 text = "Menu ini terbuka karena penugasan divisi, bukan karena jabatannya. " +
-                    "Jabatan “$roleName” sendiri tidak diberi akses ke modul ini.",
+                    "Jabatan '$roleName' sendiri tidak diberi akses ke modul ini.",
                 modifier = Modifier.padding(top = ClaySpacing.Lg),
                 fontSize = 11.sp,
                 color = WeMadeColors.OnSurface
@@ -259,7 +259,7 @@ private fun ProvenanceRow(label: String, level: AccessLevel, isDecisive: Boolean
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = if (isDecisive) "$label  ← berlaku" else label,
+            text = if (isDecisive) "$label  <- berlaku" else label,
             modifier = Modifier.weight(1f, fill = false),
             fontSize = 12.sp,
             fontWeight = if (isDecisive) FontWeight.Bold else FontWeight.Normal,

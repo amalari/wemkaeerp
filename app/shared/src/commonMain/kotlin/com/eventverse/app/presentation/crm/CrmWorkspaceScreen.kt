@@ -108,7 +108,7 @@ fun CrmWorkspaceScreen(
 
     if (state.isLoading) {
         Column(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl)) {
-            Text(text = "Memuat data CRM…", color = WeMadeColors.OnSurfaceMuted)
+            Text(text = "Memuat data CRM...", color = WeMadeColors.OnSurfaceMuted)
         }
         return
     }

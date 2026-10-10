@@ -57,7 +57,7 @@ fun ReworkDialog(
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Text(text = "Kirim Rework", style = MaterialTheme.typography.titleLarge, color = WeMadeColors.OnSurface)
                 Text(
-                    text = "${order.spkNumber.value} • ${order.clientName} • dari ${order.currentStage.displayName}",
+                    text = "${order.spkNumber.value} · ${order.clientName} · dari ${order.currentStage.displayName}",
                     fontSize = 12.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

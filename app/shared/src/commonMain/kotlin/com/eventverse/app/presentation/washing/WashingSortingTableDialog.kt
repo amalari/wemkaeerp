@@ -134,7 +134,7 @@ fun WashingSortingTableDialog(
                             color = WeMadeColors.OnSurface
                         )
                         Text(
-                            text = "Batch ${batch.batchCode} • ${batch.machineDrumNo} • ${batch.washRecipe}",
+                            text = "Batch ${batch.batchCode} · ${batch.machineDrumNo} · ${batch.washRecipe}",
                             fontSize = 12.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -210,7 +210,7 @@ fun WashingSortingTableDialog(
 
                             Column(modifier = Modifier.weight(1.3f)) {
                                 Text(
-                                    text = "${first.orderNumber} • ${first.articleName}",
+                                    text = "${first.orderNumber} · ${first.articleName}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = WeMadeColors.OnSurface

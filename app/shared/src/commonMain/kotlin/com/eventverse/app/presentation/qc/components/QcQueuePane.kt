@@ -174,7 +174,7 @@ private fun QcQueueCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = "${item.order.styleName} • ${item.order.sampleQuantity} Pcs",
+            text = "${item.order.styleName} · ${item.order.sampleQuantity} Pcs",
             style = MaterialTheme.typography.bodySmall,
             color = WeMadeColors.OnSurfaceMuted,
             maxLines = 1,

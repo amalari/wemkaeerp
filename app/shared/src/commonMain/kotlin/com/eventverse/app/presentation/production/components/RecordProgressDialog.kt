@@ -64,7 +64,7 @@ fun RecordProgressDialog(
                 color = WeMadeColors.OnSurface
             )
             Text(
-                text = "${order.spkNumber.value} — isi angka KUMULATIF sejak awal, bukan tambahan hari ini. " +
+                text = "${order.spkNumber.value} - isi angka KUMULATIF sejak awal, bukan tambahan hari ini. " +
                     "Batas atas $upstreamLimit pcs.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
@@ -104,7 +104,7 @@ fun RecordProgressDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 ClayButton(text = "Batal", onClick = onDismiss, style = ClayButtonStyle.Secondary)
                 ClayButton(
-                    text = if (isSubmitting) "Menyimpan…" else "Simpan Hasil",
+                    text = if (isSubmitting) "Menyimpan..." else "Simpan Hasil",
                     onClick = {
                         onSubmit(completedPcs ?: 0, reworkPcs ?: 0, rejectPcs ?: 0)
                     },

@@ -57,7 +57,7 @@ fun AllocateLineDialog(
                 color = WeMadeColors.OnSurface
             )
             Text(
-                text = "${order.spkNumber.value} — sisa belum dialokasikan ${order.unallocatedPcs} pcs " +
+                text = "${order.spkNumber.value} - sisa belum dialokasikan ${order.unallocatedPcs} pcs " +
                     "dari ${order.totalOrderedPcs} pcs.",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
@@ -117,7 +117,7 @@ fun AllocateLineDialog(
                     style = ClayButtonStyle.Secondary
                 )
                 ClayButton(
-                    text = if (isSubmitting) "Menyimpan…" else "Alokasikan",
+                    text = if (isSubmitting) "Menyimpan..." else "Alokasikan",
                     onClick = {
                         val allocation = MachineLineAllocation(
                             lineName = ProductionLineName(lineName.trim()),

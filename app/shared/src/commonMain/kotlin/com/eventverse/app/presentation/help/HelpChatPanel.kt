@@ -50,14 +50,14 @@ fun HelpChatPanel(viewModel: HelpChatViewModel, currentModule: ModuleId?, modifi
             items(state.messages, key = { it.id }) { m ->
                 HelpMessageBubble(m, onStart = { viewModel.onEvent(HelpChatUiEvent.StartSuggestion(it)) }, onAction = { viewModel.onEvent(HelpChatUiEvent.RunAction(it)) })
             }
-            if (state.isSending) item { Text("Asisten sedang mencari panduan…", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted) }
+            if (state.isSending) item { Text("Asisten sedang mencari panduan...", fontSize = 12.sp, color = WeMadeColors.OnSurfaceMuted) }
         }
         state.error?.let { Text(it, fontSize = 12.sp, color = WeMadeColors.Error) }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             ClayTextField(
                 value = state.draft,
                 onValueChange = { viewModel.onEvent(HelpChatUiEvent.UpdateDraft(it)) },
-                placeholder = "Tulis pertanyaan…",
+                placeholder = "Tulis pertanyaan...",
                 modifier = Modifier.weight(1f)
             )
             ClayButton(

@@ -459,7 +459,7 @@ private fun ModuleItemCard(
                         .padding(horizontal = ClaySpacing.Sm, vertical = ClaySpacing.Xs)
                 ) {
                     Text(
-                        text = "In: ${module.slotInput ?: "—"}  •  Out: ${module.slotOutput ?: "—"}",
+                        text = "In: ${module.slotInput ?: "-"}  ·  Out: ${module.slotOutput ?: "-"}",
                         style = typography.bodySmall,
                         fontSize = 9.sp,
                         color = WeMadeColors.OnSurfaceMuted,

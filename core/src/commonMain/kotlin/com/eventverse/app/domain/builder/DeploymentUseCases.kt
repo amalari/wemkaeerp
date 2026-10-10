@@ -35,9 +35,9 @@ class DeployTenantUseCase(
 ) {
     suspend operator fun invoke(tenantId: TenantId): Result<Deployment> = runCatching {
         val stored = drafts.findByTenant(tenantId)
-            ?: throw DraftNotFoundException("Tenant belum punya draf kerja — bangun lewat chat dulu")
+            ?: throw DraftNotFoundException("Tenant belum punya draf kerja - bangun lewat chat dulu")
         require(stored.status != DiscoveryDraftStatus.LOCKED) {
-            "Draf sudah terkunci oleh deployment sebelumnya — revisi lewat chat lalu deploy lagi"
+            "Draf sudah terkunci oleh deployment sebelumnya - revisi lewat chat lalu deploy lagi"
         }
         val issues = DiscoveryDraftValidator.validate(stored.draft)
         if (issues.isNotEmpty()) {
@@ -162,7 +162,7 @@ class RollbackDeploymentUseCase(
         val structureChanges = previous.blueprintRevision != active.blueprintRevision
         if (structureChanges && !force && probe.hasOperationalData(tenantId)) {
             throw DataGateException(
-                "Rollback menurunkan blueprint (rev ${active.blueprintRevision} → ${previous.blueprintRevision}) " +
+                "Rollback menurunkan blueprint (rev ${active.blueprintRevision} -> ${previous.blueprintRevision}) " +
                     "tetapi tenant sudah punya data operasional. Gunakan aksi eksplisit 'Arsipkan modul' (force)."
             )
         }

@@ -144,7 +144,7 @@ class CrmViewModel(
                         val verb = if (transition.dealAlreadyExisted) "dibuka kembali" else "dibuat"
                         _uiState.update {
                             it.copy(
-                                statusMessage = "Lead berkualifikasi — Deal $verb (ID: ${transition.dealId}).",
+                                statusMessage = "Lead berkualifikasi - Deal $verb (ID: ${transition.dealId}).",
                                 lastQualifiedDealId = transition.dealId
                             )
                         }

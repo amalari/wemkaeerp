@@ -107,7 +107,7 @@ fun Route.tenantStageFlowRoutes(
             val command = runCatching {
                 AddStageCommand(
                     tenantId = tenant.tenantId,
-                    code = requireNotNull(StageCode.parseOrNull(body.string("code"))) { "Kode tahap wajib huruf besar/angka/_ (2–48)" },
+                    code = requireNotNull(StageCode.parseOrNull(body.string("code"))) { "Kode tahap wajib huruf besar/angka/_ (2-48)" },
                     displayName = requireNotNull(body.string("displayName")?.takeIf { it.isNotBlank() }) { "Nama tahap wajib diisi" },
                     shortLabel = body.string("shortLabel").orEmpty(),
                     archetype = GarmentSlots.fromCode(body.string("archetype")) ?: GarmentSlots.CUSTOM_EXTENSION,

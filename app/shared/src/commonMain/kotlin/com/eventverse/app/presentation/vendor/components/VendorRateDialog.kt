@@ -47,7 +47,7 @@ internal fun VendorRateDialog(
     val price = priceText.toLongOrNull()
 
     VendorDialogFrame(
-        title = "Harga Layanan — ${vendor.name.value}",
+        title = "Harga Layanan - ${vendor.name.value}",
         subtitle = "Harga lama pada layanan & satuan yang sama otomatis ditutup di tanggal mulai berlaku harga baru.",
         confirmText = "Simpan Harga",
         confirmEnabled = serviceCode.isNotBlank() && serviceName.isNotBlank() && price != null && effectiveFrom != null,

@@ -209,12 +209,12 @@ fun DiscoveryWizardScreen(modifier: Modifier = Modifier) {
                 ClayCard(modifier = Modifier.fillMaxWidth()) {
                     Text(d.packDisplayName, fontWeight = FontWeight.Bold)
                     Text(
-                        "${d.activeModules.size} modul aktif • ${d.screens.size} layar pratinjau",
+                        "${d.activeModules.size} modul aktif · ${d.screens.size} layar pratinjau",
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                         color = WeMadeColors.OnSurfaceMuted
                     )
                     ClayButton(
-                        text = if (pdfBusy) "Menyiapkan PDF…" else "Unduh Blueprint (PDF)",
+                        text = if (pdfBusy) "Menyiapkan PDF..." else "Unduh Blueprint (PDF)",
                         onClick = { openBlueprintPdf(d.id) },
                         enabled = !pdfBusy,
                         style = ClayButtonStyle.Secondary,
@@ -314,7 +314,7 @@ private fun ResumeDraftsCard(
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(d.packDisplayName, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(
-                        "${d.activeModules.size} modul aktif • draf belum dikunci",
+                        "${d.activeModules.size} modul aktif · draf belum dikunci",
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                         color = WeMadeColors.OnSurfaceMuted,
                         maxLines = 1,

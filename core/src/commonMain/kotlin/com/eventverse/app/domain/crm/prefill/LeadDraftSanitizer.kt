@@ -40,7 +40,7 @@ object LeadDraftSanitizer {
     fun sanitize(raw: Map<String, String>, definitions: List<CustomFieldDefinition>, agentRef: String, partial: Boolean): LeadDraft {
         val issues = mutableListOf<DraftIssue>()
         fun text(key: String, max: Int): String? = raw[key]?.trim()?.takeIf { it.isNotEmpty() }?.let {
-            if (it.length <= max) it else null.also { _ -> issues += DraftIssue(key, "Lebih dari $max karakter — tidak diisi") }
+            if (it.length <= max) it else null.also { _ -> issues += DraftIssue(key, "Lebih dari $max karakter - tidak diisi") }
         }
 
         val whatsapp = raw[LeadDraftFields.WHATSAPP]?.trim()?.takeIf { it.isNotEmpty() }?.let {

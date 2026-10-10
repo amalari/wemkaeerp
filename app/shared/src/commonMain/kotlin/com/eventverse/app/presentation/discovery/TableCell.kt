@@ -139,7 +139,7 @@ fun TableCell(
                         )
                 )
             } else {
-                val cellText = (fieldSpec?.displayValue(rawValue) ?: rawValue).ifEmpty { "—" }
+                val cellText = (fieldSpec?.displayValue(rawValue) ?: rawValue).ifEmpty { "-" }
                 Text(
                     text = cellText,
                     style = MaterialTheme.typography.bodySmall,

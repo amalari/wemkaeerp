@@ -97,7 +97,7 @@ class EstimateCostingFromAiDesignUseCase(
         }
 
         require(hppMid.minorUnits > 0L) {
-            "Estimasi HPP menghasilkan angka nol — periksa isian rate card tenant."
+            "Estimasi HPP menghasilkan angka nol - periksa isian rate card tenant."
         }
 
         val spread = tuning.spreadFor(confidence)

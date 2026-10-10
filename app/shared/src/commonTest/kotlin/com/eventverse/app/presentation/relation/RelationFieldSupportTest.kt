@@ -21,7 +21,7 @@ class RelationFieldSupportTest {
     @Test
     fun blankValue_showsDash() {
         val display = relationDisplay("") { null }
-        assertEquals("—", display.text)
+        assertEquals("-", display.text)
         assertFalse(display.missing)
     }
 

@@ -173,8 +173,8 @@ private fun rowHint(widgetCode: String): String = when (WidgetKind.fromCode(widg
     WidgetKind.FORM -> "Satu baris = satu formulir; setiap isian menjadi satu kolom masukan."
     WidgetKind.DASHBOARD -> "Satu baris = satu kartu angka; label jadi judul, isi jadi nilainya."
     WidgetKind.CHECKLIST -> "Satu baris = satu butir periksa."
-    WidgetKind.TABLE, WidgetKind.PRINT -> "Satu baris = satu baris tabel; tiap isian jadi pasangan label–isi."
-    null -> "Widget di luar kosakata tertutup — pilih salah satu kind di atas."
+    WidgetKind.TABLE, WidgetKind.PRINT -> "Satu baris = satu baris tabel; tiap isian jadi pasangan label-isi."
+    null -> "Widget di luar kosakata tertutup - pilih salah satu kind di atas."
 }
 
 /** Ubah/daftar-buang yang tidak menggeser index tetangga; dipakai penyunting di atas. */

@@ -530,7 +530,7 @@ private fun AuthenticatedSessionCard(
 
             if (onNavigateToDashboard != null) {
                 ClayButton(
-                    text = "Lanjutkan ke Bagan Organisasi ➔",
+                    text = "Lanjutkan ke Bagan Organisasi ->",
                     onClick = onNavigateToDashboard,
                     style = ClayButtonStyle.Primary,
                     fontSize = 13.sp,

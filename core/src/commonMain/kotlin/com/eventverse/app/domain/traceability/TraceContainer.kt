@@ -40,7 +40,7 @@ data class TraceContainer(
 ) {
     init {
         require(tier.isContainer) {
-            "${tier.displayName} adalah dokumen, bukan wadah — kartunya tidak bisa diisi seperti bundel atau karung"
+            "${tier.displayName} adalah dokumen, bukan wadah - kartunya tidak bisa diisi seperti bundel atau karung"
         }
         require(sizeLabel.isNotBlank()) { "Wadah telusur wajib punya label size" }
         require(declaredPcs >= 0) { "Jumlah pcs tidak boleh negatif" }
@@ -96,7 +96,7 @@ data class TraceContainer(
     ): TraceContainer {
         require(isBundle) { "Hitungan panel hanya berlaku untuk bundel, bukan ${tier.displayName}" }
         require(!state.isFinal) {
-            "Bundel ${TraceCodec.grouped(code)} sudah ${state.displayName} — hitungannya tidak bisa diubah lagi"
+            "Bundel ${TraceCodec.grouped(code)} sudah ${state.displayName} - hitungannya tidak bisa diubah lagi"
         }
         require(tallies.any { it.pieces > 0 }) { "Isi dulu minimal satu hitungan panel" }
         return copy(
@@ -113,7 +113,7 @@ data class TraceContainer(
     fun markConsumed(updatedAt: Instant): TraceContainer {
         require(isBundle) { "Hanya bundel yang dituang ke karung" }
         require(state == TraceContainerState.TALLIED) {
-            "Bundel ${TraceCodec.grouped(code)} belum dihitung — hitung dulu sebelum dituang ke karung"
+            "Bundel ${TraceCodec.grouped(code)} belum dihitung - hitung dulu sebelum dituang ke karung"
         }
         return copy(state = TraceContainerState.CONSUMED, updatedAt = updatedAt)
     }
@@ -159,14 +159,14 @@ data class TraceContainer(
 
         val sizes = (bundles.map { it.sizeLabel } + sizeLabel).distinctBy { it.uppercase() }
         if (sizes.size > 1) {
-            reasons += "Karung ini bercampur size ${sizes.joinToString(" dan ")} — pisahkan dulu per size"
+            reasons += "Karung ini bercampur size ${sizes.joinToString(" dan ")} - pisahkan dulu per size"
         }
 
         val colorways = (bundles.map { it.colorway } + colorway)
             .filter { it.isNotBlank() }
             .distinctBy { it.uppercase() }
         if (colorways.size > 1) {
-            reasons += "Karung ini bercampur warna ${colorways.joinToString(" dan ")} — pisahkan dulu per warna"
+            reasons += "Karung ini bercampur warna ${colorways.joinToString(" dan ")} - pisahkan dulu per warna"
         }
 
         val notTallied = bundles.filter { it.state != TraceContainerState.TALLIED }

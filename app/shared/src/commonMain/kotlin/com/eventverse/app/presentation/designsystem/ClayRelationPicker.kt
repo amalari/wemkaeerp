@@ -67,7 +67,7 @@ fun ClayRelationPicker(
     label: String? = null,
     selectedLabel: String? = null,
     isLoading: Boolean = false,
-    placeholder: String = "Cari rujukan…"
+    placeholder: String = "Cari rujukan..."
 ) {
     val trimmedSelected = selectedId?.trim()?.takeIf { it.isNotEmpty() }
     val visible = filterRelationOptions(options, query)
@@ -145,7 +145,7 @@ fun ClayRelationPicker(
                     .padding(vertical = ClaySpacing.Xs)
             ) {
                 when {
-                    isLoading -> ListHint("Mencari…")
+                    isLoading -> ListHint("Mencari...")
                     visible.isEmpty() -> ListHint(RELATION_NOT_FOUND_LABEL)
                     else -> visible.take(8).forEach { option ->
                         Row(

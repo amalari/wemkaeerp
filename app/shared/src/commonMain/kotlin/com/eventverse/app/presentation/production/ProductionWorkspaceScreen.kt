@@ -182,7 +182,7 @@ private fun EmptyStatePane() {
             Spacer(Modifier.height(ClaySpacing.Sm))
             Text(
                 text = "SPK massal tidak dibuat dari layar ini. Ia lahir dari Deal yang sampelnya " +
-                    "sudah di-ACC buyer — buka Deal, masuk Tab \"Produksi Massal & PO\", " +
+                    "sudah di-ACC buyer - buka Deal, masuk Tab \"Produksi Massal & PO\", " +
                     "lalu tekan [ Luncurkan SPK Massal ].",
                 fontSize = 12.sp,
                 color = WeMadeColors.OnSurfaceMuted
@@ -315,7 +315,7 @@ private fun WorkOrderCard(
 
         Spacer(Modifier.height(ClaySpacing.Xs))
         Text(
-            text = "${order.clientName} — ${order.styleName}",
+            text = "${order.clientName} - ${order.styleName}",
             fontSize = 11.sp,
             color = WeMadeColors.OnSurfaceMuted,
             maxLines = 2,

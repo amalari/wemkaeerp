@@ -54,11 +54,11 @@ data class SlotDefinition(
                 "Slot ${code.value}: defaultStatuses hanya bermakna untuk defaultWidget KANBAN atau TABLE"
             }
             require(defaultStatuses.size in 2..ProposalLimits.STATUSES) {
-                "Slot ${code.value}: defaultStatuses wajib 2–${ProposalLimits.STATUSES} butir, dapat ${defaultStatuses.size}"
+                "Slot ${code.value}: defaultStatuses wajib 2-${ProposalLimits.STATUSES} butir, dapat ${defaultStatuses.size}"
             }
             require(defaultStatuses.distinct().size == defaultStatuses.size) { "Slot ${code.value}: defaultStatuses ada yang kembar" }
             require(defaultStatuses.all { it.isNotBlank() && it.length <= ProposalLimits.TEXT }) {
-                "Slot ${code.value}: butir defaultStatuses wajib terisi dan ≤ ${ProposalLimits.TEXT} karakter"
+                "Slot ${code.value}: butir defaultStatuses wajib terisi dan <= ${ProposalLimits.TEXT} karakter"
             }
         }
     }

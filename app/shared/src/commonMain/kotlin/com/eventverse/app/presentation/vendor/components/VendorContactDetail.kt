@@ -53,7 +53,7 @@ internal fun VendorContactDetail(
             LabeledValue("Nomor WA", vendor.phone.ifBlank { "-" })
             LabeledValue("Alamat", vendor.address.ifBlank { "-" })
             if (vendor.notes.isNotBlank()) LabeledValue("Catatan", vendor.notes)
-            if (!vendor.isActive) ClayTag(text = "Nonaktif — tidak bisa ditunjuk ke order baru", tint = WeMadeColors.Error)
+            if (!vendor.isActive) ClayTag(text = "Nonaktif - tidak bisa ditunjuk ke order baru", tint = WeMadeColors.Error)
         }
 
         val current = vendor.currentRates(today)

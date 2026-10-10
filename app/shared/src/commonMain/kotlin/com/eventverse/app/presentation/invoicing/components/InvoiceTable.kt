@@ -41,7 +41,7 @@ fun InvoiceTable(
             ClayTextField(
                 value = state.searchQuery,
                 onValueChange = { onEvent(InvoiceUiEvent.Search(it)) },
-                placeholder = "Cari nomor faktur atau nama klien…",
+                placeholder = "Cari nomor faktur atau nama klien...",
                 modifier = Modifier.weight(1f)
             )
         }
@@ -187,7 +187,7 @@ private fun InvoiceListItemCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Terbit: ${invoice.issueDate}" + (invoice.dueDate?.let { " • Tempo: $it" } ?: ""),
+                    text = "Terbit: ${invoice.issueDate}" + (invoice.dueDate?.let { " · Tempo: $it" } ?: ""),
                     fontSize = 11.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

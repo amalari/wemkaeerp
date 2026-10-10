@@ -30,8 +30,8 @@ class MultiSelectFieldSupportTest {
 
     @Test
     fun displayValue_emptyShowsDash() {
-        assertEquals("—", alergi.displayValue(""))
-        assertEquals("—", alergi.displayValue("[]"), "array kosong ditolak codec; tampil sebagai belum ada pilihan")
+        assertEquals("-", alergi.displayValue(""))
+        assertEquals("-", alergi.displayValue("[]"), "array kosong ditolak codec; tampil sebagai belum ada pilihan")
     }
 
     @Test

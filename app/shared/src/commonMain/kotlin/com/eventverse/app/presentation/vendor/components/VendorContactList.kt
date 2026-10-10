@@ -50,7 +50,7 @@ internal fun VendorContactList(
         ClayTextField(
             value = searchQuery,
             onValueChange = onSearch,
-            placeholder = "Cari nama, nomor WA, atau layanan…",
+            placeholder = "Cari nama, nomor WA, atau layanan...",
             leadingIcon = { IconSearch(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurfaceMuted) },
             modifier = Modifier.fillMaxWidth()
         )

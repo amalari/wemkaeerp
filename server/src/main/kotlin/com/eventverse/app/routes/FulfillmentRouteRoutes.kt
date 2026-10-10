@@ -127,7 +127,7 @@ fun Route.fulfillmentRouteRoutes(
             if (unknown != null) {
                 return@put call.respond(
                     HttpStatusCode.BadRequest,
-                    "Rute '${unknown.value}' tidak dikenal tenant ${tenant.slug.value} — daftarkan di /routes lebih dulu"
+                    "Rute '${unknown.value}' tidak dikenal tenant ${tenant.slug.value} - daftarkan di /routes lebih dulu"
                 )
             }
 

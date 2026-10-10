@@ -66,7 +66,7 @@ fun MaterialPriceHistoryCard(
 
             if (isLoading) {
                 Text(
-                    text = "Memuat riwayat tarif…",
+                    text = "Memuat riwayat tarif...",
                     fontSize = 13.sp,
                     color = WeMadeColors.OnSurfaceMuted,
                     modifier = Modifier.padding(vertical = ClaySpacing.Sm)

@@ -49,11 +49,11 @@ fun QcWorkspaceHeader(
     val rework = queue.count { it.bucket == QcQueueBucket.REWORK }
 
     val subtitle = if (inspectorName.isBlank()) {
-        "Sesi tidak mengenali petugas — lembar tidak bisa ditandatangani."
+        "Sesi tidak mengenali petugas - lembar tidak bisa ditandatangani."
     } else if (isCompact) {
         "Petugas: $inspectorName"
     } else {
-        "Petugas: $inspectorName  •  satu lembar = satu pcs"
+        "Petugas: $inspectorName  ·  satu lembar = satu pcs"
     }
 
     val badges: @Composable () -> Unit = {

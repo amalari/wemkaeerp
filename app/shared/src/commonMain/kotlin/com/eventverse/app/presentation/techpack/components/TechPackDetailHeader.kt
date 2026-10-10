@@ -185,7 +185,7 @@ fun TechPackDetailHeader(
                         .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm)
                 ) {
                     Text(
-                        text = "⚠️ Terdapat ${techPack.blockingUnresolvedLines.size} bahan baku berstatus aset finansial yang belum dipetakan ke katalog Master Data. Petakan bahan sebelum merilis Tech Pack.",
+                        text = "Terdapat ${techPack.blockingUnresolvedLines.size} bahan baku berstatus aset finansial yang belum dipetakan ke katalog Master Data. Petakan bahan sebelum merilis Tech Pack.",
                         fontSize = 11.sp,
                         color = WeMadeColors.Warning,
                         fontWeight = FontWeight.SemiBold

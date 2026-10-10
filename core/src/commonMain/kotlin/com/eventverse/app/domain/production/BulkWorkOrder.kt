@@ -180,7 +180,7 @@ data class BulkWorkOrder(
 
     fun updateSizeBreakdown(lines: List<BulkSizeLine>, updatedAt: Instant): BulkWorkOrder {
         require(status == BulkProductionStatus.DRAFT) {
-            "Size breakdown hanya bisa diubah selama SPK masih draft — SPK ${spkNumber.value} sudah ${status.displayName}."
+            "Size breakdown hanya bisa diubah selama SPK masih draft - SPK ${spkNumber.value} sudah ${status.displayName}."
         }
         val merged = lines
             .groupBy { it.sizeLabel.trim().uppercase() }
@@ -222,7 +222,7 @@ data class BulkWorkOrder(
     ): BulkWorkOrder {
         require(status != BulkProductionStatus.CANCELLED) { "SPK ${spkNumber.value} sudah dibatalkan." }
         require(status != BulkProductionStatus.DRAFT) {
-            "SPK ${spkNumber.value} belum diterbitkan — terbitkan dulu sebelum mencatat hasil produksi."
+            "SPK ${spkNumber.value} belum diterbitkan - terbitkan dulu sebelum mencatat hasil produksi."
         }
         require(completedPcs <= totalOrderedPcs) {
             "Hasil ${stage.displayName} ($completedPcs pcs) melebihi pesanan $totalOrderedPcs pcs."

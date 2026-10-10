@@ -69,7 +69,7 @@ internal fun TransferLegDetailDialog(
                 if (view.isLegacyMatch) {
                     Text(
                         text = "Dokumen ini dipasangkan berdasarkan kecocokan asal-tujuan, bukan " +
-                            "tautan langsung — ia terbit sebelum alur mencatat tautannya. Periksa " +
+                            "tautan langsung - ia terbit sebelum alur mencatat tautannya. Periksa " +
                             "ulang bila SPK ini melewati gedung yang sama lebih dari sekali.",
                         fontSize = 10.sp,
                         color = WeMadeColors.Warning

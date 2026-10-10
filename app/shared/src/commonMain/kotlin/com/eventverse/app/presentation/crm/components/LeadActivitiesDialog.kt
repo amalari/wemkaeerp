@@ -51,7 +51,7 @@ fun formatActivityTimestamp(instant: Instant): String {
     val month = dt.monthNumber.toString().padStart(2, '0')
     val hour = dt.hour.toString().padStart(2, '0')
     val minute = dt.minute.toString().padStart(2, '0')
-    return "$day/$month ${dt.year} • $hour:$minute"
+    return "$day/$month ${dt.year} · $hour:$minute"
 }
 
 fun getAuthorInitials(name: String): String {
@@ -136,7 +136,7 @@ fun LeadActivitiesDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Memuat riwayat aktivitas…",
+                            text = "Memuat riwayat aktivitas...",
                             fontSize = 13.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
@@ -186,12 +186,12 @@ fun LeadActivitiesDialog(
                 ClayTextField(
                     value = newCommentText,
                     onValueChange = { newCommentText = it },
-                    placeholder = "Tulis update apa yang dilakukan sales…",
+                    placeholder = "Tulis update apa yang dilakukan sales...",
                     modifier = Modifier.weight(1f)
                 )
 
                 ClayButton(
-                    text = if (isSubmitting) "Kirim…" else "Kirim",
+                    text = if (isSubmitting) "Kirim..." else "Kirim",
                     style = ClayButtonStyle.Primary,
                     enabled = newCommentText.isNotBlank() && !isSubmitting,
                     onClick = {

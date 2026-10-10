@@ -84,13 +84,13 @@ data class InternalTransfer(
     val notes: String = ""
 ) {
     init {
-        require(sizeLabel.isNotBlank()) { "Label size wajib diisi — karung tanpa size tidak bisa diperiksa di tujuan" }
+        require(sizeLabel.isNotBlank()) { "Label size wajib diisi - karung tanpa size tidak bisa diperiksa di tujuan" }
         require(declaredPcs > 0) { "Jumlah pcs karung minimal 1" }
         require(requestedBy.isNotBlank()) { "Nama pengirim wajib dicatat" }
 
         if (handoverMode == HandoverMode.ADMIN_HUB) {
-            requireNotNull(dispatchWeightKg) { "Berat dispatch wajib — timbang dulu sebelum mengajukan ke meja admin" }
-            require(dispatchWeightKg.value > 0.0) { "Berat dispatch wajib lebih dari 0 — timbang dulu sebelum mengajukan" }
+            requireNotNull(dispatchWeightKg) { "Berat dispatch wajib - timbang dulu sebelum mengajukan ke meja admin" }
+            require(dispatchWeightKg.value > 0.0) { "Berat dispatch wajib lebih dari 0 - timbang dulu sebelum mengajukan" }
             require(!dispatchScalePhotoKey.isNullOrBlank()) { "Foto timbangan dispatch wajib ada" }
 
             if (status.sedangBerjalan) {
@@ -101,7 +101,7 @@ data class InternalTransfer(
             // Bukan sekadar "tidak wajib": terisi berarti record ini dibuat dengan aturan yang
             // bertentangan dengan modenya, dan menyimpannya diam-diam membuat audit berbohong.
             require(approvedBy == null && approvalSignatureKey == null) {
-                "Perjalanan ${HandoverMode.DIRECT.displayName} tidak mengenal ACC admin — " +
+                "Perjalanan ${HandoverMode.DIRECT.displayName} tidak mengenal ACC admin - " +
                     "hapus data persetujuan atau pakai mode ${HandoverMode.ADMIN_HUB.displayName}"
             }
             // Tanpa gerbang berangkat tidak ada yang bisa menolak keberangkatan. Penolakan di
@@ -131,10 +131,10 @@ data class InternalTransfer(
      */
     fun approve(approverName: String, signatureKey: String, now: Instant): InternalTransfer {
         require(handoverMode == HandoverMode.ADMIN_HUB) {
-            "Karung $humanCode diantar langsung oleh operator — tidak ada ACC yang perlu diberikan"
+            "Karung $humanCode diantar langsung oleh operator - tidak ada ACC yang perlu diberikan"
         }
         require(status == SackTransferStatus.MENUNGGU_ACC) {
-            "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa di-ACC"
+            "Karung $humanCode berstatus ${status.displayName} - hanya pengajuan baru yang bisa di-ACC"
         }
         require(approverName.isNotBlank()) { "Nama penyetuju wajib dicatat" }
         require(signatureKey.isNotBlank()) { "ACC wajib ditandatangani" }
@@ -151,10 +151,10 @@ data class InternalTransfer(
     /** Menolak pengajuan — alasan wajib, karena inilah yang dibaca saat karung diperiksa ulang. */
     fun reject(reason: String, approverName: String, now: Instant): InternalTransfer {
         require(handoverMode == HandoverMode.ADMIN_HUB) {
-            "Karung $humanCode diantar langsung oleh operator — tidak melewati meja admin untuk ditolak"
+            "Karung $humanCode diantar langsung oleh operator - tidak melewati meja admin untuk ditolak"
         }
         require(status == SackTransferStatus.MENUNGGU_ACC) {
-            "Karung $humanCode berstatus ${status.displayName} — hanya pengajuan baru yang bisa ditolak"
+            "Karung $humanCode berstatus ${status.displayName} - hanya pengajuan baru yang bisa ditolak"
         }
         require(reason.isNotBlank()) { "Alasan penolakan wajib diisi" }
         require(approverName.isNotBlank()) { "Nama penolak wajib dicatat" }
@@ -177,7 +177,7 @@ data class InternalTransfer(
         now: Instant
     ): InternalTransfer {
         require(status == SackTransferStatus.DITOLAK) {
-            "Hanya karung yang ditolak bisa diajukan ulang — $humanCode berstatus ${status.displayName}"
+            "Hanya karung yang ditolak bisa diajukan ulang - $humanCode berstatus ${status.displayName}"
         }
         require(dispatchWeightKg.value > 0.0) { "Timbang ulang karung sebelum mengajukan lagi" }
         require(dispatchScalePhotoKey.isNotBlank()) { "Foto timbangan terbaru wajib ada" }
@@ -208,11 +208,11 @@ data class InternalTransfer(
         now: Instant
     ): InternalTransfer {
         require(status == SackTransferStatus.DIANTAR) {
-            "Karung $humanCode berstatus ${status.displayName} — yang bisa diterima hanya karung yang sedang diantar"
+            "Karung $humanCode berstatus ${status.displayName} - yang bisa diterima hanya karung yang sedang diantar"
         }
         when (proof) {
             is HandoverProof.ReceiverHandover -> {
-                require(proof.receiverName.isNotBlank()) { "Nama penerima wajib dicatat — dia yang bertanggung jawab atas isinya" }
+                require(proof.receiverName.isNotBlank()) { "Nama penerima wajib dicatat - dia yang bertanggung jawab atas isinya" }
                 if (handoverMode == HandoverMode.ADMIN_HUB) {
                     require(!proof.signatureKey.isNullOrBlank()) { "Penerima wajib menandatangani" }
                 }

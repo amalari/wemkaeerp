@@ -86,7 +86,7 @@ fun CamProgramTabbedSection(
             Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
                 Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
                     Text(
-                        text = "PROGRAM CAM — INPUT TIM SAMPLING",
+                        text = "PROGRAM CAM - INPUT TIM SAMPLING",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeMadeColors.OnSurface

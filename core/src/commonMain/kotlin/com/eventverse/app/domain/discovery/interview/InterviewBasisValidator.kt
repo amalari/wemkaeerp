@@ -40,8 +40,8 @@ internal object InterviewBasisValidator {
 
         session.divisions.forEachIndexed { i, d -> check("$at.divisions[$i]", d.basisRef, null, "Divisi '${d.code.value}'") }
         session.roles.forEachIndexed { i, r -> check("$at.roles[$i]", r.basisRef, null, "Peran '${r.roleKey.value}'") }
-        session.links.forEachIndexed { i, l -> check("$at.links[$i]", l.basisRef, l.confirmed, "Tautan '${l.roleKey.value}' → '${l.moduleId.value}'") }
-        session.handoffs.forEachIndexed { i, h -> check("$at.handoffs[$i]", h.basisRef, h.confirmed, "Sambungan '${h.from.value}' → '${h.to.value}'") }
+        session.links.forEachIndexed { i, l -> check("$at.links[$i]", l.basisRef, l.confirmed, "Tautan '${l.roleKey.value}' -> '${l.moduleId.value}'") }
+        session.handoffs.forEachIndexed { i, h -> check("$at.handoffs[$i]", h.basisRef, h.confirmed, "Sambungan '${h.from.value}' -> '${h.to.value}'") }
 
         session.narrative?.let { if (it.length > InterviewLimits.NARRATIVE) add("$at.narrative", "Cerita maksimum ${InterviewLimits.NARRATIVE} karakter") }
         session.profile?.let { p ->

@@ -54,7 +54,7 @@ fun Route.discoveryInterviewRoutes(
                 "clarify" -> {
                     val answers = body.obj("answers")?.entries
                         ?.mapNotNull { (k, v) -> (v as? com.eventverse.app.shared.json.JsonValue.Str)?.let { k to it.value } }?.toMap()
-                        ?.takeIf { it.isNotEmpty() } ?: return@post badRequest("Field 'answers' wajib: objek id pertanyaan → jawaban")
+                        ?.takeIf { it.isNotEmpty() } ?: return@post badRequest("Field 'answers' wajib: objek id pertanyaan -> jawaban")
                     interviews.clarify(id, caller, answers)
                 }
                 "answer" -> {

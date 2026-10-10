@@ -155,7 +155,7 @@ class ApplyDraftPatchUseCase(
 
             val existing = drafts.findByTenant(tenantId)
             if (existing?.status == DiscoveryDraftStatus.LOCKED) {
-                throw DraftLockedException("Draf kerja tenant sudah terkunci — buat deployment untuk revisi berikutnya")
+                throw DraftLockedException("Draf kerja tenant sudah terkunci - buat deployment untuk revisi berikutnya")
             }
             val stored = drafts.save(
                 StoredDiscoveryDraft(

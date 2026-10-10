@@ -121,7 +121,7 @@ private fun StageRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(stage.displayName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = WeMadeColors.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(stage.shortLabel, "meja operator".takeIf { stage.has(StageTrait.OPERATOR_DESK) }).joinToString(" • "),
+                listOfNotNull(stage.shortLabel, "meja operator".takeIf { stage.has(StageTrait.OPERATOR_DESK) }).joinToString(" · "),
                 fontSize = 10.sp,
                 color = WeMadeColors.OnSurfaceMuted,
                 maxLines = 1,
