@@ -582,7 +582,7 @@ class OrgChartViewModel(
                         ?: client.restoreEmployeePresets(tenantSlug).exceptionOrNull()
                     if (failure != null) {
                         _uiState.update {
-                            it.copy(isRestoringPresets = false, toastMessage = restoreFailureMessage(failure))
+                            it.copy(isRestoringPresets = false, toastMessage = OrgChartErrorMessages.restoreFailure(failure))
                         }
                         return@launch
                     }
@@ -711,7 +711,7 @@ class OrgChartViewModel(
                                         }
                                     } else {
                                         _uiState.update {
-                                            it.copy(toastMessage = "Peringatan API: ${result.exceptionOrNull()?.message}")
+                                            it.copy(toastMessage = "Peringatan API: ${OrgChartErrorMessages.friendly(result.exceptionOrNull())}")
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -754,7 +754,7 @@ class OrgChartViewModel(
                                         }
                                     } else {
                                         _uiState.update {
-                                            it.copy(toastMessage = "Peringatan API: ${result.exceptionOrNull()?.message}")
+                                            it.copy(toastMessage = "Peringatan API: ${OrgChartErrorMessages.friendly(result.exceptionOrNull())}")
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -778,7 +778,7 @@ class OrgChartViewModel(
                             val depts = client.getArchivedDepartments(tenantSlug).getOrNull() ?: emptyList()
                             _uiState.update { it.copy(archivedEmployees = emps, archivedDepartments = depts, isLoadingArchived = false) }
                         } catch (e: Exception) {
-                            _uiState.update { it.copy(isLoadingArchived = false, toastMessage = "Gagal memuat arsip: ${e.message}") }
+                            _uiState.update { it.copy(isLoadingArchived = false, toastMessage = "Gagal memuat arsip: ${OrgChartErrorMessages.friendly(e)}") }
                         }
                     }
                 }
@@ -801,10 +801,10 @@ class OrgChartViewModel(
                                 )
                             }
                         } else {
-                            _uiState.update { it.copy(toastMessage = "Gagal memulihkan: ${result.exceptionOrNull()?.message}") }
+                            _uiState.update { it.copy(toastMessage = "Gagal memulihkan: ${OrgChartErrorMessages.friendly(result.exceptionOrNull())}") }
                         }
                     } catch (e: Exception) {
-                        _uiState.update { it.copy(toastMessage = "Error: ${e.message}") }
+                        _uiState.update { it.copy(toastMessage = "Error: ${OrgChartErrorMessages.friendly(e)}") }
                     }
                 }
             }
@@ -825,10 +825,10 @@ class OrgChartViewModel(
                                 )
                             }
                         } else {
-                            _uiState.update { it.copy(toastMessage = "Gagal memulihkan divisi: ${result.exceptionOrNull()?.message}") }
+                            _uiState.update { it.copy(toastMessage = "Gagal memulihkan divisi: ${OrgChartErrorMessages.friendly(result.exceptionOrNull())}") }
                         }
                     } catch (e: Exception) {
-                        _uiState.update { it.copy(toastMessage = "Error: ${e.message}") }
+                        _uiState.update { it.copy(toastMessage = "Error: ${OrgChartErrorMessages.friendly(e)}") }
                     }
                 }
             }
@@ -865,11 +865,11 @@ class OrgChartViewModel(
                             }
                         } else {
                             _uiState.update {
-                                it.copy(toastMessage = "Gagal memulihkan karyawan: ${result.exceptionOrNull()?.message}")
+                                it.copy(toastMessage = "Gagal memulihkan karyawan: ${OrgChartErrorMessages.friendly(result.exceptionOrNull())}")
                             }
                         }
                     } catch (e: Exception) {
-                        _uiState.update { it.copy(toastMessage = "Error: ${e.message}") }
+                        _uiState.update { it.copy(toastMessage = "Error: ${OrgChartErrorMessages.friendly(e)}") }
                     }
                 }
             }
@@ -964,7 +964,7 @@ class OrgChartViewModel(
                         }
                     } else {
                         _uiState.update { current ->
-                            current.copy(toastMessage = "Gagal menyimpan: ${ex?.message ?: "Terjadi kesalahan"}")
+                            current.copy(toastMessage = "Gagal menyimpan: ${OrgChartErrorMessages.friendly(ex)}")
                         }
                     }
                 }
@@ -974,7 +974,7 @@ class OrgChartViewModel(
                         employees = previousEmployees,
                         selectedEmployeeId = previousSelectedEmployeeId,
                         isCreatingNew = previousIsCreatingNew,
-                        toastMessage = "Gagal menyimpan: ${e.message}"
+                        toastMessage = "Gagal menyimpan: ${OrgChartErrorMessages.friendly(e)}"
                     )
                 }
             }
@@ -1043,15 +1043,6 @@ class OrgChartViewModel(
                 isCreatingNew = isCreatingNew,
                 toastMessage = toast
             )
-        }
-    }
-
-    private fun restoreFailureMessage(cause: Throwable): String {
-        val server = (cause as? OrgChartRestoreException)?.serverMessage?.takeIf { it.isNotBlank() }
-        return when ((cause as? OrgChartRestoreException)?.status) {
-            403 -> server ?: "Anda tidak berwenang memuat contoh struktur organisasi."
-            409 -> server ?: "Jenis usaha ini tidak menyediakan contoh struktur organisasi."
-            else -> server ?: cause.message ?: "Gagal memuat contoh struktur organisasi."
         }
     }
 }

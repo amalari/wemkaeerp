@@ -17,7 +17,9 @@ import java.security.MessageDigest
  * tidak terdampak karena pemanggil memakai `existing.id` bila akunnya sudah ada.
  */
 internal fun personaUserId(tenantId: TenantId, slug: String): String {
-    val hash = MessageDigest.getInstance("SHA-256").digest(tenantId.value.toByteArray())
+    // Slug yang terpotong ikut di-hash: dua nama panjang berawalan sama tidak boleh berbagi id (PK global).
+    val keyed = if (slug.length > 43) "${tenantId.value}:$slug" else tenantId.value
+    val hash = MessageDigest.getInstance("SHA-256").digest(keyed.toByteArray())
         .take(4).joinToString("") { "%02x".format(it) }
     return "usr-persona-${slug.take(43)}-$hash"
 }

@@ -56,6 +56,12 @@ class PublicAuthHostSurfaceTest {
             tenants.save(
                 Tenant(TenantId("ten-bordir"), TenantSlug("bordir-uji"), TenantName("Bordir Uji"), TenantStatus.TRIAL, SubscriptionTier.PRO)
             )
+            tenants.save(
+                Tenant(TenantId("ten-lain"), TenantSlug("pabrik-lain"), TenantName("Pabrik Lain"), TenantStatus.TRIAL, SubscriptionTier.PRO)
+            )
+            users.save(
+                User(UserId("usr-root"), null, Username("root_admin"), EmailAddress("root@wemade.id"), Role.PLATFORM_SUPERADMIN, isActive = true)
+            )
             users.save(
                 User(UserId("usr-bordir-owner"), TenantId("ten-bordir"), Username("owner_bordir"), EmailAddress("owner@bordir.id"), Role.TENANT_ADMIN, isActive = true)
             )
@@ -75,11 +81,11 @@ class PublicAuthHostSurfaceTest {
         }
     }
 
-    private suspend fun ApplicationTestBuilder.google(host: String, slug: String?): HttpResponse =
+    private suspend fun ApplicationTestBuilder.google(host: String, slug: String?, email: String = "owner@bordir.id"): HttpResponse =
         client.submitForm(
             "/api/public/auth/google",
             parameters {
-                append("idToken", "mock-google-token:owner@bordir.id")
+                append("idToken", "mock-google-token:$email")
                 if (slug != null) append("tenantSlug", slug)
             }
         ) { header(HttpHeaders.Host, host) }
@@ -103,6 +109,30 @@ class PublicAuthHostSurfaceTest {
     fun `google on tenant host with conflicting slug should be 403`() = testApplication {
         install()
         assertEquals(403, google("bordir-uji.$base", slug = "wemade-demo").status.value)
+    }
+
+    @Test
+    fun `google with slug of another tenant than the account should be 403 and issue no token`() = testApplication {
+        install()
+        val response = google("localhost", slug = "pabrik-lain")
+        assertEquals(403, response.status.value)
+        assertTrue(!response.bodyAsText().contains("\"token\""))
+    }
+
+    @Test
+    fun `google with the account own slug issues token with that slug`() = testApplication {
+        install()
+        val response = google("localhost", slug = "bordir-uji")
+        assertEquals(200, response.status.value)
+        assertTrue(response.bodyAsText().contains("\"tenantSlug\":\"bordir-uji\""))
+    }
+
+    @Test
+    fun `google superadmin on platform host without slug gets session without tenant slug`() = testApplication {
+        install()
+        val response = google("app.$base", slug = null, email = "root@wemade.id")
+        assertEquals(200, response.status.value)
+        assertTrue(response.bodyAsText().contains("\"tenantSlug\":\"\""))
     }
 
     @Test

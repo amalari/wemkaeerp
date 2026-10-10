@@ -1,8 +1,5 @@
 package com.eventverse.app.presentation.orgchart
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +63,7 @@ fun OrgChartScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    var confirmRestore by remember { mutableStateOf(false) }
 
     // OPERATE boleh menambah dan mengubah; MANAGE juga boleh menghapus, mengarsipkan, dan memulihkan
     // preset. Tanpa pembedaan ini, "Hanya Lihat" hanya berarti menunya terlihat.
@@ -95,13 +93,14 @@ fun OrgChartScreen(
                 onAddNewEmployee = { viewModel.onEvent(OrgChartUiEvent.StartCreateNewEmployee) },
                 onAddNewDepartment = { viewModel.onEvent(OrgChartUiEvent.OpenCreateDeptModal) },
                 onClearAllData = { viewModel.onEvent(OrgChartUiEvent.ClearAllDataToEmpty) },
-                onRestorePresets = { viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets) }
+                onRestorePresets = { confirmRestore = true },
+                isLoadFailed = state.loadState is OrgChartLoadState.Failed
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Toast Alert Banner
-            ToastBanner(
+            OrgChartToastBanner(
                 message = state.toastMessage,
                 onDismiss = { viewModel.onEvent(OrgChartUiEvent.DismissToast) }
             )
@@ -167,6 +166,15 @@ fun OrgChartScreen(
                 )
             }
         }
+
+        OrgChartRestoreConfirmDialog(
+            isOpen = confirmRestore,
+            onConfirm = {
+                confirmRestore = false
+                viewModel.onEvent(OrgChartUiEvent.RestoreDefaultPresets)
+            },
+            onDismiss = { confirmRestore = false }
+        )
 
         // Modal Dialog: Buat Divisi Baru
         CreateDepartmentDialog(
@@ -442,7 +450,8 @@ private fun OrgChartHeader(
     onAddNewEmployee: () -> Unit,
     onAddNewDepartment: () -> Unit,
     onClearAllData: () -> Unit,
-    onRestorePresets: () -> Unit
+    onRestorePresets: () -> Unit,
+    isLoadFailed: Boolean = false
 ) {
     val canWrite = accessLevel.isAtLeast(AccessLevel.OPERATE)
 
@@ -524,8 +533,8 @@ private fun OrgChartHeader(
                         DropdownMenuItem(
                             text = {
                                 Column {
-                                    Text("Muat Contoh Struktur", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
-                                    Text("Server mengisi divisi & staf contoh bila tersedia", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
+                                    Text("Pulihkan Contoh yang Hilang", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = WeMadeColors.PrimaryDark)
+                                    Text("Server menambah contoh yang belum ada", fontSize = 10.sp, color = WeMadeColors.OnSurfaceMuted)
                                 }
                             },
                             onClick = onRestorePresets
@@ -542,7 +551,7 @@ private fun OrgChartHeader(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 )
 
-                ClayGuardedButton(
+                if (!isLoadFailed) ClayGuardedButton(
                     text = "+ Tambah Karyawan",
                     onClick = onAddNewEmployee,
                     enabled = accessLevel.isAtLeast(AccessLevel.OPERATE),
@@ -1478,7 +1487,8 @@ private fun ChartPreviewPanel(
             Spacer(modifier = Modifier.height(ClaySpacing.Md))
 
             // 2. Navigasi Pilihan Divisi & Direksi
-            DivisionSelectorTabs(
+            // Tanpa divisi dan tanpa karyawan tidak ada yang bisa dipilih: pill "Direksi" sendirian menyesatkan.
+            if (state.departments.isNotEmpty() || state.employees.isNotEmpty()) DivisionSelectorTabs(
                 departments = state.departments,
                 selectedDepartment = state.selectedDepartment,
                 isDireksiSelected = state.selectedDepartment == null && state.selectedLevel == HierarchyLevel.EXECUTIVE,
@@ -2000,40 +2010,6 @@ private fun LegendTag(text: String, dotColor: Color) {
             )
         }
     )
-}
-
-@Composable
-private fun ToastBanner(message: String?, onDismiss: () -> Unit) {
-    AnimatedVisibility(visible = message != null, enter = fadeIn(), exit = fadeOut()) {
-        if (message != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = ClaySpacing.Md)
-                    .claySurface(
-                        shape = ClayShapes.Chip,
-                        background = WeMadeColors.SuccessBg,
-                        outline = WeMadeColors.Success,
-                        offset = ClayOffset.Small
-                    )
-                    .clickable { onDismiss() }
-                    .padding(horizontal = ClaySpacing.Xl, vertical = ClaySpacing.Lg)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-                ) {
-                    IconCheck(modifier = Modifier.size(16.dp), color = WeMadeColors.Success)
-                    Text(
-                        text = message,
-                        color = WeMadeColors.Success,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable

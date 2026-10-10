@@ -37,3 +37,28 @@ aman karena pemanggil memakai `existing.id` yang ditemukan lewat email.
 ## Tes
 `JwtTokenServiceTenantSlugTest`, `AuthSessionJsonTest`, dan
 `TenantResolutionPluginTest.tokenWithUnknownRole_shouldReturn403_notTenantAdmin`.
+
+## Putaran 3 — Username persona, slug Google, superadmin demo
+
+### A1 — Username persona > 30 karakter
+`Username` hanya menerima 3..30 karakter, tetapi persona dibuat `"persona_${slug}".take(50)`; nama panjang
+melempar `require` dan berujung 400. `personaUsername(slug)` memakai `persona_<slug>` apa adanya bila <= 30
+(persona lama tidak berubah), selain itu memotong ke 23 karakter + `_` + hash 6 heks dari slug penuh. Keunikan DB
+hanya per tenant (`uq_tenant_username`), jadi hash tidak perlu memuat tenant. Persona lama dicari lewat email
+dan username-nya dipertahankan. Temuan sampingan dari tes slug panjang: `personaUserId` memotong slug ke 43
+karakter, sehingga dua nama panjang berawalan sama berbagi id (PK global, saling menimpa). Slug yang terpotong
+kini ikut di-hash.
+
+### A2 — Slug di token Google = slug tenant milik akun
+Dulu `commandSlug ?: lookup`: slug permintaan menang atas tenant akun. Use case sudah menolak akun non-superadmin
+yang tak cocok, tetapi token tidak boleh bergantung pada pemeriksaan di tempat lain. Sekarang route menurunkan
+slug dari `user.tenantId`, menolak 403 bila slug diminta berbeda, dan hanya superadmin boleh membawa slug
+permintaan (atau kosong).
+
+### A3 — Superadmin demo tanpa tenant
+`findByEmail("superadmin@wemade.id") ?: User(tenantId = tenant.id)` mengikat akun platform ke tenant yang
+kebetulan diminta pertama. `resolveDemoPlatformSuperadmin` (PlatformSuperadminAccount.kt) membuat/mencari akun
+`PLATFORM_SUPERADMIN` dengan `tenantId = null`, melepas ikatan baris lama, dan menolak (403) email yang dipegang
+akun non-superadmin. Token tetap membawa slug demo sebagai konteks workspace (klien mewajibkan kunci
+`tenantSlug`); itu bukan keanggotaan. Tes: DemoAuthGateApiTest (3 baru), PublicAuthHostSurfaceTest (3 baru),
+PersonaUsernameTest.
