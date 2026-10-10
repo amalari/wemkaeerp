@@ -3,13 +3,15 @@ package com.eventverse.app.domain.customfield
 /**
  * The shape of one tenant-defined custom field value.
  *
- * Seven variants ship in this phase because the CRM Leads custom fields need exactly this
- * set and each one has a genuinely different storage/validation/sort shape — trimming any
- * of them would make this less than a real vertical slice. `MultiSelect`,
- * `Formula`, `Mirror`/`Rollup`, `File` and `Timeline` are deliberately deferred (see the
+ * Variants: `Text`, `LongText`, `Number`, `SingleSelect`, `DateField`, `Checkbox`, `UserRef`, plus
+ * `Relation` (C7, TRD-FIELD-001, referential) and `File` (C8, TRD-FIELD-002, byte lives in
+ * `ObjectStorage`, the cell holds a `FileRef`). Each has a genuinely different storage/validation/sort
+ * shape. `MultiSelect`, `Formula`, `Mirror`/`Rollup` and `Timeline` remain deliberately deferred (see the
  * plan's "deferred" table); none of them require a schema change to add later.
- * `Relation` (C7, TRD-FIELD-001) bergabung sebagai anggota referensial — tetap kosakata
- * terpisah dari prototype `FieldType` (keputusan D2).
+ *
+ * Decision D2 (PLAN-field-component-gaps): this vocabulary stays SEPARATE from the prototype
+ * `FieldType` enum (`domain/prototype/EntitySpec.kt`). Adding a type to one does not add it to the
+ * other: `MULTI_SELECT` and `TIME` exist only in the prototype vocabulary, `UserRef` only here.
  *
  * Currency is NOT its own variant — it is `Number(format = NumberFormat.Currency(...))`.
  * Storage, filtering, sorting and coercion are identical to a plain number; only rendering
