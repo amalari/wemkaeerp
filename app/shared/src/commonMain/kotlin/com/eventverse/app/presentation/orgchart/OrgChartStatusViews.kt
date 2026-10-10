@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
@@ -42,43 +45,42 @@ internal fun OrgChartEmptyState(
     onLoadSample: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-        ) {
-            Text(
-                text = "Bagan Organisasi Masih Kosong",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = WeMadeColors.OnSurfaceMuted,
-                textAlign = TextAlign.Center
-            )
-            if (canCreate || canLoadSample) {
-                Spacer(modifier = Modifier.height(ClaySpacing.Xs))
-                Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-                    if (canLoadSample) {
-                        ClayButton(
-                            text = if (isLoadingSample) "Memuat contoh..." else "Muat contoh",
-                            onClick = onLoadSample,
-                            enabled = !isLoadingSample,
-                            style = ClayButtonStyle.Secondary,
-                            offset = ClayOffset.Small
-                        )
-                    }
-                    if (canCreate) {
-                        ClayButton(
-                            text = createLabel,
-                            onClick = onCreate,
-                            style = ClayButtonStyle.Primary,
-                            offset = ClayOffset.Small
-                        )
-                    }
+    // fillMaxSize sebelum verticalScroll: terpusat bila muat, bisa di-scroll bila tinggi layar tak cukup.
+    Column(
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ClaySpacing.Xxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md, Alignment.CenterVertically)
+    ) {
+        Text(
+            text = "Bagan Organisasi Masih Kosong",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = WeMadeColors.OnSurface
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = WeMadeColors.OnSurfaceMuted,
+            textAlign = TextAlign.Center
+        )
+        if (canCreate || canLoadSample) {
+            ClayFlowRow(spacing = ClaySpacing.Md, horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md, Alignment.CenterHorizontally)) {
+                if (canLoadSample) {
+                    ClayButton(
+                        text = if (isLoadingSample) "Memuat contoh..." else "Muat contoh",
+                        onClick = onLoadSample,
+                        enabled = !isLoadingSample,
+                        style = ClayButtonStyle.Secondary,
+                        offset = ClayOffset.Small
+                    )
+                }
+                if (canCreate) {
+                    ClayButton(
+                        text = createLabel,
+                        onClick = onCreate,
+                        style = ClayButtonStyle.Primary,
+                        offset = ClayOffset.Small
+                    )
                 }
             }
         }
@@ -100,7 +102,11 @@ internal fun OrgChartLoadingView(modifier: Modifier = Modifier) {
 /** Galat pemuatan: pesan + "Coba lagi". Tidak menampilkan data basi atau contoh. */
 @Composable
 internal fun OrgChartFailedView(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize().padding(ClaySpacing.Xxl), contentAlignment = Alignment.Center) {
+    // fillMaxSize sebelum verticalScroll: terpusat bila muat, bisa di-scroll sehingga "Coba lagi" selalu terjangkau.
+    Column(
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ClaySpacing.Xxl),
+        verticalArrangement = Arrangement.Center
+    ) {
         ClayCard(
             modifier = Modifier.fillMaxWidth(),
             shape = ClayShapes.Panel,

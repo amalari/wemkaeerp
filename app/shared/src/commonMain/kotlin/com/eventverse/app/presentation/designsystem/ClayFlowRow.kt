@@ -22,11 +22,12 @@ import androidx.compose.ui.Modifier
 fun ClayFlowRow(
     modifier: Modifier = Modifier,
     spacing: androidx.compose.ui.unit.Dp = ClaySpacing.Sm,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(spacing),
     content: @Composable FlowRowScope.() -> Unit
 ) {
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(spacing),
+        horizontalArrangement = horizontalArrangement,
         verticalArrangement = Arrangement.spacedBy(spacing),
         content = content
     )

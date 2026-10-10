@@ -32,3 +32,28 @@ ToastBanner dipindah ke `OrgChartFeedbackViews.kt`. OrgChartScreen.kt 2405 -> 23
 
 ## Tes
 `OrgChartErrorMessagesTest` (10) + penyesuaian `OrgChartViewModelServerStateTest` (409 = peringatan).
+
+## Putaran 2 - Layout terpotong di tampilan Owner (bug lama, bukan regresi)
+Gejala: header berjarak ~190dp dari top bar, panel mulai ~390dp lebih rendah, tombol "Muat contoh" terpotong,
+chip statistik hilang di 360dp. Hanya muncul pada Owner karena toolbar (Opsi Struktur, + Divisi Baru, + Tambah
+Karyawan) hanya tampil untuk yang berwenang tulis. Header itu tidak berubah sejak commit clay (1c38371e).
+
+Akar masalah (tiga, bukan satu):
+1. `OrgChartHeader` memakai `Row(SpaceBetween)`. Row mengukur anak pertama (judul) dengan lebar tak terbatas,
+   toolbar kebagian sisa beberapa dp, tombolnya pecah per kata ("+ Divisi Baru" jadi 3 baris) dan tinggi header
+   membengkak. Perbaikan: header disusun dengan `ClayFlowRow` bersarang (membungkus) + `maxLines = 1` pada
+   tombol (parameter baru `ClayButton`/`ClayGuardedButton`, Kontrak 13). Header dipindah ke `OrgChartHeader.kt`.
+2. Panel form berlebar tetap 420dp di `Row` bersama panel bagan: di bawah ~880dp bagan terdesak habis. Perbaikan:
+   `BoxWithConstraints`; sempit -> panel ditumpuk dalam kolom yang bisa di-scroll (bagan dulu, lalu form,
+   masing-masing bertinggi tetap karena isinya scroll sendiri; scroll bersarang tanpa tinggi tetap akan crash).
+3. `OrgChartEmptyState`/`OrgChartFailedView` memakai `Box(fillMaxSize)` tanpa scroll, jadi isi yang lebih tinggi
+   dari ruangnya terpotong. Perbaikan: `Column(fillMaxSize().verticalScroll())` - urutan modifier penting:
+   fillMaxSize dulu supaya terpusat bila muat, lalu scroll.
+
+## Putaran 2 - Menu dan konfirmasi
+- Menu "Opsi Struktur" kini ditutup lebih dulu oleh item yang dipilih; sebelumnya dialog konfirmasi menutup tapi
+  menu tetap terbuka di belakangnya karena state menu hanya ditutup VM saat aksi benar-benar jalan.
+- "Mulai dari Kosong" kini dikonfirmasi lewat `OrgChartClearConfirmDialog` (tombol Danger). Dialog dirangkum
+  jadi `OrgChartConfirmDialog` generik; dialog pemulihan dan pengosongan hanya pembungkus teks (Aturan Tiga Kali).
+- Catatan: aksi "Mulai dari Kosong" hanya mengosongkan state lokal, tidak menghapus di server; perlu keputusan
+  terpisah. `DropdownMenu` Material masih berbayangan blur (celah komponen: belum ada `ClayDropdownMenu`).
