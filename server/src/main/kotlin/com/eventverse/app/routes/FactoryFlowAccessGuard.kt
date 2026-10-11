@@ -32,16 +32,11 @@ import com.eventverse.app.domain.rbac.code
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.rbac.AccessDecision
-import com.eventverse.app.domain.rbac.AccessDecisionEngine
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
-import com.eventverse.app.domain.rbac.RoleId
 import com.eventverse.app.domain.rbac.RoleRepository
-import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.tenant.TenantContext
-import com.eventverse.app.plugins.callerPrincipalOrNull
-import com.eventverse.app.plugins.grantedModulesOrNull
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -78,38 +73,13 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
     moduleAssignmentRepository: ModuleAssignmentRepository?
 ): AccessDecision? {
     if (roleRepository == null || moduleAssignmentRepository == null) return null
-    val principal = callerPrincipalOrNull
-    // TRD-PLAT-012: tanpa principal, atau tanpa jabatan dan divisi, dulu `null` (lolos). Kini diputuskan lewat
-    // moduleDecision (jalur yang sama dengan gerbang): Owner/superadmin MANAGE, peran lain NONE -> 403.
-    if (principal == null || (principal.customRoleId == null && principal.departmentId == null)) {
-        return moduleDecision(GarmentModules.FACTORY_FLOW, tenant, roleRepository, moduleAssignmentRepository)
-    }
-
-    val role = principal.customRoleId
-        ?.let { runCatching { RoleId(it) }.getOrNull() }
-        ?.let { roleRepository.findById(tenant.tenantId, it) }
-
-    val persona = TestingPersona(
-        userId = principal.userId.ifBlank { "unknown" },
-        name = principal.email ?: principal.userId.ifBlank { "unknown" },
-        tenantId = tenant.tenantId,
-        tenantSlug = tenant.slug.value,
-        departmentId = principal.departmentId,
-        departmentName = "",
-        roleId = role?.id,
-        roleTitle = role?.name ?: "",
-        isOwnerOrSuperAdmin = principal.isPlatformSuperadmin && role == null,
-        isPlatformSuperAdmin = principal.isPlatformSuperadmin && role == null
-    )
-
-    val assignments = moduleAssignmentRepository.findAllByTenant(tenant.tenantId)
-    return AccessDecisionEngine.explain(
-        persona = persona,
-        module = GarmentModules.FACTORY_FLOW,
-        role = role,
-        assignments = assignments[GarmentModules.FACTORY_FLOW].orEmpty(),
-        grantedModules = grantedModulesOrNull
-    )
+    // TRD-PLAT-012 Q3: satu jalur perhitungan dengan menu klien dan gerbang modul generik.
+    // Dulu persona dibangun di sini dengan bypass hanya untuk superadmin, sehingga owner
+    // (TENANT_ADMIN) ber-divisi tanpa jabatan dinilai matriks (NONE) sementara callerDecisions
+    // memberi OWNER_BYPASS (MANAGE). Lihat FactoryFlowTenantAdminParityTest.
+    return callerDecisions(
+        tenant, roleRepository, moduleAssignmentRepository, listOf(GarmentModules.FACTORY_FLOW)
+    ).getValue(GarmentModules.FACTORY_FLOW)
 }
 
 /**

@@ -88,3 +88,18 @@ segar; tes server `*DomainPack*`, `*Discovery*`, `*RouteOwnership*`, `*ModuleSch
 **Tidak hijau, bukan dari perubahan ini**: `ModuleSchemaOwnershipTest` gagal karena membaca Postgres dev bersama yang kini memuat `fulfillment.fulfillment_routes` (migrasi Track B agent lain, worktree `wemkaeerp-track-b`); tabel itu tidak ada di pohon ini. `:server:test` penuh tidak dijalankan.
 
 **Sisa**: B5 — kueri pemeriksaan di DB **produksi** sebelum rilis (belum dijalankan; DB dev bersih).
+
+### Status B5 (2026-10-11)
+
+DB produksi belum ada (deployment OCI belum dibangun), jadi B5 dikerjakan sebagian. Kueri
+pemeriksaan disusun (lihat [`PLAN-plat-012-track-c.md`](PLAN-plat-012-track-c.md) §5 — sengaja
+dicatat di sana sebagai satu tempat rujukan) dan dijalankan read-only ke DB dev
+(`wemake_erp_scratch_verify2`, migrasi V99):
+
+- (a) tenant yang memakai pack **berpemilik milik tenant lain** → **0 baris**;
+- (b) inventaris: pack `layanan` LOCKED bersama dipakai 3 tenant (skenario handoff yang sah),
+  49 pack `klinikbp*` LOCKED tanpa pemilik & tanpa pemakai;
+- (c) tenant yang mereferensikan pack tak ada (non-shipped, tak di `domain_packs`) → **0 baris**.
+
+**Sisa sesungguhnya**: jalankan ketiga kueri yang sama di DB produksi OCI sebelum rilis pertama,
+tempel hasil di PR rilis.
