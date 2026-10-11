@@ -61,8 +61,13 @@ data class FieldSpec(
     val key: String,
     val label: String,
     val type: FieldType,
-    /** Wajib terisi (unik) untuk [FieldType.ENUM] dan [FieldType.MULTI_SELECT]; kosong untuk tipe lain. */
-    val options: List<String> = emptyList(),
+    /**
+     * Wajib terisi (label unik) untuk [FieldType.ENUM] dan [FieldType.MULTI_SELECT]; kosong untuk tipe lain.
+     * Opsi berparameter [SelectOption] — tipe bersama kedua kosakata (registry tunggal, PLAN-unify-field-vocabulary
+     * §2a follow-up). Kawat prototype tetap larik string label: opsi lahir dari [SelectOption.label], tanpa warna;
+     * **nilai sel prototype = label** (bukan id — beda dengan CRM yang menyimpan id).
+     */
+    val options: List<SelectOption> = emptyList(),
     /** Kontrak v1: field wajib. Ditegakkan reducer pada `Create`; `SetField` boleh mengosongkan hanya bila tidak wajib. */
     val required: Boolean = false,
     /**
@@ -106,11 +111,13 @@ data class FieldSpec(
      */
     val decimals: Int? = null
 ) {
+    /** Label opsi = nilai sel ENUM/MULTI_SELECT prototype; jembatan aturan berbasis label (mesin status, kolom kanban, CHECK SQL, brief). */
+    val optionLabels: List<String> get() = options.map { it.label }
     init {
         require(key.isNotBlank()) { "FieldSpec.key kosong" }
         require(label.isNotBlank()) { "Field '$key' tanpa label" }
         if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) {
-            require(options.isNotEmpty() && options.distinct().size == options.size) {
+            require(options.isNotEmpty() && optionLabels.distinct().size == options.size) {
                 "Field ${type.name} '$key' wajib punya opsi unik"
             }
         } else {
@@ -174,8 +181,8 @@ data class FieldSpec(
             FieldType.DATE -> DateFieldValues.isValid(value, withTime)
             // C6: jam dinding JJ:MM 24-jam tepat menit — aturan tunggal di TimeFieldValues, tanpa koersi.
             FieldType.TIME -> TimeFieldValues.isValid(value)
-            FieldType.ENUM -> value in options
-            FieldType.MULTI_SELECT -> MultiSelectValues.isValid(value, options, maxSelections)
+            FieldType.ENUM -> value in optionLabels
+            FieldType.MULTI_SELECT -> MultiSelectValues.isValid(value, optionLabels, maxSelections)
             FieldType.BOOL -> value == "ya" || value == "tidak"
             // C7: id target non-blank tanpa ".."; keberadaan target diverifikasi server, bukan klien.
             FieldType.RELATION -> value.isNotBlank() && !value.contains("..")
@@ -227,7 +234,7 @@ data class EntitySpec(
                 "Mesin status entitas '$id' menunjuk field '${sm.field}' yang tidak ada"
             }
             require(field.type == FieldType.ENUM) { "Mesin status '${sm.field}' wajib field ENUM" }
-            val known = field.options.toSet()
+            val known = field.optionLabels.toSet()
             require(sm.transitions.all { (from, tos) -> from in known && tos.all { it in known } }) {
                 "Transisi entitas '$id' memuat status di luar opsi '${sm.field}'"
             }

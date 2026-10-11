@@ -1,8 +1,11 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import kotlinx.datetime.Instant
@@ -100,6 +103,33 @@ class CrmFieldTypeParityTest {
         // Tulisan baru memakai nama enum — baris CHECKBOX lama tidak ditulis ulang.
         assertEquals("BOOL", CrmFieldType(FieldType.BOOL).code)
         assertEquals("ENUM", CrmFieldType(FieldType.ENUM).code)
+    }
+
+    /**
+     * Kompatibilitas kawat config lama (penyatuan muatan parameter, PLAN-unify §2a follow-up): JSONB
+     * `SINGLE_SELECT` berisi opsi berwarna + arsip — ditulis tangan persis bentuk wire lama — tetap
+     * terbaca identik setelah `SelectOption` menjadi tipe bersama registry. Tanpa migrasi data.
+     */
+    @Test
+    fun configCodec_legacySingleSelectJsonWithColoredOptions_readsIdentically() {
+        val legacyJson = jsonObjectOf(
+            "options" to jsonArrayOf(
+                listOf(
+                    jsonObjectOf(
+                        "id" to jsonOf("opt_satin"), "label" to jsonOf("Benang satin"),
+                        "colorHex" to jsonOf("#2563EB"), "archivedAt" to jsonOf(null as String?)
+                    ),
+                    jsonObjectOf(
+                        "id" to jsonOf("opt_lama"), "label" to jsonOf("Lama"),
+                        "colorHex" to jsonOf("#16A34A"), "archivedAt" to jsonOf("2026-01-01T00:00:00Z")
+                    )
+                )
+            )
+        )
+        assertEquals(
+            CrmFieldType(FieldType.ENUM, options = selectOptions),
+            CustomAttributesCodec.decodeFieldType("SINGLE_SELECT", legacyJson)
+        )
     }
 
     /** C7: sel RELATION = id record target string; dibaca kembali lewat [CustomAttributes.relation], tanpa karangan. */

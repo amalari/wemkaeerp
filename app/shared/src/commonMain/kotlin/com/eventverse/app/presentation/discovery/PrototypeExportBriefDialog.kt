@@ -97,7 +97,7 @@ fun PrototypeExportBriefDialog(
                             BriefEntity(
                                 id = e.id,
                                 label = e.label,
-                                fields = e.fields.map { BriefField(it.label, it.type.name, it.required, it.options) },
+                                fields = e.fields.map { BriefField(it.label, it.type.name, it.required, it.optionLabels) },
                                 statusField = e.stateMachine?.field,
                                 transitions = e.stateMachine?.transitions?.mapValues { it.value.toList() } ?: emptyMap()
                             )

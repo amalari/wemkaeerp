@@ -11,7 +11,7 @@ import com.eventverse.app.domain.discovery.brief.CaptureEntry
  */
 object PrototypeContractSamples {
 
-    private val status = FieldSpec("Status", "Status tiket", FieldType.ENUM, listOf("Baru", "Diproses", "Selesai"))
+    private val status = FieldSpec("Status", "Status tiket", FieldType.ENUM, selectOptions("Baru", "Diproses", "Selesai"))
 
     val ticketEntity = EntitySpec(
         id = "tiket",
@@ -47,7 +47,7 @@ object PrototypeContractSamples {
         SpecOp.AddEnumOption("tiket", "Status", "Revisi", after = "Diproses"),
         SpecOp.RenameEnumOption("tiket", "Status", "Selesai", "Ditutup"),
         SpecOp.AddTransition("tiket", "Status", "Baru", "Selesai"),
-        SpecOp.AddField("tiket", FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, listOf("Rendah", "Tinggi"))),
+        SpecOp.AddField("tiket", FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, selectOptions("Rendah", "Tinggi"))),
         SpecOp.RenameFieldLabel("tiket", "Peminta", "Dilaporkan oleh")
     )
 
@@ -68,7 +68,7 @@ object PrototypeContractSamples {
             FieldSpec("Total", "Total Biaya", FieldType.NUMBER),
             FieldSpec("Target", "Target Selesai", FieldType.DATE),
             FieldSpec("Mendesak", "Mendesak", FieldType.BOOL),
-            FieldSpec("Status", "Status", FieldType.ENUM, listOf("Baru", "Dikerjakan", "Selesai")),
+            FieldSpec("Status", "Status", FieldType.ENUM, selectOptions("Baru", "Dikerjakan", "Selesai")),
             // C8 (TRD-FIELD-002): nilai = FileRef; baris contoh sengaja TANPA kunci ini (seed FILE
             // wajib kosong — referensi karangan ke objek yang tidak ada ditolak validator).
             FieldSpec("Lampiran", "Lampiran", FieldType.FILE),

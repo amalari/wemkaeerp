@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.brief.CaptureEntry
 import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.FieldSpec
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.SelectOption
 import com.eventverse.app.domain.prototype.SpecOp
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
@@ -30,7 +31,8 @@ object SpecOpCodec {
             "field" to JsonValue.Obj(
                 jsonObjectOf(
                     "key" to jsonOf(op.field.key), "label" to jsonOf(op.field.label), "fieldType" to jsonOf(op.field.type.name),
-                    "options" to jsonArrayOf(op.field.options.map(::jsonOf)), "required" to jsonOf(op.field.required),
+                    // Kawat opsi tetap larik string label (kompatibel dokumen lama).
+                    "options" to jsonArrayOf(op.field.optionLabels.map(::jsonOf)), "required" to jsonOf(op.field.required),
                     "format" to jsonOf(op.field.format.name), "currencyCode" to jsonOf(op.field.currencyCode),
                     "withTime" to jsonOf(op.field.withTime), "validation" to jsonOf(op.field.validation.name),
                     "target" to jsonOf(op.field.target)
@@ -66,7 +68,7 @@ object SpecOpCodec {
                 val ft = FieldType.entries.firstOrNull { it.name == f.string("fieldType") }
                 SpecOp.AddField(
                     str("entityId"),
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options").map { SelectOption(it) }, f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f))
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))

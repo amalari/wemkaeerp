@@ -6,8 +6,8 @@ import com.eventverse.app.domain.crm.prefill.LeadDraftFields
 import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.NumberFormat
-import com.eventverse.app.domain.customfield.SelectOption
-import com.eventverse.app.domain.customfield.SelectOptionId
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.presentation.crm.components.LeadFieldControl
 import com.eventverse.app.presentation.crm.components.LeadFormState
 import com.eventverse.app.presentation.crm.components.isBlankOrIsoDate

@@ -110,12 +110,3 @@ value class FieldKey(val value: String) {
         }
     }
 }
-
-/** A single selectable value of an ENUM ([com.eventverse.app.domain.prototype.FieldType.ENUM]) / MULTI_SELECT field. */
-@JvmInline
-value class SelectOptionId(val value: String) {
-    init {
-        require(value.isNotBlank()) { "SelectOptionId cannot be blank" }
-        require(value.length <= 64) { "SelectOptionId must be at most 64 characters" }
-    }
-}

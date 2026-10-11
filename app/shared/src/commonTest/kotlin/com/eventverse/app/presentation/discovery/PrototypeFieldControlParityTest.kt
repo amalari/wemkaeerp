@@ -4,6 +4,7 @@ import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.FieldHint
 import com.eventverse.app.domain.prototype.FieldSpec
+import com.eventverse.app.domain.prototype.selectOptions
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.FormConfig
 import com.eventverse.app.domain.prototype.InteractiveScreen
@@ -37,8 +38,8 @@ class PrototypeFieldControlParityTest {
             FieldSpec("f_num", "Jumlah", FieldType.NUMBER),
             FieldSpec("f_date", "Tanggal", FieldType.DATE),
             FieldSpec("f_time", "Jam mulai", FieldType.TIME),
-            FieldSpec("f_enum", "Status", FieldType.ENUM, options = listOf("Draft", "Rilis")),
-            FieldSpec("f_multi", "Label Ganda", FieldType.MULTI_SELECT, options = listOf("A", "B", "C")),
+            FieldSpec("f_enum", "Status", FieldType.ENUM, options = selectOptions("Draft", "Rilis")),
+            FieldSpec("f_multi", "Label Ganda", FieldType.MULTI_SELECT, options = selectOptions("A", "B", "C")),
             FieldSpec("f_bool", "Aktif", FieldType.BOOL),
             FieldSpec("f_rel", "Rujukan", FieldType.RELATION, target = "pesanan"),
             FieldSpec("f_file", "Lampiran", FieldType.FILE),
@@ -78,7 +79,7 @@ class PrototypeFieldControlParityTest {
         val tableHints = TableHints(
             statusColumn = "f_enum",
             options = listOf("Draft", "Rilis"),
-            fields = allFields.filter { it.key != "f_enum" }.map { FieldHint(it.key, it.type, options = it.options, target = it.target) },
+            fields = allFields.filter { it.key != "f_enum" }.map { FieldHint(it.key, it.type, options = it.optionLabels, target = it.target) },
             inlineCreate = true
         )
         val sampleRow = mapOf(

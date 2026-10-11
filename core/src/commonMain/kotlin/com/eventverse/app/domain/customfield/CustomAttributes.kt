@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.customfield
 
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonObjectOf
 import kotlinx.datetime.LocalDate

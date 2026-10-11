@@ -1,6 +1,8 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 
 /**
  * Tipe satu field kustom CRM = **kosakata tipe bersama** ([FieldType] prototype, registry tunggal —
@@ -17,7 +19,7 @@ import com.eventverse.app.domain.prototype.FieldType
  */
 data class CrmFieldType(
     val kind: FieldType,
-    /** ENUM/MULTI_SELECT: opsi terpilih tenant (warna + arsip lembut). Di discovery, opsi cukup nama. */
+    /** ENUM/MULTI_SELECT: opsi terpilih tenant (warna + arsip lembut); tipe bersama [SelectOption] — di discovery opsi lahir dari nama polos (`SelectOption(label)`, tanpa warna). */
     val options: List<SelectOption> = emptyList(),
     /** NUMBER: varian tampilan angka (polos/persen/mata uang). */
     val format: NumberFormat = NumberFormat.Plain,
@@ -69,30 +71,5 @@ sealed interface NumberFormat {
         init {
             require(currencyCode.length == 3) { "Currency code must be ISO-4217 (3 letters): $currencyCode" }
         }
-    }
-}
-
-/**
- * One choice in an ENUM/`SingleSelect` field.
- *
- * [colorHex] is domain data supplied by the tenant admin who created the option — the
- * sanctioned exception to "no color literals outside WeMadeTheme.kt", exactly like
- * `PhaseDefinition.colorHex`. Deleting an option soft-archives it ([archivedAt]) rather than
- * removing it: a cell already holding this option must keep rendering (greyed) rather than
- * silently losing data.
- */
-data class SelectOption(
-    val id: SelectOptionId,
-    val label: String,
-    val colorHex: String,
-    val archivedAt: String? = null
-) {
-    init {
-        require(label.isNotBlank()) { "SelectOption.label cannot be blank" }
-        require(COLOR_HEX_REGEX.matches(colorHex)) { "SelectOption.colorHex must be #RRGGBB: $colorHex" }
-    }
-
-    companion object {
-        private val COLOR_HEX_REGEX = Regex("^#[0-9A-Fa-f]{6}$")
     }
 }

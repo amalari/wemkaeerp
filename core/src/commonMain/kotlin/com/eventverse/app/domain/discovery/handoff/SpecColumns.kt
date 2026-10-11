@@ -39,13 +39,13 @@ internal fun SpecColumn.sqlDefinition(): String {
         FieldType.DATE -> (if (field.withTime) "TIMESTAMP" else "DATE") + notNull
         // C6: jam dinding `JJ:MM` tanpa tanggal/zona = kolom TIME bawaan Postgres (pola kolom DATE).
         FieldType.TIME -> "TIME$notNull"
-        FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.options.joinToString(", ") { SpecNaming.sqlString(it) }}))"
+        FieldType.ENUM -> "VARCHAR(120)$notNull CHECK ($name IN (${field.optionLabels.joinToString(", ") { SpecNaming.sqlString(it) }}))"
         // A0 (TRD-FIELD-003 R1): kolom larik Postgres; opsi tetap dijaga DB lewat `<@` (subset dari opsi).
         // required menambah cardinality > 0 ("[]" tersimpan tidak sah), maxSelections menambah batas atas.
         FieldType.MULTI_SELECT -> buildString {
             append("TEXT[]").append(notNull)
             append(" CHECK (").append(name).append(" <@ ARRAY[")
-            append(field.options.joinToString(", ") { SpecNaming.sqlString(it) })
+            append(field.optionLabels.joinToString(", ") { SpecNaming.sqlString(it) })
             append("]::text[])")
             if (field.required) append(" CHECK (cardinality($name) > 0)")
             field.maxSelections?.let { append(" CHECK (cardinality($name) <= $it)") }

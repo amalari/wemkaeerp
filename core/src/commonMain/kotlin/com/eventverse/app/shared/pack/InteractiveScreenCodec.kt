@@ -18,6 +18,7 @@ import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
+import com.eventverse.app.domain.prototype.SelectOption
 import com.eventverse.app.domain.prototype.StateMachine
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.prototype.TileSpec
@@ -41,7 +42,8 @@ object InteractiveScreenCodec {
                     JsonValue.Obj(
                         jsonObjectOf(
                             "key" to jsonOf(f.key), "label" to jsonOf(f.label), "type" to jsonOf(f.type.name),
-                            "options" to jsonArrayOf(f.options.map(::jsonOf)), "required" to jsonOf(f.required),
+                            // Kawat opsi tetap larik string label (kompatibel dokumen lama); opsi berparameter hidup di memori.
+                            "options" to jsonArrayOf(f.optionLabels.map(::jsonOf)), "required" to jsonOf(f.required),
                             "format" to jsonOf(f.format.name), "currencyCode" to jsonOf(f.currencyCode),
                             "withTime" to jsonOf(f.withTime), "validation" to jsonOf(f.validation.name),
                             "target" to jsonOf(f.target)
@@ -103,7 +105,7 @@ object InteractiveScreenCodec {
                 requireNotNull(e.string("id")) { "entitas tanpa id" }, e.string("label").orEmpty(),
                 e.objectArray("fields").map { f ->
                     val type = FieldType.entries.firstOrNull { it.name == f.string("type") }
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options"), f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(type) { "tipe field '${f.string("type")}' tak dikenal" }, f.stringArray("options").map { SelectOption(it) }, f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f))
                 },
                 machine
             )

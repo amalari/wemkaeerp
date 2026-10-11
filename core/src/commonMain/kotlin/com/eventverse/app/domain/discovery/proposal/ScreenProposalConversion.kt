@@ -54,7 +54,8 @@ fun ScreenProposal.toInteractiveScreen(source: ProposalSource? = null): Result<I
 
 private fun EntityProposal.toEntitySpec(): EntitySpec = EntitySpec(
     id, label,
-    fields.map { FieldSpec(it.key, it.label, it.type, it.options, it.required, it.format, it.currencyCode, it.withTime, it.validation, it.target) },
+    // Opsi usulan (label polos) dibungkus [SelectOption] — nilai sel prototype tetap label.
+    fields.map { FieldSpec(it.key, it.label, it.type, it.options.map { o -> com.eventverse.app.domain.prototype.SelectOption(o) }, it.required, it.format, it.currencyCode, it.withTime, it.validation, it.target) },
     // Tanpa transisi = bebas pindah (sama dengan petunjuk papan pack); mesin status hanya bila ada aturan.
     statusField?.takeIf { transitions.isNotEmpty() }?.let { sf -> StateMachine(sf, transitions.mapValues { (_, v) -> v.toSet() }) }
 )

@@ -103,7 +103,7 @@ class InteractiveTableState(
     fun statusTargets(row: PrototypeRow): List<String> {
         val field = config.statusField ?: return emptyList()
         val from = row[field]
-        val options = entity.field(field)?.options.orEmpty()
+        val options = entity.field(field)?.optionLabels.orEmpty()
         return options.filter { it != from && (machine?.allows(from, it) ?: true) }
     }
 
@@ -135,7 +135,7 @@ class InteractiveTableState(
             val f = entity.field(col)
             inlineValues[col] = when (f?.type) {
                 FieldType.BOOL -> "tidak"
-                FieldType.ENUM -> f.options.firstOrNull().orEmpty()
+                FieldType.ENUM -> f.optionLabels.firstOrNull().orEmpty()
                 // A0 (TRD-FIELD-003): MULTI_SELECT default kosong (belum ada pilihan); chip = Track C.
                 // C6: TIME default kosong (belum diisi) — pola DATE.
                 // A0 (penyatuan kosakata): USER_REF default kosong — id pengguna tidak dikarang.

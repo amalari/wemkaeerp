@@ -25,7 +25,7 @@ class PrototypeDateWithTimeTest {
     fun fieldSpec_withTimeOnNonDate_isRejected_forEveryOtherType() {
         FieldType.entries.filter { it != FieldType.DATE }.forEach { type ->
             // ENUM dan MULTI_SELECT wajib membawa opsi; kalau tidak, penolakannya bukan karena withTime.
-            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf("a") else emptyList()
+            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf(SelectOption("a")) else emptyList()
             val result = runCatching { FieldSpec("k", "K", type, options, withTime = true) }
             assertTrue(result.isFailure, "$type dengan withTime harus ditolak")
             assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("bukan DATE"), "pesan jelas: ${result.exceptionOrNull()?.message}")
@@ -98,7 +98,7 @@ class PrototypeDateWithTimeTest {
     fun routes_withTime_literalAndValidationCheckTheTimeFormat() {
         val t = table(dateTime(), dateOnly())
         val routes = SpecRoutesWriter.routesFile("bordir_uji", t)
-        assertTrue("FieldSpec(\"jadwal\", \"Jadwal\", FieldType.DATE, listOf(), false, withTime = true)" in routes, "entityLiteral membawa withTime")
+        assertTrue("FieldSpec(\"jadwal\", \"Jadwal\", FieldType.DATE, selectOptions(), false, withTime = true)" in routes, "entityLiteral membawa withTime")
         assertTrue("FieldSpec(\"jadwal\", \"Jadwal\", FieldType.DATE, withTime = true)" in routes, "DATE_FIELDS membawa withTime")
         assertTrue("FieldSpec(\"tanggal\", \"Tanggal\", FieldType.DATE)" in routes, "tanggal-saja tanpa withTime")
         assertTrue("f.withTime" in routes && "LocalDateTime.parse(v)" in routes && "TTTT-BB-HHTJJ:MM" in routes, "dateProblem memeriksa format menurut withTime")
@@ -108,6 +108,6 @@ class PrototypeDateWithTimeTest {
     @Test
     fun entityLiteral_withTimeOnly_omitsNumberParams_andUsesNamedArgument() {
         val literal = SpecRoutesWriter.entityLiteral(EntitySpec("e", "E", listOf(dateTime())))
-        assertEquals("EntitySpec(\"e\", \"E\", listOf(FieldSpec(\"jadwal\", \"Jadwal\", FieldType.DATE, listOf(), false, withTime = true)))", literal)
+        assertEquals("EntitySpec(\"e\", \"E\", listOf(FieldSpec(\"jadwal\", \"Jadwal\", FieldType.DATE, selectOptions(), false, withTime = true)))", literal)
     }
 }

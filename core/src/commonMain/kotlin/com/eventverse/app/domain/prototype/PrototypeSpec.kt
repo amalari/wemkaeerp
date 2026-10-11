@@ -138,7 +138,7 @@ data class PrototypeSpec(val entities: List<EntitySpec>, val screens: List<Scree
             screen.kanban?.let { k ->
                 val group = requireNotNull(entity.field(k.groupField)) { "Layar '$id': field kelompok '${k.groupField}' tidak ada" }
                 require(group.type == FieldType.ENUM) { "Field kelompok '${k.groupField}' wajib ENUM" }
-                require(k.columns.isNotEmpty() && k.columns.all { it in group.options }) { "Layar '$id': kolom di luar opsi '${k.groupField}'" }
+                require(k.columns.isNotEmpty() && k.columns.all { it in group.optionLabels }) { "Layar '$id': kolom di luar opsi '${k.groupField}'" }
                 require(entity.field(k.titleField) != null && k.detailFields.all { entity.field(it) != null }) {
                     "Layar '$id': field judul/detail tidak ada di entitas"
                 }

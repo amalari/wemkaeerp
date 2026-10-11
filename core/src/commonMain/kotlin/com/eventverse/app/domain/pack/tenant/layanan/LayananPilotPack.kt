@@ -31,6 +31,7 @@ import com.eventverse.app.domain.prototype.KanbanConfig
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
 import com.eventverse.app.domain.prototype.StateMachine
+import com.eventverse.app.domain.prototype.selectOptions
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
@@ -140,8 +141,8 @@ object LayananPilotPack {
         fields = listOf(
             FieldSpec("judul", "Judul", FieldType.TEXT, required = true),
             FieldSpec("peminta", "Peminta", FieldType.TEXT),
-            FieldSpec("prioritas", "Prioritas", FieldType.ENUM, listOf("Rendah", "Sedang", "Tinggi")),
-            FieldSpec("status", "Status", FieldType.ENUM, listOf("Baru", "Ditinjau", "Disetujui", "Selesai"), required = true),
+            FieldSpec("prioritas", "Prioritas", FieldType.ENUM, selectOptions("Rendah", "Sedang", "Tinggi")),
+            FieldSpec("status", "Status", FieldType.ENUM, selectOptions("Baru", "Ditinjau", "Disetujui", "Selesai"), required = true),
             FieldSpec("perkiraan_jam", "Perkiraan jam", FieldType.NUMBER),
             FieldSpec("target_selesai", "Target selesai", FieldType.DATE),
             FieldSpec("mendesak", "Mendesak", FieldType.BOOL),

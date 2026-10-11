@@ -119,7 +119,7 @@ class InteractiveFormState(
         fields().forEach { f ->
             formValues[f.key] = when (f.type) {
                 FieldType.BOOL -> "tidak"
-                FieldType.ENUM -> f.options.firstOrNull().orEmpty()
+                FieldType.ENUM -> f.optionLabels.firstOrNull().orEmpty()
                 // A0 (TRD-FIELD-003): MULTI_SELECT default kosong (belum ada pilihan); chip = Track C.
                 // C6: TIME default kosong (belum diisi) — picker yang menandai bentuk, bukan jam karangan.
                 // A0 (penyatuan kosakata): USER_REF default kosong — id pengguna tidak dikarang.

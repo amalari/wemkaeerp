@@ -14,8 +14,8 @@ object PrototypeFieldTypeSampleFields {
         FieldType.DATE -> FieldSpec("tanggal_desain", "Tanggal desain", type, required = required)
         // C6: jam mulai shift — konteks bordir non-garment (jam operasional workshop).
         FieldType.TIME -> FieldSpec("jam_mulai_shift", "Jam mulai shift", type, required = required)
-        FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, listOf("Digitizing", "Hooping", "Selesai"), required)
-        FieldType.MULTI_SELECT -> FieldSpec("layanan_dibeli", "Layanan dibeli", type, listOf("Digitizing", "Hooping", "Selesai"), required, maxSelections = 2)
+        FieldType.ENUM -> FieldSpec("tahap", "Tahap", type, selectOptions("Digitizing", "Hooping", "Selesai"), required)
+        FieldType.MULTI_SELECT -> FieldSpec("layanan_dibeli", "Layanan dibeli", type, selectOptions("Digitizing", "Hooping", "Selesai"), required, maxSelections = 2)
         FieldType.BOOL -> FieldSpec("sudah_disetujui", "Disetujui", type, required = required)
         FieldType.RELATION -> FieldSpec("rujukan_po", "Rujukan PO", type, required = required, target = "pesanan")
         FieldType.FILE -> FieldSpec("lampiran_scan", "Lampiran scan", type, required = required)

@@ -90,17 +90,17 @@ class PrototypeMultiSelectTest {
     @Test
     fun fieldSpec_multiSelect_requiresOptionsAndHonoursMaxRange() {
         assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT) }.isFailure, "MULTI_SELECT tanpa options ditolak")
-        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "a")) }.isFailure, "options kembar ditolak")
-        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b"), maxSelections = 0) }.isFailure, "maxSelections < 1 ditolak")
-        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b"), maxSelections = 3) }.isFailure, "maxSelections > options ditolak")
-        assertEquals(1, FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b"), maxSelections = 1).maxSelections)
-        assertNull(FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b")).maxSelections)
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "a")) }.isFailure, "options kembar ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b"), maxSelections = 0) }.isFailure, "maxSelections < 1 ditolak")
+        assertTrue(runCatching { FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b"), maxSelections = 3) }.isFailure, "maxSelections > options ditolak")
+        assertEquals(1, FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b"), maxSelections = 1).maxSelections)
+        assertNull(FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b")).maxSelections)
     }
 
     @Test
     fun fieldSpec_maxSelections_onOtherType_isRejected() {
         FieldType.entries.filter { it != FieldType.MULTI_SELECT }.forEach { type ->
-            val opts = if (type == FieldType.ENUM) listOf("a", "b") else emptyList()
+            val opts = if (type == FieldType.ENUM) listOf(SelectOption("a"), SelectOption("b")) else emptyList()
             val result = runCatching { FieldSpec("k", "K", type, opts, maxSelections = 1) }
             assertTrue(result.isFailure, "$type dengan maxSelections harus ditolak")
         }
@@ -108,7 +108,7 @@ class PrototypeMultiSelectTest {
 
     @Test
     fun accepts_multiSelect_matchesMultiSelectValues() {
-        val f = FieldSpec("k", "K", FieldType.MULTI_SELECT, options, maxSelections = 2)
+        val f = FieldSpec("k", "K", FieldType.MULTI_SELECT, options.map { SelectOption(it) }, maxSelections = 2)
         assertTrue(f.accepts(""), "kosong sah")
         assertTrue(f.accepts("[\"Digitizing\",\"Hooping\"]"))
         assertFalse(f.accepts("[]"))
@@ -131,7 +131,7 @@ class PrototypeMultiSelectTest {
 
     @Test
     fun sqlDefinition_optionalMultiSelect_hasNoNotNullAndNoCardinalityMin() {
-        val sql = table(FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b"))).columns.single().sqlDefinition()
+        val sql = table(FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b"))).columns.single().sqlDefinition()
         assertTrue(sql.startsWith("TEXT[]"), sql)
         assertFalse("NOT NULL" in sql, sql)
         assertFalse("> 0" in sql, sql)
@@ -153,7 +153,7 @@ class PrototypeMultiSelectTest {
 
     @Test
     fun exposedWriter_optionalMultiSelect_isNullable() {
-        val t = table(FieldSpec("k", "K", FieldType.MULTI_SELECT, listOf("a", "b")))
+        val t = table(FieldSpec("k", "K", FieldType.MULTI_SELECT, selectOptions("a", "b")))
         val tableFile = SpecPostgresWriter.tableFile(t)
         assertTrue("array<String>(\"k\").nullable()" in tableFile, tableFile)
     }
@@ -164,7 +164,7 @@ class PrototypeMultiSelectTest {
     fun routes_multiSelect_carriesFieldListAndProblemCheckInPostAndPut() {
         val routes = SpecRoutesWriter.routesFile("bordir_uji", table(fieldFor(FieldType.MULTI_SELECT, required = true)))
         assertTrue(
-            "private val MULTI_FIELDS = listOf<FieldSpec>(FieldSpec(\"layanan_dibeli\", \"Layanan dibeli\", FieldType.MULTI_SELECT, listOf(\"Digitizing\", \"Hooping\", \"Selesai\"), true, maxSelections = 2))" in routes,
+            "private val MULTI_FIELDS = listOf<FieldSpec>(FieldSpec(\"layanan_dibeli\", \"Layanan dibeli\", FieldType.MULTI_SELECT, selectOptions(\"Digitizing\", \"Hooping\", \"Selesai\"), true, maxSelections = 2))" in routes,
             "MULTI_FIELDS dengan maxSelections harus ikut tercetak"
         )
         assertTrue("private fun multiProblem" in routes, "fungsi multiProblem harus ada")

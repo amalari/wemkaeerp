@@ -155,7 +155,7 @@ internal object SpecPostgresWriter {
             FieldType.TEXT, FieldType.LONG_TEXT, FieldType.ENUM, FieldType.RELATION, FieldType.FILE, FieldType.USER_REF -> if (c.field.required) cell else "($cell ?: \"\")"
             // A0 (TRD-FIELD-003): baca larik → string JSON kanonik (urut menurut options); null ↔ "".
             FieldType.MULTI_SELECT -> {
-                val opts = c.field.options.joinToString(", ") { SpecNaming.kString(it) }
+                val opts = c.field.optionLabels.joinToString(", ") { SpecNaming.kString(it) }
                 if (c.field.required) "MultiSelectValues.encode($cell, listOf($opts))"
                 else "($cell?.let { MultiSelectValues.encode(it, listOf($opts)) } ?: \"\")"
             }

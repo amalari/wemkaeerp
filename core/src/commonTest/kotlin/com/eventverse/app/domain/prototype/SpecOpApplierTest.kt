@@ -22,7 +22,7 @@ class SpecOpApplierTest {
     @Test
     fun addEnumOption_insertsAfterPosition_andUpdatesKanbanColumns() {
         val next = SpecOpApplier.apply(garment, SpecOp.AddEnumOption("item", "Kolom", "Pressing", after = "Dikerjakan")).getOrThrow()
-        assertEquals(listOf("Baru", "Dikerjakan", "Pressing", "Selesai"), next.spec.entity("item")!!.field("Kolom")!!.options)
+        assertEquals(listOf("Baru", "Dikerjakan", "Pressing", "Selesai"), next.spec.entity("item")!!.field("Kolom")!!.optionLabels)
         assertEquals(listOf("Baru", "Dikerjakan", "Pressing", "Selesai"), next.spec.screens.single().kanban!!.columns)
         assertEquals("Selesai", next.seed.getValue("item").last()["Kolom"], "seed tak tersentuh oleh penambahan")
     }
@@ -33,7 +33,7 @@ class SpecOpApplierTest {
             val entityId = screen.spec.entities.single().id
             val field = screen.spec.entity(entityId)!!.fields.first { it.type == FieldType.ENUM }
             val next = SpecOpApplier.apply(screen, SpecOp.AddEnumOption(entityId, field.key, "Ekstra")).getOrThrow()
-            assertEquals(field.options + "Ekstra", next.spec.entity(entityId)!!.field(field.key)!!.options)
+            assertEquals(field.optionLabels + "Ekstra", next.spec.entity(entityId)!!.field(field.key)!!.optionLabels)
         }
     }
 
@@ -49,7 +49,7 @@ class SpecOpApplierTest {
     @Test
     fun renameEnumOption_rewritesFieldColumnsMachineAndSeed() {
         val next = SpecOpApplier.apply(garment, SpecOp.RenameEnumOption("item", "Kolom", "Selesai", "Arsip")).getOrThrow()
-        assertEquals(listOf("Baru", "Dikerjakan", "Arsip"), next.spec.entity("item")!!.field("Kolom")!!.options)
+        assertEquals(listOf("Baru", "Dikerjakan", "Arsip"), next.spec.entity("item")!!.field("Kolom")!!.optionLabels)
         assertEquals(listOf("Baru", "Dikerjakan", "Arsip"), next.spec.screens.single().kanban!!.columns)
         val sm = assertNotNull(next.spec.entity("item")!!.stateMachine)
         assertTrue(sm.allows("Baru", "Dikerjakan") && !sm.allows("Baru", "Selesai"))
@@ -83,7 +83,7 @@ class SpecOpApplierTest {
 
     @Test
     fun addField_addsToEntityOnly_screensUnchanged_documentedDecision() {
-        val next = SpecOpApplier.apply(ticket, SpecOp.AddField("tiket", FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, listOf("Rendah", "Tinggi")))).getOrThrow()
+        val next = SpecOpApplier.apply(ticket, SpecOp.AddField("tiket", FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, selectOptions("Rendah", "Tinggi")))).getOrThrow()
         assertNotNull(next.spec.entity("tiket")!!.field("Prioritas"))
         assertEquals(ticket.spec.screens, next.spec.screens, "keputusan B3: layar tidak berubah otomatis")
         assertTrue(SpecOpApplier.apply(ticket, SpecOp.AddField("tiket", FieldSpec("Judul", "Judul", FieldType.TEXT))).isFailure, "field ganda ditolak")

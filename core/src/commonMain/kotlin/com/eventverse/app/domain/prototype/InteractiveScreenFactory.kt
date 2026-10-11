@@ -49,7 +49,7 @@ object InteractiveScreenFactory {
             declared.forEach { f ->
                 require(f.key != groupField) { "FieldHint '${f.key}' tidak boleh menimpa field kelompok papan (type-nya dipaksa ENUM)" }
             }
-            val group = FieldSpec(groupField, hints?.groupLabel ?: groupField, FieldType.ENUM, columns)
+            val group = FieldSpec(groupField, hints?.groupLabel ?: groupField, FieldType.ENUM, columns.map { SelectOption(it) })
             val entityFields = if (declaredMode) declared.map { it.toFieldSpec() } else textKeys.map { FieldSpec(it, it, FieldType.TEXT) }
             val titleField = if (declaredMode) {
                 hints?.card?.firstOrNull { it.style == CardStyle.TITLE }?.field ?: declared.first().key
@@ -95,7 +95,7 @@ object InteractiveScreenFactory {
                 columns.map { c ->
                     when {
                         hintsByColumn[c] != null -> hintsByColumn.getValue(c).toFieldSpec()
-                        c == hints?.statusColumn -> FieldSpec(c, c, FieldType.ENUM, hints?.options.orEmpty())
+                        c == hints?.statusColumn -> FieldSpec(c, c, FieldType.ENUM, hints?.options.orEmpty().map { SelectOption(it) })
                         else -> FieldSpec(c, c, FieldType.TEXT)
                     }
                 },
@@ -162,7 +162,7 @@ object InteractiveScreenFactory {
         return runCatching {
             val fields = hints.fields.map { key ->
                 val options = hints.options[key]
-                if (options != null) FieldSpec(key, key, FieldType.ENUM, options, required = key in hints.required)
+                if (options != null) FieldSpec(key, key, FieldType.ENUM, options.map { SelectOption(it) }, required = key in hints.required)
                 else FieldSpec(key, key, FieldType.TEXT, required = key in hints.required)
             }
             val spec = PrototypeSpec(

@@ -16,8 +16,8 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.presentation.designsystem.isValidClayTime
-import com.eventverse.app.domain.customfield.SelectOptionId
 import com.eventverse.app.shared.json.JsonValue
 
 /**

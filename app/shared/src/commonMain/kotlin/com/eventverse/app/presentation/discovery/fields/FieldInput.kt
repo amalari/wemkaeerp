@@ -131,7 +131,7 @@ fun FieldInput(
             }
             FieldType.ENUM -> {
                 ClayFlowRow(spacing = ClaySpacing.Xs) {
-                    field.options.forEach { opt ->
+                    field.optionLabels.forEach { opt ->
                         ClayChoiceChip(
                             text = opt,
                             selected = value == opt,
@@ -146,10 +146,10 @@ fun FieldInput(
             FieldType.MULTI_SELECT -> {
                 val selected = MultiSelectValues.parse(value).orEmpty().toSet()
                 ClayMultiChoiceChips(
-                    options = field.options,
+                    options = field.optionLabels,
                     selected = selected,
                     onToggle = { option ->
-                        onValueChange(multiSelectToggleValue(value, option, field.options))
+                        onValueChange(multiSelectToggleValue(value, option, field.optionLabels))
                     },
                     maxSelections = field.maxSelections,
                     enabled = enabled

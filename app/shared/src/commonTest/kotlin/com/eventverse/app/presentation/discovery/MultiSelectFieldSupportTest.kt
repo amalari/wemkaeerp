@@ -1,6 +1,7 @@
 package com.eventverse.app.presentation.discovery
 
 import com.eventverse.app.domain.prototype.FieldSpec
+import com.eventverse.app.domain.prototype.selectOptions
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.presentation.discovery.fields.displayValue
 import com.eventverse.app.presentation.discovery.fields.multiSelectToggleValue
@@ -17,7 +18,7 @@ class MultiSelectFieldSupportTest {
         key = "alergi",
         label = "Alergi",
         type = FieldType.MULTI_SELECT,
-        options = listOf("Gigi", "Jantung", "Kulit")
+        options = selectOptions("Gigi", "Jantung", "Kulit")
     )
 
     // ── displayValue: tampilan baca = daftar label dipisah ", " ──────────────────────────────
@@ -44,24 +45,24 @@ class MultiSelectFieldSupportTest {
 
     @Test
     fun toggle_addsInOptionsOrder_notClickOrder() {
-        var value = multiSelectToggleValue("", "Kulit", alergi.options)
+        var value = multiSelectToggleValue("", "Kulit", alergi.optionLabels)
         assertEquals("""["Kulit"]""", value)
-        value = multiSelectToggleValue(value, "Gigi", alergi.options)
+        value = multiSelectToggleValue(value, "Gigi", alergi.optionLabels)
         assertEquals("""["Gigi","Kulit"]""", value, "urutan mengikuti options, bukan urutan klik")
     }
 
     @Test
     fun toggle_removesSelectedAndReturnsEmptyWhenNone() {
-        var value = multiSelectToggleValue("""["Gigi","Kulit"]""", "Gigi", alergi.options)
+        var value = multiSelectToggleValue("""["Gigi","Kulit"]""", "Gigi", alergi.optionLabels)
         assertEquals("""["Kulit"]""", value)
-        value = multiSelectToggleValue(value, "Kulit", alergi.options)
+        value = multiSelectToggleValue(value, "Kulit", alergi.optionLabels)
         assertEquals("", value, "tanpa pilihan = string kosong, bukan []")
     }
 
     @Test
     fun toggle_dropsUnknownAndKeepsCanonicalForm() {
         // Nilai masuk berisi opsi tak dikenal & tak berurut; encode membuang yang tak sah & menata ulang.
-        val value = multiSelectToggleValue("""["Kulit","Asing"]""", "Jantung", alergi.options)
+        val value = multiSelectToggleValue("""["Kulit","Asing"]""", "Jantung", alergi.optionLabels)
         assertEquals("""["Jantung","Kulit"]""", value)
     }
 }
