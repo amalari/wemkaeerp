@@ -174,3 +174,65 @@ Tes yang dijalankan dan hasilnya:
 ---
 
 *Catatan ledger*: task ini perbaikan wewenang kecil tanpa baris `module_build_records`, jadi pencatatan effort per peran/fase dilewati.
+
+---
+
+## 8. Tambahan — Q2: Pesan Galat yang Menuntun (bukan Menghakimi)
+
+Sesudah Q3, pertanyaan berikutnya bukan lagi "boleh atau tidak", melainkan **"kalau tidak boleh, apa yang harus saya lakukan?"**. Pesan galat yang baik adalah dokumentasi yang muncul tepat saat dibutuhkan.
+
+### Masalah pesan lama
+
+```kotlin
+"Butuh wewenang ${required.displayName} atas modul \"${...displayName}\"; wewenang Anda saat ini ${...}."
+```
+
+Tiga cacat: (1) kata **"modul"** adalah jargon arsitektur, bukan kosakata pengguna; (2) ia menyebut **apa yang salah** tetapi tidak **apa yang harus dilakukan**; (3) di klien, kartu menampilkan lencana literal **`403`** — kode HTTP mentah tak pernah pantas dilihat pengguna.
+
+### Pola yang dipakai: fungsi murni untuk teks yang penting
+
+```kotlin
+internal fun factoryFlowDeniedMessage(
+    required: AccessLevel,
+    current: AccessLevel,
+    source: AccessSource
+): String =
+    "Alur Pabrik belum terbuka untuk peran Anda. Dibutuhkan: ${required.displayName}; " +
+        "saat ini: ${current.displayName} (${source.label}). " +
+        "Minta pemilik pabrik membukanya lewat jabatan di layar Hak Akses (RBAC)."
+```
+
+**Mengapa diekstrak jadi fungsi murni, bukan tetap sebagai literal di dalam handler?**
+- Bisa **diuji tanpa HTTP** (3 tes murni), jadi kata "minta ke siapa" tak bisa hilang diam-diam.
+- Satu tempat untuk menyunting nada/gaya pesan; handler tetap tipis.
+- Uji bisa menegakkan dua aturan tak terlihat: **tanpa jargon "modul"** dan **seluruhnya ASCII** (font Nunito tak punya glyph di luar Latin-1 — ini nyata di repo ini, ada `UiTextLatin1GuardTest`).
+
+### Sisi klien: kosakata pengguna menggantikan kode status
+
+```kotlin
+// sebelum: ClayBadge(text = if (denied != null) "403" else "GALAT", …)
+// sesudah:
+ClayBadge(text = if (denied != null) "Tanpa Akses" else "GALAT", tint = WeMadeColors.Error)
+```
+
+Lencana "Tanpa Akses" konsisten dengan `ACCESS_DENIED_BADGE` di `AccessDeniedCard` — **satu kosakata untuk satu keadaan**, bukan tiga sebutan berbeda di tiga layar (Aturan Tiga Kali versi bahasa).
+
+Dan panduan kartu diubah agar **tidak menduplikasi** instruksi yang kini hidup di pesan server:
+
+```kotlin
+"Hubungi pemilik pabrik bila Anda merasa seharusnya berwenang."
+```
+
+Pelajaran pembagian tanggung jawab teks: **server menyebut sebab & konteks** (level butuh/ada + sumber), **kartu menyebut tindakan**. Kalau keduanya menuliskan instruksi RBAC, pengguna membaca kalimat yang sama dua kali dalam satu kartu 8 baris.
+
+### Jebakan pemula di babak ini
+
+1. **Menampilkan kode HTTP ke pengguna.** "403" adalah istilah kita, bukan istilahnya. *Solusi*: kosakata pengguna ("Tanpa Akses"), status teknis tetap ada di `FactoryFlowLoadState` untuk pemrogram.
+2. **Menghapus konteks demi "keramahan".** Pesan ramah yang tak menyebut level & sumber membuat pengguna (dan penguji) menebak apakah salahnya konfigurasi, persona, atau sistem. *Solusi*: ramah **dan** spesifik.
+3. **Menulis pesan langsung di handler.** Teks yang penting tapi tak teruji akan rusak tanpa ada yang tahu. *Solusi*: fungsi murni + tes, sekecil apa pun.
+4. **Menaruh instruksi di dua tempat.** Server dan klien sama-sama menjelaskan RBAC → duplikasi terbaca sebagai kebingungan. *Solusi*: bagi peran teks (sebab di server, tindakan di kartu).
+
+### Bukti
+
+`FactoryFlowDeniedMessageTest` 3/0 (level butuh, level pemanggil, sumber, cara meminta, tanpa jargon, ASCII); `FactoryFlowTenantAdminParityTest` + `FactoryFlowAccessApiTest` tetap hijau (8/0); kompilasi `app:shared` JVM/WasmJS/JS + `jvmTest` hijau. **Cek mata belum dilakukan** karena sesi ini tak punya browser — langkahnya dicatat di `PLAN-plat-012-track-c.md` §3.
+
