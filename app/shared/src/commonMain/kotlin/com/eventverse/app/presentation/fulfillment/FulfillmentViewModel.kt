@@ -1,16 +1,12 @@
 package com.eventverse.app.presentation.fulfillment
 
-import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
 import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
-import com.eventverse.app.domain.fulfillment.HandoverRoute
 import com.eventverse.app.domain.fulfillment.HandoverRouteCode
 import com.eventverse.app.domain.fulfillment.HandoverRouteSetting
 import com.eventverse.app.domain.fulfillment.HandoverRouteSettingsView
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.SackRoute
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
-import com.eventverse.app.domain.fulfillment.toRouteCode
 import com.eventverse.app.infrastructure.api.FulfillmentTransferApiClient
 import com.eventverse.app.infrastructure.api.FulfillmentTransferRemoteDataSource
 import kotlinx.coroutines.CoroutineScope
@@ -28,8 +24,6 @@ data class FulfillmentUiState(
     val error: String? = null,
     /** Payload karung hasil scan/ketik yang sedang diproses di form pengajuan. */
     val scannedSack: String? = null,
-    /** Konfigurasi rute lama (backward compatible). */
-    val routeConfig: FulfillmentRouteConfig? = null,
     /** Tampilan konfigurasi rute serah terima berbasis data (TRD-FLOW-003). */
     val routeSettingsView: HandoverRouteSettingsView? = null
 ) {
@@ -39,37 +33,21 @@ data class FulfillmentUiState(
 
     /** Daftar rute serah terima aktif milik tenant ini. Kosong bila tenant memang tidak memiliki rute. */
     val effectiveRoutes: List<HandoverRouteSetting>
-        get() = routeSettingsView?.settings?.filter { it.route.active }?.sortedBy { it.route.sortOrder }
-            ?: SackRoute.entries.map {
-                HandoverRouteSetting(
-                    route = HandoverRoute(it.toRouteCode(), it.displayName),
-                    mode = modeFor(it),
-                    isExplicit = false
-                )
-            }
+        get() = routeSettingsView?.settings?.filter { it.route.active }?.sortedBy { it.route.sortOrder }.orEmpty()
 
     fun modeFor(routeCode: HandoverRouteCode): HandoverMode =
-        routeSettingsView?.settings?.firstOrNull { it.route.code == routeCode }?.mode
-            ?: (SackRoute.entries.firstOrNull { it.name == routeCode.value }?.let { modeFor(it) } ?: HandoverMode.ADMIN_HUB)
-
-    fun modeFor(route: SackRoute): HandoverMode =
-        routeConfig?.modeFor(route)
-            ?: (routeSettingsView?.settings?.firstOrNull { it.route.code.value == route.name }?.mode ?: HandoverMode.ADMIN_HUB)
+        requireNotNull(routeSettingsView?.settings?.firstOrNull { it.route.code == routeCode }) {
+            "Rute serah terima '${routeCode.value}' tidak dikenal tenant"
+        }.mode
 
     /** Rute yang masih lewat meja admin; true selama konfigurasi belum dimuat. */
     val hasAdminHubRoute: Boolean
-        get() = routeSettingsView?.hasAdminHubRoute
-            ?: (routeConfig?.hasAdminHubRoute ?: true)
+        get() = routeSettingsView?.hasAdminHubRoute ?: true
 
     /** Rute yang sah untuk wadah yang dipindai (berbasis data). */
     fun routesAccepting(isClosedSack: Boolean): List<HandoverRouteSetting> =
         effectiveRoutes.filter { isClosedSack || it.mode == HandoverMode.DIRECT }
 
-    /** Rute yang sah untuk wadah yang dipindai (backward compatible enum). */
-    fun routesAcceptingSackRoute(isClosedSack: Boolean): List<SackRoute> =
-        routesAccepting(isClosedSack).mapNotNull { s ->
-            SackRoute.entries.firstOrNull { it.name == s.route.code.value }
-        }
 }
 
 sealed interface FulfillmentUiEvent {
@@ -83,28 +61,8 @@ sealed interface FulfillmentUiEvent {
         val dispatchScalePhotoKey: String?,
         val requestedBy: String,
         val declaredPcs: Int? = null,
-        val notes: String = "",
-        val leg: SackRoute? = SackRoute.entries.firstOrNull { it.name == routeCode.value }
-    ) : FulfillmentUiEvent {
-        constructor(
-            sackPayload: String,
-            leg: SackRoute,
-            dispatchWeightKg: String?,
-            dispatchScalePhotoKey: String?,
-            requestedBy: String,
-            declaredPcs: Int? = null,
-            notes: String = ""
-        ) : this(
-            sackPayload = sackPayload,
-            routeCode = leg.toRouteCode(),
-            dispatchWeightKg = dispatchWeightKg,
-            dispatchScalePhotoKey = dispatchScalePhotoKey,
-            requestedBy = requestedBy,
-            declaredPcs = declaredPcs,
-            notes = notes,
-            leg = leg
-        )
-    }
+        val notes: String = ""
+    ) : FulfillmentUiEvent
 
     data class Approve(val transferId: String, val approverName: String, val signatureKey: String) : FulfillmentUiEvent
     data class Reject(val transferId: String, val reason: String, val approverName: String) : FulfillmentUiEvent
@@ -200,6 +158,7 @@ class FulfillmentViewModel(
                 _uiState.update { it.copy(isSubmitting = true, error = null) }
                 val result = remoteDataSource.updateRouteModes(tenantSlug, event.modes)
                 result.onSuccess {
+                    _uiState.update { it.copy(isSubmitting = false) }
                     load()
                 }.onFailure { err ->
                     _uiState.update { it.copy(isSubmitting = false, error = err.message) }
@@ -216,10 +175,8 @@ class FulfillmentViewModel(
                 .onSuccess { view ->
                     _uiState.update { it.copy(routeSettingsView = view) }
                 }
-                .onFailure {
-                    // Fallback bila server lama belum menyediakan routeSettingsView
-                    remoteDataSource.routeSettings(tenantSlug)
-                        .onSuccess { config -> _uiState.update { it.copy(routeConfig = config) } }
+                .onFailure { failure ->
+                    _uiState.update { it.copy(error = failure.message ?: "Gagal memuat rute serah terima") }
                 }
 
             remoteDataSource.transfers(tenantSlug)

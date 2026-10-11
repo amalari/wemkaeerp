@@ -144,3 +144,21 @@ baris itu dilewati diam-diam), `TransferCard` (label lewat `legacyRouteLabel`).
 dari body), `FulfillmentRouteConfigCodec.encode` (masih memancarkan `SackRoute.entries`), app
 `FulfillmentTransferApiClient`, `FulfillmentViewModel`, `TransferForms`. Belum ada tes HTTP server untuk fulfillment
 (tidak ada sebelumnya); tes 403/400 menjadi B4.
+
+## 7. Status Track C lock-in (2026-10-11, branch `feature/flow-003-c-handover-client`)
+
+**Selesai C1-C4 dan lock-in klien**: `TransferForms.kt` sudah dipecah menurut tanggung jawab;
+API client, state, event, dan form hanya memakai `HandoverRouteCode`/`HandoverRouteSettingsView`;
+fallback `routeSettings()` serta seluruh overload/pembacaan `SackRoute` di `app/shared` dihapus.
+Respons `route-settings` kini didekode ketat: baris rusak, mode tak dikenal, rujukan simpul tak sah,
+dan kode ganda menggagalkan pemuatan alih-alih dilewati atau diubah maknanya. Layar pengaturan
+menolak `AccessLevel.NONE`, sementara hak simpan tetap membutuhkan `MANAGE`/Owner/SuperAdmin.
+
+**Test**: fake tenant `bordir-uji`, tenant tanpa rute, kegagalan kontrak tanpa fallback, submit rute
+non-garment, pembaruan mode, decoder payload non-default/payload rusak, dan propagasi cancellation
+transport. Test terfokus 9/9 hijau; `compileKotlinJvm`, `compileKotlinJs`, `compileKotlinWasmJs`, dan
+seluruh `jvmTest` app/shared hijau. Audit variabilitas 0 temuan dan pemindai `SackRoute` app/shared kosong.
+
+**Belum terverifikasi di environment branch**: `assembleAndroidMain` tidak dapat dimulai karena Android
+SDK tidak tersedia (`ANDROID_HOME`/`sdk.dir` kosong). C5 visual `wemade-demo` + `bordir-uji` pada ~1280dp
+belum dilakukan karena tidak ada browser lokal terautentikasi; tidak dianggap lulus dari kompilasi.
