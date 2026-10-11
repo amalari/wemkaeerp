@@ -37,7 +37,9 @@ object SpecOpCodec {
                     "withTime" to jsonOf(op.field.withTime), "validation" to jsonOf(op.field.validation.name),
                     "target" to jsonOf(op.field.target)
                 ).entries + (op.field.maxSelections?.let { mapOf("maxSelections" to jsonOf(it)) } ?: emptyMap()) +
-                    (op.field.decimals?.let { mapOf("decimals" to jsonOf(it)) } ?: emptyMap())
+                    (op.field.decimals?.let { mapOf("decimals" to jsonOf(it)) } ?: emptyMap()) +
+                    // Penyatuan kosakata: `maxCount` ditulis HANYA bila ≠ 1 → dokumen lama byte-identik.
+                    (if (op.field.maxCount != 1) mapOf("maxCount" to jsonOf(op.field.maxCount)) else emptyMap())
             )
         )
         is SpecOp.RenameFieldLabel -> jsonObjectOf("type" to jsonOf("RenameFieldLabel"), "entityId" to jsonOf(op.entityId), "key" to jsonOf(op.key), "label" to jsonOf(op.label))
@@ -68,7 +70,7 @@ object SpecOpCodec {
                 val ft = FieldType.entries.firstOrNull { it.name == f.string("fieldType") }
                 SpecOp.AddField(
                     str("entityId"),
-                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options").map { SelectOption(it) }, f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f))
+                    FieldSpec(f.string("key").orEmpty(), f.string("label").orEmpty(), requireNotNull(ft) { "Tipe field '${f.string("fieldType")}' tidak dikenal." }, f.stringArray("options").map { SelectOption(it) }, f.boolean("required") ?: false, FieldParamWire.numberFormat(f), FieldParamWire.currencyCode(f), f.strictBoolean("withTime", false), FieldParamWire.textValidation(f), FieldParamWire.target(f), FieldParamWire.maxSelections(f), FieldParamWire.decimals(f), FieldParamWire.maxCount(f))
                 )
             }
             "RenameFieldLabel" -> SpecOp.RenameFieldLabel(str("entityId"), str("key"), str("label"))

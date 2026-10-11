@@ -328,4 +328,34 @@ class PrototypeFieldTypeCodecParityTest {
         val outOfRange = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"decimals\":2", "\"decimals\":7")) as JsonValue.Obj) }
         assertTrue(outOfRange.isFailure, "decimals 7 di luar rentang ditolak invarian FieldSpec saat decode, bukan diredam")
     }
+
+    // ---- Penyatuan muatan parameter (PLAN-unify §2a follow-up): maxCount di kawat -----------------
+
+    /**
+     * `maxCount` (USER_REF/RELATION) ikut kawat layar interaktif dan SpecOp AddField; bawaan 1 tidak
+     * ditulis (dokumen lama byte-identik); nilai < 1 ditolak invarian `FieldSpec` saat decode.
+     */
+    @Test
+    fun maxCount_roundTrips_throughWire_defaultIsOmitted_andOutOfRangeIsRejected() {
+        fun screenOfField(f: FieldSpec) = InteractiveScreen(
+            PrototypeSpec(
+                listOf(EntitySpec("e", "E", listOf(f))),
+                listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf(f.key))))
+            ),
+            emptyMap()
+        )
+        val withMax = screenOfField(FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "pesanan", maxCount = 3))
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(withMax))
+        assertEquals(3, decoded.spec.entities.single().fields.single().maxCount)
+
+        val op = SpecOp.AddField("e", FieldSpec("pic", "PIC", FieldType.USER_REF, maxCount = 2))
+        assertEquals(op, SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow(), "AddField membawa maxCount utuh")
+
+        val default = screenOfField(FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "pesanan"))
+        assertFalse("\"maxCount\"" in InteractiveScreenCodec.encode(default).encode(), "bawaan 1 tidak ditulis (dokumen lama byte-identik)")
+
+        val raw = InteractiveScreenCodec.encode(withMax).encode()
+        val zero = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"maxCount\":3", "\"maxCount\":0")) as JsonValue.Obj) }
+        assertTrue(zero.isFailure, "maxCount 0 ditolak invarian FieldSpec saat decode, bukan diredam")
+    }
 }

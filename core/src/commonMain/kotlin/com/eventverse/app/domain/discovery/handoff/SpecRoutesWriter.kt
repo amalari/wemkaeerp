@@ -184,7 +184,9 @@ internal object SpecRoutesWriter {
                 (if (f.maxSelections != null) ", maxSelections = " + f.maxSelections else "") +
                 // A0 (penyatuan kosakata): decimals NUMBER ikut tercetak — SPEC di route wajib membawa
                 // invarian yang sama dengan prototype (aturan tunggal FieldSpec).
-                (if (f.decimals != null) ", decimals = " + f.decimals else "") + ")"
+                (if (f.decimals != null) ", decimals = " + f.decimals else "") +
+                // Penyatuan kosakata: maxCount (USER_REF/RELATION) ikut tercetak bila ≠ 1.
+                (if (f.maxCount != 1) ", maxCount = " + f.maxCount else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

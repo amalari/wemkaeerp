@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.prototype
 
+import kotlin.jvm.JvmInline
+
 /**
  * Satu pilihan field ENUM/[FieldType.MULTI_SELECT] — tipe bersama kedua kosakata (registry tunggal,
  * PLAN-unify-field-vocabulary §2a follow-up): dipakai [FieldSpec.options] (prototype) dan

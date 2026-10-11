@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
 import com.eventverse.app.domain.prototype.SelectOption
 import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.domain.tenant.TenantId
@@ -46,7 +47,7 @@ object CustomAttributesCodec {
         FieldType.NUMBER -> {
             val entries = mutableMapOf<String, JsonValue>(
                 KEY_FORMAT to jsonOf(encodeNumberFormatTag(type.format)),
-                KEY_CURRENCY_CODE to jsonOf((type.format as? NumberFormat.Currency)?.currencyCode)
+                KEY_CURRENCY_CODE to jsonOf(type.currencyCode)
             )
             // `decimals` ditulis hanya bila dibatasi; absen = tidak dibatasi (null) — round-trip utuh.
             type.decimals?.let { entries[KEY_DECIMALS] = jsonOf(it) }
@@ -85,7 +86,7 @@ object CustomAttributesCodec {
             FieldType.NUMBER -> decodeNumberFormat(config)?.let { format ->
                 // Kunci `decimals` absen = tidak dibatasi (null). Baris lama selalu menulis kunci itu,
                 // jadi perilaku baris lama tidak berubah.
-                CrmFieldType(kind, format = format, decimals = config.int(KEY_DECIMALS))
+                CrmFieldType(kind, format = format, currencyCode = config.string(KEY_CURRENCY_CODE), decimals = config.int(KEY_DECIMALS))
             }
 
             FieldType.ENUM -> CrmFieldType(
@@ -111,21 +112,22 @@ object CustomAttributesCodec {
         }
     }
 
+    /** Tag wire lowercase (tidak berubah, PLAN-unify §3a) dari enum bersama; `currencyCode` kunci terpisah. */
     private fun encodeNumberFormatTag(format: NumberFormat): String = when (format) {
-        NumberFormat.Plain -> "plain"
-        NumberFormat.Percent -> "percent"
-        is NumberFormat.Currency -> "currency"
+        NumberFormat.PLAIN -> "plain"
+        NumberFormat.PERCENT -> "percent"
+        NumberFormat.CURRENCY -> "currency"
     }
 
     /**
-     * Format tak dikenal, atau `currency` tanpa kode mata uang, mengembalikan null — **bukan** `Plain`: membacanya
+     * Format tak dikenal, atau `currency` tanpa kode mata uang, mengembalikan null — **bukan** `PLAIN`: membacanya
      * sebagai angka polos mengubah data tanpa jejak. Kunci `format` yang tidak ada = baris lama sebelum format
-     * dikenal, tetap `Plain`.
+     * dikenal, tetap `PLAIN`.
      */
     private fun decodeNumberFormat(config: JsonValue.Obj): NumberFormat? = when (config.string(KEY_FORMAT)) {
-        null, "plain" -> NumberFormat.Plain
-        "percent" -> NumberFormat.Percent
-        "currency" -> config.string(KEY_CURRENCY_CODE)?.let { NumberFormat.Currency(it) }
+        null, "plain" -> NumberFormat.PLAIN
+        "percent" -> NumberFormat.PERCENT
+        "currency" -> if (config.string(KEY_CURRENCY_CODE) != null) NumberFormat.CURRENCY else null
         else -> null
     }
 
