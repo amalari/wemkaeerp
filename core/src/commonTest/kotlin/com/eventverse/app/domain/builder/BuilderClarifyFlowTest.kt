@@ -6,31 +6,38 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.Clarification
+import com.eventverse.app.domain.discovery.interview.InterviewFixtures
+import com.eventverse.app.domain.discovery.interview.InterviewPlanner
+import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Giliran chat Builder dengan penanya klarifikasi (Fase B): bertanya sekali, narasi gabungan, gagal = tidak bertanya. */
+/** Builder memakai perencana wawancara Discovery: satu putaran tanya, jawaban persisten, hasil tervalidasi. */
 class BuilderClarifyFlowTest {
 
     private val tenant = TenantId("ten-uji")
+    private val baseDraft = InterviewFixtures.draftOf(InterviewFixtures.klinikPack, null)
 
     private suspend fun InMemoryBuilderChatRepository.msgs() = messages(conversationFor(tenant).id)
 
-    private object NoDrafts : DiscoveryDraftRepository {
-        override suspend fun findById(id: DiscoveryDraftId): StoredDiscoveryDraft? = null
-        override suspend fun findByOwner(ownerUserId: UserId) = emptyList<StoredDiscoveryDraft>()
-        override suspend fun findByTenant(tenantId: TenantId): StoredDiscoveryDraft? = null
-        override suspend fun findAll() = emptyList<StoredDiscoveryDraft>()
-        override suspend fun save(stored: StoredDiscoveryDraft) = stored
+    private class Drafts(draft: DiscoveryDraft) : DiscoveryDraftRepository {
+        private var row = StoredDiscoveryDraft(DiscoveryDraftId("d1"), UserId("usr-uji"), draft, tenantId = TenantId("ten-uji"))
+        override suspend fun findById(id: DiscoveryDraftId) = row.takeIf { it.id == id }
+        override suspend fun findByOwner(ownerUserId: UserId) = listOf(row).filter { it.ownerUserId == ownerUserId }
+        override suspend fun findByTenant(tenantId: TenantId) = row.takeIf { it.tenantId == tenantId }
+        override suspend fun findAll() = listOf(row)
+        override suspend fun save(stored: StoredDiscoveryDraft) = stored.also { row = it }
     }
 
     private class RecordingAgent : BuilderAgent {
         override val agentRef = "uji"
         val narratives = mutableListOf<String>()
+        val currents = mutableListOf<DiscoveryDraft?>()
         override suspend fun proposePatch(currentDraft: DiscoveryDraft?, history: List<ChatMessage>, userMessage: String): Result<BuilderAgentReply> {
+            currents += currentDraft
             narratives += userMessage
             return Result.success(BuilderAgentReply("draf ke-${narratives.size}"))
         }
@@ -38,55 +45,63 @@ class BuilderClarifyFlowTest {
 
     private val ask = listOf(Clarification("c1", "Pasien dilayani per poli atau satu antrean?"))
 
+    private inner class RecordingPlanner(private val fail: Boolean = false, private val noQuestions: Boolean = false) : InterviewPlanner {
+        var calls = 0
+        override suspend fun plan(draft: DiscoveryDraft, session: InterviewSession, narrative: String): InterviewSession {
+            calls++
+            if (fail) error("LLM mati")
+            if (noQuestions) return InterviewFixtures.klinikSession.copy(narrative = narrative)
+            if (session.clarifications.isEmpty()) return session.copy(clarifications = ask)
+            return InterviewFixtures.klinikSession.copy(narrative = narrative, clarifications = session.clarifications)
+        }
+    }
+
     @Test
-    fun `cerita kabur, penanya bertanya sekali, giliran berhenti sebelum draf dan fase planning dilaporkan`() = runTest {
-        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); val phases = mutableListOf<String>()
-        val uc = SendBuilderMessageUseCase(chats, agent, NoDrafts, clarifier = NarrativeClarifier { _, _ -> ask })
-        uc(tenant, "Kami klinik") { phases += it }.getOrThrow()
+    fun `cerita kabur, perencana existing bertanya sekali dan giliran berhenti sebelum draf`() = runTest {
+        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); val planner = RecordingPlanner(); val phases = mutableListOf<String>()
+        val uc = SendBuilderMessageUseCase(chats, agent, Drafts(baseDraft), interviewPlanner = planner)
+        uc(tenant, "Kami klinik", onProgress = { phases += it }).getOrThrow()
         assertEquals(listOf("planning"), phases)
         assertTrue(agent.narratives.isEmpty(), "draf menunggu jawaban")
-        val q = chats.msgs().last()
-        assertEquals(ChatMessageKind.QUESTION, q.kind)
-        assertEquals(ask, q.questions)
+        assertEquals(ChatMessageKind.QUESTION, chats.msgs().last().kind)
+        assertEquals(ask, chats.msgs().last().questions)
     }
 
     @Test
-    fun `jawaban masuk ke pertanyaannya, tidak bertanya lagi, dan agent membaca narasi gabungan tanpa duplikasi jawaban`() = runTest {
-        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); var asked = 0
-        val uc = SendBuilderMessageUseCase(chats, agent, NoDrafts, clarifier = NarrativeClarifier { _, _ -> asked++; ask })
+    fun `jawaban disimpan lalu perencana dipanggil ulang tanpa putaran pertanyaan kedua`() = runTest {
+        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); val planner = RecordingPlanner()
+        val uc = SendBuilderMessageUseCase(chats, agent, Drafts(baseDraft), interviewPlanner = planner)
         uc(tenant, "Kami klinik gigi").getOrThrow()
         uc(tenant, "Satu antrean lalu dibagi ke poli").getOrThrow()
-        assertEquals(1, asked, "satu putaran tanya")
+        assertEquals(2, planner.calls)
         assertEquals("Satu antrean lalu dibagi ke poli", chats.msgs().first { it.kind == ChatMessageKind.QUESTION }.questions.single().answer)
-        val narrative = agent.narratives.single()
-        assertTrue(narrative.startsWith("Kami klinik gigi"))
-        assertTrue(narrative.contains("Pertanyaan: ${ask.single().question}\nJawaban: Satu antrean lalu dibagi ke poli"))
-        assertEquals(1, Regex("Satu antrean lalu dibagi ke poli").findAll(narrative).count(), "balasan pengguna tidak diulang")
+        assertTrue(agent.currents.single()?.interview?.roles?.isNotEmpty() == true, "rencana tervalidasi diteruskan sebagai konteks draf")
+        assertTrue(agent.narratives.single().contains("Pertanyaan: ${ask.single().question}\nJawaban: Satu antrean lalu dibagi ke poli"))
     }
 
     @Test
-    fun `penanya kosong atau gagal, draf langsung disusun, dan revisi dibaca bersama cerita awal`() = runTest {
-        val empty = SendBuilderMessageUseCase(InMemoryBuilderChatRepository(), RecordingAgent().also { }, NoDrafts, clarifier = NarrativeClarifier { _, _ -> emptyList() })
-        empty(tenant, "Kami konveksi").getOrThrow()
+    fun `perencana kosong atau gagal tetap menyusun draf dan revisi membaca cerita awal`() = runTest {
+        val emptyAgent = RecordingAgent()
+        SendBuilderMessageUseCase(InMemoryBuilderChatRepository(), emptyAgent, Drafts(baseDraft), interviewPlanner = RecordingPlanner(noQuestions = true))
+            .invoke(tenant, "Kami klinik").getOrThrow()
+        assertEquals(1, emptyAgent.narratives.size)
 
         val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent()
-        val boom = SendBuilderMessageUseCase(chats, agent, NoDrafts, clarifier = NarrativeClarifier { _, _ -> error("LLM mati") })
-        boom(tenant, "Kami konveksi").getOrThrow()
-        boom(tenant, "Tambah modul pengiriman").getOrThrow()
-        assertEquals(2, agent.narratives.size, "gagal bertanya = tetap menyusun draf")
-        assertTrue(agent.narratives[1].contains("Kami konveksi") && agent.narratives[1].contains("Tambah modul pengiriman"),
-            "revisi dibaca bersama cerita awal, bukan sebagai cerita baru")
+        val uc = SendBuilderMessageUseCase(chats, agent, Drafts(baseDraft), interviewPlanner = RecordingPlanner(fail = true))
+        uc(tenant, "Kami klinik").getOrThrow()
+        uc(tenant, "Tambah modul pengiriman").getOrThrow()
+        assertEquals(2, agent.narratives.size)
+        assertTrue(agent.narratives[1].contains("Kami klinik") && agent.narratives[1].contains("Tambah modul pengiriman"))
     }
 
     @Test
-    fun `utas modul tidak pernah bertanya dan jawaban hanya mengisi pertanyaan di utasnya sendiri`() = runTest {
-        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); var asked = 0
-        val uc = SendBuilderMessageUseCase(chats, agent, NoDrafts, clarifier = NarrativeClarifier { _, _ -> asked++; ask })
-        uc(tenant, "Kami klinik").getOrThrow()                                   // utas Semua: bertanya
-        uc(tenant, "Tambah input tanggal", moduleId = "klinik_poli").getOrThrow() // utas modul: tidak bertanya, tidak menjawab pertanyaan Semua
-        assertEquals(1, asked)
-        assertTrue(chats.msgs().first { it.kind == ChatMessageKind.QUESTION }.questions.single().answer == null, "pertanyaan utas Semua tetap menunggu")
-        assertEquals(1, agent.narratives.size)
+    fun `utas modul tidak menjalankan perencana dan tidak menjawab pertanyaan utas Semua`() = runTest {
+        val chats = InMemoryBuilderChatRepository(); val agent = RecordingAgent(); val planner = RecordingPlanner()
+        val uc = SendBuilderMessageUseCase(chats, agent, Drafts(baseDraft), interviewPlanner = planner)
+        uc(tenant, "Kami klinik").getOrThrow()
+        uc(tenant, "Tambah input tanggal", moduleId = "klinik_poli").getOrThrow()
+        assertEquals(1, planner.calls)
+        assertTrue(chats.msgs().first { it.kind == ChatMessageKind.QUESTION }.questions.single().answer == null)
     }
 
     @Test
@@ -96,7 +111,7 @@ class BuilderClarifyFlowTest {
             ChatMessage(ChatMessageId(id), BuilderConversationId("c"), tenant, ChatRole.USER, if (i == 0) "AWAL$long" else "AKHIR$long")
         }
         val out = composeNarrative(msgs, limit = 150)
-        assertTrue(out.length <= 150 + 10)
+        assertTrue(out.length <= 160)
         assertTrue(out.startsWith("AWAL") && out.endsWith("a"))
     }
 }

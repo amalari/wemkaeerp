@@ -8,9 +8,15 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewLimits
+import com.eventverse.app.domain.discovery.interview.InterviewPlanner
+import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.discovery.interview.InterviewValidator
+import com.eventverse.app.domain.discovery.interview.isPlanned
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.Clock
+import kotlinx.coroutines.CancellationException
 
 /**
  * Mengirim pesan user dan merekam balasan agent (FR-M1-1/2). Urutannya penting: pesan USER dicatat
@@ -25,8 +31,8 @@ class SendBuilderMessageUseCase(
     private val agent: BuilderAgent,
     private val drafts: DiscoveryDraftRepository,
     private val clock: Clock = Clock.System,
-    /** Penanya klarifikasi sebelum draf (Fase B); null = langsung menyusun draf. Kegagalannya = tidak bertanya. */
-    private val clarifier: NarrativeClarifier? = null,
+    /** Perencana wawancara penuh yang sudah dipakai Discovery; null = langsung menyusun draf. */
+    private val interviewPlanner: InterviewPlanner? = null,
     /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
     private val moduleEditing: EditModuleFromChat? = null
 ) {
@@ -44,6 +50,7 @@ class SendBuilderMessageUseCase(
         tenantId: TenantId,
         userText: String,
         moduleId: String? = null,
+        onModuleProgress: suspend (moduleId: String, title: String, ready: Boolean) -> Unit = { _, _, _ -> },
         onProgress: suspend (String) -> Unit = {}
     ): Result<List<ChatMessage>> = runCatching {
         require(userText.isNotBlank()) { "Pesan tidak boleh kosong" }
@@ -79,12 +86,33 @@ class SendBuilderMessageUseCase(
         val current = drafts.findByTenant(tenantId)?.draft
         val thread = chats.messages(conversation.id).inThread(moduleId)
 
-        val asker = clarifier
-        if (asker != null && moduleId == null && waiting.isEmpty() && thread.none { it.kind == ChatMessageKind.QUESTION }) {
+        var plannedCurrent = current
+        val planner = interviewPlanner
+        val planningQuestions = thread.filter { it.moduleId == null && it.kind == ChatMessageKind.QUESTION }
+        val shouldPlan = planner != null && current != null && moduleId == null &&
+            (waiting.isNotEmpty() || (planningQuestions.isEmpty() && current.interview?.isPlanned != true))
+        if (shouldPlan) {
             onProgress("planning")
-            val questions = runCatching {
-                asker.clarify(composeNarrative(thread), current?.blueprint?.activeModuleCodes?.toList().orEmpty())
-            }.getOrDefault(emptyList()).take(InterviewLimits.CLARIFICATIONS)
+            val narrative = composeNarrative(thread)
+            val prior = current.interview ?: InterviewSession(
+                step = InterviewStep.G1_DIVISI,
+                version = InterviewSession.BASED_ON_STORY,
+                narrative = narrative
+            )
+            val answered = planningQuestions.flatMap { it.questions }
+            val input = prior.copy(narrative = narrative, clarifications = answered)
+            val planned = try {
+                planner.plan(current.copy(interview = input), input, narrative)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+                ?.takeIf { InterviewValidator.validate(it, current.pack).isEmpty() }
+                // Setelah satu putaran tanya, perencana tidak boleh meminta putaran kedua.
+                ?.takeIf { answered.isEmpty() || !it.awaitingClarification }
+            val questions = planned?.clarifications?.filter { it.answer.isNullOrBlank() }
+                .orEmpty().take(InterviewLimits.CLARIFICATIONS)
             if (questions.isNotEmpty()) {
                 chats.append(
                     ChatMessage(
@@ -101,10 +129,17 @@ class SendBuilderMessageUseCase(
                 )
                 return@runCatching chats.messages(conversation.id)
             }
+            if (planned != null) plannedCurrent = current.copy(interview = planned)
         }
 
         onProgress("drafting")
-        val reply = agent.proposePatch(current, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
+        val reply = agent.proposePatch(plannedCurrent, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
+
+        reply.proposedDraft?.blueprint?.activeModuleCodes.orEmpty().forEach { code ->
+            val title = reply.proposedDraft?.pack?.modules?.firstOrNull { it.id.value == code }?.displayName ?: code
+            onModuleProgress(code, title, false)
+            onModuleProgress(code, title, true)
+        }
 
         chats.append(
             ChatMessage(

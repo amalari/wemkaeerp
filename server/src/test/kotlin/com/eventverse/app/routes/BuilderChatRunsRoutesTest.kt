@@ -52,7 +52,7 @@ class BuilderChatRunsRoutesTest {
 
     private fun install(
         builder: ApplicationTestBuilder,
-        clarifier: com.eventverse.app.domain.builder.NarrativeClarifier? = null,
+        interviewPlanner: com.eventverse.app.domain.discovery.interview.InterviewPlanner? = null,
         moduleEditor: com.eventverse.app.domain.builder.ModuleEditor? = null,
         drafts: InMemoryDiscoveryDraftRepository = InMemoryDiscoveryDraftRepository()
     ) = with(builder) {
@@ -71,7 +71,7 @@ class BuilderChatRunsRoutesTest {
                 domainPackRepository = com.eventverse.app.infrastructure.InMemoryDomainPackRepository(),
                 builderDeploymentRepository = com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository(),
                 builderChatRepository = chats,
-                builderClarifier = clarifier,
+                builderInterviewPlanner = interviewPlanner,
                 builderModuleEditor = moduleEditor,
                 builderBuildRequests = com.eventverse.app.infrastructure.InMemoryBuilderBuildRequestRepository(),
                 builderProbe = com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe { false },
@@ -119,8 +119,12 @@ class BuilderChatRunsRoutesTest {
         val accepted = startRun(story)
         assertEquals(202, accepted.status.value)
         val ev = events(runIdOf(accepted))
-        assertEquals(listOf("status", "message", "done"), ev.map { it.second }, "urutan peristiwa progres")
-        assertEquals(listOf("1", "2", "3"), ev.map { it.first }, "id peristiwa urut dari 1")
+        val types = ev.map { it.second }
+        assertEquals("status", types.first(), "penyusunan draf diumumkan dulu")
+        assertEquals(listOf("message", "done"), types.takeLast(2))
+        assertTrue(types.windowed(2).count { it == listOf("module_started", "module_ready") } >= 1,
+            "setiap modul mengirim pasangan progres mulai/siap")
+        assertEquals((1..ev.size).map(Int::toString), ev.map { it.first }, "id peristiwa urut dari 1")
 
         val history = client.get("/api/builder/chat") { auth() }.bodyAsText()
         val roles = ((JsonParser.parse(history) as JsonValue.Obj).array("messages")).filterIsInstance<JsonValue.Obj>().map { it.string("role") }
@@ -131,9 +135,10 @@ class BuilderChatRunsRoutesTest {
     fun `Last-Event-ID melanjutkan dari peristiwa berikutnya tanpa mengulang`() = testApplication {
         install(this)
         val id = runIdOf(startRun(story))
-        events(id)                                   // putar sampai selesai
-        assertEquals(listOf("done"), events(id, lastEventId = "2").map { it.second })
-        assertEquals(emptyList(), events(id, lastEventId = "3"), "tidak ada peristiwa baru setelah terakhir")
+        val all = events(id)                         // putar sampai selesai
+        val beforeDone = all.dropLast(1).last().first
+        assertEquals(listOf("done"), events(id, lastEventId = beforeDone).map { it.second })
+        assertEquals(emptyList(), events(id, lastEventId = all.last().first), "tidak ada peristiwa baru setelah terakhir")
     }
 
     @Test
@@ -198,9 +203,13 @@ class BuilderChatRunsRoutesTest {
 
     @Test
     fun `cerita kabur, run mengirim status planning lalu peristiwa question, dan jawaban berikutnya menyusun draf`() = testApplication {
-        install(this, clarifier = com.eventverse.app.domain.builder.NarrativeClarifier { _, _ ->
-            listOf(Clarification("c1", "Pasien dilayani per poli atau satu antrean?"))
-        })
+        var planned = false
+        install(this, interviewPlanner = com.eventverse.app.domain.discovery.interview.InterviewPlanner { _, session, _ ->
+            if (!planned) {
+                planned = true
+                session.copy(clarifications = listOf(Clarification("c1", "Pasien dilayani per poli atau satu antrean?")))
+            } else session.copy(clarifications = session.clarifications)
+        }, drafts = seedDraft(withProposal = true))
         val first = events(runIdOf(startRun("Kami klinik")))
         assertEquals(listOf("status", "question", "done"), first.map { it.second })
 
@@ -212,7 +221,9 @@ class BuilderChatRunsRoutesTest {
 
         // Jawaban pengguna: pertanyaan terjawab, tidak bertanya lagi, draf disusun.
         val second = events(runIdOf(startRun("Satu antrean lalu dibagi ke poli")))
-        assertEquals(listOf("status", "message", "done"), second.map { it.second })
+        assertEquals(listOf("status", "status"), second.map { it.second }.take(2), "planning lalu drafting")
+        assertEquals(listOf("message", "done"), second.map { it.second }.takeLast(2))
+        assertTrue(second.any { it.second == "module_started" } && second.any { it.second == "module_ready" })
         val after = (JsonParser.parse(client.get("/api/builder/chat") { auth() }.bodyAsText()) as JsonValue.Obj)
         assertEquals(emptyList(), after.obj("followUp")!!.array("questions").toList(), "follow-up sudah terjawab")
     }

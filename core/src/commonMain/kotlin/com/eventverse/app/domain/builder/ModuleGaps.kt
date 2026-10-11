@@ -1,9 +1,6 @@
 package com.eventverse.app.domain.builder
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
-import com.eventverse.app.domain.discovery.WidgetKind
-import com.eventverse.app.domain.discovery.proposal.ProposalSource
-import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.rbac.ModuleKind
 
 /**
@@ -11,7 +8,7 @@ import com.eventverse.app.domain.rbac.ModuleKind
  * platform — *macam kekurangan* sebuah spesifikasi layar — bukan kosakata industri; teks tanyanya dirakit dari label
  * modul/entitas milik tenant (data).
  */
-enum class ModuleGapKind { NO_SCREEN, FEW_FIELDS, NO_REQUIRED, NO_STATUS_FLOW, GENERIC_SOURCE }
+enum class ModuleGapKind { WHO_FILLS, WHAT_RECORDED, WHO_SEES, DONE_WHEN, REQUIRED_UNEXPLAINED }
 
 /**
  * Satu celah yang layak ditanyakan. [code] stabil per (jenis, layar) — dipakai sebagai `Clarification.id` sehingga celah
@@ -27,33 +24,29 @@ data class ModuleGap(val kind: ModuleGapKind, val code: String, val question: St
  */
 object ModuleGapAnalyzer {
 
-    const val MIN_FIELDS = 4
-
     fun analyze(draft: DiscoveryDraft, moduleId: String, limit: Int = 3): List<ModuleGap> {
         val module = draft.pack.modules.firstOrNull { it.id.value == moduleId } ?: return emptyList()
         if (module.kind != ModuleKind.OPERATIONAL) return emptyList()
         val name = module.displayName
-        val screens = draft.screens.filter { it.moduleId.value == moduleId }
-        val withProposal = screens.filter { it.proposal != null }
-        if (withProposal.isEmpty()) {
-            return listOf(ModuleGap(ModuleGapKind.NO_SCREEN, "gap:no_screen:$moduleId",
-                "Apa saja yang perlu dicatat di $name? Sebutkan isian utamanya."))
+        val roleKeys = draft.interview?.links.orEmpty().filter { it.moduleId.value == moduleId }.map { it.roleKey }.toSet()
+        val specs = draft.interview?.specs.orEmpty().filter { it.areaKey in roleKeys }
+        fun known(value: (com.eventverse.app.domain.discovery.interview.RequirementSpec) -> String?) =
+            specs.any { !value(it).isNullOrBlank() }
+        val gaps = buildList {
+            if (!known { it.whoFills }) add(ModuleGap(ModuleGapKind.WHO_FILLS, "gap:who_fills:$moduleId", "Siapa yang mengisi data di $name?"))
+            if (!known { it.whatRecorded }) add(ModuleGap(ModuleGapKind.WHAT_RECORDED, "gap:what_recorded:$moduleId", "Apa saja yang perlu dicatat di $name?"))
+            if (!known { it.whoSees }) add(ModuleGap(ModuleGapKind.WHO_SEES, "gap:who_sees:$moduleId", "Siapa yang boleh melihat data $name?"))
+            if (!known { it.doneWhen }) add(ModuleGap(ModuleGapKind.DONE_WHEN, "gap:done_when:$moduleId", "Kapan pekerjaan di $name dianggap selesai?"))
+            val recorded = specs.mapNotNull { it.whatRecorded }.joinToString(" ").lowercase()
+            draft.screens.filter { it.moduleId.value == moduleId }.mapNotNull { it.proposal?.entity }.flatMap { it.fields }
+                .filter { it.required && it.label.lowercase() !in recorded && it.key.lowercase() !in recorded }
+                .forEach { field ->
+                    add(ModuleGap(ModuleGapKind.REQUIRED_UNEXPLAINED, "gap:required:$moduleId:${field.key}",
+                        "Mengapa isian ${field.label} wajib di $name?"))
+                }
         }
-        return withProposal.flatMap { s -> gapsOf(s.proposal!!, s.source, name) }.take(limit)
+        return gaps.take(limit)
     }
-
-    private fun gapsOf(p: ScreenProposal, source: ProposalSource?, moduleName: String): List<ModuleGap> = buildList {
-        val e = p.entity
-        val what = e?.label ?: p.title
-        if (e != null && e.fields.size < MIN_FIELDS) add(ModuleGap(ModuleGapKind.FEW_FIELDS, "gap:few_fields:${p.screenId}",
-            "Isian $what baru ${e.fields.size}. Apa lagi yang perlu dicatat?"))
-        if (e != null && e.fields.isNotEmpty() && e.fields.none { it.required }) add(ModuleGap(ModuleGapKind.NO_REQUIRED, "gap:no_required:${p.screenId}",
-            "Dari isian $what, mana yang wajib diisi?"))
-        if (e?.statusField != null && p.widget == WidgetKind.KANBAN && e.transitions.isEmpty()) add(ModuleGap(ModuleGapKind.NO_STATUS_FLOW, "gap:no_status_flow:${p.screenId}",
-            "Status $what boleh berpindah ke mana saja, atau ada urutan tertentu?"))
-        if (source == ProposalSource.Deterministic) add(ModuleGap(ModuleGapKind.GENERIC_SOURCE, "gap:generic:${p.screenId}",
-            "Isian $moduleName masih standar. Adakah yang perlu disesuaikan dengan cara kerja Anda?"))
-    }.sortedBy { it.kind.ordinal }
 
     /** Celah yang belum pernah ditanyakan di utas: kode yang sudah muncul sebagai id pertanyaan dilewati. */
     fun unasked(gaps: List<ModuleGap>, thread: List<ChatMessage>): List<ModuleGap> {

@@ -4,6 +4,11 @@ import ai.koog.prompt.executor.clients.deepseek.DeepSeekLLMClient
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import com.eventverse.app.domain.builder.ModuleEditRequest
 import com.eventverse.app.domain.discovery.proposal.applyEdits
+import com.eventverse.app.InterviewEvalPacks
+import com.eventverse.app.domain.discovery.interview.InterviewSession
+import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.infrastructure.discovery.AgentInterviewGuesser
+import com.eventverse.app.infrastructure.discovery.AgentInterviewPlanner
 import com.eventverse.app.infrastructure.discovery.CountingPromptExecutor
 import com.eventverse.app.infrastructure.discovery.DiscoveryAgents
 import java.net.URI
@@ -68,13 +73,17 @@ class BuilderLiveEvalsTest {
         for (modelId in models) {
             val counting = CountingPromptExecutor(MultiLLMPromptExecutor(DeepSeekLLMClient(apiKey)))
             val model = DiscoveryAgents.resolveModel(modelId)
-            val clarifier = KoogNarrativeClarifier(counting, model, timeoutMillis = 180_000)
+            val planner = AgentInterviewPlanner(AgentInterviewGuesser(counting, model), timeoutMillis = 180_000)
             val editor = KoogModuleEditor(counting, model, timeoutMillis = 180_000)
 
             for (c in clarifyCases) for (rep in 1..reps) {
                 val before = counting.calls
                 val started = System.currentTimeMillis()
-                val result = runCatching { clarifier.clarify(c.narrative, c.existingModules) }
+                val narrative = c.narrative + c.existingModules.takeIf { it.isNotEmpty() }
+                    .orEmpty().let { if (it.isEmpty()) "" else "\nModul berjalan: ${it.joinToString()}." }
+                val draft = InterviewEvalPacks.draftOf(InterviewEvalPacks.klinikPack, null)
+                val session = InterviewSession(InterviewStep.G1_DIVISI, version = InterviewSession.BASED_ON_STORY, narrative = narrative)
+                val result = runCatching { planner.plan(draft, session, narrative).clarifications }
                 val ms = System.currentTimeMillis() - started
                 val tokens = counting.snapshot().drop(before).sumOf { it.totalTokens ?: 0 }
                 val row = result.fold(

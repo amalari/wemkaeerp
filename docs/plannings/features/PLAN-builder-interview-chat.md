@@ -1,6 +1,6 @@
 # PLAN — Builder Chat Interview (alur penuh dulu, tanya per modul kemudian)
 
-**Tanggal**: 2026-10-07 · **Jalur**: B · **Status**: disetujui 2026-10-08, Fase A berjalan
+**Tanggal**: 2026-10-07 · **Jalur**: B · **Status**: Fase A–C terimplementasi; hardening 2026-10-11
 **Dasar**: [`PLAN-builder-console.md`](PLAN-builder-console.md), [`discovery-M1-builder-chat.md`](discovery-M1-builder-chat.md),
 [`PLAN-discovery-interview-role-module.md`](PLAN-discovery-interview-role-module.md); acuan perilaku: Hercules
 (chat di kiri, tampilan hasil di kanan).
@@ -148,6 +148,21 @@ karena Builder butuh konteks tenant + `MANAGE_BUILDER` (server membalas 404/403 
 | Ekspor brief (`PrototypeExportBriefDialog`) | `BuilderDesignPanes` | Ada |
 | Terima semua tebakan / lewati wawancara | — | Tidak diperlukan (tidak ada wizard) |
 
-**Konsekuensi yang harus diketahui**: sampai Fase B selesai, pengguna bertenant **tidak lagi punya UI wawancara
-terstruktur** (F0–G5) — hanya chat. Wawancara terstruktur wizard masih tersedia untuk prospek tanpa tenant. Pengalihan
-bisa dibatalkan dengan mengembalikan satu baris di `App.kt` (`DiscoveryEntry(redirectToBuilder = false)`).
+Wawancara terstruktur wizard masih tersedia untuk prospek tanpa tenant. Pengalihan bisa dibatalkan dengan
+mengembalikan satu baris di `App.kt` (`DiscoveryEntry(redirectToBuilder = false)`).
+
+## 9. Status implementasi Fase B–C (2026-10-11)
+
+- Builder memakai `InterviewPlanner`/`AgentInterviewPlanner` yang sama dengan Discovery sebagai SSOT. Pertanyaan,
+  jawaban, dan `InterviewSession` tervalidasi ikut masuk ke draf usulan; adaptor clarifier khusus Builder dihapus.
+- `ModuleGapAnalyzer` menghitung empat aspek resmi `RequirementSpec` (`whoFills`, `whatRecorded`, `whoSees`,
+  `doneWhen`) serta field wajib yang belum dijelaskan. Hasil tetap deterministik dan tidak membawa kosakata industri.
+- SSE mengirim `module_started`/`module_ready`, dan klien menampilkan modul yang sedang diproses/siap pada label fase.
+- Jalur tulis tetap memakai gate `MANAGE_BUILDER`; pengujian route mencakup 401, 403, dan run tenant lain 404.
+- Edit per modul tetap melalui `ProposalEdit` + validator, terisolasi per modul, lalu menjadi patch usulan yang harus
+  diterapkan manusia.
+
+**Celah yang masih terbuka:** event modul saat ini dipancarkan setelah agen selesai menghasilkan satu draf penuh,
+sehingga memberi progres terstruktur tetapi belum merupakan *partial preview* yang benar-benar muncul sambil model
+masih menyusun modul berikutnya. Eval berbayar dengan provider nyata dan pengecekan visual browser juga tidak dijalankan
+dalam hardening offline ini; keduanya tetap gerbang operasional sebelum klaim UX produksi penuh.

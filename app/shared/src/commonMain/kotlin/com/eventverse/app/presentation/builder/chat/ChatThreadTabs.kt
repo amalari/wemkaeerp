@@ -33,7 +33,10 @@ internal fun threadsOf(modules: List<Pair<String, String>>): List<ChatThread> =
     listOf(ChatThread(null, "Semua")) + modules.map { (id, name) -> ChatThread(id, name) }
 
 /** Label status run (SSE `status.phase`) untuk indikator memuat; fase tak dikenal ditampilkan apa adanya. */
-internal fun runPhaseLabel(phase: String?): String = when (phase) {
+internal fun runPhaseLabel(phase: String?): String = when {
+    phase?.startsWith("module:") == true -> "Menyiapkan ${phase.substringAfter(':')}..."
+    phase?.startsWith("ready:") == true -> "${phase.substringAfter(':')} siap..."
+    else -> when (phase) {
     "planning" -> "Menyusun alur..."
     "drafting" -> "Menyusun draf..."
     "validating" -> "Memeriksa hasil..."
@@ -41,4 +44,5 @@ internal fun runPhaseLabel(phase: String?): String = when (phase) {
     "waiting" -> "Menunggu jawaban Anda..."
     null, "" -> "Memproses..."
     else -> "$phase..."
+    }
 }
