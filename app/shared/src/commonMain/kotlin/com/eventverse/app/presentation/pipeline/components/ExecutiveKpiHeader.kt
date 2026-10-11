@@ -32,7 +32,7 @@ fun ExecutiveKpiHeader(
     ) {
         // KPI 1: Overall Factory Health
         val healthSubtitle = if (snapshot.hasEstimateData) {
-            "Data estimasi — belum ada telemetri"
+            "Data estimasi - belum ada telemetri"
         } else if (snapshot.overallHealthScore >= 90) {
             "Sangat Sehat & Terkendali"
         } else {
