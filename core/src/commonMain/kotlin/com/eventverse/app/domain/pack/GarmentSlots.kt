@@ -41,6 +41,7 @@ import com.eventverse.app.domain.rbac.BusinessModule
  */
 object GarmentSlots {
     val ORDER_INGESTION = SlotCode("order_ingestion")
+    val SAMPLING = SlotCode("sampling") // A5: Sampling di fase pengembangan produk (ENGINEERING)
     val RAW_MATERIAL = SlotCode("raw_material")
     val PRODUCT_ENGINEERING = SlotCode("product_engineering")
     val COSTING_HPP = SlotCode("costing_hpp")
@@ -60,6 +61,7 @@ object GarmentSlots {
     /** Urutan = urutan enum lama (dipakai `all`, mis. untuk pilihan slot di UI). */
     internal val meta: List<Meta> = listOf(
         Meta(ORDER_INGESTION, "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES, WidgetKind.TABLE, listOf("Prospek", "Sampling", "Produksi", "Siap kirim")),
+        Meta(SAMPLING, "Pola & Sampling Order", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.SAMPLING_ORDER, WidgetKind.KANBAN, listOf("Baru", "Dikerjakan", "Selesai")), // A5: Sampling di fase ENGINEERING
         Meta(RAW_MATERIAL, "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY, WidgetKind.TABLE, listOf("Tersedia", "Menipis", "Konsinyasi")),
         Meta(PRODUCT_ENGINEERING, "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM, WidgetKind.TABLE, listOf("Draft", "Final")),
         Meta(COSTING_HPP, "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP, WidgetKind.DASHBOARD),

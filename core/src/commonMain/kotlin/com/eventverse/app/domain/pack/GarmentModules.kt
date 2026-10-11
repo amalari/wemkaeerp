@@ -117,7 +117,7 @@ object GarmentModules {
                 iconKey = "ruler",
                 scopeCapability = ScopeCapability.HIERARCHICAL,
                 supportedScopes = setOf(DataScope.ALL_TENANT_DATA, DataScope.OWN_DATA_ONLY, DataScope.SUBORDINATE_DATA),
-                slot = GarmentSlots.ORDER_INGESTION
+                slot = GarmentSlots.SAMPLING // A5: Sampling di fase pengembangan produk
             ),
             ModuleDefinition(
                 id = INVENTORY,

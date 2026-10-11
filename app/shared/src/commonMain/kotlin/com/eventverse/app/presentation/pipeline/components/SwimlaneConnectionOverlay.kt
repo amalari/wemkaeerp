@@ -17,9 +17,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import com.eventverse.app.domain.pipeline.PipelineEdge
 import com.eventverse.app.domain.pipeline.PipelineGraph
@@ -350,6 +353,10 @@ internal fun SwimlaneConnectionCanvas(
 
             // Dot at the source end reads as "leaves here", mirroring n8n port sockets
             drawCircle(color = color, radius = 3.dp.toPx(), center = route.startPoint)
+
+            // Edge labels are stored in route.edge.label and can be rendered via tooltip on hover/click
+            // TODO(A3): Implement edge label display via interactive tooltip or badge on the connector line
+            // The domain layer already provides displayLabel via GarmentPortTypes.labels
         }
     }
 }

@@ -174,6 +174,7 @@ object PipelineGraphCodec {
         "fromNodeId" to jsonOf(edge.fromNodeId),
         "toNodeId" to jsonOf(edge.toNodeId),
         "expectedDataType" to jsonOf(edge.expectedDataType),
+        "displayLabel" to jsonOf(edge.displayLabel),
         "isFeedbackReworkLoop" to jsonOf(edge.isFeedbackReworkLoop)
     )
 
@@ -187,6 +188,7 @@ object PipelineGraphCodec {
             toNodeId = to,
             expectedDataType = edge.string("expectedDataType")?.takeIf { it.isNotBlank() }
                 ?: "StandardHandoffPayload",
+            displayLabel = edge.string("displayLabel"),
             isFeedbackReworkLoop = edge.boolean("isFeedbackReworkLoop") ?: false
         )
     }

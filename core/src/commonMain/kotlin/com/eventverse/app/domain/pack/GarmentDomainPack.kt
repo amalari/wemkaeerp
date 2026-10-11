@@ -50,6 +50,7 @@ object GarmentPhases {
     /** Fase tiap slot — dulu `ModuleArchetype.defaultStage`. Slot yang lupa dipetakan membuat pack gagal dibangun. */
     internal val phaseOfSlot: Map<String, PhaseDefinition> = mapOf(
         "order_ingestion" to COMMERCIAL,
+        "sampling" to ENGINEERING, // A5: Sampling di fase pengembangan produk (ENGINEERING)
         "product_engineering" to ENGINEERING,
         "costing_hpp" to ENGINEERING,
         "raw_material" to SUPPLY_CHAIN,
@@ -78,12 +79,15 @@ object GarmentPortTypes {
     val INSPECTED_AND_GRADED_UNIT = PortType("InspectedAndGradedUnit")
     val DISPATCHED_SHIPMENT_MANIFEST = PortType("DispatchedShipmentManifest")
     val ISSUED_INVOICE_DOCUMENT = PortType("IssuedInvoiceDocument")
+    val STANDARD_HANDOFF_PAYLOAD = PortType("StandardHandoffPayload")
+    val DEFECT_REWORK_PAYLOAD = PortType("DefectReworkPayload")
 
-    /** Port yang dipakai kanvas menyambung modul. Tipe baru di spec katalog wajib masuk sini. */
+    /** Port yang dipakai kanvas menyabung modul. Tipe baru di spec katalog wajib masuk sini. */
     val wired: Set<PortType> = setOf(
         PRODUCTION_ORDER_DRAFT, APPROVED_SAMPLE_SPECIFICATION, TECH_PACK_AND_YIELD_DATA,
         MATERIAL_REQUISITION, VERIFIED_MATERIAL_STOCK, COSTING_CALCULATION_RESULT, CUT_PIECES_BUNDLE,
-        ASSEMBLED_GARMENT_BUNDLE, INSPECTED_AND_GRADED_UNIT, DISPATCHED_SHIPMENT_MANIFEST, ISSUED_INVOICE_DOCUMENT
+        ASSEMBLED_GARMENT_BUNDLE, INSPECTED_AND_GRADED_UNIT, DISPATCHED_SHIPMENT_MANIFEST, ISSUED_INVOICE_DOCUMENT,
+        STANDARD_HANDOFF_PAYLOAD, DEFECT_REWORK_PAYLOAD
     )
 
     /**
@@ -106,7 +110,9 @@ object GarmentPortTypes {
         "InspectedAndGradedUnit" to "Unit Lolos QC (Tergrade)",
         "DispatchedShipmentManifest" to "Surat Jalan / Manifest Kirim",
         "IssuedInvoiceDocument" to "Invoice Terbit",
-        "AnyOperationalPayload" to "Data Operasional Modul Kustom"
+        "AnyOperationalPayload" to "Data Operasional Modul Kustom",
+        "StandardHandoffPayload" to "Serah Terima Standar",
+        "DefectReworkPayload" to "Retur Cacat"
     )
 }
 

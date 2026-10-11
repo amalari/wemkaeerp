@@ -19,6 +19,7 @@ data class TechPack(
     val version: Int = 1,
     val sourceSampleSpecId: String? = null,
     val sourceSpkNumber: String = "",
+    val sourceSamplingOrderId: String? = null,
     val bomLines: List<BomLine> = emptyList(),
     val laborOperations: List<LaborOperation> = emptyList(),
     val sizeYieldFactors: List<SizeYieldFactor> = emptyList(),

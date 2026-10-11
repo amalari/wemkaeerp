@@ -30,6 +30,8 @@ data class BulkWorkOrder(
     val dealId: String? = null,
     /** Sampel ACC yang menjadi acuan spesifikasi — kunci emas produksi massal. */
     val goldenSampleOrderId: SamplingOrderId? = null,
+    /** Costing sheet yang menjadi acuan harga SPK ini (CMT). */
+    val costingSheetId: String? = null,
     val sizeBreakdown: List<BulkSizeLine> = emptyList(),
     /**
      * Ukuran yang dikerjakan SPK ini, atau `null` untuk SPK legacy multi-size.

@@ -63,7 +63,11 @@ class PipelineTelemetryOverlayTest {
         val others = result.nodes.filter { it.module != GarmentModules.SAMPLING_ORDER && !it.isBypassed }
         assertTrue(others.isNotEmpty() && others.all { it.isTelemetryEstimate })
         assertTrue(result.nodes.filter { it.isBypassed }.none { it.isTelemetryEstimate }, "node bypass tidak ditandai")
-        assertEquals(result.nodes.filterNot { it.isBypassed }.sumOf { it.wipPieces }, result.totalWipPieces, "KPI dihitung ulang")
+        // A1: totalWipPieces sekarang hanya dari data nyata (bukan estimasi)
+        val realNodes = result.nodes.filterNot { it.isBypassed || it.isTelemetryEstimate }
+        val estimatedNodes = result.nodes.filterNot { it.isBypassed }.filter { it.isTelemetryEstimate }
+        assertEquals(realNodes.sumOf { it.wipPieces }, result.totalWipPieces, "KPI nyata dihitung ulang")
+        assertEquals(estimatedNodes.sumOf { it.wipPieces }, result.estimatedWipPieces, "estimasi terpisah")
     }
 
     @Test

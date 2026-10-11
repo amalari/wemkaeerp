@@ -37,11 +37,15 @@ object PipelinePresetFactory {
             PipelineSimulationScenario.QC_WORKMANSHIP_DEFECT -> 6
         }
 
+        val realNodes = activeNodes.filterNot { it.isTelemetryEstimate }
+        val estimatedNodes = activeNodes.filter { it.isTelemetryEstimate }
+
         return FactoryPipelineSnapshot(
             preset = preset,
             nodes = nodes,
             overallHealthScore = (100 - bottleneckPenalty - criticalPenalty - scenarioPenalty).coerceIn(40, 100),
-            totalWipPieces = activeNodes.sumOf { it.wipPieces },
+            totalWipPieces = realNodes.sumOf { it.wipPieces },
+            estimatedWipPieces = estimatedNodes.sumOf { it.wipPieces },
             activeBottlenecks = nodes.count { it.isBottleneck },
             avgLeadTimeDays = avgLeadDays,
             activeModulesCount = activeNodes.size,

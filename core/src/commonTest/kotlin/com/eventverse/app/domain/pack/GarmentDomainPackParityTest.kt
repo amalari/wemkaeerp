@@ -70,6 +70,7 @@ class GarmentDomainPackParityTest {
 
     private val LEGACY_DEFAULT_STAGE = mapOf(
         GarmentSlots.ORDER_INGESTION to "COMMERCIAL",
+        GarmentSlots.SAMPLING to "ENGINEERING", // A5: Sampling di fase pengembangan produk
         GarmentSlots.PRODUCT_ENGINEERING to "ENGINEERING",
         GarmentSlots.COSTING_HPP to "ENGINEERING",
         GarmentSlots.RAW_MATERIAL to "SUPPLY_CHAIN",
@@ -103,6 +104,7 @@ class GarmentDomainPackParityTest {
     /** Salinan persis `enum class ModuleArchetype` terakhir (commit 171038e), urutan deklarasi dipertahankan. */
     private val LEGACY_ARCHETYPES = listOf(
         LegacySlot("order_ingestion", "Penerimaan Pesanan / PO / Sales Ingestion", "CommercialInquiry", "ProductionOrderDraft", GarmentModules.CRM_SALES),
+        LegacySlot("sampling", "Pola & Sampling Order", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.SAMPLING_ORDER), // A5: Sampling slot di ENGINEERING phase
         LegacySlot("raw_material", "Bahan Baku & Persediaan Gudang", "MaterialRequisition", "VerifiedMaterialStock", GarmentModules.INVENTORY),
         LegacySlot("product_engineering", "Rekayasa Produk: Tech Pack, BOM & Yield", "ApprovedSampleSpecification", "TechPackAndYieldData", GarmentModules.TECH_PACK_BOM),
         LegacySlot("costing_hpp", "Perhitungan Biaya & HPP (Costing Engine)", "TechPackAndYieldData", "CostingCalculationResult", GarmentModules.COSTING_HPP),
@@ -134,11 +136,12 @@ class GarmentDomainPackParityTest {
         assertEquals("QUALITY_CONTROL", GarmentSlots.legacyNameOf(GarmentSlots.QUALITY_CONTROL))
     }
 
-    /** Salinan persis `PortDataTypeRegistry.KNOWN_TYPED_LABELS` terakhir (commit 1982a3b). */
+    /** Salinan persis `PortDataTypeRegistry.KNOWN_TYPED_LABELS` terakhir (commit 1982a3b), ditambah port type A3 untuk label panah. */
     private val LEGACY_WIRED_PORTS = setOf(
         "ProductionOrderDraft", "ApprovedSampleSpecification", "TechPackAndYieldData", "MaterialRequisition",
         "VerifiedMaterialStock", "CostingCalculationResult", "CutPiecesBundle", "AssembledGarmentBundle",
-        "InspectedAndGradedUnit", "DispatchedShipmentManifest", "IssuedInvoiceDocument"
+        "InspectedAndGradedUnit", "DispatchedShipmentManifest", "IssuedInvoiceDocument",
+        "StandardHandoffPayload", "DefectReworkPayload"
     )
 
     @Test

@@ -31,33 +31,59 @@ fun ExecutiveKpiHeader(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // KPI 1: Overall Factory Health
+        val healthSubtitle = if (snapshot.hasEstimateData) {
+            "Data estimasi — belum ada telemetri"
+        } else if (snapshot.overallHealthScore >= 90) {
+            "Sangat Sehat & Terkendali"
+        } else {
+            "Perlu Pengawasan Supervisor"
+        }
+        val healthAccent = if (snapshot.hasEstimateData) {
+            WeMadeColors.OnSurfaceMuted
+        } else if (snapshot.overallHealthScore >= 90) {
+            WeMadeColors.Success
+        } else {
+            WeMadeColors.Warning
+        }
+        val healthBg = if (snapshot.hasEstimateData) {
+            WeMadeColors.SurfaceMuted
+        } else if (snapshot.overallHealthScore >= 90) {
+            WeMadeColors.SuccessBg
+        } else {
+            WeMadeColors.WarningBg
+        }
         KpiStatCard(
             modifier = Modifier.weight(1f),
             title = "Kesehatan Alur Pabrik",
             metricValue = "${snapshot.overallHealthScore}%",
-            subtitle = if (snapshot.overallHealthScore >= 90) "Sangat Sehat & Terkendali" else "Perlu Pengawasan Supervisor",
-            accentColor = if (snapshot.overallHealthScore >= 90) WeMadeColors.Success else WeMadeColors.Warning,
-            bgColor = if (snapshot.overallHealthScore >= 90) WeMadeColors.SuccessBg else WeMadeColors.WarningBg,
+            subtitle = healthSubtitle,
+            accentColor = healthAccent,
+            bgColor = healthBg,
             iconContent = {
                 IconHealth(
                     modifier = Modifier.size(16.dp),
-                    color = if (snapshot.overallHealthScore >= 90) WeMadeColors.Success else WeMadeColors.Warning
+                    color = healthAccent
                 )
             }
         )
 
         // KPI 2: Total Work In Progress (WIP)
+        val wipSubtitle = if (snapshot.hasEstimateData) {
+            "${snapshot.totalWipPieces} nyata + ${snapshot.estimatedWipPieces} estimasi"
+        } else {
+            "Pakaian aktif di seluruh line"
+        }
         KpiStatCard(
             modifier = Modifier.weight(1f),
             title = "Total WIP di Produksi",
             metricValue = "${snapshot.totalWipPieces} Pcs",
-            subtitle = "Pakaian aktif di seluruh line",
-            accentColor = WeMadeColors.Primary,
-            bgColor = WeMadeColors.PrimaryContainer,
+            subtitle = wipSubtitle,
+            accentColor = if (snapshot.hasEstimateData) WeMadeColors.OnSurfaceMuted else WeMadeColors.Primary,
+            bgColor = if (snapshot.hasEstimateData) WeMadeColors.SurfaceMuted else WeMadeColors.PrimaryContainer,
             iconContent = {
                 IconWip(
                     modifier = Modifier.size(16.dp),
-                    color = WeMadeColors.Primary
+                    color = if (snapshot.hasEstimateData) WeMadeColors.OnSurfaceMuted else WeMadeColors.Primary
                 )
             }
         )

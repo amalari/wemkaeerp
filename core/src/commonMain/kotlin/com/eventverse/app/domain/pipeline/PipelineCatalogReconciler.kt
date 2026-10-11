@@ -30,6 +30,7 @@ import com.eventverse.app.domain.rbac.name
 import com.eventverse.app.domain.rbac.code
 
 import com.eventverse.app.domain.pack.GarmentBlueprints
+import com.eventverse.app.domain.pack.GarmentPortTypes
 
 import com.eventverse.app.domain.rbac.BusinessModule
 
@@ -92,7 +93,16 @@ object PipelineCatalogReconciler {
                 val toNode = nodeByModule.getValue(to)
                 types.firstOrNull()
                     ?.takeIf { (fromNode.nodeId to toNode.nodeId) !in existingPairs }
-                    ?.let { type -> CustomPipelineEdge("edge-${fromNode.nodeId}-to-${toNode.nodeId}", fromNode.nodeId, toNode.nodeId, type) }
+                    ?.let { type ->
+                        val label = GarmentPortTypes.labels[type]
+                        CustomPipelineEdge(
+                            "edge-${fromNode.nodeId}-to-${toNode.nodeId}",
+                            fromNode.nodeId,
+                            toNode.nodeId,
+                            type,
+                            displayLabel = label
+                        )
+                    }
             }
     }
 

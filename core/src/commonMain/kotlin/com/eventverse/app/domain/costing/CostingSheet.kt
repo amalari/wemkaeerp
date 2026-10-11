@@ -41,6 +41,7 @@ data class CostingSheet(
     val tenantId: TenantId,
     val number: CostingNumber,
     val techPackId: String,
+    val samplingOrderId: String? = null,
     val orderQuantity: Long,
     val behavior: com.eventverse.app.domain.pipeline.CostingBehavior,
     val status: CostingSheetStatus = CostingSheetStatus.DRAFT,

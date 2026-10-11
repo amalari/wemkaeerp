@@ -11,10 +11,12 @@ data class FactoryPipelineSnapshot(
     val nodes: List<PipelineNode>,
     val overallHealthScore: Int,
     val totalWipPieces: Int,
+    val estimatedWipPieces: Int = 0,
     val activeBottlenecks: Int,
     val avgLeadTimeDays: Double,
     val activeModulesCount: Int,
     val bypassedModulesCount: Int
 ) {
     val isHealthy: Boolean get() = activeBottlenecks == 0
+    val hasEstimateData: Boolean get() = estimatedWipPieces > 0
 }

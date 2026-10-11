@@ -3,7 +3,7 @@
 ## 1. Document Context and Administration
 
 - **Title & ID**: TRD-PLAT-012 — Gerbang rute Factory Flow / pipeline / locations fail-closed
-- **Status**: **DISETUJUI; Track A SELESAI (2026-10-10).** K1/K2/K3 diterapkan; tes + probe hijau. Track B diselesaikan sebagian (probe generik per prefix Factory Flow + tes karakterisasi `null`); Track C (Q2/Q3) ditunda ke tiket terpisah. Q1: `FACTORY_FLOW` saja; Q4: dibiarkan, dicatat.
+- **Status**: **DISETUJUI; Track A SELESAI (2026-10-10); Q3 SELESAI (2026-10-11).** K1/K2/K3 diterapkan; tes + probe hijau. Track B diselesaikan sebagian (probe generik per prefix Factory Flow + tes karakterisasi `null`). Q3: `factoryFlowDecision` didelegasikan ke `callerDecisions` (satu jalur perhitungan); diverifikasi `FactoryFlowTenantAdminParityTest`. Q2 (UX 403) direncanakan di [`PLAN-plat-012-track-c`](../../plannings/mvp/PLAN-plat-012-track-c.md), belum dikerjakan. Q1: `FACTORY_FLOW` saja; Q4: dibiarkan, dicatat.
 - **Temuan probe (langkah A1, kode lama)**: dinamis terkonfirmasi — satu-satunya rute yang meloloskan token `SALES` tanpa jabatan/divisi adalah `GET /api/tenant/locations` (200); semua rute pipeline/stage-flow lain sudah 403. Tes: `FactoryFlowAccessApiTest` (7), `RouteGateTest.identityFreeProbe_…`, `TenantRouteGatePolicyTest.locations_…`.
 - **Basis**: `main` @ `96b8d130`. Pola acuan: TRD-PLAT-011 (Org Chart), yang sudah diterapkan di `OrgChartAccessGuard.kt`.
 

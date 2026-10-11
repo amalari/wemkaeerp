@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pipeline
 
+import com.eventverse.app.domain.pack.GarmentPortTypes
+
 import com.eventverse.app.domain.rbac.isScopeSupported
 
 import com.eventverse.app.domain.rbac.isFoundation
@@ -145,7 +147,8 @@ data class CustomTenantPipeline(
                             edgeId = "edge-${sourceNode.id}-to-${targetNode.id}",
                             fromNodeId = sourceNode.id,
                             toNodeId = targetNode.id,
-                            expectedDataType = "StandardHandoffPayload"
+                            expectedDataType = "StandardHandoffPayload",
+                            displayLabel = GarmentPortTypes.labels["StandardHandoffPayload"]
                         )
                     }
                 }
@@ -161,6 +164,7 @@ data class CustomTenantPipeline(
                             fromNodeId = sourceNode.id,
                             toNodeId = targetNode.id,
                             expectedDataType = "DefectReworkPayload",
+                            displayLabel = "Retur Cacat",
                             isFeedbackReworkLoop = true
                         )
                     }
@@ -215,5 +219,6 @@ data class CustomPipelineEdge(
     val fromNodeId: String,
     val toNodeId: String,
     val expectedDataType: String,
+    val displayLabel: String? = null,
     val isFeedbackReworkLoop: Boolean = false
 )
