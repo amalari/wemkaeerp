@@ -4,6 +4,21 @@ Dokumen rencana kerja di `docs/plannings/PLAN-[slug].md` wajib dirancang agar da
 
 ---
 
+## 0. Folder Priority Classification (WAJIB)
+
+Setiap PLAN **MUST** diklasifikasikan berdasarkan prioritas dan disimpan di folder yang sesuai:
+
+| Kategori | Lokasi | Kriteria |
+|---|---|---|
+| **MVP / Priority** | `docs/plannings/mvp/` | Rencana yang wajib selesai sebelum fase berikutnya: Domain Pack (B0), Blueprint (B4), Tenant Pack (B7), module ownership, pack ownership, dual-track platform |
+| **Features / Next Phase** | `docs/plannings/features/` | Rencana fitur pelengkap, enhacement, atau yang bisa ditunda ke fase berikutnya: Builder UI, CRM redesign, Sampling workflow, Fulfillment, Costing AI, dll |
+
+Contoh:
+- `docs/plannings/mvp/PLAN-dual-track-garment-and-general-platform.md` ✅
+- `docs/plannings/features/PLAN-builder-console.md` ✅
+
+---
+
 ## 1. Effort Estimation & Reasoning
 
 Setiap PLAN wajib menyatakan estimasi effort dan justifikasinya:

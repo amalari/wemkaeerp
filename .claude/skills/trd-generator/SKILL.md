@@ -75,13 +75,30 @@ Represented in a markdown table:
 ---
 
 ## File Storage & Naming Convention
-All TRD documents **MUST** be saved in the `docs/trd/` directory with the following naming format:
+
+### Priority Classification (WAJIB)
+Semua TRD **MUST** diklasifikasikan berdasarkan prioritas:
+
+| Kategori | Lokasi | Kriteria |
+|---|---|---|
+| **MVP / Priority** | `docs/trd/mvp/` | Fitur inti platform yang wajib selesai sebelum fase berikutnya: Domain Pack (B0), Blueprint (B4), Tenant Pack (B7), module ownership, pack ownership, governance gates, fail-closed contracts |
+| **Features / Next Phase** | `docs/trd/features/` | Fitur pelangkap, enhacement, atau yang bisa ditunda ke fase berikutnya: Builder, CRM fields, payment integration, help/tutorial |
+
+### Folder Structure
 ```text
 docs/
 └── trd/
-    └── TRD-[ID]-[feature-slug].md
+    ├── mvp/                    # MVP / Priority - core platform contracts
+    │   └── TRD-[ID]-[feature-slug].md
+    └── features/               # Features - next phase / enhancement
+        └── TRD-[ID]-[feature-slug].md
 ```
-Example: `docs/trd/TRD-PORTO-001-3d-world-engine.md`
+Example: `docs/trd/mvp/TRD-PLAT-001-tenant-pack.md` atau `docs/trd/features/TRD-FIELD-001-relation.md`
+
+### Naming Convention
+```text
+docs/trd/{mvp|features}/TRD-[ID]-[feature-slug].md
+```
 
 ---
 

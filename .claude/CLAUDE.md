@@ -303,6 +303,8 @@ otomatis seperti `teaching`):
   `docs/tasks/`. Pakai saat task punya issue GitHub yang jelas.
 - `trd-generator` — Technical Requirements Document 5-bagian untuk fitur/servis baru
   yang cukup besar, di `docs/trd/`. Pakai di awal perencanaan fitur besar, bukan pasca-implementasi.
+  **PENTING**: Simpan di `docs/trd/mvp/` untuk MVP/priority (core platform contracts), atau
+  `docs/trd/features/` untuk fitur yang bisa ditunda.
 - `task-to-github-projects` — mengonversi rencana/breakdown task menjadi GitHub
   Issues & Project items via `gh` CLI.
 
@@ -409,6 +411,8 @@ Sebelum menulis kode fitur atau modul apa pun, jalankan berurutan:
    Factory Flow, governance. Hasil: Discovery Note.
 2. **Skill `wemade-feature-workflow`** — gerbang ukuran/TRD → domain (tenant kedua) → pendaftaran →
    persistensi → API fail-closed → UI dari data → verifikasi → teaching doc.
+   **PENTING**: PLAN/discovery disimpan di `docs/plannings/mvp/` untuk MVP/priority,
+   atau `docs/plannings/features/` untuk fitur yang bisa ditunda.
 
 Baca dan patuhi **[`.claude/rules/tenant-variability-rules.md`](.claude/rules/tenant-variability-rules.md)**
 (kode vs data) dan **[`module-integration-rules.md` §5](.claude/rules/module-integration-rules.md)**
