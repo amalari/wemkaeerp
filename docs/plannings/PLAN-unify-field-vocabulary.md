@@ -36,10 +36,10 @@ Klaim awal "`FieldSpec` superset CRM" **tidak akurat**. Yang benar: kosakata dis
 - Sel MULTI_SELECT CRM = **larik JSON id opsi aktif** (aturan bentuk dipegang `MultiSelectValues`, di sini id diteruskan) — konsisten dengan prototipe yang memakai nama opsi.
 - `PreviewFieldTypeChangeUseCase`/`FieldTypeConversion` sadar-parameter (ganti `withTime` = LOSSY; jenis sama = IDENTITY).
 
-Sisa follow-up (bukan penghalang):
-1. Opsi **SingleSelect/MULTI_SELECT di dialog "Tambah kolom"** CRM belum ditawarkan (butuh editor opsi berwarna) — pola sama seperti sebelum penyatuan; field-nya tetap terbaca & tervalidasi.
-2. ~~Penyatuan muatan parameter (§2a): satu `NumberFormat`, `SelectOption`, `maxCount`→`FieldSpec`.~~ ✅ **Selesai 2026-10-11** — lihat §3b.
-3. Cek visual CRM dengan field TIME/MULTI_SELECT di tenant uji (dialog + inspektur).
+Sisa follow-up — **semua selesai 2026-10-11**:
+1. ~~Opsi **SingleSelect/MULTI_SELECT di dialog "Tambah kolom"** CRM (butuh editor opsi berwarna).~~ ✅ — lihat §3c.
+2. ~~Penyatuan muatan parameter (§2a): satu `NumberFormat`, `SelectOption`, `maxCount`→`FieldSpec`.~~ ✅ — lihat §3b.
+3. ~~Cek visual CRM dengan field TIME/MULTI_SELECT di tenant uji (dialog + inspektur).~~ ✅ — lihat §3c (2 temuan minor dicatat).
 
 ### 3b. Penyatuan muatan parameter — ✅ selesai (2026-10-11)
 
@@ -52,6 +52,33 @@ Batas yang **sengaja** belum disatukan (dicatat, bukan lupa):
 - `targetResource` CRM vs `target` prototype — konsep sama (rujukan RELATION) tapi kunci wire & bentuk berbeda; disatukan menyusul bila ada kebutuhan.
 - `maxCount > 1` belum ditegakkan di nilai sel oleh kedua kosakata (prototype v1 menyimpan satu id; CRM menyimpan satu id) — param terdaftar, penegakan multi-rujukan menyusul bersamaan.
 - Katalog agent discovery (`FieldHint`) belum mengekspos `maxCount` — param registry dulu, permukaan usulan menyusul.
+
+### 3c. Editor opsi & verifikasi visual — ✅ selesai (2026-10-11)
+
+**Editor opsi berwarna (follow-up 1).** Dialog "Tambah kolom" CRM kini menawarkan "Pilihan tunggal"
+(`ENUM`) dan "Pilihan ganda" (`MULTI_SELECT`). Komponen `SelectOptionsEditor`
+(`app/shared/.../presentation/crm/components/`) merakit draf opsi (swatch warna dari token
+`WeMadeColors` + label + hapus); `buildSelectOptions()` mengubahnya jadi `SelectOption` domain (id
+di-slug dari label lewat `FieldKey.fromLabel`, di-dedup; baris berlabel kosong dilewati). Helper
+`colorFromHex`/`toColorHex` diangkat ke `presentation/common/ColorHexSupport.kt`. **Nol perubahan
+`core`/kodec**: kunci kawat `options`/`maxSelections` tak disentuh; warna memakai **token peran**
+(design-system Kontrak 1/2), bukan literal baru.
+
+**Verifikasi visual (follow-up 3)** — tenant `ten-demo-001`, login superadmin + persona Owner, lebar
+1600 dan 1280: TIME tampil `ClayTimePicker` dan MULTI_SELECT tampil chips, di **dialog** dan
+**inspektur**; tersimpan ke DB (TIME `HH:MM`, MULTI_SELECT larik id opsi) dan tetap benar setelah
+reload; `maxSelections` ditegakkan; **nol piksel** palet default M3 di 8 screenshot (tidak ada
+kebocoran ungu). Temuan minor (dicatat, **belum** diperbaiki):
+(a) pill "Belum estimasi" pada kartu kanban terpangkas jadi "Be" di lebar ~1280
+(`presentation/crm/components/CrmKanbanCard.kt:251-256` — badge mengalah tanpa `maxLines`+`overflow`);
+(b) saat `maxSelections` penuh, tap opsi berikutnya ditolak **tanpa umpan balik** UI.
+
+**Integrasi.** Kedua branch tumpang-tindih pada `LeadCustomField.kt`; penyatuan parameter (§3b) masuk
+lebih dulu, lalu editor opsi (§3c) di-rebase di atasnya — `SelectOptionsEditor` mengimpor
+`SelectOption`/`SelectOptionId` dari paket `prototype`. Verifikasi di `main`: `:core:jvmTest`,
+`:server:test`, `:app:shared:jvmTest`, `:app:shared:compileKotlinWasmJs`, `:app:shared:compileKotlinJs`
+— **hijau** (rerun penuh, tanpa cache). `assembleAndroidMain` tidak dijalankan: tak ada Android SDK di
+mesin ini.
 
 ## 4. Irisan pelaksanaan (track per direktori, boleh paralel setelah A0)
 
