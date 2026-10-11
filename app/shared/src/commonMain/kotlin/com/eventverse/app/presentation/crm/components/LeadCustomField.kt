@@ -37,6 +37,7 @@ import com.eventverse.app.presentation.common.fieldFileClientSizeError
 import com.eventverse.app.presentation.common.fieldFileErrorMessage
 import com.eventverse.app.presentation.common.fieldFileSizeHint
 import com.eventverse.app.presentation.common.fileRefDisplayName
+import com.eventverse.app.presentation.common.colorFromHex
 import com.eventverse.app.presentation.deal.openInBrowser
 import com.eventverse.app.presentation.deal.pickLocalFile
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -56,7 +57,6 @@ import com.eventverse.app.presentation.relation.relationFieldControllerForResour
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.shared.json.JsonValue
 import kotlinx.coroutines.launch
-import androidx.compose.ui.graphics.Color as ComposeColor
 
 /**
  * Aksi jaringan berkas untuk field `FILE` (C8, TRD-FIELD-002 §4.4) — dihubungkan dari
@@ -396,12 +396,12 @@ private fun SelectEditor(
 
     if (editable && onCommit != null) {
         Row {
-        ClayBadge(
-            text = selectedOption?.label ?: "Pilih...",
-            // colorHex null = opsi tanpa warna tenant (opsi prototype) — token netral, bukan menebak warna.
-            tint = selectedOption?.colorHex?.let { ComposeColor(parseHex(it)) } ?: WeMadeColors.OnSurfaceMuted,
-            modifier = Modifier.clickable { expanded = true }
-        )
+            ClayBadge(
+                text = selectedOption?.label ?: "Pilih...",
+                // colorHex null = opsi tanpa warna tenant (opsi prototype) — token netral, bukan menebak warna.
+                tint = selectedOption?.colorHex?.let { colorFromHex(it) } ?: WeMadeColors.OnSurfaceMuted,
+                modifier = Modifier.clickable { expanded = true }
+            )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             type.activeOptions.forEach { option ->
@@ -417,7 +417,7 @@ private fun SelectEditor(
     } else {
         ClayBadge(
             text = selectedOption?.label ?: "-",
-            tint = selectedOption?.colorHex?.let { ComposeColor(parseHex(it)) } ?: WeMadeColors.OnSurfaceMuted
+            tint = selectedOption?.colorHex?.let { colorFromHex(it) } ?: WeMadeColors.OnSurfaceMuted
         )
     }
 }
@@ -512,9 +512,4 @@ private fun rememberLeadRelationUi(resource: String): RelationFieldUi? {
     }
     LaunchedEffect(controller) { controller?.prime() }
     return controller
-}
-
-private fun parseHex(hex: String): Long {
-    val cleaned = hex.removePrefix("#")
-    return ("FF$cleaned").toLong(16)
 }
