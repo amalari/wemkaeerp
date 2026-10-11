@@ -22,6 +22,7 @@ internal object SpecPostgresWriter {
         appendLine("object ${t.objectName} : Table(\"${t.qualified}\") {")
         appendLine("    val id = varchar(\"id\", 64)")
         appendLine("    val tenantId = varchar(\"tenant_id\", 64).references(TenantsTable.id)")
+        appendLine("    val ownerId = varchar(\"owner_id\", 64).nullable()")
         t.columns.forEach { c -> appendLine("    val ${c.prop} = ${exposedColumn(c)}") }
         appendLine("    val createdAt = timestamp(\"created_at\")")
         appendLine("    val updatedAt = timestamp(\"updated_at\")")
@@ -83,6 +84,7 @@ internal object SpecPostgresWriter {
             appendLine("                $tbl.insert {")
             appendLine("                    it[$tbl.id] = row.id")
             appendLine("                    it[$tbl.tenantId] = tenantId.value")
+            appendLine("                    it[$tbl.ownerId] = row.owner")
             t.columns.forEach { c -> appendLine("                    it[$tbl.${c.prop}] = ${writeExpr(c)}") }
             appendLine("                    it[$tbl.createdAt] = now")
             appendLine("                    it[$tbl.updatedAt] = now")
@@ -101,8 +103,10 @@ internal object SpecPostgresWriter {
             t.columns.forEachIndexed { i, c ->
                 appendLine("            ${SpecNaming.kString(c.field.key)} to ${readExpr(c, tbl)}" + if (i < t.columns.lastIndex) "," else "")
             }
-            appendLine("        )")
+            appendLine("        ),")
+            appendLine("        r[$tbl.ownerId]")
             appendLine("    )")
+            appendLine("}")
             appendLine("}")
         }
     }
