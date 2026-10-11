@@ -3,7 +3,7 @@
 ## 1. Document Context and Administration
 
 - **Title & ID**: TRD-FIELD-004 — Penyamaan gerbang DataScope/keberadaan record pada unggah-unduh FILE generik, validasi RELATION di modul hasil generate, guard tulis RELATION CRM, mitigasi MIME/header objek, dan jaring pengaman rute tulis berbasis spec
-- **Status**: **v0.3 — Track A, B1-B3, dan C1-C3 SELESAI di branch implementasi FIELD-004-B3C.** Q4 (DataScope CRUD modul generate), Q6 (`nosniff` di infra nyata), dan Q8 (wiring deployment di luar repo) tetap TERBUKA. Semua klaim lingkungan yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
+- **Status**: **v0.4 — Track A, B1-B3, dan C1-C3 SELESAI.** Q4 punya TRD dan PLAN terpisah (`TRD-FIELD-004-Q4-datascope-crud-generate.md`, `PLAN-field-004-q4-datascope-crud-generate.md`). Q6 (`nosniff` di infra nyata), dan Q8 (wiring deployment di luar repo) tetap TERBUKA. Semua klaim lingkungan yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
 - **Basis**: `main` @ `bf9fbe65`. Pola acuan: TRD-PLAT-011/012 (audit rute -> gerbang -> level -> tes, Track A/B/C).
 - **Dokumen terkait**: `TRD-FIELD-001-relation.md`, `TRD-FIELD-002-file.md` (v0.4), `docs/teaching/teaching-field-file-tenant-ref-guard.md`, `.claude/rules/tenant-variability-rules.md` Kontrak 6/7, `field-component-rules.md`.
 
@@ -14,6 +14,7 @@
 | 0.1 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Draft awal dari audit kode HEAD `bf9fbe65` |
 | 0.2 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Q1/Q2/Q3/Q5/Q7 disetujui. Track A selesai (A1 `79df6847`, A2 `ecc9975c`, A3 `9c771f7e`, A4 `ce44e3e1`). Catatan implementasi di "Status Track A" di bawah |
 | 0.3 | 2026-10-11 | Codex (implementasi FIELD-004-B3C) | B3: magic-byte + metadata S3; C1: regenerasi pilot + migrasi aditif V100; C2: drift/write-guard test; C3: teaching dan verifikasi |
+| 0.4 | 2026-10-11 | Claude Sonnet 5.5 | Q4 punya TRD/PLAN terpisah; update status |
 
 ### Summary & Business Context
 
@@ -310,7 +311,7 @@ Tes merah lebih dulu (A1: 14 dari 26 merah terhadap kode lama), lalu hijau; `:se
 - **Q1 — FILE pada create ditolak (400)?** Rekomendasi: ya (FR-1.3); klien tak mengunggah untuk record baru. Alternatif (id sementara + ikatan lunak) ditolak karena membuka kategori orphan baru.
 - **Q2 — Modul HIERARCHICAL tanpa sumber pemilik di rute generik: 403 atau 404?** Rekomendasi: 403 fail-closed (bukan 404) supaya perbedaan "tak ada sumber" vs "tak ada record" tidak tersamar; CRM tetap lewat rute lead-nya.
 - **Q3 — Target RELATION dari modul generate ke modul HIERARCHICAL (mis. `crm_sales`)?** Rekomendasi: v1 ditolak saat registrasi pack/generator sampai FR-3.x selesai, lalu diizinkan dengan gerbang target yang sama. Alternatif: izinkan langsung memakai `authorizeRelationTarget` (Track A dahulu).
-- **Q4 — Rute CRUD generate mengabaikan DataScope untuk modul HIERARCHICAL** (`SpecRoutesWriter.kt:60-75,85-90`: `repository.list(tenantId)`), terlepas dari FILE/RELATION. Rekomendasi: tiket terpisah; sementara itu generator menolak pack HIERARCHICAL (catat di KDoc generator).
+- **Q4 — Rute CRUD generate mengabaikan DataScope untuk modul HIERARCHICAL** (`SpecRoutesWriter.kt:60-75,85-90`: `repository.list(tenantId)`), terlepas dari FILE/RELATION. **TRD dan PLAN terpisah**: `TRD-FIELD-004-Q4-datascope-crud-generate.md` dan `PLAN-field-004-q4-datascope-crud-generate.md`.
 - **Q5 — Mengubah `ObjectStorage.downloadUrl` (antarmuka domain) menambah `fileName`?** Rekomendasi: ya, parameter opsional dengan default `null` (tanpa override disposition bila null) agar fake di tes tetap valid.
 - **Q6 — `nosniff` di mana ditegakkan?** Rekomendasi: bucket policy/reverse proxy (infra), dicatat di runbook; bukan kode aplikasi. Perlu keputusan pemilik infra.
 - **Q7 — Magic byte: 415 atau 400?** Rekomendasi: 415 (sama dengan allowlist) agar klien punya satu penanganan.

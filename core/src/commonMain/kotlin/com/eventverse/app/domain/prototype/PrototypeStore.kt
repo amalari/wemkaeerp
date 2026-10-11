@@ -1,7 +1,7 @@
 package com.eventverse.app.domain.prototype
 
-/** Satu baris data prototype. [id] stabil — kunci tarik-lepas kartu. */
-data class PrototypeRow(val id: String, val values: Map<String, String>) {
+/** Satu baris data prototype. [id] stabil — kunci tarik-lepas kartu. [owner] adalah employeeId pembuat/pemilik. */
+data class PrototypeRow(val id: String, val values: Map<String, String>, val owner: String? = null) {
     init { require(id.isNotBlank()) { "PrototypeRow.id kosong" } }
     operator fun get(key: String): String = values[key].orEmpty()
 }

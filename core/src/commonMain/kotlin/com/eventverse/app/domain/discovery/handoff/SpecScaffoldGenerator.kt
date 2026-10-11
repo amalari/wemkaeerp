@@ -4,6 +4,7 @@ import com.eventverse.app.domain.discovery.HandoffScaffoldGenerator
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeSpec
+import com.eventverse.app.domain.rbac.ScopeCapability
 
 /**
  * Merakit [HandoffScaffoldGenerator.Scaffold] dari [PrototypeSpec] (kontrak §3.4, butir C1–C2).
@@ -19,6 +20,7 @@ internal object SpecScaffoldGenerator {
         require(migrationVersion > 0) { "Versi migrasi harus positif." }
         require(spec.entities.size == 1) { "Generator v1 mendukung tepat satu entitas per modul (spec punya ${spec.entities.size})." }
         require(packExpression.isNotBlank()) { "packExpression (ekspresi Kotlin pack modul untuk test gerbang) wajib diisi." }
+        rejectHierarchicalModule(module)
         rejectHierarchicalRelationTargets(spec, module)
         val table = SpecTable.of(module.id.value, spec.entities.single())
         val schema = module.id.value
@@ -36,6 +38,14 @@ internal object SpecScaffoldGenerator {
                 file("docs/handoff/$schema/WIRING.md", wiring(schema, pascal, table))
             )
         )
+    }
+
+    /** Q4 TRD-FIELD-004: modul HIERARCHICAL ditolak di build karena DataScope filtering belum di-rute generate. */
+    private fun rejectHierarchicalModule(module: ModuleDefinition) {
+        require(module.scopeCapability != com.eventverse.app.domain.rbac.ScopeCapability.HIERARCHICAL) {
+            "Modul '${module.id.value}' punya scopeCapability HIERARCHICAL — DataScope filtering di rute CRUD generate belum didukung (TRD-FIELD-004-Q4). " +
+                    "Gunakan scopeCapability GLOBAL_ONLY atau tunggu implementasi Q4."
+        }
     }
 
     /** Q3 TRD-FIELD-004: target RELATION ke modul HIERARCHICAL ditolak di build; target modul sendiri/tanpa ':' dilewati. */

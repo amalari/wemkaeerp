@@ -11,6 +11,9 @@ import com.eventverse.app.domain.prototype.TextValidation
  * Validasi isi memakai `PrototypeReducer` dengan spec yang sama dengan prototype (required, opsi enum,
  * transisi status), jadi aturan di prototype dan di server tidak bisa berbeda. Route di bawah
  * `/api/tenant/…` supaya tercakup `RouteGateTest` dan `RouteOwnershipTest`.
+ *
+ * **Catatan Q4 TRD-FIELD-004**: Modul HIERARCHICAL ditolak saat generate (lihat SpecScaffoldGenerator).
+ * DataScope filtering untuk HIERARCHICAL akan diimplementasikan dalam ticket terpisah.
  */
 internal object SpecRoutesWriter {
 
