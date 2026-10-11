@@ -32,6 +32,7 @@ import com.eventverse.app.domain.rbac.code
 import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.rbac.AccessDecision
+import com.eventverse.app.domain.rbac.AccessSource
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
@@ -83,6 +84,23 @@ internal suspend fun ApplicationCall.factoryFlowDecision(
 }
 
 /**
+ * Pesan 403 untuk gerbang Alur Pabrik (TRD-PLAT-012 Q2).
+ *
+ * Fungsi murni supaya isi pesan bisa diuji tanpa HTTP, dan supaya kata "butuh apa, minta ke siapa"
+ * tidak tersebar sebagai literal di dalam handler. Konteks (level sekarang + sumbernya) tetap
+ * disebut — pesan "akses ditolak" tanpa konteks memaksa pengguna menebak apakah yang salah adalah
+ * konfigurasi, persona, atau sistemnya.
+ */
+internal fun factoryFlowDeniedMessage(
+    required: AccessLevel,
+    current: AccessLevel,
+    source: AccessSource
+): String =
+    "Alur Pabrik belum terbuka untuk peran Anda. Dibutuhkan: ${required.displayName}; " +
+        "saat ini: ${current.displayName} (${source.label}). " +
+        "Minta pemilik pabrik membukanya lewat jabatan di layar Hak Akses (RBAC)."
+
+/**
  * Memastikan pemanggil berwenang setidaknya [required] atas Alur Pabrik.
  *
  * Mengembalikan `false` **dan sudah menjawab 403**; pemanggil tinggal `return@put`.
@@ -100,9 +118,7 @@ internal suspend fun ApplicationCall.requireFactoryFlowAccess(
 
     respond(
         HttpStatusCode.Forbidden,
-        "Butuh wewenang ${required.displayName} atas modul " +
-            "\"${GarmentModules.FACTORY_FLOW.displayName}\"; wewenang Anda saat ini " +
-            "${effective.config.level.displayName} (${effective.source.label})."
+        factoryFlowDeniedMessage(required, effective.config.level, effective.source)
     )
     return false
 }

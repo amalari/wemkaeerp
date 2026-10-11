@@ -56,14 +56,30 @@ Token `TENANT_ADMIN` ber-divisi tanpa jabatan: dari dinilai matriks (NONE) menja
 - [ ] KDoc diperbarui; `wc -l` `FactoryFlowAccessGuard` tidak bertambah
 - [ ] TRD-PLAT-012: status Q3 → selesai, catatan Q4 tetap (dibiarkan sesuai keputusan)
 
-## 3. Q2 — Rencana (dikerjakan kemudian)
+## 3. Q2 — UX 403 (SELESAI 2026-10-11, kecuali cek mata)
 
-1. Rancang konten pesan 403 Factory Flow: modul apa yang dibutuhkan, level apa, dan ke siapa meminta
-   (owner/superadmin tenant? kepala divisi?) — samakan pola dengan pesan 403 modul lain bila ada.
-2. Sisi server: `requireFactoryFlowAccess` memancarkan pesan baru (mungkin struktur JSON kecil
-   `{required, current, module}` kalau klien sudah siap; bila belum, teks tetap + info cara meminta).
-3. Cek visual layar Factory Flow saat 403 (login superadmin demo, lalu token peran NONE).
-4. DoD: pesam menjelaskan tindakan yang bisa diambil pengguna; cek mata di tenant uji non-rajut.
+Yang dikerjakan:
+
+1. **Pesan 403 manusiawi + bisa diuji.** Pesan lama menyebut jargon internal ("Butuh wewenang X atas
+   modul \"Alur Pabrik\"") tanpa memberi tindakan. Kini `requireFactoryFlowAccess` memakai fungsi murni
+   `factoryFlowDeniedMessage(required, current, source)`:
+   *"Alur Pabrik belum terbuka untuk peran Anda. Dibutuhkan: Hanya Lihat; saat ini: Tutup Akses
+   (Jabatan). Minta pemilik pabrik membukanya lewat jabatan di layar Hak Akses (RBAC)."*
+   Konteks tetap ada (level + sumber) sebagaimana alasan di KDoc `AccessDeniedCard`; kata "modul"
+   dibuang; teks ASCII agar aman di font Nunito.
+2. **Tes murni** `FactoryFlowDeniedMessageTest` (3 tes): menyebut level yang dibutuhkan, level
+   pemanggil, sumber wewenang; menyebut cara meminta; tidak memuat jargon "modul" dan seluruhnya
+   Latin-1.
+3. **Kartu klien** `FactoryFlowBlockedCard`: lencana `403` diganti kosakata pengguna **"Tanpa Akses"**
+   (kode HTTP mentah tidak pernah ditampilkan ke pengguna). Baris panduan kartu diubah agar tidak
+   menduplikasi instruksi RBAC yang kini ada di pesan server: *"Hubungi pemilik pabrik bila Anda
+   merasa seharusnya berwenang."*
+
+**Belum dikerjakan — cek mata** (butuh browser; tidak tersedia di sesi ini). Langkahnya: server
+`PORT=8091` + web `WEMADE_WEB_PORT=3011`, login demo superadmin, lalu buka Factory Flow dengan token
+peran `NONE` dan pastikan lencana "Tanpa Akses", pesan server, dan baris panduan tampil sebagaimana
+mestinya di tenant uji non-rajut (`bordir-uji`).
+
 
 ## 4. Risiko & mitigasi
 
@@ -81,6 +97,7 @@ Tes paritas `FactoryFlowTenantAdminParityTest` ditulis dan **merah** sesuai pred
 but was:<NONE>"), lalu hijau setelah `factoryFlowDecision` didelegasikan penuh ke
 `callerDecisions` (blok pembangunan persona duplikat di `FactoryFlowAccessGuard` dihapus;
 file 138 → 108 baris). Kontrol `FactoryFlowAccessApiTest` hijau sebelum dan sesudah (7/0);
+Dokumen pengajaran: [`teaching-plat-012-q3-tenant-admin-bypass-parity.md`](../../teaching/teaching-plat-012-q3-tenant-admin-bypass-parity.md).
 tes `MyAccess`/`Help`/`RouteOwnership`/stage-flow hijau. Suite server penuh: **800 tes,
 2 gagal — keduanya di luar perubahan ini** (diverifikasi lewat worktree bersih `origin/main`):
 `SeedTopologyConsistencyTest` gagal hanya di folder utama karena perubahan **belum terkomit**

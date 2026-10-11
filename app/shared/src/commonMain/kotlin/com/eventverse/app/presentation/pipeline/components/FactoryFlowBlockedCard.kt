@@ -53,7 +53,7 @@ fun FactoryFlowBlockedCard(
                 fontWeight = FontWeight.Bold,
                 color = WeMadeColors.Error
             )
-            ClayBadge(text = if (denied != null) "403" else "GALAT", tint = WeMadeColors.Error)
+            ClayBadge(text = if (denied != null) "Tanpa Akses" else "GALAT", tint = WeMadeColors.Error)
         }
         Column(
             modifier = Modifier.padding(top = ClaySpacing.Lg),
@@ -66,7 +66,7 @@ fun FactoryFlowBlockedCard(
             )
             Text(
                 text = if (denied != null) {
-                    "Hubungi pemilik pabrik untuk membuka wewenang lewat jabatan di layar Hak Akses (RBAC)."
+                    "Hubungi pemilik pabrik bila Anda merasa seharusnya berwenang."
                 } else {
                     "Data tenant tidak ditampilkan sampai server menjawab, agar template contoh tidak " +
                         "disangka konfigurasi pabrik Anda."
