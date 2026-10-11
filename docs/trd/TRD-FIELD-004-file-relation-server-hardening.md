@@ -7,6 +7,31 @@
 - **Basis**: `main` @ `bf9fbe65`. Pola acuan: TRD-PLAT-011/012 (audit rute -> gerbang -> level -> tes, Track A/B/C).
 - **Dokumen terkait**: `TRD-FIELD-001-relation.md`, `TRD-FIELD-002-file.md` (v0.4), `docs/teaching/teaching-field-file-tenant-ref-guard.md`, `.claude/rules/tenant-variability-rules.md` Kontrak 6/7, `field-component-rules.md`.
 
+## MVP vs Next Phase Summary
+
+### ✅ MVP Phase — SELESAI (v0.5)
+
+| Item | Status |
+|---|---|
+| Track A: FILE/RELATION server hardening | ✅ |
+| Track B1: Contribution.rows wiring | ✅ |
+| Track B2: relationProblem generator | ✅ |
+| Track B3: magic byte + S3 headers | ✅ |
+| Track C1: layanan_change_request regeneration | ✅ |
+| Track C2: write-guard tests | ✅ |
+| Track C3: teaching doc | ✅ |
+| Q4 MVP: reject HIERARCHICAL + owner_id | ✅ |
+
+### ⏳ Next Phase — Nanti Saja
+
+| Item | Status | Jenis |
+|---|---|---|
+| Q4 Full: DataScope filtering | ⏳ | Code (bisa nanti) |
+| Q6: nosniff header | ⏳ | Infra (deployment) |
+| Q8: wiring production check | ⏳ | Deployment |
+
+---
+
 ### Revision History
 
 | Versi | Tanggal | Penulis | Catatan |
@@ -53,7 +78,7 @@ Product/pemilik platform, Tech Lead (RBAC/guard/generator), QA (probe 403 & isol
 - Antivirus / pemindaian malware isi berkas; kuota penyimpanan per tenant; sweep objek yatim (FR-4 TRD-FIELD-002, tiket tersendiri).
 - Menyatukan dua kosakata tipe field (keputusan D2 terpisah) dan migrasi CRM ke kosakata prototype.
 - Memigrasikan jalur deal/PO (`PoFileStorage`) — strangler, tidak disentuh.
-- Menambah DataScope ke SELURUH rute CRUD hasil generate (lihat Q4; hanya dicatat).
+- DataScope penuh untuk modul HIERARCHICAL (Q4 Next Phase — bisa nanti).
 
 ## 2. Functional Requirements
 
@@ -307,7 +332,7 @@ Tes merah lebih dulu (A1: 14 dari 26 merah terhadap kode lama), lalu hijau; `:se
 
 ### Pertanyaan Terbuka (dengan rekomendasi)
 
-> v0.2: **Q1, Q2, Q3, Q5, Q7 = DISETUJUI** sesuai rekomendasi masing-masing. **Q4, Q6, Q8 = TERBUKA.**
+> v0.5: **Q1, Q2, Q3, Q5, Q7 = DISETUJUI** sesuai rekomendasi masing-masing. **Q4 MVP = SELESAI. Q4 Full = Next Phase. Q6 (infra) = Next Phase. Q8 (deployment) = Next Phase.**
 
 - **Q1 — FILE pada create ditolak (400)?** Rekomendasi: ya (FR-1.3); klien tak mengunggah untuk record baru. Alternatif (id sementara + ikatan lunak) ditolak karena membuka kategori orphan baru.
 - **Q2 — Modul HIERARCHICAL tanpa sumber pemilik di rute generik: 403 atau 404?** Rekomendasi: 403 fail-closed (bukan 404) supaya perbedaan "tak ada sumber" vs "tak ada record" tidak tersamar; CRM tetap lewat rute lead-nya.
