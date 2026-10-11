@@ -1,6 +1,5 @@
 package com.eventverse.app.presentation.fulfillment
 
-import com.eventverse.app.domain.fulfillment.FulfillmentRouteConfig
 import com.eventverse.app.domain.fulfillment.HandoverMode
 import com.eventverse.app.domain.fulfillment.HandoverProof
 import com.eventverse.app.domain.fulfillment.HandoverRoute
@@ -8,7 +7,6 @@ import com.eventverse.app.domain.fulfillment.HandoverRouteCode
 import com.eventverse.app.domain.fulfillment.HandoverRouteSetting
 import com.eventverse.app.domain.fulfillment.HandoverRouteSettingsView
 import com.eventverse.app.domain.fulfillment.InternalTransfer
-import com.eventverse.app.domain.fulfillment.SackRoute
 import com.eventverse.app.domain.fulfillment.SackTransferId
 import com.eventverse.app.domain.fulfillment.SackTransferStatus
 import com.eventverse.app.domain.tenant.TenantId
@@ -28,6 +26,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -108,6 +108,28 @@ class FulfillmentViewModelTest {
         assertTrue(state.effectiveRoutes.isEmpty())
         assertTrue(state.routesAccepting(isClosedSack = true).isEmpty())
         assertFalse(state.hasAdminHubRoute)
+        assertFailsWith<IllegalArgumentException> {
+            state.modeFor(HandoverRouteCode("ROUTE_NOT_REGISTERED"))
+        }
+    }
+
+    @Test
+    fun route_settings_failure_is_exposed_without_legacy_fallback() = testScope.runTest {
+        val fakeDataSource = FakeFulfillmentRemoteDataSource(
+            routeSettingsFailure = IllegalStateException("Kontrak route-settings tidak sah")
+        )
+        val viewModel = FulfillmentViewModel(
+            tenantSlug = "bordir-uji",
+            remoteDataSource = fakeDataSource,
+            scope = testScope
+        )
+
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.effectiveRoutes.isEmpty())
+        assertNotNull(state.error)
+        assertTrue("route-settings" in state.error.orEmpty())
     }
 
     @Test
@@ -182,13 +204,15 @@ class FulfillmentViewModelTest {
             HandoverMode.DIRECT,
             fakeDataSource.lastUpdatedModes?.get(HandoverRouteCode("HOOPING_TO_EMBROIDERY"))
         )
+        assertFalse(viewModel.uiState.value.isSubmitting)
         // Setelah diperbarui menjadi DIRECT, hasAdminHubRoute menjadi false
         assertFalse(viewModel.uiState.value.hasAdminHubRoute)
     }
 
     private class FakeFulfillmentRemoteDataSource(
         var initialView: HandoverRouteSettingsView? = null,
-        var transfersList: List<InternalTransfer> = emptyList()
+        var transfersList: List<InternalTransfer> = emptyList(),
+        private val routeSettingsFailure: Throwable? = null
     ) : FulfillmentTransferRemoteDataSource {
         var lastSubmittedRouteCode: HandoverRouteCode? = null
         var lastSubmittedSack: String? = null
@@ -198,11 +222,9 @@ class FulfillmentViewModelTest {
         override suspend fun transfers(tenantSlug: String): Result<List<InternalTransfer>> =
             Result.success(transfersList)
 
-        override suspend fun routeSettings(tenantSlug: String): Result<FulfillmentRouteConfig> =
-            Result.success(FulfillmentRouteConfig(TenantId(tenantSlug)))
-
         override suspend fun routeSettingsView(tenantSlug: String): Result<HandoverRouteSettingsView> =
-            Result.success(initialView ?: HandoverRouteSettingsView(TenantId(tenantSlug), emptyList()))
+            routeSettingsFailure?.let { Result.failure(it) }
+                ?: Result.success(initialView ?: HandoverRouteSettingsView(TenantId(tenantSlug), emptyList()))
 
         override suspend fun updateRouteModes(
             tenantSlug: String,

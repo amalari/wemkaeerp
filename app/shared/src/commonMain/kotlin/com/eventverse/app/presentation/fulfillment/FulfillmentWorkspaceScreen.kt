@@ -291,7 +291,7 @@ private fun ScanEntryCard(enabled: Boolean, onScanned: (String) -> Unit) {
 }
 
 @Composable
-private fun AccessDenied(modifier: Modifier) {
+internal fun AccessDenied(modifier: Modifier) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,

@@ -45,12 +45,14 @@ Jika Anda harus menulis ulang fitur klien ini dari nol:
   - `routeSettingsView`: Membaca rute berbasis data (`HandoverRouteSettingsView`).
   - `updateRouteModes`: Mengubah mode per rute (`PUT /route-settings`).
   - `submit`: Mengirim `routeCode: HandoverRouteCode` string alih-alih enum `SackRoute`.
-- Pertahankan overload backward compatibility agar pemanggil lama tidak rusak saat masa transisi Strangler Fig.
+- Setelah seluruh pemanggil klien pindah, hapus overload dan pembacaan `SackRoute`. Inilah fase
+  **lock-in** Strangler Fig: klien hanya memiliki satu sumber kebenaran, yaitu respons server.
 
 ### Langkah 3: Reaktifkan State ViewModel (C2)
 - Tambahkan `routeSettingsView: HandoverRouteSettingsView?` ke `FulfillmentUiState`.
 - Sediakan getter cerdas:
-  - `effectiveRoutes`: Mengambil rute aktif terurut, dengan fallback yang aman saat proses memuat.
+  - `effectiveRoutes`: Mengambil rute aktif terurut; sebelum data tersedia nilainya kosong, bukan
+    daftar rute industri tertentu yang ditanam di aplikasi.
   - `routesAccepting(isClosedSack)`: Menyaring rute mana yang menerima karung tertutup vs bundel terbuka.
   - Penanganan tenant tanpa rute (`effectiveRoutes.isEmpty()`).
 
@@ -67,7 +69,7 @@ Jika Anda harus menulis ulang fitur klien ini dari nol:
 
 ## 🧱 3. Bedah Blok per Blok Kode (Deep Code Walkthrough)
 
-### Blok A: Pengajuan Berbasis `HandoverRouteCode` yang Kompatibel Mundur
+### Blok A: Pengajuan Berbasis `HandoverRouteCode`
 Di [TransferForms.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/fulfillment/TransferForms.kt):
 
 ```kotlin
@@ -84,7 +86,7 @@ var selectedRouteCode by remember(allowedRoutes) {
 - `remember(allowedRoutes)` memastikan jika wadah yang dipindai berganti dari karung tertutup ke bundel (atau konfigurasi rute diperbarui), state pilihan rute otomatis menyesuaikan diri ke rute pertama yang diizinkan.
 - Jika tenant tidak memiliki rute sama sekali (`allActiveRoutes.isEmpty()`), form menampilkan pesan edukatif dan tombol submit tidak aktif, bukan melempar crash.
 
-### Blok B: Jembatan Overload di API Client
+### Blok B: Satu Kontrak API Tanpa Jembatan Enum
 Di [FulfillmentTransferApiClient.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/infrastructure/api/FulfillmentTransferApiClient.kt):
 
 ```kotlin
@@ -98,26 +100,32 @@ suspend fun submit(
     notes: String,
     declaredPcs: Int?
 ): Result<InternalTransfer>
-
-suspend fun submit(
-    tenantSlug: String,
-    sackPayload: String,
-    leg: SackRoute,
-    ...
-): Result<InternalTransfer> = submit(
-    tenantSlug = tenantSlug,
-    sackPayload = sackPayload,
-    routeCode = leg.toRouteCode(),
-    ...
-)
 ```
 
 **Mengapa ditulis begini?**
-- Ini adalah implementasi pola **Strangler Fig**. Implementasi utama beroperasi pada `HandoverRouteCode`.
-- Metode lama yang menerima `SackRoute` dipertahankan sebagai inline adapter yang memanggil implementasi utama lewat jembatan `leg.toRouteCode()`.
-- Seluruh kode yang belum dimigrasi tetap dapat mengompilasi tanpa breaking change.
+- `HandoverRouteCode` adalah value object string yang menerima kode tenant non-garment tanpa
+  memperluas enum aplikasi.
+- Overload `SackRoute` sengaja sudah dihapus. Mempertahankannya setelah semua call site pindah akan
+  menciptakan dua cara mengirim perjalanan dan mengundang kode baru kembali ke model lama.
+- Server tetap menjadi pemilik validasi keanggotaan rute tenant; UI hanya mengirim kode yang dipilih
+  dari daftar efektif yang server pancarkan.
 
-### Blok C: Layar Konfigurasi Fail-Closed RBAC
+### Blok C: Decoder Klien Menolak Payload Rusak
+
+```kotlin
+val code = HandoverRouteCode.parse(row.string("route"))
+    .getOrElse { throw IllegalArgumentException("$at.route: ${it.message}") }
+val mode = HandoverMode.entries.firstOrNull { it.name == modeName }
+    ?: throw IllegalArgumentException("$at.mode: tidak dikenal '$modeName'")
+```
+
+**Mengapa ditulis begini?**
+- Baris JSON yang tidak lengkap tidak boleh dilewati dengan `mapNotNull`; itu akan membuat operator
+  mengira rute memang hilang dari konfigurasi tenant.
+- Mode yang tidak dikenal tidak boleh jatuh diam-diam ke `ADMIN_HUB`. Fallback mengubah makna data;
+  kegagalan eksplisit membuat ketidakcocokan versi terlihat dan dapat ditangani.
+
+### Blok D: Layar Konfigurasi Fail-Closed RBAC
 Di [FulfillmentRouteSettingsScreen.kt](file:///Volumes/amalari/Projects/wemkaeerp/app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/fulfillment/FulfillmentRouteSettingsScreen.kt):
 
 ```kotlin
@@ -142,12 +150,26 @@ Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
 ```
 
 **Mengapa ditulis begini?**
+- Keputusan `NONE` dihentikan sebelum konten konfigurasi digambar; pengguna tanpa akses tidak
+  memperoleh layar baca semu.
 - Tombol hanya `enabled` bila `canManage == true`. Pengguna dengan akses `VIEW` atau `OPERATE` tetap bisa meninjau alur pabriknya namun tombol disabilitas mencegah perubahan tanpa izin.
 - Gaya neo-brutalisme Clay membedakan state terpilih melalui warna (`Primary` vs `Secondary`), bukan dengan menebalkan garis tepi (Design System Rule §13).
 
 ---
 
-## ⚠️ 4. Jebakan Umum & Anti-Patterns yang Dihindari
+## ⚖️ 4. Teknologi & Pendekatan yang Dipilih: The "Why"
+
+| Pendekatan | Alternatif | Mengapa Dipilih | Risiko Alternatif |
+|---|---|---|---|
+| `HandoverRouteCode` value object | `SackRoute` enum | Kode tetap tervalidasi tetapi daftar nilainya boleh berbeda per tenant/pack | Enum memaksa rilis aplikasi setiap industri menambah rute |
+| Respons server sebagai SSOT | Fallback daftar garment di klien | UI selalu menggambar konfigurasi efektif yang sama dengan validasi server | Dua sumber kebenaran dapat berbeda dan menyamarkan kegagalan server |
+| Decoder fail-fast | `mapNotNull` + nilai default | Payload rusak terlihat sebagai error operasional yang dapat ditelusuri | Rute hilang atau berubah mode tanpa jejak |
+| `apiResult` yang melempar ulang `CancellationException` | `runCatching` langsung | Pembatalan lifecycle tetap mengikuti structured concurrency | Request yang dibatalkan diperlakukan sebagai error biasa dan pekerjaan induk sulit berhenti |
+| `StateFlow<FulfillmentUiState>` | Mutable state tersebar di Composable | Satu keluaran state dapat diuji tanpa UI dan berlaku lintas target | Transisi loading/error/submit mudah saling bertentangan |
+
+---
+
+## ⚠️ 5. Jebakan Umum & Anti-Patterns yang Dihindari
 
 1. **Jebakan God File & Ratchet Rule**:
    - `TransferForms.kt` awalnya 392 baris. Menambah layar pengaturan dan dekomposisi di file yang sama akan melahirkan file 600+ baris.
@@ -158,19 +180,56 @@ Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
 3. **Jebakan Silent Fallback**:
    - Kode lama sering kali melakukan `?: SackRoute.QC_RAJUT_TO_FINISHING` saat sebuah string rute tidak dikenal. Ini anti-pattern fatal: data tenant non-garment akan diam-diam disulap menjadi rute rajut.
    - Pola baru: String kode rute divalidasi ketat lewat `HandoverRouteCode.parse()`, dan jika tidak sah atau tidak ditemukan, ditolak secara eksplisit atau ditampilkan dalam keadaan kosong yang jelas.
+4. **Jebakan Jembatan yang Tidak Pernah Dicabut**:
+   - Adapter lama berguna selama migrasi, tetapi menjadi utang bila dibiarkan setelah semua pemanggil pindah.
+   - Pemindai `SackRoute` pada `app/shared` dijadikan bukti bahwa Track C sudah selesai, bukan sekadar
+     memiliki implementasi baru di samping implementasi lama.
 
 ---
 
-## 🧪 5. Verifikasi & Pengujian
+## 🧪 6. Verifikasi & Pengujian
 
-Verifikasi dilakukan pada 3 target kompilasi KMP dan unit test ViewModel:
+Verifikasi dilakukan pada target KMP dan unit test ViewModel/decoder:
 1. **JVM Test**:
    ```bash
    ./gradlew :app:shared:jvmTest --tests 'com.eventverse.app.presentation.fulfillment.FulfillmentViewModelTest'
    ```
-   *Hasil*: 4 tes lolos (tenant bordir membaca 2 rute data, pembatasan wadah terbuka pada rute DIRECT, penanganan tenant kosong, dan pengiriman form dengan kode non-garment).
-2. **Kompilasi Multiplatform**:
+   *Cakupan*: tenant bordir membaca rute data, pembatasan wadah terbuka pada rute DIRECT,
+   penanganan tenant kosong, kegagalan `route-settings` tanpa fallback, penyimpanan mode, dan
+   pengiriman kode non-garment.
+2. **Test kontrak decoder**:
    ```bash
-   ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs
+   ./gradlew :app:shared:jvmTest --tests 'com.eventverse.app.infrastructure.api.FulfillmentRouteResponseDecoderTest'
+   ```
+   *Cakupan*: round-trip respons rute bordir, mode tak dikenal ditolak, dan baris tanpa kode tidak
+   dilewati diam-diam.
+3. **Test cancellation transport**:
+   ```bash
+   ./gradlew :app:shared:jvmTest --tests 'com.eventverse.app.infrastructure.api.FulfillmentTransferApiClientCancellationTest'
+   ```
+   *Cakupan*: `CancellationException` dari HTTP engine tetap dilempar, bukan dibungkus menjadi
+   `Result.failure`.
+4. **Kompilasi Multiplatform dan suite shared**:
+   ```bash
+   ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinJs \
+     :app:shared:compileKotlinWasmJs :app:shared:jvmTest
    ```
    *Hasil*: Bersih di 3 target platform (JVM, JS, WasmJS).
+
+Test terfokus berjumlah **9/9 hijau** (5 ViewModel, 3 decoder, 1 cancellation). Audit variabilitas
+melaporkan 0 temuan dan pemindai `SackRoute` pada `app/shared/src` kosong.
+
+`assembleAndroidMain` belum dapat diverifikasi di worktree ini karena Android SDK tidak tersedia
+(`ANDROID_HOME`/`sdk.dir` tidak ada). Cek visual dua tenant juga belum dilakukan karena sesi ini tidak
+memiliki browser lokal terautentikasi; keduanya tetap menjadi item verifikasi sebelum merge.
+
+---
+
+## 🏆 7. Tantangan Mandiri untuk Kamu
+
+- [ ] Tambahkan test payload dengan dua kode rute sama dan buktikan decoder menolaknya dengan path
+  `$.routes` yang jelas.
+- [ ] Buat fake data source yang mengembalikan rute nonaktif, lalu buktikan `effectiveRoutes` tidak
+  menawarkannya pada form submit.
+- [ ] Jalankan UI sebagai `bordir-uji` pada lebar sekitar 1280dp dan dokumentasikan apakah label rute
+  panjang masih memberi ruang pada badge mode tanpa pecah per huruf.

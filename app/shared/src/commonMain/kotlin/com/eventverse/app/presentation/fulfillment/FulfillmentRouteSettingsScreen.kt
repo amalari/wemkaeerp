@@ -54,6 +54,10 @@ fun FulfillmentRouteSettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val navigator = LocalAppNavigator.current
     val level = decision.config.level
+    if (level.weight <= AccessLevel.NONE.weight) {
+        AccessDenied(modifier = modifier)
+        return
+    }
     val canManage = level.weight >= AccessLevel.MANAGE.weight || persona?.isOwnerOrSuperAdmin == true
 
     // State lokal untuk perubahan mode sebelum ditekan simpan
