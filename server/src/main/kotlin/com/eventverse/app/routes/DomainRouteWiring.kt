@@ -222,7 +222,9 @@ class DomainRouteWiring(
             blendedHourlyRate = blendedHourlyRate, leadRepository = leadRepo, discoveryDemands = discoveryDemandRepo, builderChats = builderChats,
             agent = com.eventverse.app.infrastructure.discovery.DiscoveryAgents.fromEnv(), auditLogRepository = auditLogRepo)
         // Modul khusus tenant (J3) lewat registri — gerbang fail-closed tetap milik tiap modul (TRD-PLAT-004 P2).
-        com.eventverse.app.tenant.TenantPackContributions.all.forEach { it.registerRoutes(this, roleRepo, assignmentRepo, relationTargetResolver) }
+        com.eventverse.app.tenant.TenantPackContributions.all.forEach {
+            it.registerRoutes(this, roleRepo, assignmentRepo, relationTargetResolver, recordRows)
+        }
         crmRoutes(
             leadRepository = crmLeadRepo, contactRepository = crmContactRepo,
             dealRepository = crmDealRepo, customFieldRepository = customFieldRepo,

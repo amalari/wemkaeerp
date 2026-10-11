@@ -15,6 +15,7 @@
 | 0.2 | 2026-10-08 | User | R1–R3 disetujui dengan opsi default dokumen; R4 dititipkan ke Track C; gerbang Irisan 4b dinyatakan lewat |
 | 0.3 | 2026-10-09 | Kilo (implementasi A0) | Klarifikasi FR-4/FR-5: **ref di sel** = `fields/{tenantId}/...` (kontrak `FileRef.isValid`), **layout bucket** = tenant-first `{tenantId}/fields/...` dipetakan adapter Track B — dua keputusan berbeda, jangan dicampur |
 | 0.4 | 2026-10-10 | Claude (hardening keamanan) | Audit: ref FILE lintas tenant + DoS memori unggah; lihat §Keamanan di bawah (`FileRef.isValidFor`, `readBoundedBody`) |
+| 0.5 | 2026-10-11 | Codex (FIELD-004-B3C) | Magic-byte aktif; object metadata attachment/no-store; tambah runbook `nosniff` deployment |
 
 - **Summary & Business Context**: Kosakata field belum punya tipe berkas (scan PO, foto, lampiran).
   C8 ditandai **Besar** karena butuh penyimpanan objek dan keputusan gate unduh. Pertanyaan plan
@@ -38,7 +39,7 @@
     (body raw melalui server, satu request).
   - Unggah multi-berkas per sel, pratinjau PDF di kanvas, versi berkas, virus scanning.
   - Refactor `PoFileStorage`/fitur deal yang berjalan (strangler: antarmuka baru di sampingnya).
-  - Antivirus/karantina konten; validasi magic-byte (v1 percaya `Content-Type` deklaratif + allowlist).
+  - Antivirus/karantina konten. Magic-byte minimum kini aktif lewat TRD-FIELD-004; pemindaian malware tetap terpisah.
 
 ## 2. Functional Requirements
 
@@ -283,6 +284,22 @@ Tanpa perubahan (verifikasi): `NumberFormatting.kt`, `KoogDiscoveryNumberFormatV
 1. A0 merge (bentuk tipe; dokumen lama tidak terpengaruh — codec menolak FILE lama? tidak ada FILE lama).
 2. Infra: tambahkan env `S3_BUCKET_FILES` + bucket MinIO dev; additive, tanpa migrasi SQL baru.
 3. Route additive; rollback = cabut pendaftaran route. Berkas yang sudah terunggah tinggal orphan — aman.
+
+### Runbook header unduhan (TRD-FIELD-004 FR-4.3)
+
+Adapter aplikasi menetapkan `Content-Disposition: attachment` dan `Cache-Control: private, no-store`, tetapi
+S3/MinIO tidak menjamin `X-Content-Type-Options: nosniff`. Reverse proxy/CDN di depan origin object storage
+wajib menambahkan `X-Content-Type-Options: nosniff` pada respons GET/HEAD bucket FILE.
+
+Verifikasi setelah deployment (gunakan URL presigned sementara, jangan simpan URL di log):
+
+```bash
+curl -sSI '<presigned-url>' | grep -iE 'content-type|content-disposition|cache-control|x-content-type-options'
+```
+
+Hasil yang diwajibkan: tipe tersimpan yang benar, disposition `attachment`, cache `private, no-store`, dan
+`X-Content-Type-Options: nosniff`. Pemeriksaan MinIO nyata **belum terverifikasi di worktree** karena tidak ada
+deployment/bucket aktif; ini tetap gate ops Q6 sebelum rilis produksi.
 
 ## Risiko
 - **Env S3 wajib di semua lingkungan** sebelum fitur dipakai: tanpa `isConfigured`, seluruh tipe FILE =

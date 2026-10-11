@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
+import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.tenant.layanan.PostgresLayananChangeRequestRepository
@@ -23,6 +24,8 @@ object TenantPackContributions {
 
     class Contribution(
         val pack: DomainPack,
+        /** Spec yang menjadi sumber route/tabel hasil generate; wajib agar test drift tidak memakai daftar manual. */
+        val spec: PrototypeSpec,
         /** Tabel per modul (kunci [com.eventverse.app.infrastructure.ModuleSchemaMap.byModule]). */
         val tables: Map<ModuleId, Set<String>>,
         /** Awalan route `/api/tenant/...` → modul pemiliknya (kunci `RouteOwnership`). */
@@ -37,7 +40,7 @@ object TenantPackContributions {
          * Mendaftarkan route modul ke aplikasi. Argumen ketiga = resolver RELATION wiring (route hasil generate
          * yang punya field RELATION wajib menerimanya; modul tanpa RELATION mengabaikannya).
          */
-        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository, RelationTargetResolver) -> Unit
+        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository, RelationTargetResolver, Map<String, PrototypeRowRepository>) -> Unit
     )
 
     // Satu instans per modul: route-nya dan registri sumber baris memakai penyimpan yang sama.
@@ -46,12 +49,18 @@ object TenantPackContributions {
     val all: List<Contribution> = listOf(
         Contribution(
             pack = LayananPilotPack.pack,
+            spec = LayananPilotPack.spec,
             tables = mapOf(LayananPilotPack.CHANGE_REQUEST to setOf("change_requests")),
             routePrefixes = mapOf("/api/tenant/modules/layanan_change_request" to LayananPilotPack.CHANGE_REQUEST),
             rows = mapOf(LayananPilotPack.CHANGE_REQUEST.value to layananChangeRequestRows),
-            registerRoutes = { roles, assignments, _ ->
+            registerRoutes = { roles, assignments, relationResolver, effectiveRows ->
                 layananChangeRequestRoutes(
-                    layananChangeRequestRows, roles, assignments
+                    checkNotNull(effectiveRows[LayananPilotPack.CHANGE_REQUEST.value]) {
+                        "Sumber baris ${LayananPilotPack.CHANGE_REQUEST.value} tidak terdaftar"
+                    },
+                    roles,
+                    assignments,
+                    relationResolver
                 )
             }
         )

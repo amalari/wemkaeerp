@@ -25,10 +25,11 @@ class TenantPackContributionsRowsTest {
 
     private fun contribution(rows: Map<String, PrototypeRowRepository>) = TenantPackContributions.Contribution(
         pack = LayananPilotPack.pack,
+        spec = LayananPilotPack.spec,
         tables = emptyMap(),
         routePrefixes = emptyMap(),
         rows = rows,
-        registerRoutes = { _, _, _ -> }
+        registerRoutes = { _, _, _, _ -> }
     )
 
     @Test fun `rows_registeredContribution_exposesGeneratedModuleSourceWithoutInjection`() {

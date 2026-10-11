@@ -61,6 +61,10 @@ class FieldFileRoutesTest {
     private val base = "/api/tenant/modules/quality_control/records/rec-1/fields/lampiran"
     private val crmBase = "/api/tenant/crm/leads/lead-1/fields/lampiran"
 
+    private fun pdfBytes(size: Int = 16): ByteArray = ByteArray(size).also {
+        "%PDF-".encodeToByteArray().copyInto(it)
+    }
+
     /** Storage in-memory: pencatatan put + URL presigned tiruan; `configured=false` mensimulasikan env S3 kosong. */
     private class FakeObjectStorage(private val configured: Boolean = true) : ObjectStorage {
         val stored = ConcurrentHashMap<String, Pair<ByteArray, String>>()
@@ -73,7 +77,7 @@ class FieldFileRoutesTest {
             return Result.success(Unit)
         }
 
-        override suspend fun downloadUrl(key: String): Result<String> {
+        override suspend fun downloadUrl(key: String, fileName: String?): Result<String> {
             if (!configured) return Result.failure(IllegalStateException("storage belum dikonfigurasi"))
             return Result.success("https://presigned.example.com/$key")
         }
@@ -201,6 +205,27 @@ class FieldFileRoutesTest {
         assertEquals(HttpStatusCode.UnsupportedMediaType, r.status)
     }
 
+    @Test fun `signature byte tidak cocok dengan MIME ditolak 415 tanpa menyimpan`() = testApplication {
+        val storage = installApp(AccessLevel.OPERATE)
+        val r = client.post("$base/upload?fileName=tipuan.png&contentType=image/png") {
+            asStaff(slug, roleId)
+            setBody("<html>bukan png</html>".encodeToByteArray())
+        }
+        assertEquals(HttpStatusCode.UnsupportedMediaType, r.status)
+        assertTrue(storage.stored.isEmpty())
+    }
+
+    @Test fun `signature byte CRM tidak cocok ditolak 415 tanpa menyimpan`() = testApplication {
+        val leads = InMemoryCrmLeadRepository().also { runBlocking { seedLead(it) } }
+        val storage = installApp(AccessLevel.OPERATE, leads = leads)
+        val r = client.post("$crmBase/upload?fileName=tipuan.pdf&contentType=application/pdf") {
+            asStaff(slug, roleId)
+            setBody("bukan pdf".encodeToByteArray())
+        }
+        assertEquals(HttpStatusCode.UnsupportedMediaType, r.status)
+        assertTrue(storage.stored.isEmpty())
+    }
+
     @Test fun `berkas melebihi 10 MB ditolak 413`() = testApplication {
         installApp(AccessLevel.OPERATE)
         val r = client.post("$base/upload?fileName=besar.pdf&contentType=application/pdf") {
@@ -237,7 +262,7 @@ class FieldFileRoutesTest {
     @Test fun `body tanpa Content-Length tepat di batas diterima`() = testApplication {
         val storage = installApp(AccessLevel.OPERATE)
         val r = client.post("$base/upload?fileName=a.pdf&contentType=application/pdf") {
-            asStaff(slug, roleId); setBody(body(null, ByteArray(MAX_FIELD_FILE_BYTES)))
+            asStaff(slug, roleId); setBody(body(null, pdfBytes(MAX_FIELD_FILE_BYTES)))
         }
         assertEquals(HttpStatusCode.Created, r.status)
         assertEquals(1, storage.stored.size)
@@ -269,7 +294,7 @@ class FieldFileRoutesTest {
 
     @Test fun `unggah sukses menghasilkan ref FileRef sah`() = testApplication {
         val storage = installApp(AccessLevel.OPERATE)
-        val r = client.post("$base/upload?fileName=scan.pdf&contentType=application/pdf") { asStaff(slug, roleId); setBody(ByteArray(10)) }
+        val r = client.post("$base/upload?fileName=scan.pdf&contentType=application/pdf") { asStaff(slug, roleId); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Created, r.status)
         val ref = r.refOf()
         assertTrue(FileRef.isValid(ref), "ref harus sah: $ref")
@@ -280,7 +305,7 @@ class FieldFileRoutesTest {
 
     @Test fun `nama berkas hostile disanitasi dalam ref`() = testApplication {
         installApp(AccessLevel.OPERATE)
-        val r = client.post("$base/upload?fileName=..%2F..%2Fetc%2Fpasswd.png&contentType=text/plain") { asStaff(slug, roleId); setBody(ByteArray(4)) }
+        val r = client.post("$base/upload?fileName=..%2F..%2Fetc%2Fpasswd.png&contentType=text/plain") { asStaff(slug, roleId); setBody("aman".encodeToByteArray()) }
         assertEquals(HttpStatusCode.Created, r.status)
         val ref = r.refOf()
         assertTrue(FileRef.isValid(ref))
@@ -290,7 +315,7 @@ class FieldFileRoutesTest {
 
     @Test fun `unggah CRM sukses menghasilkan ref FileRef sah`() = testApplication {
         val storage = installApp(AccessLevel.OPERATE, leads = InMemoryCrmLeadRepository().also { runBlocking { seedLead(it) } })
-        val r = client.post("$crmBase/upload?fileName=lampiran.csv&contentType=text/csv") { asStaff(slug, roleId); setBody(ByteArray(4)) }
+        val r = client.post("$crmBase/upload?fileName=lampiran.csv&contentType=text/csv") { asStaff(slug, roleId); setBody("nama,jumlah\nKain,2".encodeToByteArray()) }
         assertEquals(HttpStatusCode.Created, r.status)
         val ref = r.refOf()
         assertTrue(FileRef.isValid(ref))

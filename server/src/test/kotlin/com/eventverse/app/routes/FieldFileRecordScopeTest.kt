@@ -47,6 +47,8 @@ class FieldFileRecordScopeTest {
     private val ref1 = "fields/abc/quality_control/rec-1/lampiran-abc123-scan.pdf"
     private val ref2 = "fields/abc/quality_control/rec-2/lampiran-abc123-scan.pdf"
 
+    private fun pdfBytes(): ByteArray = "%PDF-1.7".encodeToByteArray()
+
     @AfterTest fun cleanRegistry() { DomainPackRegistry.unregister(LayananPilotPack.CODE) }
 
     private fun row(id: String, value: String? = null) =
@@ -57,7 +59,7 @@ class FieldFileRecordScopeTest {
     @Test fun `upload_recordMissing_404`() = testApplication {
         val storage = installFieldGateApp(qcManage, rows = mapOf("quality_control" to g.rows(row("rec-1"))))
         val r = client.post("/api/tenant/modules/quality_control/records/rec-9/fields/lampiran$upload") {
-            asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8))
+            asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes())
         }
         assertEquals(HttpStatusCode.NotFound, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty(), "tidak boleh ada objek yatim: ${storage.stored.keys}")
@@ -65,14 +67,14 @@ class FieldFileRecordScopeTest {
 
     @Test fun `upload_noRecordSource_global_404`() = testApplication {
         val storage = installFieldGateApp(qcManage)
-        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.NotFound, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty())
     }
 
     @Test fun `upload_ownRecord_201`() = testApplication {
         val storage = installFieldGateApp(qcManage, rows = mapOf("quality_control" to g.rows(row("rec-1"))))
-        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
         assertEquals(1, storage.stored.size)
     }
@@ -80,7 +82,7 @@ class FieldFileRecordScopeTest {
     @Test fun `upload_unauthorizedRole_403_beforeBody`() = testApplication {
         val view = mapOf(GarmentModules.QUALITY_CONTROL to ModuleAccessConfig(AccessLevel.VIEW, DataScope.ALL_TENANT_DATA))
         val storage = installFieldGateApp(view, rows = mapOf("quality_control" to g.rows(row("rec-1"))))
-        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$qcBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Forbidden, r.status)
         assertTrue(storage.stored.isEmpty())
     }
@@ -91,14 +93,14 @@ class FieldFileRecordScopeTest {
 
     @Test fun `upload_noOwnerSource_hierarchical_403`() = testApplication {
         val storage = installFieldGateApp(soOwnData, rows = mapOf("sampling_order" to g.rows(row("rec-1"))))
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty(), "objek tidak boleh tersimpan: ${storage.stored.keys}")
     }
 
     @Test fun `upload_noRowsAtAll_hierarchical_403`() = testApplication {
         val storage = installFieldGateApp(soOwnData)
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty())
     }
@@ -128,35 +130,35 @@ class FieldFileRecordScopeTest {
 
     @Test fun `upload_hierarchical_otherOwnersRecord_403`() = testApplication {
         val storage = installFieldGateApp(soOwnData, rows = soRows(g.otherId))
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty())
     }
 
     @Test fun `upload_hierarchical_ownRecord_201`() = testApplication {
         val storage = installFieldGateApp(soOwnData, rows = soRows(g.staffId))
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
         assertEquals(1, storage.stored.size)
     }
 
     @Test fun `upload_hierarchical_recordWithoutOwner_ownDataScope_403`() = testApplication {
         installFieldGateApp(soOwnData, rows = soRows(owner = null))
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Forbidden, r.status, r.bodyAsText())
     }
 
     @Test fun `upload_hierarchical_allTenantScope_otherOwner_201`() = testApplication {
         val all = mapOf(GarmentModules.SAMPLING_ORDER to ModuleAccessConfig(AccessLevel.OPERATE, DataScope.ALL_TENANT_DATA))
         installFieldGateApp(all, rows = soRows(g.otherId))
-        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$soBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
     }
 
     @Test fun `upload_hierarchical_recordMissing_404`() = testApplication {
         installFieldGateApp(soOwnData, rows = soRows(g.staffId))
         val r = client.post("/api/tenant/modules/sampling_order/records/rec-9/fields/lampiran$upload") {
-            asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8))
+            asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes())
         }
         assertEquals(HttpStatusCode.NotFound, r.status, r.bodyAsText())
     }
@@ -185,7 +187,7 @@ class FieldFileRecordScopeTest {
 
     @Test fun `upload_layananOwnRecord_201`() = testApplication {
         val storage = installFieldGateApp(layananManage, pack = LayananPilotPack.CODE, rows = mapOf(layananCode to g.rows(row("rec-1"))))
-        val r = client.post("$layananBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$layananBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.Created, r.status, r.bodyAsText())
         assertEquals(1, storage.stored.size)
     }
@@ -196,7 +198,7 @@ class FieldFileRecordScopeTest {
             layananManage, pack = LayananPilotPack.CODE,
             rows = mapOf(layananCode to g.rows(row("rec-1"), forTenant = TenantId("tenant-lain")))
         )
-        val r = client.post("$layananBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(ByteArray(8)) }
+        val r = client.post("$layananBase$upload") { asStaff(g.SLUG, g.ROLE_ID); setBody(pdfBytes()) }
         assertEquals(HttpStatusCode.NotFound, r.status, r.bodyAsText())
         assertTrue(storage.stored.isEmpty())
     }

@@ -88,7 +88,7 @@ class FieldFileTenantIsolationTest {
             stored[key] = bytes to contentType
             return Result.success(Unit)
         }
-        override suspend fun downloadUrl(key: String): Result<String> {
+        override suspend fun downloadUrl(key: String, fileName: String?): Result<String> {
             downloadCalls += key
             return Result.success("https://presigned.example.com/$key")
         }
@@ -248,7 +248,7 @@ class FieldFileTenantIsolationTest {
     @Test fun `unggah menghasilkan ref berawalan tenant pemanggil sebagai segmen utuh`() = testApplication {
         val storage = installApp(rows = rowsFor("quality_control", ""))
         val r = client.post("$qcBase/upload?fileName=scan.pdf&contentType=application/pdf") {
-            asStaff(slug, roleId); setBody(ByteArray(8))
+            asStaff(slug, roleId); setBody("%PDF-1.7".encodeToByteArray())
         }
         assertEquals(HttpStatusCode.Created, r.status)
         val ref = r.refOf()
@@ -265,5 +265,39 @@ class FieldFileTenantIsolationTest {
             val e = runCatching { s3.bucketKey(bad) }.exceptionOrNull()
             assertTrue(e is IllegalArgumentException, "'$bad' harus ditolak keras")
         }
+    }
+
+    @Test fun `nama unduhan untuk header dibersihkan dari injection`() {
+        val s3 = com.eventverse.app.infrastructure.storage.S3ObjectStorage(endpoint = null, accessKey = "k", secretKey = "s")
+        assertEquals("laporan.pdf", s3.safeDownloadFileName("folder/laporan.pdf"))
+        assertEquals("html", s3.safeDownloadFileName("jahat\r\nContent-Type: text/html"))
+        assertEquals(null, s3.safeDownloadFileName("\r\n"))
+    }
+
+    @Test fun `url presigned memaksa disposition attachment`() = runBlocking {
+        val s3 = com.eventverse.app.infrastructure.storage.S3ObjectStorage(
+            endpoint = "http://localhost:9000",
+            accessKey = "k",
+            secretKey = "s"
+        )
+        val url = s3.downloadUrl(ownRef, "scan.pdf").getOrThrow()
+        assertTrue("response-content-disposition" in url.lowercase(), url)
+        assertTrue("attachment" in java.net.URLDecoder.decode(url, Charsets.UTF_8).lowercase(), url)
+    }
+
+    @Test fun `adapter s3 menyimpan metadata privat dan memaksa attachment saat unduh`() {
+        val s3 = com.eventverse.app.infrastructure.storage.S3ObjectStorage(
+            endpoint = "http://localhost:9000",
+            accessKey = "k",
+            secretKey = "s"
+        )
+        val put = s3.putRequest(ownRef, "application/pdf")
+        assertEquals("application/pdf", put.contentType())
+        assertEquals("attachment", put.contentDisposition())
+        assertEquals("private, no-store", put.cacheControl())
+
+        val get = s3.getObjectRequest(ownRef, "scan.pdf")
+        assertEquals("attachment; filename=\"scan.pdf\"", get.responseContentDisposition())
+        assertEquals(null, get.responseContentType(), "Content-Type objek tersimpan tidak boleh ditimpa")
     }
 }
