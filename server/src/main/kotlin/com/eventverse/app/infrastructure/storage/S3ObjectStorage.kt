@@ -2,6 +2,7 @@ package com.eventverse.app.infrastructure.storage
 
 import com.eventverse.app.domain.storage.FileRef
 import com.eventverse.app.domain.storage.ObjectStorage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -79,30 +80,61 @@ class S3ObjectStorage(
 
     override suspend fun put(key: String, bytes: ByteArray, contentType: String): Result<Unit> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 s3.putObject(
-                    PutObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(bucketKey(key))
-                        .contentType(contentType)
-                        .build(),
+                    putRequest(key, contentType),
                     RequestBody.fromBytes(bytes)
                 )
-                Unit
+                Result.success(Unit)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                Result.failure(failure)
             }
         }
 
-    override suspend fun downloadUrl(key: String): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
+    override suspend fun downloadUrl(key: String, fileName: String?): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val objectRequest = getObjectRequest(key, fileName)
             val request = GetObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(15))
-                .getObjectRequest(
-                    GetObjectRequest.builder().bucket(bucket).key(bucketKey(key)).build()
-                )
+                .getObjectRequest(objectRequest)
                 .build()
-            presigner.presignGetObject(request).url().toString()
+            Result.success(presigner.presignGetObject(request).url().toString())
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            Result.failure(failure)
         }
     }
+
+    /** Header tidak boleh membawa CR/LF atau quote dari input pemanggil. */
+    internal fun safeDownloadFileName(fileName: String?): String? = fileName
+        ?.substringAfterLast('/')
+        ?.substringAfterLast('\\')
+        ?.filter { it.code in 0x20..0x7E && it != '"' && it != '\\' }
+        ?.trim()
+        ?.take(120)
+        ?.takeIf { it.isNotBlank() }
+
+    internal fun putRequest(key: String, contentType: String): PutObjectRequest = PutObjectRequest.builder()
+        .bucket(bucket)
+        .key(bucketKey(key))
+        .contentType(contentType)
+        .contentDisposition("attachment")
+        .cacheControl("private, no-store")
+        .build()
+
+    internal fun getObjectRequest(key: String, fileName: String?): GetObjectRequest = GetObjectRequest.builder()
+        .bucket(bucket)
+        .key(bucketKey(key))
+        .apply {
+            safeDownloadFileName(fileName)?.let {
+                responseContentDisposition("attachment; filename=\"$it\"")
+            }
+            // Tanpa override responseContentType: S3 mengembalikan Content-Type tersimpan saat put.
+        }
+        .build()
 
     /**
      * ref di sel (`fields/{tenantId}/{module}/{record}/{...}`) → layout bucket tenant-first

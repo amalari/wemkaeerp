@@ -10,6 +10,7 @@ import com.eventverse.app.domain.rbac.BusinessModules
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.storage.FileRef
+import com.eventverse.app.domain.storage.FileSignature
 import com.eventverse.app.domain.storage.ObjectStorage
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.json.jsonObjectOf
@@ -56,7 +57,7 @@ internal val ALLOWED_FIELD_FILE_MIME_TYPES = setOf(
  *
  * Urutan tolakan setelah RBAC (FR-3): **503** storage belum `isConfigured` (pesan menyebut env) →
  * **400** `fileName` kosong / body kosong → **415** tipe konten di luar
- * [ALLOWED_FIELD_FILE_MIME_TYPES] (dicek dari query, sebelum body dibaca) → **413** >
+ * [ALLOWED_FIELD_FILE_MIME_TYPES] (query dicek sebelum body; signature byte dicek sesudah body) → **413** >
  * [MAX_FIELD_FILE_BYTES] (`Content-Length` dicek dulu, stream berbatas — lihat [readBoundedBody]) →
  * **404** record/ref tak ada (unduh) → **403** ref bukan milik tenant/modul pemanggil (unduh,
  * [requireOwnFileRef]; sabuk kedua setelah `FileRef.isValidFor` di semua jalur tulis). 413/415/503 dicatat WARN tanpa isi
@@ -115,6 +116,10 @@ fun Route.fieldFileRoutes(
                 call.respond(HttpStatusCode.BadRequest, "Body berkas kosong")
                 return@post
             }
+            if (!FileSignature.matches(contentType, bytes)) {
+                call.rejectUnsupportedMediaType(contentType)
+                return@post
+            }
 
             // Hanya server yang menyusun key — fileName klien tidak tepercaya (risiko TRD: path traversal).
             val ref = runCatching {
@@ -168,7 +173,7 @@ fun Route.fieldFileRoutes(
             // Sabuk kedua: hanya ref milik tenant ini & modul ini yang boleh sampai ke ObjectStorage.
             val ref = call.requireOwnFileRef(tenant, rawRef, module.value, row.id) ?: return@get
 
-            objectStorage.downloadUrl(ref)
+            objectStorage.downloadUrl(ref, ref.substringAfterLast('/'))
                 .onSuccess { url ->
                     call.respondText(
                         text = jsonObjectOf("url" to jsonOf(url)).encode(),
@@ -204,6 +209,10 @@ fun Route.fieldFileRoutes(
             val bytes = call.readBoundedBody() ?: return@post
             if (bytes.isEmpty()) {
                 call.respond(HttpStatusCode.BadRequest, "Body berkas kosong")
+                return@post
+            }
+            if (!FileSignature.matches(contentType, bytes)) {
+                call.rejectUnsupportedMediaType(contentType)
                 return@post
             }
 
@@ -267,7 +276,7 @@ fun Route.fieldFileRoutes(
             }
             val ref = call.requireOwnFileRef(tenant, rawRef, GarmentModules.CRM_SALES.value, lead.id.value) ?: return@get
 
-            objectStorage.downloadUrl(ref)
+            objectStorage.downloadUrl(ref, ref.substringAfterLast('/'))
                 .onSuccess { url ->
                     call.respondText(
                         text = jsonObjectOf("url" to jsonOf(url)).encode(),

@@ -26,8 +26,8 @@ internal suspend fun ApplicationCall.rejectStorageUnavailable() {
 
 /** 415 + WARN tanpa isi body — hanya nama tipe yang dicatat. */
 internal suspend fun ApplicationCall.rejectUnsupportedMediaType(contentType: String) {
-    log.warn("FIELD FILE ditolak 415: tipe konten '{}' di luar allowlist", contentType)
-    respond(HttpStatusCode.UnsupportedMediaType, "Tipe berkas $contentType tidak diizinkan")
+    log.warn("FIELD FILE ditolak 415: tipe konten '{}' tidak diizinkan atau signature byte tidak cocok", contentType)
+    respond(HttpStatusCode.UnsupportedMediaType, "Tipe atau isi berkas $contentType tidak diizinkan")
 }
 
 /** 413 + WARN tanpa isi body — hanya ukuran yang dicatat. */

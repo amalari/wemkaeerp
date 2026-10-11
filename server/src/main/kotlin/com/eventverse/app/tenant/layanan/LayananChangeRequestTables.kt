@@ -17,6 +17,8 @@ object LayananChangeRequestChangeRequestsTable : Table("layanan_change_request.c
     val targetSelesai = date("target_selesai").nullable()
     val mendesak = bool("mendesak").default(false)
     val catatan = text("catatan").nullable()
+    val lampiran = text("lampiran").nullable()
+    val rujukan = varchar("rujukan", 64).nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
 

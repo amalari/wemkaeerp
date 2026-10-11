@@ -3,7 +3,7 @@
 ## 1. Document Context and Administration
 
 - **Title & ID**: TRD-FIELD-004 — Penyamaan gerbang DataScope/keberadaan record pada unggah-unduh FILE generik, validasi RELATION di modul hasil generate, guard tulis RELATION CRM, mitigasi MIME/header objek, dan jaring pengaman rute tulis berbasis spec
-- **Status**: **v0.2 — Keputusan Q1/Q2/Q3/Q5/Q7 DISETUJUI pengguna (2026-10-10); Track A (A1-A4) SELESAI dan terverifikasi; Track B/C belum dikerjakan.** Q4 (DataScope CRUD modul generate), Q6 (`nosniff`, infra) dan Q8 (wiring deployment) tetap TERBUKA. Semua bukti `file:baris` di bagian audit diambil dari HEAD `bf9fbe65` (= `main`, sudah memuat `ef51931c`); yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
+- **Status**: **v0.3 — Track A, B1-B3, dan C1-C3 SELESAI di branch implementasi FIELD-004-B3C.** Q4 (DataScope CRUD modul generate), Q6 (`nosniff` di infra nyata), dan Q8 (wiring deployment di luar repo) tetap TERBUKA. Semua klaim lingkungan yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
 - **Basis**: `main` @ `bf9fbe65`. Pola acuan: TRD-PLAT-011/012 (audit rute -> gerbang -> level -> tes, Track A/B/C).
 - **Dokumen terkait**: `TRD-FIELD-001-relation.md`, `TRD-FIELD-002-file.md` (v0.4), `docs/teaching/teaching-field-file-tenant-ref-guard.md`, `.claude/rules/tenant-variability-rules.md` Kontrak 6/7, `field-component-rules.md`.
 
@@ -13,6 +13,7 @@
 | :--- | :--- | :--- | :--- |
 | 0.1 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Draft awal dari audit kode HEAD `bf9fbe65` |
 | 0.2 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Q1/Q2/Q3/Q5/Q7 disetujui. Track A selesai (A1 `79df6847`, A2 `ecc9975c`, A3 `9c771f7e`, A4 `ce44e3e1`). Catatan implementasi di "Status Track A" di bawah |
+| 0.3 | 2026-10-11 | Codex (implementasi FIELD-004-B3C) | B3: magic-byte + metadata S3; C1: regenerasi pilot + migrasi aditif V100; C2: drift/write-guard test; C3: teaching dan verifikasi |
 
 ### Summary & Business Context
 
@@ -323,7 +324,7 @@ Tes merah lebih dulu (A1: 14 dari 26 merah terhadap kode lama), lalu hijau; `:se
 | :-- | :-- | :-- |
 | **B1** `Contribution.rows` + `DomainRouteWiring` (FR-2.3, F0) | **Selesai** | `TenantPackContributions.Contribution.rows` (wajib, tanpa default), `mergeRows` (fail-loud: kunci di luar pack / modul ganda ditolak; parameter tes `fieldFileRecordRows` menang), dipakai `DomainRouteWiring` untuk unduh FILE **dan** `RelationTargetRegistry`. Tes: `TenantPackContributionsRowsTest` (6). |
 | **B2** `relationProblem` generator + normalisasi target (FR-2.1/2.2) + Q3 | **Selesai** | `relationTargetResource` / `EntitySpec.relationTargetProblem` (core, `prototype/RelationTargets.kt`); emisi di `SpecRoutesRelationEmitter` (kosong bila tanpa RELATION = keluaran identik); `registerRoutes` menerima resolver; Q3 ditolak di generator dan validator usulan (`RelationTargetPolicy`). Tes: `RelationTargetRulesTest` (9), `SpecRoutesRelationEmissionTest` (7). |
-| **B3** magic byte + header adapter (FR-4.x) | **Ditunda** | menyentuh berkas Track A (`FieldFileRoutes`, `S3ObjectStorage`). |
+| **B3** magic byte + header adapter (FR-4.x) | **Selesai** | `FileSignature` memeriksa PDF/PNG/JPEG/WebP dan UTF-8 teks tanpa NUL; kedua upload route menolak mismatch 415 sebelum `put`; adapter S3 menyimpan `attachment` + `private, no-store` dan presign memaksa nama unduhan yang disanitasi. `nosniff` tetap syarat proxy/bucket (Q6). |
 
 **Verifikasi F0 dari kode HEAD (bukan salinan TRD)**: `Application.kt` mendeklarasikan `fieldFileRecordRows = emptyMap()`
 sebagai default dan meneruskannya ke `DomainRouteWiring`; pemasok non-kosong satu-satunya hanya tiga tes
@@ -334,6 +335,17 @@ tidak ada wiring di luar repo yang menyuntik `fieldFileRecordRows`; bila ada, pa
 **Catatan keputusan**: validasi keberadaan RELATION ditaruh di core (`relationTargetProblem`) dan kode yang digenerate hanya
 memanggilnya (pola `fileOwnershipProblem`), jadi aturan normalisasi/keberadaan teruji tanpa mengompilasi kode hasil generate.
 Q3 diberlakukan juga di validator usulan (jalur "registrasi" pack hasil generate) agar ditolak sedini mungkin.
+
+## Status Track C (v0.3, 2026-10-11) — SELESAI
+
+| Butir | Status | Bukti |
+| :-- | :-- | :-- |
+| **C1** regenerasi `layanan_change_request` | **Selesai** | Route memuat `lampiran`/`rujukan` beserta `fileProblem`/`relationProblem`; tabel dan repository memetakan dua kolom; `V100__add_file_relation_to_layanan_change_request.sql` menambah kolom secara aditif karena V90 mungkin sudah diterapkan. |
+| **C2** penjaga drift dan tulis | **Selesai** | `GeneratedRouteMatchesPackSpecTest` membandingkan kode executable route/tabel/repository terhadap keluaran generator; `GeneratedRouteWriteGuardTest` mengiterasi `TenantPackContributions.all` dan spec kontribusi, menolak FILE asing serta RELATION tak ada dengan 400 tanpa persistensi. |
+| **C3** dokumentasi | **Selesai** | `docs/teaching/teaching-field-004-b3c-file-relation-hardening.md`; aturan tidak berubah sehingga `scripts/sync-agent-config.sh` tidak diperlukan. |
+
+**Batas verifikasi lingkungan:** presigner diuji lokal tanpa jaringan. Header `X-Content-Type-Options: nosniff`
+pada MinIO/reverse proxy nyata belum dapat diverifikasi tanpa deployment aktif dan tetap dicatat sebagai Q6.
 
 **Dampak ke `layanan_change_request`**: berkas terkomit `LayananChangeRequestRoutes.kt` **tidak diubah** (masih basi: tanpa
 `lampiran`/`rujukan`, = Track C1). Keluaran generator terbaru untuk pilot kini memuat `relationProblem`; diverifikasi

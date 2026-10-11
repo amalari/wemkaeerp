@@ -13,8 +13,11 @@ interface ObjectStorage {
     /** Simpan byte di [key] dengan [contentType]; idempotent per key. */
     suspend fun put(key: String, bytes: ByteArray, contentType: String): Result<Unit>
 
-    /** URL unduh presigned berumur singkat (≤15 menit) — bukan berkas permanen. */
-    suspend fun downloadUrl(key: String): Result<String>
+    /**
+     * URL unduh presigned berumur singkat (≤15 menit) — bukan berkas permanen. [fileName] hanya
+     * dipakai untuk header `Content-Disposition`; adapter wajib memperlakukannya sebagai input tak tepercaya.
+     */
+    suspend fun downloadUrl(key: String, fileName: String? = null): Result<String>
 
     /** False = env S3 belum lengkap; pemanggil (route) wajib menolak dengan 503 yang menyebut env kurang. */
     val isConfigured: Boolean

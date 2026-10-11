@@ -43,6 +43,8 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
                     it[T.targetSelesai] = row["target_selesai"].takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) }
                     it[T.mendesak] = row["mendesak"] == "ya"
                     it[T.catatan] = row["catatan"].ifBlank { null }
+                    it[T.lampiran] = row["lampiran"].ifBlank { null }
+                    it[T.rujukan] = row["rujukan"].ifBlank { null }
                     it[T.updatedAt] = now
                 }
             } else {
@@ -57,6 +59,8 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
                     it[T.targetSelesai] = row["target_selesai"].takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) }
                     it[T.mendesak] = row["mendesak"] == "ya"
                     it[T.catatan] = row["catatan"].ifBlank { null }
+                    it[T.lampiran] = row["lampiran"].ifBlank { null }
+                    it[T.rujukan] = row["rujukan"].ifBlank { null }
                     it[T.createdAt] = now
                     it[T.updatedAt] = now
                 }
@@ -78,7 +82,9 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
             "perkiraan_jam" to (r[T.perkiraanJam]?.stripTrailingZeros()?.toPlainString() ?: ""),
             "target_selesai" to (r[T.targetSelesai]?.toString() ?: ""),
             "mendesak" to (if (r[T.mendesak]) "ya" else "tidak"),
-            "catatan" to (r[T.catatan] ?: "")
+            "catatan" to (r[T.catatan] ?: ""),
+            "lampiran" to (r[T.lampiran] ?: ""),
+            "rujukan" to (r[T.rujukan] ?: "")
         )
     )
 }

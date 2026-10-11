@@ -59,7 +59,7 @@ internal class RecordingFileStorage : ObjectStorage {
         stored[key] = bytes to contentType
         return Result.success(Unit)
     }
-    override suspend fun downloadUrl(key: String): Result<String> {
+    override suspend fun downloadUrl(key: String, fileName: String?): Result<String> {
         downloadCalls += key
         return Result.success("https://presigned.example.com/$key")
     }
