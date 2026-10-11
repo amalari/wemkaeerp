@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 /** Fixture sengaja non-garment (tiket servis) — Kontrak 6: bukan hanya tenant default. */
 class PrototypeReducerTest {
-    private val status = FieldSpec("status", "Status", FieldType.ENUM, listOf("Baru", "Diproses", "Selesai"))
+    private val status = FieldSpec("status", "Status", FieldType.ENUM, selectOptions("Baru", "Diproses", "Selesai"))
     private val entity = EntitySpec(
         "tiket", "Tiket",
         listOf(FieldSpec("judul", "Judul", FieldType.TEXT), status),

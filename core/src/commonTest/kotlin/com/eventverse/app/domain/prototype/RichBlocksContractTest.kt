@@ -54,7 +54,7 @@ class RichBlocksContractTest {
 
     @Test
     fun table_statusEditable_withoutMachine_isAllowed() {
-        val free = EntitySpec("bebas", "Bebas", listOf(FieldSpec("Nama", "Nama", FieldType.TEXT), FieldSpec("Status", "Status", FieldType.ENUM, listOf("A", "B"))))
+        val free = EntitySpec("bebas", "Bebas", listOf(FieldSpec("Nama", "Nama", FieldType.TEXT), FieldSpec("Status", "Status", FieldType.ENUM, selectOptions("A", "B"))))
         PrototypeSpec(
             listOf(free),
             listOf(ScreenSpec("s", "S", WidgetKind.TABLE, "bebas", table = TableConfig(listOf("Nama", "Status"), "Status", inlineCreate = true, editableFields = listOf("Nama", "Status"))))

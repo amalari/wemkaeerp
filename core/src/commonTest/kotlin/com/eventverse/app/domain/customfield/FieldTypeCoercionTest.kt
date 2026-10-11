@@ -1,6 +1,8 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

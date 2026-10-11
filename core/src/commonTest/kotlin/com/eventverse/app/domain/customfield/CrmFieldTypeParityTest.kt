@@ -1,8 +1,12 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue
+import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
 import kotlinx.datetime.Instant
@@ -35,8 +39,8 @@ class CrmFieldTypeParityTest {
     /** Satu contoh per kind (11 tipe), termasuk parameter non-default. */
     private val samples: List<CrmFieldType> = listOf(
         CrmFieldType(FieldType.TEXT), CrmFieldType(FieldType.LONG_TEXT),
-        CrmFieldType(FieldType.NUMBER, format = NumberFormat.Currency("IDR"), decimals = 2),
-        CrmFieldType(FieldType.NUMBER, format = NumberFormat.Percent, decimals = 1), CrmFieldType(FieldType.NUMBER),
+        CrmFieldType(FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR", decimals = 2),
+        CrmFieldType(FieldType.NUMBER, format = NumberFormat.PERCENT, decimals = 1), CrmFieldType(FieldType.NUMBER),
         CrmFieldType(FieldType.ENUM, options = selectOptions),
         CrmFieldType(FieldType.DATE, withTime = true), CrmFieldType(FieldType.DATE),
         CrmFieldType(FieldType.TIME),
@@ -102,6 +106,33 @@ class CrmFieldTypeParityTest {
         assertEquals("ENUM", CrmFieldType(FieldType.ENUM).code)
     }
 
+    /**
+     * Kompatibilitas kawat config lama (penyatuan muatan parameter, PLAN-unify §2a follow-up): JSONB
+     * `SINGLE_SELECT` berisi opsi berwarna + arsip — ditulis tangan persis bentuk wire lama — tetap
+     * terbaca identik setelah `SelectOption` menjadi tipe bersama registry. Tanpa migrasi data.
+     */
+    @Test
+    fun configCodec_legacySingleSelectJsonWithColoredOptions_readsIdentically() {
+        val legacyJson = jsonObjectOf(
+            "options" to jsonArrayOf(
+                listOf(
+                    jsonObjectOf(
+                        "id" to jsonOf("opt_satin"), "label" to jsonOf("Benang satin"),
+                        "colorHex" to jsonOf("#2563EB"), "archivedAt" to jsonOf(null as String?)
+                    ),
+                    jsonObjectOf(
+                        "id" to jsonOf("opt_lama"), "label" to jsonOf("Lama"),
+                        "colorHex" to jsonOf("#16A34A"), "archivedAt" to jsonOf("2026-01-01T00:00:00Z")
+                    )
+                )
+            )
+        )
+        assertEquals(
+            CrmFieldType(FieldType.ENUM, options = selectOptions),
+            CustomAttributesCodec.decodeFieldType("SINGLE_SELECT", legacyJson)
+        )
+    }
+
     /** C7: sel RELATION = id record target string; dibaca kembali lewat [CustomAttributes.relation], tanpa karangan. */
     @Test
     fun customAttributes_relationCell_roundTripsAndReadsBack() {
@@ -155,8 +186,40 @@ class CrmFieldTypeParityTest {
     fun decodeFieldType_numberWithoutFormatKey_isPlain() {
         val legacy = jsonObjectOf("decimals" to jsonOf(2))
         assertEquals(
-            CrmFieldType(FieldType.NUMBER, format = NumberFormat.Plain, decimals = 2),
+            CrmFieldType(FieldType.NUMBER, format = NumberFormat.PLAIN, decimals = 2),
             CustomAttributesCodec.decodeFieldType("NUMBER", legacy)
+        )
+    }
+
+    /**
+     * Kompatibilitas kawat config lama (PLAN-unify §2a follow-up): baris `NUMBER` dengan
+     * `{"format":"currency","currencyCode":"IDR"}` — ditulis tangan persis bentuk wire lama — tetap
+     * terbaca sebagai (CURRENCY, "IDR") setelah `NumberFormat` CRM disatukan dengan kosakata prototype.
+     * Tanpa migrasi data. Bentuk kawat `plain`/`percent` pun tak berubah.
+     */
+    @Test
+    fun decodeFieldType_legacyNumberJsonWithCurrency_readsIdentically() {
+        assertEquals(
+            CrmFieldType(FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR", decimals = 0),
+            CustomAttributesCodec.decodeFieldType(
+                "NUMBER",
+                jsonObjectOf("format" to jsonOf("currency"), "currencyCode" to jsonOf("IDR"), "decimals" to jsonOf(0))
+            )
+        )
+        assertEquals(
+            CrmFieldType(FieldType.NUMBER, format = NumberFormat.PERCENT, decimals = 1),
+            CustomAttributesCodec.decodeFieldType(
+                "NUMBER",
+                jsonObjectOf("format" to jsonOf("percent"), "currencyCode" to jsonOf(null as String?), "decimals" to jsonOf(1))
+            )
+        )
+        // Kode mata uang "liar" pada format non-currency diabaikan (perilaku lama), bukan membuat baris gagal dibaca.
+        assertEquals(
+            CrmFieldType(FieldType.NUMBER),
+            CustomAttributesCodec.decodeFieldType(
+                "NUMBER",
+                jsonObjectOf("format" to jsonOf("plain"), "currencyCode" to jsonOf("IDR"))
+            )
         )
     }
 

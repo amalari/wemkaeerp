@@ -194,7 +194,7 @@ class PrototypeFieldTypeSqlParityTest {
     fun fieldSpec_nonEnumTypeWithOptions_isRejected() {
         // A0 (TRD-FIELD-003): MULTI_SELECT juga sah beropsi; sisanya ditolak.
         FieldType.entries.filter { it != FieldType.ENUM && it != FieldType.MULTI_SELECT }.forEach { type ->
-            val result = runCatching { FieldSpec("k", "K", type, listOf("a")) }
+            val result = runCatching { FieldSpec("k", "K", type, selectOptions("a")) }
             assertTrue(result.isFailure, "$type dengan opsi harus ditolak")
         }
     }

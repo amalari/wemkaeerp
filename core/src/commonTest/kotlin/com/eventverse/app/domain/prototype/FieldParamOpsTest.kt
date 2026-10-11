@@ -48,7 +48,7 @@ class FieldParamOpsTest {
     private fun setValidation(s: InteractiveScreen, v: TextValidation, field: String = "kontak") =
         SpecOpApplier.apply(s, SpecOp.SetFieldValidation("antrean_klinik", field, v))
 
-    private val multiOptions = listOf("Digitizing", "Hooping", "Selesai")
+    private val multiOptions = selectOptions("Digitizing", "Hooping", "Selesai")
 
     private fun multiScreen(rows: List<Map<String, String>>, maxSelections: Int? = null) =
         screen(listOf(FieldSpec("pasien", "Pasien", FieldType.TEXT), FieldSpec("layanan", "Layanan dibeli", FieldType.MULTI_SELECT, multiOptions, maxSelections = maxSelections)), rows)

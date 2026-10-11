@@ -2,6 +2,7 @@ package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.MultiSelectValues
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.domain.prototype.TimeFieldValues
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.shared.json.JsonValue

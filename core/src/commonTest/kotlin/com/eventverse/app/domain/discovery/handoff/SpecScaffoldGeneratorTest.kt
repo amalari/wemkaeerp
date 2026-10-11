@@ -14,6 +14,7 @@ import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.prototype.PrototypeContractSamples
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
+import com.eventverse.app.domain.prototype.selectOptions
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
@@ -113,7 +114,7 @@ class SpecScaffoldGeneratorTest {
     @Test
     fun enumOptionWithQuote_isEscapedInSql_andKotlinLiteralEscapesDollarAndQuote() {
         val scaffold = generator.generateFromSpec(
-            specWith(FieldSpec("tipe", "Tipe \"x\" \$y", FieldType.ENUM, listOf("O'Brien", "Biasa"))), module("uji_modul"), 91, packExpr
+            specWith(FieldSpec("tipe", "Tipe \"x\" \$y", FieldType.ENUM, selectOptions("O'Brien", "Biasa"))), module("uji_modul"), 91, packExpr
         )
         assertTrue("IN ('O''Brien', 'Biasa')" in scaffold.file("_module.sql"))
         val routes = scaffold.file("Routes.kt")

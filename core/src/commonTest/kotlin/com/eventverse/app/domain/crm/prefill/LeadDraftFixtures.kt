@@ -6,8 +6,8 @@ import com.eventverse.app.domain.customfield.FieldKey
 import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.prototype.FieldType
 import com.eventverse.app.domain.customfield.OwnerResource
-import com.eventverse.app.domain.customfield.SelectOption
-import com.eventverse.app.domain.customfield.SelectOptionId
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 

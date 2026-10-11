@@ -49,4 +49,11 @@ internal object FieldParamWire {
      * "hanya NUMBER" divalidasi `FieldSpec`, bukan di sini (satu sumber aturan).
      */
     fun decimals(obj: JsonValue.Obj): Int? = obj.strictOptInt("decimals")
+
+    /**
+     * Kunci `maxCount` (penyatuan kosakata, PLAN-unify §2a follow-up): bilangan bulat opsional; absen = 1
+     * (bawaan dokumen lama), tipe JSON salah ditolak (bukan jatuh ke bawaan). Rentang ≥ 1 dan aturan
+     * "hanya USER_REF/RELATION yang boleh ≠ 1" divalidasi `FieldSpec`, bukan di sini.
+     */
+    fun maxCount(obj: JsonValue.Obj): Int = obj.strictOptInt("maxCount") ?: 1
 }

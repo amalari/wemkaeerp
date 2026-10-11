@@ -82,7 +82,7 @@ internal object ChangeWidgetOp {
         }
         return ScreenSpec(
             s.screenId, s.title, WidgetKind.KANBAN, s.entityId,
-            kanban = KanbanConfig(group.key, group.options, title, shown.drop(1), card = card)
+            kanban = KanbanConfig(group.key, group.optionLabels, title, shown.drop(1), card = card)
         )
     }
 }

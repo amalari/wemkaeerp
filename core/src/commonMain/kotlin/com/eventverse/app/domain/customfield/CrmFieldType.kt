@@ -1,11 +1,17 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.MAX_NUMBER_DECIMALS
+import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 
 /**
  * Tipe satu field kustom CRM = **kosakata tipe bersama** ([FieldType] prototype, registry tunggal —
- * diputuskan 2026-10-10, lihat `docs/plannings/PLAN-unify-field-vocabulary.md`) + parameter khas CRM
- * yang tidak dikenal kosakata discovery (opsi berwarna dengan arsip, `maxCount` rujukan).
+ * diputuskan 2026-10-10, lihat `docs/plannings/PLAN-unify-field-vocabulary.md`) + muatan parameter
+ * yang kini juga bersama: [SelectOption], [NumberFormat], `decimals`, `maxCount`, `maxSelections`
+ * (nama & arti yang sama dengan `FieldSpec`, PLAN-unify §2a follow-up). Tinggal `targetResource`
+ * (padanan `FieldSpec.target`, kunci wire berbeda) yang sengaja tetap khas CRM.
  *
  * Kode tersimpan (`custom_field_definitions.field_type`) dibaca lewat [CrmLegacyTypeCode] — kode legacy
  * `SINGLE_SELECT`/`CHECKBOX` tetap sah selamanya; tulisan baru memakai nama enum ([code]). Karena
@@ -13,15 +19,20 @@ import com.eventverse.app.domain.prototype.FieldType
  * pendaftaran kedua.
  *
  * Invarian per jenis dijaga di [init]; parameter yang tidak relevan untuk [kind] diabaikan (bukan
- * ditafsirkan) supaya cell/seed tidak pernah "berubah bentuk" diam-diam.
+ * ditafsirkan) supaya cell/seed tidak pernah "berubah bentuk" diam-diam. Aturan yang **beda** dari
+ * `FieldSpec` (opsi boleh kosong saat dialog belum selesai, `maxSelections` tidak dibatasi jumlah
+ * opsi, kode mata uang cukup 3 huruf apa pun kasusnya) tetap dipertahankan di sini agar data lama
+ * tidak berubah bentuk diam-diam.
  */
 data class CrmFieldType(
     val kind: FieldType,
-    /** ENUM/MULTI_SELECT: opsi terpilih tenant (warna + arsip lembut). Di discovery, opsi cukup nama. */
+    /** ENUM/MULTI_SELECT: opsi terpilih tenant (warna + arsip lembut); tipe bersama [SelectOption] — di discovery opsi lahir dari nama polos (`SelectOption(label)`, tanpa warna). */
     val options: List<SelectOption> = emptyList(),
-    /** NUMBER: varian tampilan angka (polos/persen/mata uang). */
-    val format: NumberFormat = NumberFormat.Plain,
-    /** NUMBER: batas desimal masukan (0..6); `null` = tidak dibatasi. */
+    /** NUMBER: varian tampilan angka (polos/persen/mata uang) — enum bersama kosakata prototype. */
+    val format: NumberFormat = NumberFormat.PLAIN,
+    /** NUMBER: kode mata uang tiga huruf; wajib tepat bila [format] = [NumberFormat.CURRENCY], wajib `null` selain itu. */
+    val currencyCode: String? = null,
+    /** NUMBER: batas desimal masukan (0..[MAX_NUMBER_DECIMALS]); `null` = tidak dibatasi. */
     val decimals: Int? = null,
     /** DATE: `true` = tanggal berwaktu `TTTT-BB-HH'T'JJ:MM`. */
     val withTime: Boolean = false,
@@ -33,8 +44,8 @@ data class CrmFieldType(
     val maxSelections: Int? = null
 ) {
     init {
-        require(decimals == null || decimals in 0..MAX_DECIMALS) {
-            "CrmFieldType.decimals must be within 0..$MAX_DECIMALS: $decimals"
+        require(decimals == null || decimals in 0..MAX_NUMBER_DECIMALS) {
+            "CrmFieldType.decimals must be within 0..$MAX_NUMBER_DECIMALS: $decimals"
         }
         require(maxCount >= 1) { "CrmFieldType.maxCount must be at least 1: $maxCount" }
         if (kind == FieldType.RELATION) {
@@ -42,6 +53,15 @@ data class CrmFieldType(
         }
         require(maxSelections == null || maxSelections >= 1) {
             "CrmFieldType.maxSelections must be at least 1: $maxSelections"
+        }
+        // Muatan bersama: aturan format/kode mata uang sama dengan FieldSpec; bentuk kode tetap
+        // longgar (3 huruf apa pun kasusnya) supaya kode legacy tidak ditolak saat dibaca.
+        if (format == NumberFormat.CURRENCY) {
+            require(currencyCode != null && currencyCode.length == 3) {
+                "CrmFieldType CURRENCY requires a 3-letter currency code, got '$currencyCode'"
+            }
+        } else {
+            require(currencyCode == null) { "CrmFieldType format ${format.name} must not carry a currency code" }
         }
     }
 
@@ -57,42 +77,7 @@ data class CrmFieldType(
     val isReferential: Boolean get() = kind == FieldType.USER_REF || kind == FieldType.RELATION
 
     companion object {
-        /** Batas desimal yang wajar untuk jumlah/rata-rata; sinkron dengan `FieldSpec.MAX_NUMBER_DECIMALS`. */
-        const val MAX_DECIMALS: Int = 6
-    }
-}
-
-sealed interface NumberFormat {
-    data object Plain : NumberFormat
-    data object Percent : NumberFormat
-    data class Currency(val currencyCode: String) : NumberFormat {
-        init {
-            require(currencyCode.length == 3) { "Currency code must be ISO-4217 (3 letters): $currencyCode" }
-        }
-    }
-}
-
-/**
- * One choice in an ENUM/`SingleSelect` field.
- *
- * [colorHex] is domain data supplied by the tenant admin who created the option — the
- * sanctioned exception to "no color literals outside WeMadeTheme.kt", exactly like
- * `PhaseDefinition.colorHex`. Deleting an option soft-archives it ([archivedAt]) rather than
- * removing it: a cell already holding this option must keep rendering (greyed) rather than
- * silently losing data.
- */
-data class SelectOption(
-    val id: SelectOptionId,
-    val label: String,
-    val colorHex: String,
-    val archivedAt: String? = null
-) {
-    init {
-        require(label.isNotBlank()) { "SelectOption.label cannot be blank" }
-        require(COLOR_HEX_REGEX.matches(colorHex)) { "SelectOption.colorHex must be #RRGGBB: $colorHex" }
-    }
-
-    companion object {
-        private val COLOR_HEX_REGEX = Regex("^#[0-9A-Fa-f]{6}$")
+        /** Batas desimal yang wajar untuk jumlah/rata-rata; alias registry bersama `FieldSpec.MAX_NUMBER_DECIMALS`. */
+        const val MAX_DECIMALS: Int = MAX_NUMBER_DECIMALS
     }
 }

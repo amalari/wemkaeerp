@@ -1,6 +1,9 @@
 package com.eventverse.app.domain.customfield
 
 import com.eventverse.app.domain.prototype.FieldType
+import com.eventverse.app.domain.prototype.NumberFormat
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 
 import com.eventverse.app.domain.tenant.TenantId
 import kotlin.test.Test
@@ -38,7 +41,7 @@ class CustomAttributesCodecTest {
 
     @Test
     fun encodeDecode_numberFieldWithCurrency_roundTrips() {
-        val type = CrmFieldType(FieldType.NUMBER, format = NumberFormat.Currency("IDR"), decimals = 0)
+        val type = CrmFieldType(FieldType.NUMBER, format = NumberFormat.CURRENCY, currencyCode = "IDR", decimals = 0)
         val def = CustomFieldDefinition(
             id = CustomFieldId("cf-2"),
             tenantId = tenantId,

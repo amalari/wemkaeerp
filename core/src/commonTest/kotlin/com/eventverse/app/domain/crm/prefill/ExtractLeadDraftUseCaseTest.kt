@@ -2,7 +2,7 @@ package com.eventverse.app.domain.crm.prefill
 
 import com.eventverse.app.domain.crm.prefill.usecases.ExtractLeadDraftUseCase
 import com.eventverse.app.domain.customfield.CustomAttributes
-import com.eventverse.app.domain.customfield.SelectOptionId
+import com.eventverse.app.domain.prototype.SelectOptionId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

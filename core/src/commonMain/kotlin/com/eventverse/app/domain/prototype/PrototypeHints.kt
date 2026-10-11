@@ -71,8 +71,8 @@ data class FieldHint(
         toFieldSpec() // invarian parameter (format/withTime/validation/target/maxSelections) = satu sumber: FieldSpec
     }
 
-    /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. */
-    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options, required, format, currencyCode, withTime, validation, target, maxSelections)
+    /** Jadikan [FieldSpec]; label = kunci, karena nama field pack adalah label tampilannya. Opsi hint (label polos) dibungkus [SelectOption]. */
+    fun toFieldSpec(): FieldSpec = FieldSpec(key, key, type, options.map { SelectOption(it) }, required, format, currencyCode, withTime, validation, target, maxSelections)
 }
 
 /**

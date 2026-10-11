@@ -396,11 +396,12 @@ private fun SelectEditor(
 
     if (editable && onCommit != null) {
         Row {
-            ClayBadge(
-                text = selectedOption?.label ?: "Pilih...",
-                tint = selectedOption?.let { ComposeColor(parseHex(it.colorHex)) } ?: WeMadeColors.OnSurfaceMuted,
-                modifier = Modifier.clickable { expanded = true }
-            )
+        ClayBadge(
+            text = selectedOption?.label ?: "Pilih...",
+            // colorHex null = opsi tanpa warna tenant (opsi prototype) — token netral, bukan menebak warna.
+            tint = selectedOption?.colorHex?.let { ComposeColor(parseHex(it)) } ?: WeMadeColors.OnSurfaceMuted,
+            modifier = Modifier.clickable { expanded = true }
+        )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             type.activeOptions.forEach { option ->
@@ -416,7 +417,7 @@ private fun SelectEditor(
     } else {
         ClayBadge(
             text = selectedOption?.label ?: "-",
-            tint = selectedOption?.let { ComposeColor(parseHex(it.colorHex)) } ?: WeMadeColors.OnSurfaceMuted
+            tint = selectedOption?.colorHex?.let { ComposeColor(parseHex(it)) } ?: WeMadeColors.OnSurfaceMuted
         )
     }
 }

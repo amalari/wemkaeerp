@@ -63,13 +63,13 @@ object SpecOpApplier {
         val e = entity(screen, op.entityId)
         val f = enumField(e, op.field)
         require(op.option.isNotBlank()) { "Nama status baru kosong." }
-        require(op.option !in f.options) { "Status '${op.option}' sudah ada di '${f.label}'." }
-        require(op.after == null || op.after in f.options) { "Status '${op.after ?: ""}' tidak ada di '${f.label}'." }
-        val next = withField(screen, e, f.copy(options = insertOption(f.options, op.option, op.after)))
+        require(op.option !in f.optionLabels) { "Status '${op.option}' sudah ada di '${f.label}'." }
+        require(op.after == null || op.after in f.optionLabels) { "Status '${op.after ?: ""}' tidak ada di '${f.label}'." }
+        val next = withField(screen, e, f.copy(options = f.options.insertLabelOption(op.option, op.after)))
         // Kolom kanban yang dikelompokkan field ini ikut menampilkan status barunya, di posisi sama.
         return withScreens(next) { sc ->
             sc.kanban?.takeIf { sc.entityId == op.entityId && it.groupField == op.field }
-                ?.let { sc.copy(kanban = it.copy(columns = insertOption(it.columns, op.option, op.after))) } ?: sc
+                ?.let { sc.copy(kanban = it.copy(columns = it.columns.insertLabel(op.option, op.after))) } ?: sc
         }
     }
 
@@ -77,14 +77,15 @@ object SpecOpApplier {
         val e = entity(screen, op.entityId)
         val f = enumField(e, op.field)
         require(op.to.isNotBlank()) { "Nama status baru kosong." }
-        require(op.from in f.options) { "Status '${op.from}' tidak ada di '${f.label}'." }
-        require(op.to !in f.options) { "Status '${op.to}' sudah ada di '${f.label}'." }
+        require(op.from in f.optionLabels) { "Status '${op.from}' tidak ada di '${f.label}'." }
+        require(op.to !in f.optionLabels) { "Status '${op.to}' sudah ada di '${f.label}'." }
         val rename: (String) -> String = { if (it == op.from) op.to else it }
         // Tulis ulang: opsi field, kolom kanban, mesin status, dan isi seed yang memakai nama lama.
         // Semuanya dihitung dulu, lalu spec dibangun **sekali** — spesifikasi antara (opsi sudah
         // diganti, kolom belum) memang tidak sah dan tidak boleh pernah terbentuk.
+        // Opsi diganti utuh lewat [SelectOption] baru (id diturunkan dari label; prototype menyimpan label).
         val newEntity = e.copy(
-            fields = e.fields.map { if (it.key == op.field) f.copy(options = f.options.map(rename)) else it },
+            fields = e.fields.map { if (it.key == op.field) f.copy(options = f.options.map { o -> if (o.label == op.from) SelectOption(op.to) else o }) else it },
             stateMachine = when (e.stateMachine) {
                 null -> null
                 else -> if (e.stateMachine.field == op.field) {
@@ -113,8 +114,8 @@ object SpecOpApplier {
         val f = enumField(e, op.field)
         val sm = e.stateMachine
         require(sm != null && sm.field == op.field) { "'${f.label}' tidak punya aturan transisi yang bisa ditambah." }
-        require(op.from in f.options) { "Status '${op.from}' tidak ada di '${f.label}'." }
-        require(op.to in f.options) { "Status '${op.to}' tidak ada di '${f.label}'." }
+        require(op.from in f.optionLabels) { "Status '${op.from}' tidak ada di '${f.label}'." }
+        require(op.to in f.optionLabels) { "Status '${op.to}' tidak ada di '${f.label}'." }
         require(op.from != op.to) { "Perpindahan ke status yang sama memang selalu boleh." }
         return withStateMachine(screen, op.entityId, op.field) {
             StateMachine(sm.field, sm.transitions + (op.from to (sm.transitions[op.from].orEmpty() + op.to)))
@@ -184,11 +185,18 @@ object SpecOpApplier {
         return f
     }
 
-    /** Menyisipkan [option] setelah [after], atau di akhir bila [after] null. */
-    private fun insertOption(options: List<String>, option: String, after: String?): List<String> {
-        if (after == null) return options + option
-        val i = options.indexOf(after)
-        return options.subList(0, i + 1) + option + options.subList(i + 1, options.size)
+    /** Menyisipkan opsi bernama [option] setelah label [after], atau di akhir bila [after] null. */
+    private fun List<SelectOption>.insertLabelOption(option: String, after: String?): List<SelectOption> {
+        if (after == null) return this + SelectOption(option)
+        val i = indexOfFirst { it.label == after }
+        return subList(0, i + 1) + SelectOption(option) + subList(i + 1, size)
+    }
+
+    /** Menyisipkan label [option] setelah [after] (kolom kanban: larik label), atau di akhir bila [after] null. */
+    private fun List<String>.insertLabel(option: String, after: String?): List<String> {
+        if (after == null) return this + option
+        val i = indexOf(after)
+        return subList(0, i + 1) + option + subList(i + 1, size)
     }
 
     private fun rebuilt(screen: InteractiveScreen, entities: List<EntitySpec>, screens: List<ScreenSpec>) =

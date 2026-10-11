@@ -58,7 +58,7 @@ class PrototypeTextValidationTest {
     fun fieldSpec_validationOnNonText_isRejected_includingLongText() {
         FieldType.entries.filter { it != FieldType.TEXT }.forEach { type ->
             // ENUM dan MULTI_SELECT wajib membawa opsi; kalau tidak, penolakannya bukan karena validation.
-            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf("a") else emptyList()
+            val options = if (type == FieldType.ENUM || type == FieldType.MULTI_SELECT) listOf(SelectOption("a")) else emptyList()
             TextValidation.entries.filter { it != TextValidation.NONE }.forEach { v ->
                 val r = runCatching { FieldSpec("k", "K", type, options, validation = v) }
                 assertTrue(r.isFailure, "$type dengan validation $v harus ditolak")
@@ -89,7 +89,7 @@ class PrototypeTextValidationTest {
     fun routes_validatedText_carriesLiteralAndTextProblemGate() {
         val t = table(field(TextValidation.EMAIL), FieldSpec("catatan", "Catatan", FieldType.TEXT))
         val routes = SpecRoutesWriter.routesFile("bordir_uji", t)
-        assertTrue("FieldSpec(\"kontak\", \"Kontak\", FieldType.TEXT, listOf(), false, validation = TextValidation.EMAIL)" in routes, "entityLiteral membawa validation")
+        assertTrue("FieldSpec(\"kontak\", \"Kontak\", FieldType.TEXT, selectOptions(), false, validation = TextValidation.EMAIL)" in routes, "entityLiteral membawa validation")
         assertTrue("TEXT_FIELDS = listOf<FieldSpec>(FieldSpec(\"kontak\", \"Kontak\", FieldType.TEXT, validation = TextValidation.EMAIL))" in routes, routes)
         assertFalse("\"catatan\", \"Catatan\", FieldType.TEXT, validation" in routes, "field tanpa validasi tidak masuk TEXT_FIELDS")
         assertTrue("private fun textProblem(" in routes && "dateProblem(values) ?: timeProblem(values) ?: textProblem(values)" in routes, "gerbang teks tetap dalam rantai (C6 menambah timeProblem di antara tanggal dan teks)")

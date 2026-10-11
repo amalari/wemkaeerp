@@ -18,6 +18,7 @@ import com.eventverse.app.domain.prototype.PrototypeFieldTypeSampleFields.validV
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.ScreenSpec
+import com.eventverse.app.domain.prototype.SelectOption
 import com.eventverse.app.domain.prototype.SpecOp
 import com.eventverse.app.domain.prototype.TableConfig
 import com.eventverse.app.domain.prototype.TableHints
@@ -113,7 +114,7 @@ class PrototypeFieldTypeCodecParityTest {
         val hints = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
             // A0 (TRD-FIELD-003): maxSelections ikut kawat (MULTI_SELECT), target (RELATION) — keduanya opsional.
-            FieldHint(f.key, type, options = f.options, target = f.target, maxSelections = f.maxSelections)
+            FieldHint(f.key, type, options = f.optionLabels, target = f.target, maxSelections = f.maxSelections)
         }
         return ScreenSuggestion(
             ModuleId("bordir_antrean"), "Antrean bordir", WidgetKind.TABLE,
@@ -150,7 +151,7 @@ class PrototypeFieldTypeCodecParityTest {
         val extras = FieldType.entries.map { type ->
             val f = allFields().single { it.type == type }
             // C7: `target` RELATION ikut dokumen draf (null untuk tipe lain). A0: `maxSelections` MULTI_SELECT ikut.
-            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.options, target = f.target, maxSelections = f.maxSelections)
+            FieldProposal("paritas_${type.name.lowercase()}", "Paritas ${type.name}", type, options = f.optionLabels, target = f.target, maxSelections = f.maxSelections)
         }
         val entity = ScreenProposalFixtures.pasien
         val proposal = base.copy(entity = entity.copy(fields = entity.fields + extras))
@@ -261,6 +262,39 @@ class PrototypeFieldTypeCodecParityTest {
         assertTrue(error.path.endsWith(".format"), error.path)
     }
 
+    // ---- Penyatuan muatan parameter (PLAN-unify §2a follow-up): SelectOption di FieldSpec ------
+
+    /**
+     * Kawat opsi prototype tetap larik string label: dokumen lama byte-identik, dan opsi terbaca
+     * sebagai [SelectOption] berlabel (tanpa warna; id diturunkan dari label, nilai sel tetap label).
+     */
+    @Test
+    fun options_wireStaysPlainStringArray_andReadsAsParameterizedSelectOptions() {
+        val screen = interactive()
+        val raw = InteractiveScreenCodec.encode(screen).encode()
+        assertTrue("\"options\":[\"Digitizing\",\"Hooping\",\"Selesai\"]" in raw, "kawat opsi tetap label polos: $raw")
+        val decoded = InteractiveScreenCodec.decode(JsonParser.parseObject(raw))
+        val enumField = decoded.spec.entities.single().fields.single { it.type == FieldType.ENUM }
+        assertEquals(listOf("Digitizing", "Hooping", "Selesai"), enumField.optionLabels, "label utuh")
+        assertEquals(listOf("Digitizing", "Hooping", "Selesai"), enumField.options.map { it.id.value }, "id = label (muat 64 karakter)")
+        assertTrue(enumField.options.all { it.colorHex == null && it.archivedAt == null }, "opsi prototype tanpa warna/arsip")
+        assertTrue(enumField.accepts("Hooping") && !enumField.accepts("Laser"), "nilai sel tetap label")
+    }
+
+    /** Label opsi >64 karakter (sah menurut ProposalLimits.TEXT) tetap terbaca utuh; id internalnya terpotong tanpa efek. */
+    @Test
+    fun options_longLabel_readsWholeLabel_withTruncatedInternalId() {
+        val panjang = "Pilihan berlabel sangat panjang melebihi enam puluh empat karakter sekali jalan"
+        val spec = PrototypeSpec(
+            listOf(EntitySpec("e", "E", listOf(FieldSpec("k", "K", FieldType.ENUM, listOf(SelectOption(panjang)))))),
+            listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf("k"))))
+        )
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(InteractiveScreen(spec, emptyMap())))
+        val f = decoded.spec.entities.single().fields.single()
+        assertEquals(listOf(panjang), f.optionLabels, "label >64 karakter tidak terpotong di kawat")
+        assertTrue(f.accepts(panjang))
+    }
+
     // ---- A0 (penyatuan kosakata, PLAN-unify §3): parameter decimals NUMBER di kawat -------------
 
     /**
@@ -293,5 +327,35 @@ class PrototypeFieldTypeCodecParityTest {
         }
         val outOfRange = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"decimals\":2", "\"decimals\":7")) as JsonValue.Obj) }
         assertTrue(outOfRange.isFailure, "decimals 7 di luar rentang ditolak invarian FieldSpec saat decode, bukan diredam")
+    }
+
+    // ---- Penyatuan muatan parameter (PLAN-unify §2a follow-up): maxCount di kawat -----------------
+
+    /**
+     * `maxCount` (USER_REF/RELATION) ikut kawat layar interaktif dan SpecOp AddField; bawaan 1 tidak
+     * ditulis (dokumen lama byte-identik); nilai < 1 ditolak invarian `FieldSpec` saat decode.
+     */
+    @Test
+    fun maxCount_roundTrips_throughWire_defaultIsOmitted_andOutOfRangeIsRejected() {
+        fun screenOfField(f: FieldSpec) = InteractiveScreen(
+            PrototypeSpec(
+                listOf(EntitySpec("e", "E", listOf(f))),
+                listOf(ScreenSpec("t", "T", WidgetKind.TABLE, "e", table = TableConfig(listOf(f.key))))
+            ),
+            emptyMap()
+        )
+        val withMax = screenOfField(FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "pesanan", maxCount = 3))
+        val decoded = InteractiveScreenCodec.decode(InteractiveScreenCodec.encode(withMax))
+        assertEquals(3, decoded.spec.entities.single().fields.single().maxCount)
+
+        val op = SpecOp.AddField("e", FieldSpec("pic", "PIC", FieldType.USER_REF, maxCount = 2))
+        assertEquals(op, SpecOpCodec.decode(SpecOpCodec.encode(op)).getOrThrow(), "AddField membawa maxCount utuh")
+
+        val default = screenOfField(FieldSpec("rujukan", "Rujukan", FieldType.RELATION, target = "pesanan"))
+        assertFalse("\"maxCount\"" in InteractiveScreenCodec.encode(default).encode(), "bawaan 1 tidak ditulis (dokumen lama byte-identik)")
+
+        val raw = InteractiveScreenCodec.encode(withMax).encode()
+        val zero = runCatching { InteractiveScreenCodec.decode(JsonParser.parse(raw.replace("\"maxCount\":3", "\"maxCount\":0")) as JsonValue.Obj) }
+        assertTrue(zero.isFailure, "maxCount 0 ditolak invarian FieldSpec saat decode, bukan diredam")
     }
 }

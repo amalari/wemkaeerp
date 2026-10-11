@@ -236,7 +236,7 @@ class InteractiveTableTest {
         val fields = screen.spec.entity("item")!!.fields
         assertEquals(listOf(FieldType.TEXT, FieldType.NUMBER, FieldType.ENUM), fields.map { it.type }, "tipe turun dari hints, bukan semua TEXT")
         assertTrue(fields.first { it.key == "Bahan" }.required)
-        assertEquals(hints.options, fields.first { it.key == "Status" }.options)
+        assertEquals(hints.options, fields.first { it.key == "Status" }.optionLabels)
         screen.newStore() // seed lolos validasi bertipe ("420"/"96" angka)
     }
 

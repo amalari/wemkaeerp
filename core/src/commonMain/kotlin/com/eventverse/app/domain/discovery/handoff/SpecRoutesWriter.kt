@@ -33,6 +33,7 @@ internal object SpecRoutesWriter {
                 "com.eventverse.app.domain.prototype.PrototypeReducer", "com.eventverse.app.domain.prototype.PrototypeRow",
                 "com.eventverse.app.domain.prototype.PrototypeSpec", "com.eventverse.app.domain.prototype.PrototypeStore",
                 "com.eventverse.app.domain.prototype.StateMachine", "com.eventverse.app.domain.prototype.TextValidation", "com.eventverse.app.domain.rbac.AccessLevel",
+                "com.eventverse.app.domain.prototype.selectOptions",
                 "com.eventverse.app.domain.rbac.ModuleAssignmentRepository", "com.eventverse.app.domain.rbac.RoleRepository",
                 "com.eventverse.app.domain.tenant.TenantContext", "com.eventverse.app.plugins.tenantContextOrNull",
                 "com.eventverse.app.shared.json.JsonParser", "com.eventverse.app.shared.json.jsonArrayOf",
@@ -52,7 +53,7 @@ internal object SpecRoutesWriter {
             appendLine("private val DATE_FIELDS = listOf<FieldSpec>(${dateCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.DATE" + (if (it.field.withTime) ", withTime = true" else "") + ")" }})")
             appendLine("private val TIME_FIELDS = listOf<FieldSpec>(${timeCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TIME)" }})")
             appendLine("private val TEXT_FIELDS = listOf<FieldSpec>(${validatedTextCols.joinToString(", ") { "FieldSpec(" + SpecNaming.kString(it.field.key) + ", " + SpecNaming.kString(it.field.label) + ", FieldType.TEXT, validation = TextValidation." + it.field.validation.name + ")" }})")
-            appendLine("private val MULTI_FIELDS = listOf<FieldSpec>(${multiCols.joinToString(", ") { c -> "FieldSpec(" + SpecNaming.kString(c.field.key) + ", " + SpecNaming.kString(c.field.label) + ", FieldType.MULTI_SELECT, listOf(" + c.field.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + c.field.required + (c.field.maxSelections?.let { ", maxSelections = $it" } ?: "") + ")" }})")
+            appendLine("private val MULTI_FIELDS = listOf<FieldSpec>(${multiCols.joinToString(", ") { c -> "FieldSpec(" + SpecNaming.kString(c.field.key) + ", " + SpecNaming.kString(c.field.label) + ", FieldType.MULTI_SELECT, selectOptions(" + c.field.optionLabels.joinToString(", ") { SpecNaming.kString(it) } + "), " + c.field.required + (c.field.maxSelections?.let { ", maxSelections = $it" } ?: "") + ")" }})")
             appendLine()
             appendLine("/**")
             appendLine(" * CRUD ${t.entity.label}: baca = VIEW, tambah/ubah (termasuk pindah status) = OPERATE, hapus = MANAGE.")
@@ -171,8 +172,8 @@ internal object SpecRoutesWriter {
     fun entityLiteral(e: EntitySpec): String = buildString {
         append("EntitySpec(").append(SpecNaming.kString(e.id)).append(", ").append(SpecNaming.kString(e.label)).append(", listOf(")
         append(e.fields.joinToString(", ") { f ->
-            "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", listOf(" +
-                f.options.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
+            "FieldSpec(" + SpecNaming.kString(f.key) + ", " + SpecNaming.kString(f.label) + ", FieldType." + f.type.name + ", selectOptions(" +
+                f.optionLabels.joinToString(", ") { SpecNaming.kString(it) } + "), " + f.required +
                 (if (f.format == NumberFormat.PLAIN) "" else ", NumberFormat." + f.format.name +
                     (f.currencyCode?.let { ", " + SpecNaming.kString(it) } ?: "")) +
                 (if (f.withTime) ", withTime = true" else "") +
@@ -183,7 +184,9 @@ internal object SpecRoutesWriter {
                 (if (f.maxSelections != null) ", maxSelections = " + f.maxSelections else "") +
                 // A0 (penyatuan kosakata): decimals NUMBER ikut tercetak — SPEC di route wajib membawa
                 // invarian yang sama dengan prototype (aturan tunggal FieldSpec).
-                (if (f.decimals != null) ", decimals = " + f.decimals else "") + ")"
+                (if (f.decimals != null) ", decimals = " + f.decimals else "") +
+                // Penyatuan kosakata: maxCount (USER_REF/RELATION) ikut tercetak bila ≠ 1.
+                (if (f.maxCount != 1) ", maxCount = " + f.maxCount else "") + ")"
         })
         append(")")
         e.stateMachine?.let { sm ->

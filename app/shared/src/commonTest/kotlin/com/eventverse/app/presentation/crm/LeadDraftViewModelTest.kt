@@ -10,8 +10,8 @@ import com.eventverse.app.domain.customfield.CustomAttributes
 import com.eventverse.app.domain.customfield.CustomFieldId
 import com.eventverse.app.domain.customfield.CrmFieldType
 import com.eventverse.app.domain.prototype.FieldType
-import com.eventverse.app.domain.customfield.SelectOption
-import com.eventverse.app.domain.customfield.SelectOptionId
+import com.eventverse.app.domain.prototype.SelectOption
+import com.eventverse.app.domain.prototype.SelectOptionId
 import com.eventverse.app.infrastructure.api.LeadDraftDisabledException
 import com.eventverse.app.infrastructure.api.LeadDraftGateway
 import com.eventverse.app.presentation.crm.components.LeadFormState

@@ -72,7 +72,7 @@ class ChangeWidgetOpTest {
 
     @Test
     fun `dengan dua field pilihan petunjuk mesin status memutuskan kolom papan`() {
-        val prioritas = FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, listOf("Rendah", "Tinggi"))
+        val prioritas = FieldSpec("Prioritas", "Prioritas", FieldType.ENUM, selectOptions("Rendah", "Tinggi"))
         val e = ticket.spec.entities.single().copy(fields = ticket.spec.entities.single().fields + prioritas)
         val table = ScreenSpec("tbl", "Tabel Tiket", WidgetKind.TABLE, "tiket", table = TableConfig(listOf("Judul", "Status", "Prioritas")))
         val two = InteractiveScreen(PrototypeSpec(listOf(e), listOf(table)), ticket.seed)
@@ -105,7 +105,7 @@ class ChangeWidgetOpTest {
 
     @Test
     fun `papan ditolak bila hanya ada field status tanpa judul kartu`() {
-        val e = EntitySpec("s", "Status saja", listOf(FieldSpec("st", "Status", FieldType.ENUM, listOf("a", "b"))))
+        val e = EntitySpec("s", "Status saja", listOf(FieldSpec("st", "Status", FieldType.ENUM, selectOptions("a", "b"))))
         val only = InteractiveScreen(PrototypeSpec(listOf(e), listOf(ScreenSpec("t", "Status saja", WidgetKind.TABLE, "s", table = TableConfig(listOf("st"))))), emptyMap())
         assertTrue(failure(change(only, "t", WidgetKind.KANBAN)).contains("judul kartu"))
     }

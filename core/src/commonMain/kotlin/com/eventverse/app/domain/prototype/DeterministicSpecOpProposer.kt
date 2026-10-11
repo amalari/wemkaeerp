@@ -134,13 +134,13 @@ class DeterministicSpecOpProposer : SpecOpProposer {
             if (from == null || to == null) {
                 val unknown = listOf(fromName, toName).first { canonicalOption(it) == null }
                 throw IllegalArgumentException(
-                    "Status '$unknown' tidak ada di '${statusField.label}' (opsi: ${statusField.options.joinToString(", ")})."
+                    "Status '$unknown' tidak ada di '${statusField.label}' (opsi: ${statusField.optionLabels.joinToString(", ")})."
                 )
             }
             return SpecOp.AddTransition(entity.id, statusField.key, from, to)
         }
 
         private fun canonicalOption(name: String): String? =
-            statusField.options.firstOrNull { it.equals(name, ignoreCase = true) }
+            statusField.optionLabels.firstOrNull { it.equals(name, ignoreCase = true) }
     }
 }

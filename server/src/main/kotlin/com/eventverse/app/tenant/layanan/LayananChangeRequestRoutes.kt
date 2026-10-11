@@ -14,6 +14,7 @@ import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.prototype.PrototypeStore
 import com.eventverse.app.domain.prototype.StateMachine
+import com.eventverse.app.domain.prototype.selectOptions
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
@@ -43,7 +44,7 @@ import java.util.UUID
 private val MODULE = ModuleId("layanan_change_request")
 private const val ENTITY_ID = "change_request"
 private const val ID_PREFIX = "change_request"
-private val SPEC = PrototypeSpec(listOf(EntitySpec("change_request", "Permintaan Perubahan", listOf(FieldSpec("judul", "Judul", FieldType.TEXT, listOf(), true), FieldSpec("peminta", "Peminta", FieldType.TEXT, listOf(), false), FieldSpec("prioritas", "Prioritas", FieldType.ENUM, listOf("Rendah", "Sedang", "Tinggi"), false), FieldSpec("status", "Status", FieldType.ENUM, listOf("Baru", "Ditinjau", "Disetujui", "Selesai"), true), FieldSpec("perkiraan_jam", "Perkiraan jam", FieldType.NUMBER, listOf(), false), FieldSpec("target_selesai", "Target selesai", FieldType.DATE, listOf(), false), FieldSpec("mendesak", "Mendesak", FieldType.BOOL, listOf(), false), FieldSpec("catatan", "Catatan", FieldType.TEXT, listOf(), false)), StateMachine("status", mapOf("Baru" to setOf("Ditinjau"), "Ditinjau" to setOf("Baru", "Disetujui"), "Disetujui" to setOf("Ditinjau", "Selesai"), "Selesai" to setOf("Disetujui"))))), emptyList())
+private val SPEC = PrototypeSpec(listOf(EntitySpec("change_request", "Permintaan Perubahan", listOf(FieldSpec("judul", "Judul", FieldType.TEXT, listOf(), true), FieldSpec("peminta", "Peminta", FieldType.TEXT, listOf(), false), FieldSpec("prioritas", "Prioritas", FieldType.ENUM, selectOptions("Rendah", "Sedang", "Tinggi"), false), FieldSpec("status", "Status", FieldType.ENUM, selectOptions("Baru", "Ditinjau", "Disetujui", "Selesai"), true), FieldSpec("perkiraan_jam", "Perkiraan jam", FieldType.NUMBER, listOf(), false), FieldSpec("target_selesai", "Target selesai", FieldType.DATE, listOf(), false), FieldSpec("mendesak", "Mendesak", FieldType.BOOL, listOf(), false), FieldSpec("catatan", "Catatan", FieldType.TEXT, listOf(), false)), StateMachine("status", mapOf("Baru" to setOf("Ditinjau"), "Ditinjau" to setOf("Baru", "Disetujui"), "Disetujui" to setOf("Ditinjau", "Selesai"), "Selesai" to setOf("Disetujui"))))), emptyList())
 private val DATE_FIELDS = listOf<FieldSpec>(FieldSpec("target_selesai", "Target selesai", FieldType.DATE))
 
 /**
