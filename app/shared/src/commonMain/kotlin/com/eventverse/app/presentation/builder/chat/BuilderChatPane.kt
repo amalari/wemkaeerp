@@ -108,6 +108,8 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                             when (ev.type) {
                                 "status" -> runPhase = ev.field("phase")
                                 "question" -> runPhase = "waiting"
+                                "module_started" -> runPhase = "module:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
+                                "module_ready" -> runPhase = "ready:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
                                 "error" -> error = ev.field("message") ?: "Proses gagal"
                                 else -> Unit
                             }

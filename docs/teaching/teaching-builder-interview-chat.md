@@ -36,11 +36,12 @@ Urutan ini sengaja **dari domain murni ke luar**, dan tiap langkah punya tes seb
 
 1. **`core` — model utas.** `ChatMessage` mendapat `moduleId` (null = utas Semua), `kind` (TEXT/QUESTION), `questions`. Mengapa dulu? Semua lapisan lain bergantung pada bentuk pesan ini; mengubahnya belakangan menyentuh DB, route, dan UI sekaligus.
 2. **`core` — fungsi murni utas & follow-up.** `inThread()`, `pendingFollowUps()`, `composeNarrative()`. Tanpa I/O, jadi ditest dalam milidetik.
-3. **`core` — kontrak agent.** `NarrativeClarifier`, `ModuleEditor` berupa `fun interface`. Core tidak tahu LLM apa pun.
+3. **`core` — kontrak agent.** Builder memakai `InterviewPlanner` yang sama dengan Discovery; `ModuleEditor` tetap
+   berupa port kecil. Core tidak tahu provider LLM apa pun.
 4. **`core` — use case.** `SendBuilderMessageUseCase` (diperluas), `AskModuleFollowUpsUseCase`, `EditModuleFromChat`.
 5. **`core` — aturan data.** `ModuleGapAnalyzer` (celah dihitung dari data) dan `ProposalEdit` (sunting isian).
 6. **`server` — migrasi V93** (kolom aditif), repository, lalu **registri run + rute SSE**.
-7. **`server` — adaptor LLM** (`KoogNarrativeClarifier`, `KoogModuleEditor`) dan saklar env.
+7. **`server` — adaptor LLM** (`AgentInterviewPlanner`/`AgentInterviewGuesser`, `KoogModuleEditor`) dan saklar env.
 8. **`app/shared` — klien**: `startRun`/`runEvents`, tab utas, panel fokus, kolom ketik yang berubah saat ada pertanyaan.
 9. **Uji hidup di browser** dengan model sungguhan. Langkah ini menemukan satu bug yang tidak tertangkap tes (bagian 5).
 
@@ -106,18 +107,17 @@ route("/runs/{runId}/events") {
 ### Blok D — Penanya klarifikasi: satu putaran, bukan interogasi
 
 ```kotlin
-val asker = clarifier
-if (asker != null && moduleId == null && waiting.isEmpty() &&
-    thread.none { it.kind == ChatMessageKind.QUESTION }) {
-    val questions = runCatching { asker.clarify(composeNarrative(thread), existingModules) }
-        .getOrDefault(emptyList()).take(InterviewLimits.CLARIFICATIONS)
-    if (questions.isNotEmpty()) { /* simpan pesan QUESTION, hentikan giliran */ }
-}
+val prior = current.interview ?: InterviewSession(/* cerita awal */)
+val input = prior.copy(narrative = narrative, clarifications = answeredQuestions)
+val planned = planner.plan(current.copy(interview = input), input, narrative)
+    .takeIf { InterviewValidator.validate(it, current.pack).isEmpty() }
+    .takeIf { answeredQuestions.isEmpty() || !it.awaitingClarification }
 ```
 
 **Mengapa begini?**
-- **Aturan ditegakkan di kode, bukan di prompt.** Prompt boleh bilang "maksimal 3, sekali saja", tapi yang menjamin adalah `thread.none { QUESTION }` dan `.take(3)`. Model bisa lupa; `if` tidak.
-- `runCatching { ... }.getOrDefault(emptyList())`: penanya mati/timeout/keluaran rusak berarti **tidak bertanya**. Chat tidak pernah macet karena komponen "bonus".
+- **Aturan ditegakkan di kode, bukan di prompt.** Validator menolak sesi tak sah, jumlah pertanyaan dibatasi
+  `InterviewLimits.CLARIFICATIONS`, dan setelah jawaban pertama planner tidak boleh meminta putaran kedua.
+- Kegagalan planner selain pembatalan coroutine berarti **tidak bertanya**; `CancellationException` tetap dilempar.
 - Hanya di utas Semua. Utas modul punya mekanisme sendiri (Blok F).
 
 ### Blok E — Narasi gabungan: revisi dibaca bersama cerita awal
@@ -140,13 +140,14 @@ fun composeNarrative(thread: List<ChatMessage>, limit: Int = InterviewLimits.NAR
 ```kotlin
 object ModuleGapAnalyzer {
     fun analyze(draft: DiscoveryDraft, moduleId: String, limit: Int = 3): List<ModuleGap> { ... }
-    // NO_SCREEN, FEW_FIELDS, NO_REQUIRED, NO_STATUS_FLOW, GENERIC_SOURCE
+    // WHO_FILLS, WHAT_RECORDED, WHO_SEES, DONE_WHEN, REQUIRED_UNEXPLAINED
     fun unasked(gaps: List<ModuleGap>, thread: List<ChatMessage>): List<ModuleGap> // lewati yang sudah pernah ditanyakan
 }
 ```
 
 **Mengapa begini?**
-- Pertanyaan per modul **tidak perlu LLM**: "isian baru 2, apa lagi?" cukup dari `entity.fields.size`. Hemat biaya, deterministik, dan bisa dites.
+- Empat aspek resmi berasal dari `RequirementSpec`, bukan heuristik jumlah field. Field wajib yang belum disebut dalam
+  `whatRecorded` menjadi celah tambahan. Perhitungannya murah, deterministik, dan bisa dites.
 - `ModuleGap.code` (`gap:few_fields:<screenId>`) dipakai sebagai `Clarification.id`. Jadi tab yang dibuka berkali-kali tidak menanyakan hal yang sama (`unasked`).
 - `ModuleGapKind` adalah enum karena itu *mekanik platform* (macam kekurangan spesifikasi). Teks pertanyaan dirakit dari label milik tenant, tanpa kosakata industri.
 
@@ -199,11 +200,11 @@ fun briefContextOf(messages: List<ChatMessage>, included: Set<String>, narrative
 
 | Tahap | Menyala bila | Model |
 |---|---|---|
-| Penanya klarifikasi (pro) | `DISCOVERY_AGENT=koog` | `BUILDER_CLARIFIER_MODEL` → `DISCOVERY_AGENT_MODEL_PLAN` → `DISCOVERY_AGENT_MODEL` |
+| Perencana wawancara (pro) | `INTERVIEW_AGENT=koog` | `INTERVIEW_AGENT_MODEL_PLAN` → `INTERVIEW_AGENT_MODEL` |
 | Penyusun draf | `DISCOVERY_AGENT=koog` | `DISCOVERY_AGENT_MODEL` |
 | Penyunting modul (flash) | `INTERVIEW_AGENT=koog` | `BUILDER_MODULE_EDITOR_MODEL` → `INTERVIEW_AGENT_MODEL` |
 
-`BUILDER_CLARIFIER=off` / `BUILDER_MODULE_EDITOR=off` hanya pengecualian untuk mematikan satu fitur.
+`BUILDER_MODULE_EDITOR=off` adalah pengecualian untuk mematikan penyunting modul.
 
 Tanpa kunci API atau saklar agent induk, chat tetap jalan lewat jalur deterministik.
 
@@ -240,7 +241,7 @@ Tanpa kunci API atau saklar agent induk, chat tetap jalan lewat jalur determinis
 | Use case + fake repo | bertanya sekali, jawaban mengisi pertanyaan, gagal = tidak bertanya, utas modul tidak bertanya | `BuilderClarifyFlowTest`, `ModuleChatTest` |
 | Registri run | satu run aktif per tenant, isolasi tenant, replay `Last-Event-ID`, pembersihan | `BuilderRunRegistryTest` |
 | Rute + SSE | 202 → aliran berurutan, **403/401/404**, utas terfilter, follow-up per utas | `BuilderChatRunsRoutesTest` (klien SSE sungguhan di dalam proses) |
-| Adaptor LLM | parsing ketat, batas 3 pertanyaan, prompt memuat konteks | `KoogNarrativeClarifierTest`, `KoogModuleEditorTest` |
+| Adaptor LLM | parsing ketat, batas pertanyaan, prompt memuat konteks | `AgentInterviewPlannerTest`, `KoogModuleEditorTest` |
 | Klien | URL `?module=`, body run, parse follow-up, fokus modul | `BuilderChatThreadsTest` |
 | **Uji hidup** | SSE di browser Wasm; pro bertanya; flash menyunting; bug seed | Dicek di browser dengan model sungguhan |
 
@@ -255,6 +256,9 @@ assertNull(feedbacks[0]); assertTrue(feedbacks[1]!!.contains("sudah ada"), "perc
 
 ## 🏆 7. Tantangan Mandiri untuk Kamu (Self-Study Challenge)
 
-- [ ] **Tantangan 1 — Progres per modul yang jujur.** Sekarang peristiwa SSE hanya `status` (`planning`, `drafting`, `editing`). Rancang langkah hidrasi per modul (satu panggilan flash per modul) sehingga peristiwa `module_ready` benar-benar muncul satu per satu. Apa yang harus diubah di `BuilderRun` dan di `SendBuilderMessageUseCase`?
-- [ ] **Tantangan 2 — Celah baru.** Tambahkan `ModuleGapKind.NO_VIEW_FIELDS` (field ada tapi tidak satu pun tampil di tabel). Tulis tesnya dulu di pack **bengkel**, bukan klinik. Mengapa tes di tenant kedua penting?
+- [ ] **Tantangan 1 — Partial preview sejati.** Event `module_started`/`module_ready` sudah ada, tetapi dipancarkan
+  setelah proposal penuh tersedia. Rancang generator bertahap supaya preview modul pertama hadir saat modul berikutnya
+  masih disusun, tanpa menjadikan SSE sumber kebenaran.
+- [ ] **Tantangan 2 — Celah tampilan.** Tambahkan pemeriksaan field yang tercatat tetapi tidak muncul di view proposal.
+  Tulis tesnya dulu di pack **bengkel**, bukan klinik. Mengapa tes di tenant kedua penting?
 - [ ] **Tantangan 3 — Edit lintas field.** `ProposalEdit` belum punya `SetTransitions` (urutan perpindahan status Kanban). Rancang edit itu dan aturan sinkron ke `ViewProposal`; aturan validator mana yang harus tetap menjadi satu-satunya penentu?

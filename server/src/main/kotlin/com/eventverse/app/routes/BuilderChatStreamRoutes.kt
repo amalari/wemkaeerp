@@ -53,7 +53,15 @@ fun Route.builderChatStreamRoutes(
         val tenantId = call.tenantContext.tenantId
         val run = try {
             registry.start(tenantId) { run ->
-                send(tenantId, text, moduleId) { phase -> run.emit("status", "phase" to jsonOf(phase)) }.getOrThrow()
+                send(
+                    tenantId = tenantId,
+                    userText = text,
+                    moduleId = moduleId,
+                    onProgress = { phase -> run.emit("status", "phase" to jsonOf(phase)) },
+                    onModuleProgress = { id, title, ready ->
+                        run.emit(if (ready) "module_ready" else "module_started", "moduleId" to jsonOf(id), "title" to jsonOf(title))
+                    }
+                ).getOrThrow()
                 val last = chats.messages(chats.conversationFor(tenantId).id).lastOrNull()
                 // Pesan QUESTION = agent bertanya dulu; klien menampilkannya dan menunggu jawaban pengguna.
                 val type = if (last?.kind == com.eventverse.app.domain.builder.ChatMessageKind.QUESTION) "question" else "message"

@@ -1,20 +1,6 @@
 package com.eventverse.app.domain.builder
 
-import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.discovery.interview.InterviewLimits
-
-/**
- * Penanya klarifikasi **sebelum draf disusun** (PLAN-builder-interview-chat Fase B): membaca narasi (dan modul draf
- * yang sudah ada, bila ada) lalu menjawab *apakah ada hal pokok yang tak bisa disimpulkan*. Kosong = cukup jelas,
- * langsung susun draf. Tidak kosong = maksimal [InterviewLimits.CLARIFICATIONS] pertanyaan singkat yang ditanyakan
- * dulu di chat.
- *
- * Seperti agent lain, ia hanya **mengusulkan**: kegagalan apa pun (galat, timeout, keluaran rusak) berarti "tidak
- * bertanya" — chat tidak pernah macet karena penanya.
- */
-fun interface NarrativeClarifier {
-    suspend fun clarify(narrative: String, existingModules: List<String>): List<Clarification>
-}
 
 /**
  * Narasi gabungan satu utas untuk agent penyusun draf. Agent menyusun draf dari narasi utuh, jadi revisi pengguna

@@ -85,6 +85,8 @@ class BuilderChatThreadsTest {
         assertEquals("Menyusun draf...", runPhaseLabel("drafting"))
         assertEquals("Memproses...", runPhaseLabel(null))
         assertEquals("Menunggu jawaban Anda...", runPhaseLabel("waiting"))
+        assertEquals("Poli siap...", runPhaseLabel("ready:Poli"))
+        assertEquals("Menyiapkan Poli...", runPhaseLabel("module:Poli"))
         assertEquals("drafting", BuilderRunEvent(1, "status", """{"type":"status","phase":"drafting"}""").field("phase"))
         assertNull(BuilderRunEvent(1, "done", "bukan json").field("phase"))
     }
