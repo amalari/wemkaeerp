@@ -3,7 +3,7 @@
 ## 1. Document Context and Administration
 
 - **Title & ID**: TRD-FIELD-004 — Penyamaan gerbang DataScope/keberadaan record pada unggah-unduh FILE generik, validasi RELATION di modul hasil generate, guard tulis RELATION CRM, mitigasi MIME/header objek, dan jaring pengaman rute tulis berbasis spec
-- **Status**: **v0.4 — Track A, B1-B3, dan C1-C3 SELESAI.** Q4 punya TRD dan PLAN terpisah (`TRD-FIELD-004-Q4-datascope-crud-generate.md`, `PLAN-field-004-q4-datascope-crud-generate.md`). Q6 (`nosniff` di infra nyata), dan Q8 (wiring deployment di luar repo) tetap TERBUKA. Semua klaim lingkungan yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
+- **Status**: **v0.5 — Track A, B1-B3, dan C1-C3 SELESAI.** Q4 MVP SELESAI (reject HIERARCHICAL + owner_id column). Full DataScope filtering = Next Phase. Q6 (`nosniff` di infra nyata), dan Q8 (wiring deployment di luar repo) tetap TERBUKA. Semua klaim lingkungan yang tidak bisa dipastikan dari kode ditandai **[TAK TERVERIFIKASI]**.
 - **Basis**: `main` @ `bf9fbe65`. Pola acuan: TRD-PLAT-011/012 (audit rute -> gerbang -> level -> tes, Track A/B/C).
 - **Dokumen terkait**: `TRD-FIELD-001-relation.md`, `TRD-FIELD-002-file.md` (v0.4), `docs/teaching/teaching-field-file-tenant-ref-guard.md`, `.claude/rules/tenant-variability-rules.md` Kontrak 6/7, `field-component-rules.md`.
 
@@ -15,6 +15,7 @@
 | 0.2 | 2026-10-10 | Claude Sonnet 5.5 (atas permintaan Achmad) | Q1/Q2/Q3/Q5/Q7 disetujui. Track A selesai (A1 `79df6847`, A2 `ecc9975c`, A3 `9c771f7e`, A4 `ce44e3e1`). Catatan implementasi di "Status Track A" di bawah |
 | 0.3 | 2026-10-11 | Codex (implementasi FIELD-004-B3C) | B3: magic-byte + metadata S3; C1: regenerasi pilot + migrasi aditif V100; C2: drift/write-guard test; C3: teaching dan verifikasi |
 | 0.4 | 2026-10-11 | Claude Sonnet 5.5 | Q4 punya TRD/PLAN terpisah; update status |
+| 0.5 | 2026-10-11 | Claude Sonnet 5.5 | Q4 MVP selesai (reject HIERARCHICAL + owner_id); full DataScope = Next Phase |
 
 ### Summary & Business Context
 
