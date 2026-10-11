@@ -10,19 +10,35 @@
     "gradle.wrapperScript": "./gradlew",
     "gradle.useGradleDaemon": true,
     "java.jdt.ls.vmargs": "-XX:+UseG1GC -XX:+UseStringDeduplication -Dsun.zip.disableMemoryMapping=true -Xmx4G -Xms256m -Xlog:disable",
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archetype/**",
+        "**/META-INF/maven/**",
+        "**/.worktrees/**",
+        "**/.kilo/**"
+    ],
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
         "**/node_modules/**": true,
         "**/.gradle/**": true,
         "**/build/**": true,
-        "**/.kotlin/**": true
+        "**/.kotlin/**": true,
+        "**/.worktrees/**": true,
+        "**/.kilo/**": true
     },
     "java.project.resourceFilters": [
         "node_modules",
         "\\.git",
         "build",
         "\\.gradle",
-        "\\.kotlin"
-    ]
+        "\\.kotlin",
+        "\\.worktrees",
+        "\\.kilo"
+    ],
+    "search.exclude": {
+        "**/.worktrees": true,
+        "**/.kilo": true
+    }
 }
