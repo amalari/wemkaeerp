@@ -86,7 +86,13 @@ object CustomAttributesCodec {
             FieldType.NUMBER -> decodeNumberFormat(config)?.let { format ->
                 // Kunci `decimals` absen = tidak dibatasi (null). Baris lama selalu menulis kunci itu,
                 // jadi perilaku baris lama tidak berubah.
-                CrmFieldType(kind, format = format, currencyCode = config.string(KEY_CURRENCY_CODE), decimals = config.int(KEY_DECIMALS))
+                // `currencyCode` diteruskan HANYA untuk CURRENCY (perilaku lama: kode liar pada format
+                // lain diabaikan, bukan membuat baris lama gagal dibaca).
+                CrmFieldType(
+                    kind, format = format,
+                    currencyCode = if (format == NumberFormat.CURRENCY) config.string(KEY_CURRENCY_CODE) else null,
+                    decimals = config.int(KEY_DECIMALS)
+                )
             }
 
             FieldType.ENUM -> CrmFieldType(

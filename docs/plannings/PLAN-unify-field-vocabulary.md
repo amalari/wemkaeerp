@@ -18,7 +18,7 @@ Status lama ("belum diputuskan") dicabut oleh pemilik: **CRM belum dipakai user 
 
 ### 2a. Koreksi (ditemukan saat pelaksanaan)
 
-Klaim awal "`FieldSpec` superset CRM" **tidak akurat**. Yang benar: kosakata discovery sengaja tipis (opsi = `List<String>`, tanpa `maxCount`), CRM kaya (opsi berwarna + arsip lembut, `maxCount`, `NumberFormat` sendiri). Karena itu penyatuan dilakukan pada **registry tipe** (enum), bukan pada muatan parameter. Penyatuan parameter (satu `NumberFormat`, satu `SelectOption`, `maxCount` ke `FieldSpec`) **ditunda** — dicatat sebagai follow-up; tidak menghalangi manfaat utama (satu tempat pendaftaran tipe).
+Klaim awal "`FieldSpec` superset CRM" **tidak akurat**. Yang benar: kosakata discovery sengaja tipis (opsi = `List<String>`, tanpa `maxCount`), CRM kaya (opsi berwarna + arsip lembut, `maxCount`, `NumberFormat` sendiri). Karena itu penyatuan dilakukan pada **registry tipe** (enum), bukan pada muatan parameter. Penyatuan parameter (satu `NumberFormat`, satu `SelectOption`, `maxCount` ke `FieldSpec`) **ditunda** — dicatat sebagai follow-up; tidak menghalangi manfaat utama (satu tempat pendaftaran tipe). (**Selesai 2026-10-11 — lihat §3b.**)
 
 ## 3. Celah yang wajib ditutup A0 (kontrak, sebelum pelaksana) — ✅ SELESAI
 
@@ -38,8 +38,20 @@ Klaim awal "`FieldSpec` superset CRM" **tidak akurat**. Yang benar: kosakata dis
 
 Sisa follow-up (bukan penghalang):
 1. Opsi **SingleSelect/MULTI_SELECT di dialog "Tambah kolom"** CRM belum ditawarkan (butuh editor opsi berwarna) — pola sama seperti sebelum penyatuan; field-nya tetap terbaca & tervalidasi.
-2. Penyatuan muatan parameter (§2a): satu `NumberFormat`, `SelectOption`, `maxCount`→`FieldSpec`.
+2. ~~Penyatuan muatan parameter (§2a): satu `NumberFormat`, `SelectOption`, `maxCount`→`FieldSpec`.~~ ✅ **Selesai 2026-10-11** — lihat §3b.
 3. Cek visual CRM dengan field TIME/MULTI_SELECT di tenant uji (dialog + inspektur).
+
+### 3b. Penyatuan muatan parameter — ✅ selesai (2026-10-11)
+
+Dua langkah, satu PR, tanpa migrasi data (kawat config/opsi tidak berubah):
+
+1. **Satu `SelectOption`.** `SelectOption`/`SelectOptionId` pindah ke `core/.../domain/prototype/SelectOption.kt`; `FieldSpec.options` dan `CrmFieldType.options` memakai tipe yang sama. `colorHex` kini `String?` (`null` = belum diwarnai tenant; decode CRM tetap mewajibkan). Opsi prototype lahir dari nama polos (`SelectOption(label)`) dengan id internal = label terpotong; **nilai sel prototype tetap label** (kawat tetap larik string). `FieldSpec.optionLabels` jadi jembatan aturan berbasis label. CRM tetap menyimpan id opsi di sel.
+2. **Satu `NumberFormat` + `maxCount` di registry.** Sealed `NumberFormat` CRM dihapus → enum bersama ([`FieldSpec.kt`](../../core/src/commonMain/kotlin/com/eventverse/app/domain/prototype/FieldSpec.kt)) + `CrmFieldType.currencyCode`. Kawat config CRM (tag `plain`/`percent`/`currency` + `currencyCode`) tidak berubah. `maxCount` masuk `FieldSpec` (hanya USER_REF/RELATION boleh ≠ 1; ditulis di kawat prototype hanya bila ≠ 1).
+
+Batas yang **sengaja** belum disatukan (dicatat, bukan lupa):
+- `targetResource` CRM vs `target` prototype — konsep sama (rujukan RELATION) tapi kunci wire & bentuk berbeda; disatukan menyusul bila ada kebutuhan.
+- `maxCount > 1` belum ditegakkan di nilai sel oleh kedua kosakata (prototype v1 menyimpan satu id; CRM menyimpan satu id) — param terdaftar, penegakan multi-rujukan menyusul bersamaan.
+- Katalog agent discovery (`FieldHint`) belum mengekspos `maxCount` — param registry dulu, permukaan usulan menyusul.
 
 ## 4. Irisan pelaksanaan (track per direktori, boleh paralel setelah A0)
 

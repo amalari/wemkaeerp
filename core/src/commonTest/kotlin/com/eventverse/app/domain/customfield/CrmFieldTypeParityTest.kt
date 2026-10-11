@@ -213,6 +213,14 @@ class CrmFieldTypeParityTest {
                 jsonObjectOf("format" to jsonOf("percent"), "currencyCode" to jsonOf(null as String?), "decimals" to jsonOf(1))
             )
         )
+        // Kode mata uang "liar" pada format non-currency diabaikan (perilaku lama), bukan membuat baris gagal dibaca.
+        assertEquals(
+            CrmFieldType(FieldType.NUMBER),
+            CustomAttributesCodec.decodeFieldType(
+                "NUMBER",
+                jsonObjectOf("format" to jsonOf("plain"), "currencyCode" to jsonOf("IDR"))
+            )
+        )
     }
 
     // ---- validasi nilai per tipe ----------------------------------------------------------------
