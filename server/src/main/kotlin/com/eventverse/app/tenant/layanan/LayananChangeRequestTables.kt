@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 object LayananChangeRequestChangeRequestsTable : Table("layanan_change_request.change_requests") {
     val id = varchar("id", 64)
     val tenantId = varchar("tenant_id", 64).references(TenantsTable.id)
+    val ownerId = varchar("owner_id", 64).nullable()
     val judul = text("judul")
     val peminta = text("peminta").nullable()
     val prioritas = varchar("prioritas", 120).nullable()

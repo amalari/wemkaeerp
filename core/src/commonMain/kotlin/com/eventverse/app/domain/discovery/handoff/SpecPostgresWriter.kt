@@ -107,7 +107,6 @@ internal object SpecPostgresWriter {
             appendLine("        r[$tbl.ownerId]")
             appendLine("    )")
             appendLine("}")
-            appendLine("}")
         }
     }
 

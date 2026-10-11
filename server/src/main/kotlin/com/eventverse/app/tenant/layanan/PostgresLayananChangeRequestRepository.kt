@@ -51,6 +51,7 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
                 T.insert {
                     it[T.id] = row.id
                     it[T.tenantId] = tenantId.value
+                    it[T.ownerId] = row.owner
                     it[T.judul] = row["judul"]
                     it[T.peminta] = row["peminta"].ifBlank { null }
                     it[T.prioritas] = row["prioritas"].ifBlank { null }
@@ -85,6 +86,7 @@ class PostgresLayananChangeRequestRepository : PrototypeRowRepository {
             "catatan" to (r[T.catatan] ?: ""),
             "lampiran" to (r[T.lampiran] ?: ""),
             "rujukan" to (r[T.rujukan] ?: "")
-        )
+        ),
+        r[T.ownerId]
     )
 }
