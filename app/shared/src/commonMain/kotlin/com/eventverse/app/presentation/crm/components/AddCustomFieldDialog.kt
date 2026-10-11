@@ -35,13 +35,18 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 /**
  * Satu pilihan tipe kolom di dialog. [needsTarget] true untuk [FieldType.RELATION] (C7,
  * TRD-FIELD-001): target resource wajib diisi, jadi tipenya dibangun terpisah dari [build]
- * memakai input `targetResource` di dialog — bukan placeholder palsu.
+ * memakai input `targetResource` di dialog — bukan placeholder palsu. [selectKind] non-null
+ * untuk ENUM/MULTI_SELECT (follow-up #1 `PLAN-unify-field-vocabulary.md` §3a): tipenya dibangun
+ * dari editor opsi berwarna [SelectOptionsEditor], bukan [build] statis.
  */
 private data class FieldTypeOption(
     val label: String,
     val needsTarget: Boolean = false,
+    val selectKind: FieldType? = null,
     val build: (() -> CrmFieldType)? = null
-)
+) {
+    val needsOptions: Boolean get() = selectKind != null
+}
 
 private val FIELD_TYPE_OPTIONS = listOf(
     FieldTypeOption("Teks") { CrmFieldType(FieldType.TEXT) },
@@ -54,11 +59,11 @@ private val FIELD_TYPE_OPTIONS = listOf(
     // D7: jam dinding murni — diwarisi dari kosakata bersama, kontrolnya ClayTimePicker.
     FieldTypeOption("Jam") { CrmFieldType(FieldType.TIME) },
     FieldTypeOption("Ceklis") { CrmFieldType(FieldType.BOOL) },
+    // Follow-up #1 §3a: opsi (label + warna) diedit langsung di dialog; id opsi di-slug saat
+    // disimpan. MULTI_SELECT dibuat tanpa `maxSelections` (null = tidak dibatasi).
+    FieldTypeOption("Pilihan tunggal", selectKind = FieldType.ENUM),
+    FieldTypeOption("Pilihan ganda", selectKind = FieldType.MULTI_SELECT),
     FieldTypeOption("Rujukan ke Record", needsTarget = true)
-    // SingleSelect deliberately omitted from this quick-add dialog: it needs an options
-    // editor of its own (add/rename/reorder/archive choices), which is Phase 1.5 UI —
-    // seeded SingleSelect fields (Kategori Pakaian, Jenis Sablon, Warna Bahan) already exist
-    // via V22 and can be edited through a future "Kelola pilihan" screen.
 )
 
 /** Adds ONE custom field to the CRM Leads schema — `AccessLevel.MANAGE` only (enforced by the caller). */
@@ -72,13 +77,16 @@ fun AddCustomFieldDialog(
     var targetResource by remember { mutableStateOf("") }
     var isRequired by remember { mutableStateOf(false) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
+    var optionDrafts by remember { mutableStateOf(listOf(nextDraftColor(emptyList()))) }
 
     val selectedOption = FIELD_TYPE_OPTIONS[selectedTypeIndex]
     // Bentuk target dikunci aturan core yang sama dengan validator spec/server (Kontrak 4:
     // parser tunggal, tanpa fallback senyap) — jadi dialog tidak bisa menyimpan bentuk yang pasti 400.
     val targetValid = !selectedOption.needsTarget ||
         relationTargetFormatError(targetResource.trim()) == null
-    val canAdd = label.isNotBlank() && targetValid
+    // Kolom pilihan minimal punya satu opsi berlabel; baris kosong tidak pernah tersimpan.
+    val optionsValid = !selectedOption.needsOptions || hasActiveDraft(optionDrafts)
+    val canAdd = label.isNotBlank() && targetValid && optionsValid
 
     Dialog(onDismissRequest = onDismiss) {
         ClayCard(modifier = Modifier.width(420.dp)) {
@@ -130,6 +138,30 @@ fun AddCustomFieldDialog(
                     )
                 }
 
+                if (selectedOption.needsOptions) {
+                    Column {
+                        Text(
+                            text = "Pilihan",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WeMadeColors.OnSurface
+                        )
+                        SelectOptionsEditor(
+                            options = optionDrafts,
+                            onOptionsChange = { optionDrafts = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = ClaySpacing.Xs)
+                        )
+                        Text(
+                            text = "Baris tanpa label diabaikan saat disimpan.",
+                            fontSize = 10.sp,
+                            color = WeMadeColors.OnSurfaceMuted,
+                            modifier = Modifier.padding(top = ClaySpacing.Xs)
+                        )
+                    }
+                }
+
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     ClayCheckbox(checked = isRequired, onCheckedChange = { isRequired = it })
                     Text(
@@ -149,10 +181,12 @@ fun AddCustomFieldDialog(
                 ClayButton(
                     text = "Tambah",
                     onClick = {
-                        val type = if (selectedOption.needsTarget) {
-                            CrmFieldType(FieldType.RELATION, targetResource = targetResource.trim())
-                        } else {
-                            selectedOption.build?.invoke()
+                        val type = when {
+                            selectedOption.needsTarget ->
+                                CrmFieldType(FieldType.RELATION, targetResource = targetResource.trim())
+                            selectedOption.selectKind != null ->
+                                CrmFieldType(selectedOption.selectKind, options = buildSelectOptions(optionDrafts))
+                            else -> selectedOption.build?.invoke()
                         }
                         if (type != null) onAdd(label, type, isRequired)
                     },
