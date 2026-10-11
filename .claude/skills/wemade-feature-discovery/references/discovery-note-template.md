@@ -37,5 +37,13 @@
 |---|---|---|
 - Gate: · ScopeCapability: · Entitlement:
 
-## 8. Ukuran → TRD?
-- Agregat baru: · Migrasi: · → **TRD perlu / tidak**
+## 8. Ukuran, Effort & Rencana Track
+- **Agregat baru**: · **Migrasi DB**: · **TRD perlu**: Ya / Tidak
+- **Estimasi Effort**: Low / Medium
+- **Reasoning Effort**: <alasan: kompleksitas logika, jumlah file, skema data, risiko>
+- **Rencana Track**:
+  - Track 0 (Contract Phase — Serial / Prasyarat, bukan A0)
+  - Track A (Core & Domain — Fully Coding)
+  - Track B (Server & Persistence — Fully Coding)
+  - Track C (Client & UI Implementation — Fully Coding)
+  - Track D (UI Visual Check & Verification — Terpisah dari Track C)

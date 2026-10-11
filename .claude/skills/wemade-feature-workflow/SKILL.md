@@ -11,14 +11,14 @@ Aturan yang dirujuk: `.claude/rules/{tenant-variability,module-integration,desig
 | # | Gerbang | Kerjakan | Output wajib |
 |---|---|---|---|
 | 0 | **Discovery** | Skill `wemade-feature-discovery` | Discovery Note |
-| 1 | **Ukuran** | >1 agregat baru, ada migrasi, atau >1 lapisan besar → `trd-generator`; kalau tidak, rencana singkat | TRD atau rencana |
+| 1 | **Ukuran & Rencana** | Tentukan effort rating (`Low` / `Medium` + reasoning). >1 agregat baru, migrasi, atau >1 lapisan besar → `trd-generator`; jika tidak, buat rencana di `docs/plannings/PLAN-<slug>.md` (lihat [`references/planning-template.md`](references/planning-template.md)). Struktur wajib: **Track 0 (Kontrak serial)**, **Track A, B, C (Fully Coding paralel)**, dan **Track D (UI Check)**. | TRD atau PLAN (dengan reasoning effort & pembagian Track 0, A, B, C, D) |
 | 2 | **Domain dulu** | Skill `ddd-kotlin-multiplatform`; kontrak modul (module-integration-rules §3); aturan pakai peran, bukan nama | Test domain, **termasuk fixture template non-default** |
 | 3 | **Pendaftaran** | Ikuti module-integration-rules §5 sesuai jenis (5.1–5.4); port I/O §5.5 | Semua titik pendaftaran disentuh; test konsistensi pendaftaran hijau |
 | 4 | **Persistensi** | Migrasi **aditif**; dekode ketat (tidak fallback senyap); snapshot beku bila dokumen butuh | Migrasi dicoba di Postgres dev dalam `BEGIN … ROLLBACK` |
 | 5 | **API & governance** | Matriks operasi × level akses; gate modul (induk); tulis = fail-closed | Test **peran tidak berwenang = 403** + peran berwenang = 200 |
-| 6 | **UI** | Skill `compose-design-system`; UI dari data, bukan `when(enum)`; tidak ada literal warna | Layar di-host di modul yang benar; cabang `App.kt` memeriksa `accessDecisions` |
-| 7 | **Verifikasi** | Lihat daftar di bawah | Bukti tertulis di pesan akhir |
-| 8 | **Dokumentasi** | Skill `teaching` (CLAUDE.md §12); update TRD; bila rule/skill berubah → `scripts/sync-agent-config.sh` | Tautan doc |
+| 6 | **UI Coding (Track C)** | Skill `compose-design-system`; UI dari data, bukan `when(enum)`; tidak ada literal warna; murni penulisan kode & unit test ViewModel (tanpa verifikasi visual interaktif) | Layar di-host di modul yang benar; cabang `App.kt` memeriksa `accessDecisions`; test unit ViewModel hijau |
+| 7 | **Verifikasi & UI Check (Track D)** | Jalankan Track D (cek visual dengan mata di 2 tenant) + verifikasi teknis (lihat daftar di bawah) | Bukti tertulis di pesan akhir & konfirmasi visual |
+| 8 | **Dokumentasi** | Skill `teaching` (CLAUDE.md §12); update TRD/PLAN; bila rule/skill berubah → `scripts/sync-agent-config.sh` | Tautan doc |
 
 ## Gerbang 7 — Verifikasi (semua wajib)
 

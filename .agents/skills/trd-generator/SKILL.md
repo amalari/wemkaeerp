@@ -57,6 +57,15 @@ Represented in a markdown table:
 - **Assumptions, Constraints, & Dependencies**
 
 ## 5. Testing, Deployment, and Operations
+- **Effort Estimation & Reasoning**:
+  - **Rating**: `Low` atau `Medium` (atau `High` bila skala sistemik)
+  - **Reasoning**: Justifikasi kompleksitas (skala agregat/lapisan yang disentuh, ada/tidaknya migrasi DB, dependensi arsitektur, estimasi cycle)
+- **Parallel Execution Plan (Tracks)**:
+  - **Track 0 — Contract Phase (Serial / Prasyarat)**: Pembekuan kontrak awal (Value Objects, interface port repository di `core`, DTO JSON schema, dan fixture mock di `commonTest/resources`). Jangan digabung sebagai A0; Track 0 harus selesai & dibekukan terlebih dahulu agar Track A, B, dan C bisa berjalan 100% paralel tanpa saling blocking.
+  - **Track A — Core & Domain (Fully Coding)**: Implementasi murni kode domain, rules, use cases, aggregat, dan test paritas domain.
+  - **Track B — Server & Persistence (Fully Coding)**: Implementasi murni kode server, migrasi skema DB, repository Postgres, rute Ktor, dan test fail-closed (403 RBAC).
+  - **Track C — Client & UI Implementation (Fully Coding)**: Implementasi murni kode klien, ApiClient, ViewModel, dekomposisi composable/layar, dan test unit ViewModel. (Tidak bercampur dengan verifikasi visual runtime).
+  - **Track D — UI Visual Check & Verification**: Verifikasi visual interaktif di runtime/browser: pengecekan 2 tenant (`wemade-demo` superadmin dan non-rajut `bordir-uji` pada lebar ~1280dp), audit form states, dan kepatuhan desain Clay.
 - **Technical Acceptance Criteria (AC)**
 - **Testing Strategy**: Unit test coverage target, integration tests, E2E/UI verification
 - **Monitoring & Error Handling**: Error boundaries, diagnostics, logging triggers
