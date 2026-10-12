@@ -1,6 +1,6 @@
 # MVP Tasks Summary - WeMade ERP
 
-**Tanggal**: 2026-10-12
+**Tanggal**: 2026-10-13
 
 ## Jalur A - ERP Konveksi
 
@@ -42,19 +42,24 @@
 | B5 | Test gerbang keamanan modul | ✅ | `RouteOwnershipTest` (route tanpa pemilik gagal) + gerbang fail-closed [`TRD-PLAT-011`](../../trd/mvp/TRD-PLAT-011-orgchart-gates-fail-closed.md)/[`TRD-PLAT-012`](../../trd/mvp/TRD-PLAT-012-factory-flow-gates-fail-closed.md) + `AccessSnapshotB6Test` opt-in |
 | B6 | `BusinessModule` → `ModuleId` dari pack | ✅ | B6a–B6g: `BusinessModule` kini `typealias` = `ModuleId` (`BusinessModule.kt`); parser tunggal `ModuleIdCodec`; menu dari pack + `/m/{code}`; snapshot 690 keputusan akses |
 | B7 | Tenant Pack Dinamis | ✅ | [`TRD-PLAT-001-tenant-pack`](../../trd/mvp/TRD-PLAT-001-tenant-pack.md) v0.2 "**B7a–f selesai**"; bukti tenant `klinik-uji` di server nyata; `tenant/layanan/LayananPilotPack.kt` |
+| K1 | **Kriteria konvergensi §5** (butir 1) | ✅ | Paritas konveksi A=B: `AccessSnapshotB6Test` lulus 100% (690 snapshot identik); cek visual tenant rajut (`wemade-demo`) & bordir (`bordir-uji`) terverifikasi bersih di browser Wasm Compose |
 
 ### Belum ⏳ (sisa Jalur B)
 | # | Task | Prioritas | Catatan |
 |---|---|---|---|
-| K1 | **Kriteria konvergensi §5** PLAN-dual-track: paritas penuh A=B + cek visual rajut & bordir | TINGGI | Syarat A pindah ke B; jalankan `AccessSnapshotB6Test` + cek visual 2 tenant |
-| K2 | Migrasi data tenant A → B teruji di salinan DB produksi (entitlement, peran, SPK beku) | SEDANG | Baru bisa diuji begitu ada salinan DB produksi |
-| K3 | Generator AI pack + wizard discovery self-service (non-goal B7 yang sengaja ditunda) | RENDAH | Kontrak sudah disiapkan B7; tunggu kebutuhan klien |
+| K2 | Migrasi data tenant A → B teruji di salinan DB produksi (entitlement, peran, SPK beku) | SEDANG | Syarat §5 butir 3; baru bisa diuji begitu ada salinan DB produksi |
+| K3 | Builder Wizard Self-Service (Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
+| K3a | UI popup/render followUp dari API chat | **TINGGI** | Modal untuk tampilkan pertanyaan Clarification dari AI |
+| K3b | Form input jawaban follow-up (per pertanyaan) | **TINGGI** | Input field sesuai tipe pertanyaan; submit ke chat |
+| K3c | Integrasi follow-up answered ke chat flow | **TINGGI** | Kirim jawaban sebagai pesan chat; trigger next AI response |
+| K3d | UI wizard shell (guided self-service) | SEDANG | Layout wizard: stepper/tabs untuk Fase A→B→C |
 
 **TRD & Planning**: B0–B7 semuanya sudah tertutup dokumen —
-discovery (`discovery-B0/B4/B7-*.md`), TRD (`TRD-PLAT-001-blueprint`, `TRD-PLAT-001-tenant-pack`,
+discovery (`discovery-B0/B4/B7-*.md`), TRD (`TRD-PLAT-001_blueprint`, `TRD-PLAT-001-tenant-pack`,
 TRD-PLAT-004/005/008/009/011/012), dan roadmap induk
 [`PLAN-dual-track-garment-and-general-platform.md`](PLAN-dual-track-garment-and-general-platform.md) §4.
-Tidak perlu dokumen baru sampai K1–K3 dimulai.
+
+K3: Follow-up UI sudah ada backend (`AskModuleFollowUpsUseCase`, `Clarification`, `followUp` di API).Yang belum adalah UI layer — render popup dari response `followUp`, user isi di modal, lalu lanjut chat.
 
 ---
 
