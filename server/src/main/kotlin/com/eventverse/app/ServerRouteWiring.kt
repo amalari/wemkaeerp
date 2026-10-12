@@ -21,6 +21,8 @@ import com.eventverse.app.domain.sampling.SamplingOrderRepository
 import com.eventverse.app.domain.techpack.TechPackRepository
 import com.eventverse.app.domain.traceability.TraceContainerRepository
 import com.eventverse.app.domain.traceability.TraceWorkOrderProvider
+import com.eventverse.app.infrastructure.PostgresFulfillmentPackingCartonRepository
+import com.eventverse.app.infrastructure.PostgresFulfillmentPackingShipmentRepository
 import com.eventverse.app.infrastructure.storage.BenchmarkImageStorage
 import com.eventverse.app.infrastructure.traceability.KnitWorksheetBuilder
 import com.eventverse.app.infrastructure.traceability.SpkCardBuilder
@@ -213,6 +215,15 @@ fun Route.operationalModuleRoutes(
     fulfillmentRouteRoutes(
         routes = handoverRouteRepository,
         routeConfigRepository = fulfillmentRouteConfigRepository,
+        roleRepository = roleRepo
+    )
+
+    // Rute packing karton & pengiriman eksternal (TRD-FUL-001 Track B)
+    val fulfillmentCartonRepository = PostgresFulfillmentPackingCartonRepository()
+    val fulfillmentShipmentRepository = PostgresFulfillmentPackingShipmentRepository()
+    fulfillmentPackingRoutes(
+        cartonRepository = fulfillmentCartonRepository,
+        shipmentRepository = fulfillmentShipmentRepository,
         roleRepository = roleRepo
     )
 

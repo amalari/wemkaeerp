@@ -3,6 +3,7 @@ package com.eventverse.app.domain.fulfillment.shipment
 import com.eventverse.app.domain.tenant.TenantId
 import com.eventverse.app.domain.fulfillment.carton.CartonId
 import kotlinx.datetime.Instant
+import kotlin.jvm.JvmInline
 
 /**
  * Operasi domain pengiriman eksternal — bukan DAO generik.

@@ -155,6 +155,20 @@ enum class AppNavScreen(
         businessModule = GarmentModules.FULFILLMENT,
         isNavMenuItem = false
     ),
+    PACKING_BENCH(
+        route = "/fulfillment/packing",
+        title = "Meja Packing",
+        aliases = listOf("/packing-bench", "/packing"),
+        businessModule = GarmentModules.FULFILLMENT,
+        isNavMenuItem = false
+    ),
+    SHIPMENT_LIST(
+        route = "/fulfillment/shipments",
+        title = "Daftar Pengiriman",
+        aliases = listOf("/shipments", "/pengiriman"),
+        businessModule = GarmentModules.FULFILLMENT,
+        isNavMenuItem = false
+    ),
     MASTER_DATA(
         route = "/master-data",
         title = "Master Data Bahan & Harga",

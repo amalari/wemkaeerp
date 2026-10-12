@@ -88,7 +88,9 @@ fun FulfillmentWorkspaceScreen(
             state = state,
             canApprove = canApprove,
             onNavigateToSuratJalan = { navigator(AppNavScreen.SURAT_JALAN) },
-            onNavigateToRouteSettings = { navigator(AppNavScreen.FULFILLMENT_ROUTE_SETTINGS) }
+            onNavigateToRouteSettings = { navigator(AppNavScreen.FULFILLMENT_ROUTE_SETTINGS) },
+            onNavigateToPackingBench = { navigator(AppNavScreen.PACKING_BENCH) },
+            onNavigateToShipments = { navigator(AppNavScreen.SHIPMENT_LIST) }
         )
 
         state.error?.let { message ->
@@ -171,7 +173,9 @@ private fun HeaderCard(
     state: FulfillmentUiState,
     canApprove: Boolean,
     onNavigateToSuratJalan: () -> Unit = {},
-    onNavigateToRouteSettings: () -> Unit = {}
+    onNavigateToRouteSettings: () -> Unit = {},
+    onNavigateToPackingBench: () -> Unit = {},
+    onNavigateToShipments: () -> Unit = {}
 ) {
     ClayCard {
         Row(
@@ -220,6 +224,16 @@ private fun HeaderCard(
                         onClick = onNavigateToRouteSettings
                     )
                 }
+                ClayButton(
+                    text = "Packing",
+                    style = ClayButtonStyle.Secondary,
+                    onClick = onNavigateToPackingBench
+                )
+                ClayButton(
+                    text = "Pengiriman",
+                    style = ClayButtonStyle.Secondary,
+                    onClick = onNavigateToShipments
+                )
                 ClayButton(
                     text = "Surat Jalan",
                     style = ClayButtonStyle.Secondary,

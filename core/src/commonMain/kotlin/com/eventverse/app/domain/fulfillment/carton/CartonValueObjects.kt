@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.fulfillment.carton
 
 import kotlin.jvm.JvmInline
+import kotlinx.datetime.Clock
 
 @JvmInline
 value class CartonNumber(val value: String) {
@@ -32,7 +33,7 @@ value class SealNumber(val value: String) {
 
     companion object {
         fun generate(): SealNumber {
-            val timestamp = System.currentTimeMillis()
+            val timestamp = Clock.System.now().toEpochMilliseconds()
             val random = (1000..9999).random()
             return SealNumber("SL-$timestamp-$random")
         }

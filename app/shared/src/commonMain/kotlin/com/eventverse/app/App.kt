@@ -497,6 +497,50 @@ fun App() {
                                 }
                             ) { com.eventverse.app.presentation.transfer.SuratJalanWorkspaceScreen() }
                         }
+                        AppNavScreen.PACKING_BENCH -> {
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                decision = screen.businessModule?.let { accessDecisions[it] },
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(targetModuleName = screen.title, onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    })
+                                }
+                            ) {
+                                val canManage = (screen.businessModule?.let { accessDecisions[it] }?.config?.level?.weight
+                                    ?: 0) >= com.eventverse.app.domain.rbac.AccessLevel.MANAGE.weight
+                                com.eventverse.app.presentation.fulfillment.packing.PackingBenchScreen(
+                                    canManage = canManage,
+                                    tenantSlug = session?.tenantSlug ?: ""
+                                )
+                            }
+                        }
+                        AppNavScreen.SHIPMENT_LIST -> {
+                            GovernanceModuleGate(
+                                screen = screen,
+                                isAuthenticated = isAuthenticated,
+                                decision = screen.businessModule?.let { accessDecisions[it] },
+                                persona = activePersona,
+                                tenantName = session?.tenantSlug ?: "pabrik ini",
+                                authGuard = {
+                                    AuthGuardCard(targetModuleName = screen.title, onLoginClick = {
+                                        pendingRedirectScreen = screen
+                                        navigateTo(AppNavScreen.LOGIN)
+                                    })
+                                }
+                            ) {
+                                val canManage = (screen.businessModule?.let { accessDecisions[it] }?.config?.level?.weight
+                                    ?: 0) >= com.eventverse.app.domain.rbac.AccessLevel.MANAGE.weight
+                                com.eventverse.app.presentation.fulfillment.packing.ShipmentListScreen(
+                                    canManage = canManage,
+                                    tenantSlug = session?.tenantSlug ?: ""
+                                )
+                            }
+                        }
                         AppNavScreen.MODULE -> if (isAuthenticated) {
                             GenericModuleRoute(path = modulePath, accessDecisions = accessDecisions, persona = activePersona)
                         } else AuthGuardCard(targetModuleName = screen.title, onLoginClick = { navigateTo(AppNavScreen.LOGIN) })

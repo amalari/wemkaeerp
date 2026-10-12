@@ -2,6 +2,7 @@ package com.eventverse.app.domain.fulfillment.carton
 
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
+import kotlin.jvm.JvmInline
 
 /**
  * Operasi domain karton packing — bukan DAO generik.
