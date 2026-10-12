@@ -178,7 +178,9 @@ class TenantPipelineProjectorTest {
         val full = TenantPipelineProjector.project(fullFactory)
         val lean = TenantPipelineProjector.project(leanFactory)
 
+        // Default FOB has all 9 modules active
         assertEquals(9, full.activeModulesCount)
+        // After bypassing inventory, lean has 8 active
         assertEquals(8, lean.activeModulesCount)
         assertNotNull(lean.nodes.firstOrNull { it.title == "Jahit Borongan Rumahan" })
         assertTrue(full.nodes.none { it.title == "Jahit Borongan Rumahan" })

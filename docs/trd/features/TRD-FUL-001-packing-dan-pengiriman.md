@@ -13,6 +13,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-12 | Kilo (atas persetujuan Achmad) | Draf dari Discovery Note |
+| 0.2 | 2026-10-12 | Kilo | **Track 0 selesai.** VO + status + repository (termasuk `getNextCartonSequence`) + codec `PackingCartonCodec`/`DispatchShipmentCodec` + fixture & tes round-trip hijau. Keputusan format nomor (§4.5) diputuskan. |
 
 ### Summary & Business Context
 
@@ -192,11 +193,17 @@ Tiga tabel didaftarkan di `ModuleSchemaMap` (kepemilikan schema `fulfillment`). 
 
 ### 4.5 Assumptions, Constraints, Dependencies
 
+- **Format nomor (diputuskan Track 0, 2026-10-12)**: karton `CTN-<tahun>-<seq>` dan SJ
+  `SJ-<tahun>-<seq>`, seq 4 digit zero-padded, **unik per tenant** (bukan global). Format
+  dikunci regex di value object (`CartonNumber`, `ShipmentNumber`) — payload di luar format
+  ditolak saat parse/decode, bukan dinormalisasi. Seq diperoleh dari repository secara
+  **transaksional** (`getNextCartonSequence` / `getNextShipmentSequence` per `tenantId`+tahun;
+  implementasi Track B = counter tabel dalam transaksi, alternatif max+1). Bentrok unik pada
+  konkurensi → unique index per tenant → 409 di lapisan server, bukan 500. Nomor tidak pernah
+  didaur ulang, termasuk setelah cancel/reopen.
 - Unit lolos QC tersedia lewat penerimaan handover yang sudah berjalan (TRD-FLOW-003).
 - Schema `fulfillment` dan gerbang `hasFulfillmentAccess` sudah ada (V54/V61/V76).
 - Nomor migrasi `V102` (terbaru saat ini `V101`); angka final ditetapkan saat implementasi.
-- Nomor SJ & karton unik per tenant (bukan global) — format `SJ-<tahun>-<seq>`, seq dari counter tabel
-  atau max+1 dalam transaksi (diputuskan Track 0).
 
 ---
 

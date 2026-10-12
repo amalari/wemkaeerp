@@ -33,6 +33,7 @@ import com.eventverse.app.domain.pack.GarmentModules
 
 import com.eventverse.app.domain.costing.usecases.GetCostingNodeTelemetryUseCase
 import com.eventverse.app.domain.crm.usecases.GetCrmNodeTelemetryUseCase
+import com.eventverse.app.domain.masterdata.usecases.GetInventoryNodeTelemetryUseCase
 import com.eventverse.app.domain.production.usecases.GetProductionTelemetryUseCase
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.techpack.usecases.GetTechPackNodeTelemetryUseCase
@@ -63,5 +64,11 @@ class CrmTelemetryProvider(private val useCase: GetCrmNodeTelemetryUseCase) : Mo
 /** TechPack: WIP = draft + released; health berdasarkan rasio draft. */
 class TechPackTelemetryProvider(private val useCase: GetTechPackNodeTelemetryUseCase) : ModuleTelemetryProvider {
     override val module = GarmentModules.TECH_PACK_BOM
+    override suspend fun read(tenantId: TenantId) = useCase(tenantId)
+}
+
+/** Inventory: WIP = material aktif; health dari rasio material aktif tanpa harga acuan. */
+class InventoryTelemetryProvider(private val useCase: GetInventoryNodeTelemetryUseCase) : ModuleTelemetryProvider {
+    override val module = GarmentModules.INVENTORY
     override suspend fun read(tenantId: TenantId) = useCase(tenantId)
 }

@@ -125,6 +125,12 @@ fun Route.operationalModuleRoutes(
             ),
             com.eventverse.app.domain.pipeline.TechPackTelemetryProvider(
                 com.eventverse.app.domain.techpack.usecases.GetTechPackNodeTelemetryUseCase(techPackRepo)
+            ),
+            com.eventverse.app.domain.pipeline.InventoryTelemetryProvider(
+                com.eventverse.app.domain.masterdata.usecases.GetInventoryNodeTelemetryUseCase(
+                    materialRepository = materialRepo,
+                    priceRepository = materialPriceRepo
+                )
             )
         ),
         roleRepository = roleRepo,

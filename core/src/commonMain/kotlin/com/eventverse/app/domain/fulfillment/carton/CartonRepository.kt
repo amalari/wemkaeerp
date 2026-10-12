@@ -34,6 +34,14 @@ interface CartonRepository {
     )
 
     suspend fun getPackingQueue(tenantId: TenantId): List<PackingQueueItem>
+
+    /**
+     * Nomor urut karton berikutnya untuk `(tenant, tahun)` — dipakai use case U2
+     * untuk membentuk `CartonNumber` (`CTN-<tahun>-<seq>`). Implementasi wajib
+     * transaksional (counter tabel / max+1 dalam transaksi) agar dua pembuat karton
+     * bersamaan tidak mendapat nomor sama; bentrok unik → 409 di lapisan server.
+     */
+    suspend fun getNextCartonSequence(tenantId: TenantId, year: Int): Int
 }
 
 @JvmInline
