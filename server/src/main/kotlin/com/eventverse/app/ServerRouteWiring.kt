@@ -43,6 +43,7 @@ import io.ktor.server.routing.route
 fun Route.operationalModuleRoutes(
     samplingOrderRepo: SamplingOrderRepository,
     crmDealRepo: DealRepository,
+    crmLeadRepo: com.eventverse.app.domain.crm.CrmLeadRepository,
     bulkWorkOrderRepo: BulkWorkOrderRepository,
     materialRepo: MaterialItemRepository,
     materialPriceRepo: MaterialPriceRepository,
@@ -118,6 +119,12 @@ fun Route.operationalModuleRoutes(
             ),
             com.eventverse.app.domain.pipeline.ProductionTelemetryProvider(
                 com.eventverse.app.domain.production.usecases.GetProductionTelemetryUseCase(bulkWorkOrderRepo)
+            ),
+            com.eventverse.app.domain.pipeline.CrmTelemetryProvider(
+                com.eventverse.app.domain.crm.usecases.GetCrmNodeTelemetryUseCase(crmLeadRepo)
+            ),
+            com.eventverse.app.domain.pipeline.TechPackTelemetryProvider(
+                com.eventverse.app.domain.techpack.usecases.GetTechPackNodeTelemetryUseCase(techPackRepo)
             )
         ),
         roleRepository = roleRepo,

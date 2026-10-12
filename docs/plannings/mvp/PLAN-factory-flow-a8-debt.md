@@ -152,12 +152,12 @@ A8e ──┼──► A8c ──► A8a ──► A8b
 
 ## 7. Definition of Done per Item
 
-### A8a (BELUM DIMULAI)
-- [ ] Telemetry provider untuk CRM
-- [ ] Telemetry provider untuk Inventory
-- [ ] Telemetry provider untuk TechPack
-- [ ] Telemetry provider untuk QC
-- [ ] Telemetry provider untuk Fulfillment
+### A8a (SELESAI)
+- [x] Telemetry provider untuk CRM - `GetCrmNodeTelemetryUseCase` + `CrmTelemetryProvider`
+- [x] Telemetry provider untuk TechPack - `GetTechPackNodeTelemetryUseCase` + `TechPackTelemetryProvider`
+- [ ] Telemetry provider untuk Inventory - belum ada repository
+- [ ] Telemetry provider untuk QC - belum ada repository terpisah
+- [ ] Telemetry provider untuk Fulfillment - belum ada repository
 - [ ] Test: KPI menampilkan data dari semua modul
 
 ### A8b (SELESAI)
@@ -184,11 +184,11 @@ A8e ──┼──► A8c ──► A8a ──► A8b
 
 | Item | Effort | Risiko | Status |
 |---|---|---|---|
-| A8a | Medium | Rendah | **Belum mulai** |
+| A8a | Medium | Rendah | **Sebagian selesai** (CRM + TechPack done; Inventory/QC/Fulfillment need repos) |
 | A8b | Low | Rendah | **Selesai** |
 | A8c | Low | Rendah | **Preemptif** |
 | A8d | Low | Rendah | **Selesai** |
 | A8e | Low | Rendah | **Selesai** |
 
 **Realisasi**: 4/5 item sudah selesai atau tidak perlu dilakukan.
-**Sisa**: A8a butuh work substantif (telemetry provider per modul).
+**Sisa**: Inventory/QC/Fulfillment butuh implementasi modul terlebih dahulu.

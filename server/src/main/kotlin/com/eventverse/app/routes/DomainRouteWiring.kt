@@ -258,6 +258,7 @@ class DomainRouteWiring(
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,
             crmDealRepo = crmDealRepo,
+            crmLeadRepo = crmLeadRepo,
             bulkWorkOrderRepo = bulkWorkOrderRepo,
             materialRepo = materialRepo,
             materialPriceRepo = materialPriceRepo,
