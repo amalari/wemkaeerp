@@ -21,7 +21,7 @@ internal data class BuilderChatEntry(
 internal data class ChatQuestion(val id: String, val text: String, val answered: Boolean)
 
 /** Follow-up yang menunggu di utas (hasil hitung server saat riwayat dimuat). */
-internal data class PendingQuestion(val id: String, val text: String, val moduleId: String?)
+data class PendingQuestion(val id: String, val text: String, val moduleId: String?)
 
 internal fun parseFollowUp(raw: JsonValue): List<PendingQuestion> =
     (((raw as? JsonValue.Obj)?.get("followUp") as? JsonValue.Obj)?.get("questions") as? JsonValue.Arr)?.items

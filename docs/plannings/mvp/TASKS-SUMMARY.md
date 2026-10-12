@@ -52,7 +52,7 @@
 | K3a | UI popup/render followUp dari API chat | **TINGGI** | Modal untuk tampilkan pertanyaan Clarification dari AI |
 | K3b | Form input jawaban follow-up (per pertanyaan) | **TINGGI** | Input field sesuai tipe pertanyaan; submit ke chat |
 | K3c | Integrasi follow-up answered ke chat flow | **TINGGI** | Kirim jawaban sebagai pesan chat; trigger next AI response |
-| K3d | UI wizard shell (guided self-service) | SEDANG | Layout wizard: stepper/tabs untuk Fase A→B→C |
+| K3d | UI wizard shell (guided self-service) | ~~SEDANG~~ → DIBATALKAN | Chat flow yang ada sudah cukup fluid; stepperoptional nanti kalau dibutuhkan |
 
 **TRD & Planning**: B0–B7 semuanya sudah tertutup dokumen —
 discovery (`discovery-B0/B4/B7-*.md`), TRD (`TRD-PLAT-001_blueprint`, `TRD-PLAT-001-tenant-pack`,

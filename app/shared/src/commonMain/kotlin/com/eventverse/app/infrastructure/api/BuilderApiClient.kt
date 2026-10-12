@@ -74,11 +74,21 @@ class BuilderApiClient(
             .map { ((it as? JsonValue.Obj)?.get("created") as? JsonValue.Bool)?.value == true }
 
     /** POST /api/builder/chat/runs — mulai run asinkron (202); mengembalikan `runId`. 409 bila masih ada run aktif. */
-    suspend fun startRun(text: String, module: String? = null): Result<String> =
+    suspend fun startRun(text: String, module: String? = null, answered: List<Pair<String, String>>? = null): Result<String> =
         call(
             HttpMethod.Post,
             "/api/builder/chat/runs",
-            """{"text":${JsonValue.Str(text).encode()}""" + (module?.let { ""","module":${JsonValue.Str(it).encode()}""" } ?: "") + "}"
+            buildString {
+                append("""{"text":${JsonValue.Str(text).encode()}""")
+                module?.let { append(""","module":${JsonValue.Str(it).encode()}""" ) }
+                answered?.let { ans ->
+                    val answeredJson = ans.joinToString(",") { (id, answ) ->
+                        """[${JsonValue.Str(id).encode()},${JsonValue.Str(answ).encode()}]"""
+                    }
+                    append(""","answered":[$answeredJson]""" )
+                }
+                append("}")
+            }
         ).mapCatching { (it as? JsonValue.Obj)?.string("runId")?.takeIf(String::isNotBlank) ?: error("Respons run tidak memuat runId") }
 
     /**

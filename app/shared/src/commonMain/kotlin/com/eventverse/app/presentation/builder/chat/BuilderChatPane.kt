@@ -64,12 +64,21 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     var thread by remember { mutableStateOf<String?>(null) }
     var runPhase by remember { mutableStateOf<String?>(null) }
     var pendingByThread by remember { mutableStateOf<Map<String?, Int>>(emptyMap()) }
+    // Follow-up modal state: tracking questions dan visibility
+    var currentQuestions by remember { mutableStateOf<List<PendingQuestion>>(emptyList()) }
+    var showFollowUpModal by remember { mutableStateOf(false) }
 
     suspend fun reloadChat() {
         client.chat(thread).onSuccess { raw ->
             messages = parseMessages(raw)
             // Follow-up dihitung server setiap riwayat dimuat; utas Semua mencakup semua utas.
-            pendingByThread = pendingByThread + (thread to parseFollowUp(raw).size)
+            val followUps = parseFollowUp(raw)
+            pendingByThread = pendingByThread + (thread to followUps.size)
+            // Simpan pertanyaan untuk modal dan trigger jika ada yang belum dijawab
+            if (followUps.isNotEmpty()) {
+                currentQuestions = followUps
+                showFollowUpModal = true
+            }
         }.onFailure { error = it.message }
     }
     suspend fun reloadDraft() {
@@ -120,6 +129,38 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                 }
                 .onFailure { e -> error = e.message }
             runPhase = null
+            busy = false
+        }
+    }
+
+    fun skipFollowUps() {
+        showFollowUpModal = false
+        currentQuestions = emptyList()
+    }
+
+    fun submitFollowUpAnswers(answers: List<Pair<String, String>>) {
+        if (answers.isEmpty() || busy) return
+        // Filter hanya pertanyaan yang sudah dijawab (tidak kosong)
+        val validAnswers = answers.filter { it.second.isNotBlank() }
+        if (validAnswers.isEmpty()) {
+            skipFollowUps()
+            return
+        }
+        scope.launch {
+            busy = true
+            error = null
+            // Format: "Jawab pertanyaan {id}: {jawaban}, {id}: {jawaban}, ..." dan answered list
+            val text = validAnswers.joinToString(", ") { (id, answ) ->
+                "pertanyaan $id: $answ"
+            }.let { "Jawab $it" }
+            client.startRun(text, thread, validAnswers)
+                .onSuccess { runId ->
+                    showFollowUpModal = false
+                    currentQuestions = emptyList()
+                    reloadChat()
+                    reloadDraft()
+                }
+                .onFailure { e -> error = e.message }
             busy = false
         }
     }
@@ -222,6 +263,16 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                     }
                     panelOpen -> panel(Modifier.fillMaxSize())
                     else -> chat(Modifier.fillMaxSize())
+                }
+                // Follow-up modal overlay
+                if (showFollowUpModal && currentQuestions.isNotEmpty()) {
+                    FollowUpModal(
+                        questions = currentQuestions,
+                        moduleId = thread,
+                        onSubmit = ::submitFollowUpAnswers,
+                        onSkip = ::skipFollowUps,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
             }
         }
