@@ -60,7 +60,7 @@ Tidak perlu dokumen baru sampai K1–K3 dimulai.
 
 ## Catatan
 
-- **Inventory/QC/Fulfillment telemetry**: butuh modul/repository lebih dulu
+- **Inventory/QC/Fulfillment telemetry**: Inventory selesai 2026-10-12 (metrik katalog, bukan stok — lihat `PLAN-factory-flow-a8-debt.md` §1.1); QC/Fulfillment butuh modul/repository lebih dulu
 - **A2**: satu-satunya MVP Jalur A yang belum dimulai
 - **Jalur B**: implementasi enum-migration (B0–B7) selesai 2026-10-12; yang tersisa adalah
   kriteria konvergensi & generator AI (lihat bagian Jalur B)

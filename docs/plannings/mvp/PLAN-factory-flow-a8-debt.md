@@ -32,11 +32,12 @@ Menambahkan `ModuleTelemetryProvider` untuk modul yang belum punya:
 - `CostingTelemetryProvider` → `costing_hpp`
 
 **Belum ada (perlu use case baru):**
-- CRM (`crm_sales`) → lead count, conversion rate
-- Inventory (`inventory`) → stock level, low stock alerts
-- TechPack (`tech_pack_bom`) → draft vs final count
-- QC (`quality_control`) → inspection pass/fail rate
-- Fulfillment (`fulfillment`) → packing progress
+- QC (`quality_control`) → inspection pass/fail rate (belum ada repository/modul QC)
+- Fulfillment (`fulfillment`) → packing progress (repository packing/shipment baru mendarat 2026-10-12, dikerjakan sesi Fulfillment)
+
+**Sudah ditambahkan (2026-10-12):**
+- Inventory (`inventory`) → **tidak** stock level; lihat catatan deviasi di §1.1. Metrik diturunkan ke
+  data katalog nyata karena sistem tidak punya ledger stok.
 
 ### Core
 - `domain/pipeline/ModuleTelemetryProvider.kt`
@@ -48,6 +49,22 @@ Menambahkan `ModuleTelemetryProvider` untuk modul yang belum punya:
 - Register di `PipelineTelemetryRoutes.kt`
 
 ### Effort: **Medium** (per modul)
+
+### 1.1 Deviasi Inventory (2026-10-12) — metrik stok tidak feasible
+
+Rencana awal menulis Inventory → "stock level, low stock alerts" dengan asumsi "bisa reuse existing
+repository" (`A8-debt.md` §1). **Asumsi itu keliru**: `inventory` hanya dipunggungi katalog master data
+(`MaterialItemRepository` + `MaterialPriceRepository` di `core/.../domain/masterdata/`); tidak ada
+tabel/kolom stok, `onHand`, atau reorder level (dicek di `V26__create_master_data_schema.sql` dan
+seluruh `core`/`server`). Ledger stok adalah fitur Gudang yang belum di-discovery
+(`PLAN-dual-track-garment-and-general-platform.md:67`), jadi angka stok **tidak boleh dikarang**
+(aturan Kontrak 4/8: nilai yang tidak ada tidak dipalsukan).
+
+Yang diimplementasikan: `GetInventoryNodeTelemetryUseCase` +
+`InventoryTelemetryProvider` (`core/.../domain/masterdata/usecases/`,
+`core/.../domain/pipeline/ExistingTelemetryProviders.kt`), di-wire di `ServerRouteWiring.kt`.
+`wipPieces` = jumlah material aktif (non-arsip); `healthStatus` dari rasio material aktif **tanpa
+harga acuan** (material tak berharga tidak bisa ikut HPP hilir) — pola sama dengan CRM/TechPack.
 
 ---
 
@@ -155,9 +172,9 @@ A8e ──┼──► A8c ──► A8a ──► A8b
 ### A8a (SELESAI)
 - [x] Telemetry provider untuk CRM - `GetCrmNodeTelemetryUseCase` + `CrmTelemetryProvider`
 - [x] Telemetry provider untuk TechPack - `GetTechPackNodeTelemetryUseCase` + `TechPackTelemetryProvider`
-- [ ] Telemetry provider untuk Inventory - belum ada repository
-- [ ] Telemetry provider untuk QC - belum ada repository terpisah
-- [ ] Telemetry provider untuk Fulfillment - belum ada repository
+- [x] Telemetry provider untuk Inventory - `GetInventoryNodeTelemetryUseCase` + `InventoryTelemetryProvider` (metrik katalog, lihat §1.1; **bukan** stock level)
+- [ ] Telemetry provider untuk QC - belum ada repository/modul terpisah
+- [ ] Telemetry provider untuk Fulfillment - repository packing/shipment dikerjakan sesi Fulfillment
 - [ ] Test: KPI menampilkan data dari semua modul
 
 ### A8b (SELESAI)
@@ -184,7 +201,7 @@ A8e ──┼──► A8c ──► A8a ──► A8b
 
 | Item | Effort | Risiko | Status |
 |---|---|---|---|
-| A8a | Medium | Rendah | **Sebagian selesai** (CRM + TechPack done; Inventory/QC/Fulfillment need repos) |
+| A8a | Medium | Rendah | **Sebagian selesai** (CRM + TechPack + Inventory done; Inventory pakai metrik katalog — lihat §1.1; QC/Fulfillment belum) |
 | A8b | Low | Rendah | **Selesai** |
 | A8c | Low | Rendah | **Preemptif** |
 | A8d | Low | Rendah | **Selesai** |

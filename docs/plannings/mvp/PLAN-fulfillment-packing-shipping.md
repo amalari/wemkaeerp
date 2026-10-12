@@ -2,7 +2,7 @@
 
 **Tanggal**: 2026-10-12 · **Penulis**: Achmad Jamaludin (dibantu Kilo)
 **Spesifikasi**: [`TRD-FUL-001`](../../trd/features/TRD-FUL-001-packing-dan-pengiriman.md) · **Discovery**: [`discovery-fulfillment-packing-shipping.md`](discovery-fulfillment-packing-shipping.md)
-**Status**: menunggu persetujuan TRD — setuju = mulai Track 0.
+**Status**: TRD disetujui · **Track 0 selesai 2026-10-12 (kontrak dibekukan)** — lanjut Track A/B/C.
 
 ---
 
@@ -28,6 +28,13 @@
 
 **Selesai bila**: `:core:jvmTest` hijau untuk codec/fixture; kontrak dibekukan (A/B/C tidak mengubah
 signature tanpa kembali ke Track 0).
+
+**Hasil (2026-10-12, semua terpenuhi)**: 0.1–0.2 sudah ada dari commit `70380f4c` + penambahan
+`getNextCartonSequence` pada `CartonRepository` (mirror `getNextShipmentSequence`). 0.3 =
+`PackingCartonCodec` + `DispatchShipmentCodec` + `PackingShipmentCodecTest` (bentuk terkunci,
+round-trip, fixture mock eksternal, penolakan payload korup) — `:core:jvmTest` hijau. 0.4 =
+keputusan format nomor dicatat di TRD §4.5 (v0.2). **Kontrak dibekukan** — perubahan signature
+kembali ke Track 0.
 
 ## 2. Track A — Core & Domain
 
