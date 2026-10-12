@@ -48,7 +48,8 @@
 | # | Task | Prioritas | Catatan |
 |---|---|---|---|
 | K2 | Migrasi data tenant A → B teruji di salinan DB produksi (entitlement, peran, SPK beku) | SEDANG | Syarat §5 butir 3; baru bisa diuji begitu ada salinan DB produksi |
-| K3 | Builder Wizard Self-Service (Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
+| K3 | Builder Wizard Self-Service (Template + Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
+| K3e | Halaman pemilihan metode (Template vs Scratch) | **TINGGI** | Screen pilih template garment atau from scratch |
 | K3a | UI popup/render followUp dari API chat | **TINGGI** | Modal untuk tampilkan pertanyaan Clarification dari AI |
 | K3b | Form input jawaban follow-up (per pertanyaan) | **TINGGI** | Input field sesuai tipe pertanyaan; submit ke chat |
 | K3c | Integrasi follow-up answered ke chat flow | **TINGGI** | Kirim jawaban sebagai pesan chat; trigger next AI response |

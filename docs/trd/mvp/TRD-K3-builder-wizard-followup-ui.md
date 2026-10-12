@@ -1,8 +1,8 @@
-# TRD-K3: Builder Wizard Follow-Up UI
+# TRD-K3: Builder Wizard (Template Selection + Follow-Up UI)
 
 ## 1. Konteks dan Administrasi
 
-- **ID**: TRD-K3 — Builder Wizard Follow-Up UI
+- **ID**: TRD-K3 — Builder Wizard (Template + Follow-Up)
 - **Status**: **Diusulkan; siap implementasi** (2026-10-13)
 - **Rujukan**: 
   - [`PLAN-builder-interview-chat.md`](../../plannings/features/PLAN-builder-interview-chat.md) — arsitektur chat
@@ -13,12 +13,16 @@
 
 ### Masalah
 
-Backend sudah mendukung follow-up questions via `AskModuleFollowUpsUseCase` dan API mengembalikan `followUp` di response chat. Frontend sudah mem-parse `followUp` di `ChatModel.kt:26-30`.
+User mau buat pack baru, tapi:
+1. Dari scratch — terlalu kompleks untuk user biasa
+2. Template-based — belum ada UI pilih template
+3. Follow-up questions — belum ada UI untuk input jawaban divisi
 
-**Gap**: Tidak ada UI untuk:
-1. Merender popup/modal saat ada `pendingFollowUps` dari API
-2. Input form untuk menjawab pertanyaan
-3. Submit jawaban → lanjut chat flow
+### Solusi MVP
+
+Dua metode pembuatan pack:
+- **Template-based (disarankan)**: Pilih template garment → tanya divisi → auto-configure
+- **From Scratch**: Chat AI tanpa template
 
 ### Bukti (As-Is)
 
@@ -55,10 +59,25 @@ internal fun parseFollowUp(raw: JsonValue): List<PendingQuestion> = ...
 
 ### FR (Functional Requirements)
 
-- **FR-1**: Modal popup muncul saat `GET /api/builder/chat` mengembalikan `followUp.questions` yang belum dijawab
-- **FR-2**: Modal menampilkan list pertanyaan follow-up dengan label dan input field per pertanyaan
-- **FR-3**: User bisa submit jawaban via tombol "Kirim Jawaban"
-- **FR-4**: Jawaban dikirim ke `POST /api/builder/chat/runs` dengan format:
+#### Template Selection (K3e)
+
+- **FR-1**: Tampil halaman pemilihan metode: "Template-based" vs "From Scratch"
+- **FR-2**: Template-based menampilkan grid card template garment:
+  - Konveksi FOB
+  - Konveksi CMT
+  - Sablon
+  - Bordir
+  - Rajut
+  - Custom/Lainnya
+- **FR-3**: Klik template → mulai chat dengan blueprint/template tersebut
+- **FR-4**: Klik "From Scratch" → mulai chat tanpa template
+
+#### Follow-Up Questions (K3a-c)
+
+- **FR-5**: Modal popup muncul saat `GET /api/builder/chat` mengembalikan `followUp.questions` yang belum dijawab
+- **FR-6**: Modal menampilkan list pertanyaan follow-up dengan label dan input field per pertanyaan
+- **FR-7**: User bisa submit jawaban via tombol "Kirim Jawaban"
+- **FR-8**: Jawaban dikirim ke `POST /api/builder/chat/runs` dengan format:
   ```json
   {
     "text": "Jawab pertanyaan c1: [jawaban]",
@@ -66,8 +85,8 @@ internal fun parseFollowUp(raw: JsonValue): List<PendingQuestion> = ...
     "answered": [["c1", "[jawaban]"]]
   }
   ```
-- **FR-5**: Setelah submit, modal menutup dan chat flow lanjut normal (AI response baru)
-- **FR-6**: User bisa skip/lewati pertanyaan via tombol "Lewati"
+- **FR-9**: Setelah submit, modal menutup dan chat flow lanjut normal (AI response baru)
+- **FR-10**: User bisa skip/lewati pertanyaan via tombol "Lewati"
 
 ### NFR (Non-Functional Requirements)
 
@@ -159,9 +178,11 @@ Trigger: setelah fetch chat history, parsing `parseFollowUp(response)` → kalau
 
 | Komponen | Lokasi |
 |---|---|
-| `FollowUpModal.kt` | `app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/builder/chat/` |
+| `BuilderNewPackScreen.kt` | `app/shared/src/commonMain/kotlin/com/eventverse/app/presentation/builder/` |
+| `TemplateCard.kt` | `app/shared/.../presentation/builder/components/` |
+| `FollowUpModal.kt` | `app/shared/.../presentation/builder/chat/` |
 | `FollowUpForm.kt` (opsional, bisa inline) | `app/shared/.../presentation/builder/chat/` |
-| State update | `app/shared/.../presentation/builder/BuilderChatViewModel.kt` |
+| State update | `app/shared/.../presentation/builder/chat/BuilderChatPane.kt` |
 | Trigger modal | `app/shared/.../presentation/builder/chat/BuilderChatPane.kt` |
 
 ---
@@ -186,6 +207,13 @@ Trigger: setelah fetch chat history, parsing `parseFollowUp(response)` → kalau
 
 ## 8. Definition of Done
 
+### Template Selection (K3e)
+- [ ] Tampil halaman pemilihan metode
+- [ ] Grid template garment muncul dengan benar
+- [ ] Klik template → masuk ke chat dengan blueprint
+- [ ] Klik From Scratch → masuk ke chat tanpa template
+
+### Follow-Up Questions (K3a-c)
 - [ ] Modal muncul saat ada `pendingFollowUps` dari API
 - [ ] Form input per pertanyaan render dengan benar
 - [ ] Submit jawaban → POST ke API → AI response baru
