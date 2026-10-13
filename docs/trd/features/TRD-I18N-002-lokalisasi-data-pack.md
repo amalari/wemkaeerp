@@ -118,7 +118,12 @@ flowchart LR
 
 ### Data Model & Schema
 - **Tanpa migrasi SQL**: pack tersimpan sebagai dokumen (`StoredDomainPack`); bentuk baru kompatibel lewat codec.
-- Opsional (diputuskan di Track 0): kolom `pack_languages TEXT[]` di tabel pack untuk menyaring tanpa membuka dokumen. Bila ditambah, mengikuti pola migrasi yang ada, bukan schema modul.
+- ~~Opsional: kolom `pack_languages TEXT[]`~~ — **Diputuskan (Track B, 2026-10-13): TIDAK ditambahkan.** Dokumen JSONB (`domain_packs.definition`) sudah memuat kunci `languages`; tidak ada kebutuhan menyaring pack per bahasa di SQL (daftar pack kecil, dibaca penuh oleh `findAllEffective`). Tanpa migrasi SQL ⇒ `J3MigrationFenceTest` tak tersentuh. Tambahkan kolom hanya bila muncul kebutuhan nyata menyaring ribuan pack tanpa membuka dokumen.
+- **Kontrak API Track B** (semua di bawah `/api/admin`, superadmin saja, fail-closed oleh plugin tenant sebelum handler):
+  - `PUT /api/admin/domain-packs/{code}` — body = dokumen `DomainPackCodec` (bentuk lama atau `{id,en}`); kode bahasa tak dikenal → 400. Respons ringkasan kini memuat `languages` (array kode).
+  - `GET /api/admin/domain-packs/{code}/translation-report[?version=N]` — `{code, version, claimed:["en","id"], missing:[{path,language}], countByLanguage:{"en":N}}` dari `DomainPack.missingTranslations()`; tanpa `version` = versi terbaru (termasuk draf); 400 bila `version` bukan bilangan bulat, 404 bila pack/versi tak ada.
+  - `GET /api/tenant/pack` — tetap *open by design*; kini mengembalikan teks dua bahasa bila pack memilikinya. Pack id-saja ditulis byte-identik dengan format lama. Kompatibilitas klien lama dicatat di versi API tahap P6.
+  - Dokumen beku (`frozenStageFlow`, SPK) hidup di tabel sampling, tidak membaca `domain_packs`; memperbarui pack tidak menulis ke sana.
 
 ### API Specifications & External Contracts
 - Endpoint pack yang ada mengembalikan `LocalizedText` sebagai objek `{id,en?}`; klien lama (hanya string) tidak didukung setelah tahap P6 — versi API dicatat di TRD, bukan diam-diam.

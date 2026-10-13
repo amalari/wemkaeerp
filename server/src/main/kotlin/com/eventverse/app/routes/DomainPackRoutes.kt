@@ -54,6 +54,8 @@ fun Route.domainPackRoutes(
     }
 
     route("/api/admin/domain-packs") {
+        domainPackTranslationRoutes(packRepository)
+
         get {
             call.respondText(jsonArrayOf(packRepository.findAllEffective().map(::summary)).encode(), ContentType.Application.Json)
         }
@@ -107,5 +109,6 @@ private fun summary(stored: StoredDomainPack): JsonValue.Obj = jsonObjectOf(
     "version" to jsonOf(stored.version),
     "status" to jsonOf(stored.status.name),
     "ownerTenantId" to jsonOf(stored.ownerTenantId?.value),
-    "moduleCount" to jsonOf(stored.pack.modules.size)
+    "moduleCount" to jsonOf(stored.pack.modules.size),
+    "languages" to jsonArrayOf(stored.pack.languages.languages.map { it.code }.sorted().map { jsonOf(it) })
 )
