@@ -167,7 +167,7 @@ private fun HeaderSection(
                     IconInbox()
                 }
                 M3Text(
-                    text = "Kelola karton packing — buat, isi, dan segel karton.",
+                    text = "Kelola karton packing - buat, isi, dan segel karton.",
                     fontSize = 10.sp,
                     color = WeMadeColors.OnSurfaceMuted
                 )

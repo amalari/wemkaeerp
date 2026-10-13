@@ -140,6 +140,10 @@ fun Route.fulfillmentPackingRoutes(
                 return@patch call.respond(HttpStatusCode.BadRequest, "Nomor seal wajib diisi")
             }
 
+            // Nomor segel fisik dari request yang dicatat (bukan dibangkitkan); panjang/format tak sah = 400, bukan 409.
+            val sealNumber = runCatching { SealNumber(sealNumberValue) }
+                .getOrElse { return@patch call.respond(HttpStatusCode.BadRequest, it.message ?: "Nomor seal tidak sah") }
+
             val grossWeight = body.double("grossWeightKg")
             if (grossWeight == null || grossWeight <= 0) {
                 return@patch call.respond(HttpStatusCode.BadRequest, "Berat kotor wajib lebih dari 0")
@@ -148,7 +152,7 @@ fun Route.fulfillmentPackingRoutes(
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
 
             try {
-                val sealed = carton.seal(SealNumber.generate(), grossWeight, actor)
+                val sealed = carton.seal(sealNumber, grossWeight, actor)
                 val saved = cartonRepository.save(sealed)
 
                 // Record event
@@ -163,6 +167,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(PackingCartonCodec.encode(saved).encode())
             } catch (e: IllegalStateException) {
+                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menyegel karton")
+            } catch (e: IllegalArgumentException) {
+                // Guard transisi domain memakai require() (kontrak tes domain) -> konflik status, bukan galat server.
                 call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menyegel karton")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal menyegel karton")
@@ -210,6 +217,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(PackingCartonCodec.encode(saved).encode())
             } catch (e: IllegalStateException) {
+                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membuka kembali karton")
+            } catch (e: IllegalArgumentException) {
+                // Guard transisi domain memakai require() (kontrak tes domain) -> konflik status, bukan galat server.
                 call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membuka kembali karton")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal membuka kembali karton")
@@ -331,6 +341,9 @@ fun Route.fulfillmentPackingRoutes(
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
                 call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menandai pengiriman")
+            } catch (e: IllegalArgumentException) {
+                // Guard transisi domain memakai require() (kontrak tes domain) -> konflik status, bukan galat server.
+                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menandai pengiriman")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal menandai pengiriman")
             }
@@ -372,6 +385,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
+                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat mengonfirmasi pengiriman")
+            } catch (e: IllegalArgumentException) {
+                // Guard transisi domain memakai require() (kontrak tes domain) -> konflik status, bukan galat server.
                 call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat mengonfirmasi pengiriman")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal mengonfirmasi pengiriman")
@@ -421,6 +437,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
+                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membatalkan pengiriman")
+            } catch (e: IllegalArgumentException) {
+                // Guard transisi domain memakai require() (kontrak tes domain) -> konflik status, bukan galat server.
                 call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membatalkan pengiriman")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal membatalkan pengiriman")

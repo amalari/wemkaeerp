@@ -50,42 +50,42 @@ private val garmentTemplates = listOf(
     GarmentTemplate(
         id = "fob",
         name = "Konveksi FOB",
-        description = "Cutting → Sewing → Finishing → QC → Fulfillment\n(Tanpa procurement)",
+        description = "Cutting > Sewing > Finishing > QC > Fulfillment\n(Tanpa procurement)",
         divisions = listOf("Cutting", "Sewing", "Finishing", "QC"),
         icon = { m, c -> IconLayers(m, c) }
     ),
     GarmentTemplate(
         id = "cmt",
         name = "Konveksi CMT",
-        description = "Cutting → Sewing → Finishing → QC\n(Bahan dari buyer)",
+        description = "Cutting > Sewing > Finishing > QC\n(Bahan dari buyer)",
         divisions = listOf("Cutting", "Sewing", "Finishing", "QC"),
         icon = { m, c -> IconLayers(m, c) }
     ),
     GarmentTemplate(
         id = "sablon",
         name = "Sablon",
-        description = "Cutting → Sablon → Finishing → QC\n(Screen Printing)",
+        description = "Cutting > Sablon > Finishing > QC\n(Screen Printing)",
         divisions = listOf("Cutting", "Sablon", "Finishing", "QC"),
         icon = { m, c -> IconLayers(m, c) }
     ),
     GarmentTemplate(
         id = "bordir",
         name = "Bordir",
-        description = "Cutting → Bordir → Finishing → QC\n(Embroidery)",
+        description = "Cutting > Bordir > Finishing > QC\n(Embroidery)",
         divisions = listOf("Cutting", "Bordir", "Finishing", "QC"),
         icon = { m, c -> IconLayers(m, c) }
     ),
     GarmentTemplate(
         id = "rajut",
         name = "Rajut",
-        description = "Knitting → Cutting → Finishing → QC\n(Circular Knitting)",
+        description = "Knitting > Cutting > Finishing > QC\n(Circular Knitting)",
         divisions = listOf("Knitting", "Cutting", "Finishing", "QC"),
         icon = { m, c -> IconLayers(m, c) }
     ),
     GarmentTemplate(
         id = "custom",
         name = "Custom",
-        description = "Tanya divisi → generate sesuai kebutuhan",
+        description = "Tanya divisi > generate sesuai kebutuhan",
         divisions = emptyList(),
         icon = { m, c -> IconStar(m, c) }
     )
