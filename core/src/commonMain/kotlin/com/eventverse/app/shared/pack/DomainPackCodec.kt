@@ -64,7 +64,7 @@ object DomainPackCodec {
                 "scopeCapability" to jsonOf(m.scopeCapability.name),
                 "supportedScopes" to jsonArrayOf(DataScope.entries.filter { it in m.supportedScopes }.map { jsonOf(it.name) }),
                 "slot" to jsonOf(m.slot?.value)
-            )
+            ).let { o -> m.menuLabelText?.let { JsonValue.Obj(o.entries + ("menuLabel" to LocalizedTextCodec.encode(it))) } ?: o } // tulis hanya bila ada: pack lama byte-identik
         }),
         "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to LocalizedTextCodec.encode(a.labelText)) }),
         "vocabulary" to PackTextMapCodec.encodeVocabulary(pack.vocabularyText),
@@ -131,7 +131,9 @@ object DomainPackCodec {
                 supportedScopes = m.enumSet("supportedScopes", DataScope.entries),
                 slot = m.optional("slot")?.let { m.value("slot", ::SlotCode) },
                 displayNameText = name,
-                descriptionText = desc
+                descriptionText = desc,
+                // Kunci absen/null = pack belum menyediakan judul menu (menu memakai cadangan menuTitle); rusak = ditolak.
+                menuLabelText = m.node()["menuLabel"]?.takeIf { it != JsonValue.Null }?.let { LocalizedTextCodec.decode(it, "${m.at()}.menuLabel") }
             ) }
         }
         // A4: dua field ini boleh tidak ada — artinya pack "belum mendeklarasikan", dan chrome memakai

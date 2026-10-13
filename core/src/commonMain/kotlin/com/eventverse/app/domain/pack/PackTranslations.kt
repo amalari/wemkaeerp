@@ -20,6 +20,7 @@ fun DomainPack.localizedTexts(): List<Pair<String, LocalizedText>> = buildList {
     modules.forEachIndexed { i, m ->
         add("modules[$i].displayName" to m.displayNameText)
         m.descriptionText?.let { add("modules[$i].description" to it) }
+        m.menuLabelText?.let { add("modules[$i].menuLabel" to it) }
     }
     actions.forEachIndexed { i, a -> add("actions[$i].label" to a.labelText) }
     vocabularyText.forEach { (key, text) -> add("vocabulary.${key.name}" to text) }

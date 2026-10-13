@@ -36,3 +36,4 @@ graphify-out/
 .jarscan/
 **/.jarscan/
 *.tunnel-token-*
+.claude/worktrees/
