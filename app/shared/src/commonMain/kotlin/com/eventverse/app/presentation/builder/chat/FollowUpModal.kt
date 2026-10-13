@@ -57,7 +57,7 @@ fun FollowUpModal(
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
             Text(
-                text = "⚠️ Pertanyaan Clarification",
+                text = "Pertanyaan Clarification",
                 style = typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFEA580C)
@@ -65,7 +65,7 @@ fun FollowUpModal(
 
             moduleId?.let {
                 Text(
-                    text = "📋 $it",
+                    text = "- $it",
                     style = typography.bodyMedium,
                     color = WeMadeColors.OnSurfaceMuted
                 )
