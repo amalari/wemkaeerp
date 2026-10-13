@@ -335,10 +335,14 @@ private fun PrototypeScreenCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
         ) {
-            if (block != null) InteractiveBlock(block) else WidgetBody(widget = widget, rows = rows)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (block != null) InteractiveBlock(block) else WidgetBody(widget = widget, rows = rows)
+            }
         }
     }
 }
