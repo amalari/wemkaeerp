@@ -16,13 +16,10 @@ class AppLanguage private constructor(
     }
 
     companion object {
-        private var instance: AppLanguage? = null
+        // Tanpa `synchronized` (tidak ada di commonMain: JS/Wasm). Dibuat eager; state bahasa hanya disentuh dari thread UI.
+        private var instance: AppLanguage = AppLanguage(LanguageCode.ID)
 
-        fun getInstance(): AppLanguage {
-            return instance ?: synchronized(this) {
-                instance ?: AppLanguage(LanguageCode.ID).also { instance = it }
-            }
-        }
+        fun getInstance(): AppLanguage = instance
 
         fun initialize(initialLanguage: LanguageCode) {
             instance = AppLanguage(initialLanguage)
