@@ -1,7 +1,32 @@
+// FILE HASIL GENERATE oleh scripts/sync-agent-config.sh — JANGAN disunting langsung.
+// Sunting .mcp.json (server MCP) atau .claude/ (aturan/skill), lalu jalankan skrip itu.
 {
   "$schema": "https://app.kilo.ai/config.json",
-  // Satu sumber kebenaran tetap .claude/ (lihat AGENTS.md) — Kilo hanya menunjuk ke sana.
   "skills": {
-    "paths": ["./.claude/skills"]
+    "paths": [
+      "./.claude/skills"
+    ]
+  },
+  "mcp": {
+    "graphify": {
+      "type": "local",
+      "command": [
+        "/Users/achmadbackup/.local/bin/graphify-mcp",
+        "/Volumes/amalari/Projects/wemkaeerp/graphify-out/graph.json"
+      ],
+      "enabled": true
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "/Volumes/amalari/.nvm/versions/node/v24.21.0/bin/npx",
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "enabled": true,
+      "environment": {
+        "PATH": "/Volumes/amalari/.nvm/versions/node/v24.21.0/bin:/usr/bin:/bin"
+      }
+    }
   }
 }

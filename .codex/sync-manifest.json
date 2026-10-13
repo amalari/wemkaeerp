@@ -54,5 +54,6 @@
   ".codex/hooks/validate-detekt.sh": "9c5c67f8c75b0314778caddd24e90fd0f3bbd186d8a7ce669ab0eea2efdf6cb2",
   ".codex/hooks/validate-tests.sh": "330ca1199fe1933a142add32aa79c353894bed4a94b30def5fcc71fe48ad35b3",
   ".codex/hooks/validation-task.sh": "d77962df5c88df7fbd7477d0356da7ba04ebadfbbb56d7848e02ad8c2ff252b6",
-  ".codex/sync-report.json": "a668db077408d88da937aa79622fb9714c6dd09bd9e72e48e1055c6d3119c2a7"
+  ".codex/sync-report.json": "a668db077408d88da937aa79622fb9714c6dd09bd9e72e48e1055c6d3119c2a7",
+  ".kilo/kilo.jsonc": "ac0fe49e3884532a19e8327b6b2b96efe932db253f1d07426db430b561753b53"
 }

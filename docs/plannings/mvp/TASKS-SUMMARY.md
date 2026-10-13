@@ -22,7 +22,7 @@
 ### Belum ⏳
 | # | Task | Priority | Plan |
 |---|---|---|---|
-| **A2** | Node aktif = entitlement + aktivasi tenant | **TINGGI** | [`PLAN-factory-flow-a2-entitlement-activation.md`](PLAN-factory-flow-a2-entitlement-activation.md) (TRD format) |
+| **A2** | Node aktif = entitlement + aktivasi tenant — **sebagian selesai** (core, badge/tombol dwibahasa, gerbang kuota, tes core & server hijau). Cek visual `wemade-demo` OK (2026-10-13). Sisa: tes UI, cek `bordir-uji` + kuota penuh + EN, kompilasi Android (SDK tak ada di mesin ini), rapikan badge "Nonaktif" vs "Di-bypass" yang ganda | **TINGGI** | [`PLAN-factory-flow-a2-entitlement-activation.md`](PLAN-factory-flow-a2-entitlement-activation.md) (TRD format) |
 
 ---
 

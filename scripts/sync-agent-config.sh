@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sinkronisasi konfigurasi AI: .claude/ → Codex, Cline & Gemini/Antigravity.
+# Sinkronisasi konfigurasi AI: .claude/ → Codex, Kilo, Cline & Gemini/Antigravity.
 #   scripts/sync-agent-config.sh          → tulis
 #   scripts/sync-agent-config.sh --check  → hanya periksa; exit 1 bila ada yang menyimpang
 set -euo pipefail
@@ -80,12 +80,12 @@ check_link .clinerules .claude/rules
 [ -n "$CHECK" ] || mkdir -p .cline
 check_link .cline/skills ../.claude/skills
 
-# 6. Konversi command, custom agents, hooks, MCP dan laporan kompatibilitas Codex.
+# 6. Konversi command, custom agents, hooks, MCP (Codex + Kilo) dan laporan kompatibilitas Codex.
 python3 scripts/sync_codex_config.py ${CHECK:+"$CHECK"} || drift=1
 
 if [ -n "$CHECK" ]; then
   [ $drift -eq 0 ] && echo "Konfigurasi AI sinkron." || { echo "Jalankan: scripts/sync-agent-config.sh"; exit 1; }
 else
   [ $drift -eq 0 ] || exit 1
-  echo "Sinkron: AGENTS.md, seluruh skills, commands, agents, hooks, MCP, Gemini & Cline."
+  echo "Sinkron: AGENTS.md, seluruh skills, commands, agents, hooks, MCP (Codex & Kilo), Gemini & Cline."
 fi

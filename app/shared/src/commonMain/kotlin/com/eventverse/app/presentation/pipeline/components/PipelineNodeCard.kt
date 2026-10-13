@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.FlowHealthStatus
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.i18n.rememberActiveLanguage
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayBorder
@@ -142,7 +143,7 @@ fun PipelineNodeCard(
                 ) {
                     if (isBypassed) {
                         ClayBadge(
-                            text = "Nonaktif",
+                            text = nodeInactiveLabel(rememberActiveLanguage()),
                             tint = WeMadeColors.Warning,
                             dot = false
                         )
@@ -189,7 +190,7 @@ fun PipelineNodeCard(
             if (isBypassed && onActivate != null) {
                 val moduleId = node.customModuleCode ?: node.module.value
                 ClayButton(
-                    text = "Aktivasi",
+                    text = nodeActivateLabel(rememberActiveLanguage()),
                     onClick = { onActivate.invoke(moduleId) },
                     modifier = Modifier.fillMaxWidth(),
                     style = ClayButtonStyle.Primary,

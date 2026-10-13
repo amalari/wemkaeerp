@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -184,19 +182,28 @@ fun BuilderNewPackScreen(
             color = WeMadeColors.OnSurfaceMuted
         )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
         ) {
-            items(garmentTemplates) { template ->
-                TemplateCard(
-                    template = template,
-                    onClick = {
-                        onNavigate("chat?template=${template.id}")
+            garmentTemplates.chunked(3).forEach { rowTemplates ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
+                ) {
+                    rowTemplates.forEach { template ->
+                        TemplateCard(
+                            modifier = Modifier.weight(1f),
+                            template = template,
+                            onClick = {
+                                onNavigate("chat?template=${template.id}")
+                            }
+                        )
                     }
-                )
+                    repeat(3 - rowTemplates.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
     }
@@ -279,13 +286,14 @@ private fun MethodCard(
 
 @Composable
 private fun TemplateCard(
+    modifier: Modifier = Modifier,
     template: GarmentTemplate,
     onClick: () -> Unit
 ) {
     val typography = rememberClayTypography()
 
     ClayCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = ClayShapes.Tile,

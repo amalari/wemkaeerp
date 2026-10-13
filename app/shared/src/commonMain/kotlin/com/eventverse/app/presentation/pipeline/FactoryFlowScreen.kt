@@ -147,8 +147,12 @@ fun FactoryFlowScreen(
                 onInspectInputs = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
                 onResetFilters = { viewModel.onEvent(FactoryFlowUiEvent.ResetFilters) },
+                canActivateNode = { moduleId ->
+                    state.moduleCatalog.modules.firstOrNull { it.moduleId == moduleId }
+                        ?.let { it.isGrantedByPlan && !state.moduleCatalog.hasReachedPlanLimit } ?: false
+                },
                 onActivateNode = { moduleId ->
-                    viewModel.onEvent(FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, true))
+                    if (!state.isSaving) viewModel.onEvent(FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, true))
                 },
                 modifier = Modifier.weight(1f)
             )

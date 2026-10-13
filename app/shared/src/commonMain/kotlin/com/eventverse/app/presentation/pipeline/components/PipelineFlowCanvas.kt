@@ -53,6 +53,7 @@ fun PipelineFlowCanvas(
     onFilterStage: (PhaseDefinition?) -> Unit,
     onResetFilters: () -> Unit = {},
     onActivateNode: ((String) -> Unit)? = null,
+    canActivateNode: (String) -> Boolean = { true },
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -110,7 +111,8 @@ fun PipelineFlowCanvas(
                 hideBypassedNodes = hideBypassedNodes,
                 onSelectNode = onSelectNode,
                 onInspectInputs = onInspectInputs,
-                onActivateNode = onActivateNode
+                onActivateNode = onActivateNode,
+                canActivateNode = canActivateNode
             )
         }
     }
@@ -266,6 +268,7 @@ private fun HorizontalSwimlaneLayout(
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit,
     onActivateNode: ((String) -> Unit)? = null,
+    canActivateNode: (String) -> Boolean = { true },
     modifier: Modifier = Modifier
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
@@ -307,6 +310,7 @@ private fun HorizontalSwimlaneLayout(
                             onSelectNode = onSelectNode,
                             onInspectInputs = onInspectInputs,
                             onActivateNode = onActivateNode,
+                            canActivateNode = canActivateNode,
                             // Dinaikkan dari 305dp: outline 3dp + hard shadow 6dp pada setiap
                             // kartu node menambah ~18dp lebar yang sebelumnya tidak ada.
                             modifier = Modifier.width(324.dp)
@@ -342,6 +346,7 @@ private fun StageSwimlaneColumn(
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit,
     onActivateNode: ((String) -> Unit)? = null,
+    canActivateNode: (String) -> Boolean = { true },
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -457,10 +462,7 @@ private fun StageSwimlaneColumn(
                         isPresentationMode = isPresentationMode,
                         onClick = { onSelectNode(node) },
                         onInspectInputs = onInspectInputs,
-                        onActivate = if (node.isBypassed && onActivateNode != null) {
-                            val moduleId = node.customModuleCode ?: node.module.value
-                            { onActivateNode(moduleId) }
-                        } else null,
+                        onActivate = node.activationHandler(onActivateNode, canActivateNode),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 18.dp)
@@ -473,3 +475,12 @@ private fun StageSwimlaneColumn(
     }
 }
 
+
+/** Tombol aktivasi hanya untuk node bypassed yang boleh diaktifkan paket tenant (sisi server tetap menolak, ini hanya cermin). */
+private fun PipelineNode.activationHandler(
+    onActivate: ((String) -> Unit)?,
+    canActivate: (String) -> Boolean
+): ((String) -> Unit)? {
+    val moduleId = customModuleCode ?: module.value
+    return if (isBypassed && onActivate != null && canActivate(moduleId)) onActivate else null
+}

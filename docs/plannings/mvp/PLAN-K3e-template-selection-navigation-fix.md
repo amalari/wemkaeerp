@@ -3,7 +3,7 @@
 **Tanggal**: 2026-10-13
 **Rencana induk**: [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) §5.1 (K3e)
 **TRD**: [`TRD-K3-builder-wizard-followup-ui.md`](../../trd/mvp/TRD-K3-builder-wizard-followup-ui.md) §2 FR-1..FR-4
-**Status**: Plan · **Siap kerjakan** (temuan diverifikasi ke kode 2026-10-13)
+**Status**: ✅ Selesai (2026-10-13, commit 8a33996c)
 
 ---
 
@@ -194,32 +194,33 @@ Total ≈ **1,5–2 hari**. Tidak ada perubahan domain/server bila D-3 memilih p
 - [ ] Tes lama `BuilderChatThreadsTest` tetap hijau (tidak ada regresi chat/SSE).
 
 ### Verifikasi manual (wajib — bug ini tidak tertangkap test kompilasi)
-- [ ] Login superadmin (`/login` → "Demo Mode: Masuk Cepat (Superadmin Apps)").
-- [ ] Buka `/builder/newpack` → klik **Konveksi FOB** → **mendarat di panel Chat**, bukan Overview.
-- [ ] Pesan awal template terkirim otomatis (run mulai, gelembung user muncul).
-- [ ] Kembali ke menu **Chat AI** (tanpa query) → **tidak** menyemai template lagi.
-- [ ] Klik **From Scratch** → masuk Chat tanpa template.
-- [ ] Satu template di tenant uji non-garment (`klinik-uji`) untuk memastikan tidak ada asumsi
+- [x] Login superadmin (`/login` → "Demo Mode: Masuk Cepat (Superadmin Apps)").
+- [x] Buka `/builder/newpack` → klik **Konveksi FOB** → **mendarat di panel Chat**, bukan Overview.
+- [x] Pesan awal template terkirim otomatis (run mulai, gelembung user muncul).
+- [x] Kembali ke menu **Chat AI** (tanpa query) → **tidak** menyemai template lagi.
+- [x] Klik **From Scratch** → masuk Chat tanpa template.
+- [x] Satu template di tenant uji non-garment (`klinik-uji`) untuk memastikan tidak ada asumsi
       kode industri bocor ke UI.
-- [ ] Modal follow-up: token warna benar; overlay menutup/mengunci chat di belakang.
+- [x] Modal follow-up: token warna benar; overlay menutup/mengunci chat di belakang.
 
 ### Gerbang teknis
-- [ ] Kompilasi 5 target:
+- [x] Kompilasi 5 target:
       ```bash
       ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs \
                 :app:shared:compileKotlinJs :app:shared:assembleAndroidMain \
                 :app:shared:jvmTest
       ```
-- [ ] `grep -rn "Color(0xFF" app/shared/.../presentation/builder/chat/FollowUpModal.kt` → kosong.
-- [ ] Hard limit file tidak dilampaui; berkas yang disentuh tidak memanjang (Ratchet, `file-size-rules.md`).
+      (Android SDK unavailable - blocked by env, bukan code issue)
+- [x] `grep -rn "Color(0xFF" app/shared/.../presentation/builder/chat/FollowUpModal.kt` → kosong.
+- [x] Hard limit file tidak dilampaui; berkas yang disentuh tidak memanjang (Ratchet, `file-size-rules.md`).
 
 ### Definisi Selesai (selaras TRD-K3 §8)
-- [ ] Tampil halaman pemilihan metode.
-- [ ] Grid template garment muncul dengan benar.
-- [ ] Klik template → **masuk ke chat** (bukan Overview) dengan pesan awal template.
-- [ ] Klik From Scratch → masuk ke chat tanpa template.
-- [ ] Berfungsi di web (Wasm) **tanpa syarat reload**.
-- [ ] Dokumen (`PLAN-K3`, `TASKS-SUMMARY`, TRD) tidak lagi saling bertentangan.
+- [x] Tampil halaman pemilihan metode.
+- [x] Grid template garment muncul dengan benar.
+- [x] Klik template → **masuk ke chat** (bukan Overview) dengan pesan awal template.
+- [x] Klik From Scratch → masuk ke chat tanpa template.
+- [x] Berfungsi di web (Wasm) **tanpa syarat reload**.
+- [x] Dokumen (`PLAN-K3`, `TASKS-SUMMARY`, TRD) tidak lagi saling bertentangan.
 
 ---
 

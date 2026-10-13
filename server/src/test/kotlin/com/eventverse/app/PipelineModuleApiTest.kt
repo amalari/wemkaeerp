@@ -317,6 +317,33 @@ class PipelineModuleApiTest {
     }
 
     @Test
+    fun postActivation_beyondPlanQuota_shouldBeRefusedAndLeaveStateUntouched() = testApplication {
+        // A2: tombol di kanvas hanya cermin; server yang menegakkan paket. Seed demo (7 aktif) sudah melewati kuota STARTER (5).
+        val pipeRepo = InMemoryTenantPipelineRepository()
+        application { module(tenantRepository = tenantRepoWith(tier = SubscriptionTier.STARTER), pipelineRepository = pipeRepo,
+                entitlementRepository = InMemoryTenantEntitlementRepository()) }
+
+        val catalog = TenantModuleCatalogCodec.decode(
+            client.get("/api/tenant/pipeline/modules") { asTenant(proSlug) }.bodyAsText()
+        )
+        val before = runBlocking { pipeRepo.findByTenantId(proTenantId) }?.activeNodes?.map { it.nodeId }?.toSet()
+        val inactive = catalog.modules.filter { it.isInstalled && !it.isActive }
+        assertTrue(inactive.isNotEmpty())
+
+        inactive.forEach { module ->
+            val status = client.post("/api/tenant/pipeline/modules/activation") {
+                asTenant(proSlug)
+                contentType(ContentType.Application.Json)
+                setBody("""{"moduleId":"${module.moduleId}","isActive":true}""")
+            }.status
+            assertEquals(HttpStatusCode.BadRequest, status, "aktivasi ${module.moduleId} melebihi kuota harus ditolak")
+        }
+
+        val after = runBlocking { pipeRepo.findByTenantId(proTenantId) }?.activeNodes?.map { it.nodeId }?.toSet()
+        assertEquals(before, after, "penolakan tidak boleh mengubah modul aktif")
+    }
+
+    @Test
     fun pipelineEndpoints_withoutCredentials_shouldNotLeakData() = testApplication {
         application {
             module(

@@ -57,7 +57,7 @@ Tes juga bisa dijalankan dengan Python 3.9; pemeriksaan TOML akan dilewati karen
 | `.claude/settings.json` hooks | `.codex/hooks.json` |
 | `.claude/hooks/` | `.codex/hooks/`, `.agents/hooks/` |
 | `.claude/codex/` | default konfigurasi dan adapter hook Codex |
-| `.mcp.json` | tabel MCP dalam `.codex/config.toml` |
+| `.mcp.json` | tabel MCP dalam `.codex/config.toml` (dan peta `mcp` di `.kilo/kilo.jsonc`, lihat [`teaching-agent-config-sync-kilo-mcp.md`](teaching-agent-config-sync-kilo-mcp.md)) |
 
 Skrip lama tetap mengelola Gemini/Cline. Converter menambahkan output Codex dan
 mencatat output miliknya di `.codex/sync-manifest.json`. File ekstra di

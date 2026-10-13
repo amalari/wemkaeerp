@@ -2,7 +2,7 @@
 
 **Tanggal**: 2026-10-12 · **Penulis**: Achmad Jamaludin
 **Rencana induk**: [`PLAN-dual-track-garment-and-general-platform.md`](PLAN-dual-track-garment-and-general-platform.md) §3 (Jalur A)
-**Status**: **Diusulkan; siap implementasi** (2026-10-13)
+**Status**: **Sebagian selesai** (2026-10-13) — core, badge, tombol, label dwibahasa, gerbang entitlement, tes core & server, cek visual `wemade-demo` selesai; sisa: tes UI, cek `bordir-uji`/kuota penuh/EN, kompilasi Android, perapian badge ganda
 
 ---
 
@@ -198,23 +198,26 @@ data class FactoryFlowUiState(
 ## 6. Definition of Done
 
 ### Track A — Core
-- [ ] `CustomTenantPipeline.fromPreset()` set semua nodes ke `isBypassed = true`
-- [ ] Entitlement check affects preset nodes (bukan hanya custom plugins)
-- [ ] Reconciler respects existing bypassed state
-- [ ] Tests: tenant baru bypassed semua, entitlement auto-aktif
+- [x] `CustomTenantPipeline.fromPreset()` set semua nodes ke `isBypassed = true` (tes: `PresetActivationStateTest`, semua preset)
+- [x] Entitlement berlaku untuk preset nodes (`GetTenantModuleCatalogUseCase` + `TenantModuleEntitlement.validate`; server menolak 400 — `PipelineModuleApiTest.postActivation_beyondPlanQuota_…`)
+- [x] Reconciler tidak menimpa aktivasi manual (`PresetActivationStateTest.reconcile_keepsManualActivationOfExistingNodes`)
+- [x] Tes: tenant baru tanpa modul aktif (3 preset), `withPresetActivation` pada preset non-default (CMT)
+- [ ] Tes "entitlement auto-aktifkan node" — dibatalkan: aktivasi tetap manual (keputusan A2); entitlement hanya mengizinkan
 
 ### Track B — Presentation
-- [ ] Node bypassed tampil dengan badge "Nonaktif" / warna muted
-- [ ] Tombol "Aktivasi" di node bypassed
-- [ ] Klik aktivasi → node jadi aktif
-- [ ] UI sesuai Clay design system
+- [x] Badge "Nonaktif" di node bypassed
+- [x] Tombol "Aktivasi" hanya untuk node yang boleh (paket + kuota); ditahan saat `isSaving` (guard klik ganda)
+- [x] Klik aktivasi → `SetModuleActive` → `POST /modules/activation`
+- [ ] Tes UI: badge, tombol, klik → aktif
+- [x] Label "Nonaktif"/"Aktivasi" dwibahasa (`NodeActivationLabels.kt`, resource `factory_flow_node_*_id/_en`)
 
 ### Track C — Integration
-- [ ] Full flow: bypassed → aktivasi → aktif works
-- [ ] Kompilasi 5 target hijau
-- [ ] Visual check di browser (Wasm Compose)
-
----
+- [x] Full flow bypassed → aktivasi → aktif dicek di browser (2026-10-13, tenant `wemade-demo`, Chromium headless, port 3101/8181): nonaktifkan lewat panel → node bypassed tampil dengan badge "Nonaktif" + tombol "Aktivasi" → klik → "Modul diaktifkan", header "9 modul aktif"
+- [ ] Kompilasi 5 target (JVM, Wasm, JS bersih; Android belum — SDK tidak terpasang di mesin ini)
+- [x] Cek visual `wemade-demo`
+- [ ] Cek visual `bordir-uji` (belum)
+- [ ] Temuan visual: badge "Nonaktif" + pil "Di-bypass" (health) redundan dan menyempitkan header kartu ("KOMERSI…" terpotong); putuskan: hapus salah satu
+- [ ] Cek visual kondisi kuota penuh (tombol harus tersembunyi) dan bahasa EN
 
 ## 7. Effort Estimate
 

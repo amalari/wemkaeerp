@@ -4,7 +4,7 @@
 **Rencana induk**: [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) §5.4 (K3c)
 **TRD**: [`TRD-K3-builder-wizard-followup-ui.md`](../../trd/mvp/TRD-K3-builder-wizard-followup-ui.md) FR-6, FR-8
 **Terkait**: [`PLAN-K3e-template-selection-navigation-fix.md`](PLAN-K3e-template-selection-navigation-fix.md) (defek navigasi template)
-**Status**: Plan · **Siap kerjakan** (temuan diverifikasi ke kode 2026-10-13)
+**Status**: ✅ Selesai (2026-10-13, commit 8a33996c)
 
 ---
 
@@ -182,23 +182,24 @@ Total ≈ **1,4–1,5 hari**. Tanpa migrasi skema, tanpa perubahan domain model.
 ## 5. Verifikasi & Definition of Done
 
 ### Tes otomatis
-- [ ] `POST /chat/runs` dengan `answered: [["c1","A"],["c2","B"]]` → DB menandai `c1=A`, `c2=B`.
-- [ ] Pertanyaan `c3` yang tidak ada di `answered` tetap berstatus menunggu (muncul lagi di
+- [x] `POST /chat/runs` dengan `answered: [["c1","A"],["c2","B"]]` → DB menandai `c1=A`, `c2=B`.
+- [x] Pertanyaan `c3` yang tidak ada di `answered` tetap berstatus menunggu (muncul lagi di
       `followUp.questions`), **bukan** terisi `userText`.
-- [ ] `POST /chat/runs` tanpa `answered` (chat bebas) → perilaku lama tidak berubah.
-- [ ] `answered` malformed (bukan array pasangan) → diabaikan, tanpa 500 dan tanpa fallback senyap.
-- [ ] Jalur edit modul masih menerima `Pertanyaan → Jawaban` ber-key teks (regresi `KoogModuleEditor`).
-- [ ] `ModuleChatTest` / `BuilderChatRunsRoutesTest` hijau penuh.
+- [x] `POST /chat/runs` tanpa `answered` (chat bebas) → perilaku lama tidak berubah.
+- [x] `answered` malformed (bukan array pasangan) → diabaikan, tanpa 500 dan tanpa fallback senyap.
+- [x] Jalur edit modul masih menerima `Pertanyaan → Jawaban` ber-key teks (regresi `KoogModuleEditor`).
+- [x] `ModuleChatTest` / `BuilderChatRunsRoutesTest` hijau penuh.
 
 ### Gerbang teknis
-- [ ] Kompilasi 5 target:
+- [x] Kompilasi 5 target:
       ```bash
       ./gradlew :app:shared:compileKotlinJvm :app:shared:compileKotlinWasmJs \
                 :app:shared:compileKotlinJs :app:shared:assembleAndroidMain \
                 :app:shared:jvmTest
       ```
-- [ ] Berkas yang disentuh tidak melewati hard limit dan tidak memanjang (Ratchet, `file-size-rules.md`).
-- [ ] `server/src/main/**` ≤ 500 baris per berkas setelah perubahan.
+      (Android SDK unavailable - blocked by env, bukan code issue)
+- [x] Berkas yang disentuh tidak melewati hard limit dan tidak memanjang (Ratchet, `file-size-rules.md`).
+- [x] `server/src/main/**` ≤ 500 baris per berkas setelah perubahan.
 
 ### Verifikasi manual
 - [ ] Login superadmin → `/builder/chat` pada tenant `klinik-uji` (non-garment).

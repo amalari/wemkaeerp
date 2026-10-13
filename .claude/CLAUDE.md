@@ -432,12 +432,14 @@ Sebelum merge: `scripts/audit-variability.sh` (melapor, tidak memblokir).
 
 **Konfigurasi AI lintas tool**: `.claude/` adalah satu-satunya sumber kebenaran. Setelah mengubah
 `CLAUDE.md`, rules, atau skill `wemade-*`, jalankan `scripts/sync-agent-config.sh` agar Cline
-(`.clinerules`, `.cline/skills`), Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`), dan
-Codex (`.codex/`, `.agents/skills/`) ikut terbarui. Semua skill sumber disinkronkan;
-commands menjadi skills dan agents menjadi TOML Codex. Default khusus Codex ada di
-`.claude/codex/config.toml`; MCP bersumber dari `.mcp.json`. Jalankan `--check` untuk
+(`.clinerules`, `.cline/skills`), Gemini/Antigravity (`AGENTS.md`, `GEMINI.md`, `.agents/`), Codex
+(`.codex/`, `.agents/skills/`), dan Kilo (`.kilo/kilo.jsonc`) ikut terbarui. Semua skill sumber
+disinkronkan; commands menjadi skills dan agents menjadi TOML Codex. Default khusus Codex ada di
+`.claude/codex/config.toml`; MCP bersumber dari `.mcp.json` (di-generate ke `.codex/config.toml`
+untuk Codex dan `.kilo/kilo.jsonc` untuk Kilo). Jalankan `--check` untuk
 memeriksa drift dan baca `.codex/sync-report.json` untuk batas kompatibilitas permissions.
-`AGENTS.md` dan output Codex adalah **file hasil generate** — jangan disunting langsung.
+`AGENTS.md`, output Codex, dan `.kilo/kilo.jsonc` adalah **file hasil generate** — jangan disunting
+langsung.
 
 ---
 
@@ -476,6 +478,24 @@ patuhi **[`.claude/rules/field-component-rules.md`](.claude/rules/field-componen
 5. Komponen yang belum ada **tidak dipalsukan** jadi `TEXT`: tolak, pakai `CUSTOM_SCREEN`, atau ajukan lewat antrean build.
 
 Celah dan prioritas saat ini: `docs/plannings/PLAN-field-component-gaps.md`.
+
+---
+
+### 18. Penutupan Task Planning (Flag Selesai + TASKS-SUMMARY)
+
+Setiap kali satu task/track/butir di dokumen planning (`docs/plannings/**`, `docs/trd/**`) **selesai**, dalam sesi yang sama:
+
+1. **Beri flag selesai di dokumen planning-nya** — centang `- [x]` pada butir Definition of Done/checklist yang
+   terpenuhi, dan ubah baris `**Status**` di kepala dokumen (mis. `Diusulkan` → `Sebagian selesai` → `Selesai`,
+   disertai tanggal). Butir yang dibatalkan atau digugurkan dicoret dengan alasan, bukan dibiarkan kosong.
+2. **Perbarui `docs/plannings/mvp/TASKS-SUMMARY.md`** — pindahkan task dari "Belum ⏳" ke "Selesai ✅" beserta
+   commit/bukti (nama tes, file), atau ubah catatannya bila baru **sebagian** (tulis sisa pekerjaannya). Perbarui
+   juga tanggal di kepala berkas.
+3. **Hanya centang yang terbukti**: butir tes dicentang bila tes itu ada dan sudah dijalankan hijau; butir cek visual
+   hanya bila sudah dilihat dengan mata. Yang belum diverifikasi tetap kosong dengan catatan alasannya (mis.
+   "Android: SDK tidak terpasang"). Dilarang mencentang berdasarkan niat atau asumsi.
+4. Penutupan ini bagian dari Definition of Done: task tidak dianggap selesai (dan tidak dilaporkan selesai ke user)
+   sebelum flag di planning dan TASKS-SUMMARY sinkron dengan kondisi kode.
 
 ---
 

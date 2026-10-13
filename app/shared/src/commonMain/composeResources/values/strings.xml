@@ -109,4 +109,10 @@
     <!-- i18n: penanda terjemahan data pack (TRD-I18N-002). Dipilih lewat bahasa aplikasi, bukan locale sistem -->
     <string name="i18n_pack_text_missing_id">Belum diterjemahkan</string>
     <string name="i18n_pack_text_missing_en">Not translated</string>
+
+    <!-- Factory Flow: aktivasi manual node (PLAN A2). Dipilih lewat bahasa aplikasi, bukan locale sistem -->
+    <string name="factory_flow_node_inactive_id">Nonaktif</string>
+    <string name="factory_flow_node_inactive_en">Inactive</string>
+    <string name="factory_flow_node_activate_id">Aktivasi</string>
+    <string name="factory_flow_node_activate_en">Activate</string>
 </resources>
