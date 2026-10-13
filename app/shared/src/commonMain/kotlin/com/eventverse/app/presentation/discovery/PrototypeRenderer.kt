@@ -5,9 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,7 +86,7 @@ fun PrototypeRenderer(
         val currentScreen = screens[safeIndex]
         val currentModule = draft.modules.firstOrNull { it.id == currentScreen.moduleId }
 
-        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
             // Carousel Navigation Bar Kiri-Kanan
             ClayCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -204,9 +207,9 @@ fun PrototypeRenderer(
                 }
             }
 
-            // Active Screen Card — FULL WIDTH!
+            // Active Screen Card — FULL WIDTH & FULL HEIGHT!
             PrototypeScreenCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight(),
                 title = currentScreen.title,
                 widget = currentScreen.widget,
                 moduleName = currentModule?.displayName ?: currentScreen.moduleId,
@@ -220,12 +223,12 @@ fun PrototypeRenderer(
     }
 
     if (carousel || fullWidth) {
-        // Single screen (atau non-carousel full width) — FULL WIDTH!
-        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
+        // Single screen (atau non-carousel full width) — FULL WIDTH & FULL HEIGHT!
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
             screens.forEach { screen ->
                 val module = draft.modules.firstOrNull { it.id == screen.moduleId }
                 PrototypeScreenCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight(),
                     title = screen.title,
                     widget = screen.widget,
                     moduleName = module?.displayName ?: screen.moduleId,
@@ -268,7 +271,7 @@ private fun PrototypeScreenCard(
     rationale: String? = null,
     source: com.eventverse.app.domain.discovery.proposal.ProposalSource? = null
 ) {
-    ClayCard(modifier = modifier) {
+    ClayCard(modifier = modifier.fillMaxHeight()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -328,7 +331,15 @@ private fun PrototypeScreenCard(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = ClaySpacing.Sm), color = WeMadeColors.Outline.copy(alpha = 0.3f))
         // Blok yang bisa dimainkan menggantikan gambar statis; widget lain / baris tak sah tetap statis.
-        if (block != null) InteractiveBlock(block) else WidgetBody(widget = widget, rows = rows)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+        ) {
+            if (block != null) InteractiveBlock(block) else WidgetBody(widget = widget, rows = rows)
+        }
     }
 }
 
@@ -454,7 +465,7 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -469,7 +480,7 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

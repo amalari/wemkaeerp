@@ -5,12 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
@@ -23,11 +24,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -39,14 +42,13 @@ import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.IconChevronUp
 import com.eventverse.app.presentation.theme.WeMadeColors
 
-private val ColumnWidth = 118.dp
-
 /**
  * Tabel prototype yang bisa dimainkan (TRD-PLAT-003, butir A4):
  * - Cari & urut kolom
  * - Ubah status lewat lencana ENUM
  * - Form pembuatan baris inline ([TableConfig.inlineCreate])
  * - Pengeditan sel inline ([TableConfig.editableFields])
+ * - Responsif memenuhi lebar (fillMaxWidth) dengan scroll horizontal bila kolom padat
  */
 @Composable
 fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier) {
@@ -54,7 +56,7 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             ClayTextField(
                 value = state.query,
@@ -71,46 +73,73 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
             }
         }
 
-        Column(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
-                state.config.columns.forEach { column ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .width(ColumnWidth)
-                            .pointerHoverIcon(PointerIcon.Hand)
-                            .clickable { state.toggleSort(column) }
-                    ) {
-                        Text(
-                            state.columnLabel(column),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = WeMadeColors.OnSurfaceMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        if (state.sortColumn == column) {
-                            val markerModifier = Modifier.size(12.dp)
-                            if (state.ascending) IconChevronUp(markerModifier) else IconChevronDown(markerModifier)
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val numCols = state.config.columns.size
+            val minColWidth = 130.dp
+            val deleteWidth = 36.dp
+            val totalSpacing = ClaySpacing.Sm * numCols
+            val available = maxWidth - deleteWidth - totalSpacing
+            val responsiveColWidth = if (numCols > 0 && available > minColWidth * numCols) {
+                available / numCols
+            } else {
+                minColWidth
+            }
+            val contentWidth = maxOf(maxWidth, (responsiveColWidth * numCols) + totalSpacing + deleteWidth)
+
+            Column(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+            ) {
+                Row(
+                    modifier = Modifier.width(contentWidth),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    state.config.columns.forEach { column ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .width(responsiveColWidth)
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .clickable { state.toggleSort(column) }
+                        ) {
+                            Text(
+                                state.columnLabel(column),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = WeMadeColors.OnSurfaceMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (state.sortColumn == column) {
+                                val markerModifier = Modifier.size(12.dp)
+                                if (state.ascending) IconChevronUp(markerModifier) else IconChevronDown(markerModifier)
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.width(deleteWidth))
                 }
-            }
-            HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.3f))
+                HorizontalDivider(modifier = Modifier.width(contentWidth), color = WeMadeColors.Outline.copy(alpha = 0.3f))
 
-            if (state.isCreatingInline) {
-                InlineRowEditor(state = state, columnWidth = ColumnWidth)
-                HorizontalDivider(color = WeMadeColors.Outline.copy(alpha = 0.2f))
-            }
+                if (state.isCreatingInline) {
+                    InlineRowEditor(state = state, columnWidth = responsiveColWidth)
+                    HorizontalDivider(modifier = Modifier.width(contentWidth), color = WeMadeColors.Outline.copy(alpha = 0.2f))
+                }
 
-            val rows = state.visibleRows
-            rows.forEach { row -> TableRow(row, state) }
-            if (rows.isEmpty() && !state.isCreatingInline) {
-                Text("Tidak ada baris yang cocok.", style = MaterialTheme.typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
+                val rows = state.visibleRows
+                rows.forEach { row ->
+                    TableRow(
+                        row = row,
+                        state = state,
+                        columnWidth = responsiveColWidth,
+                        deleteWidth = deleteWidth,
+                        contentWidth = contentWidth
+                    )
+                }
+                if (rows.isEmpty() && !state.isCreatingInline) {
+                    Text("Tidak ada baris yang cocok.", style = MaterialTheme.typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
+                }
             }
         }
         state.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
@@ -125,33 +154,45 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
+private fun TableRow(
+    row: PrototypeRow,
+    state: InteractiveTableState,
+    columnWidth: Dp,
+    deleteWidth: Dp,
+    contentWidth: Dp
+) {
     var showConfirmDelete by remember { mutableStateOf(false) }
 
     Row(
+        modifier = Modifier.width(contentWidth),
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         state.config.columns.forEach { column ->
             if (state.isStatus(column)) {
-                StatusCell(row, column, state)
+                StatusCell(row, column, state, columnWidth)
             } else {
                 TableCell(
                     row = row,
                     column = column,
                     state = state,
-                    columnWidth = ColumnWidth
+                    columnWidth = columnWidth
                 )
             }
         }
-        Text(
-            text = "×",
-            style = MaterialTheme.typography.titleMedium,
-            color = WeMadeColors.OnSurfaceMuted,
-            modifier = Modifier
-                .padding(horizontal = ClaySpacing.Xs)
-                .clickable { showConfirmDelete = true }
-        )
+        Box(
+            modifier = Modifier.width(deleteWidth),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "×",
+                style = MaterialTheme.typography.titleMedium,
+                color = WeMadeColors.OnSurfaceMuted,
+                modifier = Modifier
+                    .clickable { showConfirmDelete = true }
+                    .padding(horizontal = ClaySpacing.Xs)
+            )
+        }
     }
 
     if (showConfirmDelete) {
@@ -160,9 +201,9 @@ private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
             title = { Text("Hapus Baris", fontWeight = FontWeight.Bold) },
             text = { Text("Yakin ingin menghapus data baris '${row.id}'?") },
             confirmButton = {
-                com.eventverse.app.presentation.designsystem.ClayButton(
+                ClayButton(
                     text = "Hapus",
-                    style = com.eventverse.app.presentation.designsystem.ClayButtonStyle.Danger,
+                    style = ClayButtonStyle.Danger,
                     onClick = {
                         showConfirmDelete = false
                         state.delete(row.id)
@@ -170,9 +211,9 @@ private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
                 )
             },
             dismissButton = {
-                com.eventverse.app.presentation.designsystem.ClayButton(
+                ClayButton(
                     text = "Batal",
-                    style = com.eventverse.app.presentation.designsystem.ClayButtonStyle.Secondary,
+                    style = ClayButtonStyle.Secondary,
                     onClick = { showConfirmDelete = false }
                 )
             }
@@ -181,9 +222,14 @@ private fun TableRow(row: PrototypeRow, state: InteractiveTableState) {
 }
 
 @Composable
-private fun StatusCell(row: PrototypeRow, column: String, state: InteractiveTableState) {
+private fun StatusCell(
+    row: PrototypeRow,
+    column: String,
+    state: InteractiveTableState,
+    columnWidth: Dp
+) {
     var open by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.width(ColumnWidth)) {
+    Box(modifier = Modifier.width(columnWidth)) {
         ClayBadge(
             text = row[column].ifEmpty { "-" },
             tint = WeMadeColors.Primary,

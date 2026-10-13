@@ -115,7 +115,7 @@ fun BuilderShell(
             when (selected) {
                 "overview" -> BuilderOverviewPane(onNavigate = onSectionChange)
                 "newpack" -> BuilderNewPackScreen(onNavigate = onSectionChange)
-                "chat" -> BuilderChatPane(templateCode = templateCode)
+                "chat" -> BuilderChatPane(templateCode = templateCode, modifier = Modifier.weight(1f).fillMaxHeight())
                 "modules" -> BuilderModulesPane()
                 "dataflow" -> BuilderDataFlowPane()
                 "prototype" -> BuilderPrototypePane()

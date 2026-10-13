@@ -1,8 +1,10 @@
 package com.eventverse.app.presentation.builder.chat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -90,52 +92,63 @@ internal fun ChatResultPanel(
             }
         }
 
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
-        ) {
-            if (patchPreview.isNotEmpty()) {
-                ClayCard(containerColor = WeMadeColors.SurfaceMuted, outlineColor = WeMadeColors.Warning) {
-                    Text("Usulan belum diterapkan", style = typography.bodySmall, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
-                    patchPreview.forEach { Text("· $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
+        if (patchPreview.isNotEmpty()) {
+            ClayCard(containerColor = WeMadeColors.SurfaceMuted, outlineColor = WeMadeColors.Warning) {
+                Text("Usulan belum diterapkan", style = typography.bodySmall, fontWeight = FontWeight.Bold, color = WeMadeColors.OnSurface)
+                patchPreview.forEach { Text("· $it", style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted) }
+            }
+        }
+
+        if (draft == null) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()) {
+                BuilderDraftStatusView(draftState)
+            }
+        } else when (tab) {
+            0 -> {
+                // TAB 0: PROTOTYPE SELAYAR & FULL HEIGHT
+                if (contextScreens.isEmpty()) {
+                    val focusedName = draft.modules.firstOrNull { it.id == focusModuleId }?.displayName ?: focusModuleId
+                    ClayCard(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(ClaySpacing.Md),
+                            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                        ) {
+                            Text(
+                                text = "Belum Ada Layar Prototype Khusus",
+                                style = typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.OnSurface
+                            )
+                            Text(
+                                text = if (focusModuleId != null) {
+                                    "Modul '$focusedName' belum memiliki form atau tabel prototype. Anda dapat mengetik di chat: \"Buatkan layar untuk modul $focusedName\" agar asisten AI menyusun rancangannya."
+                                } else {
+                                    "Belum ada prototype - minta agent membuatnya, mis. \"buat layar untuk modul QC\"."
+                                },
+                                style = typography.bodyMedium,
+                                color = WeMadeColors.OnSurfaceMuted
+                            )
+                        }
+                    }
+                } else {
+                    PrototypeRenderer(
+                        draft = draft,
+                        screens = contextScreens,
+                        carousel = true,
+                        fullWidth = true,
+                        modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()
+                    )
                 }
             }
-
-            if (draft == null) {
-                BuilderDraftStatusView(draftState)
-            } else when (tab) {
-                0 -> {
-                    // TAB 0: PROTOTYPE SELAYAR
-                    if (contextScreens.isEmpty()) {
-                        val focusedName = draft.modules.firstOrNull { it.id == focusModuleId }?.displayName ?: focusModuleId
-                        ClayCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(ClaySpacing.Md),
-                                verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
-                            ) {
-                                Text(
-                                    text = "Belum Ada Layar Prototype Khusus",
-                                    style = typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WeMadeColors.OnSurface
-                                )
-                                Text(
-                                    text = if (focusModuleId != null) {
-                                        "Modul '$focusedName' belum memiliki form atau tabel prototype. Anda dapat mengetik di chat: \"Buatkan layar untuk modul $focusedName\" agar asisten AI menyusun rancangannya."
-                                    } else {
-                                        "Belum ada prototype - minta agent membuatnya, mis. \"buat layar untuk modul QC\"."
-                                    },
-                                    style = typography.bodyMedium,
-                                    color = WeMadeColors.OnSurfaceMuted
-                                )
-                            }
-                        }
-                    } else {
-                        PrototypeRenderer(draft = draft, screens = contextScreens, carousel = true, fullWidth = true)
-                    }
+            1 -> {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                    ModuleDetailPane(draft = draft, focusModuleId = focusModuleId)
                 }
-                1 -> ModuleDetailPane(draft = draft, focusModuleId = focusModuleId)
-                else -> DataFlowPane(draft = draft)
+            }
+            else -> {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                    DataFlowPane(draft = draft)
+                }
             }
         }
     }
