@@ -2,7 +2,7 @@
 
 **Tanggal**: 2026-10-12 · **Penulis**: Achmad Jamaludin
 **Rencana induk**: [`PLAN-dual-track-garment-and-general-platform.md`](PLAN-dual-track-garment-and-general-platform.md) §3 (Jalur A)
-**Status**: **Sebagian selesai** (2026-10-13) — core, badge, tombol, label dwibahasa, gerbang entitlement, tes core & server, cek visual `wemade-demo` selesai; sisa: tes UI, cek `bordir-uji`/kuota penuh/EN, kompilasi Android, perapian badge ganda
+**Status**: **Selesai** (2026-10-14; kompilasi Android ditunda atas keputusan pemilik — SDK tak ada di mesin dev) — core, badge, tombol, label dwibahasa, gerbang entitlement, tes core & server, cek visual `wemade-demo` selesai; sisa: kompilasi Android (butuh SDK)
 
 ---
 
@@ -208,16 +208,16 @@ data class FactoryFlowUiState(
 - [x] Badge "Nonaktif" di node bypassed
 - [x] Tombol "Aktivasi" hanya untuk node yang boleh (paket + kuota); ditahan saat `isSaving` (guard klik ganda)
 - [x] Klik aktivasi → `SetModuleActive` → `POST /modules/activation`
-- [ ] Tes UI: badge, tombol, klik → aktif
+- [x] Tes presentasi tingkat logika: `NodeActivationGateTest` (4 kasus: paket/kuota/tak dikenal) + `FactoryFlowViewModelTenantDataTest` (SetModuleActive → aktif). Tes komposabel (badge/tombol tergambar) **tidak ada**: app/shared belum punya infrastruktur Compose UI test — ditutup lewat cek visual 2026-10-13
 - [x] Label "Nonaktif"/"Aktivasi" dwibahasa (`NodeActivationLabels.kt`, resource `factory_flow_node_*_id/_en`)
 
 ### Track C — Integration
 - [x] Full flow bypassed → aktivasi → aktif dicek di browser (2026-10-13, tenant `wemade-demo`, Chromium headless, port 3101/8181): nonaktifkan lewat panel → node bypassed tampil dengan badge "Nonaktif" + tombol "Aktivasi" → klik → "Modul diaktifkan", header "9 modul aktif"
-- [ ] Kompilasi 5 target (JVM, Wasm, JS bersih; Android belum — SDK tidak terpasang di mesin ini)
+- [~] Kompilasi 5 target: JVM, Wasm, JS bersih; **Android ditunda** (keputusan pemilik 2026-10-14, SDK tak terpasang) — jalankan di CI/mesin ber-SDK
 - [x] Cek visual `wemade-demo`
-- [ ] Cek visual `bordir-uji` (belum)
-- [ ] Temuan visual: badge "Nonaktif" + pil "Di-bypass" (health) redundan dan menyempitkan header kartu ("KOMERSI…" terpotong); putuskan: hapus salah satu
-- [ ] Cek visual kondisi kuota penuh (tombol harus tersembunyi) dan bahasa EN
+- [x] Cek visual tenant non-default (2026-10-14): `bordir-uji` tak ada di seed, diganti reset ke starter **CMT Jasa Jahit** (nama/peran makloon) — 9 node Nonaktif + tombol Aktivasi. **Temuan & perbaikan**: tenant baru (0 aktif) sebelumnya melihat kanvas KOSONG ("Tidak ada modul yang cocok") karena node bypassed disembunyikan default; kini `FactoryFlowUiState.hidesBypassedNodes` menampilkannya bila tak ada node aktif (`FactoryFlowBypassVisibilityTest`)
+- [x] Temuan visual badge ganda ("Nonaktif" + "Di-bypass") diperbaiki: node bypassed hanya satu badge "Nonaktif"; header kartu tidak lagi terpotong (dilihat ulang 2026-10-13)
+- [x] Cek visual kuota penuh (tenant STARTER, 8 aktif/batas 5: badge ada, tombol "Aktivasi" tersembunyi) dan bahasa EN ("Inactive"/"Activate")
 
 ## 7. Effort Estimate
 

@@ -1,6 +1,6 @@
 # MVP Tasks Summary - WeMade ERP
 
-**Tanggal**: 2026-10-13
+**Tanggal**: 2026-10-14
 
 ## Jalur A - ERP Konveksi
 
@@ -18,11 +18,11 @@
 | A8c | FK restore-presets | ✅ | preemptif |
 | A8d | GET locations fail-open | ✅ | sudah ada |
 | A8e | Editor tahap RBAC | ✅ | sudah ada |
+| A2 | Node aktif = entitlement + aktivasi tenant | ✅ | Aktivasi manual, badge/tombol dwibahasa, gerbang kuota, kanvas tak kosong untuk tenant baru; `PresetActivationStateTest`, `NodeActivationGateTest`, `FactoryFlowBypassVisibilityTest`, `PipelineModuleApiTest`; cek visual `wemade-demo` + starter CMT. Android ditunda (SDK) — [`PLAN`](PLAN-factory-flow-a2-entitlement-activation.md) |
 
 ### Belum ⏳
 | # | Task | Priority | Plan |
 |---|---|---|---|
-| **A2** | Node aktif = entitlement + aktivasi tenant — **sebagian selesai** (core, badge/tombol dwibahasa, gerbang kuota, tes core & server hijau). Cek visual `wemade-demo` OK (2026-10-13). Sisa: tes UI, cek `bordir-uji` + kuota penuh + EN, kompilasi Android (SDK tak ada di mesin ini), rapikan badge "Nonaktif" vs "Di-bypass" yang ganda | **TINGGI** | [`PLAN-factory-flow-a2-entitlement-activation.md`](PLAN-factory-flow-a2-entitlement-activation.md) (TRD format) |
 
 ---
 

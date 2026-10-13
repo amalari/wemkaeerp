@@ -142,15 +142,12 @@ fun FactoryFlowScreen(
                 selectedNode = state.selectedNode,
                 selectedStageFilter = state.selectedStageFilter,
                 isPresentationMode = isPresentationMode,
-                hideBypassedNodes = state.hideBypassedNodes,
+                hideBypassedNodes = state.hidesBypassedNodes,
                 onSelectNode = { viewModel.onEvent(FactoryFlowUiEvent.SelectNode(it)) },
                 onInspectInputs = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
                 onResetFilters = { viewModel.onEvent(FactoryFlowUiEvent.ResetFilters) },
-                canActivateNode = { moduleId ->
-                    state.moduleCatalog.modules.firstOrNull { it.moduleId == moduleId }
-                        ?.let { it.isGrantedByPlan && !state.moduleCatalog.hasReachedPlanLimit } ?: false
-                },
+                canActivateNode = state.moduleCatalog::canActivateFromCanvas,
                 onActivateNode = { moduleId ->
                     if (!state.isSaving) viewModel.onEvent(FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, true))
                 },

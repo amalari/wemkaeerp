@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.infrastructure.api.BuilderApiClient
+import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -208,6 +211,12 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val wide = maxWidth >= ClayBreakpoints.MasterDetail
+        val chatWidth = when {
+            maxWidth >= 1500.dp -> 400.dp
+            maxWidth >= 1200.dp -> 370.dp
+            maxWidth >= 1024.dp -> 340.dp
+            else -> 320.dp
+        }
         val threads = remember(draft) { threadsOf(draft?.activeModules.orEmpty().map { it.id to it.displayName }) }
                 val chat: @Composable (Modifier) -> Unit = { m ->
             Column(modifier = m, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
@@ -260,12 +269,24 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                         Text(runPhaseLabel(runPhase), style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
                     }
                 }
-                ChatComposer(
-                    value = input, onValueChange = { input = it }, busy = busy, onSend = ::send,
-                    // Ada pertanyaan agent yang menunggu di utas ini: ketikan berikutnya adalah jawabannya.
-                    placeholder = if ((pendingByThread[thread] ?: 0) > 0) "Ketik jawaban Anda untuk pertanyaan di atas"
-                    else "Contoh: pabrik kaos FOB dengan tahap sablon"
-                )
+                if (showFollowUpModal && currentQuestions.isNotEmpty()) {
+                    FollowUpModal(
+                        questions = currentQuestions,
+                        moduleId = thread,
+                        onSubmit = ::submitFollowUpAnswers,
+                        onSkip = ::skipFollowUps,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                    )
+                } else {
+                    ChatComposer(
+                        value = input, onValueChange = { input = it }, busy = busy, onSend = ::send,
+                        // Ada pertanyaan agent yang menunggu di utas ini: ketikan berikutnya adalah jawabannya.
+                        placeholder = if ((pendingByThread[thread] ?: 0) > 0) "Ketik jawaban Anda untuk pertanyaan di atas"
+                        else "Contoh: pabrik kaos FOB dengan tahap sablon"
+                    )
+                }
             }
         }
         val panel: @Composable (Modifier) -> Unit = { m ->
@@ -298,34 +319,24 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
             )
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 when {
-                    wide -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
-                        chat(Modifier.weight(0.42f).fillMaxHeight())
-                        panel(Modifier.weight(0.58f).fillMaxHeight())
+                    wide -> Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                    ) {
+                        chat(Modifier.width(chatWidth).fillMaxHeight())
+                        // Pemisah vertikal neo-brutalist antara Chat dan Hasil Request
+                        Box(
+                            modifier = Modifier
+                                .width(ClayBorder.Medium)
+                                .fillMaxHeight()
+                                .background(WeMadeColors.Outline)
+                        )
+                        panel(Modifier.weight(1f).fillMaxHeight())
                     }
                     panelOpen -> panel(Modifier.fillMaxSize())
                     else -> chat(Modifier.fillMaxSize())
                 }
-                // Follow-up modal overlay (K3a): scrim mengunci interaksi di belakang + fokus ke modal.
-                if (showFollowUpModal && currentQuestions.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(WeMadeColors.Scrim.copy(alpha = 0.45f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {}
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        FollowUpModal(
-                            questions = currentQuestions,
-                            moduleId = thread,
-                            onSubmit = ::submitFollowUpAnswers,
-                            onSkip = ::skipFollowUps
-                        )
-                    }
-                }
+
             }
         }
     }

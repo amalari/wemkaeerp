@@ -52,6 +52,12 @@ data class FactoryFlowUiState(
     /** Telemetri nyata terakhir; kosong → node aktif ditandai "estimasi" (TRD-FLOW-002 Fase 5). */
     val telemetry: List<ModuleTelemetry> = emptyList()
 ) {
+    /**
+     * Apakah node bypassed benar-benar disembunyikan. Tenant baru dari preset mulai tanpa modul aktif (A2), jadi bila
+     * tak ada satu pun node aktif, node bypassed **wajib tampil** — kalau tidak, kanvas kosong dan tombol "Aktivasi" tak terjangkau.
+     */
+    val hidesBypassedNodes: Boolean get() = hideBypassedNodes && snapshot.nodes.any { !it.isBypassed }
+
     val bypassedCount: Int get() = snapshot.nodes.count { it.isBypassed }
 
     /** True once persisted tenant data is on screen, as opposed to the preset template. */
@@ -65,7 +71,7 @@ data class FactoryFlowUiState(
         get() = snapshot.nodes
             .filter { node ->
                 // Modul baru dari katalog selalu tampil, supaya tidak tersembunyi sebelum sempat diaktifkan.
-                if (hideBypassedNodes) !node.isBypassed || node.isNewFromCatalog else true
+                if (hidesBypassedNodes) !node.isBypassed || node.isNewFromCatalog else true
             }
             .filter { node ->
                 selectedStageFilter == null || node.stage == selectedStageFilter

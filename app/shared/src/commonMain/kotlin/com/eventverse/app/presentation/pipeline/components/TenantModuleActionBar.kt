@@ -39,8 +39,8 @@ fun TenantModuleActionBar(
             )
             if (state.bypassedCount > 0) {
                 SummaryChip(
-                    label = if (state.hideBypassedNodes) "${state.bypassedCount} bypass (tersembunyi)" else "${state.bypassedCount} bypass (ditampilkan)",
-                    color = if (state.hideBypassedNodes) WeMadeColors.OnSurfaceMuted else WeMadeColors.Warning,
+                    label = if (state.hidesBypassedNodes) "${state.bypassedCount} bypass (tersembunyi)" else "${state.bypassedCount} bypass (ditampilkan)",
+                    color = if (state.hidesBypassedNodes) WeMadeColors.OnSurfaceMuted else WeMadeColors.Warning,
                     onClick = onToggleHideBypassed
                 )
             }
