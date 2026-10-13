@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.i18n
 
+import kotlin.math.abs
+import kotlin.math.floor
+
 enum class NumberStyle {
     INDONESIAN,
     ENGLISH;
@@ -76,7 +79,7 @@ object NumberFormatter {
     private fun formatIndonesianDecimal(value: Double, decimals: Int): String {
         val decimalSeparator = ","
         val scaled = if (decimals > 0) {
-            String.format("%.${decimals}f", value)
+            fixedDecimal(value, decimals)
         } else {
             value.toLong().toString()
         }
@@ -85,7 +88,7 @@ object NumberFormatter {
 
     private fun formatEnglishDecimal(value: Double, decimals: Int): String {
         val scaled = if (decimals > 0) {
-            String.format("%.${decimals}f", value)
+            fixedDecimal(value, decimals)
         } else {
             value.toLong().toString()
         }
@@ -128,5 +131,19 @@ object NumberFormatter {
     private fun groupEnglish(value: Long): String {
         val digits = value.toString()
         return digits.reversed().chunked(3).joinToString(",").reversed()
+    }
+
+    /**
+     * Desimal tetap dengan titik, tanpa `String.format` (tidak ada di commonMain: JS/Wasm). Pembulatan half-up,
+     * sama dengan `String.format` di JVM. Pemisah ribuan/desimal diterapkan sesudahnya oleh pemanggil.
+     */
+    private fun fixedDecimal(value: Double, decimals: Int): String {
+        require(decimals in 0..9) { "decimals harus 0..9, dapat $decimals" }
+        var scale = 1L
+        repeat(decimals) { scale *= 10 }
+        val scaled = floor(abs(value) * scale + 0.5).toLong()
+        val digits = (scaled % scale).toString().padStart(decimals, '0')
+        val sign = if (value < 0 && scaled != 0L) "-" else ""
+        return "$sign${scaled / scale}.$digits"
     }
 }

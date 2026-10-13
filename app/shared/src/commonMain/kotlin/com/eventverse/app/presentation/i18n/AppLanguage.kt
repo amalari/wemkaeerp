@@ -1,36 +1,44 @@
 package com.eventverse.app.presentation.i18n
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.compositionLocalOf
 import com.eventverse.app.domain.i18n.LanguageCode
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
-class AppLanguage private constructor(
+val LocalAppLanguage: ProvidableCompositionLocal<LanguageCode> = compositionLocalOf {
+    LanguageCode.ID
+}
+
+class LanguageManager private constructor(
     initialLanguage: LanguageCode
 ) {
-    private val _language = MutableStateFlow(initialLanguage)
-    val language: StateFlow<LanguageCode> = _language.asStateFlow()
+    private var _language: LanguageCode = initialLanguage
+    val language: LanguageCode get() = _language
 
     fun setLanguage(code: LanguageCode) {
-        _language.value = code
+        _language = code
+        onLanguageChanged?.invoke(code)
     }
 
-    companion object {
-        private var instance: AppLanguage? = null
+    var onLanguageChanged: ((LanguageCode) -> Unit)? = null
 
-        fun getInstance(): AppLanguage {
+    companion object {
+        @Volatile
+        private var instance: LanguageManager? = null
+
+        fun getInstance(): LanguageManager {
             return instance ?: synchronized(this) {
-                instance ?: AppLanguage(LanguageCode.ID).also { instance = it }
+                instance ?: LanguageManager(LanguageCode.ID).also { instance = it }
             }
         }
 
         fun initialize(initialLanguage: LanguageCode) {
-            instance = AppLanguage(initialLanguage)
+            instance = LanguageManager(initialLanguage)
         }
     }
 }
 
-val LocalAppLanguage = kotlinx.coroutines.flow.combine(
-    AppLanguage.getInstance().language,
-    AppLanguage.getInstance().language
-) { lang, _ -> lang }
+@Composable
+fun rememberAppLanguage(): LanguageCode {
+    return LocalAppLanguage.current
+}

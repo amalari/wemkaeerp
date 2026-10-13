@@ -68,4 +68,12 @@ class NumberFormatterTest {
         assertEquals("1,234.5", NumberFormatter.formatDecimal(1234.5, NumberStyle.ENGLISH, 1))
         assertEquals("1,234,567.89", NumberFormatter.formatDecimal(1234567.89, NumberStyle.ENGLISH, 2))
     }
+
+    @Test
+    fun formatDecimal_pembulatanDanNegatif() {
+        assertEquals("1.234,57", NumberFormatter.formatDecimal(1234.565, NumberStyle.INDONESIAN, 2))
+        assertEquals("-1,234.5", NumberFormatter.formatDecimal(-1234.5, NumberStyle.ENGLISH, 1))
+        assertEquals("0.05", NumberFormatter.formatDecimal(0.05, NumberStyle.ENGLISH, 2))
+        assertEquals("0,0", NumberFormatter.formatDecimal(-0.01, NumberStyle.INDONESIAN, 1))
+    }
 }

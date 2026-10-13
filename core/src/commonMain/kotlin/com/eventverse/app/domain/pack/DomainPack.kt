@@ -4,6 +4,8 @@ import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.proposal.ProposalLimits
 import com.eventverse.app.domain.fulfillment.HandoverRoute
+import com.eventverse.app.domain.i18n.LocalizedText
+import com.eventverse.app.domain.i18n.PackLanguages
 import com.eventverse.app.domain.prototype.CurrencyCode
 import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.DashboardHints
@@ -17,11 +19,20 @@ data class PhaseDefinition(
     val order: Int,
     val displayName: String,
     val subtitle: String,
-    val colorHex: Long
+    val colorHex: Long,
+    /**
+     * Jembatan Strangler Fig TRD-I18N-002 (P1): nama fase dua bahasa. [displayName] tetap `String` = teks `id`
+     * untuk pembaca lama; pembaca baru memakai [displayNameText]`.resolve(bahasa)`. Bawaan = hanya `id`.
+     */
+    val displayNameText: LocalizedText = LocalizedText.of(displayName),
+    /** Subjudul dua bahasa; `null` = pack tidak menerjemahkannya (subjudul kosong tak bisa jadi [LocalizedText]). */
+    val subtitleText: LocalizedText? = subtitle.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) }
 ) {
     init {
         require(order > 0) { "Urutan fase ${code.value} harus positif" }
         require(displayName.isNotBlank()) { "Nama fase ${code.value} kosong" }
+        require(displayNameText.idText == displayName) { "Fase ${code.value}: displayNameText.id harus sama dengan displayName" }
+        require(subtitleText == null || subtitleText.idText == subtitle) { "Fase ${code.value}: subtitleText.id harus sama dengan subtitle" }
     }
 }
 
@@ -45,10 +56,13 @@ data class SlotDefinition(
     val defaultInput: PortType,
     val defaultOutput: PortType,
     val defaultWidget: WidgetKind? = null,
-    val defaultStatuses: List<String> = emptyList()
+    val defaultStatuses: List<String> = emptyList(),
+    /** Jembatan Strangler Fig TRD-I18N-002 (P2): nama slot dua bahasa; [displayName] = teks `id`. */
+    val displayNameText: LocalizedText = LocalizedText.of(displayName)
 ) {
     init {
         require(displayName.isNotBlank()) { "Nama slot ${code.value} kosong" }
+        require(displayNameText.idText == displayName) { "Slot ${code.value}: displayNameText.id harus sama dengan displayName" }
         if (defaultStatuses.isNotEmpty()) {
             require(defaultWidget == WidgetKind.KANBAN || defaultWidget == WidgetKind.TABLE) {
                 "Slot ${code.value}: defaultStatuses hanya bermakna untuk defaultWidget KANBAN atau TABLE"
@@ -199,7 +213,12 @@ data class DomainPack(
      * di-resolve lewat [resolveBlueprint]. Kosong = pack tanpa starter data — pack bawaan garment sengaja kosong
      * (starter-nya tetap `GarmentBlueprints`, supaya bytes pack garment tak berubah). Invarian: [requireBlueprintsValid].
      */
-    val blueprints: List<Blueprint> = emptyList()
+    val blueprints: List<Blueprint> = emptyList(),
+    /**
+     * Bahasa yang **diklaim lengkap** pack ini (TRD-I18N-002 F2). Bawaan hanya `id`. Pack yang mengklaim `en` harus
+     * lolos [missingTranslations] — pembuktian ada di validator, bukan di niat.
+     */
+    val languages: PackLanguages = PackLanguages.ID_ONLY
 ) {
     init {
         requireBlueprintsValid()

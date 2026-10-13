@@ -18,7 +18,7 @@ import com.eventverse.app.shared.json.jsonOf
 internal object SlotDefinitionCodec {
 
     fun encode(s: SlotDefinition): JsonValue.Obj = jsonObjectOf(
-        "code" to jsonOf(s.code.value), "displayName" to jsonOf(s.displayName), "phase" to jsonOf(s.phase.value),
+        "code" to jsonOf(s.code.value), "displayName" to LocalizedTextCodec.encode(s.displayNameText), "phase" to jsonOf(s.phase.value),
         "defaultInput" to jsonOf(s.defaultInput.value), "defaultOutput" to jsonOf(s.defaultOutput.value),
         "defaultWidget" to jsonOf(s.defaultWidget?.code),
         "defaultStatuses" to jsonArrayOf(s.defaultStatuses.map(::jsonOf))
@@ -28,6 +28,7 @@ internal object SlotDefinitionCodec {
     fun decode(o: JsonValue.Obj, path: String): SlotDefinition {
         fun fail(key: String, message: String): Nothing = throw DomainPackDecodeException("$path.$key", message)
         fun str(key: String): String = (o[key] as? JsonValue.Str)?.value ?: fail(key, "wajib string")
+        val name = LocalizedTextCodec.decode(o["displayName"], "$path.displayName")
         val widget = when (val v = o["defaultWidget"]) {
             null, JsonValue.Null -> null
             is JsonValue.Str -> WidgetKind.fromCode(v.value)
@@ -41,8 +42,8 @@ internal object SlotDefinitionCodec {
         }
         return try {
             SlotDefinition(
-                SlotCode(str("code")), str("displayName"), PhaseCode(str("phase")),
-                PortType(str("defaultInput")), PortType(str("defaultOutput")), widget, statuses
+                SlotCode(str("code")), name.idText, PhaseCode(str("phase")),
+                PortType(str("defaultInput")), PortType(str("defaultOutput")), widget, statuses, name
             )
         } catch (e: IllegalArgumentException) {
             throw DomainPackDecodeException(path, e.message ?: "slot tidak sah")

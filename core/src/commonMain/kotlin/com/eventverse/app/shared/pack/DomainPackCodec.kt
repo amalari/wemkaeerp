@@ -9,6 +9,8 @@ import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
 import com.eventverse.app.domain.pack.ModuleSectionCode
 import com.eventverse.app.domain.pack.PhaseCode
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.PackLanguages
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
@@ -44,8 +46,8 @@ object DomainPackCodec {
         "displayName" to jsonOf(pack.displayName),
         "phases" to jsonArrayOf(pack.phases.map { p ->
             jsonObjectOf(
-                "code" to jsonOf(p.code.value), "order" to jsonOf(p.order), "displayName" to jsonOf(p.displayName),
-                "subtitle" to jsonOf(p.subtitle), "color" to jsonOf(color(p.colorHex))
+                "code" to jsonOf(p.code.value), "order" to jsonOf(p.order), "displayName" to LocalizedTextCodec.encode(p.displayNameText),
+                "subtitle" to (p.subtitleText?.let(LocalizedTextCodec::encode) ?: jsonOf(p.subtitle)), "color" to jsonOf(color(p.colorHex))
             )
         }),
         "slots" to jsonArrayOf(pack.slots.map(SlotDefinitionCodec::encode)),
@@ -80,6 +82,7 @@ object DomainPackCodec {
             if (pack.handoverRouteTemplate.isNotEmpty()) put("handoverRouteTemplate", HandoverRouteCodec.encode(pack.handoverRouteTemplate))
             if (pack.defaultCurrencyCode != DomainPack.DEFAULT_CURRENCY_CODE) put("defaultCurrencyCode", jsonOf(pack.defaultCurrencyCode))
             if (pack.blueprints.isNotEmpty()) put("blueprints", jsonArrayOf(pack.blueprints.map(BlueprintCodec::encode)))
+            if (pack.languages != PackLanguages.ID_ONLY) put("languages", jsonArrayOf(pack.languages.languages.map { jsonOf(it.code) }.sortedBy { (it as JsonValue.Str).value }))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -96,7 +99,14 @@ object DomainPackCodec {
     fun decode(root: JsonValue.Obj): DomainPack {
         val r = Reader(root, "$")
         val phases = r.objects("phases").map { p ->
-            p.build { PhaseDefinition(p.value("code", ::PhaseCode), p.int("order"), p.string("displayName"), p.string("subtitle"), p.color("color")) }
+            p.build {
+                val name = LocalizedTextCodec.decode(p.node()["displayName"], "${p.at()}.displayName")
+                val sub = p.node()["subtitle"]?.let { LocalizedTextCodec.decode(it, "${p.at()}.subtitle") }
+                PhaseDefinition(
+                    p.value("code", ::PhaseCode), p.int("order"), name.idText, sub?.idText ?: p.string("subtitle"), p.color("color"),
+                    displayNameText = name, subtitleText = sub
+                )
+            }
         }
         val slots = r.objects("slots").map { s -> SlotDefinitionCodec.decode(s.node(), s.at()) }
         val sections = r.objects("sections").map { s ->
@@ -147,6 +157,14 @@ object DomainPackCodec {
             }
             else -> throw DomainPackDecodeException("$.blueprints", "harus array")
         }
+        val languages = when (val v = root["languages"]) {
+            null, JsonValue.Null -> PackLanguages.ID_ONLY // kunci absen = pack lama, hanya Indonesia
+            is JsonValue.Arr -> PackLanguages(v.items.mapIndexed { i, t ->
+                val raw = (t as? JsonValue.Str)?.value ?: throw DomainPackDecodeException("$.languages[$i]", "harus string")
+                LanguageCode.parse(raw) ?: throw DomainPackDecodeException("$.languages[$i]", "bahasa '$raw' tidak dikenal (id, en)")
+            }.toSet().let { if (LanguageCode.ID in it) it else throw DomainPackDecodeException("$.languages", "wajib memuat 'id'") })
+            else -> throw DomainPackDecodeException("$.languages", "harus array")
+        }
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -168,7 +186,8 @@ object DomainPackCodec {
                 handoverRouteTemplate = HandoverRouteCodec.decode(root["handoverRouteTemplate"], "$.handoverRouteTemplate"),
                 // Kunci absen/null = pack belum menyebut mata uangnya → bawaan global; nilai tak sah ditolak oleh DomainPack.init.
                 defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE,
-                blueprints = blueprints
+                blueprints = blueprints,
+                languages = languages
             )
         }
     }
