@@ -238,6 +238,24 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                         leading = { IconLayers(Modifier.size(14.dp)) }
                     )
                 }
+                if (threads.size > 1) {
+                    SelectedModuleChatCard(
+                        draft = draft,
+                        selectedModuleId = thread,
+                        threads = threads,
+                        pendingByThread = pendingByThread,
+                        onSelectThread = { picked ->
+                            if (!busy && picked != thread) {
+                                thread = picked
+                                messages = emptyList()
+                                scope.launch {
+                                    if (picked != null) client.requestFollowUps(picked)
+                                    reloadChat()
+                                }
+                            }
+                        }
+                    )
+                }
                 error?.let {
                     Text(it, color = WeMadeColors.Error, style = typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
@@ -299,44 +317,24 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                 focusModuleId = thread
             )
         }
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
-            // Tab utas: "Semua" (tanpa filter) + satu tab per modul; memilih tab memuat ulang riwayat utas itu.
-            if (threads.size > 1) ChatThreadTabs(
-                threads = threads,
-                selected = thread,
-                pending = pendingByThread,
-                onSelect = { picked ->
-                    if (!busy && picked != thread) {
-                        thread = picked
-                        messages = emptyList()
-                        scope.launch {
-                            // Membuka tab modul: server menghitung celah modul itu dan membuat pertanyaan bila ada (idempoten).
-                            if (picked != null) client.requestFollowUps(picked)
-                            reloadChat()
-                        }
-                    }
+        Box(Modifier.fillMaxSize()) {
+            when {
+                wide -> Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
+                ) {
+                    chat(Modifier.width(chatWidth).fillMaxHeight())
+                    // Pemisah vertikal neo-brutalist antara Chat dan Hasil Request
+                    Box(
+                        modifier = Modifier
+                            .width(ClayBorder.Medium)
+                            .fillMaxHeight()
+                            .background(WeMadeColors.Outline)
+                    )
+                    panel(Modifier.weight(1f).fillMaxHeight())
                 }
-            )
-            Box(Modifier.fillMaxWidth().weight(1f)) {
-                when {
-                    wide -> Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
-                    ) {
-                        chat(Modifier.width(chatWidth).fillMaxHeight())
-                        // Pemisah vertikal neo-brutalist antara Chat dan Hasil Request
-                        Box(
-                            modifier = Modifier
-                                .width(ClayBorder.Medium)
-                                .fillMaxHeight()
-                                .background(WeMadeColors.Outline)
-                        )
-                        panel(Modifier.weight(1f).fillMaxHeight())
-                    }
-                    panelOpen -> panel(Modifier.fillMaxSize())
-                    else -> chat(Modifier.fillMaxSize())
-                }
-
+                panelOpen -> panel(Modifier.fillMaxSize())
+                else -> chat(Modifier.fillMaxSize())
             }
         }
     }

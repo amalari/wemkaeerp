@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,12 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.designsystem.IconActivity
+import com.eventverse.app.presentation.designsystem.IconChevronDown
 import com.eventverse.app.presentation.designsystem.IconCalculator
 import com.eventverse.app.presentation.designsystem.IconCalendarGrid
 import com.eventverse.app.presentation.designsystem.IconCheckCircle
@@ -200,9 +207,31 @@ internal fun resolveModuleIcon(module: DiscoveryModuleUi): @Composable (Modifier
 @Composable
 fun ModuleMapPane(
     draft: DiscoveryDraftUi,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    focusModuleId: String? = null
 ) {
     val typography = rememberClayTypography()
+    var inspectedModuleId by remember { mutableStateOf<String?>(focusModuleId) }
+    androidx.compose.runtime.LaunchedEffect(focusModuleId) {
+        if (focusModuleId != null) inspectedModuleId = focusModuleId
+    }
+
+    if (inspectedModuleId != null) {
+        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+            ClayButton(
+                text = "Kembali ke Semua Modul",
+                onClick = { inspectedModuleId = null },
+                style = ClayButtonStyle.Secondary
+            )
+            ModuleDetailPane(
+                draft = draft,
+                focusModuleId = inspectedModuleId,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        return
+    }
+
     var selectedSection by remember { mutableStateOf<String?>(null) }
     var groupByDepartment by remember { mutableStateOf(false) }
 
@@ -225,47 +254,119 @@ fun ModuleMapPane(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            // Filter Bar per Departemen + Toggle Mode
+            // Toolbar Rapi: Judul & Count di kiri, Dropdown Kategori & Toggle Mode di kanan
+            var categoryMenuExpanded by remember { mutableStateOf(false) }
+            val currentSectionStyle = selectedSection?.let { resolveSectionStyle(it, draft) }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Filter Chips
+                Text(
+                    text = if (currentSectionStyle != null) "${currentSectionStyle.title} (${displayedModules.size})" else "Daftar Modul (${displayedModules.size})",
+                    style = typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = currentSectionStyle?.color ?: WeMadeColors.OnSurface
+                )
+
                 Row(
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                 ) {
-                    ClayChoiceChip(
-                        text = "Semua (${draft.modules.size})",
-                        selected = selectedSection == null,
-                        onClick = { selectedSection = null }
-                    )
+                    // Dropdown Kategori
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .clickable { categoryMenuExpanded = true }
+                                .claySurface(
+                                    shape = ClayShapes.Pill,
+                                    background = currentSectionStyle?.background ?: WeMadeColors.SurfaceMuted,
+                                    outline = currentSectionStyle?.color ?: WeMadeColors.Outline,
+                                    offset = ClayOffset.Small,
+                                    borderWidth = ClayBorder.Hairline
+                                )
+                                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
+                            ) {
+                                Text(
+                                    text = if (currentSectionStyle != null) "Kategori: ${currentSectionStyle.title}" else "Kategori: Semua",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = currentSectionStyle?.color ?: WeMadeColors.OnSurface
+                                )
+                                IconChevronDown(
+                                    modifier = Modifier.size(12.dp),
+                                    color = currentSectionStyle?.color ?: WeMadeColors.OnSurfaceMuted
+                                )
+                            }
+                        }
 
-                    draft.sections.forEach { section ->
-                        val count = draft.modules.count { it.section == section }
-                        val style = resolveSectionStyle(section, draft)
-                        ClayChoiceChip(
-                            text = "${style.title} ($count)",
-                            selected = selectedSection == section,
-                            tint = style.color,
-                            onClick = { selectedSection = section }
-                        )
+                        DropdownMenu(
+                            expanded = categoryMenuExpanded,
+                            onDismissRequest = { categoryMenuExpanded = false },
+                            modifier = Modifier.background(WeMadeColors.Surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Semua (${draft.modules.size})",
+                                        fontWeight = if (selectedSection == null) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selectedSection == null) WeMadeColors.Primary else WeMadeColors.OnSurface,
+                                        fontSize = 12.sp
+                                    )
+                                },
+                                onClick = {
+                                    selectedSection = null
+                                    categoryMenuExpanded = false
+                                }
+                            )
+                            draft.sections.forEach { section ->
+                                val count = draft.modules.count { it.section == section }
+                                val style = resolveSectionStyle(section, draft)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "${style.title} ($count)",
+                                            fontWeight = if (selectedSection == section) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selectedSection == section) style.color else WeMadeColors.OnSurface,
+                                            fontSize = 12.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedSection = section
+                                        categoryMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
-                }
 
-                // Switch Tampilan: "Grid 3 Kolom" vs "Per Seksi" (hanya aktif saat Semua)
-                if (selectedSection == null) {
-                    ClayChoiceChip(
-                        text = if (groupByDepartment) "Per Seksi" else "Grid 3 Kolom",
-                        selected = groupByDepartment,
-                        tint = WeMadeColors.Accent,
-                        onClick = { groupByDepartment = !groupByDepartment },
-                        fontSize = 10.sp
-                    )
+                    // Toggle View: Grid 3 Kolom vs Per Seksi (saat kategori Semua)
+                    if (selectedSection == null) {
+                        Box(
+                            modifier = Modifier
+                                .clickable { groupByDepartment = !groupByDepartment }
+                                .claySurface(
+                                    shape = ClayShapes.Pill,
+                                    background = if (groupByDepartment) WeMadeColors.Accent.copy(alpha = 0.12f) else WeMadeColors.SurfaceMuted,
+                                    outline = WeMadeColors.Outline,
+                                    offset = ClayOffset.Small,
+                                    borderWidth = ClayBorder.Hairline
+                                )
+                                .padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Xs)
+                        ) {
+                            Text(
+                                text = if (groupByDepartment) "Mode: Per Seksi" else "Mode: Grid 3 Kolom",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (groupByDepartment) WeMadeColors.AccentDark else WeMadeColors.OnSurface
+                            )
+                        }
+                    }
                 }
             }
 
@@ -308,7 +409,11 @@ fun ModuleMapPane(
                             ) {
                                 rowModules.forEach { module ->
                                     Box(modifier = Modifier.weight(1f)) {
-                                        ModuleItemCard(module = module, style = style)
+                                        ModuleItemCard(
+                                            module = module,
+                                            style = style,
+                                            onClick = { inspectedModuleId = module.id }
+                                        )
                                     }
                                 }
                                 repeat(columns - rowModules.size) {
@@ -327,7 +432,11 @@ fun ModuleMapPane(
                     ) {
                         rowModules.forEach { module ->
                             Box(modifier = Modifier.weight(1f)) {
-                                ModuleItemCard(module = module, style = resolveSectionStyle(module.section, draft))
+                                ModuleItemCard(
+                                    module = module,
+                                    style = resolveSectionStyle(module.section, draft),
+                                    onClick = { inspectedModuleId = module.id }
+                                )
                             }
                         }
                         repeat(columns - rowModules.size) {
@@ -343,14 +452,15 @@ fun ModuleMapPane(
 @Composable
 private fun ModuleItemCard(
     module: DiscoveryModuleUi,
-    style: ModuleSectionStyle
+    style: ModuleSectionStyle,
+    onClick: () -> Unit
 ) {
     val typography = rememberClayTypography()
     val iconRenderer = resolveModuleIcon(module)
     val clayRes = resolveClayAsset(module)
 
     ClayCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = ClayShapes.Card,
         containerColor = if (module.active) WeMadeColors.Surface else WeMadeColors.SurfaceMuted,
         outlineColor = if (module.active) WeMadeColors.Outline else WeMadeColors.OutlineSoft,

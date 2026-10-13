@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.discovery
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,43 +26,206 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.theme.WeMadeColors
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayIconButton
+import com.eventverse.app.presentation.designsystem.ClayOffset
+import com.eventverse.app.presentation.designsystem.IconArrowBack
+import com.eventverse.app.presentation.designsystem.IconArrowForward
+import com.eventverse.app.presentation.designsystem.claySurface
+
 /**
  * `PrototypeRenderer` (plan §4, Fase C/D): menggambar setiap deskriptor layar draf. Sample data
  * **berupa data** — dihitung `WidgetRegistry` di server dan dikirim dalam ringkasan draf, jadi
  * renderer hanya memetakan kind → layout. Semua kind memakai bahasa Clay; tidak ada warna literal.
  * Parameter [screens] memungkinkan pane memfilter pratinjau per modul tanpa logika render baru.
  *
- * Setiap layar digambar sebagai **bingkai perangkat** berlebar [ClayPaneWidth.PrototypeDevice]
- * (lebar ponsel), disusun berjajar lewat `ClayFlowRow` — bukan `fillMaxWidth` yang membuat
- * pratinjau terlihat seperti dokumen membentang, bukan aplikasi.
+ * Mendukung mode [carousel] interaktif kiri-kanan dan [fullWidth] agar tampilan tabel/form leluasa.
  */
 @Composable
 fun PrototypeRenderer(
     draft: DiscoveryDraftUi,
     modifier: Modifier = Modifier,
     screens: List<DiscoveryScreenUi> = draft.screens,
-    session: PrototypeSession = remember(draft.screens) { PrototypeSession(draft.screens) }
+    session: PrototypeSession = remember(draft.screens) { PrototypeSession(draft.screens) },
+    carousel: Boolean = false,
+    fullWidth: Boolean = false
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
-        if (screens.isEmpty()) {
-            // Draf tanpa layar bukan kegagalan render: agent deterministik memang tidak mengusulkan
-            // deskriptor layar. Tanpa pesan ini, prospek hanya melihat judul "Pratinjau Layar" yang
-            // menggantung tanpa penjelasan.
-            ClayCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    "Draf ini belum punya layar pratinjau. Deskriptor layar diusulkan oleh agent LLM - " +
-                        "jalankan server dengan DISCOVERY_AGENT=koog dan DEEPSEEK_API_KEY terisi untuk melihatnya, " +
-                        "atau pilih pola Studio setelah modul dibangun.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = WeMadeColors.OnSurfaceMuted
-                )
-            }
+    if (screens.isEmpty()) {
+        ClayCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "Draf ini belum punya layar pratinjau. Deskriptor layar diusulkan oleh agent LLM - " +
+                    "jalankan server dengan DISCOVERY_AGENT=koog dan DEEPSEEK_API_KEY terisi untuk melihatnya, " +
+                    "atau pilih pola Studio setelah modul dibangun.",
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = WeMadeColors.OnSurfaceMuted
+            )
         }
-        ClayFlowRow(modifier = Modifier.fillMaxWidth(), spacing = ClaySpacing.Lg) {
+        return
+    }
+
+    if (carousel && screens.size > 1) {
+        var currentIndex by remember(screens) { mutableStateOf(0) }
+        val safeIndex = currentIndex.coerceIn(0, screens.lastIndex)
+        val currentScreen = screens[safeIndex]
+        val currentModule = draft.modules.firstOrNull { it.id == currentScreen.moduleId }
+
+        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+            // Carousel Navigation Bar Kiri-Kanan
+            ClayCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = ClayShapes.Pill,
+                containerColor = WeMadeColors.Surface,
+                offset = ClayOffset.Small
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = ClaySpacing.Md, vertical = ClaySpacing.Sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ClayIconButton(
+                        onClick = { if (safeIndex > 0) currentIndex = safeIndex - 1 },
+                        enabled = safeIndex > 0,
+                        size = 32.dp
+                    ) {
+                        IconArrowBack(
+                            Modifier.size(16.dp),
+                            color = if (safeIndex > 0) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
+                        ) {
+                            Text(
+                                text = "Layar ${safeIndex + 1} dari ${screens.size}:",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.OnSurface
+                            )
+                            Text(
+                                text = currentScreen.title,
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = WeMadeColors.Primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            ClayBadge(
+                                text = currentScreen.widget.uppercase(),
+                                tint = WeMadeColors.Accent
+                            )
+                        }
+
+                        // Dot indicators
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            screens.forEachIndexed { idx, _ ->
+                                Box(
+                                    modifier = Modifier
+                                        .height(6.dp)
+                                        .width(if (idx == safeIndex) 20.dp else 6.dp)
+                                        .background(
+                                            if (idx == safeIndex) WeMadeColors.Primary else WeMadeColors.OutlineSoft,
+                                            CircleShape
+                                        )
+                                        .clickable { currentIndex = idx }
+                                )
+                            }
+                        }
+                    }
+
+                    ClayIconButton(
+                        onClick = { if (safeIndex < screens.lastIndex) currentIndex = safeIndex + 1 },
+                        enabled = safeIndex < screens.lastIndex,
+                        size = 32.dp
+                    ) {
+                        IconArrowForward(
+                            Modifier.size(16.dp),
+                            color = if (safeIndex < screens.lastIndex) WeMadeColors.OnSurface else WeMadeColors.OnSurfaceMuted
+                        )
+                    }
+                }
+            }
+
+            // Quick Jump Screen Pills
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                screens.forEachIndexed { idx, s ->
+                    val isCurrent = idx == safeIndex
+                    Row(
+                        modifier = Modifier
+                            .claySurface(
+                                shape = ClayShapes.Pill,
+                                background = if (isCurrent) WeMadeColors.Primary else WeMadeColors.Surface,
+                                outline = if (isCurrent) WeMadeColors.Outline else WeMadeColors.OutlineSoft,
+                                offset = if (isCurrent) ClayOffset.Pressed else ClayOffset.Flat,
+                                borderWidth = ClayBorder.Hairline
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { currentIndex = idx }
+                            .padding(horizontal = ClaySpacing.Sm, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "${idx + 1}. ${s.title}",
+                            fontSize = 11.sp,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isCurrent) Color.White else WeMadeColors.OnSurface
+                        )
+                    }
+                }
+            }
+
+            // Active Screen Card — FULL WIDTH!
+            PrototypeScreenCard(
+                modifier = Modifier.fillMaxWidth(),
+                title = currentScreen.title,
+                widget = currentScreen.widget,
+                moduleName = currentModule?.displayName ?: currentScreen.moduleId,
+                rows = currentScreen.sampleRows,
+                block = session.block(currentScreen.screenId),
+                rationale = currentScreen.rationale,
+                source = currentScreen.source
+            )
+        }
+        return
+    }
+
+    if (carousel || fullWidth) {
+        // Single screen (atau non-carousel full width) — FULL WIDTH!
+        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
             screens.forEach { screen ->
                 val module = draft.modules.firstOrNull { it.id == screen.moduleId }
                 PrototypeScreenCard(
-                    modifier = Modifier.width(ClayPaneWidth.PrototypeDevice),
+                    modifier = Modifier.fillMaxWidth(),
                     title = screen.title,
                     widget = screen.widget,
                     moduleName = module?.displayName ?: screen.moduleId,
@@ -71,6 +235,24 @@ fun PrototypeRenderer(
                     source = screen.source
                 )
             }
+        }
+        return
+    }
+
+    // Default flow row (legacy phone frame width)
+    ClayFlowRow(modifier = modifier.fillMaxWidth(), spacing = ClaySpacing.Lg) {
+        screens.forEach { screen ->
+            val module = draft.modules.firstOrNull { it.id == screen.moduleId }
+            PrototypeScreenCard(
+                modifier = Modifier.width(ClayPaneWidth.PrototypeDevice),
+                title = screen.title,
+                widget = screen.widget,
+                moduleName = module?.displayName ?: screen.moduleId,
+                rows = screen.sampleRows,
+                block = session.block(screen.screenId),
+                rationale = screen.rationale,
+                source = screen.source
+            )
         }
     }
 }
