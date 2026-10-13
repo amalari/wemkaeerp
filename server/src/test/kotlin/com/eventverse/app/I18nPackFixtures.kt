@@ -7,6 +7,7 @@ import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.pack.ModuleActionCode
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
@@ -51,16 +52,24 @@ internal object I18nPackFixtures {
             wiredPortTypes = setOf(PortType("Kunjungan"), PortType("Rekam")),
             sections = listOf(
                 GarmentDomainPack.pack.sections.first { it.code.value == "GOVERNANCE" },
-                ModuleSection(ModuleSectionCode("LAYANAN"), "Layanan", 2, 0xFF16A34A, 0xFFF0FDF4)
+                ModuleSection(
+                    ModuleSectionCode("LAYANAN"), "Layanan", 2, 0xFF16A34A, 0xFFF0FDF4,
+                    displayNameText = LocalizedText.of("Layanan", if (en) "Service" else null)
+                )
             ),
             modules = listOf(
                 requireNotNull(GarmentDomainPack.pack.module(GarmentModules.ORG_CHART)),
                 ModuleDefinition(
                     ModuleId("${code}_antrean"), "Antrean Pasien", "Antrean pendaftaran & poli", ModuleSectionCode("LAYANAN"),
                     ModuleKind.OPERATIONAL, "clipboard", ScopeCapability.HIERARCHICAL,
-                    setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("${code}_layanan")
+                    setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("${code}_layanan"),
+                    displayNameText = LocalizedText.of("Antrean Pasien", if (en) "Patient Queue" else null),
+                    descriptionText = LocalizedText.of("Antrean pendaftaran & poli", if (en) "Registration and clinic queue" else null)
                 )
             ),
+            actions = ModuleActionCode.neutral.map {
+                it.copy(labelText = LocalizedText.of(it.label, if (en) "Action ${it.code.name.lowercase()}" else null))
+            },
             languages = claimed
         )
     }
