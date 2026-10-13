@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.i18n
 
+import kotlin.jvm.JvmInline
+
 @JvmInline
 value class LanguageCode(val code: String) {
     init {
