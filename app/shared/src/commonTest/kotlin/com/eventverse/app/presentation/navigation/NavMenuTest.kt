@@ -34,6 +34,9 @@ import com.eventverse.app.domain.pack.GarmentModules
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.BusinessModule
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.withoutTranslations
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -171,5 +174,41 @@ class NavMenuTest {
             firstAccessibleScreen(sections),
             "Tidak ada tujuan yang sah harus dinyatakan, bukan disamarkan dengan tujuan asal-asalan"
         )
+    }
+
+    // --- TRD-I18N-002 P3: nama seksi & modul menurut bahasa -------------------------------------
+
+    private val governance = grant(
+        GarmentModules.ORG_CHART to AccessLevel.VIEW,
+        GarmentModules.DYNAMIC_RBAC to AccessLevel.MANAGE,
+        GarmentModules.INVENTORY to AccessLevel.OPERATE
+    )
+
+    @Test
+    fun build_menu_when_language_id_should_match_default() {
+        val default = buildNavMenu(permissions = governance, auditView = false)
+        val id = buildNavMenu(permissions = governance, auditView = false, language = LanguageCode.ID)
+        assertEquals(default, id, "Bahasa id harus identik dengan perilaku sebelum lokalisasi")
+        assertTrue(id.none { it.titleFallback || it.entries.any { e -> e.titleFallback } })
+    }
+
+    @Test
+    fun build_menu_when_language_en_should_show_english_section_titles_without_fallback() {
+        val en = buildNavMenu(permissions = governance, auditView = false, language = LanguageCode.EN)
+        val id = buildNavMenu(permissions = governance, auditView = false)
+        assertEquals(id.size, en.size)
+        assertTrue(en.zip(id).any { (e, i) -> e.title != i.title }, "Minimal satu judul seksi harus berbeda di en")
+        assertTrue(en.none { it.titleFallback }, "Pack garment lengkap en: tidak boleh ada fallback")
+        // Struktur & wewenang tidak berubah oleh bahasa.
+        assertEquals(id.map { s -> s.entries.map { it.screen to it.locked } }, en.map { s -> s.entries.map { it.screen to it.locked } })
+    }
+
+    @Test
+    fun build_menu_when_pack_lacks_english_should_flag_fallback_not_hide_it() {
+        val idOnly = GarmentDomainPack.pack.withoutTranslations()
+        val en = buildNavMenu(permissions = governance, auditView = false, pack = idOnly, language = LanguageCode.EN)
+        assertTrue(en.isNotEmpty() && en.all { it.titleFallback }, "Seksi tanpa en harus ditandai fallback")
+        val id = buildNavMenu(permissions = governance, auditView = false, pack = idOnly)
+        assertEquals(id.map { it.title }, en.map { it.title }, "Teks id dipakai apa adanya, bukan hilang")
     }
 }

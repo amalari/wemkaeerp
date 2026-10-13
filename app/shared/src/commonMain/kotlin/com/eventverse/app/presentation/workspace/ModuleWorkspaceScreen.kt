@@ -24,6 +24,10 @@ import com.eventverse.app.domain.rbac.iconKey
 import com.eventverse.app.domain.rbac.description
 
 import com.eventverse.app.domain.rbac.displayName
+import com.eventverse.app.domain.rbac.displayNameText
+import com.eventverse.app.presentation.i18n.LocalizedLabel
+import com.eventverse.app.presentation.i18n.rememberActiveLanguage
+import com.eventverse.app.presentation.i18n.resolveForDisplay
 
 import com.eventverse.app.domain.rbac.name
 
@@ -93,7 +97,7 @@ fun ModuleWorkspaceScreen(
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xl)
         ) {
             AccessDeniedCard(
-                moduleName = module.displayName,
+                moduleName = module.displayNameText.resolveForDisplay(rememberActiveLanguage()).text,
                 personaName = persona?.name ?: "Tanpa persona",
                 roleTitle = persona?.roleTitle ?: "Tanpa jabatan",
                 departmentName = persona?.departmentName ?: "Tanpa divisi"
@@ -154,15 +158,17 @@ private fun ModuleHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = module.displayName,
-                modifier = Modifier.weight(1f, fill = false),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = WeMadeColors.OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            LocalizedLabel(text = module.displayNameText, modifier = Modifier.weight(1f, fill = false)) { value, mod ->
+                Text(
+                    text = value,
+                    modifier = mod,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WeMadeColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             ClayBadge(text = access.level.displayName, tint = access.level.tint(), dot = true)
         }
 

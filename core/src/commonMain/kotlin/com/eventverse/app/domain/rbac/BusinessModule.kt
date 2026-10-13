@@ -41,6 +41,9 @@ val ModuleId.code: String get() = value
 val ModuleId.name: String get() = storedName
 
 val ModuleId.displayName: String get() = definition.displayName
+
+/** Nama modul dua bahasa (TRD-I18N-002 P3); [displayName] = teks `id`. Tampilan memakai ini + `resolve(bahasa)`. */
+val ModuleId.displayNameText: com.eventverse.app.domain.i18n.LocalizedText get() = definition.displayNameText
 val ModuleId.description: String get() = definition.description
 val ModuleId.iconKey: String get() = definition.iconKey
 val ModuleId.scopeCapability: ScopeCapability get() = definition.scopeCapability

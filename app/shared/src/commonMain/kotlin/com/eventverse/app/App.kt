@@ -20,7 +20,6 @@ import com.eventverse.app.domain.rbac.iconKey
 
 import com.eventverse.app.domain.rbac.description
 
-import com.eventverse.app.domain.rbac.displayName
 
 import com.eventverse.app.domain.rbac.name
 
@@ -103,6 +102,7 @@ import com.eventverse.app.presentation.rbac.RbacNoTenantView
 import com.eventverse.app.presentation.tenant.TenantModuleEntitlementDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
+import com.eventverse.app.domain.rbac.displayNameText
 import com.eventverse.app.presentation.i18n.LocalAppLanguage
 import com.eventverse.app.presentation.i18n.AppLanguage
 
@@ -227,8 +227,8 @@ fun App() {
     // Penyusunan menu — modul mana yang muncul, di seksi kategori mana, dengan badge wewenang apa —
     // adalah keputusan wewenang, jadi ia hidup sebagai fungsi murni yang bisa diuji tanpa merender
     // apa pun (lihat NavMenu.kt). Yang tersisa di sini hanyalah penerjemahannya ke bahasa clay.
-    val menuSections = remember(effectivePermissions, auditView) {
-        buildNavMenu(permissions = effectivePermissions, auditView = auditView)
+    val menuSections = remember(effectivePermissions, auditView, currentLanguage) {
+        buildNavMenu(permissions = effectivePermissions, auditView = auditView, language = currentLanguage)
     }
 
     // Menyelesaikan pendaratan pasca-login begitu menu benar-benar tersusun. Bila ternyata tidak
@@ -312,7 +312,7 @@ fun App() {
                 if (!isBuilderLogin) {
                     AppTopBar(
                         currentScreen = currentScreen,
-                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayName else null,
+                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayNameText?.resolve(currentLanguage)?.text else null,
                         onOpenDrawer = { drawerOpen = true },
                         isAuthenticated = isAuthenticated,
                         session = session,

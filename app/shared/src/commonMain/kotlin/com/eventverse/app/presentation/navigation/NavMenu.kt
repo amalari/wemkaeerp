@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.navigation
 
+import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
@@ -25,7 +26,6 @@ import com.eventverse.app.domain.rbac.iconKey
 
 import com.eventverse.app.domain.rbac.description
 
-import com.eventverse.app.domain.rbac.displayName
 
 import com.eventverse.app.domain.rbac.name
 
@@ -55,13 +55,17 @@ data class NavMenuEntry(
     val module: BusinessModule? = screen.businessModule,
     /** Path tujuan. Modul tanpa layar khusus memakai rute generik `/m/{code}` (B6f). */
     val route: String = screen.route,
-    val title: String = screen.title
+    val title: String = screen.title,
+    /** True bila [title] kembali ke teks `id` karena terjemahan pack belum ada (TRD-I18N-002; tidak ada fallback senyap). */
+    val titleFallback: Boolean = false
 )
 
 /** Satu kelompok menu di bawah satu section header. Tidak pernah kosong — lihat [buildNavMenu]. */
 data class NavMenuSection(
     val title: String,
-    val entries: List<NavMenuEntry>
+    val entries: List<NavMenuEntry>,
+    /** True bila [title] kembali ke teks `id` karena terjemahan seksi belum ada. */
+    val titleFallback: Boolean = false
 )
 
 /**
@@ -88,7 +92,9 @@ fun buildNavMenu(
     permissions: Map<BusinessModule, ModuleAccessConfig>,
     auditView: Boolean,
     /** Pack tenant (B7): seksi & urutan menu. */
-    pack: DomainPack = ActiveTenantPack.current
+    pack: DomainPack = ActiveTenantPack.current,
+    /** Bahasa tampilan nama seksi & modul (TRD-I18N-002 P3); judul layar khusus (`screen.title`) belum dilokalkan. */
+    language: LanguageCode = LanguageCode.ID
 ): List<NavMenuSection> {
     val sections = mutableListOf<NavMenuSection>()
 
@@ -102,10 +108,11 @@ fun buildNavMenu(
     pack.sections.sortedBy { it.order }.forEach { section ->
         val entries = pack.modules
             .filter { it.section == section.code }
-            .map { it.id }
-            .flatMap { module ->
+            .flatMap { definition ->
+                val module = definition.id
                 val access = permissions[module] ?: ModuleAccessConfig()
                 if (!access.isAccessible && !auditView) return@flatMap emptyList()
+                val name = definition.displayNameText.resolve(language)
                 val base = NavMenuEntry(
                     screen = AppNavScreen.MODULE,
                     accessLevel = access.level,
@@ -113,14 +120,18 @@ fun buildNavMenu(
                     locked = !access.isAccessible,
                     module = module,
                     route = "${AppNavScreen.MODULE.route}/${module.code}",
-                    title = module.displayName
+                    title = name.text,
+                    titleFallback = name.isFallback
                 )
-                screensByModule[module]?.map { screen -> base.copy(screen = screen, route = screen.route, title = screen.title) }
+                screensByModule[module]?.map { screen ->
+                    base.copy(screen = screen, route = screen.route, title = screen.title, titleFallback = false)
+                }
                     ?: listOf(base)
             }
 
         if (entries.isNotEmpty()) {
-            sections += NavMenuSection(title = section.displayName, entries = entries)
+            val sectionName = section.displayNameText.resolve(language)
+            sections += NavMenuSection(title = sectionName.text, entries = entries, titleFallback = sectionName.isFallback)
         }
     }
 
