@@ -70,4 +70,21 @@ class PostgresDomainPackLocalizationTest {
         val failure = runCatching { packs.findLatest(DomainPackCode(code)) }.exceptionOrNull()
         assertNotNull(failure, "baris korup wajib melempar (Kontrak 4), bukan dianggap tidak ada")
     }
+
+    @Test
+    fun menuLabel_roundTripsThroughJsonb_andDocumentWithoutKeyReadsIdentically() = runBlocking<Unit> {
+        val withLabel = I18nPackFixtures.pack(code, menuLabel = true)
+        packs.save(StoredDomainPack(withLabel, 1, DomainPackStatus.DRAFT, null))
+        val read = assertNotNull(packs.findLatest(DomainPackCode(code))).pack
+        assertEquals(withLabel, read)
+        assertEquals("Queue", read.modules.last().menuLabelText?.textOrNull(LanguageCode.EN))
+
+        val old = I18nPackFixtures.pack(code, menuLabel = false)
+        val oldJson = DomainPackCodec.encodeToString(old)
+        assertFalse(oldJson.contains("\"menuLabel\""))
+        DatabaseFactory.dbQuery { DomainPacksTable.update({ DomainPacksTable.code eq code }) { it[definition] = oldJson } }
+        val oldRead = assertNotNull(packs.findLatest(DomainPackCode(code))).pack
+        assertEquals(old, oldRead)
+        assertEquals(oldJson, DomainPackCodec.encodeToString(oldRead))
+    }
 }
