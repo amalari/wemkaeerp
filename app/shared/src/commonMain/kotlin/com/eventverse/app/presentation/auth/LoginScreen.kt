@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.i18n.LanguageSelector
+import com.eventverse.app.presentation.i18n.LanguageManager
+import com.eventverse.app.presentation.i18n.LocalAppLanguage
 
 @Composable
 fun LoginScreen(
@@ -159,6 +162,9 @@ fun LoginScreen(
 
 @Composable
 private fun HeaderSection() {
+    val currentLanguage = LocalAppLanguage.current
+    val languageManager = remember { LanguageManager.getInstance() }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // ERP Badge Icon inside tactile Clay Tile
         Box(
@@ -193,6 +199,15 @@ private fun HeaderSection() {
         }
 
         Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+
+        // Language Selector
+        LanguageSelector(
+            currentLanguage = currentLanguage,
+            onLanguageChange = { lang ->
+                languageManager.setLanguage(lang)
+            },
+            modifier = Modifier.align(Alignment.End)
+        )
 
         Text(
             text = "WeMade ERP",
