@@ -11,13 +11,15 @@ class AppLanguage private constructor(
     private val _language = MutableStateFlow(initialLanguage)
     val language: StateFlow<LanguageCode> = _language.asStateFlow()
 
+    /** Mengganti bahasa aktif dan menyimpannya di perangkat. */
     fun setLanguage(code: LanguageCode) {
         _language.value = code
+        LanguagePreference.save(code)
     }
 
     companion object {
         // Tanpa `synchronized` (tidak ada di commonMain: JS/Wasm). Dibuat eager; state bahasa hanya disentuh dari thread UI.
-        private var instance: AppLanguage = AppLanguage(LanguageCode.ID)
+        private var instance: AppLanguage = AppLanguage(LanguagePreference.load() ?: LanguageCode.ID)
 
         fun getInstance(): AppLanguage = instance
 

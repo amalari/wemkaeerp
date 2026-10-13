@@ -69,6 +69,8 @@ fun LocalizedLabel(
     text: LocalizedText,
     modifier: Modifier = Modifier,
     transform: (String) -> String = { it },
+    /** `false` untuk induk yang lebarnya mengikuti isi (chip): `weight` di lebar tak terbatas mengecilkan teks jadi nol. */
+    shrinkable: Boolean = true,
     content: @Composable (String, Modifier) -> Unit = { value, mod ->
         Text(value, modifier = mod, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -80,7 +82,7 @@ fun LocalizedLabel(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
     ) {
-        content(resolved.text, Modifier.weight(1f, fill = false))
+        content(resolved.text, if (shrinkable) Modifier.weight(1f, fill = false) else Modifier)
         if (resolved.isFallback) MissingTranslationBadge(language)
     }
 }

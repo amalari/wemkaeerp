@@ -189,7 +189,7 @@ private fun MacroProcessStepper(
                 }
 
                 Column {
-                    LocalizedLabel(text = stage.displayNameText, transform = StripPhaseOrdinal) { value, mod ->
+                    LocalizedLabel(text = stage.displayNameText, transform = StripPhaseOrdinal, shrinkable = false) { value, mod ->
                         Text(
                             text = value,
                             modifier = mod,

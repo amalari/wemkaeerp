@@ -31,6 +31,7 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.IconHelp
 import com.eventverse.app.presentation.designsystem.IconLayers
 import com.eventverse.app.presentation.designsystem.IconMenu
+import com.eventverse.app.presentation.i18n.LanguageSwitcher
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -180,6 +181,8 @@ fun AppTopBar(
                                     .background(WeMadeColors.Border)
                             )
                         }
+
+                        LanguageSwitcher(modifier = Modifier.padding(end = 10.dp))
 
                         onOpenHelp?.let { open ->
                         ClayIconButton(onClick = open, shape = ClayShapes.Tile, modifier = Modifier.padding(end = 10.dp)) {
