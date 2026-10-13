@@ -33,7 +33,7 @@ class NeutralSharedModulesTest {
         val section = garment.sections.first { it.code == garment.module(id)!!.section }
         return k.copy(
             sections = (k.sections + section).distinctBy { it.code },
-            modules = k.modules.filter { it.id != id } + garment.module(id)!!.old()
+            modules = k.modules.filter { it.id != id } + garment.module(id)!!.copy(menuLabelText = null).old()
         )
     }
 

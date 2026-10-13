@@ -56,7 +56,9 @@ data class ClayNavItem(
     /** Warna badge; null memakai warna netral. Tetap `Color`, bukan tipe domain — Kontrak 6. */
     val badgeTint: Color? = null,
     /** False membuat baris teredam dan tidak dapat diklik. */
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    /** Penanda kecil di sebelah label (mis. "Belum diterjemahkan"); null = tanpa penanda. */
+    val labelNote: String? = null
 )
 
 /**
@@ -67,7 +69,9 @@ data class ClayNavItem(
  */
 data class ClayNavSection(
     val title: String,
-    val items: List<ClayNavItem>
+    val items: List<ClayNavItem>,
+    /** Penanda kecil di sebelah judul seksi; null = tanpa penanda. */
+    val titleNote: String? = null
 )
 
 /** Lebar panel drawer. Sepadan dengan panel produk Google Cloud Console. */
@@ -159,7 +163,7 @@ fun ClayNavDrawer(
                             Spacer(modifier = Modifier.height(ClaySpacing.Lg))
                         }
 
-                        DrawerSectionHeader(title = section.title)
+                        DrawerSectionHeader(title = section.title, note = section.titleNote)
 
                         section.items.forEach { item ->
                             DrawerRow(item = item)
@@ -223,17 +227,24 @@ private fun DrawerHeader(title: String, subtitle: String?, onDismiss: () -> Unit
  * Kontrak 9. Ukurannya memakai peran `labelSmall` supaya ikut Nunito, bukan angka telanjang.
  */
 @Composable
-private fun DrawerSectionHeader(title: String) {
-    Text(
-        text = title.uppercase(),
+private fun DrawerSectionHeader(title: String, note: String? = null) {
+    Row(
         modifier = Modifier.padding(start = ClaySpacing.Lg, bottom = ClaySpacing.Md),
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = ClayLetterSpacing.Label,
-        color = WeMadeColors.OnSurfaceMuted,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis
-    )
+        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title.uppercase(),
+            modifier = Modifier.weight(1f, fill = false),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = ClayLetterSpacing.Label,
+            color = WeMadeColors.OnSurfaceMuted,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (note != null) ClayBadge(text = note, tint = WeMadeColors.Warning, fontSize = 9.sp)
+    }
 }
 
 @Composable
@@ -297,6 +308,7 @@ private fun DrawerRow(item: ClayNavItem) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (item.labelNote != null) ClayBadge(text = item.labelNote, tint = WeMadeColors.Warning, fontSize = 9.sp)
         }
 
         if (item.badge != null) {

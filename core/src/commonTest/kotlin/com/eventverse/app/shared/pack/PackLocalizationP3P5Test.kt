@@ -148,7 +148,7 @@ class PackLocalizationP3P5Test {
     fun `teks id pack garment per jalur identik dengan sebelum terjemahan`() {
         val garment = GarmentDomainPack.pack
         val idOnly = garment.withoutTranslations()
-        assertEquals(garment.localizedTexts().map { it.first to it.second.idText }, idOnly.localizedTexts().map { it.first to it.second.idText })
+        assertEquals(garment.localizedTexts().filter { !it.first.endsWith(".menuLabel") }.map { it.first to it.second.idText }, idOnly.localizedTexts().map { it.first to it.second.idText })
         assertEquals(idOnly, DomainPackCodec.decode(DomainPackCodec.encodeToString(idOnly)))
     }
 }

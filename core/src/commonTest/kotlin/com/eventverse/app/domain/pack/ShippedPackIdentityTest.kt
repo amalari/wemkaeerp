@@ -37,6 +37,20 @@ class ShippedPackIdentityTest {
     }
 
     @Test
+    fun `draf garment lama tanpa menuLabel tetap sah terhadap bawaan yang memuatnya`() {
+        assertTrue(garment.modules.any { it.menuLabelText != null })
+        assertEquals(emptyList(), DiscoveryDraftValidator.validate(draftWith(garment.withoutTranslations())))
+    }
+
+    @Test
+    fun `menulis ulang menuLabel pada pack berkode garment ditolak`() {
+        val rewritten = garment.copy(modules = garment.modules.map {
+            if (it.id == GarmentModules.ORG_CHART) it.copy(menuLabelText = com.eventverse.app.domain.i18n.LocalizedText.of("Judul Saya", "My Title")) else it
+        })
+        assertTrue(DiscoveryDraftValidator.validate(draftWith(rewritten)).any { it.path == "$.pack" })
+    }
+
+    @Test
     fun `kolom non-aditif tetap harus identik`() {
         val extra = garment.withIdLabels(portLabels = garment.portLabels + ("ProductionOrderDraft" to "Label Lain"))
         assertTrue(DiscoveryDraftValidator.validate(draftWith(extra)).any { it.path == "$.pack" })

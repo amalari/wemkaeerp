@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -69,5 +70,22 @@ class PostgresDomainPackLocalizationTest {
         DatabaseFactory.dbQuery { DomainPacksTable.update({ DomainPacksTable.code eq code }) { it[definition] = corrupt } }
         val failure = runCatching { packs.findLatest(DomainPackCode(code)) }.exceptionOrNull()
         assertNotNull(failure, "baris korup wajib melempar (Kontrak 4), bukan dianggap tidak ada")
+    }
+
+    @Test
+    fun menuLabel_roundTripsThroughJsonb_andDocumentWithoutKeyReadsIdentically() = runBlocking<Unit> {
+        val withLabel = I18nPackFixtures.pack(code, menuLabel = true)
+        packs.save(StoredDomainPack(withLabel, 1, DomainPackStatus.DRAFT, null))
+        val read = assertNotNull(packs.findLatest(DomainPackCode(code))).pack
+        assertEquals(withLabel, read)
+        assertEquals("Queue", read.modules.last().menuLabelText?.textOrNull(LanguageCode.EN))
+
+        val old = I18nPackFixtures.pack(code, menuLabel = false)
+        val oldJson = DomainPackCodec.encodeToString(old)
+        assertNull(DomainPackCodec.decode(oldJson).modules.last().menuLabelText) // modul pack uji tanpa menuLabel (org_chart bersama boleh membawanya)
+        DatabaseFactory.dbQuery { DomainPacksTable.update({ DomainPacksTable.code eq code }) { it[definition] = oldJson } }
+        val oldRead = assertNotNull(packs.findLatest(DomainPackCode(code))).pack
+        assertEquals(old, oldRead)
+        assertEquals(oldJson, DomainPackCodec.encodeToString(oldRead))
     }
 }

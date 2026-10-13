@@ -27,7 +27,7 @@ import com.eventverse.app.domain.rbac.ScopeCapability
  */
 internal object I18nPackFixtures {
 
-    fun pack(code: String, languages: Set<String> = setOf("id", "en"), complete: Boolean = true): DomainPack {
+    fun pack(code: String, languages: Set<String> = setOf("id", "en"), complete: Boolean = true, menuLabel: Boolean = false): DomainPack {
         val claimed = PackLanguages(languages.map { LanguageCode(it) }.toSet())
         val en = LanguageCode.EN in claimed.languages
         val phase = PhaseDefinition(
@@ -64,7 +64,8 @@ internal object I18nPackFixtures {
                     ModuleKind.OPERATIONAL, "clipboard", ScopeCapability.HIERARCHICAL,
                     setOf(DataScope.OWN_DATA_ONLY, DataScope.ALL_TENANT_DATA), SlotCode("${code}_layanan"),
                     displayNameText = LocalizedText.of("Antrean Pasien", if (en) "Patient Queue" else null),
-                    descriptionText = LocalizedText.of("Antrean pendaftaran & poli", if (en) "Registration and clinic queue" else null)
+                    descriptionText = LocalizedText.of("Antrean pendaftaran & poli", if (en) "Registration and clinic queue" else null),
+                    menuLabelText = if (menuLabel) LocalizedText.of("Antrean", if (en && complete) "Queue" else null) else null
                 )
             ),
             actions = ModuleActionCode.neutral.map {
