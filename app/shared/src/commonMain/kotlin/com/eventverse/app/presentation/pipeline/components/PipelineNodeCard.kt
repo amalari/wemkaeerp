@@ -27,6 +27,8 @@ import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.IconInbox
 import com.eventverse.app.presentation.designsystem.IconRestore
 import com.eventverse.app.presentation.designsystem.clayFlat
+import com.eventverse.app.presentation.i18n.LocalizedLabel
+import com.eventverse.app.presentation.i18n.StripPhaseOrdinal
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 @Composable
@@ -110,15 +112,22 @@ fun PipelineNodeCard(
                         )
                     }
 
-                    Text(
-                        text = node.stage.displayName.substringAfter(". ").uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(node.stage.colorHex),
-                        letterSpacing = 0.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    LocalizedLabel(
+                        text = node.stage.displayNameText,
+                        modifier = Modifier.weight(1f, fill = false),
+                        transform = { StripPhaseOrdinal(it).uppercase() }
+                    ) { value, mod ->
+                        Text(
+                            text = value,
+                            modifier = mod,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(node.stage.colorHex),
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(6.dp))
