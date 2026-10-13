@@ -136,18 +136,15 @@ fun PipelineNodeCard(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Health Status Pill — tidak boleh menyusut; statusnya harus selalu terbaca utuh.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isBypassed) {
-                        ClayBadge(
-                            text = nodeInactiveLabel(rememberActiveLanguage()),
-                            tint = WeMadeColors.Warning,
-                            dot = false
-                        )
-                    }
+                // Penanda status — tidak boleh menyusut. Node bypassed cukup satu penanda "Nonaktif" (pil kesehatan "Di-bypass"
+                // di sini redundan dan menyempitkan header kartu).
+                if (isBypassed) {
+                    ClayBadge(
+                        text = nodeInactiveLabel(rememberActiveLanguage()),
+                        tint = WeMadeColors.Warning,
+                        dot = false
+                    )
+                } else {
                     HealthStatusPill(status = node.healthStatus)
                 }
             }
