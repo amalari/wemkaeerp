@@ -138,7 +138,8 @@ class TenantPipelineUseCaseTest {
 
     @Test
     fun savePipeline_withAllModulesBypassed_shouldFail() = runTest {
-        val initial = getUseCase(testTenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        // Tenant baru mulai tanpa modul aktif (A2); aktifkan sesuai saran preset dulu, baru uji penolakan mematikan yang terakhir.
+        val initial = provisionActivated(getUseCase, repository, testTenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
         val allBypassed = initial.nodes.fold(initial) { acc, node ->
             acc.setNodeBypassed(node.nodeId, true)
         }

@@ -165,7 +165,7 @@ class TenantEntitlementUseCaseTest {
     fun setEntitlement_thatWouldBreakARunningPipeline_shouldBeRejected() = runTest {
         // Revoking a module a factory is actively running would lock it out of editing its
         // own flow, and the failure would only appear on that tenant's next save.
-        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        provisionActivated(getPipeline, pipelineRepository, tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
 
         val result = setEntitlement(
             tenantId,
@@ -218,7 +218,7 @@ class TenantEntitlementUseCaseTest {
     @Test
     fun setEntitlement_withAutoBypass_shouldBypassRunningPipelineNodesAndSucceed() = runTest {
         // Setup a running pipeline with all FOB modules active
-        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        provisionActivated(getPipeline, pipelineRepository, tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
         val initialPipeline = pipelineRepository.findByTenantId(tenantId)!!
         val packingNode = initialPipeline.nodes.first { it.moduleId == GarmentModules.FULFILLMENT.code }
         assertFalse(packingNode.isBypassed)

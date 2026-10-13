@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.pipeline
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
+import com.eventverse.app.domain.pipeline.PipelinePresetFactory
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +28,11 @@ class FactoryFlowViewModelTenantDataTest {
     private val tenantId = TenantId("ten-demo-cmt")
 
     private fun cmtPipelineWithCustomNames(): CustomTenantPipeline {
-        val base = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
+        // Alur yang TERSIMPAN milik tenant: modul diaktifkan sesuai saran preset (A2: preset sendiri mulai tanpa modul aktif).
+        val suggested = PipelinePresetFactory.createSnapshot(GarmentBlueprints.CMT_MAKLOON).nodes.associate { it.id to it.isBypassed }
+        val base = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON).let { preset ->
+            preset.copy(nodes = preset.nodes.map { it.copy(isBypassed = suggested[it.nodeId] ?: false) })
+        }
         val inventoryNode = base.nodes.first { it.moduleId == "inventory" }
         return base
             .renameNode(inventoryNode.nodeId, "Penerimaan Kain Titipan Buyer")

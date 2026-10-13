@@ -125,7 +125,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun deactivateModule_shouldBypassItWithoutDeletingTheNode() = runTest {
-        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        provisionActivated(getPipeline, repository, tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
 
         val updated = setActivation(tenantId, "inventory", false, proPlan).getOrThrow()
         val node = updated.nodes.firstOrNull { it.moduleId == "inventory" }
@@ -151,7 +151,7 @@ class TenantModuleProvisioningUseCaseTest {
     @Test
     fun activateModule_beyondPlanLimit_shouldFail() = runTest {
         val starterPlan = TenantModuleEntitlement.forTier(SubscriptionTier.STARTER, GarmentDomainPack.pack)
-        getPipeline(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
+        provisionActivated(getPipeline, repository, tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
 
         // Nine active modules already exceeds STARTER's five, so any save must be refused.
         val result = setActivation(tenantId, "inventory", true, starterPlan)
@@ -222,7 +222,7 @@ class TenantModuleProvisioningUseCaseTest {
 
     @Test
     fun installCustomModule_onEnterprisePlan_shouldPersistAndWireIt() = runTest {
-        getPipeline(tenantId, GarmentBlueprints.BRAND_D2C).getOrThrow()
+        provisionActivated(getPipeline, repository, tenantId, GarmentBlueprints.BRAND_D2C)
         val descriptor = customPlugin()
 
         val updated = installCustom(
@@ -287,8 +287,8 @@ class TenantModuleProvisioningUseCaseTest {
         val fobTenant = TenantId("ten-fob")
         val cmtTenant = TenantId("ten-cmt")
 
-        getPipeline(fobTenant, GarmentBlueprints.FOB_FULL_PACKAGE).getOrThrow()
-        getPipeline(cmtTenant, GarmentBlueprints.CMT_MAKLOON).getOrThrow()
+        provisionActivated(getPipeline, repository, fobTenant, GarmentBlueprints.FOB_FULL_PACKAGE)
+        provisionActivated(getPipeline, repository, cmtTenant, GarmentBlueprints.CMT_MAKLOON)
 
         renameModule(fobTenant, "fob-inventory", "Gudang Kain Roll Impor", entitlement = proPlan)
             .getOrThrow()

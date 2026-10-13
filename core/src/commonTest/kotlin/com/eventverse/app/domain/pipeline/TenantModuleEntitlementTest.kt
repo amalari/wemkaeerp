@@ -54,7 +54,7 @@ class TenantModuleEntitlementTest {
     private val tenantId = TenantId("ten-entitlement-test")
 
     private fun fobPipeline() =
-        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
+        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).activatedPerPreset(GarmentBlueprints.FOB_FULL_PACKAGE)
 
     private fun customPlugin(moduleId: String = "sablon_bordir_custom") = DynamicModuleDescriptor(
         moduleId = moduleId,
@@ -244,7 +244,7 @@ class GovernanceEntitlementTest {
         val pipeline = CustomTenantPipeline.fromPreset(
             TenantId("ten-demo-001"),
             GarmentBlueprints.CMT_MAKLOON
-        )
+        ).activatedPerPreset(GarmentBlueprints.CMT_MAKLOON)
 
         val activeOperational = pipeline.activeNodes.count { it.standardModule?.isOperational == true }
         assertEquals(

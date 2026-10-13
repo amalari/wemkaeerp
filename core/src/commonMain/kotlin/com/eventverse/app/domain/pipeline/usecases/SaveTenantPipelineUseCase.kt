@@ -40,8 +40,13 @@ class SaveTenantPipelineUseCase(
             }
         }
 
-        require(pipeline.activeNodes.isNotEmpty()) {
-            "Pipeline must keep at least one active (non-bypassed) module"
+        // Aktivasi manual (A2): tenant baru dimulai tanpa modul aktif — preset hanya saran — sehingga "belum ada yang aktif"
+        // adalah keadaan awal yang sah. Yang ditolak: **mematikan modul aktif terakhir** (dari >=1 aktif menjadi 0).
+        if (pipeline.activeNodes.isEmpty()) {
+            val previous = pipelineRepository.findByTenantId(pipeline.tenantId)
+            require(previous == null || previous.activeNodes.isEmpty()) {
+                "Pipeline must keep at least one active (non-bypassed) module"
+            }
         }
 
         if (entitlement != null) {

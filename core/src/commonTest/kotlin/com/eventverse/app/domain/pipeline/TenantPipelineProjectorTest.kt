@@ -20,7 +20,7 @@ class TenantPipelineProjectorTest {
     private val tenantId = TenantId("ten-projector-test")
 
     private fun fobPipeline() =
-        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
+        CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.FOB_FULL_PACKAGE).activatedPerPreset(GarmentBlueprints.FOB_FULL_PACKAGE)
 
     @Test
     fun project_shouldRenderPersistedTopologyNotPresetDefaults() {
@@ -56,7 +56,7 @@ class TenantPipelineProjectorTest {
     fun project_moduleReEnabledByTenant_shouldNotStayGreyedOut() {
         // CMT bypasses raw material by default. A tenant that switches it back on must see it
         // as active, not permanently greyed out by the preset's own default.
-        val cmt = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON)
+        val cmt = CustomTenantPipeline.fromPreset(tenantId, GarmentBlueprints.CMT_MAKLOON).activatedPerPreset(GarmentBlueprints.CMT_MAKLOON)
         val bypassedNode = cmt.nodes.first { it.isBypassed }
 
         val reEnabled = cmt.setNodeBypassed(bypassedNode.nodeId, false)
