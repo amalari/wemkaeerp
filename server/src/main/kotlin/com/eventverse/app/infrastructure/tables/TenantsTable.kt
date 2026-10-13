@@ -27,5 +27,8 @@ object TenantsTable : Table("tenants") {
     /** Tenggat trial (V88). NULL = tenant legacy tanpa jam. */
     val trialEndsAt = timestamp("trial_ends_at").nullable()
 
+    /** Bahasa bawaan tenant (V103, PLAN-i18n Fase 1). `id`/`en`. */
+    val defaultLanguage = varchar("default_language", 8).default("id")
+
     override val primaryKey = PrimaryKey(id)
 }

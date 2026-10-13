@@ -14,6 +14,7 @@ import com.eventverse.app.domain.fulfillment.shipment.ShipmentNumber
 import com.eventverse.app.domain.fulfillment.shipment.ShipmentRepository
 import com.eventverse.app.domain.fulfillment.shipment.ShipmentStatus
 import com.eventverse.app.domain.fulfillment.shipment.StockOwnership
+import com.eventverse.app.domain.i18n.ServerErrorCode
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.RoleId
 import com.eventverse.app.domain.rbac.RoleRepository
@@ -75,18 +76,18 @@ fun Route.fulfillmentPackingRoutes(
         post("/cartons") {
             val tenant = call.requireFulfillmentTenant() ?: return@post
             if (!call.canOperateFulfillment(tenant, roleRepository)) {
-                return@post call.respond(
-                    HttpStatusCode.Forbidden,
+                return@post call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: membuat karton butuh wewenang kerja modul FULFILLMENT"
                 )
             }
 
             val body = call.fulfillmentBody()
-                ?: return@post call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@post call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val productionRef = body.string("productionRef").orEmpty()
             if (productionRef.isBlank()) {
-                return@post call.respond(HttpStatusCode.BadRequest, "Referensi produksi wajib diisi")
+                return@post call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Referensi produksi wajib diisi")
             }
 
             // Generate carton number
@@ -114,7 +115,7 @@ fun Route.fulfillmentPackingRoutes(
                 val saved = cartonRepository.save(carton)
                 call.respondJson(PackingCartonCodec.encode(saved).encode())
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Gagal membuat karton")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.CONFLICT, e.message ?: "Gagal membuat karton")
             }
         }
 
@@ -122,27 +123,27 @@ fun Route.fulfillmentPackingRoutes(
         patch("/cartons/{id}/seal") {
             val tenant = call.requireFulfillmentTenant() ?: return@patch
             if (!call.canOperateFulfillment(tenant, roleRepository)) {
-                return@patch call.respond(
-                    HttpStatusCode.Forbidden,
+                return@patch call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: menyegel karton butuh wewenang kerja modul FULFILLMENT"
                 )
             }
 
             val cartonId = CartonId(call.parameters["id"].orEmpty())
             val carton = cartonRepository.findById(tenant.tenantId, cartonId)
-                ?: return@patch call.respond(HttpStatusCode.NotFound, "Karton tidak ditemukan")
+                ?: return@patch call.respondError(HttpStatusCode.NotFound, ServerErrorCode.NOT_FOUND, "Karton tidak ditemukan")
 
             val body = call.fulfillmentBody()
-                ?: return@patch call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val sealNumberValue = body.string("sealNumber")
             if (sealNumberValue.isNullOrBlank()) {
-                return@patch call.respond(HttpStatusCode.BadRequest, "Nomor seal wajib diisi")
+                return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Nomor seal wajib diisi")
             }
 
             val grossWeight = body.double("grossWeightKg")
             if (grossWeight == null || grossWeight <= 0) {
-                return@patch call.respond(HttpStatusCode.BadRequest, "Berat kotor wajib lebih dari 0")
+                return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Berat kotor wajib lebih dari 0")
             }
 
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
@@ -163,9 +164,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(PackingCartonCodec.encode(saved).encode())
             } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menyegel karton")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.INVALID_STATE, e.message ?: "Tidak dapat menyegel karton")
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal menyegel karton")
+                call.respondError(HttpStatusCode.InternalServerError, ServerErrorCode.INTERNAL_ERROR, e.message ?: "Gagal menyegel karton")
             }
         }
 
@@ -173,22 +174,22 @@ fun Route.fulfillmentPackingRoutes(
         patch("/cartons/{id}/reopen") {
             val tenant = call.requireFulfillmentTenant() ?: return@patch
             if (!call.canManageFulfillment(tenant, roleRepository)) {
-                return@patch call.respond(
-                    HttpStatusCode.Forbidden,
+                return@patch call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: membuka kembali karton butuh wewenang kelola modul FULFILLMENT"
                 )
             }
 
             val cartonId = CartonId(call.parameters["id"].orEmpty())
             val carton = cartonRepository.findById(tenant.tenantId, cartonId)
-                ?: return@patch call.respond(HttpStatusCode.NotFound, "Karton tidak ditemukan")
+                ?: return@patch call.respondError(HttpStatusCode.NotFound, ServerErrorCode.NOT_FOUND, "Karton tidak ditemukan")
 
             val body = call.fulfillmentBody()
-                ?: return@patch call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val reason = body.string("reason").orEmpty()
             if (reason.isBlank()) {
-                return@patch call.respond(HttpStatusCode.BadRequest, "Alasan reopen wajib diisi")
+                return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Alasan reopen wajib diisi")
             }
 
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
@@ -210,9 +211,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(PackingCartonCodec.encode(saved).encode())
             } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membuka kembali karton")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.INVALID_STATE, e.message ?: "Tidak dapat membuka kembali karton")
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal membuka kembali karton")
+                call.respondError(HttpStatusCode.InternalServerError, ServerErrorCode.INTERNAL_ERROR, e.message ?: "Gagal membuka kembali karton")
             }
         }
 
@@ -220,20 +221,20 @@ fun Route.fulfillmentPackingRoutes(
         post("/shipments") {
             val tenant = call.requireFulfillmentTenant() ?: return@post
             if (!call.canOperateFulfillment(tenant, roleRepository)) {
-                return@post call.respond(
-                    HttpStatusCode.Forbidden,
+                return@post call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: menerbitkan pengiriman butuh wewenang kerja modul FULFILLMENT"
                 )
             }
 
             val body = call.fulfillmentBody()
-                ?: return@post call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@post call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val stockOwnershipRaw = body.string("stockOwnership").orEmpty()
             val stockOwnership = try {
                 StockOwnership.valueOf(stockOwnershipRaw.uppercase())
             } catch (e: Exception) {
-                return@post call.respond(HttpStatusCode.BadRequest, "Stock ownership tidak sah: $stockOwnershipRaw")
+                return@post call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Stock ownership tidak sah: $stockOwnershipRaw")
             }
 
             // Parse carrier info
@@ -256,7 +257,7 @@ fun Route.fulfillmentPackingRoutes(
             )
 
             if (carrier.expedition.isBlank() || destination.buyer.isBlank()) {
-                return@post call.respond(HttpStatusCode.BadRequest, "Ekspedisi dan buyer wajib diisi")
+                return@post call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Ekspedisi dan buyer wajib diisi")
             }
 
             // Generate shipment number
@@ -290,7 +291,7 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Gagal menerbitkan pengiriman")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.CONFLICT, e.message ?: "Gagal menerbitkan pengiriman")
             }
         }
 
@@ -298,18 +299,18 @@ fun Route.fulfillmentPackingRoutes(
         patch("/shipments/{id}/in-transit") {
             val tenant = call.requireFulfillmentTenant() ?: return@patch
             if (!call.canOperateFulfillment(tenant, roleRepository)) {
-                return@patch call.respond(
-                    HttpStatusCode.Forbidden,
+                return@patch call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: menandai pengiriman butuh wewenang kerja modul FULFILLMENT"
                 )
             }
 
             val shipmentId = ShipmentId(call.parameters["id"].orEmpty())
             val shipment = shipmentRepository.findById(tenant.tenantId, shipmentId)
-                ?: return@patch call.respond(HttpStatusCode.NotFound, "Pengiriman tidak ditemukan")
+                ?: return@patch call.respondError(HttpStatusCode.NotFound, ServerErrorCode.NOT_FOUND, "Pengiriman tidak ditemukan")
 
             val body = call.fulfillmentBody()
-                ?: return@patch call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
             val now = Clock.System.now()
@@ -330,9 +331,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat menandai pengiriman")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.INVALID_STATE, e.message ?: "Tidak dapat menandai pengiriman")
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal menandai pengiriman")
+                call.respondError(HttpStatusCode.InternalServerError, ServerErrorCode.INTERNAL_ERROR, e.message ?: "Gagal menandai pengiriman")
             }
         }
 
@@ -340,18 +341,18 @@ fun Route.fulfillmentPackingRoutes(
         patch("/shipments/{id}/delivered") {
             val tenant = call.requireFulfillmentTenant() ?: return@patch
             if (!call.canOperateFulfillment(tenant, roleRepository)) {
-                return@patch call.respond(
-                    HttpStatusCode.Forbidden,
+                return@patch call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: mengonfirmasi penerimaan butuh wewenang kerja modul FULFILLMENT"
                 )
             }
 
             val shipmentId = ShipmentId(call.parameters["id"].orEmpty())
             val shipment = shipmentRepository.findById(tenant.tenantId, shipmentId)
-                ?: return@patch call.respond(HttpStatusCode.NotFound, "Pengiriman tidak ditemukan")
+                ?: return@patch call.respondError(HttpStatusCode.NotFound, ServerErrorCode.NOT_FOUND, "Pengiriman tidak ditemukan")
 
             val body = call.fulfillmentBody()
-                ?: return@patch call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@patch call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
             val now = Clock.System.now()
@@ -372,9 +373,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat mengonfirmasi pengiriman")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.INVALID_STATE, e.message ?: "Tidak dapat mengonfirmasi pengiriman")
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal mengonfirmasi pengiriman")
+                call.respondError(HttpStatusCode.InternalServerError, ServerErrorCode.INTERNAL_ERROR, e.message ?: "Gagal mengonfirmasi pengiriman")
             }
         }
 
@@ -382,22 +383,22 @@ fun Route.fulfillmentPackingRoutes(
         delete("/shipments/{id}") {
             val tenant = call.requireFulfillmentTenant() ?: return@delete
             if (!call.canManageFulfillment(tenant, roleRepository)) {
-                return@delete call.respond(
-                    HttpStatusCode.Forbidden,
+                return@delete call.respondError(
+                    HttpStatusCode.Forbidden, ServerErrorCode.FORBIDDEN,
                     "Akses ditolak: membatalkan pengiriman butuh wewenang kelola modul FULFILLMENT"
                 )
             }
 
             val shipmentId = ShipmentId(call.parameters["id"].orEmpty())
             val shipment = shipmentRepository.findById(tenant.tenantId, shipmentId)
-                ?: return@delete call.respond(HttpStatusCode.NotFound, "Pengiriman tidak ditemukan")
+                ?: return@delete call.respondError(HttpStatusCode.NotFound, ServerErrorCode.NOT_FOUND, "Pengiriman tidak ditemukan")
 
             val body = call.fulfillmentBody()
-                ?: return@delete call.respond(HttpStatusCode.BadRequest, "Body JSON tidak terbaca")
+                ?: return@delete call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.INVALID_BODY, "Body JSON tidak terbaca")
 
             val reason = body.string("reason").orEmpty()
             if (reason.isBlank()) {
-                return@delete call.respond(HttpStatusCode.BadRequest, "Alasan pembatalan wajib diisi")
+                return@delete call.respondError(HttpStatusCode.BadRequest, ServerErrorCode.VALIDATION_ERROR, "Alasan pembatalan wajib diisi")
             }
 
             val actor = body.string("actor").orEmpty().ifBlank { "system" }
@@ -421,9 +422,9 @@ fun Route.fulfillmentPackingRoutes(
 
                 call.respondJson(DispatchShipmentCodec.encode(saved, emptyList()).encode())
             } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Conflict, e.message ?: "Tidak dapat membatalkan pengiriman")
+                call.respondError(HttpStatusCode.Conflict, ServerErrorCode.INVALID_STATE, e.message ?: "Tidak dapat membatalkan pengiriman")
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Gagal membatalkan pengiriman")
+                call.respondError(HttpStatusCode.InternalServerError, ServerErrorCode.INTERNAL_ERROR, e.message ?: "Gagal membatalkan pengiriman")
             }
         }
     }
@@ -433,7 +434,7 @@ fun Route.fulfillmentPackingRoutes(
 
 private suspend fun ApplicationCall.requireFulfillmentTenant(): TenantContext? {
     val ctx = tenantContextOrNull
-    if (ctx == null) respond(HttpStatusCode.BadRequest, "Konteks tenant tidak ditemukan")
+    if (ctx == null) respondError(HttpStatusCode.BadRequest, ServerErrorCode.NO_TENANT_CONTEXT, "Konteks tenant tidak ditemukan")
     return ctx
 }
 

@@ -130,7 +130,8 @@ class DomainRouteWiring(
     sizingWeightsRepository: SizingWeightsRepository? = null,
     prospectLeadRepository: ProspectLeadRepository? = null,
     flowTranslationRepository: FlowTranslationRepository? = null,
-    prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null
+    prospectPriceEstimateRepository: ProspectPriceEstimateRepository? = null,
+    languagePreferenceRepository: com.eventverse.app.domain.i18n.LanguagePreferenceRepository? = null
 ) {
     private val customizationRequestRepo = moduleCustomizationRequestRepository ?: PostgresModuleCustomizationRequestRepository()
     private val sizingWeightsRepo = sizingWeightsRepository ?: PostgresSizingWeightsRepository()
@@ -185,6 +186,8 @@ class DomainRouteWiring(
     private val leadRepo = prospectLeadRepository ?: PostgresProspectLeadRepository()
     private val translationRepo = flowTranslationRepository ?: PostgresFlowTranslationRepository()
     private val prospectEstimateRepo = prospectPriceEstimateRepository ?: PostgresProspectPriceEstimateRepository()
+    private val languagePreferences: com.eventverse.app.domain.i18n.LanguagePreferenceRepository =
+        languagePreferenceRepository ?: com.eventverse.app.infrastructure.PostgresLanguagePreferenceRepository()
 
     // Keyword matching, not comprehension (KeywordFlowTranslator): free, so safe on a public endpoint; a real model needs rate limiting.
     private val flowTranslatorImpl = flowTranslator ?: KeywordFlowTranslator()
@@ -254,6 +257,12 @@ class DomainRouteWiring(
             crmLeadRepository = crmLeadRepo,
             employeeRepository = empRepo,
             recordRows = recordRows
+        )
+        // Preferensi bahasa (PLAN-i18n Fase 1, Track B2) — pribadi & bawaan tenant.
+        languageRoutes(
+            preferences = languagePreferences,
+            roleRepository = roleRepo,
+            moduleAssignmentRepository = assignmentRepo
         )
         operationalModuleRoutes(
             samplingOrderRepo = samplingOrderRepo,

@@ -20,6 +20,9 @@ object UsersTable : Table("users") {
     val departmentId = varchar("department_id", 64).references(DepartmentsTable.id).nullable()
     val customRoleId = varchar("custom_role_id", 64).references(CustomRolesTable.id).nullable()
 
+    /** Bahasa antarmuka pilihan pengguna (V103, PLAN-i18n Fase 1). `id`/`en`. */
+    val preferredLanguage = varchar("preferred_language", 8).default("id")
+
     override val primaryKey = PrimaryKey(id)
 
     init {
