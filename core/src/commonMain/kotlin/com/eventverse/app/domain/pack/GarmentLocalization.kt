@@ -18,7 +18,11 @@ internal fun DomainPack.withGarmentEnglish(): DomainPack {
         sections = sections.map { it.copy(displayNameText = it.displayNameText.en(GarmentEnglishNames.sections[it.code.value])) },
         modules = modules.map { m ->
             val t = GarmentEnglishNames.modules[m.id.value]
-            m.copy(displayNameText = m.displayNameText.en(t?.first), descriptionText = m.descriptionText?.en(t?.second))
+            m.copy(
+                displayNameText = m.displayNameText.en(t?.first),
+                descriptionText = m.descriptionText?.en(t?.second),
+                menuLabelText = GarmentMenuLabels.modules[m.id.value] ?: m.menuLabelText
+            )
         },
         actions = actions.map { it.copy(labelText = it.labelText.en(GarmentEnglishNames.actions[it.code.name])) },
         vocabularyText = vocabularyText.mapValues { (k, v) -> v.en(GarmentEnglishNames.vocabulary[k.name]) },
