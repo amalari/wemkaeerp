@@ -50,6 +50,17 @@ fun Route.builderChatStreamRoutes(
             return@post
         }
         val moduleId = body.string("module")?.takeIf { it.isNotBlank() }
+        // Jawaban per-pertanyaan dari modal follow-up: `answered: [[questionId, answer], ...]`.
+        // Bentuk tak dikenal diabaikan (bukan 500, bukan fallback senyap); pertanyaan tanpa jawaban tetap menunggu.
+        val answers: Map<String, String> = (body?.get("answered") as? JsonValue.Arr)?.items
+            ?.filterIsInstance<JsonValue.Arr>()
+            ?.mapNotNull { pair ->
+                val id = (pair.items.getOrNull(0) as? JsonValue.Str)?.value
+                val answer = (pair.items.getOrNull(1) as? JsonValue.Str)?.value
+                if (!id.isNullOrBlank() && !answer.isNullOrBlank()) id to answer else null
+            }
+            ?.toMap()
+            .orEmpty()
         val tenantId = call.tenantContext.tenantId
         val run = try {
             registry.start(tenantId) { run ->
@@ -57,6 +68,7 @@ fun Route.builderChatStreamRoutes(
                     tenantId = tenantId,
                     userText = text,
                     moduleId = moduleId,
+                    answers = answers,
                     onProgress = { phase -> run.emit("status", "phase" to jsonOf(phase)) },
                     onModuleProgress = { id, title, ready ->
                         run.emit(if (ready) "module_ready" else "module_started", "moduleId" to jsonOf(id), "title" to jsonOf(title))

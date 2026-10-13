@@ -147,6 +147,9 @@ fun FactoryFlowScreen(
                 onInspectInputs = { viewModel.onEvent(FactoryFlowUiEvent.InspectNodeInputs(it)) },
                 onFilterStage = { viewModel.onEvent(FactoryFlowUiEvent.FilterByStage(it)) },
                 onResetFilters = { viewModel.onEvent(FactoryFlowUiEvent.ResetFilters) },
+                onActivateNode = { moduleId ->
+                    viewModel.onEvent(FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, true))
+                },
                 modifier = Modifier.weight(1f)
             )
 

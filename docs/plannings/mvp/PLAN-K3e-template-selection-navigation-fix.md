@@ -236,6 +236,9 @@ Total ≈ **1,5–2 hari**. Tidak ada perubahan domain/server bila D-3 memilih p
 
 ## 7. Referensi
 
+> Defek kedua pada TRD-K3 (jawaban follow-up per-pertanyaan dibuang server) punya rencana terpisah:
+> [`PLAN-K3c-followup-answers-per-question.md`](PLAN-K3c-followup-answers-per-question.md).
+
 - [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) §5.1, §6
 - [`TRD-K3-builder-wizard-followup-ui.md`](../../trd/mvp/TRD-K3-builder-wizard-followup-ui.md) FR-1..FR-4, §8
 - `app/shared/.../presentation/builder/BuilderNewPackScreen.kt` — layar pemilihan (ada)

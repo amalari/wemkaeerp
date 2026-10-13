@@ -336,6 +336,7 @@ fun App() {
                 if (builderRoute && isAuthenticated) {
                     key(session?.tenantSlug) { BuilderShell(modifier = Modifier.weight(1f), // remount saat tenant aktif berganti
                         section = builderSection(shellPath),
+                        templateCode = builderQueryParam(shellPath, "template"),
                         onSectionChange = { key -> goShell("/builder/$key") }) }
                 } else Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {

@@ -89,6 +89,8 @@ internal fun builderMenu() = listOf(
 fun BuilderShell(
     modifier: Modifier = Modifier,
     section: String = "overview",
+    /** Nilai `?template=` pada route internal (`/builder/chat?template=bordir`), untuk alur wizard. */
+    templateCode: String? = null,
     onSectionChange: (String) -> Unit = {}
 ) {
     val selected = remember(section) { builderMenu().firstOrNull { it.key == section }?.key ?: "overview" }
@@ -113,7 +115,7 @@ fun BuilderShell(
             when (selected) {
                 "overview" -> BuilderOverviewPane(onNavigate = onSectionChange)
                 "newpack" -> BuilderNewPackScreen(onNavigate = onSectionChange)
-                "chat" -> BuilderChatPane()
+                "chat" -> BuilderChatPane(templateCode = templateCode)
                 "modules" -> BuilderModulesPane()
                 "dataflow" -> BuilderDataFlowPane()
                 "prototype" -> BuilderPrototypePane()

@@ -129,6 +129,20 @@ class ModuleChatTest {
     }
 
     @Test
+    fun `jawaban modal per-pertanyaan tersimpan sesuai id, yang tak dijawab tetap menunggu`() = runTest {
+        val chats = InMemoryBuilderChatRepository(); val d = drafts()
+        AskModuleFollowUpsUseCase(chats, d)(tenant, "klinik_poli").getOrThrow()
+        val ids = chats.msgs().single().questions.map { it.id }
+        assertTrue(ids.size >= 2, "butuh minimal dua celah agar pemisahan jawaban terbukti (ada ${ids.size})")
+        val (uc, _) = useCase(chats, d, ModuleEditor { Result.success(ModuleEditReply("Tidak ada yang berubah.", emptyList())) })
+        uc(tenant, "Jawab follow-up", moduleId = "klinik_poli", answers = mapOf(ids[0] to "Admin poli")).getOrThrow()
+
+        val after = chats.msgs().first { it.kind == ChatMessageKind.QUESTION }
+        assertEquals("Admin poli", after.questions.first { it.id == ids[0] }.answer, "jawaban sesuai id-nya")
+        assertNull(after.questions.first { it.id == ids[1] }.answer, "pertanyaan tanpa jawaban tetap menunggu")
+    }
+
+    @Test
     fun `sunting tak sah dicoba ulang dengan galat berpath, tetap gagal dijawab jujur tanpa patch`() = runTest {
         val chats = InMemoryBuilderChatRepository(); val feedbacks = mutableListOf<String?>()
         val (uc, _) = useCase(chats, drafts(), ModuleEditor { r ->

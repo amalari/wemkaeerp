@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.FlowHealthStatus
 import com.eventverse.app.domain.pipeline.PipelineNode
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayOffset
@@ -38,6 +40,7 @@ fun PipelineNodeCard(
     isPresentationMode: Boolean,
     onClick: () -> Unit,
     onInspectInputs: ((PipelineNode) -> Unit)? = null,
+    onActivate: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isBypassed = node.isBypassed
@@ -133,7 +136,19 @@ fun PipelineNodeCard(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 // Health Status Pill — tidak boleh menyusut; statusnya harus selalu terbaca utuh.
-                HealthStatusPill(status = node.healthStatus)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isBypassed) {
+                        ClayBadge(
+                            text = "Nonaktif",
+                            tint = WeMadeColors.Warning,
+                            dot = false
+                        )
+                    }
+                    HealthStatusPill(status = node.healthStatus)
+                }
             }
 
             // Title & Module Category
@@ -169,6 +184,19 @@ fun PipelineNodeCard(
                 lineHeight = 16.sp,
                 maxLines = 2
             )
+
+            // Tombol aktivasi untuk node bypassed
+            if (isBypassed && onActivate != null) {
+                val moduleId = node.customModuleCode ?: node.module.value
+                ClayButton(
+                    text = "Aktivasi",
+                    onClick = { onActivate.invoke(moduleId) },
+                    modifier = Modifier.fillMaxWidth(),
+                    style = ClayButtonStyle.Primary,
+                    enabled = true
+                )
+                Spacer(modifier = Modifier.height(ClaySpacing.Sm))
+            }
 
             // n8n-Style Interactive Node Input Port Box
             Box(

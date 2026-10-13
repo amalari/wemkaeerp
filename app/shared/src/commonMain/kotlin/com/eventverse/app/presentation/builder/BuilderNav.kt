@@ -18,8 +18,23 @@ import com.eventverse.app.presentation.designsystem.IconGlobe
 import com.eventverse.app.presentation.theme.WeMadeColors
 import kotlinx.coroutines.launch
 
-/** Section Builder dari path `/builder/<key>`; kosong = `overview`. */
-fun builderSection(path: String): String = path.removePrefix("/builder").trim('/').ifEmpty { "overview" }
+/** Section Builder dari path `/builder/<key>` — query dipotong lebih dulu; kosong = `overview`. */
+fun builderSection(path: String): String =
+    path.substringBefore('?').removePrefix("/builder").trim('/').ifEmpty { "overview" }
+
+/**
+ * Nilai satu parameter query **route internal** Builder, mis. `template` dari
+ * `/builder/chat?template=bordir`. Dibaca dari [path] yang dipegang navigasi internal — bukan
+ * `window.location.search` — supaya berperilaku sama di kelima target KMP (Android/iOS/Desktop
+ * tidak punya URL browser). Kosong = `null`, bukan string kosong.
+ */
+fun builderQueryParam(path: String, name: String): String? =
+    path.substringAfter('?', "")
+        .split('&')
+        .mapNotNull { segment -> segment.split('=', limit = 2).takeIf { it.size == 2 && it[0] == name } }
+        .firstOrNull()
+        ?.get(1)
+        ?.takeIf { it.isNotBlank() }
 
 /** Judul header Builder: "Builder · Chat AI". */
 fun builderSectionTitle(path: String): String {

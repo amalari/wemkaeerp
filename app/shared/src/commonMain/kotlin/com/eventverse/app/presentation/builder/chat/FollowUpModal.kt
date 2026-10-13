@@ -17,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -60,7 +59,7 @@ fun FollowUpModal(
                 text = "Pertanyaan Clarification",
                 style = typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFEA580C)
+                color = WeMadeColors.Accent
             )
 
             moduleId?.let {

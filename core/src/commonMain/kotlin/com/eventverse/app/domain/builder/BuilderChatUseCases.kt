@@ -50,6 +50,11 @@ class SendBuilderMessageUseCase(
         tenantId: TenantId,
         userText: String,
         moduleId: String? = null,
+        /**
+         * Jawaban per-pertanyaan dari modal follow-up (`question.id` → jawaban). Kosong = chat bebas:
+         * seluruh pertanyaan menunggu di utas itu dijawab oleh [userText] (perilaku lama).
+         */
+        answers: Map<String, String> = emptyMap(),
         onModuleProgress: suspend (moduleId: String, title: String, ready: Boolean) -> Unit = { _, _, _ -> },
         onProgress: suspend (String) -> Unit = {}
     ): Result<List<ChatMessage>> = runCatching {
@@ -70,14 +75,19 @@ class SendBuilderMessageUseCase(
 
         // Follow-up yang menunggu di utas persis ini dijawab oleh pesan ini; pertanyaan utas lain tidak tersentuh.
         val waiting = chats.messages(conversation.id).pendingFollowUps(moduleId).filter { it.moduleId == moduleId }
+        // Jawaban spesifik per pertanyaan bila modal mengirimnya; chat bebas (tanpa `answers`) jatuh ke teks pesan.
+        // Pertanyaan yang tidak hadir di `answers` tetap menunggu — tanpa fallback senyap.
+        fun answerFor(questionId: String): String? =
+            answers[questionId] ?: if (answers.isEmpty()) userText.trim() else null
         waiting.groupBy { it.messageId }.forEach { (messageId, qs) ->
-            chats.markAnswered(messageId, qs.associate { it.question.id to userText.trim() })
+            val marked = qs.mapNotNull { q -> answerFor(q.question.id)?.let { q.question.id to it } }.toMap()
+            if (marked.isNotEmpty()) chats.markAnswered(messageId, marked)
         }
 
         // Utas modul: pesan (dan jawaban follow-up) ditafsirkan menjadi sunting isian modul itu, bukan menyusun ulang draf.
         val editing = moduleEditing
         if (editing != null && moduleId != null) {
-            val answered = waiting.map { it.question.question to userText.trim() }
+            val answered = waiting.mapNotNull { f -> answerFor(f.question.id)?.let { f.question.question to it } }
             if (editing.handle(tenantId, conversation, moduleId, userText.trim(), answered, onProgress)) {
                 return@runCatching chats.messages(conversation.id)
             }

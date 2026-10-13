@@ -37,6 +37,7 @@ import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -93,12 +94,20 @@ class BuilderChatRunsRoutesTest {
         }
     }
 
-    private suspend fun ApplicationTestBuilder.startRun(text: String, module: String? = null, role: Role? = null, withToken: Boolean = true): HttpResponse =
+    private suspend fun ApplicationTestBuilder.startRun(
+        text: String,
+        module: String? = null,
+        role: Role? = null,
+        withToken: Boolean = true,
+        /** Fragmen JSON `answered` (`[[questionId, answer], …]`) untuk jawaban per-pertanyaan modal follow-up. */
+        answered: String? = null
+    ): HttpResponse =
         client.post("/api/builder/chat/runs") {
             auth(role, withToken = withToken)
             contentType(ContentType.Application.Json)
             val m = module?.let { ""","module":"$it"""" }.orEmpty()
-            setBody("""{"text":${JsonValue.Str(text).encode()}$m}""")
+            val a = answered?.let { ""","answered":$it""" }.orEmpty()
+            setBody("""{"text":${JsonValue.Str(text).encode()}$m$a}""")
         }
 
     private fun runIdOf(r: HttpResponse) = runBlocking { (JsonParser.parse(r.bodyAsText()) as JsonValue.Obj).string("runId").orEmpty() }
@@ -296,5 +305,32 @@ class BuilderChatRunsRoutesTest {
         assertEquals(listOf("USER", "AGENT"), msgs.map { it.string("role") })
         assertEquals(true, (msgs.last()["hasPendingPatch"] as JsonValue.Bool).value)
         assertTrue((msgs.last().array("summary").first() as JsonValue.Str).value.startsWith("Tambah isian"))
+    }
+
+    @Test
+    fun `jawaban per-pertanyaan lewat run tersimpan sesuai id dan yang tak dijawab tetap menunggu`() = testApplication {
+        val editor = com.eventverse.app.domain.builder.ModuleEditor {
+            Result.success(com.eventverse.app.domain.builder.ModuleEditReply("Tidak ada yang berubah.", emptyList()))
+        }
+        install(this, moduleEditor = editor, drafts = seedDraft(withProposal = true))
+
+        // Membuka tab modul membuat satu pesan QUESTION dengan beberapa celah.
+        followUps("sampling_order")
+        val before = JsonParser.parse(client.get("/api/builder/chat?module=sampling_order") { auth() }.bodyAsText()) as JsonValue.Obj
+        val ids = before.obj("followUp")!!.array("questions").filterIsInstance<JsonValue.Obj>().map { it.string("id").orEmpty() }
+        assertTrue(ids.size >= 2, "butuh minimal dua celah agar pemisahan jawaban terbukti (ada ${ids.size})")
+
+        // Kirim jawaban hanya untuk pertanyaan pertama.
+        val answered = """[[${JsonValue.Str(ids[0]).encode()},${JsonValue.Str("Sepuluh per hari").encode()}]]"""
+        events(runIdOf(startRun("Jawab follow-up", module = "sampling_order", answered = answered)))
+
+        val after = JsonParser.parse(client.get("/api/builder/chat?module=sampling_order") { auth() }.bodyAsText()) as JsonValue.Obj
+        val qMsg = after.objectArray("messages").first { it.string("kind") == "QUESTION" }
+        assertEquals("Sepuluh per hari", qMsg.objectArray("questions").first { it.string("id") == ids[0] }.string("answer"))
+        assertNull(qMsg.objectArray("questions").first { it.string("id") == ids[1] }.string("answer"), "yang tak dijawab tidak diisi teks pesan")
+
+        val remaining = after.obj("followUp")!!.array("questions").filterIsInstance<JsonValue.Obj>().map { it.string("id") }
+        assertTrue(ids[0] !in remaining, "yang dijawab tidak lagi menunggu")
+        assertTrue(ids[1] in remaining, "yang tak dijawab tetap menunggu")
     }
 }

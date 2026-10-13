@@ -52,6 +52,7 @@ fun PipelineFlowCanvas(
     onInspectInputs: (PipelineNode) -> Unit = {},
     onFilterStage: (PhaseDefinition?) -> Unit,
     onResetFilters: () -> Unit = {},
+    onActivateNode: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -108,7 +109,8 @@ fun PipelineFlowCanvas(
                 isPresentationMode = isPresentationMode,
                 hideBypassedNodes = hideBypassedNodes,
                 onSelectNode = onSelectNode,
-                onInspectInputs = onInspectInputs
+                onInspectInputs = onInspectInputs,
+                onActivateNode = onActivateNode
             )
         }
     }
@@ -263,6 +265,7 @@ private fun HorizontalSwimlaneLayout(
     hideBypassedNodes: Boolean,
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit,
+    onActivateNode: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val groupedByStage = nodes.groupBy { it.stage }
@@ -303,6 +306,7 @@ private fun HorizontalSwimlaneLayout(
                             bounds = bounds,
                             onSelectNode = onSelectNode,
                             onInspectInputs = onInspectInputs,
+                            onActivateNode = onActivateNode,
                             // Dinaikkan dari 305dp: outline 3dp + hard shadow 6dp pada setiap
                             // kartu node menambah ~18dp lebar yang sebelumnya tidak ada.
                             modifier = Modifier.width(324.dp)
@@ -337,6 +341,7 @@ private fun StageSwimlaneColumn(
     bounds: SwimlaneBounds,
     onSelectNode: (PipelineNode) -> Unit,
     onInspectInputs: (PipelineNode) -> Unit,
+    onActivateNode: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     ClayCard(
@@ -452,6 +457,10 @@ private fun StageSwimlaneColumn(
                         isPresentationMode = isPresentationMode,
                         onClick = { onSelectNode(node) },
                         onInspectInputs = onInspectInputs,
+                        onActivate = if (node.isBypassed && onActivateNode != null) {
+                            val moduleId = node.customModuleCode ?: node.module.value
+                            { onActivateNode(moduleId) }
+                        } else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 18.dp)

@@ -29,7 +29,9 @@ internal fun PhaseDefinition.withoutTranslations(): PhaseDefinition = copy(
 
 internal fun ModuleDefinition.withoutTranslations(): ModuleDefinition = copy(
     displayNameText = LocalizedText.of(displayName),
-    descriptionText = description.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) }
+    descriptionText = description.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) },
+    // Judul menu bukan bagian identitas pack (draf lama tak punya): dibuang agar draf lama tetap identik dengan pack bawaan.
+    menuLabelText = null
 )
 
 internal fun ScreenSuggestion.withoutTranslations(): ScreenSuggestion = copy(

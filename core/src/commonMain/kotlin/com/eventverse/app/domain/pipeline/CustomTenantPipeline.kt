@@ -133,7 +133,7 @@ data class CustomTenantPipeline(
                     // Node preset selalu operasional, jadi hasilnya identik — yang berubah hanya
                     // bahwa penambahan modul non-operasional tidak lagi memaksa perubahan di sini.
                     archetype = GarmentSlots.forModuleCode(node.module.code),
-                    isBypassed = node.isBypassed,
+                    isBypassed = true,  // Preset nodes mulai sebagai bypassed; tenant harus aktivasi manual
                     stepOrderIndex = node.stepNumber,
                     customFormulaParameters = emptyMap()
                 )

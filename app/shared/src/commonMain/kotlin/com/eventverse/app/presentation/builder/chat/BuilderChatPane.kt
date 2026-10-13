@@ -1,5 +1,8 @@
 package com.eventverse.app.presentation.builder.chat
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.infrastructure.api.BuilderApiClient
-import com.eventverse.app.infrastructure.navigation.PlatformHost
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -46,7 +48,7 @@ import kotlinx.coroutines.launch
  * otomatis** jadi draf — tombol Terapkan yang memutuskan (plan §4); draf dimuat ulang setelah Terapkan.
  */
 @Composable
-fun BuilderChatPane(modifier: Modifier = Modifier) {
+fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val client = remember { BuilderApiClient() }
     val typography = rememberClayTypography()
@@ -68,8 +70,7 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     // Follow-up modal state: tracking questions dan visibility
     var currentQuestions by remember { mutableStateOf<List<PendingQuestion>>(emptyList()) }
     var showFollowUpModal by remember { mutableStateOf(false) }
-    // Template parameter dari URL (untuk wizard flow)
-    var templateParam by remember { mutableStateOf<String?>(null) }
+    // Wizard: sekali semai pesan pembuka dari templateCode (prop route internal), tidak pernah ganda.
     var templateInitialized by remember { mutableStateOf(false) }
 
     suspend fun reloadChat() {
@@ -89,59 +90,44 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         draftState = BuilderDraftState.load(client)
     }
     LaunchedEffect(Unit) {
-        // Baca parameter template dari URL (untuk wizard flow)
-        templateParam = PlatformHost.queryParameter("template")
         reloadChat()
         reloadDraft()
         loaded = true
     }
 
-    // Kirim pesan awal kalau ada template dari wizard
-    LaunchedEffect(templateParam, loaded, draft) {
-        if (loaded && templateParam != null && !templateInitialized && draft != null) {
-            templateInitialized = true
-            val templateMessage = when (templateParam) {
-                "wizard" -> "Saya ingin membuat pack baru dengan metode Template-based. Bantui saya memilih template garment yang sesuai."
-                "fob" -> "Saya ingin membuat pack untuk konveksi FOB (Full Operation). Pabrik punya divisi Cutting, Sewing, Finishing, dan QC. Bantui saya configure modulnya."
-                "cmt" -> "Saya ingin membuat pack untuk konveksi CMT (Cut, Make, Trim). Bahan dari buyer. Bantui saya."
-                "sablon" -> "Saya ingin membuat pack untuk bisnis sablon garment. Bantui saya setup modulnya."
-                "bordir" -> "Saya ingin membuat pack untuk bisnis bordir embroidery. Bantui saya."
-                "rajut" -> "Saya ingin membuat pack untuk bisnis rajut knitting. Bantui saya."
-                "custom" -> "Saya ingin membuat pack custom dari awal. Tanpa template. Bantui saya."
-                else -> "Saya ingin membuat pack baru."
-            }
-            input = templateMessage
-            // Trigger send manually since send() is not suspend
-            val text = templateMessage
-            if (text.isNotEmpty() && !busy) {
-                scope.launch {
-                    busy = true
-                    error = null
-                    runPhase = null
-                    client.startRun(text, thread)
-                        .onSuccess { runId ->
-                            input = ""
-                            reloadChat()
-                            runCatching {
-                                client.runEvents(runId).collect { ev ->
-                                    when (ev.type) {
-                                        "status" -> runPhase = ev.field("phase")
-                                        "question" -> runPhase = "waiting"
-                                        "module_started" -> runPhase = "module:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
-                                        "module_ready" -> runPhase = "ready:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
-                                        "error" -> error = ev.field("message") ?: "Proses gagal"
-                                        else -> Unit
-                                    }
-                                }
-                            }.onFailure { e -> error = e.message ?: "Koneksi progres terputus; memuat ulang riwayat" }
-                            reloadChat()
-                            reloadDraft()
+    // Wizard: templateCode datang dari route internal (`/builder/chat?template=...`), bukan URL browser —
+    // jadi berperilaku sama di kelima target KMP. Kode tak dikenal → tidak ada yang dikirim (tanpa fallback senyap).
+    LaunchedEffect(templateCode, loaded, draft) {
+        val seed = templateCode?.let(::templateSeedPrompt) ?: return@LaunchedEffect
+        if (!loaded || templateInitialized || draft == null || seed.isEmpty() || busy) return@LaunchedEffect
+        templateInitialized = true
+        input = seed
+        scope.launch {
+            busy = true
+            error = null
+            runPhase = null
+            client.startRun(seed, thread)
+                .onSuccess { runId ->
+                    input = ""
+                    reloadChat()   // tampilkan pesan pengguna segera
+                    runCatching {
+                        client.runEvents(runId).collect { ev ->
+                            when (ev.type) {
+                                "status" -> runPhase = ev.field("phase")
+                                "question" -> runPhase = "waiting"
+                                "module_started" -> runPhase = "module:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
+                                "module_ready" -> runPhase = "ready:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
+                                "error" -> error = ev.field("message") ?: "Proses gagal"
+                                else -> Unit
+                            }
                         }
-                        .onFailure { e -> error = e.message }
-                    runPhase = null
-                    busy = false
+                    }.onFailure { e -> error = e.message ?: "Koneksi progres terputus; memuat ulang riwayat" }
+                    reloadChat()
+                    reloadDraft()
                 }
-            }
+                .onFailure { e -> error = e.message }
+            runPhase = null
+            busy = false
         }
     }
 
@@ -319,15 +305,26 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
                     panelOpen -> panel(Modifier.fillMaxSize())
                     else -> chat(Modifier.fillMaxSize())
                 }
-                // Follow-up modal overlay
+                // Follow-up modal overlay (K3a): scrim mengunci interaksi di belakang + fokus ke modal.
                 if (showFollowUpModal && currentQuestions.isNotEmpty()) {
-                    FollowUpModal(
-                        questions = currentQuestions,
-                        moduleId = thread,
-                        onSubmit = ::submitFollowUpAnswers,
-                        onSkip = ::skipFollowUps,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(WeMadeColors.Scrim.copy(alpha = 0.45f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {}
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FollowUpModal(
+                            questions = currentQuestions,
+                            moduleId = thread,
+                            onSubmit = ::submitFollowUpAnswers,
+                            onSkip = ::skipFollowUps
+                        )
+                    }
                 }
             }
         }
