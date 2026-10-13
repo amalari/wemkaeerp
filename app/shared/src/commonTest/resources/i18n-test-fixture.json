@@ -1,0 +1,37 @@
+{
+  "languages": ["id", "en"],
+  "keys": {
+    "nav.home": {
+      "id": "Beranda",
+      "en": "Home"
+    },
+    "nav.dashboard": {
+      "id": "Dasbor",
+      "en": "Dashboard"
+    },
+    "action.save": {
+      "id": "Simpan",
+      "en": "Save"
+    },
+    "action.cancel": {
+      "id": "Batal",
+      "en": "Cancel"
+    },
+    "status.active": {
+      "id": "Aktif",
+      "en": "Active"
+    },
+    "status.inactive": {
+      "id": "Tidak Aktif",
+      "en": "Inactive"
+    },
+    "error.not_found": {
+      "id": "Data tidak ditemukan",
+      "en": "Data not found"
+    },
+    "error.unauthorized": {
+      "id": "Silakan login terlebih dahulu",
+      "en": "Please login first"
+    }
+  }
+}
