@@ -36,6 +36,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -88,11 +89,12 @@ class DomainPackMenuLabelApiTest {
     fun legacyPackWithoutMenuLabel_isServedByteIdentical_withoutMenuLabelKey() = testApplication {
         boot()
         val json = DomainPackCodec.encodeToString(I18nPackFixtures.pack(code, menuLabel = false))
-        assertFalse(json.contains("\"menuLabel\""))
+        // Modul bersama org_chart dari garment kini membawa menuLabel (TRD-I18N-003 Track A); yang diuji = modul milik pack uji.
+        assertNull(DomainPackCodec.decode(json).modules.last().menuLabelText)
         publish(json)
         val body = client.get("/api/tenant/pack") { asTenant(tenantSlug) }.bodyAsText()
         assertEquals(json, body)
-        assertFalse(body.contains("\"menuLabel\""))
+        assertNull(DomainPackCodec.decode(body).modules.last().menuLabelText)
     }
 
     @Test
