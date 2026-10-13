@@ -5,6 +5,7 @@ import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.pack.GarmentBlueprints
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
+import com.eventverse.app.domain.pipeline.withPresetActivation
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.*
@@ -182,6 +183,7 @@ class AdminApiTest {
         runBlocking {
             fixture.pipeRepo.save(
                 CustomTenantPipeline.fromPreset(targetTenantId, GarmentBlueprints.FOB_FULL_PACKAGE)
+                    .withPresetActivation(GarmentBlueprints.FOB_FULL_PACKAGE)
             )
         }
 

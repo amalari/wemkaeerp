@@ -7,6 +7,7 @@ import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentSlots
 
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
+import com.eventverse.app.domain.pipeline.withPresetActivation
 import com.eventverse.app.domain.pipeline.DynamicModuleDescriptor
 import com.eventverse.app.domain.pipeline.ModuleArchetype
 import com.eventverse.app.domain.tenant.TenantId
@@ -78,7 +79,7 @@ object DemoTenantTopologies {
         val customise: (CustomTenantPipeline) -> CustomTenantPipeline
     ) {
         fun build(): CustomTenantPipeline =
-            customise(CustomTenantPipeline.fromPreset(TenantId(tenantId), preset))
+            customise(CustomTenantPipeline.fromPreset(TenantId(tenantId), preset).withPresetActivation(preset))
                 .rename("Alur Operasional $companyName")
     }
 

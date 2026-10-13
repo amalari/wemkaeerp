@@ -12,6 +12,7 @@ import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.GarmentBlueprints
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pipeline.CustomTenantPipeline
+import com.eventverse.app.domain.pipeline.withPresetActivation
 import com.eventverse.app.domain.tenant.SubscriptionTier
 import com.eventverse.app.domain.tenant.Tenant
 import com.eventverse.app.domain.tenant.TenantId
@@ -62,7 +63,7 @@ class BuilderDraftBootstrapTest {
     /** Seed pipeline tenant dari preset FOB, dengan modul pada [bypassedCodes] di-bypass. */
     private fun seedPipeline(vararg bypassedCodes: String) {
         runBlocking {
-            var pipeline = CustomTenantPipeline.fromPreset(TenantId(tenantId), GarmentBlueprints.FOB_FULL_PACKAGE)
+            var pipeline = CustomTenantPipeline.fromPreset(TenantId(tenantId), GarmentBlueprints.FOB_FULL_PACKAGE).withPresetActivation(GarmentBlueprints.FOB_FULL_PACKAGE)
             bypassedCodes.forEach { code ->
                 val nodeId = pipeline.nodes.first { it.moduleId == code }.nodeId
                 pipeline = pipeline.setNodeBypassed(nodeId, true)

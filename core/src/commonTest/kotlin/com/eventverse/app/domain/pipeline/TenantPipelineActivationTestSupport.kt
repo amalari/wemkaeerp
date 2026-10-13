@@ -9,10 +9,7 @@ import com.eventverse.app.domain.tenant.TenantId
  * memeriksa perilaku pipeline yang sudah berjalan memakai helper ini untuk meniru tenant yang sudah mengaktifkan modul
  * sesuai saran preset (bypass per node mengikuti snapshot preset, mis. CMT mem-bypass pengadaan bahan baku).
  */
-fun CustomTenantPipeline.activatedPerPreset(preset: Blueprint): CustomTenantPipeline {
-    val suggested = PipelinePresetFactory.createSnapshot(preset).nodes.associate { it.id to it.isBypassed }
-    return copy(nodes = nodes.map { it.copy(isBypassed = suggested[it.nodeId] ?: false) })
-}
+fun CustomTenantPipeline.activatedPerPreset(preset: Blueprint): CustomTenantPipeline = withPresetActivation(preset)
 
 /** Memprovisikan pipeline tenant dari [preset] lalu menyimpannya dalam keadaan "sudah diaktifkan sesuai saran preset". */
 suspend fun provisionActivated(
