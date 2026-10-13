@@ -105,6 +105,8 @@ import com.eventverse.app.presentation.theme.WeMadeTheme
 import com.eventverse.app.domain.rbac.displayNameText
 import com.eventverse.app.presentation.i18n.LocalAppLanguage
 import com.eventverse.app.presentation.i18n.AppLanguage
+import com.eventverse.app.presentation.i18n.missingTranslationLabel
+import com.eventverse.app.presentation.navigation.titleFor
 
 @Composable
 fun App() {
@@ -224,9 +226,6 @@ fun App() {
         drawerOpen = false
     }
 
-    // Penyusunan menu — modul mana yang muncul, di seksi kategori mana, dengan badge wewenang apa —
-    // adalah keputusan wewenang, jadi ia hidup sebagai fungsi murni yang bisa diuji tanpa merender
-    // apa pun (lihat NavMenu.kt). Yang tersisa di sini hanyalah penerjemahannya ke bahasa clay.
     val menuSections = remember(effectivePermissions, auditView, currentLanguage) {
         buildNavMenu(permissions = effectivePermissions, auditView = auditView, language = currentLanguage)
     }
@@ -241,15 +240,18 @@ fun App() {
         }
     }
 
+    val missingNote = missingTranslationLabel(currentLanguage)
     val navSections = menuSections.map { section ->
         ClayNavSection(
             title = section.title,
+            titleNote = missingNote.takeIf { section.titleFallback },
             items = section.entries.map { entry ->
                 val module = entry.module
                 val isGeneric = entry.screen == AppNavScreen.MODULE
                 ClayNavItem(
                     key = entry.route,
                     label = entry.title,
+                    labelNote = missingNote.takeIf { entry.titleFallback },
                     selected = currentScreen == entry.screen && (!isGeneric || modulePath == entry.route),
                     onClick = {
                         if (isGeneric) { modulePath = entry.route; currentScreen = entry.screen; PlatformNavigation.pushPath(entry.route); drawerOpen = false }
@@ -265,9 +267,6 @@ fun App() {
                                     modifier = Modifier.fillMaxSize(),
                                     color = tint
                                 )
-                            // Setiap baris menu kini berasal dari sebuah modul, jadi cabang ini
-                            // hanya tersisa sebagai jaring pengaman bila suatu saat ada layar tanpa
-                            // modul yang ikut masuk daftar.
                             else -> IconLayers(modifier = Modifier.fillMaxSize(), color = tint)
                         }
                     },
@@ -312,7 +311,7 @@ fun App() {
                 if (!isBuilderLogin) {
                     AppTopBar(
                         currentScreen = currentScreen,
-                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayNameText?.resolve(currentLanguage)?.text else null,
+                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayNameText?.resolve(currentLanguage)?.text else menuSections.titleFor(currentScreen),
                         onOpenDrawer = { drawerOpen = true },
                         isAuthenticated = isAuthenticated,
                         session = session,
