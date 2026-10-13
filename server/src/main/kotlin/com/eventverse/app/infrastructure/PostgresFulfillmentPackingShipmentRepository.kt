@@ -3,6 +3,9 @@ package com.eventverse.app.infrastructure
 import com.eventverse.app.domain.fulfillment.shipment.*
 import com.eventverse.app.domain.fulfillment.carton.CartonId
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.infrastructure.tables.jsonbText
+import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.*
@@ -10,6 +13,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import org.jetbrains.exposed.sql.update
 
 /**
@@ -131,10 +135,10 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
                     it[carrier] = shipment.carrier.toJson()
                     it[destination] = shipment.destination.toJson()
                     it[status] = shipment.status.name
-                    it[shippedAt] = shipment.shippedAt?.toString()
-                    it[deliveredAt] = shipment.deliveredAt?.toString()
-                    it[createdAt] = shipment.createdAt.toString()
-                    it[updatedAt] = shipment.updatedAt.toString()
+                    it[shippedAt] = shipment.shippedAt
+                    it[deliveredAt] = shipment.deliveredAt
+                    it[createdAt] = shipment.createdAt
+                    it[updatedAt] = shipment.updatedAt
                     it[notes] = shipment.notes
                 }
             } else {
@@ -144,9 +148,9 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
                     it[carrier] = shipment.carrier.toJson()
                     it[destination] = shipment.destination.toJson()
                     it[status] = shipment.status.name
-                    it[shippedAt] = shipment.shippedAt?.toString()
-                    it[deliveredAt] = shipment.deliveredAt?.toString()
-                    it[updatedAt] = shipment.updatedAt.toString()
+                    it[shippedAt] = shipment.shippedAt
+                    it[deliveredAt] = shipment.deliveredAt
+                    it[updatedAt] = shipment.updatedAt
                     it[notes] = shipment.notes
                 }
             }
@@ -169,7 +173,7 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
                 it[ShipmentEventsTable.eventType] = eventType
                 it[ShipmentEventsTable.actor] = actor
                 it[ShipmentEventsTable.detail] = detail
-                it[ShipmentEventsTable.occurredAt] = occurredAt.toString()
+                it[ShipmentEventsTable.occurredAt] = occurredAt
             }
         }
     }
@@ -228,61 +232,40 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
             carrier = parseCarrierInfo(this[ShipmentsTable.carrier]),
             destination = parseDestinationInfo(this[ShipmentsTable.destination]),
             status = status,
-            shippedAt = this[ShipmentsTable.shippedAt]?.let { Instant.parse(it) },
-            deliveredAt = this[ShipmentsTable.deliveredAt]?.let { Instant.parse(it) },
-            createdAt = Instant.parse(this[ShipmentsTable.createdAt]),
-            updatedAt = Instant.parse(this[ShipmentsTable.updatedAt]),
+            shippedAt = this[ShipmentsTable.shippedAt],
+            deliveredAt = this[ShipmentsTable.deliveredAt],
+            createdAt = this[ShipmentsTable.createdAt],
+            updatedAt = this[ShipmentsTable.updatedAt],
             notes = this[ShipmentsTable.notes]
         )
     }
 
-    private fun CarrierInfo.toJson(): String = buildString {
-        append("{")
-        var first = true
-        if (mode.isNotBlank()) { append("\"mode\":\"$mode\""); first = false }
-        if (expedition.isNotBlank()) { if (!first) append(","); append("\"expedition\":\"$expedition\""); first = false }
-        if (container.isNotBlank()) { if (!first) append(","); append("\"container\":\"$container\""); first = false }
-        if (driver.isNotBlank()) { if (!first) append(","); append("\"driver\":\"$driver\""); first = false }
-        if (trackingNumber.isNotBlank()) { if (!first) append(","); append("\"trackingNumber\":\"$trackingNumber\"") }
-        append("}")
-    }
+    /** JSON sungguhan (escape benar); hanya field terisi yang ditulis, bentuk lama tetap terbaca. */
+    private fun jsonOfNonBlank(vararg pairs: Pair<String, String>): String =
+        JsonValue.Obj(pairs.filter { it.second.isNotBlank() }.associate { it.first to JsonValue.Str(it.second) }).encode()
 
-    private fun DestinationInfo.toJson(): String = buildString {
-        append("{")
-        var first = true
-        if (buyer.isNotBlank()) { append("\"buyer\":\"$buyer\""); first = false }
-        if (address.isNotBlank()) { if (!first) append(","); append("\"address\":\"$address\""); first = false }
-        if (contact.isNotBlank()) { if (!first) append(","); append("\"contact\":\"$contact\""); first = false }
-        if (city.isNotBlank()) { if (!first) append(","); append("\"city\":\"$city\"") }
-        append("}")
-    }
+    private fun CarrierInfo.toJson(): String = jsonOfNonBlank(
+        "mode" to mode, "expedition" to expedition, "container" to container, "driver" to driver, "trackingNumber" to trackingNumber
+    )
 
-    private fun parseCarrierInfo(json: String): CarrierInfo = try {
+    private fun DestinationInfo.toJson(): String = jsonOfNonBlank(
+        "buyer" to buyer, "address" to address, "contact" to contact, "city" to city
+    )
+
+    /** Dokumen rusak melempar (bukan `CarrierInfo()` kosong diam-diam); kunci yang absen = kosong. */
+    private fun parseCarrierInfo(json: String): CarrierInfo = JsonParser.parseObject(json).let {
         CarrierInfo(
-            mode = json.extract("mode"),
-            expedition = json.extract("expedition"),
-            container = json.extract("container"),
-            driver = json.extract("driver"),
-            trackingNumber = json.extract("trackingNumber")
+            mode = it.string("mode").orEmpty(), expedition = it.string("expedition").orEmpty(),
+            container = it.string("container").orEmpty(), driver = it.string("driver").orEmpty(),
+            trackingNumber = it.string("trackingNumber").orEmpty()
         )
-    } catch (e: Exception) {
-        CarrierInfo()
     }
 
-    private fun parseDestinationInfo(json: String): DestinationInfo = try {
+    private fun parseDestinationInfo(json: String): DestinationInfo = JsonParser.parseObject(json).let {
         DestinationInfo(
-            buyer = json.extract("buyer"),
-            address = json.extract("address"),
-            contact = json.extract("contact"),
-            city = json.extract("city")
+            buyer = it.string("buyer").orEmpty(), address = it.string("address").orEmpty(),
+            contact = it.string("contact").orEmpty(), city = it.string("city").orEmpty()
         )
-    } catch (e: Exception) {
-        DestinationInfo()
-    }
-
-    private fun String.extract(key: String): String {
-        val pattern = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
-        return pattern.find(this)?.groupValues?.getOrNull(1) ?: ""
     }
 
     private fun parseStockOwnership(value: String): StockOwnership = try {
@@ -300,13 +283,13 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
         val tenantId = varchar("tenant_id", 64)
         val shipmentNumber = varchar("shipment_number", 40)
         val stockOwnership = varchar("stock_ownership", 30)
-        val carrier = text("carrier")
-        val destination = text("destination")
+        val carrier = jsonbText("carrier")
+        val destination = jsonbText("destination")
         val status = varchar("status", 20)
-        val shippedAt = varchar("shipped_at", 64).nullable()
-        val deliveredAt = varchar("delivered_at", 64).nullable()
-        val createdAt = varchar("created_at", 64)
-        val updatedAt = varchar("updated_at", 64)
+        val shippedAt = timestamp("shipped_at").nullable()
+        val deliveredAt = timestamp("delivered_at").nullable()
+        val createdAt = timestamp("created_at")
+        val updatedAt = timestamp("updated_at")
         val notes = text("notes")
 
         override val primaryKey = PrimaryKey(id)
@@ -319,7 +302,7 @@ class PostgresFulfillmentPackingShipmentRepository : ShipmentRepository {
         val eventType = varchar("event_type", 40)
         val actor = varchar("actor", 120)
         val detail = text("detail")
-        val occurredAt = varchar("occurred_at", 64)
+        val occurredAt = timestamp("occurred_at")
 
         override val primaryKey = PrimaryKey(id)
     }

@@ -67,7 +67,7 @@ object ModuleSchemaMap {
         ),
         GarmentModules.FULFILLMENT to setOf(
             "fulfillment_transfers", "fulfillment_routes", "fulfillment_route_settings", "fulfillment_transfer_events", "surat_jalan_manifests", "surat_jalan_items",
-            "cartons", "shipments", "shipment_cartons"
+            "cartons", "shipments", "shipment_cartons", "carton_events", "shipment_events"
         ),
         GarmentModules.INVOICING to setOf(
             "invoice_number_sequences", "invoice_issuer_profiles", "invoice_templates", "invoices", "invoice_lines", "invoice_payments"

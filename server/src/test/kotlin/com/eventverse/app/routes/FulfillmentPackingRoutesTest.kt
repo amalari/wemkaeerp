@@ -16,6 +16,7 @@ import com.eventverse.app.domain.tenant.TenantStatus
 import com.eventverse.app.infrastructure.DatabaseFactory
 import com.eventverse.app.infrastructure.InMemoryRoleRepository
 import com.eventverse.app.infrastructure.InMemoryTenantRepository
+import com.eventverse.app.infrastructure.PostgresTenantRepository
 import com.eventverse.app.module
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -28,6 +29,7 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import org.jetbrains.exposed.sql.transactions.transaction
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,16 +48,37 @@ class FulfillmentPackingRoutesTest {
     private val tenants = InMemoryTenantRepository()
     private val roles = InMemoryRoleRepository()
 
+    /** Tenant nyata di `public.tenants`: tabel fulfillment punya FK ke sana (seed SQL langsung tidak lewat repositori in-memory). */
+    private val dbTenants = PostgresTenantRepository()
+    private val createdTenantIds = mutableListOf<String>()
+
+    @AfterTest
+    fun cleanup() {
+        if (createdTenantIds.isEmpty()) return
+        transaction {
+            createdTenantIds.forEach { id ->
+                exec("SET LOCAL app.current_tenant_id = '$id'")
+                exec("DELETE FROM fulfillment.shipment_cartons WHERE tenant_id = '$id'")
+                exec("DELETE FROM fulfillment.shipments WHERE tenant_id = '$id'")
+                exec("DELETE FROM fulfillment.cartons WHERE tenant_id = '$id'")
+            }
+            createdTenantIds.forEach { id -> exec("DELETE FROM public.tenants WHERE id = '$id'") }
+        }
+        createdTenantIds.clear()
+    }
+
     private data class Env(val slug: String, val tenantId: TenantId, val suffix: String)
 
     /** Tenant + jabatan segar per test: state di DB tidak saling menular. */
     private suspend fun registerTenant(suffix: String, accessLevel: AccessLevel? = AccessLevel.MANAGE): Env {
         DatabaseFactory.init()
-        val env = Env("packing-probe-$suffix", TenantId("ten-packing-$suffix"), suffix)
-        tenants.save(
-            Tenant(env.tenantId, TenantSlug(env.slug), TenantName("Packing Probe $suffix"), TenantStatus.ACTIVE,
-                SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON)
-        )
+        // Slug dibatasi 3-30 karakter: awalan pendek agar sufiks panjang ("cancel-salah-status") tetap sah.
+        val env = Env("pk-$suffix", TenantId("ten-packing-$suffix"), suffix)
+        val tenant = Tenant(env.tenantId, TenantSlug(env.slug), TenantName("Packing Probe $suffix"), TenantStatus.ACTIVE,
+            SubscriptionTier.PRO, businessPreset = GarmentBlueprints.CMT_MAKLOON)
+        tenants.save(tenant)
+        dbTenants.save(tenant).getOrThrow()
+        createdTenantIds += env.tenantId.value
 
         if (accessLevel != null) {
             roles.save(
@@ -93,7 +116,7 @@ class FulfillmentPackingRoutesTest {
                     (id, tenant_id, production_ref, carton_number, item_breakdown, quantity_pcs,
                      gross_weight_kg, unit_ticket_ids, seal_number, status, created_at, updated_at, notes)
                 VALUES ('$cartonIdValue', '$tenantIdValue', 'PO-001', 'CTN-2026-0001', '{}', 100,
-                        25.5, '[]', 'SEAL-001', 'SEALED', NOW(), NOW(), '')
+                        25.5, '["tkt-1"]', 'SEAL-001', 'SEALED', NOW(), NOW(), '')
                 """.trimIndent()
             )
         }
@@ -252,7 +275,7 @@ class FulfillmentPackingRoutesTest {
         // Perlu update manual untuk simulasi
         transaction {
             exec("SET LOCAL app.current_tenant_id = '${env.tenantId.value}'")
-            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT' WHERE id = 'sj-sudah-transit'")
+            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT', shipped_at = NOW() WHERE id = 'sj-sudah-transit'")
         }
 
         // Coba in-transit lagi
@@ -286,7 +309,7 @@ class FulfillmentPackingRoutesTest {
         // Set ke IN_TRANSIT dulu
         transaction {
             exec("SET LOCAL app.current_tenant_id = '${env.tenantId.value}'")
-            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT' WHERE id = 'sj-sudah-delivered'")
+            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT', shipped_at = NOW() WHERE id = 'sj-sudah-delivered'")
         }
 
         // Pertama: delivered
@@ -334,7 +357,7 @@ class FulfillmentPackingRoutesTest {
         // Langsung IN_TRANSIT, tidak bisa cancel
         transaction {
             exec("SET LOCAL app.current_tenant_id = '${env.tenantId.value}'")
-            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT' WHERE id = 'sj-salah-status'")
+            exec("UPDATE fulfillment.shipments SET status = 'IN_TRANSIT', shipped_at = NOW() WHERE id = 'sj-salah-status'")
         }
 
         val response = client.delete("/api/tenant/fulfillment/shipments/sj-salah-status") {
@@ -412,7 +435,7 @@ class FulfillmentPackingRoutesTest {
         val createResp = client.post("/api/tenant/fulfillment/cartons") {
             asStaff(env.slug, "role-fulfillment-OPERATE-${env.suffix}")
             contentType(ContentType.Application.Json)
-            setBody("""{"productionRef":"PO-2026-001","notes":"Order歧"}""")
+            setBody("""{"productionRef":"PO-2026-001","notes":"Order uji"}""")
         }
         assertEquals(200, createResp.status.value)
         val createBody = createResp.bodyAsText()
@@ -421,7 +444,14 @@ class FulfillmentPackingRoutesTest {
         val cartonId = """\"id"\s*:\s*"([^"]+)"""".toRegex().find(createBody)?.groupValues?.get(1)
         assertTrue(!cartonId.isNullOrEmpty(), "Harus dapat ID karton")
 
-        // 2. Seal karton
+        // 2. Isi karton. Belum ada endpoint pengisian (hanya create/seal/reopen), jadi isi disemai lewat SQL;
+        //    karton kosong memang ditolak segel (lihat sealEmptyCarton_returns409).
+        transaction {
+            exec("SET LOCAL app.current_tenant_id = '${env.tenantId.value}'")
+            exec("UPDATE fulfillment.cartons SET unit_ticket_ids = '[\"tkt-1\"]', quantity_pcs = 10 WHERE id = '$cartonId'")
+        }
+
+        // 3. Seal karton
         val sealResp = client.patch("/api/tenant/fulfillment/cartons/$cartonId/seal") {
             asStaff(env.slug, "role-fulfillment-OPERATE-${env.suffix}")
             contentType(ContentType.Application.Json)

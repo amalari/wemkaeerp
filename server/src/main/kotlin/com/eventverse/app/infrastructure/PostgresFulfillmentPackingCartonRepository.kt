@@ -2,6 +2,9 @@ package com.eventverse.app.infrastructure
 
 import com.eventverse.app.domain.fulfillment.carton.*
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.infrastructure.tables.jsonbText
+import com.eventverse.app.shared.json.JsonParser
+import com.eventverse.app.shared.json.JsonValue
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.*
@@ -9,6 +12,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import org.jetbrains.exposed.sql.update
 import java.math.BigDecimal
 
@@ -77,27 +81,27 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
                     it[tenantId] = carton.tenantId.value
                     it[productionRef] = carton.productionRef
                     it[cartonNumber] = carton.cartonNumber.value
-                    it[itemBreakdown] = carton.itemBreakdown.toString()
+                    it[itemBreakdown] = carton.itemBreakdown.toJson()
                     it[quantityPcs] = carton.quantityPcs
-                    it[grossWeightKg] = carton.grossWeightKg.toString()
-                    it[unitTicketIds] = carton.unitTicketIds.toString()
+                    it[grossWeightKg] = BigDecimal.valueOf(carton.grossWeightKg)
+                    it[unitTicketIds] = carton.unitTicketIds.toJson()
                     it[sealNumber] = carton.sealNumber?.value
                     it[status] = carton.status.name
-                    it[createdAt] = carton.createdAt.toString()
-                    it[updatedAt] = carton.updatedAt.toString()
+                    it[createdAt] = carton.createdAt
+                    it[updatedAt] = carton.updatedAt
                     it[notes] = carton.notes
                 }
             } else {
                 CartonsTable.update({ CartonsTable.id eq carton.id.value }) {
                     it[productionRef] = carton.productionRef
                     it[cartonNumber] = carton.cartonNumber.value
-                    it[itemBreakdown] = carton.itemBreakdown.toString()
+                    it[itemBreakdown] = carton.itemBreakdown.toJson()
                     it[quantityPcs] = carton.quantityPcs
-                    it[grossWeightKg] = carton.grossWeightKg.toString()
-                    it[unitTicketIds] = carton.unitTicketIds.toString()
+                    it[grossWeightKg] = BigDecimal.valueOf(carton.grossWeightKg)
+                    it[unitTicketIds] = carton.unitTicketIds.toJson()
                     it[sealNumber] = carton.sealNumber?.value
                     it[status] = carton.status.name
-                    it[updatedAt] = carton.updatedAt.toString()
+                    it[updatedAt] = carton.updatedAt
                     it[notes] = carton.notes
                 }
             }
@@ -120,7 +124,7 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
                 it[CartonEventsTable.eventType] = eventType
                 it[CartonEventsTable.actor] = actor
                 it[CartonEventsTable.detail] = detail
-                it[CartonEventsTable.occurredAt] = occurredAt.toString()
+                it[CartonEventsTable.occurredAt] = occurredAt
             }
         }
     }
@@ -149,7 +153,7 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
                             }
                         },
                         colorway = "",
-                        receivedAt = Instant.parse(row[CartonsTable.createdAt])
+                        receivedAt = row[CartonsTable.createdAt]
                     )
                 }
         }
@@ -184,38 +188,29 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
             cartonNumber = CartonNumber(this[CartonsTable.cartonNumber]),
             itemBreakdown = parseJsonMap(this[CartonsTable.itemBreakdown]),
             quantityPcs = this[CartonsTable.quantityPcs],
-            grossWeightKg = this[CartonsTable.grossWeightKg].toDoubleOrNull() ?: 0.0,
+            grossWeightKg = this[CartonsTable.grossWeightKg].toDouble(),
             unitTicketIds = parseJsonList(this[CartonsTable.unitTicketIds]),
             sealNumber = this[CartonsTable.sealNumber]?.let { SealNumber(it) },
             status = status,
-            createdAt = Instant.parse(this[CartonsTable.createdAt]),
-            updatedAt = Instant.parse(this[CartonsTable.updatedAt]),
+            createdAt = this[CartonsTable.createdAt],
+            updatedAt = this[CartonsTable.updatedAt],
             notes = this[CartonsTable.notes]
         )
     }
 
-    private fun parseJsonMap(json: String): Map<String, Int> = try {
-        json.removeSurrounding("{", "}")
-            .split(",")
-            .filter { it.isNotBlank() }
-            .associate {
-                val parts = it.split("=")
-                val key = parts[0].removeSurrounding("\"").trim()
-                val value = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                key to value
-            }
-    } catch (e: Exception) {
-        emptyMap()
-    }
+    /** JSON sungguhan (escape benar). Dokumen rusak **melempar**, bukan menjadi kosong diam-diam. */
+    private fun Map<String, Int>.toJson(): String =
+        JsonValue.Obj(mapValues { JsonValue.Num(it.value.toString()) }).encode()
 
-    private fun parseJsonList(json: String): List<String> = try {
-        json.removeSurrounding("[", "]")
-            .split(",")
-            .map { it.trim().removeSurrounding("\"") }
-            .filter { it.isNotBlank() }
-    } catch (e: Exception) {
-        emptyList()
-    }
+    private fun List<String>.toJson(): String = JsonValue.Arr(map { JsonValue.Str(it) }).encode()
+
+    private fun parseJsonMap(json: String): Map<String, Int> =
+        JsonParser.parseObject(json).entries.mapValues { (key, value) ->
+            (value as? JsonValue.Num)?.asInt ?: error("item_breakdown['$key'] bukan angka: $value")
+        }
+
+    private fun parseJsonList(json: String): List<String> =
+        JsonParser.parseArray(json).map { (it as? JsonValue.Str)?.value ?: error("unit_ticket_ids berisi nilai bukan string: $it") }
 
     // -------------------------------------------------------------------------
     // Table definitions
@@ -226,14 +221,14 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
         val tenantId = varchar("tenant_id", 64)
         val productionRef = varchar("production_ref", 64)
         val cartonNumber = varchar("carton_number", 40)
-        val itemBreakdown = text("item_breakdown")
+        val itemBreakdown = jsonbText("item_breakdown")
         val quantityPcs = integer("quantity_pcs")
-        val grossWeightKg = varchar("gross_weight_kg", 20)
-        val unitTicketIds = text("unit_ticket_ids")
+        val grossWeightKg = decimal("gross_weight_kg", 10, 2)
+        val unitTicketIds = jsonbText("unit_ticket_ids")
         val sealNumber = varchar("seal_number", 40).nullable()
         val status = varchar("status", 20)
-        val createdAt = varchar("created_at", 64)
-        val updatedAt = varchar("updated_at", 64)
+        val createdAt = timestamp("created_at")
+        val updatedAt = timestamp("updated_at")
         val notes = text("notes")
 
         override val primaryKey = PrimaryKey(id)
@@ -246,7 +241,7 @@ class PostgresFulfillmentPackingCartonRepository : CartonRepository {
         val eventType = varchar("event_type", 40)
         val actor = varchar("actor", 120)
         val detail = text("detail")
-        val occurredAt = varchar("occurred_at", 64)
+        val occurredAt = timestamp("occurred_at")
 
         override val primaryKey = PrimaryKey(id)
     }
