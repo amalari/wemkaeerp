@@ -33,6 +33,7 @@ object I18nConventions {
     const val FEATURE_ORGCHART = "orgchart"
     const val FEATURE_CRM = "crm"
     const val FEATURE_DEAL = "deal"
+    const val FEATURE_AUTH = "auth"
 
     const val ACTION_CREATE = "create"
     const val ACTION_EDIT = "edit"
