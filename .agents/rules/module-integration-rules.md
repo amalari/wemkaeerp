@@ -113,6 +113,7 @@ Setiap modul baru **WAJIB** mendeklarasikan salah satu dari dua kapabilitas jang
   - Jika data transaksi perorangan/sales/operator ➔ set `ScopeCapability.HIERARCHICAL` (tersedia 3 opsi: Sendiri / Bawahan / Semua Data).
 - [ ] Apakah modul telah diuji berjalan pada alur bawaan (FOB/CMT/D2C) maupun alur custom hasil utak-atik (*puzzled*)?
 - [ ] Apakah modul menyertakan dokumentasi pengajaran (*teaching*) di `docs/teaching/`?
+- [ ] **Menu (§5.7)**: apakah modul/fitur menyatakan **eksplisit** tampil atau tidak di menu (+ alasan bila tidak), dan bila tampil, judul menu `id` + `en` sudah disiapkan di data (bukan string di UI)?
 
 ---
 
@@ -130,7 +131,7 @@ baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
 5. Migrasi Flyway pola **V27/V64**: backfill entitlement (kunci **NAME** enum), baris `module_catalog_entries` (kunci **code**), backfill `custom_roles` per peran sistem.
    **Tabel modul di schema bernama kode modulnya** (`CREATE SCHEMA <kode>`, `Table("<kode>.<nama>")`, grant + `ALTER DEFAULT PRIVILEGES` untuk `wemade_app`, RLS lewat `apply_tenant_rls_in('<kode>', '<tabel>')`). Daftarkan di `ModuleSchemaMap` (pola V76, B8).
 6. `core/.../domain/rbac/CustomRole.kt` `createFactoryPresets` — akses per peran preset (Owner otomatis).
-7. `AppNavScreen.kt` + cabang `App.kt` (dipaksa kompilator) + `ModuleWorkspaceScreen` (`sampleRowsFor` dipaksa kompilator) + `ModuleIcon`.
+7. `AppNavScreen.kt` + cabang `App.kt` (dipaksa kompilator) + `ModuleWorkspaceScreen` (`sampleRowsFor` dipaksa kompilator) + `ModuleIcon` + **menu: tampil/tidak + judul id/en (§5.7)**.
 8. Server: route + `requireModuleAccess`/`moduleDecision`, didaftarkan di `ServerRouteWiring`.
 9. **Otomatis**: seksi menu, matriks RBAC, dialog entitlement superadmin, kuota paket, reconciler pipeline tenant.
 
@@ -146,7 +147,7 @@ baris yang sesuai. "Otomatis" = tidak perlu disentuh; ikut dari pendaftaran.
 
 1. Entri `BusinessModule` dengan `kind = FOUNDATION`; cabang `null` di `forModule`.
 2. `FoundationModuleCatalog` (sediakan `providedReferenceTypes`).
-3. `AppNavScreen` + `App.kt` + `ModuleWorkspaceScreen`; migrasi pola **V27** (`archetype_code = 'foundation'`); preset peran; guard server.
+3. `AppNavScreen` + `App.kt` + `ModuleWorkspaceScreen`; **menu (§5.7)**; migrasi pola **V27** (`archetype_code = 'foundation'`); preset peran; guard server.
 
 ### 5.4 Fitur di dalam modul (washing, storage, traceability, surat jalan, …)
 
@@ -155,7 +156,7 @@ mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
 
 1. Core: paket domain + repository + migrasi tabel **di schema modul induk** (`<kode induk>.<tabel>`, daftarkan di `ModuleSchemaMap`); bila tahap → `IndustryStageTemplates`/`TenantStageFlow`, bila proses → `TenantProcessCatalog`, bila stasiun → `WorkStationCatalog`.
 2. Server: route didaftarkan di `ServerRouteWiring` dan **wajib** memakai gate modul induk (`requireModuleAccess(modulInduk, …)`). Menulis: fail-closed.
-3. Klien: di-host di workspace modul induk, atau `AppNavScreen` dengan `businessModule = modulInduk` — dan cabang `App.kt` **wajib** memeriksa `accessDecisions`, bukan hanya status login.
+3. Klien: di-host di workspace modul induk, atau `AppNavScreen` dengan `businessModule = modulInduk` (+ `featureCode`, **menu §5.7**) — dan cabang `App.kt` **wajib** memeriksa `accessDecisions`, bukan hanya status login.
 4. Kanvas: daftarkan di registry fitur modul (TRD-FLOW-002, Fase 4) agar tampil di level 2 di bawah node induk.
 
 ### 5.5 Kontrak Input/Output
@@ -163,6 +164,23 @@ mewarisi RBAC, entitlement, dan katalog dari **modul induk**.
 - Port keluar modul A **harus sama** dengan port masuk modul B yang disambung; tipe port wajib terdaftar di kosakata pack (`DomainPack.portTypes`; yang menyambung juga di `wiredPortTypes`).
 - Kanvas menyambung node **dari port**, bukan dari daftar tulis tangan (target TRD-FLOW-002). Port yang tidak menyambung = node yatim di kanvas.
 - Kunci: entitlement, `custom_roles`, `department_module_assignments` memakai **NAME** enum (`QUALITY_CONTROL`); node pipeline & `module_catalog_entries` memakai **code** (`quality_control`). Jangan tertukar.
+
+### 5.7 Menu & judulnya (wajib untuk modul DAN fitur; TRD-I18N-003)
+
+Menu **disiapkan bersama modul/fitur**, bukan ditambal belakangan. Setiap modul atau fitur yang punya layar:
+
+1. **Menyatakan eksplisit tampil atau tidak di menu.** Tidak ada "tampil karena default". Yang **tidak** tampil wajib
+   bertanda `Hidden(alasan)` — mis. layar anak yang dibuka dari layar induk, layar yang hanya lewat kanvas, atau modul tanpa layar
+   khusus. Tipe penandanya **parameter wajib** (tanpa nilai bawaan) supaya kompilator memaksa keputusan ini.
+2. **Bila tampil, judul menu dua bahasa (`id` + `en`) ada di data**: `ModuleDefinition.menuLabelText` untuk layar utama modul,
+   `ModuleFeature.menuLabelText` untuk layar fitur (`AppNavScreen.featureCode` menunjuk fitur). **Dilarang** menulis judul menu
+   baru sebagai string di `AppNavScreen`/UI. `id` = teks resmi; `en` wajib bila pack mengklaim `en` (validator membuktikannya).
+3. **Seksi tempat ia berada** (`ModuleSection`) ikut disiapkan di pack — modul tanpa seksi tidak masuk menu mana pun.
+4. **Tes konsistensi** mengiterasi `AppNavScreen.entries` dan `ModuleFeatureRegistry.all`: tiap entri terklasifikasi (Shown/Hidden),
+   yang Shown punya label dua bahasa, yang Hidden punya alasan. Entri baru tanpa penanda → kompilasi/tes gagal.
+5. Layar non-modul (login, builder) dikecualikan dan tetap memakai `AppNavScreen.title`.
+
+Kewajiban ini berlaku untuk entri **baru** sejak 2026-10-13; entri lama dilunasi lewat TRD-I18N-003 (inventaris Track 0).
 
 ### 5.6 Kepemilikan & promosi modul (TRD-PLAT-004, diputuskan 2026-10-08)
 

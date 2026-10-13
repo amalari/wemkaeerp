@@ -426,6 +426,7 @@ Baca dan patuhi **[`.claude/rules/tenant-variability-rules.md`](.claude/rules/te
 6. Test wajib memakai **template non-default**; cek visual di tenant uji non-rajut (`bordir-uji`).
 7. Endpoint tulis **fail-closed**; test wajib mencakup peran tak berwenang (403).
 8. Konsep yang terlanjur enum dimigrasi dengan Strangler Fig + test paritas.
+9. **Menu disiapkan bersama modul/fitur** (`module-integration-rules.md` §5.7): nyatakan eksplisit tampil/tidak (+ alasan), dan bila tampil, judul menu `id` + `en` di data pack/fitur — bukan string di UI.
 
 Sebelum merge: `scripts/audit-variability.sh` (melapor, tidak memblokir).
 
