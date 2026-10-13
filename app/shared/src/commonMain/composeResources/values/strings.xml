@@ -40,4 +40,8 @@
     <string name="error_not_found">Not found</string>
     <string name="error_unauthorized">Unauthorized</string>
     <string name="error_forbidden">Access denied</string>
+
+    <!-- i18n: penanda terjemahan data pack (TRD-I18N-002). Dipilih lewat bahasa aplikasi, bukan locale sistem -->
+    <string name="i18n_pack_text_missing_id">Belum diterjemahkan</string>
+    <string name="i18n_pack_text_missing_en">Not translated</string>
 </resources>

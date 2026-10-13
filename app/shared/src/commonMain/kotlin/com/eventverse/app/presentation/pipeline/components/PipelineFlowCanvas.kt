@@ -20,7 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.eventverse.app.presentation.i18n.LocalizedLabel
+import com.eventverse.app.presentation.i18n.StripPhaseOrdinal
+import com.eventverse.app.presentation.i18n.rememberActiveLanguage
+import com.eventverse.app.presentation.i18n.resolveForDisplay
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.pipeline.PipelineGraph
 import com.eventverse.app.domain.pipeline.PipelineNode
@@ -184,16 +189,21 @@ private fun MacroProcessStepper(
                 }
 
                 Column {
-                    Text(
-                        text = stage.displayName.substringAfter(". "),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            isSelected -> Color.White
-                            isPresentationMode -> Color.White
-                            else -> WeMadeColors.OnSurface
-                        }
-                    )
+                    LocalizedLabel(text = stage.displayNameText, transform = StripPhaseOrdinal) { value, mod ->
+                        Text(
+                            text = value,
+                            modifier = mod,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = when {
+                                isSelected -> Color.White
+                                isPresentationMode -> Color.White
+                                else -> WeMadeColors.OnSurface
+                            }
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -383,14 +393,19 @@ private fun StageSwimlaneColumn(
                         }
 
                         Column {
+                            LocalizedLabel(text = stage.displayNameText, transform = StripPhaseOrdinal) { value, mod ->
+                                Text(
+                                    text = value,
+                                    modifier = mod,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = if (isPresentationMode) Color.White else Color(stage.colorHex)
+                                )
+                            }
                             Text(
-                                text = stage.displayName.substringAfter(". "),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isPresentationMode) Color.White else Color(stage.colorHex)
-                            )
-                            Text(
-                                text = stage.subtitle,
+                                text = stage.subtitleText?.resolveForDisplay(rememberActiveLanguage())?.text ?: stage.subtitle,
                                 fontSize = 10.sp,
                                 color = if (isPresentationMode) WeMadeColors.OnSurfaceMutedInverse else WeMadeColors.OnSurfaceMuted,
                                 maxLines = 1

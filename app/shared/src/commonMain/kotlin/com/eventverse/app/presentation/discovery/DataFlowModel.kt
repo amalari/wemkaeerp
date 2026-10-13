@@ -2,6 +2,7 @@ package com.eventverse.app.presentation.discovery
 
 import com.eventverse.app.domain.pipeline.OperationalModuleCatalog
 import com.eventverse.app.domain.pack.DomainPackRegistry
+import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.domain.pack.SlotCode
 
 /**
@@ -82,7 +83,7 @@ private class Ports(val inputs: List<String>, val references: List<String>, val 
  * Menghitung peta sambungan port dari modul-modul operasional aktif pada [draft].
  * Modul governance/foundation tidak disertakan — mereka bukan stasiun aliran data.
  */
-fun buildDataFlowMap(draft: DiscoveryDraftUi): DataFlowMap {
+fun buildDataFlowMap(draft: DiscoveryDraftUi, language: LanguageCode = LanguageCode.ID): DataFlowMap {
     val ops = draft.activeModules.filter { it.kind == "OPERATIONAL" }
 
     // Kosakata tampilan: utama dari payload draf (ikut ringkasan — bekerja juga untuk draf
@@ -91,7 +92,7 @@ fun buildDataFlowMap(draft: DiscoveryDraftUi): DataFlowMap {
     val pack = DomainPackRegistry.all.firstOrNull { it.code.value == draft.packCode }
     fun labelOf(type: String) = draft.portLabels[type] ?: pack?.portLabel(type) ?: type
     fun slotLabelOf(slot: String?) = slot?.let { code ->
-        draft.slotLabels[code] ?: pack?.slot(SlotCode(code))?.displayName
+        draft.slotLabels[code] ?: pack?.slot(SlotCode(code))?.displayNameText?.resolve(language)?.text
     }
 
     val portsByModule: Map<DiscoveryModuleUi, Ports> = ops.associateWith { m ->

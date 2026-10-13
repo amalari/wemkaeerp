@@ -31,6 +31,7 @@ import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
+import com.eventverse.app.presentation.i18n.rememberActiveLanguage
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 /**
@@ -44,7 +45,8 @@ fun DataFlowPane(
     modifier: Modifier = Modifier
 ) {
     val typography = rememberClayTypography()
-    val map = remember(draft) { buildDataFlowMap(draft) }
+    val language = rememberActiveLanguage()
+    val map =remember(draft, language) { buildDataFlowMap(draft, language) }
     var selectedSection by remember { mutableStateOf<String?>(null) }
 
     val displayedFlows = remember(map, selectedSection) {
