@@ -52,11 +52,14 @@ internal object SupersededModuleText {
         val current = DomainPackRegistry.shipped.firstNotNullOfOrNull { it.module(m.id) } ?: return m
         val nameSuperseded = m.displayName in names[m.id].orEmpty()
         val descriptionSuperseded = m.description in descriptions[m.id].orEmpty()
-        return m.copy(
+        val idOnly = m == m.withoutTranslations()
+        val result = m.copy(
             displayName = if (nameSuperseded) current.displayName else m.displayName,
             description = if (descriptionSuperseded) current.description else m.description,
             displayNameText = if (nameSuperseded) current.displayNameText else m.displayNameText,
             descriptionText = if (descriptionSuperseded) current.descriptionText else m.descriptionText
         )
+        // Modul id-saja tetap id-saja setelah penggantian teks lama (terjemahan hanya ikut bila dokumen membawanya).
+        return if (idOnly) result.withoutTranslations() else result
     }
 }

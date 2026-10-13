@@ -58,13 +58,13 @@ class NeutralSharedModulesTest {
 
     @Test
     fun `draf garment lama dengan teks lama org_chart dan vendor_contacts tetap sah`() {
-        val old = garment.copy(modules = garment.modules.map {
+        val old = garment.withoutTranslations().let { g -> g.copy(modules = g.modules.map {
             when (it.id) {
                 GarmentModules.ORG_CHART -> it.withIdText(description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.")
                 GarmentModules.VENDOR_CONTACTS -> it.withIdText(displayName = "Kontak Vendor & Makloon", description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
                 else -> it
             }
-        })
+        }) }
         assertEquals(emptyList(), DiscoveryDraftValidator.validate(DiscoveryDraft(old, GarmentBlueprints.FOB_FULL_PACKAGE)))
     }
 

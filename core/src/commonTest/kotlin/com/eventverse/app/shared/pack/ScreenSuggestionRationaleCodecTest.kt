@@ -17,7 +17,7 @@ class ScreenSuggestionRationaleCodecTest {
 
     @Test
     fun `pack lama tanpa kunci rationale tetap terbaca sebagai null`() {
-        val json = DomainPackCodec.encodeToString(GarmentDomainPack.pack).replace(Regex(",\"rationale\":(\"[^\"]*\"|null)"), "")
+        val json = DomainPackCodec.encodeToString(GarmentDomainPack.pack).replace(Regex(",\"rationale\":(\"[^\"]*\"|null|\\{[^}]*\\})"), "")
         assertTrue(!json.contains("\"rationale\""))
         val decoded = DomainPackCodec.decode(json)
         assertTrue(decoded.screenSuggestions.isNotEmpty() && decoded.screenSuggestions.all { it.rationale == null })

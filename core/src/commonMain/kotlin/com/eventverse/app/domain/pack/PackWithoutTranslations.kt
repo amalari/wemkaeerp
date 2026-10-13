@@ -36,3 +36,16 @@ internal fun ScreenSuggestion.withoutTranslations(): ScreenSuggestion = copy(
     titleText = LocalizedText.of(title),
     rationaleText = rationale?.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) }
 )
+
+internal fun SlotDefinition.withoutTranslations(): SlotDefinition = copy(displayNameText = LocalizedText.of(displayName))
+
+/**
+ * Definisi modul [this] sama dengan milik platform [platform] **di luar terjemahan**: draf/pack lama yang menyalin
+ * modul bersama sebelum pack bawaan punya `en` tetap sama; yang membawa terjemahan wajib identik dengan milik
+ * platform (terjemahan tulisan sendiri = penulisan ulang, ditolak).
+ */
+internal fun ModuleDefinition.samePlatformDefinitionAs(platform: ModuleDefinition): Boolean =
+    withoutTranslations() == platform.withoutTranslations() && (this == withoutTranslations() || this == platform)
+
+internal fun SlotDefinition.samePlatformDefinitionAs(platform: SlotDefinition): Boolean =
+    withoutTranslations() == platform.withoutTranslations() && (this == withoutTranslations() || this == platform)
