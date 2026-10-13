@@ -151,7 +151,7 @@ tidak terdampak; klien yang membaca pack ketat harus dicek di tes server (`Domai
 - **Belum terverifikasi**: pemetaan seluruh layar ke fitur. Hanya `traceability` dan `surat_jalan` tampak cocok; layar lain
   (mis. Packing Bench, Daftar Pengiriman) mungkin belum punya fitur terdaftar → daftarkan fitur baru di registri atau biarkan
   memakai `AppNavScreen.title` (dicatat di Discovery).
-- Tiga modul multi-layar saat ini: `FULFILLMENT`, `OPERATOR_EXEC`, `INVOICING` (layar kedua `INVOICING` disembunyikan dari menu).
+- Yang punya >1 baris menu tampil hanya `OPERATOR_EXEC` (Lampiran A); `FULFILLMENT` dan `INVOICING` punya layar anak tersembunyi.
 - Registri fitur ada di `domain/pipeline` (paket mesin) dan berisi konten garment — utang yang sudah ada; dokumen ini tidak
   memperburuknya selain menambah satu field.
 - `ModuleFeatureRegistry`, `RouteOwnershipTest`, dan kanvas level 2 memakai `displayName` fitur — tidak diubah.
@@ -200,14 +200,43 @@ tidak terdampak; klien yang membaca pack ketat harus dicek di tes server (`Domai
 - Satu rilis; field opsional sehingga rollback = kembali ke pembaca lama (kunci `menuLabel` diabaikan).
 - Kompilasi `compileKotlinJvm`, `compileKotlinWasmJs`, `compileKotlinJs`, `assembleAndroidMain`, `jvmTest` sebelum merge.
 
-## Lampiran A — Inventaris tampil / tersembunyi (diisi Track 0; saat ini hanya angka terverifikasi)
+## Lampiran A — Inventaris tampil / tersembunyi (Track 0, 2026-10-13; dikunci `MenuInventoryTest`)
 
-Terverifikasi dari `AppNavScreen.kt` (2026-10-13): **10 layar** memakai `isNavMenuItem = false` (tersembunyi tanpa alasan tertulis), sisanya
-tampil lewat nilai bawaan `true`. Rincian per layar dan alasannya **belum** ditulis — itu keluaran Track 0 (dibaca dari kode, lalu
-dikunci tes). Fitur terdaftar saat ini: `stage_frame`, `optional_process`, `sample_storage`, `production_line`, `work_queue`,
-`traceability`, `surat_jalan`; hanya sebagian punya layar sendiri.
+**Koreksi atas draf awal**: hanya **9** layar yang tersembunyi lewat `isNavMenuItem = false` (angka 10 tadi ikut menghitung satu baris
+KDoc); ditambah LOGIN yang kini ditandai `Hidden` secara jujur (tidak pernah masuk menu karena bukan modul). Draf awal juga keliru
+menyebut layar Surat Jalan berada di menu — ia **tersembunyi**; `FULFILLMENT` hanya punya **satu** baris menu. Satu-satunya modul
+dengan dua baris menu tampil adalah `OPERATOR_EXEC` (Lantai Produksi + Telusur ↔ fitur `traceability`).
 
-| Entri | Status | Alasan | Label (`id` / `en`) |
+### Layar (`AppNavScreen`, 26 entri: 16 Shown, 10 Hidden)
+
+| Layar | Status | Catatan / alasan |
+|---|---|---|
+| ORG_CHART, DYNAMIC_RBAC, FACTORY_FLOW, CRM_SALES, SAMPLING_ORDER, INVENTORY, TECH_PACK_BOM, COSTING_HPP, PRODUCTION_MRP, QUALITY_CONTROL, FULFILLMENT, MASTER_DATA, VENDOR_CONTACTS, INVOICING | **Shown** | layar utama modul (`menuLabelText` modul — Track A) |
+| OPERATOR_EXEC | **Shown** | layar utama modul Lantai Produksi |
+| TRACEABILITY | **Shown** | layar fitur `traceability` (`featureCode`), induk `OPERATOR_EXEC`; label fitur sudah ada |
+| SURAT_JALAN | Hidden | fitur `surat_jalan`: dibuka dari workspace Fulfillment |
+| FULFILLMENT_ROUTE_SETTINGS, PACKING_BENCH, SHIPMENT_LIST | Hidden | layar anak Fulfillment; dibuka dari workspace modul |
+| INVOICING_TEMPLATES | Hidden | layar anak Invoicing; dibuka dari workspace modul |
+| DISCOVERY, DISCOVERY_STUDIO, DISCOVERY_DEMANDS | Hidden | bukan modul; baris drawer ditambahkan terpisah lewat `studioDrawerSection` (App.kt) |
+| MODULE | Hidden | rute generik `/m/{code}`; baris menu per modul dibuat dari pack |
+| LOGIN | Hidden | layar login di luar tenant; bukan modul |
+
+### Fitur (`ModuleFeatureRegistry`, 7 entri: 1 Shown, 6 Hidden)
+
+| Fitur | Induk | Status | Alasan / label |
 |---|---|---|---|
-| _(diisi Track 0 dari `AppNavScreen.entries` + `ModuleFeatureRegistry.all`)_ | Shown / Hidden | wajib bila Hidden | wajib bila Shown |
+| traceability | OPERATOR_EXEC | **Shown** | `menuLabelText` id "Telusur Bundel & Karung" / en "Bundle & Sack Tracing" |
+| stage_frame, optional_process | SAMPLING_ORDER | Hidden | kanvas level 2 di bawah node Order Sampling; tanpa layar menu |
+| sample_storage | SAMPLING_ORDER | Hidden | alat kerja di dalam layar Order Sampling |
+| production_line | PRODUCTION_MRP | Hidden | kanvas level 2 di bawah node Jadwal Produksi |
+| work_queue | OPERATOR_EXEC | Hidden | dihosting layar utama Lantai Produksi |
+| surat_jalan | FULFILLMENT | Hidden | layar Surat Jalan tersembunyi; dibuka dari workspace Fulfillment |
 
+**Catatan**: alasan `Hidden` pada layar anak Fulfillment/Invoicing ("dibuka dari workspace modul") ditulis dari struktur kode dan rencana
+TRD-FUL-001 C4; navigasi aktualnya belum saya telusuri sampai layar. Tinjau bila ingin tepat.
+
+### Status Track 0 (dibekukan, 2026-10-13)
+- Ada: `MenuPlacement`, `ModuleDefinition.menuLabelText`, `ModuleFeature.menu`/`menuLabelText`, `AppNavScreen.menu` (wajib) + `featureCode`,
+  `menuTitle`, `MenuInventoryTest`, `ModuleFeatureMenuTest`.
+- Belum (Track A/C): codec `menuLabel`, validator jalur, identitas pack, isi `menuLabel` garment + `en`, penggambaran penanda fallback.
+- Perilaku menu: judul `id` **identik** (tes paritas); untuk `en`, judul layar tanpa label kini ditandai fallback (jujur) — sebelumnya diam-diam tanpa tanda.

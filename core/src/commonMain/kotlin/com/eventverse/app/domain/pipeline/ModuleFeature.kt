@@ -29,7 +29,9 @@ import com.eventverse.app.domain.rbac.name
 
 import com.eventverse.app.domain.rbac.code
 
+import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.pack.GarmentModules
+import com.eventverse.app.domain.pack.MenuPlacement
 
 import com.eventverse.app.domain.rbac.BusinessModule
 
@@ -67,10 +69,18 @@ data class ModuleFeature(
     val hostModule: BusinessModule,
     val kind: ModuleFeatureKind,
     val description: String,
+    /**
+     * Apakah fitur ini punya baris menu sendiri — **wajib, tanpa nilai bawaan** (TRD-I18N-003 F6). Fitur tanpa layar sendiri
+     * `Hidden("…")`; fitur yang punya layar di menu `Shown` dan wajib membawa [menuLabelText].
+     */
+    val menu: MenuPlacement,
+    /** Judul baris menu dua bahasa; wajib bila [menu] `Shown`. Terpisah dari [displayName] (nama untuk kanvas level 2). */
+    val menuLabelText: LocalizedText? = null,
     val routePrefixes: List<String> = emptyList()
 ) {
     init {
         require(hostModule.isOperational) { "Fitur $code harus berinduk modul operasional, bukan ${hostModule.kind}" }
+        require(!menu.isShown || menuLabelText != null) { "Fitur $code berstatus Shown di menu tetapi tanpa menuLabelText" }
     }
 }
 
@@ -86,6 +96,7 @@ object ModuleFeatureRegistry {
             displayName = "Kerangka Tahap Sampling",
             hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.STAGE_FRAME,
+            menu = MenuPlacement.Hidden("Tampil di kanvas level 2 di bawah node Order Sampling; tidak punya layar menu"),
             description = "Urutan tahap kerja SPK sampling milik pabrik, dari template industri.",
             routePrefixes = listOf("/api/tenant/stage-flow", "/api/tenant/stage-templates")
         ),
@@ -94,6 +105,7 @@ object ModuleFeatureRegistry {
             displayName = "Proses Sisipan & Tag Fase",
             hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.OPTIONAL_PROCESS,
+            menu = MenuPlacement.Hidden("Tampil di kanvas level 2 di bawah node Order Sampling; tidak punya layar menu"),
             description = "Bordir, sablon, laundry yang disisipkan per desain; tag fase Cuci/Setrika.",
             routePrefixes = listOf("/api/tenant/process-catalog")
         ),
@@ -102,6 +114,7 @@ object ModuleFeatureRegistry {
             displayName = "Penyimpanan Sampel",
             hostModule = GarmentModules.SAMPLING_ORDER,
             kind = ModuleFeatureKind.TOOL,
+            menu = MenuPlacement.Hidden("Alat kerja di dalam layar Order Sampling; tidak punya layar menu sendiri"),
             description = "Kustodi sampel selesai kemas: lokasi rak, penerima simpan, rilis kirim."
         ),
         ModuleFeature(
@@ -109,6 +122,7 @@ object ModuleFeatureRegistry {
             displayName = "Stasiun Lini Produksi",
             hostModule = GarmentModules.PRODUCTION_MRP,
             kind = ModuleFeatureKind.STATION,
+            menu = MenuPlacement.Hidden("Tampil di kanvas level 2 di bawah node Jadwal Produksi; tidak punya layar menu"),
             description = "Urutan stasiun lini massal (potong, jahit, cuci, steam, QC, kemas).",
             routePrefixes = listOf("/api/tenant/production")
         ),
@@ -117,6 +131,7 @@ object ModuleFeatureRegistry {
             displayName = "Antrian Kerja & Washing Batch",
             hostModule = GarmentModules.OPERATOR_EXEC,
             kind = ModuleFeatureKind.TOOL,
+            menu = MenuPlacement.Hidden("Dihosting layar utama Lantai Produksi; tidak punya baris menu sendiri"),
             description = "Kartu kerja per stasiun dan batch cuci bundle berfoto.",
             routePrefixes = listOf("/api/tenant/work-queue")
         ),
@@ -125,6 +140,8 @@ object ModuleFeatureRegistry {
             displayName = "Telusur & Cetak Kartu",
             hostModule = GarmentModules.OPERATOR_EXEC,
             kind = ModuleFeatureKind.TOOL,
+            menu = MenuPlacement.Shown,
+            menuLabelText = LocalizedText.of("Telusur Bundel & Karung", "Bundle & Sack Tracing"),
             description = "Pindai QR, kartu SPK A6, jejak kontainer.",
             routePrefixes = listOf("/api/tenant/traceability")
         ),
@@ -133,6 +150,7 @@ object ModuleFeatureRegistry {
             displayName = "Surat Jalan & Transfer",
             hostModule = GarmentModules.FULFILLMENT,
             kind = ModuleFeatureKind.TOOL,
+            menu = MenuPlacement.Hidden("Layar Surat Jalan tersembunyi dari menu; dibuka dari workspace Fulfillment"),
             description = "Manifest perpindahan barang antar gedung dan ke buyer.",
             routePrefixes = listOf("/api/tenant/transfers")
         )

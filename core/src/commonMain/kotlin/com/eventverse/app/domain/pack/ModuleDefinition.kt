@@ -87,7 +87,13 @@ data class ModuleDefinition(
     val slot: SlotCode?,
     /** Jembatan Strangler Fig TRD-I18N-002 (P3): nama & deskripsi dua bahasa; [displayName]/[description] = teks `id`. */
     val displayNameText: LocalizedText = LocalizedText.of(displayName),
-    val descriptionText: LocalizedText? = description.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) }
+    val descriptionText: LocalizedText? = description.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) },
+    /**
+     * Judul baris menu untuk layar **utama** modul (TRD-I18N-003). Bukan cermin [displayName] — judul menu sengaja pendek dan
+     * boleh berbeda dari nama penuh. `null` = pack tidak menyediakan; menu memakai cadangan yang ditetapkan `menuTitle`.
+     * Layar fitur memakai `ModuleFeature.menuLabelText`.
+     */
+    val menuLabelText: LocalizedText? = null
 ) {
     init {
         require(displayName.isNotBlank()) { "Nama modul ${id.value} kosong" }

@@ -32,6 +32,7 @@ import com.eventverse.app.domain.rbac.code
 import com.eventverse.app.domain.pack.GarmentModules
 
 import androidx.compose.runtime.compositionLocalOf
+import com.eventverse.app.domain.pack.MenuPlacement
 import com.eventverse.app.domain.rbac.BusinessModule
 
 /**
@@ -57,68 +58,84 @@ enum class AppNavScreen(
      * sehingga layarnya tidak perlu lagi dikecualikan dari matriks.
      */
     val businessModule: BusinessModule? = null,
-    val isNavMenuItem: Boolean = true
+    /**
+     * Baris menu sendiri atau tidak — **wajib eksplisit, tanpa nilai bawaan** (module-integration-rules §5.7, TRD-I18N-003 F6).
+     * `Hidden` selalu beralasan. Layar modul/fitur yang `Shown` mendapat judul dari data (`menuLabelText`), bukan dari [title].
+     */
+    val menu: MenuPlacement,
+    /** Kode fitur dalam modul ([com.eventverse.app.domain.pipeline.ModuleFeature]) bila layar ini adalah layar fitur; induknya harus = [businessModule]. */
+    val featureCode: String? = null
 ) {
     ORG_CHART(
         route = "/org-chart",
         title = "Bagan Organisasi",
         aliases = listOf("/orgchart", "/organization", "/bagan-organisasi"),
-        businessModule = GarmentModules.ORG_CHART
+        businessModule = GarmentModules.ORG_CHART,
+        menu = MenuPlacement.Shown
     ),
     DYNAMIC_RBAC(
         route = "/rbac",
         title = "Hak Akses (RBAC)",
         aliases = listOf("/roles", "/hak-akses", "/permissions"),
-        businessModule = GarmentModules.DYNAMIC_RBAC
+        businessModule = GarmentModules.DYNAMIC_RBAC,
+        menu = MenuPlacement.Shown
     ),
     FACTORY_FLOW(
         route = "/factory-flow",
         title = "Alur Pabrik (Pipeline)",
         aliases = listOf("/pipeline", "/alur-pabrik", "/flow"),
-        businessModule = GarmentModules.FACTORY_FLOW
+        businessModule = GarmentModules.FACTORY_FLOW,
+        menu = MenuPlacement.Shown
     ),
     // ── Sembilan modul operasional konveksi ──────────────────────────────────────────────────
     CRM_SALES(
         route = "/crm-sales",
         title = "Penjualan & Pelanggan",
         aliases = listOf("/sales", "/crm"),
-        businessModule = GarmentModules.CRM_SALES
+        businessModule = GarmentModules.CRM_SALES,
+        menu = MenuPlacement.Shown
     ),
     SAMPLING_ORDER(
         route = "/sampling-order",
         title = "Order Sampling",
         aliases = listOf("/sampling", "/sample"),
-        businessModule = GarmentModules.SAMPLING_ORDER
+        businessModule = GarmentModules.SAMPLING_ORDER,
+        menu = MenuPlacement.Shown
     ),
     INVENTORY(
         route = "/inventory",
         title = "Gudang & Bahan Baku",
         aliases = listOf("/gudang", "/stok"),
-        businessModule = GarmentModules.INVENTORY
+        businessModule = GarmentModules.INVENTORY,
+        menu = MenuPlacement.Shown
     ),
     TECH_PACK_BOM(
         route = "/tech-pack",
         title = "Tech Pack & BOM",
         aliases = listOf("/techpack", "/bom"),
-        businessModule = GarmentModules.TECH_PACK_BOM
+        businessModule = GarmentModules.TECH_PACK_BOM,
+        menu = MenuPlacement.Shown
     ),
     COSTING_HPP(
         route = "/costing-hpp",
         title = "Kalkulasi HPP",
         aliases = listOf("/hpp", "/costing"),
-        businessModule = GarmentModules.COSTING_HPP
+        businessModule = GarmentModules.COSTING_HPP,
+        menu = MenuPlacement.Shown
     ),
     PRODUCTION_MRP(
         route = "/production-mrp",
         title = "Jadwal Produksi (MRP)",
         aliases = listOf("/produksi", "/mrp"),
-        businessModule = GarmentModules.PRODUCTION_MRP
+        businessModule = GarmentModules.PRODUCTION_MRP,
+        menu = MenuPlacement.Shown
     ),
     OPERATOR_EXEC(
         route = "/operator-exec",
         title = "Lantai Produksi",
         aliases = listOf("/operator", "/shopfloor"),
-        businessModule = GarmentModules.OPERATOR_EXEC
+        businessModule = GarmentModules.OPERATOR_EXEC,
+        menu = MenuPlacement.Shown
     ),
     TRACEABILITY(
         route = "/telusur",
@@ -127,91 +144,99 @@ enum class AppNavScreen(
         // Bergerbang pada modul lantai produksi yang sudah ada, bukan BusinessModule baru:
         // menambah nilai enum merembet ke matriks RBAC, penugasan divisi, entitlement, dan seed
         // tiap tenant — biaya besar untuk satu layar.
-        businessModule = GarmentModules.OPERATOR_EXEC
+        businessModule = GarmentModules.OPERATOR_EXEC,
+        menu = MenuPlacement.Shown,
+        featureCode = "traceability"
     ),
     QUALITY_CONTROL(
         route = "/quality-control",
         title = "Quality Control",
         aliases = listOf("/qc", "/kualitas"),
-        businessModule = GarmentModules.QUALITY_CONTROL
+        businessModule = GarmentModules.QUALITY_CONTROL,
+        menu = MenuPlacement.Shown
     ),
     FULFILLMENT(
         route = "/fulfillment",
         title = "Packing & Pengiriman",
         aliases = listOf("/packing", "/pengiriman"),
-        businessModule = GarmentModules.FULFILLMENT
+        businessModule = GarmentModules.FULFILLMENT,
+        menu = MenuPlacement.Shown
     ),
     SURAT_JALAN(
         route = "/surat-jalan",
         title = "Surat Jalan & Transfer",
         aliases = listOf("/transfer", "/makloon-transfer", "/sj"),
         businessModule = GarmentModules.FULFILLMENT,
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Fitur surat_jalan: layar dibuka dari workspace Fulfillment, bukan baris menu sendiri")
     ),
     FULFILLMENT_ROUTE_SETTINGS(
         route = "/fulfillment/routes",
         title = "Pengaturan Rute Serah Terima",
         aliases = listOf("/fulfillment-routes", "/route-settings"),
         businessModule = GarmentModules.FULFILLMENT,
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Layar pengaturan anak Fulfillment; dibuka dari workspace modul")
     ),
     PACKING_BENCH(
         route = "/fulfillment/packing",
         title = "Meja Packing",
         aliases = listOf("/packing-bench", "/packing"),
         businessModule = GarmentModules.FULFILLMENT,
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Layar anak Fulfillment; dibuka dari workspace modul")
     ),
     SHIPMENT_LIST(
         route = "/fulfillment/shipments",
         title = "Daftar Pengiriman",
         aliases = listOf("/shipments", "/pengiriman"),
         businessModule = GarmentModules.FULFILLMENT,
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Layar anak Fulfillment; dibuka dari workspace modul")
     ),
     MASTER_DATA(
         route = "/master-data",
         title = "Master Data Bahan & Harga",
         aliases = listOf("/materials", "/bahan", "/masterdata"),
-        businessModule = GarmentModules.MASTER_DATA
+        businessModule = GarmentModules.MASTER_DATA,
+        menu = MenuPlacement.Shown
     ),
     VENDOR_CONTACTS(
         route = "/vendors",
         title = "Kontak Vendor",
         aliases = listOf("/vendor", "/kontak-vendor", "/makloon-vendor"),
-        businessModule = GarmentModules.VENDOR_CONTACTS
+        businessModule = GarmentModules.VENDOR_CONTACTS,
+        menu = MenuPlacement.Shown
     ),
     INVOICING(
         route = "/invoicing",
         title = "Invoice & Penagihan",
         aliases = listOf("/invoice", "/tagihan", "/faktur"),
-        businessModule = GarmentModules.INVOICING
+        businessModule = GarmentModules.INVOICING,
+        menu = MenuPlacement.Shown
     ),
     INVOICING_TEMPLATES(
         route = "/invoicing/templates",
         title = "Template & Desain Faktur",
         aliases = listOf("/invoicing/design", "/invoicing/template", "/invoicing/layouts"),
         businessModule = GarmentModules.INVOICING,
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Layar anak Invoicing; dibuka dari workspace modul")
     ),
 
     LOGIN(
         route = "/login",
         title = "Login Akun",
-        aliases = listOf("/masuk")
+        aliases = listOf("/masuk"),
+        menu = MenuPlacement.Hidden("Layar login di luar tenant; bukan modul")
     ),
 
     /**
      * R16/Fase D: funnel discovery ("Studio Discovery"). Bukan `BusinessModule` — datanya draf
      * prospek per pengguna, bukan aset tenant yang di-RBAC per jabatan; gerbang layarnya sesi +
-     * kehadiran keputusan wewenang (diperiksa di cabang `App.kt`). `isNavMenuItem = false` karena
+     * kehadiran keputusan wewenang (diperiksa di cabang `App.kt`). `menu = Hidden` karena
      * tidak masuk matriks modul; baris drawer-nya ditambahkan terpisah di `App.kt`.
      */
     DISCOVERY(
         route = "/discovery",
         title = "Studio Discovery",
         aliases = listOf("/studio-discovery", "/discovery-studio"),
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Bukan modul; barisnya ditambahkan terpisah lewat studioDrawerSection (App.kt)")
     ),
 
     /**
@@ -226,7 +251,7 @@ enum class AppNavScreen(
         route = "/discovery/studio",
         title = "Studio Pola Prototipe",
         aliases = listOf("/studio-pola", "/discovery/patterns"),
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Bukan modul; barisnya ditambahkan terpisah lewat studioDrawerSection (App.kt)")
     ),
 
     /**
@@ -237,7 +262,7 @@ enum class AppNavScreen(
         route = "/discovery/demands",
         title = "Buku Demand",
         aliases = listOf(),
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Bukan modul; barisnya ditambahkan terpisah lewat studioDrawerSection (App.kt)")
     ),
 
     /**
@@ -247,8 +272,11 @@ enum class AppNavScreen(
     MODULE(
         route = "/m",
         title = "Modul",
-        isNavMenuItem = false
+        menu = MenuPlacement.Hidden("Rute generik /m/{code}; baris menu per modul dibuat dari pack, bukan dari layar ini")
     );
+
+    /** Tetap tersedia untuk pemanggil lama (`NavMenu`, `TutorialLayer`); diturunkan dari [menu]. */
+    val isNavMenuItem: Boolean get() = menu.isShown
 
     val isProtected: Boolean
         get() = this != LOGIN

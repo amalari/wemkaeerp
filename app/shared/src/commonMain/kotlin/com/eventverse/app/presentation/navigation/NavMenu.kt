@@ -1,6 +1,10 @@
 package com.eventverse.app.presentation.navigation
 
 import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.LocalizedText
+import com.eventverse.app.domain.i18n.ResolvedText
+import com.eventverse.app.domain.pack.ModuleDefinition
+import com.eventverse.app.domain.pipeline.ModuleFeatureRegistry
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.presentation.pack.ActiveTenantPack
 import com.eventverse.app.domain.rbac.isScopeSupported
@@ -124,7 +128,8 @@ fun buildNavMenu(
                     titleFallback = name.isFallback
                 )
                 screensByModule[module]?.map { screen ->
-                    base.copy(screen = screen, route = screen.route, title = screen.title, titleFallback = false)
+                    val label = menuTitle(screen, definition, language)
+                    base.copy(screen = screen, route = screen.route, title = label.text, titleFallback = label.isFallback)
                 }
                     ?: listOf(base)
             }
@@ -154,3 +159,19 @@ fun firstAccessibleScreen(sections: List<NavMenuSection>): AppNavScreen? = first
 /** Baris pertama yang terbuka — membawa `route`, sehingga modul tanpa layar khusus pun bisa jadi pendaratan. */
 fun firstAccessibleEntry(sections: List<NavMenuSection>): NavMenuEntry? =
     sections.firstNotNullOfOrNull { section -> section.entries.firstOrNull { !it.locked } }
+
+/**
+ * Judul baris menu untuk [screen] (TRD-I18N-003 F1). Urutan: layar fitur → `ModuleFeature.menuLabelText`; layar utama modul →
+ * `ModuleDefinition.menuLabelText`; **transisi**: bila data belum menyediakan, [AppNavScreen.title] (teks `id` lama) — ditandai
+ * fallback untuk bahasa non-`id` (jujur: belum diterjemahkan). Setelah pack garment mengisi `menuLabel` (Track A), cadangan ini
+ * hanya tersisa untuk layar non-modul. `featureCode` yang tidak terdaftar **gagal** (bukan diabaikan).
+ */
+fun menuTitle(screen: AppNavScreen, definition: ModuleDefinition?, language: LanguageCode): ResolvedText {
+    val label = screen.featureCode?.let { code ->
+        requireNotNull(ModuleFeatureRegistry.all.firstOrNull { it.code == code }) {
+            "AppNavScreen.${screen.name} menunjuk fitur '$code' yang tidak terdaftar"
+        }.menuLabelText
+    } ?: definition?.menuLabelText.takeIf { screen.featureCode == null }
+    return (label ?: LocalizedText.of(screen.title)).resolve(language)
+}
+

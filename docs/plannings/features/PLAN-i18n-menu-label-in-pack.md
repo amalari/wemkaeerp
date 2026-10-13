@@ -78,7 +78,9 @@ Bagian 3 di bawah dipertahankan sebagai catatan opsi yang dipertimbangkan; Opsi 
   `scripts/sync-agent-config.sh` sudah dijalankan.
 - Penandaan **eksplisit** `MenuPlacement` (`Shown` | `Hidden(alasan)`), parameter wajib pada `AppNavScreen` dan `ModuleFeature`
   (menggantikan `isNavMenuItem = true` default). Rincian: TRD-I18N-003 F6 + Lampiran A.
-- Track 0 menambah: inventaris 10 layar tersembunyi + alasannya, dan fitur mana yang tampil/tidak.
+- Track 0 menambah: inventaris layar & fitur tampil/tersembunyi + alasannya (TRD-I18N-003 Lampiran A).
+
+**Status Track 0 (2026-10-13): SELESAI & dibekukan.** Koreksi: 9 layar (bukan 10) tersembunyi lewat flag lama, + LOGIN; `FULFILLMENT` hanya satu baris menu; hanya `OPERATOR_EXEC` punya dua baris menu tampil (Telusur ↔ `traceability`). Tinggal Track A (codec, validator, identitas, isi garment), B (server), C (render fallback), D (visual).
 
 ## 6. Definition of Done
 - [ ] Tes paritas judul menu `id` hijau; `en` lengkap untuk modul satu-layar
