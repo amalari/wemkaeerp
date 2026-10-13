@@ -42,6 +42,7 @@ import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconActivity
+import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconArrowBack
 import com.eventverse.app.presentation.designsystem.IconChat
 import com.eventverse.app.presentation.designsystem.IconDatabase
@@ -65,6 +66,7 @@ internal data class BuilderMenuItem(
 
 internal fun builderMenu() = listOf(
     BuilderMenuItem("overview", "Overview", icon = { m, c -> IconGlobe(m, c) }),
+    BuilderMenuItem("newpack", "Buat Pack Baru", icon = { m, c -> IconPlus(m, c) }),
     BuilderMenuItem("chat", "Chat AI", icon = { m, c -> IconChat(m, c) }),
     BuilderMenuItem("modules", "Modules", icon = { m, c -> IconLayers(m, c) }),
     BuilderMenuItem("dataflow", "Data Flow", icon = { m, c -> IconDatabase(m, c) }),
@@ -110,6 +112,7 @@ fun BuilderShell(
         ) {
             when (selected) {
                 "overview" -> BuilderOverviewPane(onNavigate = onSectionChange)
+                "newpack" -> BuilderNewPackScreen(onNavigate = onSectionChange)
                 "chat" -> BuilderChatPane()
                 "modules" -> BuilderModulesPane()
                 "dataflow" -> BuilderDataFlowPane()

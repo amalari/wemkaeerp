@@ -36,6 +36,7 @@ import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.IconActivity
 import com.eventverse.app.presentation.designsystem.IconGlobe
+import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconZap
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -270,6 +271,12 @@ private fun ProjectHeroHeader(
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            ClayButton(
+                text = "Buat Pack Baru",
+                onClick = { onNavigate("newpack") },
+                style = ClayButtonStyle.Secondary,
+                leading = { IconPlus(Modifier.size(14.dp), color = WeMadeColors.OnSurface) }
+            )
             ClayButton(
                 text = "Buka Prototype",
                 onClick = { onNavigate("prototype") },
