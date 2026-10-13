@@ -178,3 +178,11 @@ flowchart LR
 - Rilis per tahap P1…P6; setiap tahap bisa berdiri sendiri (jembatan menjaga pembaca lama).
 - Rollback = kembali ke pembaca jembatan (`displayNameId`); data tersimpan tetap kompatibel karena bentuk lama tetap terbaca.
 - Kompilasi 5 target sebelum merge; `J3MigrationFenceTest` dan `TenantCodeBoundaryTest` hijau.
+
+### Catatan Track A (2026-10-13) — P3–P5 selesai, P6 ditunda
+
+- **Selesai (jembatan + codec + validator + terjemahan `en` garment)**: `ModuleDefinition.displayNameText/descriptionText`, `ModuleSection.displayNameText`, `ScreenSuggestion.titleText/rationaleText`, `RoleHint.labelText`, `ModuleAction.labelText`, `DomainPack.vocabularyText/portLabelTexts`. Semua tercatat di `PackTranslations.localizedTexts()`. Pack `garment` mengklaim `en` dan lengkap di seluruh jalur itu.
+- **Sengaja tidak dilokalkan**: `ScreenSuggestion.sampleRows` (kunci `Kolom`/`Simpan`/`Butir` = protokol struktur renderer), `SlotDefinition.defaultStatuses` (nilai = kunci data kolom kanban), `RoleHint.word` (kunci pencocokan teks cerita), `OperationalModuleCatalog`/`FoundationModuleCatalog` (spec mesin, tanpa teks tampilan). Terjemahan nilai-nilai ini butuh keputusan desain terpisah (kunci vs label).
+- **P6 ditunda**: `GarmentTutorials`/`ShippedTutorialSource` hidup di `domain/tutorial` (`ModuleTutorial`), bukan di `DomainPack`; `GarmentReferenceInterview` adalah wawancara acuan, bukan teks tampilan. Butuh jembatan terpisah dan penerjemah manusia; tidak dipalsukan.
+- **Bahaya `copy()`**: `copy(description = …)` pada tipe berpasangan `xxxText` melanggar invarian jembatan. Pakai `withIdText`/`withIdRationale`/`withIdLabels` (`PackIdTextEditing.kt`) yang mengganti `id` bersama pasangannya.
+- **Identitas pack bawaan**: terjemahan = kolom aditif. `matchesShipped` dan `DomainPackRegistry.identityViolations` membandingkan di luar terjemahan (`withoutTranslations()`); dokumen yang membawa terjemahan wajib identik dengan milik platform.

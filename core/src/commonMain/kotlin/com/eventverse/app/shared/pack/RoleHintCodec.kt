@@ -11,7 +11,7 @@ import com.eventverse.app.shared.json.jsonOf
 internal object RoleHintCodec {
 
     fun encode(hints: List<RoleHint>): JsonValue.Arr =
-        jsonArrayOf(hints.map { jsonObjectOf("word" to jsonOf(it.word), "label" to jsonOf(it.label), "moduleId" to jsonOf(it.moduleId.value)) })
+        jsonArrayOf(hints.map { jsonObjectOf("word" to jsonOf(it.word), "label" to LocalizedTextCodec.encode(it.labelText), "moduleId" to jsonOf(it.moduleId.value)) })
 
     fun decode(raw: JsonValue?, at: String): List<RoleHint> = when (raw) {
         null, JsonValue.Null -> emptyList()
@@ -19,7 +19,8 @@ internal object RoleHintCodec {
             val p = "$at[$i]"
             val o = item as? JsonValue.Obj ?: throw DomainPackDecodeException(p, "harus objek")
             fun str(k: String) = o.string(k) ?: throw DomainPackDecodeException("$p.$k", "wajib string")
-            try { RoleHint(str("word"), str("label"), ModuleId(str("moduleId"))) }
+            val label = LocalizedTextCodec.decode(o["label"], "$p.label")
+            try { RoleHint(str("word"), label.idText, ModuleId(str("moduleId")), label) }
             catch (e: IllegalArgumentException) { if (e is DomainPackDecodeException) throw e else throw DomainPackDecodeException(p, e.message ?: "tidak sah") }
         }
         else -> throw DomainPackDecodeException(at, "harus array")

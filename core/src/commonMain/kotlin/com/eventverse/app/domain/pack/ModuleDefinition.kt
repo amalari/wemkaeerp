@@ -29,6 +29,7 @@ import com.eventverse.app.domain.rbac.name
 
 import com.eventverse.app.domain.rbac.code
 
+import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
@@ -56,7 +57,17 @@ value class ModuleSectionCode(val value: String) {
  * Seksi menu (dulu `enum ModuleCategory`). Urutan tampil = [order]. [colorHex]/[tintHex] = aksen & latar seksi di kartu
  * modul — warna **data vertikal** (design-system-rules Kontrak 1, pengecualian 1), sama seperti `PhaseDefinition.colorHex`.
  */
-data class ModuleSection(val code: ModuleSectionCode, val displayName: String, val order: Int, val colorHex: Long, val tintHex: Long)
+data class ModuleSection(
+    val code: ModuleSectionCode,
+    val displayName: String,
+    val order: Int,
+    val colorHex: Long,
+    val tintHex: Long,
+    /** Jembatan Strangler Fig TRD-I18N-002 (P3): nama seksi dua bahasa; [displayName] = teks `id`. */
+    val displayNameText: LocalizedText = LocalizedText.of(displayName)
+) {
+    init { require(displayNameText.idText == displayName) { "Seksi ${code.value}: displayNameText.id harus sama dengan displayName" } }
+}
 
 /**
  * Satu modul yang dikirim pack (dulu satu entri `enum BusinessModule`).
@@ -73,10 +84,15 @@ data class ModuleDefinition(
     val iconKey: String,
     val scopeCapability: ScopeCapability,
     val supportedScopes: Set<DataScope>,
-    val slot: SlotCode?
+    val slot: SlotCode?,
+    /** Jembatan Strangler Fig TRD-I18N-002 (P3): nama & deskripsi dua bahasa; [displayName]/[description] = teks `id`. */
+    val displayNameText: LocalizedText = LocalizedText.of(displayName),
+    val descriptionText: LocalizedText? = description.takeIf { it.isNotBlank() }?.let { LocalizedText.of(it) }
 ) {
     init {
         require(displayName.isNotBlank()) { "Nama modul ${id.value} kosong" }
+        require(displayNameText.idText == displayName) { "Modul ${id.value}: displayNameText.id harus sama dengan displayName" }
+        require(descriptionText == null || descriptionText.idText == description) { "Modul ${id.value}: descriptionText.id harus sama dengan description" }
         require(supportedScopes.isNotEmpty()) { "Modul ${id.value} tanpa cakupan data" }
         require((kind == ModuleKind.OPERATIONAL) == (slot != null)) { "Modul ${id.value}: hanya modul operasional yang punya slot kanvas" }
     }

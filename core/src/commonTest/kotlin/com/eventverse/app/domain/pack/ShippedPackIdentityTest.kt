@@ -2,6 +2,7 @@ package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryDraftValidator
+import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.shared.discovery.DiscoveryDraftCodec
 import com.eventverse.app.shared.json.JsonValue
 import kotlin.test.Test
@@ -37,7 +38,7 @@ class ShippedPackIdentityTest {
 
     @Test
     fun `kolom non-aditif tetap harus identik`() {
-        val extra = garment.copy(portLabels = garment.portLabels + ("ProductionOrderDraft" to "Label Lain"))
+        val extra = garment.withIdLabels(portLabels = garment.portLabels + ("ProductionOrderDraft" to "Label Lain"))
         assertTrue(DiscoveryDraftValidator.validate(draftWith(extra)).any { it.path == "$.pack" })
         assertTrue(garment.matchesShipped(garment))
     }
@@ -51,9 +52,21 @@ class ShippedPackIdentityTest {
     @Test
     fun `draf garment lama dengan deskripsi invoicing yang sudah diganti tetap sah, deskripsi lain tidak`() {
         val oldText = "Penerbitan faktur tagihan sample, termin DP, dan pelunasan garmen berkanvas."
-        fun withInvoicingText(text: String) = garment.copy(modules = garment.modules.map { if (it.id == GarmentModules.INVOICING) it.copy(description = text) else it })
+        fun withInvoicingText(text: String) = garment.withoutTranslations().let { g -> g.copy(modules = g.modules.map { if (it.id == GarmentModules.INVOICING) it.withIdText(description = text) else it }) }
         assertEquals(emptyList(), DiscoveryDraftValidator.validate(draftWith(withInvoicingText(oldText))))
         assertTrue(DiscoveryDraftValidator.validate(draftWith(withInvoicingText("Teks karangan"))).any { it.path == "$.pack" })
         assertTrue(garment.module(GarmentModules.INVOICING)!!.description != oldText)
+    }
+
+    @Test
+    fun `draf garment id saja lama tetap sah terhadap pack bawaan berbahasa en`() {
+        assertEquals(emptyList(), DiscoveryDraftValidator.validate(draftWith(garment.withoutTranslations())))
+    }
+
+    @Test
+    fun `terjemahan en tulisan sendiri pada pack berkode garment ditolak`() {
+        val phase = garment.phases.first()
+        val rewritten = garment.copy(phases = listOf(phase.copy(displayNameText = phase.displayNameText.with(LanguageCode.EN, "Versi saya"))) + garment.phases.drop(1))
+        assertTrue(DiscoveryDraftValidator.validate(draftWith(rewritten)).any { it.path == "$.pack" })
     }
 }

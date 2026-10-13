@@ -39,7 +39,7 @@ internal object ScreenSuggestionCodec {
     }
 
     private fun encodeOne(s: ScreenSuggestion): JsonValue.Obj = jsonObjectOf(
-        "moduleId" to jsonOf(s.moduleId.value), "title" to jsonOf(s.title), "widget" to jsonOf(s.widget.code),
+        "moduleId" to jsonOf(s.moduleId.value), "title" to LocalizedTextCodec.encode(s.titleText), "widget" to jsonOf(s.widget.code),
         "sampleRows" to jsonArrayOf(s.sampleRows.map { row ->
             jsonObjectOf(*row.map { (k, v) -> k to jsonOf(v) }.toTypedArray())
         }),
@@ -77,7 +77,7 @@ internal object ScreenSuggestionCodec {
             )
         } ?: JsonValue.Null),
         "dataBinding" to InteractiveScreenCodec.encodeBinding(s.dataBinding),
-        "rationale" to jsonOf(s.rationale)
+        "rationale" to (s.rationaleText?.let(LocalizedTextCodec::encode) ?: jsonOf(s.rationale))
     )
 
     /** Parameter hanya ditulis bila bukan bawaan: pack lama tetap byte-per-byte sama setelah di-encode. */
@@ -135,9 +135,14 @@ internal object ScreenSuggestionCodec {
         val widget = WidgetKind.entries.firstOrNull { it.name == widgetRaw }
             ?: fail("widget", "'$widgetRaw' bukan salah satu dari ${WidgetKind.entries.map { it.name }}")
         return try {
+            val title = LocalizedTextCodec.decode(o["title"], "$path.title")
+            val rationaleNode = o["rationale"]
+            // Kosong/absen/bukan teks = tanpa alasan (perilaku lama); string/objek berisi dibaca dua bahasa.
+            val rationale = if (rationaleNode is JsonValue.Obj || (rationaleNode is JsonValue.Str && rationaleNode.value.isNotBlank()))
+                LocalizedTextCodec.decode(rationaleNode, "$path.rationale") else null
             ScreenSuggestion(
                 moduleId = moduleId,
-                title = str("title"),
+                title = title.idText,
                 widget = widget,
                 sampleRows = ((o["sampleRows"] as? JsonValue.Arr)?.items ?: emptyList()).mapIndexed { i, row ->
                     val r = row as? JsonValue.Obj ?: fail("sampleRows[$i]", "harus objek")
@@ -181,7 +186,9 @@ internal object ScreenSuggestionCodec {
                     )
                 },
                 dataBinding = InteractiveScreenCodec.decodeBindingValue(o["dataBinding"]),
-                rationale = (o["rationale"] as? JsonValue.Str)?.value
+                rationale = rationale?.idText ?: (rationaleNode as? JsonValue.Str)?.value,
+                titleText = title,
+                rationaleText = rationale
             )
         } catch (e: DomainPackDecodeException) {
             throw e

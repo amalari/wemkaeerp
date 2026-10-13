@@ -5,6 +5,7 @@ import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.i18n.PackLanguages
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.missingTranslations
+import com.eventverse.app.domain.pack.withoutTranslations
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -14,7 +15,9 @@ import kotlin.test.assertTrue
 /** Jembatan P1/P2: pack lama byte-identik, pack dua bahasa round-trip, klaim `en` dibuktikan validator. */
 class PackLocalizationSeamTest {
 
-    private val garment = GarmentDomainPack.pack
+    /** Pack garment bawaan kini berbahasa id + en; versi id-saja = bentuk lama (paritas kawat id). */
+    private val garmentFull = GarmentDomainPack.pack
+    private val garment = garmentFull.withoutTranslations()
 
     @Test
     fun `pack garment id saja tidak menulis kunci languages dan round-trip identik`() {
@@ -26,6 +29,22 @@ class PackLocalizationSeamTest {
     @Test
     fun `pack garment id saja tidak punya terjemahan yang hilang`() {
         assertTrue(garment.missingTranslations().isEmpty())
+    }
+
+    @Test
+    fun `pack garment bawaan mengklaim en dan lengkap di seluruh jalur`() {
+        assertEquals(setOf(LanguageCode.ID, LanguageCode.EN), garmentFull.languages.languages)
+        assertEquals(emptyList(), garmentFull.missingTranslations())
+        assertEquals(garmentFull, DomainPackCodec.decode(DomainPackCodec.encodeToString(garmentFull)))
+    }
+
+    @Test
+    fun `teks id pack garment bawaan identik dengan pack id saja`() {
+        assertEquals(garment, garmentFull.withoutTranslations())
+        // paritas kawat id: bentuk id-saja tidak berubah sedikit pun (string biasa, tanpa kunci languages)
+        val json = DomainPackCodec.encodeToString(garment)
+        assertFalse(json.contains("\"en\""))
+        assertFalse(json.contains("\"languages\""))
     }
 
     @Test

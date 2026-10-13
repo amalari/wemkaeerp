@@ -4,6 +4,7 @@ import com.eventverse.app.domain.discovery.PrototypeScreen
 import com.eventverse.app.domain.discovery.WidgetKind
 import com.eventverse.app.domain.discovery.WidgetRegistry
 import com.eventverse.app.domain.pack.GarmentDomainPack
+import com.eventverse.app.domain.pack.withIdRationale
 import com.eventverse.app.domain.pack.GarmentScreenSuggestions
 import com.eventverse.app.domain.prototype.InteractiveScreen
 import com.eventverse.app.domain.prototype.InteractiveScreenFactory
@@ -98,7 +99,7 @@ class GarmentProposalParityTest {
 
     @Test
     fun `suggestion tanpa rationale ditolak dan modul tanpa suggestion kosong`() {
-        val noReason = pack.copy(screenSuggestions = pack.screenSuggestions.map { it.copy(rationale = null) })
+        val noReason = pack.copy(screenSuggestions = pack.screenSuggestions.map { it.withIdRationale(null) })
         val failure = PackScreenProposer.proposalsForAll(noReason)
         assertTrue(failure.isFailure)
         assertTrue(failure.exceptionOrNull()?.message.orEmpty().contains("rationale"))

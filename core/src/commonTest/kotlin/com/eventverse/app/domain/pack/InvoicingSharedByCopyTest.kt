@@ -58,7 +58,7 @@ class InvoicingSharedByCopyTest {
     @Test
     fun `salinan yang diubah dianggap merebut id platform dan ditolak`() {
         val changed = klinikDenganInvoicing.copy(modules = klinikDenganInvoicing.modules.map {
-            if (it.id == GarmentModules.INVOICING) it.copy(description = "Versi saya") else it
+            if (it.id == GarmentModules.INVOICING) it.withIdText(description = "Versi saya") else it
         })
         assertTrue(DomainPackRegistry.violations(changed).any { it.contains("invoicing") && it.contains("definisi berbeda") })
     }

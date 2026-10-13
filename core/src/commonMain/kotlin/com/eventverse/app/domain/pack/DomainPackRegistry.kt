@@ -52,12 +52,12 @@ object DomainPackRegistry {
         val out = mutableListOf<String>()
         pack.modules.forEach { m ->
             val existing = others.firstNotNullOfOrNull { it.module(m.id) }
-            if (existing != null && SupersededModuleText.normalized(existing) != SupersededModuleText.normalized(m)) out += "Modul ${m.id.value} sudah dipakai pack lain dengan definisi berbeda"
+            if (existing != null && !SupersededModuleText.normalized(m).samePlatformDefinitionAs(SupersededModuleText.normalized(existing))) out += "Modul ${m.id.value} sudah dipakai pack lain dengan definisi berbeda"
             if (existing == null && !m.id.value.startsWith(prefix)) out += "Modul baru ${m.id.value} wajib berprefiks '$prefix'"
         }
         pack.slots.forEach { s ->
             val existing = others.firstNotNullOfOrNull { it.slot(s.code) }
-            if (existing != null && existing != s) out += "Slot ${s.code.value} sudah dipakai pack lain dengan definisi berbeda"
+            if (existing != null && !s.samePlatformDefinitionAs(existing)) out += "Slot ${s.code.value} sudah dipakai pack lain dengan definisi berbeda"
             if (existing == null && !s.code.value.lowercase().startsWith(prefix)) out += "Slot baru ${s.code.value} wajib berprefiks '$prefix'"
         }
         return out

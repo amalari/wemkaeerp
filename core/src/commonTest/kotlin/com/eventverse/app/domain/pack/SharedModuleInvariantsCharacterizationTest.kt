@@ -28,7 +28,7 @@ class SharedModuleInvariantsCharacterizationTest {
 
     @Test
     fun `modul baru tanpa prefiks pack ditolak registri, id platform tidak bisa direbut`() {
-        val rebut = klinik.copy(modules = klinik.modules + garment.module(GarmentModules.CRM_SALES)!!.copy(displayName = "Versi saya", section = klinik.sections.last().code, slot = null, kind = com.eventverse.app.domain.rbac.ModuleKind.FOUNDATION))
+        val rebut = klinik.copy(modules = klinik.modules + garment.module(GarmentModules.CRM_SALES)!!.withIdText(displayName = "Versi saya").copy(section = klinik.sections.last().code, slot = null, kind = com.eventverse.app.domain.rbac.ModuleKind.FOUNDATION))
         assertTrue(DomainPackRegistry.violations(rebut).any { it.contains("crm_sales") && it.contains("definisi berbeda") })
         val asing = klinik.modules.first { it.slot != null }.copy(id = ModuleId("modul_asing"))
         assertTrue(DomainPackRegistry.violations(klinik.copy(modules = klinik.modules + asing)).any { it.contains("berprefiks") })

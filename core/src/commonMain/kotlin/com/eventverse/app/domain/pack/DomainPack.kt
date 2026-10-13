@@ -7,11 +7,6 @@ import com.eventverse.app.domain.fulfillment.HandoverRoute
 import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.i18n.PackLanguages
 import com.eventverse.app.domain.prototype.CurrencyCode
-import com.eventverse.app.domain.prototype.DataBinding
-import com.eventverse.app.domain.prototype.DashboardHints
-import com.eventverse.app.domain.prototype.FormHints
-import com.eventverse.app.domain.prototype.KanbanHints
-import com.eventverse.app.domain.prototype.TableHints
 
 /** Satu kolom kanvas. [colorHex] adalah data vertikal, bukan keputusan design system. */
 data class PhaseDefinition(
@@ -74,66 +69,6 @@ data class SlotDefinition(
             require(defaultStatuses.all { it.isNotBlank() && it.length <= ProposalLimits.TEXT }) {
                 "Slot ${code.value}: butir defaultStatuses wajib terisi dan <= ${ProposalLimits.TEXT} karakter"
             }
-        }
-    }
-}
-
-/**
- * Usulan satu layar prototype bawaan pack (mock `/builder/prototype`). **Isi layar = data pack**:
- * judul layar dan watak widget bawaan adalah kosakata vertikal (tenant-variability-rules), sementara
- * bentuk widgetnya sendiri tetap kosakata sistem [WidgetKind] yang bisa digambar renderer mana pun.
- * Draf kerja tenant yang baru di-bootstrap memakai usulan ini sebelum agent LLM mengusulkan layar
- * miliknya sendiri; draf yang sudah punya layar tidak pernah ditimpa.
- */
-data class ScreenSuggestion(
-    val moduleId: ModuleId,
-    val title: String,
-    val widget: WidgetKind,
-    /**
-     * Baris contoh isi layar (v2 mock `/builder/prototype`): **data vertikal** — kalimat, angka, dan
-     * nama yang akan dilihat user garment, bukan karangan mesin renderer. Kosong = pack tidak
-     * mengusulkan isi; `WidgetRegistry` lalu memakai penanda strukturnya sendiri (tidak pernah
-     * fallback ke kosakata pack lain). Bentuk baris dikonsumsi per widget:
-     *  - KANBAN: kunci `Kolom` menamaikan kolom papan; entri lain = kartu (nilai pertama judul, sisanya detail).
-     *  - FORM: satu baris berisi label field → contoh isian; kunci `Simpan` digambar sebagai tombol.
-     *  - CHECKLIST: kunci `Butir` → teks inspeksi, `Selesai` = "ya"/"tidak".
-     *  - TABLE: baris-baris berkunci sama = header + isi tabel.
-     *  - DASHBOARD: satu pasang label → angka per baris (satu tile).
-     *  - PRINT: pasangan label → isi dokumen cetak.
-     */
-    val sampleRows: List<Map<String, String>> = emptyList(),
-    /**
-     * Perilaku papan (hanya bermakna untuk [WidgetKind.KANBAN]): urutan kolom termasuk yang kosong dan
-     * transisi yang boleh. Null = kolom diturunkan dari [sampleRows], kartu bebas pindah.
-     */
-    val kanbanHints: KanbanHints? = null,
-    /** Perilaku tabel (hanya bermakna untuk [WidgetKind.TABLE]); null = tabel hanya bisa disortir/difilter. */
-    val tableHints: TableHints? = null,
-    /** Ubin dasbor yang dihitung dari layar lain (hanya bermakna untuk [WidgetKind.DASHBOARD]). */
-    val dashboardHints: DashboardHints? = null,
-    /**
-     * Petunjuk formulir tambah data (butir B2): pelengkap layar sumber — boleh terpasang pada
-     * usulan ber-widget apa pun (lazimnya TABLE/KANBAN), karena form berbagi entitas dengan layar
-     * sumbernya, bukan berdiri sendiri. Null = modul tidak mengusulkan form.
-     */
-    val formHints: FormHints? = null,
-    /**
-     * Asal data layar (kontrak v2, plan induk §3.4): bawaan [DataBinding.Memory] (demo memori);
-     * modul pilot memakai [DataBinding.Api] agar blok memuat/menyimpan ke server. Jenis binding
-     * adalah kosakata **sistem** (kode); memilih nilainya adalah keputusan pack.
-     */
-    val dataBinding: DataBinding = DataBinding.Memory,
-    /**
-     * Alasan pilihan layar ini dalam bahasa pemilik usaha ("Dipilih karena …"), ditulis manusia — data pack.
-     * Dibaca `PackScreenProposer` menjadi `ScreenProposal.rationale`. Null = pack belum menuliskannya; proposer
-     * lalu **menolak** (tidak mengarang alasan). Opsional: pack lama tanpa kunci ini tetap terbaca.
-     */
-    val rationale: String? = null
-) {
-    init {
-        require(title.isNotBlank()) { "Usulan layar ${moduleId.value} tanpa judul" }
-        require(sampleRows.all { row -> row.isNotEmpty() && row.keys.all { it.isNotBlank() } && row.values.all { it.isNotBlank() } }) {
-            "Usulan layar ${moduleId.value} punya baris contoh kosong"
         }
     }
 }
@@ -218,7 +153,13 @@ data class DomainPack(
      * Bahasa yang **diklaim lengkap** pack ini (TRD-I18N-002 F2). Bawaan hanya `id`. Pack yang mengklaim `en` harus
      * lolos [missingTranslations] — pembuktian ada di validator, bukan di niat.
      */
-    val languages: PackLanguages = PackLanguages.ID_ONLY
+    val languages: PackLanguages = PackLanguages.ID_ONLY,
+    /**
+     * Jembatan Strangler Fig TRD-I18N-002 (P5): [vocabulary] dan [portLabels] dua bahasa. Nilai `String` lama tetap
+     * = teks `id`; bawaan diturunkan darinya. Kunci kedua peta wajib sama dengan peta lamanya.
+     */
+    val vocabularyText: Map<VocabularyKey, LocalizedText> = vocabulary.mapValues { LocalizedText.of(it.value) },
+    val portLabelTexts: Map<String, LocalizedText> = portLabels.mapValues { LocalizedText.of(it.value) }
 ) {
     init {
         requireBlueprintsValid()
@@ -265,6 +206,12 @@ data class DomainPack(
         requireUnique("aksi", actions.map { it.code.name })
         vocabulary.forEach { (key, word) ->
             require(word.isNotBlank()) { "Istilah ${key.name} pack ${code.value} kosong" }
+        }
+        require(vocabularyText.keys == vocabulary.keys && vocabularyText.all { (k, v) -> v.idText == vocabulary[k] }) {
+            "Pack ${code.value}: vocabularyText harus sepasang dengan vocabulary (teks id sama)"
+        }
+        require(portLabelTexts.keys == portLabels.keys && portLabelTexts.all { (k, v) -> v.idText == portLabels[k] }) {
+            "Pack ${code.value}: portLabelTexts harus sepasang dengan portLabels (teks id sama)"
         }
         val portCodes = portTypes.map { it.value }.toSet()
         portLabels.forEach { (port, label) ->

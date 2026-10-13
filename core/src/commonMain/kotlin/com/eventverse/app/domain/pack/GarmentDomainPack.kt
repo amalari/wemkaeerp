@@ -39,11 +39,11 @@ import com.eventverse.app.domain.pack.GarmentSlots
  * nilainya disalin persis dari enum itu dan dikunci oleh `GarmentDomainPackParityTest`.
  */
 object GarmentPhases {
-    val COMMERCIAL = PhaseDefinition(PhaseCode("COMMERCIAL"), 1, "1. Komersial & Sampling", "Negosiasi Order & Prototipe Sample", 0xFF2563EB)
-    val ENGINEERING = PhaseDefinition(PhaseCode("ENGINEERING"), 2, "2. Spesifikasi & HPP", "Tech Pack, BOM & Kalkulasi Biaya", 0xFF7C3AED)
-    val SUPPLY_CHAIN = PhaseDefinition(PhaseCode("SUPPLY_CHAIN"), 3, "3. Rantai Pasok & Bahan Baku", "Penerimaan Kain Rol & Aksesoris", 0xFF0D9488)
-    val MANUFACTURING = PhaseDefinition(PhaseCode("MANUFACTURING"), 4, "4. Lantai Produksi", "Jadwal Mesin, Potong & Jahit", 0xFFEA580C)
-    val ASSURANCE_DELIVERY = PhaseDefinition(PhaseCode("ASSURANCE_DELIVERY"), 5, "5. Mutu & Pengiriman", "Inspeksi QC, Packing & Surat Jalan", 0xFF16A34A)
+    val COMMERCIAL = PhaseDefinition(PhaseCode("COMMERCIAL"), 1, "1. Komersial & Sampling", "Negosiasi Order & Prototipe Sample", 0xFF2563EB).withGarmentEnglish()
+    val ENGINEERING = PhaseDefinition(PhaseCode("ENGINEERING"), 2, "2. Spesifikasi & HPP", "Tech Pack, BOM & Kalkulasi Biaya", 0xFF7C3AED).withGarmentEnglish()
+    val SUPPLY_CHAIN = PhaseDefinition(PhaseCode("SUPPLY_CHAIN"), 3, "3. Rantai Pasok & Bahan Baku", "Penerimaan Kain Rol & Aksesoris", 0xFF0D9488).withGarmentEnglish()
+    val MANUFACTURING = PhaseDefinition(PhaseCode("MANUFACTURING"), 4, "4. Lantai Produksi", "Jadwal Mesin, Potong & Jahit", 0xFFEA580C).withGarmentEnglish()
+    val ASSURANCE_DELIVERY = PhaseDefinition(PhaseCode("ASSURANCE_DELIVERY"), 5, "5. Mutu & Pengiriman", "Inspeksi QC, Packing & Surat Jalan", 0xFF16A34A).withGarmentEnglish()
 
     val all: List<PhaseDefinition> = listOf(COMMERCIAL, ENGINEERING, SUPPLY_CHAIN, MANUFACTURING, ASSURANCE_DELIVERY)
 
@@ -167,6 +167,6 @@ object GarmentDomainPack {
             reservedTerms = GarmentReservedTerms.terms,
             sharedModules = setOf(GarmentModules.COSTING_HPP),
             handoverRouteTemplate = GarmentHandoverRoutes.template
-        )
+        ).withGarmentEnglish() // TRD-I18N-002: `en` ditambahkan di atas teks id; id tak berubah
     }
 }
