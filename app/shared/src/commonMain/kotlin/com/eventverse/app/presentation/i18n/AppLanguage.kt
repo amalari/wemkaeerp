@@ -1,10 +1,17 @@
 package com.eventverse.app.presentation.i18n
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.compositionLocalOf
 import com.eventverse.app.domain.i18n.LanguageCode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/**
+ * Bahasa aktif aplikasi, **satu sumber reaktif** ([language] adalah `StateFlow`). `App()` menyalurkannya ke
+ * [LocalAppLanguage]; komposabel di luar `App()` boleh membaca [rememberActiveLanguage].
+ */
 class AppLanguage private constructor(
     initialLanguage: LanguageCode
 ) {
@@ -18,7 +25,7 @@ class AppLanguage private constructor(
     }
 
     companion object {
-        // Tanpa `synchronized` (tidak ada di commonMain: JS/Wasm). Dibuat eager; state bahasa hanya disentuh dari thread UI.
+        // Tanpa `synchronized`/`@Volatile` (tidak ada di commonMain: JS/Wasm). Dibuat eager; hanya disentuh dari thread UI.
         private var instance: AppLanguage = AppLanguage(LanguagePreference.load() ?: LanguageCode.ID)
 
         fun getInstance(): AppLanguage = instance
@@ -29,7 +36,8 @@ class AppLanguage private constructor(
     }
 }
 
-val LocalAppLanguage = kotlinx.coroutines.flow.combine(
-    AppLanguage.getInstance().language,
-    AppLanguage.getInstance().language
-) { lang, _ -> lang }
+/** Bahasa aktif lewat composition; disediakan `App()` dari [AppLanguage.language]. Bawaan `id`. */
+val LocalAppLanguage: ProvidableCompositionLocal<LanguageCode> = compositionLocalOf { LanguageCode.ID }
+
+@Composable
+fun rememberAppLanguage(): LanguageCode = LocalAppLanguage.current

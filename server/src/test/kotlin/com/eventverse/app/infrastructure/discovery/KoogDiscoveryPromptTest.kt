@@ -73,9 +73,11 @@ class KoogDiscoveryPromptTest {
         val system = KoogDiscoveryPrompt.system
         val example = KoogDiscoveryPrompt.exampleDraftJson()
 
-        // Batas tertulis (SP-C0 §4): sistem < 8 rb karakter, contoh < 12 rb — hemat token tiap putaran.
+        // Batas tertulis (SP-C0 §4): sistem < 8,6 rb karakter, contoh < 12 rb — hemat token tiap putaran.
+        // Anggaran dinaikkan 8.000 → 8.600 oleh B5 (PLAN-i18n): direktif bahasa keluaran menambah
+        // ±330 karakter dan memang harus ada di prompt.
         println("prompt | sistem=${system.length} karakter, contoh=${example.length} karakter")
-        assertTrue(system.length <= 8_000, "Prompt sistem membengkak: ${system.length} karakter")
+        assertTrue(system.length <= 8_600, "Prompt sistem membengkak: ${system.length} karakter")
         assertTrue(example.length <= 12_000, "Contoh dokumen membengkak: ${example.length} karakter")
     }
 

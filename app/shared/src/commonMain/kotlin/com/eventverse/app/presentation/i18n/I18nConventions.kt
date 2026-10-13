@@ -33,6 +33,7 @@ object I18nConventions {
     const val FEATURE_ORGCHART = "orgchart"
     const val FEATURE_CRM = "crm"
     const val FEATURE_DEAL = "deal"
+    const val FEATURE_AUTH = "auth"
 
     const val ACTION_CREATE = "create"
     const val ACTION_EDIT = "edit"
@@ -50,15 +51,25 @@ object I18nConventions {
     }
 }
 
+/**
+ * Kode error stabil yang dijawab server. Sumber kebenaran ada di core
+ * ([com.eventverse.app.domain.i18n.ServerErrorCode]) — objek ini hanya alias agar
+ * klien dan server tidak bisa berbeda pendapat soal stringnya (PLAN-i18n Track B3/C4).
+ */
 object ServerErrorCodes {
-    const val UNKNOWN = "UNKNOWN"
-    const val NOT_FOUND = "NOT_FOUND"
-    const val UNAUTHORIZED = "UNAUTHORIZED"
-    const val FORBIDDEN = "FORBIDDEN"
-    const val VALIDATION_ERROR = "VALIDATION_ERROR"
-    const val DUPLICATE_ENTRY = "DUPLICATE_ENTRY"
-    const val INTERNAL_ERROR = "INTERNAL_ERROR"
-    const val NETWORK_ERROR = "NETWORK_ERROR"
-    const val BAD_REQUEST = "BAD_REQUEST"
-    const val CONFLICT = "CONFLICT"
+    const val UNKNOWN = com.eventverse.app.domain.i18n.ServerErrorCode.UNKNOWN
+    const val NOT_FOUND = com.eventverse.app.domain.i18n.ServerErrorCode.NOT_FOUND
+    const val UNAUTHORIZED = com.eventverse.app.domain.i18n.ServerErrorCode.UNAUTHORIZED
+    const val FORBIDDEN = com.eventverse.app.domain.i18n.ServerErrorCode.FORBIDDEN
+    const val VALIDATION_ERROR = com.eventverse.app.domain.i18n.ServerErrorCode.VALIDATION_ERROR
+    const val DUPLICATE_ENTRY = com.eventverse.app.domain.i18n.ServerErrorCode.DUPLICATE_ENTRY
+    const val INTERNAL_ERROR = com.eventverse.app.domain.i18n.ServerErrorCode.INTERNAL_ERROR
+    const val NETWORK_ERROR = com.eventverse.app.domain.i18n.ServerErrorCode.NETWORK_ERROR
+    const val BAD_REQUEST = com.eventverse.app.domain.i18n.ServerErrorCode.BAD_REQUEST
+    const val CONFLICT = com.eventverse.app.domain.i18n.ServerErrorCode.CONFLICT
+    const val MISSING_LANGUAGE = com.eventverse.app.domain.i18n.ServerErrorCode.MISSING_LANGUAGE
+    const val UNKNOWN_LANGUAGE = com.eventverse.app.domain.i18n.ServerErrorCode.UNKNOWN_LANGUAGE
+    const val NO_TENANT_CONTEXT = com.eventverse.app.domain.i18n.ServerErrorCode.NO_TENANT_CONTEXT
+    const val INVALID_BODY = com.eventverse.app.domain.i18n.ServerErrorCode.INVALID_BODY
+    const val INVALID_STATE = com.eventverse.app.domain.i18n.ServerErrorCode.INVALID_STATE
 }

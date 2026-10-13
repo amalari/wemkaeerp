@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.i18n.LanguageSwitcher
 
 @Composable
 fun LoginScreen(
@@ -193,6 +194,8 @@ private fun HeaderSection() {
         }
 
         Spacer(modifier = Modifier.height(ClaySpacing.Lg))
+
+        LanguageSwitcher(modifier = Modifier.align(Alignment.End))
 
         Text(
             text = "WeMade ERP",

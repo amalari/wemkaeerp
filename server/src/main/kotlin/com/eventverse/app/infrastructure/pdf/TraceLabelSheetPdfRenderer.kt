@@ -2,6 +2,9 @@ package com.eventverse.app.infrastructure.pdf
 
 import com.eventverse.app.domain.printing.Mm10
 import com.eventverse.app.domain.printing.TemplateRect
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.PrintLabelKey
+import com.eventverse.app.domain.i18n.PrintLabelTable
 import com.eventverse.app.domain.traceability.TraceCodec
 import com.eventverse.app.domain.traceability.TraceTier
 import com.eventverse.app.domain.traceability.print.LaidOutTraceLabel
@@ -33,7 +36,12 @@ class TraceLabelSheetPdfRenderer(private val scanHost: String) {
         const val MAX_LINE_GAP = 60
     }
 
-    fun render(sheet: TraceLabelSheet, spkNumber: String, writingLines: List<String>): ByteArray {
+    fun render(
+        sheet: TraceLabelSheet,
+        spkNumber: String,
+        writingLines: List<String>,
+        language: LanguageCode = LanguageCode.ID
+    ): ByteArray {
         PDDocument().use { doc ->
             val regular = PdfFonts.bodyRegular(doc)
             val bold = PdfFonts.bodyBold(doc)
@@ -46,7 +54,7 @@ class TraceLabelSheetPdfRenderer(private val scanHost: String) {
                 val page = PDPage(PDRectangle.A4)
                 doc.addPage(page)
                 PDPageContentStream(doc, page).use { cs ->
-                    labels.forEach { drawCard(cs, it, spkNumber, writingLines, regular, bold, pageHeightPt) }
+                    labels.forEach { drawCard(cs, it, spkNumber, writingLines, regular, bold, pageHeightPt, language) }
                 }
             }
 
@@ -63,7 +71,8 @@ class TraceLabelSheetPdfRenderer(private val scanHost: String) {
         writingLines: List<String>,
         regular: PDFont,
         bold: PDFont,
-        pageHeightPt: Float
+        pageHeightPt: Float,
+        language: LanguageCode
     ) {
         val r = laid.regions
 
@@ -94,8 +103,8 @@ class TraceLabelSheetPdfRenderer(private val scanHost: String) {
         val captionLines = listOf(
             laid.plan.tier.displayName,
             spkNumber,
-            "Size ${laid.plan.sizeLabel}",
-            targetLabelFor(laid)
+            "${PrintLabelTable.label(PrintLabelKey.SPK_SIZE, language)} ${laid.plan.sizeLabel}",
+            targetLabelFor(laid, language)
         )
         captionLines.forEachIndexed { index, line ->
             val font = if (index == 0) bold else regular
@@ -147,10 +156,13 @@ class TraceLabelSheetPdfRenderer(private val scanHost: String) {
         }
     }
 
-    private fun targetLabelFor(laid: LaidOutTraceLabel): String = when (laid.plan.tier) {
-        TraceTier.BUNDLE -> "Target ${laid.plan.targetCapacity} set"
-        TraceTier.SACK -> "Target ${laid.plan.targetCapacity} pcs"
-        TraceTier.WORKSHEET -> "${laid.plan.targetCapacity} pcs"
+    private fun targetLabelFor(laid: LaidOutTraceLabel, language: LanguageCode): String {
+        val target = PrintLabelTable.label(PrintLabelKey.TRACE_TARGET, language)
+        return when (laid.plan.tier) {
+            TraceTier.BUNDLE -> "$target ${laid.plan.targetCapacity} ${PrintLabelTable.label(PrintLabelKey.UNIT_SET, language)}"
+            TraceTier.SACK -> "$target ${laid.plan.targetCapacity} ${PrintLabelTable.label(PrintLabelKey.UNIT_PCS, language)}"
+            TraceTier.WORKSHEET -> "${laid.plan.targetCapacity} ${PrintLabelTable.label(PrintLabelKey.UNIT_PCS, language)}"
+        }
     }
 
     private fun drawText(

@@ -103,9 +103,12 @@ import com.eventverse.app.presentation.rbac.RbacNoTenantView
 import com.eventverse.app.presentation.tenant.TenantModuleEntitlementDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
+import com.eventverse.app.presentation.i18n.LocalAppLanguage
+import com.eventverse.app.presentation.i18n.AppLanguage
 
 @Composable
 fun App() {
+    val currentLanguage by AppLanguage.getInstance().language.collectAsState()
     val authViewModel = remember { AuthViewModel() }
     val authState by authViewModel.uiState.collectAsState()
     val session = authState.authenticatedSession
@@ -292,7 +295,8 @@ fun App() {
 
     CompositionLocalProvider(
         LocalAppNavigator provides navigateTo,
-        LocalTutorialAnchors provides tutorials.anchors
+        LocalTutorialAnchors provides tutorials.anchors,
+        LocalAppLanguage provides currentLanguage
     ) {
         WeMadeTheme {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {

@@ -13,6 +13,7 @@ import com.eventverse.app.domain.discovery.proposal.FieldProposal
 import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.discovery.proposal.ScreenProposal
 import com.eventverse.app.domain.discovery.proposal.ViewProposal
+import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
 import com.eventverse.app.domain.pack.ModuleDefinition
@@ -65,7 +66,11 @@ internal object KoogDiscoveryPrompt {
 
     private val WIDGET_CODES: String = WidgetKind.entries.joinToString(", ") { it.code }
 
-    val system: String = """
+    /**
+     * Prompt sistem dalam bahasa Indonesia — paritas dengan sebelum fitur bahasa ada. Prompt berbahasa
+     * Inggris tersedia lewat [system] dengan [LanguageCode.EN]; tes lama membaca [system] (bawaan `id`).
+     */
+    private val BASE_SYSTEM: String = """
         Kamu adalah analis discovery WeMade ERP. Tugasmu: mengubah narasi bisnis calon klien menjadi
         SATU dokumen JSON berisi draf domain pack + blueprint alur modul.
 
@@ -146,6 +151,38 @@ internal object KoogDiscoveryPrompt {
         Beri 1–3 `screens` untuk modul utama; sisanya boleh kosong. Dua layar yang mengelola benda sama
         memakai definisi `entity` yang sama persis.
     """.trimIndent()
+
+    /** Prompt sistem bawaan (Indonesia). Dipertahankan sebagai properti agar ±10 tes lama tetap membaca bentuk yang sama. */
+    val system: String get() = system(LanguageCode.ID)
+
+    /**
+     * Prompt sistem untuk bahasa keluaran [language] (PLAN-i18n Fase 1, B5).
+     *
+     * Instruksi bahasa ditempel di **depan** aturan lain supaya terbaca lebih dulu; struktur JSON,
+     * kunci, dan kosakata tertutup tetap sama persis — yang berubah hanya bahasa teks yang dilihat
+     * pengguna. Deterministik: fungsi murni dari [language] (diuji `KoogDiscoveryPromptLanguageTest`).
+     */
+    fun system(language: LanguageCode): String = buildString {
+        appendLine(languageDirective(language))
+        appendLine()
+        append(BASE_SYSTEM)
+    }
+
+    private fun languageDirective(language: LanguageCode): String = when (language) {
+        LanguageCode.EN -> """
+            OUTPUT LANGUAGE: English. Write EVERY user-visible text — module `displayName` and
+            `description`, `vocabulary` terms, `pack.actions[].label`, screen `title`, `rationale`,
+            field `label`s, ENUM `options`, and `seed` values — in English. Keep all JSON keys,
+            codes, ids, and the closed vocabularies unchanged (they are structure, not language).
+            The instructions below are in Indonesian; follow them, but answer in English.
+        """.trimIndent()
+        else -> """
+            BAHASA KELUARAN: Bahasa Indonesia. Tulis SEMUA teks yang dilihat pengguna —
+            `displayName`/`description` modul, istilah `vocabulary`, `pack.actions[].label`, `title`
+            layar, `rationale`, `label` field, opsi ENUM, dan nilai `seed` — dalam Bahasa Indonesia.
+            Kunci JSON, kode, id, dan kosakata tertutup tidak berubah (itu struktur, bukan bahasa).
+        """.trimIndent()
+    }
 
     /**
      * Contoh kerangka: dokumen **sah** berkode pack `contoh`, sehingga model belajar bentuknya tanpa
