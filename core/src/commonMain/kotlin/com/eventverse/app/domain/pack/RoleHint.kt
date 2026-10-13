@@ -1,5 +1,7 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.i18n.LocalizedText
+
 /**
  * Satu butir **kamus peran → modul** milik pack (PLAN-iv-B B2): kata/frasa [word] yang lazim muncul di cerita
  * pemilik usaha ("operator jahit", "admin gudang") → modul [moduleId] yang lazim dipegang peran itu, dengan
@@ -11,8 +13,18 @@ package com.eventverse.app.domain.pack
  *
  * Opsional & kompatibel mundur: pack lama tanpa kunci `roleHints` terbaca dengan daftar kosong.
  */
-data class RoleHint(val word: String, val label: String, val moduleId: ModuleId) {
+data class RoleHint(
+    val word: String,
+    val label: String,
+    val moduleId: ModuleId,
+    /**
+     * Jembatan Strangler Fig TRD-I18N-002 (P5): nama peran tampil dua bahasa; [label] = teks `id`. **[word] tidak
+     * dilokalkan** — ia kunci pencocokan teks cerita pemilik usaha (bahasa tulisannya), bukan teks tampilan.
+     */
+    val labelText: LocalizedText = LocalizedText.of(label)
+) {
     init {
+        require(labelText.idText == label) { "RoleHint '$word': labelText.id harus sama dengan label" }
         require(word.isNotBlank() && word == word.trim().lowercase()) { "RoleHint.word '$word' wajib terisi, huruf kecil, tanpa spasi tepi" }
         require(label.isNotBlank()) { "RoleHint.label untuk '$word' kosong" }
     }

@@ -1,6 +1,7 @@
 package com.eventverse.app.domain.pack
 
 import com.eventverse.app.domain.discovery.WidgetKind
+import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.prototype.CardElement
 import com.eventverse.app.domain.prototype.CardStyle
 import com.eventverse.app.domain.prototype.ColumnMeta
@@ -14,7 +15,7 @@ import com.eventverse.app.domain.prototype.KanbanHints
 import com.eventverse.app.domain.prototype.TableHints
 
 /** Melekatkan alasan pilihan layar (data pack) tanpa menambah argumen posisi ke tiap konstruktor. */
-private fun ScreenSuggestion.because(reason: String): ScreenSuggestion = copy(rationale = reason)
+private fun ScreenSuggestion.because(reason: String): ScreenSuggestion = copy(rationale = reason, rationaleText = LocalizedText.of(reason))
 
 /**
  * Usulan layar prototype bawaan pack konveksi (mock `/builder/prototype`): satu layar per modul

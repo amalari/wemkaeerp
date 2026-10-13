@@ -9,13 +9,11 @@ import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ModuleSection
 import com.eventverse.app.domain.pack.ModuleSectionCode
 import com.eventverse.app.domain.pack.PhaseCode
-import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.domain.i18n.PackLanguages
 import com.eventverse.app.domain.pack.PhaseDefinition
 import com.eventverse.app.domain.pack.PortType
 import com.eventverse.app.domain.pack.SlotCode
 import com.eventverse.app.domain.pack.SlotDefinition
-import com.eventverse.app.domain.pack.VocabularyKey
 import com.eventverse.app.domain.rbac.DataScope
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.rbac.ScopeCapability
@@ -24,7 +22,6 @@ import com.eventverse.app.shared.json.JsonValue
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonObjectOf
 import com.eventverse.app.shared.json.jsonOf
-import com.eventverse.app.shared.json.jsonStringMapOf
 
 /** Dokumen pack tidak sah. [path] menunjuk field yang salah (`modules[2].kind`), supaya pesan bisa dikembalikan ke AI/penyunting. */
 class DomainPackDecodeException(val path: String, message: String) : IllegalArgumentException("$path: $message")
@@ -55,22 +52,23 @@ object DomainPackCodec {
         "wiredPortTypes" to jsonArrayOf(pack.wiredPortTypes.map { jsonOf(it.value) }.sortedBy { (it as JsonValue.Str).value }),
         "sections" to jsonArrayOf(pack.sections.map { s ->
             jsonObjectOf(
-                "code" to jsonOf(s.code.value), "displayName" to jsonOf(s.displayName), "order" to jsonOf(s.order),
+                "code" to jsonOf(s.code.value), "displayName" to LocalizedTextCodec.encode(s.displayNameText), "order" to jsonOf(s.order),
                 "color" to jsonOf(color(s.colorHex)), "tint" to jsonOf(color(s.tintHex))
             )
         }),
         "modules" to jsonArrayOf(pack.modules.map { m ->
             jsonObjectOf(
-                "id" to jsonOf(m.id.value), "displayName" to jsonOf(m.displayName), "description" to jsonOf(m.description),
+                "id" to jsonOf(m.id.value), "displayName" to LocalizedTextCodec.encode(m.displayNameText),
+                "description" to (m.descriptionText?.let(LocalizedTextCodec::encode) ?: jsonOf(m.description)),
                 "section" to jsonOf(m.section.value), "kind" to jsonOf(m.kind.name), "iconKey" to jsonOf(m.iconKey),
                 "scopeCapability" to jsonOf(m.scopeCapability.name),
                 "supportedScopes" to jsonArrayOf(DataScope.entries.filter { it in m.supportedScopes }.map { jsonOf(it.name) }),
                 "slot" to jsonOf(m.slot?.value)
             )
         }),
-        "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to jsonOf(a.label)) }),
-        "vocabulary" to jsonStringMapOf(pack.vocabulary.entries.associate { it.key.name to it.value }),
-        "portLabels" to jsonStringMapOf(pack.portLabels),
+        "actions" to jsonArrayOf(pack.actions.map { a -> jsonObjectOf("code" to jsonOf(a.code.name), "label" to LocalizedTextCodec.encode(a.labelText)) }),
+        "vocabulary" to PackTextMapCodec.encodeVocabulary(pack.vocabularyText),
+        "portLabels" to PackTextMapCodec.encodePortLabels(pack.portLabelTexts),
         "screenSuggestions" to ScreenSuggestionCodec.encode(pack.screenSuggestions)
     ).let { root ->
         // Kunci baru ditulis hanya bila ada: pack tanpa kamus ter-encode byte-per-byte sama seperti dulu.
@@ -82,7 +80,7 @@ object DomainPackCodec {
             if (pack.handoverRouteTemplate.isNotEmpty()) put("handoverRouteTemplate", HandoverRouteCodec.encode(pack.handoverRouteTemplate))
             if (pack.defaultCurrencyCode != DomainPack.DEFAULT_CURRENCY_CODE) put("defaultCurrencyCode", jsonOf(pack.defaultCurrencyCode))
             if (pack.blueprints.isNotEmpty()) put("blueprints", jsonArrayOf(pack.blueprints.map(BlueprintCodec::encode)))
-            if (pack.languages != PackLanguages.ID_ONLY) put("languages", jsonArrayOf(pack.languages.languages.map { jsonOf(it.code) }.sortedBy { (it as JsonValue.Str).value }))
+            if (pack.languages != PackLanguages.ID_ONLY) put("languages", PackTextMapCodec.encodeLanguages(pack.languages))
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -110,28 +108,45 @@ object DomainPackCodec {
         }
         val slots = r.objects("slots").map { s -> SlotDefinitionCodec.decode(s.node(), s.at()) }
         val sections = r.objects("sections").map { s ->
-            ModuleSection(s.value("code", ::ModuleSectionCode), s.string("displayName"), s.int("order"), s.color("color"), s.color("tint"))
+            s.build {
+                val name = LocalizedTextCodec.decode(s.node()["displayName"], "${s.at()}.displayName")
+                ModuleSection(s.value("code", ::ModuleSectionCode), name.idText, s.int("order"), s.color("color"), s.color("tint"), name)
+            }
         }
         val modules = r.objects("modules").map { m ->
-            m.build { ModuleDefinition(
+            m.build {
+                val name = LocalizedTextCodec.decode(m.node()["displayName"], "${m.at()}.displayName")
+                val descNode = m.node()["description"]
+                // Deskripsi kosong tetap sah (perilaku lama); string/objek berisi dibaca dua bahasa.
+                val desc = if (descNode is JsonValue.Obj || (descNode is JsonValue.Str && descNode.value.isNotBlank()))
+                    LocalizedTextCodec.decode(descNode, "${m.at()}.description") else null
+                ModuleDefinition(
                 id = m.value("id", ::ModuleId),
-                displayName = m.string("displayName"),
-                description = m.string("description"),
+                displayName = name.idText,
+                description = desc?.idText ?: m.string("description"),
                 section = m.value("section", ::ModuleSectionCode),
                 kind = m.enum("kind", ModuleKind.entries),
                 iconKey = m.string("iconKey"),
                 scopeCapability = m.enum("scopeCapability", ScopeCapability.entries),
                 supportedScopes = m.enumSet("supportedScopes", DataScope.entries),
-                slot = m.optional("slot")?.let { m.value("slot", ::SlotCode) }
+                slot = m.optional("slot")?.let { m.value("slot", ::SlotCode) },
+                displayNameText = name,
+                descriptionText = desc
             ) }
         }
         // A4: dua field ini boleh tidak ada — artinya pack "belum mendeklarasikan", dan chrome memakai
         // kata netral platform. Itu **bukan** fallback senyap ke kosakata vertikal: kata netral bukan data
         // vertikal mana pun, dan test mengunci bahwa ia tak pernah memuat kata vertikal.
         val actions = r.objectsOrNull("actions")
-            ?.map { a -> a.build { ModuleAction(a.enum("code", ModuleActionCode.entries), a.string("label")) } }
+            ?.map { a ->
+                a.build {
+                    val label = LocalizedTextCodec.decode(a.node()["label"], "${a.at()}.label")
+                    ModuleAction(a.enum("code", ModuleActionCode.entries), label.idText, label)
+                }
+            }
             ?: ModuleActionCode.neutral
-        val vocabulary = r.enumKeyedStrings("vocabulary", VocabularyKey.entries)
+        val vocabularyText = PackTextMapCodec.decodeVocabulary(root["vocabulary"], "$.vocabulary")
+        val portLabelTexts = PackTextMapCodec.decodePortLabels(root["portLabels"], "$.portLabels")
         // Usulan layar prototype: field boleh tidak ada (pack sebelum fitur mock) — kosong berarti pack
         // belum mengusulkan layar, bukan fallback ke usulan pack lain. Decode ketatnya kini milik
         // ScreenSuggestionCodec (dipecah dari file ini, batas ukuran file).
@@ -157,14 +172,7 @@ object DomainPackCodec {
             }
             else -> throw DomainPackDecodeException("$.blueprints", "harus array")
         }
-        val languages = when (val v = root["languages"]) {
-            null, JsonValue.Null -> PackLanguages.ID_ONLY // kunci absen = pack lama, hanya Indonesia
-            is JsonValue.Arr -> PackLanguages(v.items.mapIndexed { i, t ->
-                val raw = (t as? JsonValue.Str)?.value ?: throw DomainPackDecodeException("$.languages[$i]", "harus string")
-                LanguageCode.parse(raw) ?: throw DomainPackDecodeException("$.languages[$i]", "bahasa '$raw' tidak dikenal (id, en)")
-            }.toSet().let { if (LanguageCode.ID in it) it else throw DomainPackDecodeException("$.languages", "wajib memuat 'id'") })
-            else -> throw DomainPackDecodeException("$.languages", "harus array")
-        }
+        val languages = PackTextMapCodec.decodeLanguages(root["languages"], "$.languages")
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -176,8 +184,8 @@ object DomainPackCodec {
                 sections = sections,
                 modules = modules,
                 actions = actions,
-                vocabulary = vocabulary,
-                portLabels = r.stringMapOrNull("portLabels"),
+                vocabulary = vocabularyText.mapValues { it.value.idText },
+                portLabels = portLabelTexts.mapValues { it.value.idText },
                 screenSuggestions = screenSuggestions,
                 roleHints = roleHints,
                 reservedTerms = reservedTerms,
@@ -187,7 +195,9 @@ object DomainPackCodec {
                 // Kunci absen/null = pack belum menyebut mata uangnya → bawaan global; nilai tak sah ditolak oleh DomainPack.init.
                 defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE,
                 blueprints = blueprints,
-                languages = languages
+                languages = languages,
+                vocabularyText = vocabularyText,
+                portLabelTexts = portLabelTexts
             )
         }
     }
@@ -251,41 +261,6 @@ object DomainPackCodec {
         fun objectsOrNull(key: String): List<Reader>? = when (obj[key]) {
             null, JsonValue.Null -> null
             else -> objects(key)
-        }
-
-        /**
-         * Peta berkunci enum (`{"WORKPLACE":"klinik"}`). Field yang tidak ada = pack tidak
-         * mendeklarasikan istilah apa pun; kunci **tak dikenal ditolak** (Kontrak 4: nilai tak dikenal
-         * tidak boleh hilang diam-diam).
-         */
-        fun enumKeyedStrings(key: String, entries: List<VocabularyKey>): Map<VocabularyKey, String> {
-            val node: JsonValue.Obj = when (val v = obj[key]) {
-                null, JsonValue.Null -> return emptyMap()
-                is JsonValue.Obj -> v
-                else -> fail(key, "harus objek")
-            }
-            val out = mutableMapOf<VocabularyKey, String>()
-            for (entry in node.entries) {
-                val rawKey: String = entry.key
-                val known: VocabularyKey = entries.firstOrNull { known -> known.name == rawKey }
-                    ?: fail("$key.$rawKey", "'$rawKey' bukan istilah yang dikenal (${entries.map { it.name }})")
-                out[known] = (entry.value as? JsonValue.Str)?.value ?: fail("$key.$rawKey", "harus string")
-            }
-            return out
-        }
-
-        /**
-         * Peta berkunci kode port (`{"ProductionOrderDraft":"Draf Pesanan Produksi (PO)"}`). Field
-         * boleh tidak ada (pack sebelum kosakata label). Kunci tak dikenal **tidak** diverifikasi
-         * di sini — invarian `DomainPack.init` yang menolaknya, supaya encode/decode dan konstruksi
-         * langsung punya aturan validasi yang sama.
-         */
-        fun stringMapOrNull(key: String): Map<String, String> = when (val v = obj[key]) {
-            null, JsonValue.Null -> emptyMap()
-            is JsonValue.Obj -> v.entries.mapValues { (k, value) ->
-                (value as? JsonValue.Str)?.value ?: fail("$key.$k", "harus string")
-            }
-            else -> fail(key, "harus objek")
         }
 
         fun objects(key: String): List<Reader> = array(key).mapIndexed { i, v ->

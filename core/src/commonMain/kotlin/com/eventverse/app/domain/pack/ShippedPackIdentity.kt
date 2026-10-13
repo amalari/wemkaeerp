@@ -16,7 +16,10 @@ fun DomainPack.matchesShipped(shipped: DomainPack): Boolean {
     return current.matchesShippedAdditive(shipped)
 }
 
-private fun DomainPack.matchesShippedAdditive(shipped: DomainPack): Boolean {
+private fun DomainPack.matchesShippedAdditive(shippedWithTranslations: DomainPack): Boolean {
+    // Terjemahan (TRD-I18N-002) = kolom aditif: draf lama tanpa terjemahan tetap sah terhadap pack bawaan yang kini
+    // berbahasa Inggris; draf yang membawa terjemahan wajib identik dengan milik platform (bukan ditulis ulang).
+    val shipped = if (withoutTranslations() == this) shippedWithTranslations.withoutTranslations() else shippedWithTranslations
     fun <T> additive(draft: T, platform: T, isEmpty: (T) -> Boolean) = draft == platform || isEmpty(draft)
     if (!additive(roleHints, shipped.roleHints) { it.isEmpty() }) return false
     if (!additive(reservedTerms, shipped.reservedTerms) { it.isEmpty() }) return false
@@ -47,9 +50,13 @@ internal object SupersededModuleText {
     /** [m] dengan nama/deskripsi lama yang tercatat diganti teks bakunya sekarang; selain itu apa adanya. */
     fun normalized(m: ModuleDefinition): ModuleDefinition {
         val current = DomainPackRegistry.shipped.firstNotNullOfOrNull { it.module(m.id) } ?: return m
+        val nameSuperseded = m.displayName in names[m.id].orEmpty()
+        val descriptionSuperseded = m.description in descriptions[m.id].orEmpty()
         return m.copy(
-            displayName = if (m.displayName in names[m.id].orEmpty()) current.displayName else m.displayName,
-            description = if (m.description in descriptions[m.id].orEmpty()) current.description else m.description
+            displayName = if (nameSuperseded) current.displayName else m.displayName,
+            description = if (descriptionSuperseded) current.description else m.description,
+            displayNameText = if (nameSuperseded) current.displayNameText else m.displayNameText,
+            descriptionText = if (descriptionSuperseded) current.descriptionText else m.descriptionText
         )
     }
 }

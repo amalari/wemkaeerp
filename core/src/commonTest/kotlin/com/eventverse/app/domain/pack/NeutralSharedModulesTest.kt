@@ -39,10 +39,10 @@ class NeutralSharedModulesTest {
 
     @Test
     fun `pack tersimpan dengan teks lama org_chart dan vendor_contacts tetap lolos registri`() {
-        val oldOrg = klinikWithOldCopy(GarmentModules.ORG_CHART) { copy(description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.") }
+        val oldOrg = klinikWithOldCopy(GarmentModules.ORG_CHART) { withIdText(description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.") }
         assertEquals(emptyList(), DomainPackRegistry.violations(oldOrg))
         val oldVendor = klinikWithOldCopy(GarmentModules.VENDOR_CONTACTS) {
-            copy(displayName = "Kontak Vendor & Makloon", description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
+            withIdText(displayName = "Kontak Vendor & Makloon", description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
         }
         assertEquals(emptyList(), DomainPackRegistry.violations(oldVendor))
         assertEquals(emptyList(), DiscoveryDraftValidator.validate(InterviewFixtures.draftOf(oldOrg, null)))
@@ -50,9 +50,9 @@ class NeutralSharedModulesTest {
 
     @Test
     fun `teks karangan pada salinan tetap ditolak sebagai definisi berbeda`() {
-        val fake = klinikWithOldCopy(GarmentModules.ORG_CHART) { copy(description = "Versi saya") }
+        val fake = klinikWithOldCopy(GarmentModules.ORG_CHART) { withIdText(description = "Versi saya") }
         assertTrue(DomainPackRegistry.violations(fake).any { it.contains("org_chart") && it.contains("definisi berbeda") })
-        val fakeName = klinikWithOldCopy(GarmentModules.VENDOR_CONTACTS) { copy(displayName = "Kontak Lain") }
+        val fakeName = klinikWithOldCopy(GarmentModules.VENDOR_CONTACTS) { withIdText(displayName = "Kontak Lain") }
         assertTrue(DomainPackRegistry.violations(fakeName).any { it.contains("vendor_contacts") })
     }
 
@@ -60,8 +60,8 @@ class NeutralSharedModulesTest {
     fun `draf garment lama dengan teks lama org_chart dan vendor_contacts tetap sah`() {
         val old = garment.copy(modules = garment.modules.map {
             when (it.id) {
-                GarmentModules.ORG_CHART -> it.copy(description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.")
-                GarmentModules.VENDOR_CONTACTS -> it.copy(displayName = "Kontak Vendor & Makloon", description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
+                GarmentModules.ORG_CHART -> it.withIdText(description = "Struktur divisi, jenjang jabatan, dan data karyawan pabrik.")
+                GarmentModules.VENDOR_CONTACTS -> it.withIdText(displayName = "Kontak Vendor & Makloon", description = "Buku kontak vendor subkon, daftar harga layanan per vendor, dan penunjukan vendor ke proses Vendor Luar.")
                 else -> it
             }
         })

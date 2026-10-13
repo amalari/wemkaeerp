@@ -68,7 +68,7 @@ class PackVocabularyTest {
 
     @Test
     fun packWithoutVocabulary_speaksNeutralWords_notGarment() {
-        val bare = klinik.copy(actions = ModuleActionCode.neutral, vocabulary = emptyMap())
+        val bare = klinik.copy(actions = ModuleActionCode.neutral).withIdLabels(vocabulary = emptyMap())
 
         assertEquals("perusahaan", bare.term(VocabularyKey.WORKPLACE))
         assertEquals("dokumen", bare.term(VocabularyKey.DOCUMENT))
@@ -96,7 +96,7 @@ class PackVocabularyTest {
 
         // Bukti mengapa `actions`/`vocabulary` TIDAK boleh menempel di ModuleDefinition: satu perubahan
         // apa pun pada modul bersama sudah membuat pack ini ditolak saat didaftarkan.
-        val renamed = shared.first().copy(displayName = "Pegawai Klinik")
+        val renamed = shared.first().withIdText(displayName = "Pegawai Klinik")
         assertTrue(DomainPackRegistry.violations(mixed.copy(modules = listOf(renamed) + shared.drop(1))).isNotEmpty())
     }
 
@@ -133,7 +133,7 @@ class PackVocabularyTest {
         assertFailsWith<IllegalStateException> {
             klinik.copy(actions = listOf(ModuleAction(ModuleActionCode.ADD, "Tambah"), ModuleAction(ModuleActionCode.ADD, "Tambah lagi")))
         }
-        assertFailsWith<IllegalArgumentException> { klinik.copy(vocabulary = mapOf(VocabularyKey.WORKPLACE to "  ")) }
+        assertFailsWith<IllegalArgumentException> { klinik.withIdLabels(vocabulary = mapOf(VocabularyKey.WORKPLACE to "  ")) }
         assertFailsWith<IllegalArgumentException> { ModuleAction(ModuleActionCode.ADD, "  ") }
     }
 

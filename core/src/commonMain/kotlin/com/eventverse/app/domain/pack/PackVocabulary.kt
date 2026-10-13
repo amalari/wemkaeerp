@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.pack
 
+import com.eventverse.app.domain.i18n.LocalizedText
 import com.eventverse.app.domain.rbac.AccessLevel
 
 /**
@@ -39,6 +40,14 @@ enum class ModuleActionCode(val neutralLabel: String, val requiredLevel: AccessL
 }
 
 /** Satu tombol aksi layar kerja generik: [code] = perannya di sistem, [label] = kalimat pack. */
-data class ModuleAction(val code: ModuleActionCode, val label: String) {
-    init { require(label.isNotBlank()) { "Label aksi ${code.name} kosong" } }
+data class ModuleAction(
+    val code: ModuleActionCode,
+    val label: String,
+    /** Jembatan Strangler Fig TRD-I18N-002 (P5): label dua bahasa; [label] = teks `id`. */
+    val labelText: LocalizedText = LocalizedText.of(label)
+) {
+    init {
+        require(label.isNotBlank()) { "Label aksi ${code.name} kosong" }
+        require(labelText.idText == label) { "Aksi ${code.name}: labelText.id harus sama dengan label" }
+    }
 }
