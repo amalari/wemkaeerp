@@ -175,3 +175,7 @@ fun menuTitle(screen: AppNavScreen, definition: ModuleDefinition?, language: Lan
     return (label ?: LocalizedText.of(screen.title)).resolve(language)
 }
 
+
+/** Judul menu layar [screen] sesuai [buildNavMenu] (label pack/bahasa aktif); null bila layar tak ada di menu. */
+fun List<NavMenuSection>.titleFor(screen: AppNavScreen): String? =
+    firstNotNullOfOrNull { section -> section.entries.firstOrNull { it.screen == screen }?.title }
