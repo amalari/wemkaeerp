@@ -3,6 +3,7 @@ package com.eventverse.app.presentation.navigation
 import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.domain.pack.GarmentDomainPack
 import com.eventverse.app.domain.pack.MenuPlacement
+import com.eventverse.app.domain.pack.withoutTranslations
 import com.eventverse.app.domain.pipeline.ModuleFeatureRegistry
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
@@ -82,9 +83,19 @@ class MenuInventoryTest {
     }
 
     @Test
-    fun menuTitle_englishForScreenWithoutLabel_isHonestFallback() {
-        val r = menuTitle(AppNavScreen.ORG_CHART, GarmentDomainPack.pack.module(AppNavScreen.ORG_CHART.businessModule!!), LanguageCode.EN)
+    fun menuTitle_englishForPackWithoutLabel_isHonestFallback() {
+        // Garment kini punya menuLabel (Track A); pack "tanpa label" = garment id-saja (menuLabel dibuang).
+        val noLabel = GarmentDomainPack.pack.withoutTranslations().module(AppNavScreen.ORG_CHART.businessModule!!)
+        val r = menuTitle(AppNavScreen.ORG_CHART, noLabel, LanguageCode.EN)
         assertEquals(AppNavScreen.ORG_CHART.title, r.text)
         assertTrue(r.isFallback, "Belum ada menuLabel: harus ditandai belum diterjemahkan, bukan tampak diterjemahkan")
     }
+
+    @Test
+    fun menuTitle_englishForGarmentOrgChart_usesPackLabelWithoutFallback() {
+        val r = menuTitle(AppNavScreen.ORG_CHART, GarmentDomainPack.pack.module(AppNavScreen.ORG_CHART.businessModule!!), LanguageCode.EN)
+        assertEquals("Organization Chart", r.text)
+        assertTrue(!r.isFallback)
+    }
 }
+
