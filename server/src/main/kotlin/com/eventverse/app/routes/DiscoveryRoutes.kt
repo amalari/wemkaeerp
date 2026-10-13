@@ -155,7 +155,11 @@ fun Route.discoveryRoutes(
                 request = DiscoveryRequest(
                     narrative = narrative,
                     industryHint = body.string("industryHint"),
-                    displayName = body.string("displayName")
+                    displayName = body.string("displayName"),
+                    // Bahasa keluaran (PLAN-i18n Fase 1, B5): tak dikenal → id, bukan 400 — permintaan
+                    // discovery tidak boleh gagal hanya karena preferensi bahasa klien keliru.
+                    language = com.eventverse.app.domain.i18n.LanguageCode.parse(body.string("language"))
+                        ?: com.eventverse.app.domain.i18n.LanguageCode.ID
                 ),
                 ownerUserId = UserId(principal.userId),
                 draftId = draftId,

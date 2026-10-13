@@ -68,6 +68,7 @@ object RouteOwnership {
         "/api/tenant/master-data" to RouteOwner.Module(GarmentModules.MASTER_DATA),
         "/api/tenant/vendor" to RouteOwner.Module(GarmentModules.VENDOR_CONTACTS),
         "/api/tenant/info" to RouteOwner.Platform("info tenant aktif"),
+        "/api/tenant/language" to RouteOwner.Platform("bahasa bawaan tenant (PLAN-i18n Fase 1, B2)"),
         "/api/tenant/me" to RouteOwner.Platform("wewenang pemanggil sendiri (menu)"),
         "/api/tenant/pack" to RouteOwner.Platform("kosakata vertikal tenant (Domain Pack)"),
         "/api/tenant/entitlement" to RouteOwner.Platform("entitlement paket tenant"),

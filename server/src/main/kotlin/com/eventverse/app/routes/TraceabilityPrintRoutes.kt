@@ -1,5 +1,8 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.PrintLabelKey
+import com.eventverse.app.domain.i18n.PrintLabelTable
 import com.eventverse.app.domain.traceability.TraceAllocationPlan
 import com.eventverse.app.domain.traceability.TraceContainerRepository
 import com.eventverse.app.domain.traceability.TraceTier
@@ -74,8 +77,9 @@ fun Route.traceabilityPrintRoutes(
 
             planAllocation(tenant, ref, call.setsPerBundle(), call.pcsPerSack())
                 .onSuccess { plan ->
+                    val language = call.printLanguage()
                     val sheet = TraceLabelSheetLayout.solvePlan(plan, tier, call.request.queryParameters["size"])
-                    val bytes = labelRenderer.render(sheet, plan.snapshot.spkNumber, writingLinesFor(tier, plan))
+                    val bytes = labelRenderer.render(sheet, plan.snapshot.spkNumber, writingLinesFor(tier, plan, language), language)
                     call.respondPdf(bytes, "kartu-${tier.shortLabel.lowercase()}-${plan.snapshot.spkNumber}.pdf")
                 }
                 .onFailure { call.respondTraceFailure(HttpStatusCode.BadRequest, it) }
@@ -93,7 +97,7 @@ fun Route.traceabilityPrintRoutes(
                             "Lembar kerja rajut baru tersedia untuk SPK sampling."
                         )
                     call.respondPdf(
-                        worksheetRenderer.render(worksheet),
+                        worksheetRenderer.render(worksheet, call.printLanguage()),
                         "lembar-kerja-${worksheet.spkNumber}.pdf"
                     )
                 }
@@ -112,7 +116,7 @@ fun Route.traceabilityPrintRoutes(
                             "Kartu SPK tersedia untuk SPK sampling."
                         )
                     call.respondPdf(
-                        spkCardRenderer.render(card),
+                        spkCardRenderer.render(card, call.printLanguage()),
                         "kartu-spk-${card.content.spkNumber}.pdf"
                     )
                 }
@@ -128,18 +132,33 @@ fun Route.traceabilityPrintRoutes(
  * jaringan pulih sebelum boleh mengikat bundel — dan yang sebenarnya terjadi adalah dia mengikatnya
  * tanpa kartu sama sekali.
  */
-private fun writingLinesFor(tier: TraceTier, plan: TraceAllocationPlan): List<String> = when (tier) {
-    TraceTier.BUNDLE -> buildList {
-        plan.snapshot.panelRequirements.forEach { requirement ->
-            val suffix = if (requirement.piecesPerGarment > 1) " (x${requirement.piecesPerGarment})" else ""
-            add("${requirement.panel.displayName}$suffix")
+private fun writingLinesFor(tier: TraceTier, plan: TraceAllocationPlan, language: LanguageCode): List<String> {
+    fun label(key: PrintLabelKey): String = PrintLabelTable.label(key, language)
+    return when (tier) {
+        TraceTier.BUNDLE -> buildList {
+            plan.snapshot.panelRequirements.forEach { requirement ->
+                val suffix = if (requirement.piecesPerGarment > 1) " (x${requirement.piecesPerGarment})" else ""
+                add("${requirement.panel.displayName}$suffix")
+            }
+            add(label(PrintLabelKey.WL_OPERATOR))
+            add(label(PrintLabelKey.WL_SHIFT_DATE))
         }
-        add("Operator")
-        add("Shift / Tanggal")
+        TraceTier.SACK -> listOf(
+            label(PrintLabelKey.WL_QTY_PCS), label(PrintLabelKey.WL_WEIGHT_KG),
+            label(PrintLabelKey.WL_PARENT_BUNDLE), "", label(PrintLabelKey.WL_OPERATOR), label(PrintLabelKey.WL_DATE)
+        )
+        TraceTier.WORKSHEET -> emptyList()
     }
-    TraceTier.SACK -> listOf("Jumlah (pcs)", "Berat (kg)", "Bundel induk", "", "Operator", "Tanggal")
-    TraceTier.WORKSHEET -> emptyList()
 }
+
+/**
+ * Bahasa cetak dari `?lang=`. Nilai tak dikenal **jatuh ke `id`**, bukan 400: halaman PDF dibuka
+ * tab browser (kerap lewat tiket), dan kegagalan rendering dokumen lebih merugikan daripada
+ * dokumen berbahasa bawaan. Kontrak penolakan 400 adalah milik endpoint preferensi
+ * (`PUT /api/me|tenant/language`), bukan dokumen cetak.
+ */
+private fun ApplicationCall.printLanguage(): LanguageCode =
+    LanguageCode.parse(request.queryParameters["lang"]) ?: LanguageCode.ID
 
 private fun ApplicationCall.setsPerBundle(): Int =
     request.queryParameters["setsPerBundle"]?.toIntOrNull()?.takeIf { it > 0 }

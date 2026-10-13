@@ -183,7 +183,8 @@ fun Application.module(
     builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null,
     builderBillingInvoices: com.eventverse.app.domain.builder.SubscriptionInvoiceRepository? = null,
     builderBillingPreview: com.eventverse.app.domain.builder.TenantBillingPreviewSource? = null,
-    demoLoginPolicy: com.eventverse.app.routes.DemoLoginPolicy? = null // null = baca env WEMADE_DEMO_LOGIN (bawaan mati)
+    demoLoginPolicy: com.eventverse.app.routes.DemoLoginPolicy? = null, // null = baca env WEMADE_DEMO_LOGIN (bawaan mati)
+    languagePreferenceRepository: com.eventverse.app.domain.i18n.LanguagePreferenceRepository? = null
 ) {
     val repository = DatabaseFactory.init().let { tenantRepository ?: PostgresTenantRepository() } // init idempoten & tanpa syarat: repo lain default-nya Postgres, tes tak boleh bergantung pada urutan
     val userRepo = userRepository ?: PostgresUserRepository()
@@ -313,9 +314,10 @@ fun Application.module(
             invoiceIssuerProfileRepository = invoiceIssuerProfileRepository, costingSheetRepository = costingSheetRepository,
             costingRateCardRepository = costingRateCardRepository, costingBenchmarkRepository = costingBenchmarkRepository,
             moduleCustomizationRequestRepository = moduleCustomizationRequestRepository,
-            sizingWeightsRepository = sizingWeightsRepository, prospectLeadRepository = prospectLeadRepository,
+            sizingWeightsRepository = sizingWeightsRepository,             prospectLeadRepository = prospectLeadRepository,
             flowTranslationRepository = flowTranslationRepository,
-            prospectPriceEstimateRepository = prospectPriceEstimateRepository
+            prospectPriceEstimateRepository = prospectPriceEstimateRepository,
+            languagePreferenceRepository = languagePreferenceRepository
         ).registerIn(this)
     }
 }

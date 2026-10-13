@@ -1,6 +1,9 @@
 package com.eventverse.app.infrastructure.pdf
 
 import com.eventverse.app.domain.printing.TemplateRect
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.PrintLabelKey
+import com.eventverse.app.domain.i18n.PrintLabelTable
 import com.eventverse.app.domain.sampling.SpkUrgencyLevel
 import com.eventverse.app.domain.traceability.TraceCodec
 import com.eventverse.app.domain.traceability.print.SpkCardContent
@@ -27,7 +30,7 @@ import kotlinx.datetime.LocalDate
  */
 class SpkCardPdfRenderer(private val scanHost: String) {
 
-    fun render(sheet: SpkCardSheet): ByteArray {
+    fun render(sheet: SpkCardSheet, language: LanguageCode = LanguageCode.ID): ByteArray {
         PDDocument().use { doc ->
             val regular = PdfFonts.bodyRegular(doc)
             val bold = PdfFonts.bodyBold(doc)
@@ -41,7 +44,7 @@ class SpkCardPdfRenderer(private val scanHost: String) {
                 val pdPage = PDPage(a6)
                 doc.addPage(pdPage)
                 PDPageContentStream(doc, pdPage).use { cs ->
-                    drawPage(cs, sheet, page.sizeLabel, regular, bold, a6.height)
+                    drawPage(cs, sheet, page.sizeLabel, regular, bold, a6.height, language)
                 }
             }
 
@@ -57,14 +60,16 @@ class SpkCardPdfRenderer(private val scanHost: String) {
         sizeLabel: String,
         regular: PDFont,
         bold: PDFont,
-        pageHeightPt: Float
+        pageHeightPt: Float,
+        language: LanguageCode
     ) {
         val content = sheet.content
         val regions = sheet.pages.first { it.sizeLabel == sizeLabel }.regions
         val spk = "${content.spkNumber}${revisionSuffix(content.revision)}"
+        fun label(key: PrintLabelKey): String = PrintLabelTable.label(key, language)
 
         text(cs, spk, bold, SPK_SIZE, regions.spkNumber, pageHeightPt)
-        text(cs, "REV ${content.revision}", bold, LABEL_SIZE, regions.revision, pageHeightPt)
+        text(cs, "${label(PrintLabelKey.SPK_REV)} ${content.revision}", bold, LABEL_SIZE, regions.revision, pageHeightPt)
         text(cs, "${content.styleName} · ${content.clientName}", regular, LABEL_SIZE, regions.styleClient, pageHeightPt)
 
         val card = content.cards.first { it.sizeLabel == sizeLabel }
@@ -78,30 +83,30 @@ class SpkCardPdfRenderer(private val scanHost: String) {
         // Rata kanan ke tepi QR: kode 8pt lebih lebar dari QR 30 mm; rata kiri membuatnya melewati margin kanan.
         textRight(cs, TraceCodec.grouped(card.code), bold, LABEL_SIZE, regions.humanCode, pageHeightPt)
 
-        identityLines(content, card.qtyPcs).forEachIndexed { index, line ->
+        identityLines(content, card.qtyPcs, language).forEachIndexed { index, line ->
             text(cs, line, regular, BODY_SIZE, regions.identityLines[index], pageHeightPt)
         }
 
-        text(cs, "UKURAN JADI — SPEK CLIENT (POM)", bold, LABEL_SIZE, regions.pomTitle, pageHeightPt)
+        text(cs, label(PrintLabelKey.SPK_POM_TITLE), bold, LABEL_SIZE, regions.pomTitle, pageHeightPt)
         drawGrid(cs, regular, regions.pomGrid, card.pomRows, pageHeightPt)
-        drawOverflow(cs, regular, regions.pomOverflow, regions.pomOverflowCount, pageHeightPt)
+        drawOverflow(cs, regular, regions.pomOverflow, regions.pomOverflowCount, pageHeightPt, language)
 
-        text(cs, "HASIL UKURAN TIM SAMPLING", bold, LABEL_SIZE, regions.samplingTitle, pageHeightPt)
+        text(cs, label(PrintLabelKey.SPK_SAMPLING_TITLE), bold, LABEL_SIZE, regions.samplingTitle, pageHeightPt)
         if (card.samplingRows.isEmpty()) {
-            text(cs, "Belum ada hasil ukuran — isi di lembar Program CAM.", regular, BODY_SIZE, regions.samplingTitle, pageHeightPt)
+            text(cs, label(PrintLabelKey.SPK_SAMPLING_EMPTY), regular, BODY_SIZE, regions.samplingTitle, pageHeightPt)
         } else {
             drawGrid(cs, regular, regions.samplingGrid, card.samplingRows, pageHeightPt)
         }
-        drawOverflow(cs, regular, regions.samplingOverflow, regions.samplingOverflowCount, pageHeightPt)
+        drawOverflow(cs, regular, regions.samplingOverflow, regions.samplingOverflowCount, pageHeightPt, language)
 
         text(
             cs,
-            "WARNA: ${content.colorwayText.ifBlank { "—" }}",
+            "${label(PrintLabelKey.SPK_COLORWAY)} ${content.colorwayText.ifBlank { "—" }}",
             bold, LABEL_SIZE, regions.colorwayLine, pageHeightPt
         )
         textRight(
             cs,
-            "Dicetak ${formatDate(content.printedOn)}",
+            "${label(PrintLabelKey.SPK_PRINTED)} ${formatDate(content.printedOn)}",
             regular, LABEL_SIZE, regions.colorwayLine, pageHeightPt
         )
 
@@ -118,15 +123,16 @@ class SpkCardPdfRenderer(private val scanHost: String) {
         if (revision > 0) " (Rev $revision)" else ""
 
     /** Tepat lima baris identitas — urutannya kontrak dengan [SpkCardLayout.IDENTITY_LINES]. */
-    private fun identityLines(content: SpkCardContent, qtyPcs: Int): List<String> {
+    private fun identityLines(content: SpkCardContent, qtyPcs: Int, language: LanguageCode): List<String> {
         val size = content.cards.singleOrNull()?.sizeLabel
             ?: content.cards.joinToString("/") { it.sizeLabel }
+        fun label(key: PrintLabelKey): String = PrintLabelTable.label(key, language)
         return listOf(
-            "Client : ${content.clientName}",
-            "Size : $size",
-            "JUMLAH : $qtyPcs PCS",
-            "Tahap : ${content.stageLabel} (${content.stageNumber}/${content.stageCount})",
-            "Deadline : ${content.deadline?.let { formatDate(it) } ?: "—"}"
+            "${label(PrintLabelKey.SPK_CLIENT)} : ${content.clientName}",
+            "${label(PrintLabelKey.SPK_SIZE)} : $size",
+            "${label(PrintLabelKey.SPK_QTY)} : $qtyPcs PCS",
+            "${label(PrintLabelKey.SPK_STAGE)} : ${content.stageLabel} (${content.stageNumber}/${content.stageCount})",
+            "${label(PrintLabelKey.SPK_DEADLINE)} : ${content.deadline?.let { formatDate(it) } ?: "—"}"
         )
     }
 
@@ -151,10 +157,15 @@ class SpkCardPdfRenderer(private val scanHost: String) {
         regular: PDFont,
         rect: TemplateRect?,
         count: Int,
-        pageHeightPt: Float
+        pageHeightPt: Float,
+        language: LanguageCode
     ) {
         if (rect == null || count <= 0) return
-        text(cs, "+$count ukuran lainnya — lihat lembar kerja rajut", regular, LABEL_SIZE, rect, pageHeightPt)
+        text(
+            cs,
+            "+$count ${PrintLabelTable.label(PrintLabelKey.SPK_OVERFLOW_TAIL, language)}",
+            regular, LABEL_SIZE, rect, pageHeightPt
+        )
     }
 
     private fun drawUrgencyStrip(

@@ -1,5 +1,8 @@
 package com.eventverse.app.infrastructure.pdf
 
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.domain.i18n.PrintLabelKey
+import com.eventverse.app.domain.i18n.PrintLabelTable
 import com.eventverse.app.domain.traceability.TraceCodec
 import com.eventverse.app.domain.traceability.print.KnitWorksheet
 import com.eventverse.app.domain.traceability.print.KnitWorksheetPage
@@ -33,7 +36,7 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
         const val ROW_HEIGHT = 48
     }
 
-    fun render(worksheet: KnitWorksheet): ByteArray {
+    fun render(worksheet: KnitWorksheet, language: LanguageCode = LanguageCode.ID): ByteArray {
         PDDocument().use { doc ->
             val regular = PdfFonts.bodyRegular(doc)
             val bold = PdfFonts.bodyBold(doc)
@@ -43,7 +46,7 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
                 val pdPage = PDPage(PDRectangle.A4)
                 doc.addPage(pdPage)
                 PDPageContentStream(doc, pdPage).use { cs ->
-                    drawPage(cs, worksheet, page, regular, bold, PDRectangle.A4.height)
+                    drawPage(cs, worksheet, page, regular, bold, PDRectangle.A4.height, language)
                 }
             }
 
@@ -59,15 +62,21 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
         page: KnitWorksheetPage,
         regular: PDFont,
         bold: PDFont,
-        pageHeightPt: Float
+        pageHeightPt: Float,
+        language: LanguageCode
     ) {
         var y = MARGIN
+        fun label(key: PrintLabelKey): String = PrintLabelTable.label(key, language)
 
-        text(cs, "LEMBAR KERJA RAJUT — SIZE ${page.sizeLabel}", bold, TITLE_SIZE, MARGIN, y, pageHeightPt)
+        text(cs, "${label(PrintLabelKey.KNIT_TITLE)} ${page.sizeLabel}", bold, TITLE_SIZE, MARGIN, y, pageHeightPt)
         y += 70
         text(cs, "${worksheet.spkNumber} · ${worksheet.styleName} · ${worksheet.clientName}", regular, HEADING_SIZE, MARGIN, y, pageHeightPt)
         y += 50
-        text(cs, "Jumlah: ${page.orderedPcs} pcs" + colorwaySuffix(page), regular, HEADING_SIZE, MARGIN, y, pageHeightPt)
+        text(
+            cs,
+            "${label(PrintLabelKey.KNIT_QUANTITY)} ${page.orderedPcs} ${label(PrintLabelKey.UNIT_PCS)}" + colorwaySuffix(page, language),
+            regular, HEADING_SIZE, MARGIN, y, pageHeightPt
+        )
 
         QrCodeRenderer.draw(
             content = cs,
@@ -81,9 +90,14 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
         y = MARGIN + QR_SIZE + 130
 
         // ── Spek per bagian ────────────────────────────────────────────────────────────────
-        text(cs, "SPEK PER BAGIAN (hasil breakdown panel)", bold, HEADING_SIZE, MARGIN, y, pageHeightPt)
+        text(cs, label(PrintLabelKey.KNIT_PANEL_SECTION), bold, HEADING_SIZE, MARGIN, y, pageHeightPt)
         y += LINE_HEIGHT
-        row(cs, bold, y, pageHeightPt, "PANEL", "GRAMASI", "MENIT", "PROGRAM CAM", "SUMBER")
+        row(
+            cs, bold, y, pageHeightPt,
+            label(PrintLabelKey.KNIT_PANEL_COL), label(PrintLabelKey.KNIT_GRAMASI_COL),
+            label(PrintLabelKey.KNIT_MENIT_COL), label(PrintLabelKey.KNIT_PROGRAM_COL),
+            label(PrintLabelKey.KNIT_SUMBER_COL)
+        )
         y += ROW_HEIGHT
 
         page.panelRows.forEach { panel ->
@@ -96,26 +110,31 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
                 // Angka warisan ditandai terang-terangan. Target 138 gram yang sebetulnya salinan dari
                 // size L dan belum pernah ditimbang tidak boleh terlihat sama meyakinkannya dengan
                 // angka hasil timbang.
-                panel.inheritedFrom?.let { "salinan $it" } ?: "ditimbang"
+                panel.inheritedFrom?.let { "${label(PrintLabelKey.KNIT_COPIED)} $it" }
+                    ?: label(PrintLabelKey.KNIT_WEIGHED)
             )
             y += ROW_HEIGHT
         }
-        row(cs, bold, y, pageHeightPt, "TOTAL", formatGrams(page.totalWeightGrams), page.totalMinutes.toString(), "", "")
+        row(cs, bold, y, pageHeightPt, label(PrintLabelKey.KNIT_TOTAL), formatGrams(page.totalWeightGrams), page.totalMinutes.toString(), "", "")
         y += ROW_HEIGHT + 40
 
         if (page.feederNotes.isNotEmpty()) {
-            text(cs, "Instruksi Panah / Feeder: " + page.feederNotes.joinToString(", "), regular, BODY_SIZE, MARGIN, y, pageHeightPt)
+            text(cs, "${label(PrintLabelKey.KNIT_FEEDER)} " + page.feederNotes.joinToString(", "), regular, BODY_SIZE, MARGIN, y, pageHeightPt)
             y += LINE_HEIGHT + 20
         }
 
         // ── Spek dari buyer ────────────────────────────────────────────────────────────────
-        text(cs, "SPEK DARI BUYER (titik ukur & toleransi)", bold, HEADING_SIZE, MARGIN, y, pageHeightPt)
+        text(cs, label(PrintLabelKey.KNIT_BUYER_SECTION), bold, HEADING_SIZE, MARGIN, y, pageHeightPt)
         y += LINE_HEIGHT
-        row(cs, bold, y, pageHeightPt, "TITIK UKUR", "JADI (CM)", "RAJUT MENTAH", "TOLERANSI", "")
+        row(
+            cs, bold, y, pageHeightPt,
+            label(PrintLabelKey.KNIT_POM_COL), label(PrintLabelKey.KNIT_FINISHED_COL),
+            label(PrintLabelKey.KNIT_RAW_COL), label(PrintLabelKey.KNIT_TOLERANCE_COL), ""
+        )
         y += ROW_HEIGHT
 
         if (page.measurementRows.isEmpty()) {
-            text(cs, "Buyer belum mengisi tabel ukuran untuk size ini.", regular, BODY_SIZE, MARGIN, y, pageHeightPt)
+            text(cs, label(PrintLabelKey.KNIT_BUYER_EMPTY), regular, BODY_SIZE, MARGIN, y, pageHeightPt)
         } else {
             page.measurementRows.forEach { pom ->
                 row(
@@ -131,8 +150,9 @@ class KnitWorksheetPdfRenderer(private val scanHost: String) {
         }
     }
 
-    private fun colorwaySuffix(page: KnitWorksheetPage): String =
-        if (page.colorway.isBlank()) "" else " · Warna: ${page.colorway}"
+    private fun colorwaySuffix(page: KnitWorksheetPage, language: LanguageCode): String =
+        if (page.colorway.isBlank()) "" else
+            " · ${PrintLabelTable.label(PrintLabelKey.KNIT_COLOR, language)} ${page.colorway}"
 
     private fun row(
         cs: PDPageContentStream,

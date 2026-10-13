@@ -119,7 +119,7 @@ class KoogDiscoveryAgent(
             llmModel = model,
             strategy = singleRunStrategy(),
             toolRegistry = discoveryToolRegistry(),
-            systemPrompt = KoogDiscoveryPrompt.system,
+            systemPrompt = KoogDiscoveryPrompt.system(request.language),
             temperature = TEMPERATURE,
             maxIterations = maxToolIterations
         )
