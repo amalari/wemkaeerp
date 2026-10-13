@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eventverse.app.infrastructure.api.BuilderApiClient
+import com.eventverse.app.infrastructure.navigation.PlatformHost
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
@@ -67,6 +68,9 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
     // Follow-up modal state: tracking questions dan visibility
     var currentQuestions by remember { mutableStateOf<List<PendingQuestion>>(emptyList()) }
     var showFollowUpModal by remember { mutableStateOf(false) }
+    // Template parameter dari URL (untuk wizard flow)
+    var templateParam by remember { mutableStateOf<String?>(null) }
+    var templateInitialized by remember { mutableStateOf(false) }
 
     suspend fun reloadChat() {
         client.chat(thread).onSuccess { raw ->
@@ -85,9 +89,60 @@ fun BuilderChatPane(modifier: Modifier = Modifier) {
         draftState = BuilderDraftState.load(client)
     }
     LaunchedEffect(Unit) {
+        // Baca parameter template dari URL (untuk wizard flow)
+        templateParam = PlatformHost.queryParameter("template")
         reloadChat()
         reloadDraft()
         loaded = true
+    }
+
+    // Kirim pesan awal kalau ada template dari wizard
+    LaunchedEffect(templateParam, loaded, draft) {
+        if (loaded && templateParam != null && !templateInitialized && draft != null) {
+            templateInitialized = true
+            val templateMessage = when (templateParam) {
+                "wizard" -> "Saya ingin membuat pack baru dengan metode Template-based. Bantui saya memilih template garment yang sesuai."
+                "fob" -> "Saya ingin membuat pack untuk konveksi FOB (Full Operation). Pabrik punya divisi Cutting, Sewing, Finishing, dan QC. Bantui saya configure modulnya."
+                "cmt" -> "Saya ingin membuat pack untuk konveksi CMT (Cut, Make, Trim). Bahan dari buyer. Bantui saya."
+                "sablon" -> "Saya ingin membuat pack untuk bisnis sablon garment. Bantui saya setup modulnya."
+                "bordir" -> "Saya ingin membuat pack untuk bisnis bordir embroidery. Bantui saya."
+                "rajut" -> "Saya ingin membuat pack untuk bisnis rajut knitting. Bantui saya."
+                "custom" -> "Saya ingin membuat pack custom dari awal. Tanpa template. Bantui saya."
+                else -> "Saya ingin membuat pack baru."
+            }
+            input = templateMessage
+            // Trigger send manually since send() is not suspend
+            val text = templateMessage
+            if (text.isNotEmpty() && !busy) {
+                scope.launch {
+                    busy = true
+                    error = null
+                    runPhase = null
+                    client.startRun(text, thread)
+                        .onSuccess { runId ->
+                            input = ""
+                            reloadChat()
+                            runCatching {
+                                client.runEvents(runId).collect { ev ->
+                                    when (ev.type) {
+                                        "status" -> runPhase = ev.field("phase")
+                                        "question" -> runPhase = "waiting"
+                                        "module_started" -> runPhase = "module:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
+                                        "module_ready" -> runPhase = "ready:${ev.field("title") ?: ev.field("moduleId").orEmpty()}"
+                                        "error" -> error = ev.field("message") ?: "Proses gagal"
+                                        else -> Unit
+                                    }
+                                }
+                            }.onFailure { e -> error = e.message ?: "Koneksi progres terputus; memuat ulang riwayat" }
+                            reloadChat()
+                            reloadDraft()
+                        }
+                        .onFailure { e -> error = e.message }
+                    runPhase = null
+                    busy = false
+                }
+            }
+        }
     }
 
     // Riwayat kosong tetapi draf tenant ada → satu pesan pembuka lokal supaya chat tidak kosong.

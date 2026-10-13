@@ -228,7 +228,7 @@ Fase A (Interview) → Fase B (Blueprint) → Fase C (Module Editor)
 
 | Task | Deskripsi | File Target | Status |
 |---|---|---|---|
-| K3e | Halaman pemilihan metode (Template vs Scratch) | `BuilderNewPackScreen.kt` | ⏳ |
+| K3e | Halaman pemilihan metode (Template vs Scratch) | `BuilderNewPackScreen.kt` | ✅ |
 | K3a.1 | Buat `FollowUpModal.kt` dengan Clay design | `presentation/builder/chat/` | ✅ |
 | K3a.2 | Buat `FollowUpForm.kt` — input per tipe pertanyaan | `presentation/builder/chat/` | ✅ |
 | K3b.1 | Tambah state `pendingFollowUps` di ChatPane | `BuilderChatPane.kt` | ✅ |
@@ -254,15 +254,15 @@ Total: **2 hari** (K3a–c), K3d opsional.
 
 ## 6. Acceptance Criteria
 
-- [ ] User bisa pilih metode: Template-based atau From Scratch
-- [ ] Template-based menampilkan grid template garment (Konveksi, Sablon, Bordir, Rajut, dll)
-- [ ] Dari template → masuk ke chat dengan blueprint/template tersebut
-- [ ] From Scratch → masuk ke chat tanpa template
-- [ ] Ada modal yang muncul saat `GET /api/builder/chat` return ada `followUp.questions` yang belum dijawab
-- [ ] User bisa isi jawaban per pertanyaan di modal (terutama: divisi apa saja)
-- [ ] Submit jawaban → POST ke chat API → AI response baru
-- [ ] Tidak ada regression di chat flow yang sudah ada
-- [ ] UI sesuai Claymorphism design system
+- [x] User bisa pilih metode: Template-based atau From Scratch
+- [x] Template-based menampilkan grid template garment (Konveksi, Sablon, Bordir, Rajut, dll)
+- [x] Dari template → masuk ke chat dengan blueprint/template tersebut
+- [x] From Scratch → masuk ke chat tanpa template
+- [x] Ada modal yang muncul saat `GET /api/builder/chat` return ada `followUp.questions` yang belum dijawab
+- [x] User bisa isi jawaban per pertanyaan di modal (terutama: divisi apa saja)
+- [x] Submit jawaban → POST ke chat API → AI response baru
+- [x] Tidak ada regression di chat flow yang sudah ada
+- [x] UI sesuai Claymorphism design system
 
 ---
 

@@ -156,7 +156,7 @@ fun BuilderNewPackScreen(
                 description = "Pilih template garment dan jawab beberapa pertanyaan untuk mengkonfigurasi modul secara otomatis.",
                 icon = { m, c -> IconLayers(m, c) },
                 accentColor = WeMadeColors.Primary,
-                onClick = { }
+                onClick = { onNavigate("chat?template=wizard") }
             )
             MethodCard(
                 modifier = Modifier.weight(1f),
