@@ -195,7 +195,6 @@ private fun HeaderSection() {
 
         Spacer(modifier = Modifier.height(ClaySpacing.Lg))
 
-        // Language switcher (ID | EN) — lihat juga AppTopBar untuk sesi terautentikasi.
         LanguageSwitcher(modifier = Modifier.align(Alignment.End))
 
         Text(

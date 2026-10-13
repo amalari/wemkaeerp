@@ -104,12 +104,11 @@ import com.eventverse.app.presentation.tenant.TenantModuleEntitlementDialog
 import com.eventverse.app.presentation.theme.WeMadeColors
 import com.eventverse.app.presentation.theme.WeMadeTheme
 import com.eventverse.app.presentation.i18n.LocalAppLanguage
-import com.eventverse.app.presentation.i18n.LanguageManager
+import com.eventverse.app.presentation.i18n.AppLanguage
 
 @Composable
 fun App() {
-    val languageManager = remember { LanguageManager.getInstance() }
-    val currentLanguage by remember { mutableStateOf(languageManager.language) }
+    val currentLanguage by AppLanguage.getInstance().language.collectAsState()
     val authViewModel = remember { AuthViewModel() }
     val authState by authViewModel.uiState.collectAsState()
     val session = authState.authenticatedSession
