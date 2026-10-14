@@ -68,9 +68,9 @@ diseed saat draf termuat; ringkasan lokal `openingEntryForModule` untuk utas kos
 - [x] C5 Jaga `BuilderChatPane.kt` ≤ 400 baris (kini 363) — pecah ke file bertema bila perlu (mis. `ChatFollowUpState`)
 
 ### Track D — Verifikasi (serial, akhir)
-- [ ] D1 `wemade-demo` (superadmin demo) + `bordir-uji` ~1280dp: ringkasan & follow-up per modul, badge sejak awal
+- [~] D1 (sebagian, 2026-10-14: **hanya tenant `wemade-demo`** pada ~1280dp; `bordir-uji` tidak ada di migrasi/seed lokal) `wemade-demo` (superadmin demo) + `bordir-uji` ~1280dp: ringkasan & follow-up per modul, badge sejak awal
 - [ ] D2 Skenario AI mati → brief `DETERMINISTIC` terlihat
-- [ ] D3 Kompilasi 5 target + `jvmTest`; `scripts/audit-variability.sh`; `graphify update .`
+- [~] D3 (sebagian: core/server builder + jvmTest brief hijau; 5 target & audit-variability belum) Kompilasi 5 target + `jvmTest`; `scripts/audit-variability.sh`; `graphify update .`
 - [ ] D4 Teaching doc (`docs/teaching/teaching-builder-module-briefs.md`) + tutup di `TASKS-SUMMARY.md` (§18)
 
 ## 2b. Fase 2 — Skenario & Simulasi (TRD-BLDR-002)
@@ -94,6 +94,12 @@ Estimasi Fase 2: ≈ 5–6 hari (**Medium–High**).
 - Server: `BuilderModuleBriefRoutesTest` (termasuk 403 peran SALES), `KoogModuleBrieferTest`; `PostgresBuilderChatBriefIntegrationTest` **dijalankan pada DB scratch**: V105 terterap, 4 kolom + constraint ada, 1 tes lulus (0 dilewati).
 - Klien: `ChatBriefModelTest`, `ChatBriefOpeningTest`; kompilasi JVM/WasmJs/JS. `jvmTest` 1 merah **sudah ada sebelumnya**: `UiTextLatin1GuardTest` (karakter non-Latin-1 di `MoqupsWireframeCanvas.kt`, `InteractiveTable.kt`, `ModuleDetailPane.kt`, bukan dari fitur ini).
 - Belum: Android target, cek visual (D1/D2), FR-10 progres SSE per modul (kontrak `generate` tanpa callback — hanya hasil akhir), tes `shownEntries` dengan draf sungguhan.
+
+### Hasil cek visual Track D (2026-10-14, `wemade-demo`, login superadmin demo, DB scratch)
+- **Terbukti dengan mata**: (1) utas modul hanya memuat follow-up modulnya sendiri (modal 1/3 berlabel kode modul); (2) badge follow-up semua modul terisi sejak halaman dimuat, tanpa membuka modul; (3) bubble BRIEF tampil benar (badge Ringkasan + AI, Tahap bernomor, tag "opsional", tag "rework ke X", daftar fitur).
+- **Catatan jujur**: bubble BRIEF yang dilihat berasal dari **baris yang di-seed lewat SQL** (bukan hasil pembuatan otomatis), karena draf demo tidak punya tautan wawancara/layar berproposal (status `skipped`) dan jalur nyata butuh LLM berbayar. Alur pembuatan end-to-end hanya terbukti lewat tes unit/integrasi, **belum** lewat run nyata dengan model.
+- **Bug ditemukan & diperbaiki saat cek visual**: (a) tabrakan PK id pesan follow-up -> 500 (`2300a506`; tes memakai repository ketat karena `InMemoryBuilderChatRepository` menempelkan nomor urut dan menyembunyikan bug sejenis); (b) pesan "sudah terbaru" untuk status `skipped` menyesatkan (`e822ee30`).
+- **Belum**: tenant non-garment (`bordir-uji`) secara visual; D2 (AI mati vs AI hidup terlihat berbeda); Android; modal klarifikasi menutup sebagian bubble di tinggi ~900px (observasi UX, belum ditangani).
 
 ## 3. Urutan & Estimasi
 
