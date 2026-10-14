@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.builder.chat
 
+import com.eventverse.app.domain.builder.ChatMessageKind
 import com.eventverse.app.presentation.discovery.DiscoveryDraftUi
 import com.eventverse.app.shared.json.JsonValue
 
@@ -14,7 +15,12 @@ internal data class BuilderChatEntry(
     /** Utas pesan: null = Semua. */
     val moduleId: String? = null,
     /** Pertanyaan follow-up pesan QUESTION (id, pertanyaan, sudah dijawab?). */
-    val questions: List<ChatQuestion> = emptyList()
+    val questions: List<ChatQuestion> = emptyList(),
+    /** Jenis pesan; BRIEF membawa [brief]. */
+    val kind: ChatMessageKind = ChatMessageKind.TEXT,
+    val brief: ChatBrief? = null,
+    /** Galat parse (kind tak dikenal / BRIEF rusak); dirender sebagai galat, bukan teks biasa. */
+    val parseError: String? = null
 )
 
 /** Satu pertanyaan follow-up dalam pesan QUESTION. */
@@ -33,7 +39,11 @@ internal fun parseMessages(raw: JsonValue): List<BuilderChatEntry> =
     ((raw as? JsonValue.Obj)?.get("messages") as? JsonValue.Arr)?.items
         ?.filterIsInstance<JsonValue.Obj>()
         ?.map { m ->
+            val parsed = parseKindAndBrief(m)
             BuilderChatEntry(
+                kind = parsed.getOrNull()?.first ?: ChatMessageKind.TEXT,
+                brief = parsed.getOrNull()?.second,
+                parseError = parsed.exceptionOrNull()?.let { "Pesan tidak dapat ditampilkan: ${it.message}" },
                 id = m.string("id").orEmpty(),
                 isUser = m.string("role") == "USER",
                 text = m.string("text").orEmpty(),

@@ -45,8 +45,12 @@ internal fun ChatMessageBubble(
     busy: Boolean,
     onApply: () -> Unit,
     onShowResult: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Hanya BRIEF: true = tampil penuh (terbaru), false = dilipat (lama). */
+    briefExpanded: Boolean = true
 ) {
+    entry.parseError?.let { ChatParseErrorBubble(it, modifier); return }
+    if (entry.brief != null) { ChatBriefBubble(entry, briefExpanded, modifier); return }
     val typography = rememberClayTypography()
     val isUser = entry.isUser
     val hasResult = entry.hasPendingPatch || (entry.applied && entry.summary.isNotEmpty())
