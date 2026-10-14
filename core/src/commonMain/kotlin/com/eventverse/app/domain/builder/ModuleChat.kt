@@ -82,7 +82,7 @@ class EditModuleFromChat(
                 if (issues.isEmpty()) {
                     chats.append(
                         ChatMessage(
-                            id = ChatMessageId("msg-${conversation.id.value}-a-${clock.now().epochSeconds}"),
+                            id = ChatMessageId("msg-${conversation.id.value}-a-${moduleId}-${clock.now().epochSeconds}"),
                             conversationId = conversation.id, tenantId = tenantId, role = ChatRole.AGENT,
                             text = reply.text.ifBlank { "Saya mengusulkan ${reply.edits.size} perubahan isian $moduleName. Tekan Terapkan bila sesuai." },
                             proposedDraftJson = com.eventverse.app.shared.discovery.DiscoveryDraftCodec.encodeToString(next),
@@ -101,7 +101,7 @@ class EditModuleFromChat(
     private suspend fun reply(tenantId: TenantId, conversation: BuilderConversation, moduleId: String, text: String): Boolean {
         chats.append(
             ChatMessage(
-                id = ChatMessageId("msg-${conversation.id.value}-a-${clock.now().epochSeconds}"),
+                id = ChatMessageId("msg-${conversation.id.value}-a-${moduleId}-${clock.now().epochSeconds}"),
                 conversationId = conversation.id, tenantId = tenantId, role = ChatRole.AGENT, text = text.ifBlank { "Tidak ada yang perlu diubah." },
                 createdAt = clock.now(), moduleId = moduleId
             )
@@ -147,7 +147,7 @@ class AskModuleFollowUpsUseCase(
         val name = draft.pack.modules.firstOrNull { it.id.value == moduleId }?.displayName ?: moduleId
         chats.append(
             ChatMessage(
-                id = ChatMessageId("msg-${conversation.id.value}-a-${clock.now().epochSeconds}"),
+                id = ChatMessageId("msg-${conversation.id.value}-a-${moduleId}-${clock.now().epochSeconds}"),
                 conversationId = conversation.id, tenantId = tenantId, role = ChatRole.AGENT,
                 text = "Beberapa hal tentang $name belum jelas dari ceritamu. Jawab seperlunya, atau langsung minta ubah isiannya:",
                 createdAt = clock.now(), moduleId = moduleId, kind = ChatMessageKind.QUESTION,
