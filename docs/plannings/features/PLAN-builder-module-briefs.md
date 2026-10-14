@@ -80,7 +80,8 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 `TenantStageFlow` terikat sampling → Tahap di brief hanya sketsa.
 
 - [x] S-align Penyelarasan dengan Alur Data, `MoqupsFlowNavigator`, dan TRD-BUILDER-007 (2026-10-14): `FeatureFlow` tidak dibuat, navigator dipakai ulang, panel JSON tidak jadi jalur utama
-- [ ] S0 Kontrak: `ScenarioSketch/Step/FieldCarry`, JSON, `ScenarioProposer`, fixture garment + non-garment
+- [x] S0 Kontrak (2026-10-15, worktree `worktree-builder-scenarios-t0`): `ScenarioSketch/Step/FieldCarry/ScenarioId/ScenarioSource/ScenarioLimits`, `ScenarioValidator`, `ScenarioProposer`, `ScenarioCarryRule`/`CarryOutcome`, `ScenarioService`, `ScenarioSketchCodec` (ketat, tolak kunci/nilai tak dikenal) + `DiscoveryDraft.scenarios` opsional (kunci tertulis hanya bila ada; draf lama byte-identik) + fixture garment dan klinik. Bukti: `ScenarioContractTest` (7) + `ScenarioSketchCodecTest` (13) hijau; core 2054 tes, 15 gagal **yang sama persis dengan baseline `fd1236c4`** (bukan dari fitur ini; lihat catatan); kompilasi JS/WasmJs/server/klien-JVM bersih
+  - Catatan baseline: 15 tes pack (`ShippedPackIdentityTest`, `DomainPackCodecTest`, dst.) gagal di `fd1236c4` karena `GarmentDomainPack` kini punya `theme` non-null sedangkan `DomainPackCodec` belum meng-encode/decode `theme` -> validator "dokumen wajib identik" menolak. Milik pekerjaan tema (TRD-PLAT-013), tidak disentuh di sini.
 - [ ] SA1 `ScenarioValidator` (+tes tiap aturan) · SA2 `DeterministicScenarioBuilder` dari `ModuleHandoff`
 - [ ] SA3 `ScenarioCarry` (pemetaan + koersi, murni) · SA4 use case propose/confirm/edit · SA5 codec `scenarios` opsional
 - [ ] SB1 `KoogScenarioProposer` + parser tunggal · SB2 rute propose/confirm (403/422) · SB3 flag `builder.scenarios.enabled`
