@@ -279,7 +279,6 @@ fun Application.module(
             ),
             interviewPlanner = builderInterviewPlanner ?: com.eventverse.app.infrastructure.discovery.InterviewAgents.plannerFromEnv(),
             moduleEditor = builderModuleEditor ?: com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
-            // TODO(TRD-BLDR-001 koordinator): ganti dengan `builderModuleBriefs ?: if (BuilderModuleBriefers.enabled()) GenerateModuleBriefsUseCase(chats, drafts, briefer, validator, agentRef, clock) else null`
             moduleBriefs = builderModuleBriefs,
             drafts =discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
             probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),

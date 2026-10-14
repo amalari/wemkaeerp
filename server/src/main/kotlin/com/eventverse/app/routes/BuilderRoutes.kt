@@ -87,9 +87,21 @@ fun Route.builderRoutes(
     /** Pembuat brief per modul (TRD-BLDR-001); `null` = fitur mati (flag) → `POST /chat/briefs` 404. */
     moduleBriefs: com.eventverse.app.domain.builder.ModuleBriefService? = null
 ) {
+    // Brief per modul (TRD-BLDR-001): service yang disuntik (tes) menang; selain itu hanya bila flag env menyala.
+    // Tanpa penyusun AI (kunci/koog tak ada) tetap jalan dengan brief deterministik — fitur tidak bergantung pada AI.
+    val briefService = moduleBriefs ?: if (com.eventverse.app.infrastructure.builder.BuilderModuleBriefers.enabled()) {
+        val koog = com.eventverse.app.infrastructure.builder.BuilderModuleBriefers.fromEnv()
+        com.eventverse.app.domain.builder.GenerateModuleBriefsUseCase(
+            chats, drafts,
+            briefer = koog ?: com.eventverse.app.domain.builder.DeterministicModuleBriefer,
+            validator = com.eventverse.app.domain.builder.ModuleBriefRules,
+            agentRef = koog?.agentRef ?: "deterministic-briefer/v1"
+        )
+    } else null
     val send = SendBuilderMessageUseCase(
         chats, agent, drafts, interviewPlanner = interviewPlanner,
-        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) }
+        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) },
+        briefService = briefService
     )
     val apply = ApplyDraftPatchUseCase(chats, drafts)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
@@ -134,7 +146,7 @@ fun Route.builderRoutes(
     )
     route("/api/builder") {
         builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
-        builderModuleBriefRoutes(moduleBriefs, runRegistry)
+        builderModuleBriefRoutes(briefService, runRegistry)
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext
