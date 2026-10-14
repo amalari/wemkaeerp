@@ -34,7 +34,9 @@ class SendBuilderMessageUseCase(
     /** Perencana wawancara penuh yang sudah dipakai Discovery; null = langsung menyusun draf. */
     private val interviewPlanner: InterviewPlanner? = null,
     /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
-    private val moduleEditing: EditModuleFromChat? = null
+    private val moduleEditing: EditModuleFromChat? = null,
+    /** Pembuat brief per modul (TRD-BLDR-001); null = perilaku lama (tanpa brief). */
+    private val briefService: ModuleBriefService? = null
 ) {
     /**
      * Satu giliran chat. [onProgress] menerima fase kerja (`planning` saat memeriksa kejelasan cerita, `drafting` saat
@@ -139,7 +141,10 @@ class SendBuilderMessageUseCase(
                 )
                 return@runCatching chats.messages(conversation.id)
             }
-            if (planned != null) plannedCurrent = current.copy(interview = planned)
+            if (planned != null) {
+                plannedCurrent = current.copy(interview = planned)
+                briefService.triggerQuietly(tenantId)
+            }
         }
 
         onProgress("drafting")
