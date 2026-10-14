@@ -4,6 +4,7 @@ import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.ChatMessageKind
 import com.eventverse.app.infrastructure.api.BuilderApiClient
 import com.eventverse.app.infrastructure.api.SessionTokenProvider
+import com.eventverse.app.presentation.builder.chat.briefRefreshNotice
 import com.eventverse.app.presentation.builder.chat.latestBriefIds
 import com.eventverse.app.presentation.builder.chat.parseMessages
 import com.eventverse.app.presentation.builder.chat.stageCaption
@@ -111,5 +112,16 @@ class ChatBriefModelTest {
         assertEquals(1, ok.created)
         assertEquals(1, ok.fresh)
         assertTrue(client("""{"results":[{"moduleId":"a","status":"wat"}]}""").requestBriefs(null).isFailure)
+    }
+
+    @Test
+    fun `refresh notice should distinguish skipped from fresh`() {
+        fun n(c: Int, f: Int, s: Int, on: Boolean = true) =
+            briefRefreshNotice(com.eventverse.app.infrastructure.api.BriefRefreshOutcome(on, c, f, s))
+        assertEquals("Fitur ringkasan belum aktif di server ini.", n(0, 0, 0, on = false))
+        assertEquals("Ringkasan disegarkan (2).", n(2, 1, 1))
+        assertEquals("Ringkasan sudah terbaru.", n(0, 1, 3))
+        assertEquals("Belum ada bahan untuk ringkasan modul ini. Ceritakan alurnya di utas Semua dulu.", n(0, 0, 1))
+        assertEquals("Tidak ada modul yang perlu diringkas.", n(0, 0, 0))
     }
 }

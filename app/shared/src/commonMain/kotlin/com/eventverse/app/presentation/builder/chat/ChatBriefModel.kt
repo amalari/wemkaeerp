@@ -52,3 +52,15 @@ internal fun shownEntries(
     thread == null -> listOf(openingEntryFor(draft))
     else -> listOf(openingEntryForModule(draft, thread))
 }
+
+/**
+ * Pesan hasil "Segarkan ringkasan". `skipped` BUKAN "sudah terbaru": modul itu belum punya bahan (tautan wawancara atau
+ * layar berproposal), jadi pengguna perlu bercerita dulu - pesan yang menyamarkan keduanya menyesatkan. Teks Latin-1.
+ */
+internal fun briefRefreshNotice(o: com.eventverse.app.infrastructure.api.BriefRefreshOutcome): String = when {
+    !o.featureEnabled -> "Fitur ringkasan belum aktif di server ini."
+    o.created > 0 -> "Ringkasan disegarkan (${o.created})."
+    o.fresh > 0 -> "Ringkasan sudah terbaru."
+    o.skipped > 0 -> "Belum ada bahan untuk ringkasan modul ini. Ceritakan alurnya di utas Semua dulu."
+    else -> "Tidak ada modul yang perlu diringkas."
+}

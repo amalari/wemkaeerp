@@ -162,8 +162,7 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
             briefNotice = null
             client.requestBriefs(thread)
                 .onSuccess { o ->
-                    briefNotice = if (!o.featureEnabled) "Fitur ringkasan belum aktif di server ini."
-                    else if (o.created == 0) "Ringkasan sudah terbaru." else "Ringkasan disegarkan (${o.created})."
+                    briefNotice = briefRefreshNotice(o)
                     reloadChat()
                 }
                 .onFailure { e -> error = e.message }
