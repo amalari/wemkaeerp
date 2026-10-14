@@ -155,6 +155,11 @@ data class DomainPack(
      */
     val languages: PackLanguages = PackLanguages.ID_ONLY,
     /**
+     * Konfigurasi tema visual pack (TRD-PLAT-013). Null = pack lama menggunakan tema default CLAY.
+     * Tema adalah properti pack, bukan tenant — setiap tenant yang menggunakan pack ini akan mendapat tema yang sama.
+     */
+    val theme: PackTheme? = null,
+    /**
      * Jembatan Strangler Fig TRD-I18N-002 (P5): [vocabulary] dan [portLabels] dua bahasa. Nilai `String` lama tetap
      * = teks `id`; bawaan diturunkan darinya. Kunci kedua peta wajib sama dengan peta lamanya.
      */

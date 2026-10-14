@@ -166,7 +166,11 @@ object GarmentDomainPack {
             roleHints = GarmentRoleHints.all,
             reservedTerms = GarmentReservedTerms.terms,
             sharedModules = setOf(GarmentModules.COSTING_HPP),
-            handoverRouteTemplate = GarmentHandoverRoutes.template
+            handoverRouteTemplate = GarmentHandoverRoutes.template,
+            theme = PackTheme(
+                style = VisualStyle.CLAY,
+                chatBubbleStyle = ChatBubbleStyle.CARD
+            )
         ).withGarmentEnglish() // TRD-I18N-002: `en` ditambahkan di atas teks id; id tak berubah
     }
 }

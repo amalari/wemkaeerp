@@ -198,9 +198,10 @@ val customPack = DomainPack(
 
 | # | Task | Output | Status |
 |---|---|---|---|
-| T0.1 | Buat `PackTheme.kt` | Data class + 3 enum | ⏳ |
-| T0.2 | Update `DomainPack.kt` | Tambah field `theme: PackTheme?` | ⏳ |
-| T0.3 | Update `GarmentDomainPack.kt` | Pack variant dengan theme | ⏳ |
+| T0.1 | Buat `PackTheme.kt` | Data class + 3 enum | ✅ Selesai |
+| T0.2 | Update `DomainPack.kt` | Tambah field `theme: PackTheme?` | ✅ Selesai |
+| T0.3 | Update `GarmentDomainPack.kt` | Pack variant dengan theme | ✅ Selesai |
+| T0.4 | Verifikasi kompilasi | Build berhasil | ✅ Selesai |
 
 ### Track A — Core & Domain (Fully Coding)
 

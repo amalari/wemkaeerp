@@ -266,26 +266,27 @@ fun ChatBubble(
 
 ### Parallel Execution Plan (Tracks)
 
-#### Track 0 — Contract Phase (Serial / Prerequisites)
+#### Track 0 — Contract Phase (Serial / Prerequisites) ✅ SELESAI
 
 **Tujuan**: Bekukan kontrak sebelum tracks lain berjalan paralel. Tidak ada DB migration.
 
-| # | Kontrak | Lokasi | Output |
-|---|---|---|---|
-| T0.1 | `PackTheme` data class | `core/.../domain/pack/PackTheme.kt` | File baru dengan data class + enums |
-| T0.2 | `VisualStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CLAY, GLASS, MINIMAL, BRUTAL |
-| T0.3 | `ChatBubbleStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CARD, BUBBLE, GLASS |
-| T0.4 | `CardStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: DEFAULT, ELEVATED, FLAT |
-| T0.5 | DomainPack update | `core/.../domain/pack/DomainPack.kt` | Tambah field `theme: PackTheme? = null` |
-| T0.6 | Fixture pack dengan theme | `core/.../domain/pack/GarmentDomainPack.kt` | Pack variant dengan theme config |
+| # | Kontrak | Lokasi | Output | Status |
+|---|---|---|---|---|
+| T0.1 | `PackTheme` data class | `core/.../domain/pack/PackTheme.kt` | File baru dengan data class + enums | ✅ |
+| T0.2 | `VisualStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CLAY, GLASS, MINIMAL, BRUTAL | ✅ |
+| T0.3 | `ChatBubbleStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CARD, BUBBLE, GLASS | ✅ |
+| T0.4 | `CardStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: DEFAULT, ELEVATED, FLAT | ✅ |
+| T0.5 | DomainPack update | `core/.../domain/pack/DomainPack.kt` | Tambah field `theme: PackTheme? = null` | ✅ |
+| T0.6 | Fixture pack dengan theme | `core/.../domain/pack/GarmentDomainPack.kt` | Pack variant dengan theme config | ✅ |
+| T0.7 | Verifikasi kompilasi | Build | Build berhasil | ✅ |
 
 **Track 0 Output**:
-- `PackTheme.kt` dengan 1 data class + 3 enum
-- `DomainPack` schema update (nullable field)
-- Test fixtures di `commonTest/resources/`
-- Mock pack untuk testing
+- ✅ `PackTheme.kt` dengan 1 data class + 3 enum
+- ✅ `DomainPack` schema update (nullable field)
+- ✅ `GarmentDomainPack` dengan default CLAY theme
+- ✅ Build berhasil
 
-**Gate**: Track 0 wajib selesai sebelum A, B, C bisa mulai. Paralel antar T0.x bisa berjalan.
+**Gate**: Track 0 selesai — tracks A, B, C bisa mulai paralel.
 
 #### Track A — Core & Domain (Fully Coding)
 
