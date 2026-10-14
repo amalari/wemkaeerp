@@ -83,7 +83,9 @@ fun Route.builderRoutes(
         com.eventverse.app.infrastructure.discovery.InterviewAgents.plannerFromEnv(),
     /** Penyunting isian per modul (Fase C, model kecil); default dari env — `null` bila saklar mati. */
     moduleEditor: com.eventverse.app.domain.builder.ModuleEditor? =
-        com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv()
+        com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
+    /** Pembuat brief per modul (TRD-BLDR-001); `null` = fitur mati (flag) → `POST /chat/briefs` 404. */
+    moduleBriefs: com.eventverse.app.domain.builder.ModuleBriefService? = null
 ) {
     val send = SendBuilderMessageUseCase(
         chats, agent, drafts, interviewPlanner = interviewPlanner,
@@ -132,6 +134,7 @@ fun Route.builderRoutes(
     )
     route("/api/builder") {
         builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
+        builderModuleBriefRoutes(moduleBriefs, runRegistry)
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext
@@ -248,24 +251,6 @@ internal fun followUpJson(moduleId: String?, pending: List<com.eventverse.app.do
             )
         })
     )
-
-/** Pesan chat sebagai JSON; patch usulan disisipkan apa adanya (sudah JSON sah). */
-private fun messageJson(m: ChatMessage): com.eventverse.app.shared.json.JsonValue {
-    val patch = m.proposedDraftJson?.let { runCatching { JsonParser.parse(it) }.getOrNull() }
-    return jsonObjectOf(
-        "id" to jsonOf(m.id.value),
-        "role" to jsonOf(m.role.name),
-        "text" to jsonOf(m.text),
-        "summary" to jsonArrayOf(m.proposedSummary.map(::jsonOf)),
-        "proposedDraft" to (patch ?: com.eventverse.app.shared.json.JsonValue.Null),
-        "hasPendingPatch" to jsonOf(m.hasPendingPatch),
-        "appliedDraftId" to jsonOf(m.appliedDraftId),
-        "createdAt" to jsonOf(m.createdAt?.toString()),
-        "moduleId" to jsonOf(m.moduleId),
-        "kind" to jsonOf(m.kind.name),
-        "questions" to com.eventverse.app.infrastructure.ChatQuestionsCodec.encode(m.questions)
-    )
-}
 
 internal fun deploymentJson(d: com.eventverse.app.domain.builder.Deployment): String = buildString {
     append("{\"number\":${d.number.value}")
