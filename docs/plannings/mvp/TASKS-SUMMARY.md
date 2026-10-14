@@ -55,6 +55,7 @@
 
 | # | Task | Plan |
 |---|---|---|
+| BLD-02 | Ringkasan & follow-up per modul (BRIEF) — Fase 1: Track 0/A/B/C selesai, D (visual) belum | [`PLAN`](../features/PLAN-builder-module-briefs.md) |
 | BLD-01 | Tab Alur Data per fitur + Prototype Simulation | [`PLAN`](../../features/PLAN-builder-data-flow-and-prototype-simulation.md) |
 | K3 | Builder Wizard Self-Service (Template + Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
 | K3e | Halaman pemilihan metode (Template vs Scratch) | **TINGGI** | Screen pilih template garment atau from scratch |

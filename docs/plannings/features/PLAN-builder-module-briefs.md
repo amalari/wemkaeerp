@@ -1,7 +1,7 @@
 # PLAN: Ringkasan & Follow-Up per Modul di Chat Builder
 
 **Tanggal**: 2026-10-14
-**Status**: Sebagian — Track 0 kontrak domain selesai (2026-10-14, worktree `worktree-builder-module-briefs-t0`, belum di-commit); Track A/B/C/D belum
+**Status**: Sebagian — Track 0/A/B/C selesai dan di `main` (2026-10-14); Track D (cek visual, teaching doc) belum. Flag server `BUILDER_MODULE_BRIEFS_ENABLED` default MATI
 **TRD**: [`TRD-BLDR-001-module-briefs.md`](../../trd/features/TRD-BLDR-001-module-briefs.md) (Fase 1) ·
 [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) (Fase 2)
 **Induk**: [`PLAN-builder-interview-chat.md`](PLAN-builder-interview-chat.md)
@@ -46,26 +46,26 @@ diseed saat draf termuat; ringkasan lokal `openingEntryForModule` untuk utas kos
 - [x] T0.4 Nomor migrasi dipastikan (`ls … | sort -V | tail -1`, kini V104 → V105; terverifikasi 2026-10-14)
 
 ### Track A — Core (paralel setelah T0)
-- [ ] A1 `ModuleBriefValidator` + tes tiap aturan (berpath)
-- [ ] A2 `DeterministicModuleBriefer` + tes (peran/tautan tak ada → aman)
-- [ ] A3 `GenerateModuleBriefsUseCase`: idempoten, basis berubah, retry 1x, fallback; tes dengan template **non-default**
-- [ ] A4 Gabung kuota follow-up AI + `ModuleGapAnalyzer` (maks 3, tanpa duplikat); `AskModuleFollowUpsUseCase` jadi pengisi sisa
-- [ ] A5 Tes paritas: iterasi `ChatMessageKind.entries` (tiap kind punya parser klien + kolom DB)
+- [x] A1 `ModuleBriefValidator` + tes tiap aturan (berpath)
+- [x] A2 `DeterministicModuleBriefer` + tes (peran/tautan tak ada → aman)
+- [x] A3 `GenerateModuleBriefsUseCase`: idempoten, basis berubah, retry 1x, fallback; tes dengan template **non-default**
+- [x] A4 Gabung kuota follow-up AI + `ModuleGapAnalyzer` (maks 3, tanpa duplikat); `AskModuleFollowUpsUseCase` jadi pengisi sisa
+- [x] A5 Tes paritas: iterasi `ChatMessageKind.entries` (tiap kind punya parser klien + kolom DB)
 
 ### Track B — Server (paralel)
-- [ ] B1 Migrasi aditif (kolom `features`, `basis_ref`, `brief_source`, constraint kind diperlebar, indeks)
-- [ ] B2 `PostgresBuilderChatRepository`: baca/tulis kolom baru; tes integrasi (pesan lama tetap terbaca)
-- [ ] B3 `KoogModuleBriefer` + prompt + parser JSON tunggal (tolak bentuk tak dikenal)
-- [ ] B4 `POST /api/builder/chat/briefs` (gate `MANAGE_BUILDER`, 403/400/409) + tes peran tak berwenang
-- [ ] B5 Pemicu otomatis di `SendBuilderMessageUseCase` setelah rencana wawancara; SSE `module_started/ready`
-- [ ] B6 Flag `builder.moduleBriefs.enabled`; log terstruktur + rasio fallback
+- [x] B1 Migrasi aditif (kolom `features`, `basis_ref`, `brief_source`, constraint kind diperlebar, indeks)
+- [x] B2 `PostgresBuilderChatRepository`: baca/tulis kolom baru; tes integrasi (pesan lama tetap terbaca)
+- [x] B3 `KoogModuleBriefer` + prompt + parser JSON tunggal (tolak bentuk tak dikenal)
+- [x] B4 `POST /api/builder/chat/briefs` (gate `MANAGE_BUILDER`, 403/400/409) + tes peran tak berwenang
+- [x] B5 Pemicu otomatis di `SendBuilderMessageUseCase` setelah rencana wawancara; SSE `module_started/ready`
+- [x] B6 Flag `builder.moduleBriefs.enabled`; log terstruktur + rasio fallback
 
 ### Track C — Klien (paralel)
-- [ ] C1 `ChatModel`: parse `BRIEF`, `features`, `briefSource`; tolak kind tak dikenal
-- [ ] C2 `ChatMessageBubble` varian ringkasan (token clay, nol literal warna); versi lama dilipat
-- [ ] C3 Tombol "Segarkan ringkasan" memanggil `POST /briefs`
-- [ ] C4 Hapus ketergantungan `openingEntryForModule` kecuali untuk kosong-state saat flag off
-- [ ] C5 Jaga `BuilderChatPane.kt` ≤ 400 baris (kini 363) — pecah ke file bertema bila perlu (mis. `ChatFollowUpState`)
+- [x] C1 `ChatModel`: parse `BRIEF`, `features`, `briefSource`; tolak kind tak dikenal
+- [x] C2 (kode + tes parser; **tampilan belum dilihat mata** → D1) `ChatMessageBubble` varian ringkasan (token clay, nol literal warna); versi lama dilipat
+- [x] C3 Tombol "Segarkan ringkasan" memanggil `POST /briefs`
+- [x] C4 Hapus ketergantungan `openingEntryForModule` kecuali untuk kosong-state saat flag off
+- [x] C5 Jaga `BuilderChatPane.kt` ≤ 400 baris (kini 363) — pecah ke file bertema bila perlu (mis. `ChatFollowUpState`)
 
 ### Track D — Verifikasi (serial, akhir)
 - [ ] D1 `wemade-demo` (superadmin demo) + `bordir-uji` ~1280dp: ringkasan & follow-up per modul, badge sejak awal
@@ -88,6 +88,12 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 - [ ] SD1 Cek visual `wemade-demo` + `bordir-uji` · SD2 nol HTTP saat simulasi · SD3 teaching doc + `TASKS-SUMMARY`
 
 Estimasi Fase 2: ≈ 5–6 hari (**Medium–High**).
+
+### Bukti penutupan Fase 1 (2026-10-14)
+- Core: `ModuleBriefRulesTest`, `GenerateModuleBriefsUseCaseTest`, `ChatMessageKindParityTest`, `ModuleBriefContractTest`, `ModuleBriefCodecTest`, `BriefTriggerTest` (core jvmTest 2029+ hijau, JS/WasmJs terkompilasi).
+- Server: `BuilderModuleBriefRoutesTest` (termasuk 403 peran SALES), `KoogModuleBrieferTest`; `PostgresBuilderChatBriefIntegrationTest` **dijalankan pada DB scratch**: V105 terterap, 4 kolom + constraint ada, 1 tes lulus (0 dilewati).
+- Klien: `ChatBriefModelTest`, `ChatBriefOpeningTest`; kompilasi JVM/WasmJs/JS. `jvmTest` 1 merah **sudah ada sebelumnya**: `UiTextLatin1GuardTest` (karakter non-Latin-1 di `MoqupsWireframeCanvas.kt`, `InteractiveTable.kt`, `ModuleDetailPane.kt`, bukan dari fitur ini).
+- Belum: Android target, cek visual (D1/D2), FR-10 progres SSE per modul (kontrak `generate` tanpa callback — hanya hasil akhir), tes `shownEntries` dengan draf sungguhan.
 
 ## 3. Urutan & Estimasi
 
