@@ -32,6 +32,20 @@ object ClayShapes {
     /** Badge/pill status yang membulat penuh. */
     val Pill = RoundedCornerShape(percent = 50)
 
+    // ── Bentuk di dalam komposisi (inset & gelembung chat) ───────────────────────────────────
+
+    /** Blok bersarang di dalam kartu — kotak klarifikasi/ringkasan. Satu tingkat di bawah kartu. */
+    val Inset = RoundedCornerShape(8.dp)
+
+    /** Penanda kecil di dalam daftar (kotak centang). Jauh lebih siku dari [Inset]. */
+    val Marker = RoundedCornerShape(3.dp)
+
+    /** Gelembung chat masuk (agent) — sudut ekor kanan-atas lebih kecil, menunjuk ke pengirim. */
+    val ChatBubbleIncoming = RoundedCornerShape(topStart = 6.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 16.dp)
+
+    /** Gelembung chat keluar (user) — sudut ekor kiri-atas lebih kecil. */
+    val ChatBubbleOutgoing = RoundedCornerShape(topStart = 16.dp, topEnd = 6.dp, bottomEnd = 16.dp, bottomStart = 16.dp)
+
     // ── Bentuk di dalam kanvas kerja (invoice / template designer) ───────────────────────────
     // Sengaja jauh lebih kecil dari kartu UI: kertas A4 dan elemen di atasnya adalah bahan
     // cetak yang sudutnya mendekati siku, bukan permukaan clay yang membulat.

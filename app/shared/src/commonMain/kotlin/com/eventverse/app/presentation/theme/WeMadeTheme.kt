@@ -120,6 +120,26 @@ object WeMadeColors {
     val WireframeOnSurface = Color(0xFF0F172A)
     val WireframeOnSurfaceMuted = Color(0xFF64748B)
     val WireframeBadgeBg = Color(0xFFF8FAFC)
+
+    // ── Token Glassmorphism (TRD-PLAT-013) ───────────────────────────────────────────────────
+    // Bahasa kaca tidak punya hard shadow; kedalamannya datang dari translusensi, kilau, dan
+    // rim tipis terang — bukan garis gelap tebal. Karena itu isiannya **semi-transparan** dan
+    // justru sengaja bukan opaque seperti `Surface`. Dipakai `Modifier.glassSurface`.
+
+    /** Isian panel kaca standar — putih semi-transparan di atas latar terang. */
+    val GlassSurface = Color(0x8CFFFFFF)
+
+    /** Kaca yang perlu lebih terbaca — kartu di atas konten padat atau di dalam dialog. */
+    val GlassSurfaceStrong = Color(0xB8FFFFFF)
+
+    /** Rim tipis terang khas kaca; dipakai sebagai **border**, bukan outline gelap tebal. */
+    val GlassBorder = Color(0xE6FFFFFF)
+
+    /**
+     * Kilau gradien di tepi atas panel. Dipakai lewat `.copy(alpha = …)` di
+     * `Modifier.glassSurface`, meniru cahaya yang memantul di permukaan kaca.
+     */
+    val GlassSheen = Color(0xFFFFFFFF)
 }
 
 /**
