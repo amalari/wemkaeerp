@@ -9,6 +9,7 @@ import com.eventverse.app.domain.builder.ChatMessageKind
 import com.eventverse.app.domain.builder.ChatRole
 import com.eventverse.app.domain.discovery.DiscoveryDraftId
 import com.eventverse.app.domain.tenant.TenantId
+import com.eventverse.app.shared.builder.ModuleBriefCodec
 import com.eventverse.app.shared.json.JsonParser
 import com.eventverse.app.shared.json.jsonArrayOf
 import com.eventverse.app.shared.json.jsonOf
@@ -70,6 +71,10 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
             it[moduleId] = message.moduleId
             it[kind] = message.kind.name
             it[questions] = ChatQuestionsCodec.encode(message.questions).encode()
+            it[features] = ModuleBriefCodec.encodeFeatures(message.features).encode()
+            it[stages] = ModuleBriefCodec.encodeStages(message.stages).encode()
+            it[basisRef] = message.basisRef
+            it[briefSource] = message.briefSource?.name
         }
         message
     }
@@ -110,7 +115,11 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
         createdAt = row[BuilderChatMessagesTable.createdAt],
         moduleId = row[BuilderChatMessagesTable.moduleId],
         kind = ChatMessageKind.valueOf(row[BuilderChatMessagesTable.kind]),
-        questions = ChatQuestionsCodec.decode(row[BuilderChatMessagesTable.questions])
+        questions = ChatQuestionsCodec.decode(row[BuilderChatMessagesTable.questions]),
+        features = ModuleBriefCodec.decodeFeatures(row[BuilderChatMessagesTable.features]),
+        stages = ModuleBriefCodec.decodeStages(row[BuilderChatMessagesTable.stages]),
+        basisRef = row[BuilderChatMessagesTable.basisRef],
+        briefSource = row[BuilderChatMessagesTable.briefSource]?.let(ModuleBriefCodec::parseSource)
     )
 
     private fun summaryOf(raw: String): List<String> =

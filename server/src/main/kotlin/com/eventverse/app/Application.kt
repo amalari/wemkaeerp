@@ -178,6 +178,7 @@ fun Application.module(
     builderAgent: com.eventverse.app.domain.builder.BuilderAgent? = null,
     builderInterviewPlanner: com.eventverse.app.domain.discovery.interview.InterviewPlanner? = null,
     builderModuleEditor: com.eventverse.app.domain.builder.ModuleEditor? = null,
+    builderModuleBriefs: com.eventverse.app.domain.builder.ModuleBriefService? = null,
     builderBuildRequests: com.eventverse.app.domain.builder.BuilderBuildRequestRepository? = null,
     builderProbe: com.eventverse.app.domain.pack.usecases.TenantOperationalDataProbe? = null,
     builderAuditLog: com.eventverse.app.domain.audit.AuditLogRepository? = null,
@@ -278,7 +279,9 @@ fun Application.module(
             ),
             interviewPlanner = builderInterviewPlanner ?: com.eventverse.app.infrastructure.discovery.InterviewAgents.plannerFromEnv(),
             moduleEditor = builderModuleEditor ?: com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
-            drafts = discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
+            // TODO(TRD-BLDR-001 koordinator): ganti dengan `builderModuleBriefs ?: if (BuilderModuleBriefers.enabled()) GenerateModuleBriefsUseCase(chats, drafts, briefer, validator, agentRef, clock) else null`
+            moduleBriefs = builderModuleBriefs,
+            drafts =discoveryDraftRepo, pipelines = pipeRepo, buildRequests = builderBuildRequests ?: com.eventverse.app.infrastructure.PostgresBuilderBuildRequestRepository(),
             probe = builderProbe ?: com.eventverse.app.infrastructure.PostgresTenantOperationalDataProbe(),
             auditLog = builderAuditLog ?: com.eventverse.app.infrastructure.PostgresAuditLogRepository(),
             billingInvoices = builderBillingInvoices

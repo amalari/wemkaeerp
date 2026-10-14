@@ -94,6 +94,9 @@ class BuilderRunRegistry(
         }
     }
 
+    /** `true` bila [tenantId] punya run yang belum selesai (dipakai rute lain agar tidak menulis ke utas yang sama bersamaan). */
+    fun hasActiveRun(tenantId: TenantId): Boolean = runs.values.any { it.tenantId == tenantId && !it.finished }
+
     /** Run milik [tenantId] atau null — run tenant lain diperlakukan seperti tidak ada. */
     fun find(runId: String, tenantId: TenantId): BuilderRun? = runs[runId]?.takeIf { it.tenantId == tenantId }
 

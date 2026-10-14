@@ -36,5 +36,11 @@ object BuilderChatMessagesTable : Table("builder.chat_messages") {
     /** Pertanyaan follow-up, teks JSON array `[{id,question,answer?}]` (V93). */
     val questions = text("questions")
 
+    /** Brief per modul (V105): butir fitur & sketsa Tahap (teks JSON), jejak basis, asal. Hanya bermakna untuk kind = BRIEF. */
+    val features = text("features")
+    val stages = text("stages")
+    val basisRef = varchar("basis_ref", 80).nullable()
+    val briefSource = varchar("brief_source", 16).nullable()
+
     override val primaryKey = PrimaryKey(id)
 }
