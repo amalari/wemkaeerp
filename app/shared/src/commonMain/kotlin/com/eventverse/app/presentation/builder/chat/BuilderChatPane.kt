@@ -150,12 +150,24 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
     }
 
     // Riwayat kosong tetapi draf tenant ada → satu pesan pembuka lokal supaya chat tidak kosong.
-    val shown = remember(messages, draft, loaded, thread) {
-        val d = draft
-        when {
-            !loaded || messages.isNotEmpty() || d == null -> messages
-            thread == null -> listOf(openingEntryFor(d))
-            else -> listOf(openingEntryForModule(d, requireNotNull(thread)))
+    val shown = remember(messages, draft, loaded, thread) { shownEntries(messages, draft, loaded, thread) }
+    val latestBriefs = remember(shown) { latestBriefIds(shown) }
+    // Segarkan ringkasan BRIEF (TRD-BLDR-001 FR-8); 404 = fitur belum aktif di server, pesan ramah (bukan galat).
+    var briefsBusy by remember { mutableStateOf(false) }
+    var briefNotice by remember { mutableStateOf<String?>(null) }
+    fun refreshBriefs() {
+        if (briefsBusy || busy) return
+        scope.launch {
+            briefsBusy = true
+            briefNotice = null
+            client.requestBriefs(thread)
+                .onSuccess { o ->
+                    briefNotice = if (!o.featureEnabled) "Fitur ringkasan belum aktif di server ini."
+                    else if (o.created == 0) "Ringkasan sudah terbaru." else "Ringkasan disegarkan (${o.created})."
+                    reloadChat()
+                }
+                .onFailure { e -> error = e.message }
+            briefsBusy = false
         }
     }
     LaunchedEffect(shown.size) {
@@ -264,6 +276,9 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                         selectedModuleId = thread,
                         threads = threads,
                         pendingByThread = pendingByThread,
+                        briefsBusy = briefsBusy,
+                        briefNotice = briefNotice,
+                        onRefreshBriefs = ::refreshBriefs,
                         onSelectThread = { picked ->
                             if (!busy && picked != thread) {
                                 thread = picked
@@ -290,6 +305,7 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                         ChatMessageBubble(
                             entry = entry,
                             busy = busy,
+                            briefExpanded = entry.id in latestBriefs,
                             onShowResult = {
                                 previewSummary = if (entry.hasPendingPatch) entry.summary else emptyList()
                                 panelOpen = true

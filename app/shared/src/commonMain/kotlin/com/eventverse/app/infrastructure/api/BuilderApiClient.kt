@@ -73,6 +73,24 @@ class BuilderApiClient(
         call(HttpMethod.Post, "/api/builder/chat/followups", """{"module":${JsonValue.Str(module).encode()}}""")
             .map { ((it as? JsonValue.Obj)?.get("created") as? JsonValue.Bool)?.value == true }
 
+    /**
+     * POST /api/builder/chat/briefs — (re)susun ringkasan BRIEF; [module] null = semua modul. 404 = fitur dimatikan
+     * server → sukses dengan `featureEnabled = false` (bukan galat). Status hasil tak dikenal ditolak.
+     */
+    suspend fun requestBriefs(module: String? = null): Result<BriefRefreshOutcome> =
+        call(HttpMethod.Post, "/api/builder/chat/briefs", module?.let { """{"module":${JsonValue.Str(it).encode()}}""" } ?: "{}")
+            .mapCatching { json ->
+                val items = ((json as? JsonValue.Obj)?.get("results") as? JsonValue.Arr)?.items
+                    ?: error("Respons ringkasan tidak memuat results")
+                val statuses = items.map { (it as? JsonValue.Obj)?.string("status") ?: error("Hasil ringkasan tanpa status") }
+                val unknown = statuses.filter { it !in setOf("created", "fresh", "skipped") }
+                require(unknown.isEmpty()) { "Status ringkasan tak dikenal: ${unknown.first()}" }
+                BriefRefreshOutcome(true, statuses.count { it == "created" }, statuses.count { it == "fresh" }, statuses.count { it == "skipped" })
+            }
+            .recoverCatching { e ->
+                if (e is BuilderHttpException && e.status == 404) BriefRefreshOutcome(false, 0, 0, 0) else throw e
+            }
+
     /** POST /api/builder/chat/runs — mulai run asinkron (202); mengembalikan `runId`. 409 bila masih ada run aktif. */
     suspend fun startRun(text: String, module: String? = null, answered: List<Pair<String, String>>? = null): Result<String> =
         call(
@@ -174,11 +192,17 @@ class BuilderApiClient(
             }
             val text = response.bodyAsText()
             if (!response.status.isSuccess()) {
-                error(text.ifBlank { "HTTP ${response.status.value}" })
+                throw BuilderHttpException(response.status.value, text.ifBlank { "HTTP ${response.status.value}" })
             }
             JsonParser.parse(text)
         }
 }
+
+/** Galat HTTP Builder dengan [status]; subclass [IllegalStateException] supaya pemanggil lama tak berubah. */
+class BuilderHttpException(val status: Int, message: String) : IllegalStateException(message)
+
+/** Hasil `POST /api/builder/chat/briefs`: [featureEnabled] false = server membalas 404 (fitur ringkasan belum aktif). */
+data class BriefRefreshOutcome(val featureEnabled: Boolean, val created: Int, val fresh: Int, val skipped: Int)
 
 /** Satu peristiwa progres run Builder (SSE). [data] = JSON `{type, ...}` apa adanya. */
 data class BuilderRunEvent(val id: Long, val type: String, val data: String) {

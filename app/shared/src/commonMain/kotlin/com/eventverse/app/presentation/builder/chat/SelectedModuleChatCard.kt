@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
+import com.eventverse.app.presentation.designsystem.ClayButton
+import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayOffset
 import com.eventverse.app.presentation.designsystem.ClayShapes
@@ -57,7 +59,10 @@ internal fun SelectedModuleChatCard(
     threads: List<ChatThread>,
     pendingByThread: Map<String?, Int>,
     onSelectThread: (String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    briefsBusy: Boolean = false,
+    briefNotice: String? = null,
+    onRefreshBriefs: (() -> Unit)? = null
 ) {
     val typography = rememberClayTypography()
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -269,6 +274,18 @@ internal fun SelectedModuleChatCard(
                         style = typography.bodySmall,
                         color = WeMadeColors.OnSurfaceMuted
                     )
+                }
+                if (onRefreshBriefs != null) {
+                    ClayButton(
+                        text = if (briefsBusy) "Menyegarkan..." else "Segarkan ringkasan",
+                        onClick = onRefreshBriefs,
+                        style = ClayButtonStyle.Secondary,
+                        enabled = !briefsBusy,
+                        maxLines = 1
+                    )
+                    briefNotice?.let {
+                        Text(it, style = typography.bodySmall, color = WeMadeColors.OnSurfaceMuted)
+                    }
                 }
             }
         }
