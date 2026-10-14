@@ -73,6 +73,8 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
     // Follow-up modal state: tracking questions dan visibility
     var currentQuestions by remember { mutableStateOf<List<PendingQuestion>>(emptyList()) }
     var showFollowUpModal by remember { mutableStateOf(false) }
+    // Pertanyaan yang sengaja dilewati pengguna: tidak dimunculkan lagi oleh reload berikutnya.
+    var skippedQuestionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     // Wizard: sekali semai pesan pembuka dari templateCode (prop route internal), tidak pernah ganda.
     var templateInitialized by remember { mutableStateOf(false) }
 
@@ -80,13 +82,17 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
         client.chat(thread).onSuccess { raw ->
             messages = parseMessages(raw)
             // Follow-up dihitung server setiap riwayat dimuat; utas Semua mencakup semua utas.
-            val followUps = parseFollowUp(raw)
-            pendingByThread = pendingByThread + (thread to followUps.size)
-            // Simpan pertanyaan untuk modal dan trigger jika ada yang belum dijawab
-            if (followUps.isNotEmpty()) {
-                currentQuestions = followUps
-                showFollowUpModal = true
-            }
+            // Modal hanya memuat pertanyaan milik utas aktif: utas modul = modul itu saja, Semua = pertanyaan umum
+            // (moduleId null); follow-up modul lain tidak bocor ke sini.
+            val all = parseFollowUp(raw)
+            val followUps = all.filter { it.moduleId == thread }
+            // Utas Semua memuat follow-up semua utas, jadi dari sana badge SEMUA tab dihitung sekaligus; utas modul
+            // hanya tahu miliknya sendiri.
+            pendingByThread = if (thread == null) all.groupBy { it.moduleId }.mapValues { it.value.size }
+            else pendingByThread + (thread to followUps.size)
+            val visible = followUps.filter { it.id !in skippedQuestionIds }
+            currentQuestions = visible
+            showFollowUpModal = visible.isNotEmpty()
         }.onFailure { error = it.message }
     }
     suspend fun reloadDraft() {
@@ -96,6 +102,15 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
         reloadChat()
         reloadDraft()
         loaded = true
+    }
+
+    // Follow-up tiap modul disiapkan sekali saat draf termuat (idempoten di server), supaya badge tab modul sudah
+    // terisi dari awal — bukan baru muncul setelah modulnya dibuka.
+    val moduleIds = draft?.activeModules.orEmpty().map { it.id }
+    LaunchedEffect(moduleIds) {
+        if (moduleIds.isEmpty()) return@LaunchedEffect
+        moduleIds.forEach { client.requestFollowUps(it) }
+        if (thread == null) reloadChat()
     }
 
     // Wizard: templateCode datang dari route internal (`/builder/chat?template=...`), bukan URL browser —
@@ -137,7 +152,11 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
     // Riwayat kosong tetapi draf tenant ada → satu pesan pembuka lokal supaya chat tidak kosong.
     val shown = remember(messages, draft, loaded, thread) {
         val d = draft
-        if (loaded && messages.isEmpty() && d != null && thread == null) listOf(openingEntryFor(d)) else messages
+        when {
+            !loaded || messages.isNotEmpty() || d == null -> messages
+            thread == null -> listOf(openingEntryFor(d))
+            else -> listOf(openingEntryForModule(d, requireNotNull(thread)))
+        }
     }
     LaunchedEffect(shown.size) {
         if (shown.isNotEmpty()) listState.animateScrollToItem(shown.lastIndex)
@@ -178,6 +197,7 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
     }
 
     fun skipFollowUps() {
+        skippedQuestionIds = skippedQuestionIds + currentQuestions.map { it.id }
         showFollowUpModal = false
         currentQuestions = emptyList()
     }
@@ -248,6 +268,8 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                             if (!busy && picked != thread) {
                                 thread = picked
                                 messages = emptyList()
+                                currentQuestions = emptyList()
+                                showFollowUpModal = false
                                 scope.launch {
                                     if (picked != null) client.requestFollowUps(picked)
                                     reloadChat()

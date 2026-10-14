@@ -110,6 +110,16 @@ object WeMadeColors {
     val GoogleGreen = Color(0xFF34A853)
     val GoogleYellow = Color(0xFFFBBC05)
     val GoogleRed = Color(0xFFEA4335)
+
+    // ── Token Wireframe (Moqups Monochrome Blueprint) ──────────────────────
+    val WireframeCanvas = Color(0xFFF1F3F5)
+    val WireframeGrid = Color(0xFFCBD5E1)
+    val WireframeSurface = Color(0xFFFFFFFF)
+    val WireframeBorder = Color(0xFF1E293B)
+    val WireframeBorderSubtle = Color(0xFFE2E8F0)
+    val WireframeOnSurface = Color(0xFF0F172A)
+    val WireframeOnSurfaceMuted = Color(0xFF64748B)
+    val WireframeBadgeBg = Color(0xFFF8FAFC)
 }
 
 /**

@@ -76,6 +76,21 @@ internal fun openingEntryFor(draft: DiscoveryDraftUi): BuilderChatEntry = Builde
     applied = true
 )
 
+/** Ringkasan lokal utas modul (tidak disimpan) selagi riwayatnya kosong: fitur modul itu dari draf. */
+internal fun openingEntryForModule(draft: DiscoveryDraftUi, moduleId: String): BuilderChatEntry {
+    val features = featuresOf(draft.focusedOn(moduleId)).firstOrNull()
+    return BuilderChatEntry(
+        id = "local-opening-$moduleId",
+        isUser = false,
+        text = "Ringkasan ${features?.moduleName ?: moduleId}: fitur di modul ini ada di bawah. " +
+            "Jawab pertanyaan lanjutan modul ini, atau minta ubah isiannya.",
+        summary = features?.items.orEmpty(),
+        hasPendingPatch = false,
+        applied = true,
+        moduleId = moduleId
+    )
+}
+
 /**
  * Draf yang difokuskan ke satu modul (utas modul dipilih): hanya modul itu dan layarnya yang tersisa, sehingga panel hasil
  * menampilkan **modul yang sedang dibahas**. `null` = utas Semua, draf utuh. Murni; draf asal tidak berubah.

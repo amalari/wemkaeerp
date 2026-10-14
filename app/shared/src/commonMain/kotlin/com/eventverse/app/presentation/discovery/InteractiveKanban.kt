@@ -27,9 +27,10 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun InteractiveKanban(
     state: InteractiveKanbanState,
     modifier: Modifier = Modifier,
-    onDeleteCard: ((PrototypeRow) -> Unit)? = null
+    onDeleteCard: ((PrototypeRow) -> Unit)? = null,
+    wireframe: Boolean = true
 ) {
-    val columns = remember(state.config.columns, state.config.columnMeta, state.rows) {
+    val columns = remember(state.config.columns, state.config.columnMeta, state.rows, wireframe) {
         state.config.columns.map { column ->
             val meta = state.config.columnMeta[column]
             val items = state.cards(column)
@@ -38,6 +39,7 @@ fun InteractiveKanban(
             val tintHex = meta?.tintHex
 
             val tint = when {
+                wireframe -> WeMadeColors.WireframeBorder
                 exceedsWip -> WeMadeColors.Defect
                 tintHex != null -> Color(tintHex)
                 else -> WeMadeColors.Primary
@@ -70,7 +72,8 @@ fun InteractiveKanban(
                 state = state,
                 isDragging = isDragging,
                 onDelete = onDeleteCard ?: { state.delete(it.id) },
-                onCardClick = { state.selectedCardForDetail = card }
+                onCardClick = { state.selectedCardForDetail = card },
+                wireframe = wireframe
             )
         }
 

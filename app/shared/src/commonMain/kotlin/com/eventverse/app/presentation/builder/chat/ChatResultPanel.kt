@@ -82,8 +82,9 @@ internal fun ChatResultPanel(
                     tabs = TABS,
                     selectedIndex = tab,
                     onSelect = { tab = it },
+                    tint = WeMadeColors.WireframeBorder,
                     badges = listOf(
-                        contextScreens.size.toString(),
+                        (draft?.screens?.size ?: contextScreens.size).toString(),
                         if (focusModuleId != null) "Spek" else draft?.modules?.size?.toString(),
                         null
                     )
@@ -105,8 +106,8 @@ internal fun ChatResultPanel(
             }
         } else when (tab) {
             0 -> {
-                // TAB 0: PROTOTYPE SELAYAR & FULL HEIGHT
-                if (contextScreens.isEmpty()) {
+                // TAB 0: PROTOTYPE SELAYAR & FULL HEIGHT (Moqups Wireframe Mode)
+                if (draft.screens.isEmpty()) {
                     val focusedName = draft.modules.firstOrNull { it.id == focusModuleId }?.displayName ?: focusModuleId
                     ClayCard(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()) {
                         Column(
@@ -133,9 +134,11 @@ internal fun ChatResultPanel(
                 } else {
                     PrototypeRenderer(
                         draft = draft,
-                        screens = contextScreens,
+                        screens = draft.screens,
                         carousel = true,
                         fullWidth = true,
+                        wireframe = true,
+                        initialModuleId = focusModuleId,
                         modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()
                     )
                 }

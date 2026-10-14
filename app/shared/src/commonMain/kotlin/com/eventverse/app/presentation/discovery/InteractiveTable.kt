@@ -51,7 +51,11 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * - Responsif memenuhi lebar (fillMaxWidth) dengan scroll horizontal bila kolom padat
  */
 @Composable
-fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier) {
+fun InteractiveTable(
+    state: InteractiveTableState,
+    modifier: Modifier = Modifier,
+    wireframe: Boolean = true
+) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -65,11 +69,19 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                 placeholder = "Cari di tabel..."
             )
             if (state.config.inlineCreate && !state.isCreatingInline) {
-                ClayButton(
-                    text = "+ Tambah",
-                    style = ClayButtonStyle.Primary,
-                    onClick = { state.startInlineCreate() }
-                )
+                if (wireframe) {
+                    WireframeButton(
+                        text = "+ Tambah",
+                        onClick = { state.startInlineCreate() },
+                        filled = true
+                    )
+                } else {
+                    ClayButton(
+                        text = "+ Tambah",
+                        style = ClayButtonStyle.Primary,
+                        onClick = { state.startInlineCreate() }
+                    )
+                }
             }
         }
 
@@ -107,7 +119,8 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                             Text(
                                 state.columnLabel(column),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = WeMadeColors.OnSurfaceMuted,
+                                fontWeight = if (wireframe) FontWeight.Bold else FontWeight.Normal,
+                                color = if (wireframe) WeMadeColors.WireframeOnSurface else WeMadeColors.OnSurfaceMuted,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -120,11 +133,18 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                     }
                     Spacer(modifier = Modifier.width(deleteWidth))
                 }
-                HorizontalDivider(modifier = Modifier.width(contentWidth), color = WeMadeColors.Outline.copy(alpha = 0.3f))
+                HorizontalDivider(
+                    modifier = Modifier.width(contentWidth),
+                    color = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Outline.copy(alpha = 0.3f),
+                    thickness = if (wireframe) 1.5.dp else 1.dp
+                )
 
                 if (state.isCreatingInline) {
-                    InlineRowEditor(state = state, columnWidth = responsiveColWidth)
-                    HorizontalDivider(modifier = Modifier.width(contentWidth), color = WeMadeColors.Outline.copy(alpha = 0.2f))
+                    InlineRowEditor(state = state, columnWidth = responsiveColWidth, wireframe = wireframe)
+                    HorizontalDivider(
+                        modifier = Modifier.width(contentWidth),
+                        color = if (wireframe) WeMadeColors.WireframeBorderSubtle else WeMadeColors.Outline.copy(alpha = 0.2f)
+                    )
                 }
 
                 val rows = state.visibleRows
@@ -134,7 +154,8 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
                         state = state,
                         columnWidth = responsiveColWidth,
                         deleteWidth = deleteWidth,
-                        contentWidth = contentWidth
+                        contentWidth = contentWidth,
+                        wireframe = wireframe
                     )
                 }
                 if (rows.isEmpty() && !state.isCreatingInline) {
@@ -144,11 +165,27 @@ fun InteractiveTable(state: InteractiveTableState, modifier: Modifier = Modifier
         }
         state.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
         state.transientMessage?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = WeMadeColors.Defect) }
-        if (state.config.statusField != null) {
-            Text("Ketuk status untuk mengubahnya.", style = MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
-        }
-        if (state.config.editableFields.isNotEmpty()) {
-            Text("Ketuk sel untuk mengedit nilai.", style = MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)
+        if (state.config.statusField != null || state.config.editableFields.isNotEmpty()) {
+            Row(
+                modifier = Modifier.padding(top = ClaySpacing.Xs),
+                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (state.config.statusField != null) {
+                    Text(
+                        "• Ketuk status untuk mengubah",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (wireframe) WeMadeColors.WireframeOnSurfaceMuted else WeMadeColors.OnSurfaceMuted
+                    )
+                }
+                if (state.config.editableFields.isNotEmpty()) {
+                    Text(
+                        "• Ketuk sel untuk mengedit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (wireframe) WeMadeColors.WireframeOnSurfaceMuted else WeMadeColors.OnSurfaceMuted
+                    )
+                }
+            }
         }
     }
 }
@@ -159,7 +196,8 @@ private fun TableRow(
     state: InteractiveTableState,
     columnWidth: Dp,
     deleteWidth: Dp,
-    contentWidth: Dp
+    contentWidth: Dp,
+    wireframe: Boolean = false
 ) {
     var showConfirmDelete by remember { mutableStateOf(false) }
 
@@ -170,13 +208,14 @@ private fun TableRow(
     ) {
         state.config.columns.forEach { column ->
             if (state.isStatus(column)) {
-                StatusCell(row, column, state, columnWidth)
+                StatusCell(row, column, state, columnWidth, wireframe = wireframe)
             } else {
                 TableCell(
                     row = row,
                     column = column,
                     state = state,
-                    columnWidth = columnWidth
+                    columnWidth = columnWidth,
+                    wireframe = wireframe
                 )
             }
         }
@@ -187,8 +226,10 @@ private fun TableRow(
             Text(
                 text = "×",
                 style = MaterialTheme.typography.titleMedium,
-                color = WeMadeColors.OnSurfaceMuted,
+                fontWeight = if (wireframe) FontWeight.Bold else FontWeight.Normal,
+                color = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.OnSurfaceMuted,
                 modifier = Modifier
+                    .pointerHoverIcon(PointerIcon.Hand)
                     .clickable { showConfirmDelete = true }
                     .padding(horizontal = ClaySpacing.Xs)
             )
@@ -201,21 +242,40 @@ private fun TableRow(
             title = { Text("Hapus Baris", fontWeight = FontWeight.Bold) },
             text = { Text("Yakin ingin menghapus data baris '${row.id}'?") },
             confirmButton = {
-                ClayButton(
-                    text = "Hapus",
-                    style = ClayButtonStyle.Danger,
-                    onClick = {
-                        showConfirmDelete = false
-                        state.delete(row.id)
-                    }
-                )
+                if (wireframe) {
+                    WireframeButton(
+                        text = "Hapus",
+                        onClick = {
+                            showConfirmDelete = false
+                            state.delete(row.id)
+                        },
+                        filled = true
+                    )
+                } else {
+                    ClayButton(
+                        text = "Hapus",
+                        style = ClayButtonStyle.Danger,
+                        onClick = {
+                            showConfirmDelete = false
+                            state.delete(row.id)
+                        }
+                    )
+                }
             },
             dismissButton = {
-                ClayButton(
-                    text = "Batal",
-                    style = ClayButtonStyle.Secondary,
-                    onClick = { showConfirmDelete = false }
-                )
+                if (wireframe) {
+                    WireframeButton(
+                        text = "Batal",
+                        onClick = { showConfirmDelete = false },
+                        filled = false
+                    )
+                } else {
+                    ClayButton(
+                        text = "Batal",
+                        style = ClayButtonStyle.Secondary,
+                        onClick = { showConfirmDelete = false }
+                    )
+                }
             }
         )
     }
@@ -226,13 +286,15 @@ private fun StatusCell(
     row: PrototypeRow,
     column: String,
     state: InteractiveTableState,
-    columnWidth: Dp
+    columnWidth: Dp,
+    wireframe: Boolean = false
 ) {
     var open by remember { mutableStateOf(false) }
     Box(modifier = Modifier.width(columnWidth)) {
         ClayBadge(
             text = row[column].ifEmpty { "-" },
-            tint = WeMadeColors.Primary,
+            tint = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary,
+            containerColor = if (wireframe) WeMadeColors.WireframeBadgeBg else WeMadeColors.Primary.copy(alpha = 0.14f),
             modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { open = true }
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {

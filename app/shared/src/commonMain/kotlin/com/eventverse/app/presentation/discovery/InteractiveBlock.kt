@@ -17,7 +17,11 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /** Memilih blok menurut jenis state-nya; menampilkan indikator memuat dan banner galat (TRD-PLAT-003, butir A2). */
 @Composable
-fun InteractiveBlock(state: PlayableState, modifier: Modifier = Modifier) {
+fun InteractiveBlock(
+    state: PlayableState,
+    modifier: Modifier = Modifier,
+    wireframe: Boolean = true
+) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
         when (val phase = state.phase) {
             is BlockDataPhase.Loading -> {
@@ -40,22 +44,30 @@ fun InteractiveBlock(state: PlayableState, modifier: Modifier = Modifier) {
                         color = WeMadeColors.Defect,
                         modifier = Modifier.weight(1f)
                     )
-                    ClayButton(
-                        text = "Coba lagi",
-                        style = ClayButtonStyle.Secondary,
-                        onClick = { state.retry() }
-                    )
+                    if (wireframe) {
+                        WireframeButton(
+                            text = "Coba lagi",
+                            onClick = { state.retry() },
+                            filled = false
+                        )
+                    } else {
+                        ClayButton(
+                            text = "Coba lagi",
+                            style = ClayButtonStyle.Secondary,
+                            onClick = { state.retry() }
+                        )
+                    }
                 }
             }
             else -> {}
         }
 
         when (state) {
-            is InteractiveKanbanState -> InteractiveKanban(state)
-            is InteractiveTableState -> InteractiveTable(state)
+            is InteractiveKanbanState -> InteractiveKanban(state, wireframe = wireframe)
+            is InteractiveTableState -> InteractiveTable(state, wireframe = wireframe)
             is InteractiveChecklistState -> InteractiveChecklist(state)
             is InteractiveDashboardState -> InteractiveDashboard(state)
-            is InteractiveFormState -> InteractiveForm(state)
+            is InteractiveFormState -> InteractiveForm(state, wireframe = wireframe)
         }
     }
 }

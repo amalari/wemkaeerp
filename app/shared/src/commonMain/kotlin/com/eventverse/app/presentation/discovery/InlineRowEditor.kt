@@ -36,7 +36,8 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 fun InlineRowEditor(
     state: InteractiveTableState,
     columnWidth: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    wireframe: Boolean = false
 ) {
     Column(
         modifier = modifier.onPreviewKeyEvent { event ->
@@ -78,21 +79,35 @@ fun InlineRowEditor(
                     showLabel = false,
                     compact = true,
                     relation = relation,
+                    wireframe = wireframe,
                     modifier = Modifier.width(columnWidth)
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
-                ClayButton(
-                    text = "Simpan",
-                    style = ClayButtonStyle.Primary,
-                    onClick = { state.submitInlineCreate() }
-                )
-                ClayButton(
-                    text = "Batal",
-                    style = ClayButtonStyle.Secondary,
-                    onClick = { state.cancelInlineCreate() }
-                )
+                if (wireframe) {
+                    WireframeButton(
+                        text = "Simpan",
+                        filled = true,
+                        onClick = { state.submitInlineCreate() }
+                    )
+                    WireframeButton(
+                        text = "Batal",
+                        filled = false,
+                        onClick = { state.cancelInlineCreate() }
+                    )
+                } else {
+                    ClayButton(
+                        text = "Simpan",
+                        style = ClayButtonStyle.Primary,
+                        onClick = { state.submitInlineCreate() }
+                    )
+                    ClayButton(
+                        text = "Batal",
+                        style = ClayButtonStyle.Secondary,
+                        onClick = { state.cancelInlineCreate() }
+                    )
+                }
             }
         }
 

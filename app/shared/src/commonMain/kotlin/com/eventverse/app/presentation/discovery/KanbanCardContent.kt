@@ -58,7 +58,8 @@ fun KanbanCardContent(
     isDragging: Boolean,
     onDelete: (PrototypeRow) -> Unit,
     modifier: Modifier = Modifier,
-    onCardClick: (() -> Unit)? = null
+    onCardClick: (() -> Unit)? = null,
+    wireframe: Boolean = false
 ) {
     var showConfirmDelete by remember { mutableStateOf(false) }
     val cardConfig = state.config.card
@@ -69,7 +70,7 @@ fun KanbanCardContent(
             .then(if (onCardClick != null) Modifier.clickable { onCardClick() } else Modifier),
         shape = ClayShapes.Chip,
         containerColor = WeMadeColors.Surface,
-        outlineColor = if (isDragging) WeMadeColors.Primary else WeMadeColors.Outline,
+        outlineColor = if (isDragging) (if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary) else (if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Outline),
         borderWidth = ClayBorder.Medium,
         contentPadding = PaddingValues(ClaySpacing.Sm)
     ) {
@@ -79,7 +80,8 @@ fun KanbanCardContent(
                     card = card,
                     state = state,
                     elements = cardConfig,
-                    onRequestDelete = { showConfirmDelete = true }
+                    onRequestDelete = { showConfirmDelete = true },
+                    wireframe = wireframe
                 )
             } else {
                 RenderLegacyCardContent(
@@ -122,7 +124,8 @@ private fun RenderRichCardElements(
     card: PrototypeRow,
     state: InteractiveKanbanState,
     elements: List<CardElement>,
-    onRequestDelete: () -> Unit
+    onRequestDelete: () -> Unit,
+    wireframe: Boolean = false
 ) {
     var hasRenderedDelete = false
 
@@ -173,7 +176,8 @@ private fun RenderRichCardElements(
                 if (rawValue.isNotBlank()) {
                     ClayBadge(
                         text = rawValue,
-                        tint = WeMadeColors.Primary
+                        tint = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary,
+                        containerColor = if (wireframe) WeMadeColors.WireframeBadgeBg else WeMadeColors.Primary.copy(alpha = 0.14f)
                     )
                 }
             }
@@ -213,7 +217,7 @@ private fun RenderRichCardElements(
                 if (isFlagged) {
                     ClayTag(
                         text = fieldLabel,
-                        tint = WeMadeColors.Defect
+                        tint = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Defect
                     )
                 }
             }

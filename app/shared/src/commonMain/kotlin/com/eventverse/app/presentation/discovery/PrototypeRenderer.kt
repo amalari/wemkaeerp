@@ -32,12 +32,15 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -65,7 +68,9 @@ fun PrototypeRenderer(
     screens: List<DiscoveryScreenUi> = draft.screens,
     session: PrototypeSession = remember(draft.screens) { PrototypeSession(draft.screens) },
     carousel: Boolean = false,
-    fullWidth: Boolean = false
+    fullWidth: Boolean = false,
+    wireframe: Boolean = false,
+    initialModuleId: String? = null
 ) {
     if (screens.isEmpty()) {
         ClayCard(modifier = Modifier.fillMaxWidth()) {
@@ -77,6 +82,17 @@ fun PrototypeRenderer(
                 color = WeMadeColors.OnSurfaceMuted
             )
         }
+        return
+    }
+
+    if (wireframe) {
+        MoqupsWireframeRenderer(
+            draft = draft,
+            screens = screens,
+            session = session,
+            modifier = modifier,
+            initialModuleId = initialModuleId
+        )
         return
     }
 
@@ -348,13 +364,24 @@ private fun PrototypeScreenCard(
 }
 
 @Composable
-private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
+internal fun WidgetBody(
+    widget: String,
+    rows: List<Map<String, String>>,
+    wireframe: Boolean = false
+) {
     when (WidgetKind.fromCode(widget)) {
         WidgetKind.DASHBOARD -> ClayFlowRow(modifier = Modifier.fillMaxWidth()) {
             rows.forEach { row ->
                 Column(
                     modifier = Modifier
-                        .background(WeMadeColors.PrimaryContainer, ClayShapes.Tile)
+                        .background(
+                            if (wireframe) WeMadeColors.WireframeSurface else WeMadeColors.PrimaryContainer,
+                            ClayShapes.Tile
+                        )
+                        .then(
+                            if (wireframe) Modifier.border(1.5.dp, WeMadeColors.WireframeBorder, RoundedCornerShape(8.dp))
+                            else Modifier
+                        )
                         .padding(ClaySpacing.Md)
                 ) {
                     row.forEach { (k, v) ->
@@ -391,6 +418,10 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(WeMadeColors.Surface, ClayShapes.Chip)
+                                    .then(
+                                        if (wireframe) Modifier.border(1.5.dp, WeMadeColors.WireframeBorder, RoundedCornerShape(8.dp))
+                                        else Modifier
+                                    )
                                     .padding(ClaySpacing.Sm),
                                 verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)
                             ) {
@@ -427,7 +458,8 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
                     )
                     ClayBadge(
                         text = if (row["Selesai"] == "ya") "selesai" else "terbuka",
-                        tint = if (row["Selesai"] == "ya") WeMadeColors.Success else WeMadeColors.OnSurfaceMuted
+                        tint = if (wireframe) WeMadeColors.WireframeBorder else if (row["Selesai"] == "ya") WeMadeColors.Success else WeMadeColors.OnSurfaceMuted,
+                        containerColor = if (wireframe) WeMadeColors.WireframeBadgeBg else if (row["Selesai"] == "ya") WeMadeColors.Success.copy(alpha = 0.14f) else WeMadeColors.OnSurfaceMuted.copy(alpha = 0.14f)
                     )
                 }
             }
@@ -435,7 +467,11 @@ private fun WidgetBody(widget: String, rows: List<Map<String, String>>) {
         WidgetKind.FORM -> Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
             rows.firstOrNull()?.forEach { (k, v) ->
                 if (k == "Simpan") {
-                    ClayButton(text = v, onClick = {}, style = ClayButtonStyle.Secondary)
+                    if (wireframe) {
+                        WireframeButton(text = v, onClick = {}, filled = true)
+                    } else {
+                        ClayButton(text = v, onClick = {}, style = ClayButtonStyle.Secondary)
+                    }
                 } else {
                     Column {
                         Text(k, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = WeMadeColors.OnSurfaceMuted)

@@ -25,12 +25,16 @@ import com.eventverse.app.presentation.theme.WeMadeColors
  * Validasi required dan aturan tipe ditegakkan oleh reducer, bukan di Composable.
  */
 @Composable
-fun InteractiveForm(state: InteractiveFormState, modifier: Modifier = Modifier) {
+fun InteractiveForm(
+    state: InteractiveFormState,
+    modifier: Modifier = Modifier,
+    wireframe: Boolean = true
+) {
     ClayCard(
         modifier = modifier.fillMaxWidth(),
         shape = ClayShapes.Card,
         containerColor = WeMadeColors.Surface,
-        outlineColor = WeMadeColors.Outline,
+        outlineColor = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Outline,
         borderWidth = ClayBorder.Medium,
         contentPadding = PaddingValues(ClaySpacing.Lg)
     ) {
@@ -57,11 +61,19 @@ fun InteractiveForm(state: InteractiveFormState, modifier: Modifier = Modifier) 
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                ClayButton(
-                    text = state.config.submitLabel,
-                    style = ClayButtonStyle.Primary,
-                    onClick = { state.submit() }
-                )
+                if (wireframe) {
+                    WireframeButton(
+                        text = state.config.submitLabel,
+                        onClick = { state.submit() },
+                        filled = true
+                    )
+                } else {
+                    ClayButton(
+                        text = state.config.submitLabel,
+                        style = ClayButtonStyle.Primary,
+                        onClick = { state.submit() }
+                    )
+                }
             }
         }
     }

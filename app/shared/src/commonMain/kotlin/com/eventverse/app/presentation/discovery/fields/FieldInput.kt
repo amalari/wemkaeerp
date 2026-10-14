@@ -84,7 +84,8 @@ fun FieldInput(
     errorMessage: String? = null,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     fileOps: FileFieldOps? = null,
-    relation: RelationFieldUi? = null
+    relation: RelationFieldUi? = null,
+    wireframe: Boolean = false
 ) {
     Column(
         modifier = modifier,
@@ -166,6 +167,7 @@ fun FieldInput(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Contoh: 100",
+                    focusColor = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary,
                     leadingIcon = if (affix.prefix.isEmpty()) null else {
                         { NumberAffixText(affix.prefix) }
                     },
@@ -217,6 +219,7 @@ fun FieldInput(
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Isi ${field.label.lowercase()}...",
+                    focusColor = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary,
                     enabled = enabled,
                     isError = shownError != null,
                     singleLine = true,
@@ -284,6 +287,7 @@ fun FieldInput(
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = if (compact) field.label else "Id pengguna, contoh: usr-1",
+                    focusColor = if (wireframe) WeMadeColors.WireframeBorder else WeMadeColors.Primary,
                     enabled = enabled,
                     isError = shownError != null,
                     singleLine = true,

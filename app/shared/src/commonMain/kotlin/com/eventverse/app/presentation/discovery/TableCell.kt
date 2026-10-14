@@ -45,7 +45,8 @@ fun TableCell(
     column: String,
     state: InteractiveTableState,
     columnWidth: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    wireframe: Boolean = false
 ) {
     val isEditing = state.editingCell == (row.id to column)
     val isEditable = state.isCellEditable(column)
@@ -72,6 +73,7 @@ fun TableCell(
                 errorMessage = state.cellErrorMessage,
                 fileOps = editFileOps,
                 relation = editRelation,
+                wireframe = wireframe,
                 modifier = Modifier
                     .width(columnWidth)
                     .onPreviewKeyEvent { event ->
@@ -113,7 +115,11 @@ fun TableCell(
                             }
                         }
                     },
-                    tint = if (state.isCellEditable(column)) WeMadeColors.Primary else WeMadeColors.OnSurfaceMuted
+                    tint = when {
+                        wireframe -> WeMadeColors.WireframeBorder
+                        state.isCellEditable(column) -> WeMadeColors.Primary
+                        else -> WeMadeColors.OnSurfaceMuted
+                    }
                 )
             } else if (fieldSpec?.type == FieldType.RELATION) {
                 // C7 Track C: label rujukan, fallback id; "Tidak ditemukan (id)" abu bila target hilang.
@@ -123,6 +129,7 @@ fun TableCell(
                     style = MaterialTheme.typography.bodySmall,
                     color = when {
                         display.missing -> WeMadeColors.OnSurfaceMuted
+                        wireframe -> WeMadeColors.WireframeOnSurface
                         isEditable -> WeMadeColors.Primary
                         else -> WeMadeColors.OnSurface
                     },
@@ -143,7 +150,11 @@ fun TableCell(
                 Text(
                     text = cellText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isEditable) WeMadeColors.Primary else WeMadeColors.OnSurface,
+                    color = when {
+                        wireframe -> WeMadeColors.WireframeOnSurface
+                        isEditable -> WeMadeColors.Primary
+                        else -> WeMadeColors.OnSurface
+                    },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
