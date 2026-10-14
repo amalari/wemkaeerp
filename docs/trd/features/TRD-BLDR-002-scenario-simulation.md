@@ -11,6 +11,26 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-14 | Claude (atas permintaan pemilik) | Draf awal |
+| 0.2 | 2026-10-14 | Claude | Diselaraskan dengan komponen yang sudah ada dan TRD-BUILDER-007 (lihat §0). `ScenarioStepper` dibatalkan: pakai ulang `MoqupsFlowNavigator` |
+
+### 0. Penyelarasan dengan yang sudah ada (2026-10-14)
+
+Sebelum membangun, diperiksa apa yang sudah ada atau sedang diusulkan di panel Result `/builder/chat`:
+
+| Komponen | Status (terverifikasi di kode) | Apa yang dilakukan |
+|---|---|---|
+| **Tab "Alur Data"** (`DataFlowPane`, `DataFlowModel`, `DataFlowPipelineChain`, dst.) | **Ada** sejak 3 Okt. Level **modul**: serah-terima port antar modul dihitung dari `OperationalModuleCatalog` (modul tak dikenal katalog jatuh ke `slotInput/slotOutput`) | Dipertahankan sebagai level 1 |
+| **Alur prototype terhubung** (`MoqupsFlowNavigator` + tombol "Lanjut Alur" di `MoqupsWireframeCanvas.kt`, 10 Okt) | **Ada**. Berpindah antar layar menurut **urutan daftar layar draf**; "Lanjut Alur" hanya mengganti indeks — **tidak membawa data** dan tidak mengenal skenario | Dipakai ulang sebagai pemutar skenario |
+| **TRD-BUILDER-007** (Alur Data per fitur `FeatureFlow/FlowStep` + panel input JSON) | **Baru usulan**; `FeatureFlow`, `FlowStep`, `SimulationState` tidak ada di kode | Diserap, lihat keputusan di bawah |
+
+**Keputusan penyelarasan** (usulan; keputusan akhir di pemilik produk):
+
+1. **Tidak ada tipe `FeatureFlow`/`FlowStep` baru.** Maksud "alur per fitur" dipenuhi dua tipe yang sudah kita rancang: `StageSketch` (alur satu dokumen **di dalam modul**, TRD-BLDR-001) dan `ScenarioSketch` (jalur **lintas modul**). Satu konsep, satu tipe — hindari dua model alur yang bisa saling bertentangan.
+2. **Tab "Alur Data" jadi dua tingkat:** (a) peta serah-terima modul yang sudah ada (tidak diubah); (b) rantai per **skenario terkonfirmasi** dan Tahap per modul, dibaca dari `DiscoveryDraft.scenarios` dan BRIEF. Memenuhi FR-01..03 BUILDER-007 tanpa komponen kedua.
+3. **Pemutar skenario = `MoqupsFlowNavigator` yang sudah ada.** Saat skenario dipilih, `activeScreens` = layar langkah skenario (urutan skenario, bukan urutan daftar layar), dan "Lanjut Alur" berubah dari "ganti indeks" menjadi "bawa data (`ScenarioCarry`) lalu pindah". Tanpa skenario, perilaku lama tetap persis. **`ScenarioStepper` baru dibatalkan.**
+4. **Panel input JSON (BUILDER-007 FR-06..08) tidak dibangun sebagai jalur utama.** Bertentangan dengan AC-03 mereka sendiri ("dapat dipahami user non-teknis") dan dengan keputusan simulasi kita (klik layar, data contoh terisi). JSON bisa menyusul sebagai opsi lanjutan bila ada kebutuhan nyata.
+5. **Kepemilikan file.** `MoqupsWireframeCanvas.kt` sudah **560 baris** (batas keras presentation 600): perubahan di sana harus **tidak menambah baris** (Ratchet) — logika skenario masuk file baru bertema (`ScenarioRun.kt`, `ScenarioPicker.kt`), dan `MoqupsFlowNavigator` hanya menerima daftar layar + aksi "lanjut" dari luar (sudah demikian: `nextScreenTitle` + `onNavigateNext`). File itu baru dikerjakan sesi lain (commit `7fae95b3`): koordinasikan sebelum menyentuhnya.
+6. **Dua sumber, satu hasil:** `DataFlowModel` (katalog) menjawab "port apa mengalir antar modul"; skenario menjawab "urutan cerita bisnis pengguna". Keduanya tidak saling menggantikan; fallback deterministik skenario memakai rantai `ModuleHandoff` wawancara, bukan katalog garment, supaya pack non-garment tetap bekerja.
 
 ### Summary & Business Context
 
@@ -85,8 +105,10 @@ Aksi **"Lanjut ke <label>"** pada langkah *i*:
 4. berpindah ke layar *i+1*. Tombol "Kembali" tidak menghapus baris yang sudah dibuat.
 `reworkTo` menyediakan aksi "Kembalikan ke <label>". Semua data **hilang saat sesi berakhir** dan **tidak pernah** dikirim ke server.
 
-**FR-7 — Tampilan.** Panel prototype memiliki pemilih **Skenario** (di atas daftar layar) dan stepper langkah; langkah
-berkerangka diberi tanda; badge sumber (`AI`/`DETERMINISTIC`/`USER`) dan status konfirmasi. Mode "per modul" tetap ada.
+**FR-7 — Tampilan.** Panel prototype memiliki pemilih **Skenario** (di atas `MoqupsFlowNavigator`); navigator **yang sudah ada**
+dipakai ulang (§0 butir 3) — langkah berkerangka diberi tanda; badge sumber (`AI`/`DETERMINISTIC`/`USER`) dan status
+konfirmasi. Mode "per modul"/urutan daftar layar (perilaku lama) tetap bila tidak ada skenario terpilih. Tab "Alur Data"
+menampilkan rantai skenario terkonfirmasi sebagai tingkat kedua (§0 butir 2).
 
 **FR-8 — Konfirmasi.** Skenario berstatus *diusulkan* sampai pengguna menekan Konfirmasi; hanya yang terkonfirmasi
 masuk ke ekspor brief/handoff (`HandoffScaffoldGenerator`), supaya tebakan AI tidak menjadi spesifikasi.
@@ -144,7 +166,7 @@ flowchart LR
 | core/usecases | `ProposeScenariosUseCase`, `ConfirmScenarioUseCase`, `EditScenarioUseCase` (Result<T>, tidak mengubah draf selain lewat Terapkan) |
 | core/shared | `DiscoveryDraftCodec`: kunci `scenarios` opsional; `ScenarioCodec` menolak nilai tak dikenal |
 | server | `KoogScenarioProposer` + parser JSON tunggal; rute `POST /api/builder/draft/scenarios/propose`, `POST .../confirm` (gerbang Builder) |
-| app/shared | `ScenarioRun` di `PrototypeSession`, `ScenarioPicker`, `ScenarioStepper` (komponen fitur; token clay, nol literal warna); pecah file bertema agar tiap file di bawah batas ukuran |
+| app/shared | `ScenarioRun` (file baru, bukan menambah `PrototypeSession`), `ScenarioPicker`, rantai skenario di tab Alur Data; **pakai ulang `MoqupsFlowNavigator`**, `MoqupsWireframeCanvas.kt` tidak boleh bertambah baris (560/600); token clay, nol literal warna |
 
 ### Data Model & Schema
 Tanpa migrasi DB: `scenarios` ikut dokumen draf (JSON). Contoh:
@@ -182,7 +204,7 @@ Tanpa migrasi DB: `scenarios` ikut dokumen draf (JSON). Contoh:
 ## 5. Testing, Deployment, and Operations
 
 ### Effort Estimation & Reasoning
-- **Rating**: `Medium–High` (≈ 5–6 hari). Reasoning: tanpa migrasi, tetapi menambah konsep domain baru + codec draf +
+- **Rating**: `Medium` (≈ 4–5 hari setelah penyelarasan; komponen navigator tidak dibuat ulang). Reasoning: tanpa migrasi, tetapi menambah konsep domain baru + codec draf +
   pemutar UI lintas layar + agent kedua. Risiko utama: koersi tipe pemetaan field dan kompleksitas `PrototypeSession`.
 
 ### Parallel Execution Plan (Tracks)
@@ -192,7 +214,7 @@ Tanpa migrasi DB: `scenarios` ikut dokumen draf (JSON). Contoh:
   (draf lama tanpa `scenarios` tetap terbaca; nilai tak dikenal ditolak).
 - **Track B — Server**: `KoogScenarioProposer` + parser tunggal, rute propose/confirm, tes 403, flag
   `builder.scenarios.enabled`.
-- **Track C — Klien**: `ScenarioRun`, `ScenarioPicker`, `ScenarioStepper`, parse skenario, tes unit `ScenarioRun`
+- **Track C — Klien**: `ScenarioRun`, `ScenarioPicker`, adaptasi `MoqupsFlowNavigator` (tanpa menambah baris `MoqupsWireframeCanvas.kt`), rantai skenario di tab Alur Data, parse skenario, tes unit `ScenarioRun`
   (carry, rework, nol HTTP).
 - **Track D — Visual**: `wemade-demo` (superadmin demo) + `bordir-uji` ~1280dp: jalankan skenario penuh, langkah
   berkerangka, skenario kosong, AI mati.

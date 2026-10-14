@@ -79,6 +79,7 @@ Keputusan pemilik 2026-10-14: **simulasi tampilan** (memori, tidak tersimpan). M
 Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sudah bersama untuk semua layar;
 `TenantStageFlow` terikat sampling → Tahap di brief hanya sketsa.
 
+- [x] S-align Penyelarasan dengan Alur Data, `MoqupsFlowNavigator`, dan TRD-BUILDER-007 (2026-10-14): `FeatureFlow` tidak dibuat, navigator dipakai ulang, panel JSON tidak jadi jalur utama
 - [ ] S0 Kontrak: `ScenarioSketch/Step/FieldCarry`, JSON, `ScenarioProposer`, fixture garment + non-garment
 - [ ] SA1 `ScenarioValidator` (+tes tiap aturan) · SA2 `DeterministicScenarioBuilder` dari `ModuleHandoff`
 - [ ] SA3 `ScenarioCarry` (pemetaan + koersi, murni) · SA4 use case propose/confirm/edit · SA5 codec `scenarios` opsional
@@ -87,7 +88,7 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 - [ ] SC3 Pertanyaan skenario di utas Semua (badge ikut)
 - [ ] SD1 Cek visual `wemade-demo` + `bordir-uji` · SD2 nol HTTP saat simulasi · SD3 teaching doc + `TASKS-SUMMARY`
 
-Estimasi Fase 2: ≈ 5–6 hari (**Medium–High**).
+Estimasi Fase 2: ≈ 4–5 hari (**Medium**) setelah penyelarasan 2026-10-14 (TRD-BLDR-002 §0).
 
 ### Bukti penutupan Fase 1 (2026-10-14)
 - Core: `ModuleBriefRulesTest`, `GenerateModuleBriefsUseCaseTest`, `ChatMessageKindParityTest`, `ModuleBriefContractTest`, `ModuleBriefCodecTest`, `BriefTriggerTest` (core jvmTest 2029+ hijau, JS/WasmJs terkompilasi).
