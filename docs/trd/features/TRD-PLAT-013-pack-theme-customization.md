@@ -266,11 +266,66 @@ fun ChatBubble(
 
 ### Parallel Execution Plan (Tracks)
 
-- **Track 0 — Contract Phase**: Definisikan `PackTheme`, `VisualStyle`, `ChatBubbleStyle` di domain layer. Tidak ada DB migration.
-- **Track A — Core & Domain**: Implementasi `PackThemeResolver`, validasi pack dengan theme.
-- **Track B — Server**: Tidak ada server changes (theme config di pack JSON, bukan runtime DB)
-- **Track C — Client & UI**: Implementasi `GlassModifier`, `ChatBubble` variants, CompositionLocal setup.
-- **Track D — Visual Check**: Test glass effect di browser, cek performance, fallback ke clay di perangkat lambat.
+#### Track 0 — Contract Phase (Serial / Prerequisites)
+
+**Tujuan**: Bekukan kontrak sebelum tracks lain berjalan paralel. Tidak ada DB migration.
+
+| # | Kontrak | Lokasi | Output |
+|---|---|---|---|
+| T0.1 | `PackTheme` data class | `core/.../domain/pack/PackTheme.kt` | File baru dengan data class + enums |
+| T0.2 | `VisualStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CLAY, GLASS, MINIMAL, BRUTAL |
+| T0.3 | `ChatBubbleStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: CARD, BUBBLE, GLASS |
+| T0.4 | `CardStyle` enum | `core/.../domain/pack/PackTheme.kt` | Enum: DEFAULT, ELEVATED, FLAT |
+| T0.5 | DomainPack update | `core/.../domain/pack/DomainPack.kt` | Tambah field `theme: PackTheme? = null` |
+| T0.6 | Fixture pack dengan theme | `core/.../domain/pack/GarmentDomainPack.kt` | Pack variant dengan theme config |
+
+**Track 0 Output**:
+- `PackTheme.kt` dengan 1 data class + 3 enum
+- `DomainPack` schema update (nullable field)
+- Test fixtures di `commonTest/resources/`
+- Mock pack untuk testing
+
+**Gate**: Track 0 wajib selesai sebelum A, B, C bisa mulai. Paralel antar T0.x bisa berjalan.
+
+#### Track A — Core & Domain (Fully Coding)
+
+Implementasi theme resolution dan pack validation.
+
+| # | Task | Lokasi | Output |
+|---|---|---|---|
+| A.1 | `PackThemeResolver` service | `core/.../domain/pack/PackThemeResolver.kt` | Service yang resolve theme dari pack |
+| A.2 | Validasi pack dengan theme | `core/.../domain/pack/DomainPackValidator.kt` | Validasi hex color format, enum values |
+| A.3 | Unit test resolver | `core/.../test/.../PackThemeResolverTest.kt` | Test theme resolution |
+| A.4 | Parity test | `core/.../test/.../PackThemeParityTest.kt` | Semua enum punya representasi |
+
+#### Track B — Server & Persistence
+
+**Status**: TIDAK ADA — theme config di pack JSON, bukan di database.
+
+#### Track C — Client & UI Implementation (Fully Coding)
+
+Implementasi visual components dengan theme support.
+
+| # | Task | Lokasi | Output |
+|---|---|---|---|
+| C.1 | `GlassModifier` | `app/shared/.../designsystem/GlassModifier.kt` | `Modifier.glassSurface()` |
+| C.2 | `ThemeCompositionLocal` | `app/shared/.../theme/ThemeCompositionLocal.kt` | `LocalPackTheme` |
+| C.3 | `ChatBubble` variants | `app/shared/.../builder/chat/ChatBubble.kt` | 3 variant: CARD, BUBBLE, GLASS |
+| C.4 | `ClayCard` glass variant | `app/shared/.../designsystem/ClayCard.kt` | Tambah glass support |
+| C.5 | Unit test component | `app/shared/.../test/ChatBubbleTest.kt` | Test rendering |
+
+#### Track D — UI Visual Check & Verification
+
+Verifikasi visual interaktif di runtime.
+
+| # | Task | Environment | Output |
+|---|---|---|---|
+| D.1 | Glass effect check | Browser (WASM) | Screenshot glass bubble |
+| D.2 | Clay fallback check | Browser (WASM) | Screenshot clay bubble |
+| D.3 | Performance check | Browser DevTools | Frame timing < 16ms |
+| D.4 | Cross-browser | Chrome, Safari, Firefox | Verify backdrop-filter |
+
+**Tenant Test**: `wemade-demo` (superadmin) dan `bordir-uji` (non-rajut)
 
 ### Technical Acceptance Criteria
 

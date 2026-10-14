@@ -192,26 +192,47 @@ val customPack = DomainPack(
 
 ## 6. Implementation Plan
 
-### Phase 1: Core (Track A)
-- [ ] Buat `PackTheme.kt` dengan enum dan data class
-- [ ] Tambah field `theme` ke `DomainPack.kt`
-- [ ] Validasi pack dengan theme di `DomainPackRegistry`
-- [ ] Unit test: PackThemeResolver
+### Track 0 — Contract Phase (Serial / Prerequisites)
 
-### Phase 2: Design System (Track C)
-- [ ] Buat `GlassModifier.kt` dengan glass surface modifier
-- [ ] Update `ClayCard` untuk support glass variant
-- [ ] Test visual: glass effect di browser
+**Tujuan**: Bekukan kontrak sebelum tracks lain berjalan paralel.
 
-### Phase 3: Chat Components (Track C)
-- [ ] Refactor `ChatMessageBubble` untuk theme-aware
-- [ ] Buat `GlassChatBubble` variant
-- [ ] Buat `BubbleChatBubble` variant
+| # | Task | Output | Status |
+|---|---|---|---|
+| T0.1 | Buat `PackTheme.kt` | Data class + 3 enum | ⏳ |
+| T0.2 | Update `DomainPack.kt` | Tambah field `theme: PackTheme?` | ⏳ |
+| T0.3 | Update `GarmentDomainPack.kt` | Pack variant dengan theme | ⏳ |
 
-### Phase 4: Integration (Track D)
-- [ ] Test visual di tenant FOB (glass)
-- [ ] Test visual di tenant CMT (clay fallback)
-- [ ] Performance check: frame timing
+### Track A — Core & Domain (Fully Coding)
+
+| # | Task | Output | Status |
+|---|---|---|---|
+| A.1 | Buat `PackThemeResolver` | Service resolve theme | ⏳ |
+| A.2 | Validasi pack dengan theme | Hex validation, enum validation | ⏳ |
+| A.3 | Unit test resolver | PackThemeResolverTest | ⏳ |
+| A.4 | Parity test | PackThemeParityTest | ⏳ |
+
+### Track B — Server & Persistence
+
+**TIDAK ADA** — theme config di pack JSON.
+
+### Track C — Client & UI Implementation
+
+| # | Task | Output | Status |
+|---|---|---|---|
+| C.1 | Buat `GlassModifier` | Modifier.glassSurface() | ⏳ |
+| C.2 | Setup `ThemeCompositionLocal` | LocalPackTheme | ⏳ |
+| C.3 | Refactor `ChatMessageBubble` | Theme-aware component | ⏳ |
+| C.4 | Buat `GlassChatBubble` variant | Glass bubble composable | ⏳ |
+| C.5 | Buat `BubbleChatBubble` variant | Simple bubble composable | ⏳ |
+
+### Track D — UI Visual Check & Verification
+
+| # | Task | Output | Status |
+|---|---|---|---|
+| D.1 | Glass effect check | Screenshot | ⏳ |
+| D.2 | Clay fallback check | Screenshot | ⏳ |
+| D.3 | Performance check | Frame timing < 16ms | ⏳ |
+| D.4 | Multi-tenant check | wemade-demo + bordir-uji | ⏳ |
 
 ## 7. Non-Functional Considerations
 
