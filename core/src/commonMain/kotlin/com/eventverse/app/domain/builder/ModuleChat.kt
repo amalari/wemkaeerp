@@ -138,7 +138,11 @@ class AskModuleFollowUpsUseCase(
         val conversation = chats.conversationFor(tenantId)
         val thread = chats.messages(conversation.id).inThread(moduleId)
         if (thread.pendingFollowUps(moduleId).isNotEmpty()) return@runCatching false
+        // Dedup teks ternormalisasi: pertanyaan AI (id `ai:`) yang setara dengan celah (id `gap:`) tidak digandakan.
+        val askedText = thread.filter { it.kind == ChatMessageKind.QUESTION }
+            .flatMap { m -> m.questions.map { BriefKeys.normalize(it.question) } }.toSet()
         val gaps = ModuleGapAnalyzer.unasked(ModuleGapAnalyzer.analyze(draft, moduleId), thread)
+            .filter { BriefKeys.normalize(it.question) !in askedText }
         if (gaps.isEmpty()) return@runCatching false
         val name = draft.pack.modules.firstOrNull { it.id.value == moduleId }?.displayName ?: moduleId
         chats.append(
