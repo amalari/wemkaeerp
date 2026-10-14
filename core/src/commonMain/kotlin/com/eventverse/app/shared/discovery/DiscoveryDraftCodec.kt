@@ -45,6 +45,9 @@ object DiscoveryDraftCodec {
     ).let { root ->
         // Kunci baru ditulis hanya bila ada: draf tanpa wawancara tetap ter-encode byte-per-byte sama.
         draft.interview?.let { JsonValue.Obj(root.entries + ("interview" to InterviewSessionCodec.encode(it))) } ?: root
+    }.let { root ->
+        // Sama untuk skenario (TRD-BLDR-002): daftar kosong = kunci tidak ditulis.
+        if (draft.scenarios.isEmpty()) root else JsonValue.Obj(root.entries + ("scenarios" to ScenarioSketchCodec.encode(draft.scenarios)))
     }
 
     fun encodeToString(draft: DiscoveryDraft): String = encode(draft).encode()
@@ -78,8 +81,10 @@ object DiscoveryDraftCodec {
             }
         }
         val interview = optionalObject(root, "interview", "$")?.let { InterviewSessionCodec.decode(it, "$.interview") }
+        // Opsional: kunci absen = kosong (sah untuk draf lama); ada tapi bentuknya salah = ditolak, bukan diabaikan.
+        val scenarios = root["scenarios"]?.takeIf { it !is JsonValue.Null }?.let { ScenarioSketchCodec.decode(it, "$.scenarios") }.orEmpty()
         return try {
-            DiscoveryDraft(pack = pack, blueprint = blueprint, screens = screens, interview = interview)
+            DiscoveryDraft(pack = pack, blueprint = blueprint, screens = screens, interview = interview, scenarios = scenarios)
         } catch (e: IllegalArgumentException) {
             throw DiscoveryDraftDecodeException("$.blueprint", e.message ?: "draf tidak sah")
         }

@@ -5,6 +5,7 @@ import com.eventverse.app.domain.blueprint.Blueprint
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.proposal.ProposalSource
 import com.eventverse.app.domain.discovery.proposal.ScreenProposal
+import com.eventverse.app.domain.discovery.scenario.ScenarioSketch
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.tenant.TenantId
@@ -62,7 +63,13 @@ data class DiscoveryDraft(
      * terbaca dan ter-encode byte-per-byte sama. Aturannya milik `InterviewValidator`, bukan konstruktor ini,
      * supaya tebakan tak sah bisa dikembalikan ke agent dengan path.
      */
-    val interview: InterviewSession? = null
+    val interview: InterviewSession? = null,
+    /**
+     * Skenario lintas modul untuk simulasi tampilan (TRD-BLDR-002). Opsional & kompatibel mundur: draf lama tanpa kunci
+     * `scenarios` terbaca dan ter-encode byte-per-byte sama. Aturannya milik `ScenarioValidator`, bukan konstruktor ini,
+     * supaya skenario tak sah bisa dikembalikan ke agent dengan path.
+     */
+    val scenarios: List<ScenarioSketch> = emptyList()
 ) {
     init {
         require(blueprint.pack == pack.code) {
