@@ -1,7 +1,11 @@
 package com.eventverse.app.shared.pack
 
+import com.eventverse.app.domain.pack.CardStyle
+import com.eventverse.app.domain.pack.ChatBubbleStyle
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.DomainPackCode
+import com.eventverse.app.domain.pack.PackTheme
+import com.eventverse.app.domain.pack.VisualStyle
 import com.eventverse.app.domain.pack.ModuleAction
 import com.eventverse.app.domain.pack.ModuleActionCode
 import com.eventverse.app.domain.pack.ModuleDefinition
@@ -81,6 +85,8 @@ object DomainPackCodec {
             if (pack.defaultCurrencyCode != DomainPack.DEFAULT_CURRENCY_CODE) put("defaultCurrencyCode", jsonOf(pack.defaultCurrencyCode))
             if (pack.blueprints.isNotEmpty()) put("blueprints", jsonArrayOf(pack.blueprints.map(BlueprintCodec::encode)))
             if (pack.languages != PackLanguages.ID_ONLY) put("languages", PackTextMapCodec.encodeLanguages(pack.languages))
+            // Tema pack (TRD-PLAT-013) ditulis hanya bila pack menyatakannya — pack lama byte-identik.
+            pack.theme?.let { put("theme", encodeTheme(it)) }
         }
         if (extra.isEmpty()) root else JsonValue.Obj(root.entries + extra)
     }
@@ -175,6 +181,22 @@ object DomainPackCodec {
             else -> throw DomainPackDecodeException("$.blueprints", "harus array")
         }
         val languages = PackTextMapCodec.decodeLanguages(root["languages"], "$.languages")
+        // Kunci absen/null = pack belum menyatakan tema → resolver memakai tema default platform (bukan pack lain).
+        val theme = when (val t = root["theme"]) {
+            null, JsonValue.Null -> null
+            is JsonValue.Obj -> {
+                val tr = Reader(t, "$.theme")
+                tr.build {
+                    PackTheme(
+                        style = tr.enum("style", VisualStyle.entries),
+                        accentColorHex = t["accentColor"].takeIf { it != null && it != JsonValue.Null }?.let { tr.color("accentColor") },
+                        chatBubbleStyle = tr.enum("chatBubbleStyle", ChatBubbleStyle.entries),
+                        cardStyle = t["cardStyle"].takeIf { it != null && it != JsonValue.Null }?.let { tr.enum("cardStyle", CardStyle.entries) }
+                    )
+                }
+            }
+            else -> throw DomainPackDecodeException("$.theme", "harus objek")
+        }
         return r.build {
             DomainPack(
                 code = r.value("code", ::DomainPackCode),
@@ -198,10 +220,27 @@ object DomainPackCodec {
                 defaultCurrencyCode = r.optional("defaultCurrencyCode") ?: DomainPack.DEFAULT_CURRENCY_CODE,
                 blueprints = blueprints,
                 languages = languages,
+                theme = theme,
                 vocabularyText = vocabularyText,
                 portLabelTexts = portLabelTexts
             )
         }
+    }
+
+    /**
+     * Tema pack (TRD-PLAT-013): enum ditulis dengan `name` agar nilai tak dikenal **ditolak** saat dibaca
+     * (Kontrak 4), dan aksen memakai format `#AARRGGBB` yang sama dengan warna fase/seksi. Field opsional
+     * (`accentColor`, `cardStyle`) dihilangkan bila `null`, bukan ditulis sebagai `null`.
+     */
+    private fun encodeTheme(theme: PackTheme): JsonValue.Obj = jsonObjectOf(
+        "style" to jsonOf(theme.style.name),
+        "chatBubbleStyle" to jsonOf(theme.chatBubbleStyle.name)
+    ).let { base ->
+        val optional = buildMap<String, JsonValue> {
+            theme.accentColorHex?.let { put("accentColor", jsonOf(color(it))) }
+            theme.cardStyle?.let { put("cardStyle", jsonOf(it.name)) }
+        }
+        if (optional.isEmpty()) base else JsonValue.Obj(base.entries + optional)
     }
 
     private fun color(argb: Long): String = "#" + argb.toString(16).uppercase().padStart(8, '0')

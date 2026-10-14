@@ -3,7 +3,7 @@ package com.eventverse.app.domain.pack
 /**
  * Identitas pack bawaan untuk validator draf: dokumen berkode pack bawaan wajib **identik** dengan yang dikirim
  * platform — kecuali **kolom aditif opsional** yang ditambahkan setelah draf lama tersimpan ([DomainPack.roleHints],
- * [DomainPack.reservedTerms], [DomainPack.sharedModules], [DomainPack.handoverRouteTemplate]). Untuk kolom itu, draf boleh membawa nilai yang sama persis
+ * [DomainPack.reservedTerms], [DomainPack.sharedModules], [DomainPack.handoverRouteTemplate], [DomainPack.theme]). Untuk kolom itu, draf boleh membawa nilai yang sama persis
  * dengan pack bawaan **atau kosong** (draf lama yang belum mengenalnya). Nilai lain = ditulis ulang → ditolak.
  *
  * Tanpa ini, setiap draf garment yang tersimpan sebelum sebuah kolom aditif ditambahkan akan ditolak "wajib identik"
@@ -25,9 +25,12 @@ private fun DomainPack.matchesShippedAdditive(shippedWithTranslations: DomainPac
     if (!additive(reservedTerms, shipped.reservedTerms) { it.isEmpty() }) return false
     if (!additive(sharedModules, shipped.sharedModules) { it.isEmpty() }) return false
     if (!additive(handoverRouteTemplate, shipped.handoverRouteTemplate) { it.isEmpty() }) return false
+    // Tema (TRD-PLAT-013) = kolom aditif: dokumen yang tersimpan sebelum field ini ada membawa `theme == null`
+    // dan tetap sah; tema non-null yang **berbeda** dari pack bawaan = penulisan ulang → ditolak.
+    if (!additive(theme, shipped.theme) { it == null }) return false
     return copy(
         roleHints = shipped.roleHints, reservedTerms = shipped.reservedTerms, sharedModules = shipped.sharedModules,
-        handoverRouteTemplate = shipped.handoverRouteTemplate
+        handoverRouteTemplate = shipped.handoverRouteTemplate, theme = shipped.theme
     ) == shipped
 }
 
