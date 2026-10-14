@@ -1,6 +1,6 @@
 # PLAN: Builder Console v2 — Navigasi Assisted-Serve (Chat, Live, Handoff, Audit, Setting)
 
-> **Status**: Diusulkan · 2026-10-14 · **Pemilik: Achmad Jamaludin**
+> **Status**: Sebagian selesai (T0 kontrak dibekukan) · 2026-10-14 · **Pemilik: Achmad Jamaludin**
 > Keluaran turunan: [`TRD-PLAT-014-builder-console-v2-navigation.md`](../../trd/features/TRD-PLAT-014-builder-console-v2-navigation.md)
 > Prasyarat baca: [`PLAN-builder-console.md`](PLAN-builder-console.md) (M0–M2 selesai),
 > [`PLAN-developer-portal-software-house.md`](PLAN-developer-portal-software-house.md) (terpisah, belum disetujui),
@@ -79,7 +79,7 @@ Urutan: T0 → T1 ∥ T2 → T3 → T4. T2 dan T3 bisa paralel setelah T0 bila d
 
 ### Checklist Definition of Done
 
-- [ ] T0: tabel peta route + kontrak audit endpoint dibekukan
+- [x] T0: tabel peta route + kontrak audit endpoint dibekukan — `core/.../domain/builder/BuilderConsoleContract.kt` (menu 5 entri label id+en, peta 10 route lama→baru, aturan badge) + `core/.../shared/builder/BuilderAuditTrailCodec.kt` (dekode ketat, tolak nilai tak dikenal); test kontrak `BuilderConsoleContractTest` + `BuilderAuditTrailCodecTest` hijau (`:core:jvmTest`)
 - [ ] T1: `GET /api/builder/audit` + test gate 403 × 3 kasus hijau
 - [ ] T2: `/builder` default chat; Live Preview+Production; deep-link lama teruji
 - [ ] T3: Handoff (scope tenant + brief + audit baca), Audit pane + Postur Security, Setting 4 tab
@@ -88,10 +88,15 @@ Urutan: T0 → T1 ∥ T2 → T3 → T4. T2 dan T3 bisa paralel setelah T0 bila d
 - [ ] Label menu baru dua bahasa sebagai data; nol literal warna baru di luar `WeMadeTheme.kt`
 - [ ] Teaching doc + TASKS-SUMMARY diperbarui
 
-## 7. Keputusan yang masih terbuka
+## 7. Keputusan yang diambil (saat T0 dibekukan, 2026-10-14)
 
-1. Badge Handoff: apakah `SUPERSEDED` dihitung "aktif"? (Usul: tidak — hanya QUEUED/QUOTED/APPROVED/IN_PROGRESS.)
-2. Kartu Postur Security: apakah perlu data "modul dengan RBAC terdaftar vs total" yang belum tersedia
-   sebagai agregat? (Usul: T0 memutuskan turunan dari `module_catalog_entries` atau ditunda ke v2.1.)
-3. Apakah tab Preview perlu sub-tab per pane lama (Modules|Data Flow|Prototype) atau satu gulir
-   berurutan? (Usul: sub-tab, karena ketiganya punya interaksinya sendiri.)
+1. **Badge Handoff** = jumlah `BuildRequestStatus.isPending` saja (QUEUED/QUOTED/APPROVED/IN_PROGRESS);
+   `SUPERSEDED`/`SHIPPED`/`REJECTED` tidak dihitung — dibekukan di `BuilderConsoleBadges.handoffActiveCount`.
+2. **Kartu Postur Security** (T3) hanya menurunkan data dari payload yang sudah ada (deployment aktif +
+   versi ter-pin + daftar modul live dari `GET /api/builder/overview` & `/deployments`); agregat baru
+   ("modul dengan RBAC terdaftar vs total") **ditunda ke v2.1**, tidak dibangun di T3.
+3. **Tab Preview memakai sub-tab** per pane lama (Modules | Data Flow | Prototype) — ketiganya punya
+   interaksinya sendiri, satu gulir akan mengubur interaksi.
+4. Titik Live menu = `BuilderLiveSignal` (NOT_DEPLOYED/LIVE/VALIDATING/BLOCKED_ON_BUILD/FAILED),
+   diturunkan dari status deployment **aktif**; `SUPERSEDED`/`ROLLED_BACK` dihitung "tidak ada deployment
+   aktif" (memang bukan status aktif — `findActive` tidak pernah mengembalikannya).

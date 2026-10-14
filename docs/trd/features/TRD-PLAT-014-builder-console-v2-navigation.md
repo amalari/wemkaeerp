@@ -8,6 +8,7 @@
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-14 | Achmad Jamaludin (dibantu Claude) | Dari sesi desain menu 2026-10-14; melengkapi [`TRD-PLAT-002-builder.md`](TRD-PLAT-002-builder.md) (M0–M2 selesai) |
+| 0.2 | 2026-10-14 | Achmad Jamaludin (dibantu Claude) | **Track 0 dibekukan**: kontrak menu/route/badge di `core/.../domain/builder/BuilderConsoleContract.kt`, kontrak JSON audit di `core/.../shared/builder/BuilderAuditTrailCodec.kt`, test kontrak `BuilderConsoleContractTest` + `BuilderAuditTrailCodecTest` |
 
 ### Summary & Business Context
 
