@@ -1,7 +1,7 @@
 # PLAN: Ringkasan & Follow-Up per Modul di Chat Builder
 
 **Tanggal**: 2026-10-14
-**Status**: Diusulkan
+**Status**: Sebagian — Track 0 kontrak domain selesai (2026-10-14, worktree `worktree-builder-module-briefs-t0`, belum di-commit); Track A/B/C/D belum
 **TRD**: [`TRD-BLDR-001-module-briefs.md`](../../trd/features/TRD-BLDR-001-module-briefs.md) (Fase 1) ·
 [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) (Fase 2)
 **Induk**: [`PLAN-builder-interview-chat.md`](PLAN-builder-interview-chat.md)
@@ -39,10 +39,11 @@ diseed saat draf termuat; ringkasan lokal `openingEntryForModule` untuk utas kos
 ## 2. Track & Tugas
 
 ### Track 0 — Kontrak (serial, wajib selesai dulu)
-- [ ] T0.1 `ChatMessageKind.BRIEF`; field `features`, `stages` (`StageSketch`), `basisRef`, `briefSource` pada `ChatMessage` (+ `init` guard)
-- [ ] T0.2 `ModuleBrief`, `ModuleBriefRequest`, `ModuleBriefer` (port), `BriefSource`
-- [ ] T0.3 Bentuk JSON `BRIEF` di `GET /chat` + DTO `POST /chat/briefs`; fixture di `commonTest/resources`
-- [ ] T0.4 Nomor migrasi dipastikan (`ls … | sort -V | tail -1`, kini V104 → V105)
+- [x] T0.1 `ChatMessageKind.BRIEF`; field `features`, `stages` (`StageSketch`), `basisRef`, `briefSource` pada `ChatMessage` (+ `init` guard)
+- [x] T0.2 `ModuleBrief`, `ModuleBriefRequest`, `ModuleBriefer` (port), `BriefSource`
+- [x] T0.3 Bentuk JSON `BRIEF` dibekukan: `ModuleBriefCodec` (parser tunggal, tolak nilai tak dikenal) + fixture garment/non-garment sebagai konstanta Kotlin di `commonTest` (`BriefContractFixtures`; tidak memakai `resources`). DTO `POST /chat/briefs` mengikuti TRD §4 dan `ModuleBriefOutcome`
+- [x] T0.5 Kontrak pendukung: `ModuleBriefValidator`, `ModuleBriefService` (pintu rute/pemicu; Track B memakai fake), `BriefKeys` (`followUpId`, `basisRef`, `fingerprint` FNV-1a 64 — rumus beku), `BriefIssue`, `ModuleBriefOutcome`
+- [x] T0.4 Nomor migrasi dipastikan (`ls … | sort -V | tail -1`, kini V104 → V105; terverifikasi 2026-10-14)
 
 ### Track A — Core (paralel setelah T0)
 - [ ] A1 `ModuleBriefValidator` + tes tiap aturan (berpath)

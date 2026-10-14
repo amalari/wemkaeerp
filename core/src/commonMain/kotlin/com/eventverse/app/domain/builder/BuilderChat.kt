@@ -12,9 +12,10 @@ enum class ChatRole { USER, AGENT, SYSTEM }
 
 /**
  * Jenis pesan. Mekanik chat milik platform (bukan kosakata industri): [TEXT] biasa, [QUESTION] = pesan agent yang
- * membawa pertanyaan follow-up ([ChatMessage.questions]) yang menunggu jawaban pengguna.
+ * membawa pertanyaan follow-up ([ChatMessage.questions]) yang menunggu jawaban pengguna, [BRIEF] = ringkasan satu modul
+ * (TRD-BLDR-001): teks ringkasan + [ChatMessage.features] + [ChatMessage.stages], selalu di utas modul.
  */
-enum class ChatMessageKind { TEXT, QUESTION }
+enum class ChatMessageKind { TEXT, QUESTION, BRIEF }
 
 @JvmInline
 value class BuilderConversationId(val value: String) {
@@ -55,13 +56,31 @@ data class ChatMessage(
     val moduleId: String? = null,
     val kind: ChatMessageKind = ChatMessageKind.TEXT,
     /** Pertanyaan follow-up (hanya [ChatMessageKind.QUESTION]); [Clarification.answer] null = belum dijawab. */
-    val questions: List<Clarification> = emptyList()
+    val questions: List<Clarification> = emptyList(),
+    /** Butir fitur pelengkap modul (hanya [ChatMessageKind.BRIEF]). Bukan kotak flow — lihat [stages]. */
+    val features: List<String> = emptyList(),
+    /** Sketsa Tahap berurutan satu dokumen di modul (hanya BRIEF); deskriptif, bukan `TenantStageFlow`. */
+    val stages: List<StageSketch> = emptyList(),
+    /** Jejak basis brief (hash narasi + fitur tautan + versi agent) untuk idempotensi; hanya BRIEF. */
+    val basisRef: String? = null,
+    /** Asal brief (AI atau fallback deterministik) supaya terlihat di UI; hanya BRIEF. */
+    val briefSource: BriefSource? = null
 ) {
     init {
         require(text.isNotBlank()) { "Teks pesan kosong" }
         require(kind == ChatMessageKind.QUESTION || questions.isEmpty()) { "Pertanyaan follow-up hanya untuk pesan QUESTION" }
         require(kind != ChatMessageKind.QUESTION || (role == ChatRole.AGENT && questions.isNotEmpty())) {
             "Pesan QUESTION wajib dari AGENT dan membawa minimal satu pertanyaan"
+        }
+        if (kind == ChatMessageKind.BRIEF) {
+            require(role == ChatRole.AGENT) { "Pesan BRIEF wajib dari AGENT" }
+            require(moduleId != null) { "Pesan BRIEF wajib berutas modul" }
+            require(briefSource != null) { "Pesan BRIEF wajib menyatakan briefSource" }
+            require(!basisRef.isNullOrBlank()) { "Pesan BRIEF wajib membawa basisRef" }
+        } else {
+            require(features.isEmpty() && stages.isEmpty() && basisRef == null && briefSource == null) {
+                "features/stages/basisRef/briefSource hanya untuk pesan BRIEF"
+            }
         }
     }
 
