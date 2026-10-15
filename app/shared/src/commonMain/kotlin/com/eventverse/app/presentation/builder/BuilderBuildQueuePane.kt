@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.eventverse.app.domain.builder.BuildRequestStatus
 import com.eventverse.app.infrastructure.api.BuilderApiClient
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -134,14 +135,8 @@ fun BuilderBuildQueuePane(modifier: Modifier = Modifier) {
                         )
                         ClayBadge(
                             text = r.status,
-                            tint = when (r.status) {
-                                "QUEUED" -> WeMadeColors.Warning
-                                "QUOTED", "APPROVED" -> WeMadeColors.Primary
-                                "IN_PROGRESS" -> WeMadeColors.Primary
-                                "SHIPPED" -> WeMadeColors.Success
-                                "REJECTED" -> WeMadeColors.Error
-                                else -> WeMadeColors.OnSurfaceMuted
-                            }
+                            // Satu pemetaan warna bersama dengan pane Handoff — status sama, warna sama.
+                            tint = buildRequestStatusTint(BuildRequestStatus.entries.firstOrNull { it.name == r.status })
                         )
                         if (r.briefVersion > 1) ClayBadge(text = "v${r.briefVersion}", tint = WeMadeColors.Primary)
                         Text(
