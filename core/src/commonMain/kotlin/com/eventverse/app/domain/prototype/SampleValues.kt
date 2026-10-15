@@ -19,6 +19,27 @@ object SampleValues {
     fun missingRequired(entity: EntitySpec, values: Map<String, String>): List<FieldSpec> =
         entity.fields.filter { it.required && values[it.key].isNullOrBlank() }
 
+    /**
+     * Status awal untuk entitas bermesin-status: keadaan yang hanya menjadi **sumber** transisi (tidak pernah tujuan), dengan cadangan
+     * opsi pertama field status. `null` bila entitas tak punya mesin status atau field-nya tak ada.
+     *
+     * Kenapa ada: papan (kanban) mengelompokkan baris menurut field status; baris **tanpa status tidak masuk kolom mana pun** dan
+     * tak terlihat (temuan cek visual klinik, 2026-10-16: baris hasil "Lanjut Alur" ada tetapi tidak tampil di papan Antrean).
+     */
+    fun initialState(entity: EntitySpec): String? {
+        val machine = entity.stateMachine ?: return null
+        val field = entity.fields.firstOrNull { it.key == machine.field } ?: return null
+        val targets = machine.transitions.values.flatten().toSet()
+        return machine.transitions.keys.firstOrNull { it !in targets && it in field.optionLabels } ?: field.optionLabels.firstOrNull()
+    }
+
+    /** [values] ditambah status awal bila entitas bermesin-status dan nilai statusnya kosong; selain itu tak berubah. */
+    fun withInitialState(entity: EntitySpec, values: Map<String, String>): Map<String, String> {
+        val key = entity.stateMachine?.field ?: return values
+        if (!values[key].isNullOrBlank()) return values
+        return initialState(entity)?.let { values + (key to it) } ?: values
+    }
+
     private fun candidates(field: FieldSpec): List<String> = when (field.type) {
         // Beberapa kandidat: validasi EMAIL/PHONE menolak teks biasa, jadi `accepts` yang memilih.
         FieldType.TEXT -> listOf("(contoh)", "contoh@contoh.id", "081200000000")

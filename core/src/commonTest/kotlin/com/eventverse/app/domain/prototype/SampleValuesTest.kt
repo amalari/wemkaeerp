@@ -65,4 +65,40 @@ class SampleValuesTest {
         ))
         assertEquals(listOf("b", "c"), SampleValues.missingRequired(e, mapOf("a" to "x", "b" to " ")).map { it.key })
     }
+
+    // ── status awal ────────────────────────────────────────────────────────────
+
+    private fun machineEntity(options: List<String>, transitions: Map<String, Set<String>>) = EntitySpec(
+        "antrean", "Antrean",
+        listOf(FieldSpec("pasien", "Pasien", FieldType.TEXT), FieldSpec("status", "Status", FieldType.ENUM, options = opts(*options.toTypedArray()))),
+        StateMachine("status", transitions)
+    )
+
+    @Test
+    fun `status awal should keadaan sumber-saja dan bukan opsi pertama`() {
+        // Opsi pertama "Selesai" adalah tujuan akhir; yang benar-benar awal adalah "Menunggu".
+        val e = machineEntity(listOf("Selesai", "Menunggu", "Dipanggil"), mapOf("Menunggu" to setOf("Dipanggil"), "Dipanggil" to setOf("Selesai")))
+        assertEquals("Menunggu", SampleValues.initialState(e))
+    }
+
+    @Test
+    fun `status awal should kembali ke opsi pertama bila setiap keadaan adalah tujuan`() {
+        val e = machineEntity(listOf("A", "B"), mapOf("A" to setOf("B"), "B" to setOf("A")))
+        assertEquals("A", SampleValues.initialState(e))
+    }
+
+    @Test
+    fun `entitas tanpa mesin status should tidak punya status awal dan nilai tak berubah`() {
+        val e = EntitySpec("e", "E", listOf(FieldSpec("a", "A", FieldType.TEXT)))
+        assertNull(SampleValues.initialState(e))
+        assertEquals(mapOf("a" to "x"), SampleValues.withInitialState(e, mapOf("a" to "x")))
+    }
+
+    @Test
+    fun `withInitialState should mengisi status kosong tetapi tidak menimpa yang sudah ada`() {
+        val e = machineEntity(listOf("Menunggu", "Dipanggil"), mapOf("Menunggu" to setOf("Dipanggil")))
+        assertEquals("Menunggu", SampleValues.withInitialState(e, mapOf("pasien" to "Sari"))["status"])
+        assertEquals("Menunggu", SampleValues.withInitialState(e, mapOf("status" to " "))["status"])
+        assertEquals("Dipanggil", SampleValues.withInitialState(e, mapOf("status" to "Dipanggil"))["status"])
+    }
 }

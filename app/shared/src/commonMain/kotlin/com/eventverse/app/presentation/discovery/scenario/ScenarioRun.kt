@@ -56,6 +56,8 @@ sealed interface ScenarioAdvance {
  *   -> diisi **nilai contoh** ([SampleValues]) dan dilaporkan di [ScenarioAdvance.Moved.sampled], supaya alur tetap bisa dilihat
  *   (temuan 9, cek visual klinik 2026-10-16: tanpa ini hampir semua alur nyata berhenti di langkah kedua). Tipe yang tak punya
  *   nilai contoh (RELATION/USER_REF/FILE) tetap kosong -> layar menolak -> [ScenarioAdvance.Blocked].
+ * - **Entitas bermesin-status**: baris baru memulai di status awal ([SampleValues.initialState]) bila statusnya kosong, kalau tidak papan
+ *   tidak menampilkannya (baris tanpa status tak masuk kolom mana pun). Ini aturan mesin, bukan nilai contoh, jadi tidak dilaporkan di `sampled`.
  * - **Layar menolak baris** (mis. field wajib bertipe tanpa nilai contoh kosong) -> [ScenarioAdvance.Blocked] dengan pesan layar;
  *   tidak pindah, tidak mencatat jejak.
  * - **Tidak ada yang dibawa** (langkah tanpa pembawa, layar tujuan kerangka/tanpa entitas) -> pindah tanpa membuat baris.
@@ -104,8 +106,10 @@ data class ScenarioRun(
             return if (outcome.rejected.isEmpty()) ScenarioAdvance.Moved(moved, created = null, note = "Tidak ada data yang dibawa dari '${from.label}'.")
             else ScenarioAdvance.Blocked("Data dari '${from.label}' tidak dapat dibawa ke '${next.label}'.", outcome.rejected)
         }
-        val samples = SampleValues.missingRequired(targetEntity, outcome.values).mapNotNull { f -> SampleValues.forField(f)?.let { f to it } }
-        val row = data.createRow(targetScreen, outcome.values + samples.associate { (f, v) -> f.key to v }).getOrElse { e ->
+        // Urutan penting: status awal dulu (field status wajib pun memulai di status awal, bukan opsi pertama), baru nilai contoh.
+        val base = SampleValues.withInitialState(targetEntity, outcome.values)
+        val samples = SampleValues.missingRequired(targetEntity, base).mapNotNull { f -> SampleValues.forField(f)?.let { f to it } }
+        val row = data.createRow(targetScreen, base + samples.associate { (f, v) -> f.key to v }).getOrElse { e ->
             return ScenarioAdvance.Blocked(e.message ?: "Baris di '${next.label}' ditolak.", outcome.rejected)
         }
         val ref = RowRef(toIndex, targetScreen, row.id)

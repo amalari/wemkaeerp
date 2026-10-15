@@ -101,4 +101,41 @@ class ScenarioSampleFillTest {
         val res = assertIs<ScenarioAdvance.Blocked>(ScenarioRun(scenario).advance(data(withRelation), copyRule))
         assertEquals("'Dokter' wajib diisi", res.reason, "id rujukan tak boleh dikarang")
     }
+
+    /**
+     * Temuan baru dari UI nyata: antrean klinik bermesin-status dengan `status` TIDAK wajib. Baris hasil "Lanjut Alur" ada tetapi
+     * tanpa status tidak masuk kolom papan mana pun. Baris harus memulai di status awal.
+     */
+    @Test
+    fun `entitas bermesin status should memulai baris di status awal agar tampil di papan`() = runTest {
+        val papan = EntitySpec(
+            "antrean", "Antrean",
+            listOf(
+                FieldSpec("nomor", "Nomor antrean", FieldType.TEXT, required = true),
+                FieldSpec("pasien", "Pasien", FieldType.TEXT, required = true),
+                FieldSpec("status", "Status antrean", FieldType.ENUM, options = listOf("Selesai", "Menunggu", "Dipanggil").mapIndexed { i, l -> SelectOption(SelectOptionId("o$i"), l) })
+            ),
+            com.eventverse.app.domain.prototype.StateMachine("status", mapOf("Menunggu" to setOf("Dipanggil"), "Dipanggil" to setOf("Selesai")))
+        )
+        val d = data(papan)
+        val res = assertIs<ScenarioAdvance.Moved>(ScenarioRun(scenario).advance(d, copyRule))
+        assertEquals("Menunggu", d.rows.getValue("s-antre").single().values["status"], "status awal mesin, bukan opsi pertama (Selesai)")
+        assertEquals(listOf("Nomor antrean"), res.sampled, "status awal adalah aturan mesin, bukan nilai contoh")
+    }
+
+    @Test
+    fun `status wajib bermesin should memakai status awal bukan opsi pertama`() = runTest {
+        val papan = EntitySpec(
+            "antrean", "Antrean",
+            listOf(
+                FieldSpec("pasien", "Pasien", FieldType.TEXT, required = true),
+                FieldSpec("status", "Status", FieldType.ENUM, options = listOf("Selesai", "Menunggu").mapIndexed { i, l -> SelectOption(SelectOptionId("o$i"), l) }, required = true)
+            ),
+            com.eventverse.app.domain.prototype.StateMachine("status", mapOf("Menunggu" to setOf("Selesai")))
+        )
+        val d = data(papan)
+        val res = assertIs<ScenarioAdvance.Moved>(ScenarioRun(scenario).advance(d, copyRule))
+        assertEquals("Menunggu", d.rows.getValue("s-antre").single().values["status"])
+        assertTrue(res.sampled.isEmpty(), "status sudah terisi status awal, tidak perlu contoh")
+    }
 }
