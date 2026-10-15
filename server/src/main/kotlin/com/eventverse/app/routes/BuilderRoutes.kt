@@ -89,10 +89,19 @@ fun Route.builderRoutes(
     /** Layanan skenario (TRD-BLDR-002); `null` = fitur mati → rute 404. */
     scenarios: com.eventverse.app.domain.discovery.scenario.ScenarioService? = null
 ) {
-    // TODO(TRD-BLDR-002 koordinator): bila `BuilderScenarioProposers.enabled()` dan `scenarios == null`, bangun service konkret Track A
-    // (KoogScenarioProposer via BuilderScenarioProposers.fromEnv() atau fallback deterministik) tepat di sini, mis.
-    // `val scenarioService = scenarios ?: if (BuilderScenarioProposers.enabled()) <ProposeScenariosUseCase(...)> else null`,
-    // lalu ganti argumen `scenarios` di baris `builderScenarioRoutes(...)` di bawah dengan `scenarioService`.
+    // Skenario lintas modul (TRD-BLDR-002): service yang disuntik (tes) menang; selain itu hanya bila flag env menyala.
+    // Tanpa pengusul AI (kunci/koog tak ada) pengusul kosong -> service jatuh ke skenario deterministik dari sambungan
+    // wawancara atau daftar kosong yang jujur: fitur tidak bergantung pada AI. Narasi dibaca dari riwayat chat tenant.
+    val scenarioService = scenarios ?: if (com.eventverse.app.infrastructure.builder.BuilderScenarioProposers.enabled()) {
+        com.eventverse.app.domain.discovery.scenario.DiscoveryScenarioService(
+            drafts = drafts,
+            proposer = com.eventverse.app.infrastructure.builder.BuilderScenarioProposers.fromEnv()
+                ?: com.eventverse.app.domain.discovery.scenario.ScenarioProposer { Result.success(emptyList()) },
+            narrative = { tenantId ->
+                com.eventverse.app.domain.builder.composeNarrative(chats.messages(chats.conversationFor(tenantId).id))
+            }
+        )
+    } else null
     // Brief per modul (TRD-BLDR-001): service yang disuntik (tes) menang; selain itu hanya bila flag env menyala.
     // Tanpa penyusun AI (kunci/koog tak ada) tetap jalan dengan brief deterministik — fitur tidak bergantung pada AI.
     val briefService = moduleBriefs ?: if (com.eventverse.app.infrastructure.builder.BuilderModuleBriefers.enabled()) {
@@ -153,7 +162,7 @@ fun Route.builderRoutes(
     route("/api/builder") {
         builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
         builderModuleBriefRoutes(briefService, runRegistry)
-        builderScenarioRoutes(scenarios, runRegistry)
+        builderScenarioRoutes(scenarioService, runRegistry)
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext
