@@ -473,10 +473,11 @@ fun MoqupsWireframeRenderer(
     screens: List<DiscoveryScreenUi>,
     session: PrototypeSession,
     modifier: Modifier = Modifier,
-    initialModuleId: String? = null
+    initialModuleId: String? = null,
+    startIndex: Int = 0, // layar awal bila initialModuleId null (dipakai pemutar skenario)
+    onAdvance: ((from: Int) -> Unit)? = null // null = "Lanjut Alur" hanya ganti indeks; non-null = pemanggil yang memutuskan (skenario)
 ) {
     var isAllScope by remember { mutableStateOf(initialModuleId == null) }
-
     // Daftar layar aktif sesuai filter alur
     val activeScreens = remember(screens, isAllScope, initialModuleId) {
         if (!isAllScope && initialModuleId != null) {
@@ -486,12 +487,11 @@ fun MoqupsWireframeRenderer(
             screens
         }
     }
-
     var currentIndex by remember(activeScreens, initialModuleId) {
         val initialIdx = if (initialModuleId != null) {
             val idx = activeScreens.indexOfFirst { it.moduleId == initialModuleId }
             if (idx >= 0) idx else 0
-        } else 0
+        } else startIndex
         mutableStateOf(initialIdx)
     }
 
@@ -538,7 +538,7 @@ fun MoqupsWireframeRenderer(
                 source = currentScreen.source,
                 nextScreenTitle = nextScreen?.title,
                 onNavigateNext = if (nextScreen != null) {
-                    { currentIndex = safeIndex + 1 }
+                    { if (onAdvance != null) onAdvance(safeIndex) else currentIndex = safeIndex + 1 }
                 } else null
             ) {
                 Box(

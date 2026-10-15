@@ -91,6 +91,19 @@ class BuilderApiClient(
                 if (e is BuilderHttpException && e.status == 404) BriefRefreshOutcome(false, 0, 0, 0) else throw e
             }
 
+    /** POST /api/builder/draft/scenarios/propose - susun skenario lintas modul (TRD-BLDR-002). 404 = fitur mati, bukan galat. */
+    suspend fun proposeScenarios(): Result<ScenarioProposeOutcome> =
+        call(HttpMethod.Post, "/api/builder/draft/scenarios/propose", "{}")
+            .mapCatching { ScenarioProposeOutcome(true, parseProposedScenarios(it)) }
+            .recoverCatching { e ->
+                if (e is BuilderHttpException && e.status == 404) ScenarioProposeOutcome(false, emptyList()) else throw e
+            }
+
+    /** POST /api/builder/draft/scenarios/confirm - aksi manusia menjadikan skenario terkonfirmasi. Galat HTTP = [BuilderHttpException]. */
+    suspend fun confirmScenario(id: String): Result<com.eventverse.app.domain.discovery.scenario.ScenarioSketch> =
+        call(HttpMethod.Post, "/api/builder/draft/scenarios/confirm", """{"id":${JsonValue.Str(id).encode()}}""")
+            .mapCatching { parseConfirmedScenario(it) }
+
     /** POST /api/builder/chat/runs — mulai run asinkron (202); mengembalikan `runId`. 409 bila masih ada run aktif. */
     suspend fun startRun(text: String, module: String? = null, answered: List<Pair<String, String>>? = null): Result<String> =
         call(

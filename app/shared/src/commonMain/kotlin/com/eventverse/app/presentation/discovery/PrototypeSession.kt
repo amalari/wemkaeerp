@@ -86,6 +86,9 @@ class PrototypeSession(
 
     fun block(screenId: String): PlayableState? = blocks[screenId]
 
+    /** Pengontrol data layar (memori/API sesuai binding); dipakai pemutar skenario. Null untuk layar tanpa entitas. */
+    internal fun controllerOf(screenId: String): BlockDataController? = controllers[screenId]
+
     /** Baris layar data pertama milik [moduleId]; null bila modul itu tak punya layar yang bisa dimainkan. */
     fun rowsOf(moduleId: String): List<PrototypeRow>? =
         if (includedModuleIds?.contains(moduleId) == false) null

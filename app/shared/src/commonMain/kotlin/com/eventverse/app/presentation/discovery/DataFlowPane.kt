@@ -30,6 +30,8 @@ import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClaySpacing
+import com.eventverse.app.presentation.discovery.scenario.ScenarioChainsSection
+import com.eventverse.app.presentation.discovery.scenario.confirmedScenarios
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.i18n.rememberActiveLanguage
 import com.eventverse.app.presentation.theme.WeMadeColors
@@ -54,7 +56,17 @@ fun DataFlowPane(
         else map.flows.filter { it.module.section == selectedSection }
     }
 
+    var tier by remember { mutableStateOf(0) }
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)) {
+        // Dua tingkat (TRD-BLDR-002): peta serah-terima modul, atau rantai skenario terkonfirmasi
+        Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
+            ClayChoiceChip(text = "Modul", selected = tier == 0, onClick = { tier = 0 })
+            ClayChoiceChip(text = "Skenario (${confirmedScenarios(draft.scenarios).size})", selected = tier == 1, onClick = { tier = 1 })
+        }
+        if (tier == 1) {
+            ScenarioChainsSection(draft)
+            return@Column
+        }
         // 4 KPI Summary Cards
         DataFlowSummaryCards(map = map)
 
