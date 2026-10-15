@@ -11,12 +11,10 @@ import com.eventverse.app.domain.discovery.interview.InterviewLimits
 import com.eventverse.app.domain.discovery.interview.InterviewPlanner
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
-import com.eventverse.app.domain.discovery.interview.InterviewValidator
 import com.eventverse.app.domain.discovery.interview.isPlanned
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.Clock
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -36,7 +34,9 @@ class SendBuilderMessageUseCase(
     /** Perencana wawancara penuh yang sudah dipakai Discovery; null = langsung menyusun draf. */
     private val interviewPlanner: InterviewPlanner? = null,
     /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
-    private val moduleEditing: EditModuleFromChat? = null
+    private val moduleEditing: EditModuleFromChat? = null,
+    /** Dipanggil bila rencana perencana ditolak (galat/tak sah/putaran kedua). Chat tetap jalan; ini hanya membuat alasannya terlihat. */
+    private val onPlanRejected: (TenantId, PlanRejection) -> Unit = { _, _ -> }
 ) {
     /**
      * Satu giliran chat. [onProgress] menerima fase kerja (`planning` saat memeriksa kejelasan cerita, `drafting` saat
@@ -113,16 +113,9 @@ class SendBuilderMessageUseCase(
             )
             val answered = planningQuestions.flatMap { it.questions }
             val input = prior.copy(narrative = narrative, clarifications = answered)
-            val planned = try {
-                planner.plan(current.copy(interview = input), input, narrative)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                null
-            }
-                ?.takeIf { InterviewValidator.validate(it, current.pack).isEmpty() }
-                // Setelah satu putaran tanya, perencana tidak boleh meminta putaran kedua.
-                ?.takeIf { answered.isEmpty() || !it.awaitingClarification }
+            val attempt = attemptPlan(planner, current, input, narrative, answeredRound = answered.isNotEmpty())
+            attempt.rejection?.let { onPlanRejected(tenantId, it) }
+            val planned = attempt.session
             val questions = planned?.clarifications?.filter { it.answer.isNullOrBlank() }
                 .orEmpty().take(InterviewLimits.CLARIFICATIONS)
             if (questions.isNotEmpty()) {

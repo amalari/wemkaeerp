@@ -115,7 +115,11 @@ fun Route.builderRoutes(
     } else null
     val send = SendBuilderMessageUseCase(
         chats, agent, drafts, interviewPlanner = interviewPlanner,
-        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) }
+        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) },
+        // Rencana wawancara yang ditolak tidak lagi diam: alasannya (tanpa isi narasi) masuk log agar kegagalan model terlihat.
+        onPlanRejected = { tenantId, r ->
+            org.slf4j.LoggerFactory.getLogger("builder.interview").warn("interview_plan_rejected tenant={} kind={} detail={}", tenantId.value, r.kind, r.detail)
+        }
     )
     // Brief dibuat di latar setelah Terapkan (wawancara baru tersimpan saat itu); lingkup hidup selama server berjalan.
     val briefScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
