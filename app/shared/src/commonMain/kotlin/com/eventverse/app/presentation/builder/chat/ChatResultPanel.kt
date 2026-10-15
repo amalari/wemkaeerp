@@ -33,6 +33,8 @@ import com.eventverse.app.presentation.discovery.DataFlowPane
 import com.eventverse.app.presentation.discovery.DiscoveryDraftUi
 import com.eventverse.app.presentation.discovery.ModuleDetailPane
 import com.eventverse.app.presentation.discovery.PrototypeRenderer
+import com.eventverse.app.presentation.discovery.scenario.ScenarioActions
+import com.eventverse.app.presentation.discovery.scenario.ScenarioPrototypeHost
 import com.eventverse.app.presentation.theme.WeMadeColors
 
 private val TABS = listOf("Prototype", "Fitur & Spek", "Alur Data")
@@ -51,7 +53,9 @@ internal fun ChatResultPanel(
     onClose: (() -> Unit)?,
     modifier: Modifier = Modifier,
     /** Modul yang sedang dibahas di chat (null = Semua). */
-    focusModuleId: String? = null
+    focusModuleId: String? = null,
+    /** Aksi skenario (null = tanpa panel skenario). */
+    scenarioActions: ScenarioActions? = null
 ) {
     val typography = rememberClayTypography()
     var tab by remember { mutableStateOf(0) }
@@ -131,6 +135,9 @@ internal fun ChatResultPanel(
                             )
                         }
                     }
+                } else if (scenarioActions != null && focusModuleId == null) {
+                    // Utas Semua: pemilih skenario di atas navigator (TRD-BLDR-002); utas modul tetap prototype biasa.
+                    ScenarioPrototypeHost(draft = draft, actions = scenarioActions, modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight())
                 } else {
                     PrototypeRenderer(
                         draft = draft,

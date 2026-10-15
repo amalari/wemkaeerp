@@ -169,6 +169,7 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
             briefsBusy = false
         }
     }
+    val scenarioActions = rememberScenarioActions(client) { reloadDraft() }
     LaunchedEffect(shown.size) {
         if (shown.isNotEmpty()) listState.animateScrollToItem(shown.lastIndex)
     }
@@ -351,7 +352,8 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                 patchPreview = previewSummary,
                 onClose = if (wide) null else ({ panelOpen = false }),
                 modifier = m,
-                focusModuleId = thread
+                focusModuleId = thread,
+                scenarioActions = scenarioActions
             )
         }
         Box(Modifier.fillMaxSize()) {

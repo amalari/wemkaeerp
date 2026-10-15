@@ -90,7 +90,11 @@ data class DiscoveryDraftUi(
     /** Sesi wawancara konfirmasi (plan §6): null untuk draf sebelum wawancara dibuat. */
     val interview: InterviewSession? = null,
     /** Pertanyaan giliran berikutnya (data, bukan teks statis). */
-    val nextQuestion: InterviewQuestion? = null
+    val nextQuestion: InterviewQuestion? = null,
+    /** Skenario lintas modul (TRD-BLDR-002); kunci `scenarios` opsional di JSON (draf lama = kosong). */
+    val scenarios: List<com.eventverse.app.domain.discovery.scenario.ScenarioSketch> = emptyList(),
+    /** Alasan `scenarios` tak terbaca (bentuk rusak): ditampilkan, BUKAN diam-diam dianggap kosong. */
+    val scenariosError: String? = null
 ) {
     val activeModules: List<DiscoveryModuleUi> get() = modules.filter { it.active }
     val sections: List<String> get() = if (sectionsMetadata.isNotEmpty()) {
@@ -137,7 +141,13 @@ data class DiscoveryDraftUi(
                 }.getOrNull()
             }
 
+            val scenariosResult = o["scenarios"]?.let { raw ->
+                runCatching { com.eventverse.app.shared.discovery.ScenarioSketchCodec.decode(raw, "scenarios") }
+            }
+
             return DiscoveryDraftUi(
+                scenarios = scenariosResult?.getOrNull().orEmpty(),
+                scenariosError = scenariosResult?.exceptionOrNull()?.message,
                 id = o.string("id").orEmpty(),
                 status = o.string("status").orEmpty(),
                 narrative = o.string("narrative"),
