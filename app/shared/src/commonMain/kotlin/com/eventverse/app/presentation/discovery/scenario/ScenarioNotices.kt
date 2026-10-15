@@ -44,10 +44,11 @@ fun scenarioProposeFailureNotice(e: Throwable): String =
 /** Pesan di langkah setelah "Lanjut": alasan bila ditolak, peringatan pasangan yang tak dibawa, atau keterangan netral; null = tak ada yang perlu dikatakan. */
 fun scenarioAdvanceMessage(a: ScenarioAdvance): String? = when (a) {
     is ScenarioAdvance.Blocked -> a.reason + if (a.issues.isEmpty()) "" else " " + carryWarningText(a.issues)
-    is ScenarioAdvance.Moved -> when {
-        a.warnings.isNotEmpty() -> "Sebagian data tidak dibawa: " + carryWarningText(a.warnings)
-        else -> a.note
-    }
+    is ScenarioAdvance.Moved -> listOfNotNull(
+        a.warnings.takeIf { it.isNotEmpty() }?.let { "Sebagian data tidak dibawa: " + carryWarningText(it) },
+        a.sampled.takeIf { it.isNotEmpty() }?.let { "Diisi contoh karena wajib dan belum ada datanya: ${it.joinToString(", ")}. Ganti sesuai kebutuhan." },
+        a.note
+    ).joinToString(" ").ifBlank { null }
 }
 
 /** Teks peringatan pasangan field yang ditolak aturan pembawa, untuk ditampilkan di langkah. */

@@ -5,6 +5,7 @@ import com.eventverse.app.domain.discovery.scenario.ScenarioIssue
 import com.eventverse.app.domain.discovery.scenario.ScenarioSketch
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.PrototypeRow
+import com.eventverse.app.domain.prototype.SampleValues
 
 /** Penunjuk satu baris simulasi yang dibuat pemutar: baris [rowId] di layar [screenId] milik langkah [stepIndex]. */
 data class RowRef(val stepIndex: Int, val screenId: String, val rowId: String)
@@ -34,7 +35,9 @@ sealed interface ScenarioAdvance {
         val run: ScenarioRun,
         val created: RowRef?,
         val warnings: List<ScenarioIssue> = emptyList(),
-        val note: String? = null
+        val note: String? = null,
+        /** Label field wajib yang diisi **nilai contoh** karena lahir di langkah ini dan tak tercakup pembawa data. */
+        val sampled: List<String> = emptyList()
     ) : ScenarioAdvance
 
     /** Tidak pindah dan tidak ada baris yang dibuat; [reason] ditampilkan di langkah itu. */
@@ -49,8 +52,12 @@ sealed interface ScenarioAdvance {
  *   di [ScenarioAdvance.Moved.warnings] (pengguna melihatnya, tidak dibawa diam-diam).
  * - **Gagal total** (aturan menolak dan tak ada satu pun nilai yang lolos) -> [ScenarioAdvance.Blocked], tidak pindah,
  *   tidak ada baris.
- * - **Layar menolak baris** (mis. field wajib kosong) -> [ScenarioAdvance.Blocked] dengan pesan layar; tidak pindah,
- *   tidak mencatat jejak.
+ * - **Field wajib layar tujuan yang tak tercakup pembawa** (mis. nomor antrean, status awal: data baru yang lahir di langkah itu)
+ *   -> diisi **nilai contoh** ([SampleValues]) dan dilaporkan di [ScenarioAdvance.Moved.sampled], supaya alur tetap bisa dilihat
+ *   (temuan 9, cek visual klinik 2026-10-16: tanpa ini hampir semua alur nyata berhenti di langkah kedua). Tipe yang tak punya
+ *   nilai contoh (RELATION/USER_REF/FILE) tetap kosong -> layar menolak -> [ScenarioAdvance.Blocked].
+ * - **Layar menolak baris** (mis. field wajib bertipe tanpa nilai contoh kosong) -> [ScenarioAdvance.Blocked] dengan pesan layar;
+ *   tidak pindah, tidak mencatat jejak.
  * - **Tidak ada yang dibawa** (langkah tanpa pembawa, layar tujuan kerangka/tanpa entitas) -> pindah tanpa membuat baris.
  *
  * Baris sumber: baris yang dibawa pemutar ke langkah ini (jejak terakhir), atau baris terakhir di layar bila langkah ini
@@ -97,11 +104,12 @@ data class ScenarioRun(
             return if (outcome.rejected.isEmpty()) ScenarioAdvance.Moved(moved, created = null, note = "Tidak ada data yang dibawa dari '${from.label}'.")
             else ScenarioAdvance.Blocked("Data dari '${from.label}' tidak dapat dibawa ke '${next.label}'.", outcome.rejected)
         }
-        val row = data.createRow(targetScreen, outcome.values).getOrElse { e ->
+        val samples = SampleValues.missingRequired(targetEntity, outcome.values).mapNotNull { f -> SampleValues.forField(f)?.let { f to it } }
+        val row = data.createRow(targetScreen, outcome.values + samples.associate { (f, v) -> f.key to v }).getOrElse { e ->
             return ScenarioAdvance.Blocked(e.message ?: "Baris di '${next.label}' ditolak.", outcome.rejected)
         }
         val ref = RowRef(toIndex, targetScreen, row.id)
-        return ScenarioAdvance.Moved(moved.copy(trail = trail + ref), created = ref, warnings = outcome.rejected)
+        return ScenarioAdvance.Moved(moved.copy(trail = trail + ref), created = ref, warnings = outcome.rejected, sampled = samples.map { it.first.label })
     }
 
     private fun sourceRow(data: ScenarioScreenData, screenId: String): PrototypeRow? {
