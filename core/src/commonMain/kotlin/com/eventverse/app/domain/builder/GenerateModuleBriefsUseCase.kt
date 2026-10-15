@@ -70,7 +70,10 @@ class GenerateModuleBriefsUseCase(
         val latest = thread.lastOrNull { it.kind == ChatMessageKind.BRIEF }
         if (latest?.basisRef == basis) return ModuleBriefOutcome(id, BriefStatus.FRESH)
 
+        // "Sudah ditanyakan" = semua kecuali pertanyaan AI yang belum dijawab: yang itu digantikan generasi baru, jadi yang masih
+        // relevan boleh ditanyakan ulang (id sama, lihat BriefKeys.followUpId) dan tidak hilang.
         val asked = thread.filter { it.kind == ChatMessageKind.QUESTION }.flatMap { it.questions }
+            .filterNot { BriefKeys.isAiQuestionId(it.id) && it.answer.isNullOrBlank() }
         fun request(feedback: String?) = ModuleBriefInputs.request(tenantId, draft, module, narrative, asked, feedback)
         val brief = fromModel(::request) ?: DeterministicModuleBriefer.of(request(null))
 
@@ -84,8 +87,14 @@ class GenerateModuleBriefsUseCase(
             )
         )
         val questions = followUps(draft, id, brief, thread, asked)
-        // Hanya pertanyaan AI yang menunggu yang menahan pertanyaan baru; pertanyaan template yang di-seed klien tidak (ia digantikan).
-        if (questions.isNotEmpty() && thread.pendingFollowUps(id).none { BriefKeys.isAiQuestionId(it.question.id) }) {
+        // Pertanyaan AI: pesan baru dibuat bila ada yang belum tampil (menggantikan generasi lama); himpunan yang sama dengan yang
+        // sudah menunggu tidak digandakan. Cadangan template: hanya bila belum ada yang menunggu (perilaku semula).
+        val pending = thread.pendingFollowUps(id)
+        val aiPendingIds = pending.map { it.question.id }.filter(BriefKeys::isAiQuestionId).toSet()
+        val create = questions.isNotEmpty() && (
+            if (questions.all { BriefKeys.isAiQuestionId(it.id) }) questions.any { it.id !in aiPendingIds } else pending.isEmpty()
+        )
+        if (create) {
             val key = BriefKeys.fingerprint(questions.joinToString("|") { it.id })
             chats.append(
                 ChatMessage(

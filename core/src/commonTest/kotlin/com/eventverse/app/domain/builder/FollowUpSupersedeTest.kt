@@ -109,6 +109,91 @@ class FollowUpSupersedeTest {
         assertEquals(before, chats.messages(conv.id).size, "tidak ada pesan baru")
     }
 
+    // ── generasi AI terbaru menggantikan yang lama (temuan 12) ───────────────────
+
+    private fun qm(msgId: String, module: String, vararg qs: Pair<String, String?>) = ChatMessage(
+        ChatMessageId(msgId), BuilderConversationId("c"), tenant, ChatRole.AGENT, "tanya", moduleId = module,
+        kind = ChatMessageKind.QUESTION, questions = qs.map { (id, ans) -> Clarification(id, "Pertanyaan $id?", ans) }
+    )
+
+    @Test
+    fun `pesan pertanyaan AI lama yang belum dijawab should disembunyikan saat ada generasi baru di modul yang sama`() {
+        val thread = listOf(
+            qm("old", "klinik_poli", "ai:klinik_poli:a" to null, "ai:klinik_poli:b" to null),
+            qm("new", "klinik_poli", "ai:klinik_poli:c" to null)
+        )
+        assertEquals(listOf("ai:klinik_poli:c"), ids(thread.pendingFollowUps("klinik_poli")))
+        assertEquals(listOf("ai:klinik_poli:c"), ids(thread.pendingFollowUps(null)), "utas Semua: tidak menumpuk")
+    }
+
+    @Test
+    fun `generasi AI satu modul should tidak menyembunyikan pertanyaan AI modul lain`() {
+        val thread = listOf(qm("p1", "klinik_poli", "ai:klinik_poli:a" to null), qm("k1", "klinik_kasir", "ai:klinik_kasir:a" to null), qm("p2", "klinik_poli", "ai:klinik_poli:b" to null))
+        assertEquals(setOf("ai:klinik_poli:b", "ai:klinik_kasir:a"), ids(thread.pendingFollowUps(null)).toSet())
+    }
+
+    @Test
+    fun `pertanyaan AI lama yang disembunyikan should tidak bangkit setelah generasi baru dijawab`() {
+        val thread = listOf(qm("old", "klinik_poli", "ai:klinik_poli:a" to null), qm("new", "klinik_poli", "ai:klinik_poli:c" to "perawat"))
+        assertTrue(thread.pendingFollowUps("klinik_poli").isEmpty())
+    }
+
+    /** Briefer yang mengembalikan follow-up berbeda tiap panggilan dan merekam apa yang dikirim sebagai "sudah ditanyakan". */
+    private class SequenceBriefer(private val rounds: List<List<String>>) : ModuleBriefer {
+        val alreadyAsked = mutableListOf<List<Clarification>>()
+        override suspend fun brief(request: ModuleBriefRequest): Result<ModuleBrief> {
+            alreadyAsked += request.alreadyAsked
+            val round = rounds[minOf(alreadyAsked.size - 1, rounds.lastIndex)]
+            return Result.success(ModuleBrief("Ringkasan ${request.moduleName}.", listOf("Antrean"), emptyList(), round, BriefSource.AI))
+        }
+    }
+
+    private suspend fun story(chats: InMemoryBuilderChatRepository, text: String) {
+        chats.append(ChatMessage(ChatMessageId("u-${text.hashCode()}"), chats.conversationFor(tenant).id, tenant, ChatRole.USER, text))
+    }
+
+    private fun useCase(chats: InMemoryBuilderChatRepository, briefer: ModuleBriefer) =
+        GenerateModuleBriefsUseCase(chats, Drafts(draft, tenant), briefer, ModuleBriefRules, "agent/v1")
+
+    @Test
+    fun `cerita berubah dua kali should menampilkan hanya pertanyaan AI generasi terbaru bukan menumpuk`() = runTest {
+        val chats = InMemoryBuilderChatRepository()
+        val briefer = SequenceBriefer(listOf(listOf("Siapa pemeriksa?", "Berapa tarif?"), listOf("Apakah ada rujukan?", "Jam buka?")))
+        val uc = useCase(chats, briefer)
+        story(chats, "Klinik kecil."); uc.generate(tenant, "klinik_poli").getOrThrow()
+        story(chats, "Klinik kecil, sekarang ada rujukan."); uc.generate(tenant, "klinik_poli").getOrThrow()
+
+        val pending = chats.messages(chats.conversationFor(tenant).id).pendingFollowUps("klinik_poli")
+        assertEquals(setOf("Apakah ada rujukan?", "Jam buka?"), pending.map { it.question.question }.toSet(), "hanya generasi terbaru yang menunggu: ${pending.map { it.question.question }}")
+    }
+
+    @Test
+    fun `pertanyaan AI lama yang belum dijawab should tidak dikirim ke model sebagai sudah ditanyakan tetapi yang dijawab tetap`() = runTest {
+        val chats = InMemoryBuilderChatRepository()
+        val briefer = SequenceBriefer(listOf(listOf("Siapa pemeriksa?", "Berapa tarif?"), listOf("Jam buka?")))
+        val uc = useCase(chats, briefer)
+        story(chats, "Klinik kecil."); uc.generate(tenant, "klinik_poli").getOrThrow()
+        val first = chats.messages(chats.conversationFor(tenant).id).single { it.kind == ChatMessageKind.QUESTION }
+        chats.markAnswered(first.id, mapOf(first.questions[0].id to "dokter gigi"))   // satu dijawab, satu belum
+        story(chats, "Klinik kecil, revisi."); uc.generate(tenant, "klinik_poli").getOrThrow()
+
+        val texts = briefer.alreadyAsked.last().map { it.question }   // permintaan KEDUA ke model
+        assertTrue("Siapa pemeriksa?" in texts, "yang dijawab tetap dikirim agar tidak diulang: $texts")
+        assertTrue("Berapa tarif?" !in texts, "yang belum dijawab digantikan, jadi boleh ditanyakan ulang: $texts")
+    }
+
+    @Test
+    fun `pembuatan ulang dengan pertanyaan AI yang sama should tidak menggandakan pesan pertanyaan`() = runTest {
+        val chats = InMemoryBuilderChatRepository()
+        val same = listOf("Siapa pemeriksa?", "Berapa tarif?")
+        val uc = useCase(chats, SequenceBriefer(listOf(same, same)))
+        story(chats, "Klinik kecil."); uc.generate(tenant, "klinik_poli").getOrThrow()
+        story(chats, "Klinik kecil, revisi."); uc.generate(tenant, "klinik_poli").getOrThrow()
+        val all = chats.messages(chats.conversationFor(tenant).id)
+        assertEquals(1, all.count { it.kind == ChatMessageKind.QUESTION }, "himpunan sama sudah menunggu: tidak digandakan")
+        assertEquals(2, all.count { it.kind == ChatMessageKind.BRIEF }, "brief baru tetap dibuat (basis berubah)")
+    }
+
     // ── paritas id ──────────────────────────────────────────────────────────────
 
     @Test
