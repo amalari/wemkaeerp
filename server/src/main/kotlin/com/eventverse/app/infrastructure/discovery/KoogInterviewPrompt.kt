@@ -87,6 +87,9 @@ internal object KoogInterviewPrompt {
         - Divisi, peran, dan modul hanya dari cerita atau dari katalog (alat interview_catalog). Jangan mengarang di luar katalog.
         - Tautan hanya menunjuk modul di katalog. Asal jujur: reuse_platform/reuse_pack/extend hanya untuk modul bertanda
           shipped=true, extend wajib menyebut fitur tambahan; modul kustom pakai new.
+        - Handoff (serah-terima antar modul): from dan to HARUS modul operasional di katalog, dan portType WAJIB persis salah satu
+          dari field "output" modul asal ATAU field "input" modul tujuan di katalog (juga termasuk wiredPorts). Port lain atau
+          pasangan yang tidak cocok ditolak validator. Jangan menyambung bila tidak ada port yang cocok - lebih baik tanpa handoff itu.
         - BERDASAR CERITA: setiap divisions/roles/links/handoffs/specs WAJIB membawa basisRef -
           {"basis":"narasi","quote":"kutipan PERSIS dari cerita"} atau {"basis":"jawaban","answerId":"id giliran"} /
           {"basis":"saran_diterima","answerId":"..."}. Tebakan tanpa dasar ditolak validator; profile tidak perlu basisRef.
@@ -129,7 +132,8 @@ internal object KoogInterviewPrompt {
         "RENCANA ALUR PENUH: dari narasi, susun SEKALIGUS divisions, roles, links, dan handoffs - seluruh alur kerja " +
             "dan modul yang dipakai, urut sesuai cerita. Setiap butir wajib punya basisRef dengan kutipan PERSIS dari narasi. " +
             "Pakai hanya modul di katalog (alat interview_catalog); yang tak disebut cerita jangan diisi. Peran wajib menunjuk " +
-            "divisi yang kamu buat, tautan wajib menunjuk peran yang kamu buat."
+            "divisi yang kamu buat, tautan wajib menunjuk peran yang kamu buat. Untuk handoffs, portType wajib salah satu dari " +
+            "\"output\" modul asal atau \"input\" modul tujuan menurut katalog."
 
     /**
      * Tambahan bila perencana BOLEH bertanya (belum pernah): hal pokok yang tak bisa disimpulkan dari cerita

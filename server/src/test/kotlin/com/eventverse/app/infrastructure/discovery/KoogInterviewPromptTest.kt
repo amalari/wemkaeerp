@@ -98,4 +98,11 @@ class KoogInterviewPromptTest {
         assertTrue(KoogInterviewPrompt.stepInstruction(InterviewStep.G5_RINGKASAN).contains("useCurrent"))
         assertTrue(KoogInterviewPrompt.stepInstruction(InterviewStep.DONE).contains("useCurrent"))
     }
+
+    @Test
+    fun `aturan port handoff ada di prompt sistem dan instruksi rencana`() {
+        val system = KoogInterviewPrompt.system
+        assertTrue(system.contains("portType WAJIB persis salah satu") && system.contains("\"output\"") && system.contains("\"input\""), "prompt sistem")
+        assertTrue(KoogInterviewPrompt.PLAN_INSTRUCTION.contains("portType wajib salah satu") && KoogInterviewPrompt.PLAN_INSTRUCTION.contains("\"output\""), "instruksi rencana")
+    }
 }

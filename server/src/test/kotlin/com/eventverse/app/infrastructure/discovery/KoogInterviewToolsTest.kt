@@ -4,6 +4,7 @@ import com.eventverse.app.InterviewEvalPacks
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.pack.slotPorts
 import com.eventverse.app.shared.json.JsonParser
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -61,6 +62,40 @@ class KoogInterviewToolsTest {
         assertEquals("new", (byId.getValue("klinik_kasir")["originHint"] as com.eventverse.app.shared.json.JsonValue.Str).value)
         val ports = (catalog["wiredPorts"] as com.eventverse.app.shared.json.JsonValue.Arr).items
         assertTrue(ports.isNotEmpty(), "Port wired wajib tercantum untuk tebakan G4")
+    }
+
+    /**
+     * Temuan 7 (model sungguhan 2026-10-16): validator menuntut portType handoff = keluaran modul asal ATAU masukan modul tujuan,
+     * tetapi katalog tidak memuat port per modul sehingga model hanya bisa menebak dari `wiredPorts` global dan gagal 3 putaran.
+     */
+    @Test
+    fun `katalog memuat port masuk dan keluar tiap modul operasional persis seperti yang dipakai validator`() {
+        val catalog = JsonParser.parseObject(interviewCatalogJson(pack))
+        val modules = (catalog["modules"] as com.eventverse.app.shared.json.JsonValue.Arr).items
+            .map { it as com.eventverse.app.shared.json.JsonValue.Obj }
+        val byId = modules.associateBy { (it["id"] as com.eventverse.app.shared.json.JsonValue.Str).value }
+        pack.modules.forEach { m ->
+            val expected = pack.slotPorts(m.id)
+            val entry = byId.getValue(m.id.value)
+            assertEquals(expected?.first?.value, (entry["input"] as? com.eventverse.app.shared.json.JsonValue.Str)?.value, "input ${m.id.value}")
+            assertEquals(expected?.second?.value, (entry["output"] as? com.eventverse.app.shared.json.JsonValue.Str)?.value, "output ${m.id.value}")
+        }
+        assertTrue(pack.modules.any { pack.slotPorts(it.id) != null }, "prasyarat: ada modul bersuplai port")
+    }
+
+    @Test
+    fun `setiap handoff sah menurut validator dapat dibangun dari informasi katalog saja`() {
+        val catalog = JsonParser.parseObject(interviewCatalogJson(pack))
+        val modules = (catalog["modules"] as com.eventverse.app.shared.json.JsonValue.Arr).items
+            .map { it as com.eventverse.app.shared.json.JsonValue.Obj }
+        val byId = modules.associateBy { (it["id"] as com.eventverse.app.shared.json.JsonValue.Str).value }
+        fun port(id: String, key: String) = (byId.getValue(id)[key] as? com.eventverse.app.shared.json.JsonValue.Str)?.value
+        assertTrue(session.handoffs.isNotEmpty(), "prasyarat: sesi uji punya handoff")
+        session.handoffs.forEach { h ->
+            val fromOut = port(h.from.value, "output"); val toIn = port(h.to.value, "input")
+            assertTrue(h.portType.value == fromOut || h.portType.value == toIn,
+                "handoff ${h.from.value}->${h.to.value} memakai ${h.portType.value}; katalog hanya menyebut output=$fromOut input=$toIn")
+        }
     }
 
     @Test

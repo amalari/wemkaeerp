@@ -32,7 +32,8 @@ internal data class PlanAttempt(val session: InterviewSession?, val rejection: P
     init { require((session == null) != (rejection == null)) { "PlanAttempt: tepat satu dari session atau rejection" } }
 }
 
-private const val DETAIL_MAX_CHARS = 300
+/** Cukup untuk beberapa temuan validator berpath; dulu 300 memotong persis bagian yang menjelaskan sebabnya. */
+private const val DETAIL_MAX_CHARS = 900
 private const val ISSUES_SHOWN = 4
 
 /**

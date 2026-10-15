@@ -144,12 +144,8 @@ fun BuilderDeploymentsPane(modifier: Modifier = Modifier) {
                         )
                         ClayBadge(
                             text = r.status,
-                            tint = when (r.status) {
-                                "ACTIVE", "IMPORTED" -> WeMadeColors.Success
-                                "BLOCKED_ON_BUILD" -> WeMadeColors.Warning
-                                "ROLLED_BACK", "FAILED" -> WeMadeColors.Error
-                                else -> WeMadeColors.OnSurfaceMuted
-                            }
+                            // Pemetaan bersama dengan kartu Postur Security — satu sumber warna status deployment.
+                            tint = deploymentStatusTint(r.status)
                         )
                         Text(
                             text = r.packVersion?.let { "versi pack $it" }

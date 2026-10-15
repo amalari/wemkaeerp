@@ -9,6 +9,7 @@ import ai.koog.serialization.typeToken
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewLimits
 import com.eventverse.app.domain.pack.DomainPack
+import com.eventverse.app.domain.pack.slotPorts
 import com.eventverse.app.domain.pack.DomainPackRegistry
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.shared.json.jsonArrayOf
@@ -84,6 +85,10 @@ internal fun interviewCatalogJson(pack: DomainPack): String {
                     "id" to jsonOf(m.id.value),
                     "displayName" to jsonOf(m.displayName),
                     "kind" to jsonOf(m.kind.name),
+                    // Port slot kanvas modul (null untuk modul tanpa slot). Validator menuntut portType sebuah handoff = `output`
+                    // modul asal ATAU `input` modul tujuan; tanpa ini model hanya bisa menebak dari `wiredPorts` global.
+                    "input" to jsonOf(pack.slotPorts(m.id)?.first?.value),
+                    "output" to jsonOf(pack.slotPorts(m.id)?.second?.value),
                     "shipped" to jsonOf(shipped),
                     "originHint" to jsonOf(
                         when {

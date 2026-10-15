@@ -192,6 +192,24 @@ class BuilderApiClient(
         call(HttpMethod.Get, "/api/builder/build-queue/$id/brief")
             .mapCatching { (it as? JsonValue.Obj)?.string("markdown")?.takeIf(String::isNotBlank) ?: error("Respons brief tidak memuat markdown") }
 
+    /**
+     * GET /api/builder/audit?limit=[limit] — jejak audit **milik tenant pemanggil** (TRD-PLAT-014 FR-5-1).
+     * Penyaringan ada di server (`findByTenant`), bukan di sini: klien tidak pernah mengirim identitas
+     * tenant. Bentuk respons dibaca lewat [com.eventverse.app.shared.builder.BuilderAuditTrailCodec] —
+     * bukan parser ad-hoc — supaya nilai tak dikenal ditolak, bukan diam-diam diturunkan.
+     */
+    suspend fun auditTrail(limit: Int = 50): Result<JsonValue> =
+        call(HttpMethod.Get, "/api/builder/audit?limit=$limit")
+
+    /**
+     * GET /api/builder/build-requests/{id}/brief — brief beku permintaan pembuatan **milik tenant
+     * pemanggil** (TRD-PLAT-014 FR-4-3; padanan tenant-scope dari [buildRequestBrief] konsol platform).
+     * Scope HIERARCHICAL dijaga server: permintaan tenant lain menjawab 404/403, bukan isinya.
+     */
+    suspend fun buildRequestBriefOwned(id: String): Result<String> =
+        call(HttpMethod.Get, "/api/builder/build-requests/$id/brief")
+            .mapCatching { (it as? JsonValue.Obj)?.string("markdown")?.takeIf(String::isNotBlank) ?: error("Respons brief tidak memuat markdown") }
+
     private suspend fun call(method: HttpMethod, path: String, body: String? = null): Result<JsonValue> =
         runCatching {
             val response = httpClient.request(resolveUrl(path)) {
