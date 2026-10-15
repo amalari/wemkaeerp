@@ -82,12 +82,17 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 - [x] S-align Penyelarasan dengan Alur Data, `MoqupsFlowNavigator`, dan TRD-BUILDER-007 (2026-10-14): `FeatureFlow` tidak dibuat, navigator dipakai ulang, panel JSON tidak jadi jalur utama
 - [x] S0 Kontrak (2026-10-15, worktree `worktree-builder-scenarios-t0`): `ScenarioSketch/Step/FieldCarry/ScenarioId/ScenarioSource/ScenarioLimits`, `ScenarioValidator`, `ScenarioProposer`, `ScenarioCarryRule`/`CarryOutcome`, `ScenarioService`, `ScenarioSketchCodec` (ketat, tolak kunci/nilai tak dikenal) + `DiscoveryDraft.scenarios` opsional (kunci tertulis hanya bila ada; draf lama byte-identik) + fixture garment dan klinik. Bukti: `ScenarioContractTest` (7) + `ScenarioSketchCodecTest` (13) hijau; core 2054 tes, 15 gagal **yang sama persis dengan baseline `fd1236c4`** (bukan dari fitur ini; lihat catatan); kompilasi JS/WasmJs/server/klien-JVM bersih
   - Catatan baseline: 15 tes pack (`ShippedPackIdentityTest`, `DomainPackCodecTest`, dst.) gagal di `fd1236c4` karena `GarmentDomainPack` kini punya `theme` non-null sedangkan `DomainPackCodec` belum meng-encode/decode `theme` -> validator "dokumen wajib identik" menolak. Milik pekerjaan tema (TRD-PLAT-013), tidak disentuh di sini.
-- [ ] SA1 `ScenarioValidator` (+tes tiap aturan) · SA2 `DeterministicScenarioBuilder` dari `ModuleHandoff`
-- [ ] SA3 `ScenarioCarry` (pemetaan + koersi, murni) · SA4 use case propose/confirm/edit · SA5 codec `scenarios` opsional
-- [ ] SB1 `KoogScenarioProposer` + parser tunggal · SB2 rute propose/confirm (403/422) · SB3 flag `builder.scenarios.enabled`
-- [ ] SC1 `ScenarioRun` (file baru, bukan menambah `PrototypeSession`) · SC2 `ScenarioPicker`/`ScenarioStepper`
-- [ ] SC3 Pertanyaan skenario di utas Semua (badge ikut)
-- [ ] SD1 Cek visual `wemade-demo` + `bordir-uji` · SD2 nol HTTP saat simulasi · SD3 teaching doc + `TASKS-SUMMARY`
+- [x] SA1 `ScenarioRules` (validator FR-2 + `validateAll`) · SA2 `DeterministicScenarioBuilder` dari rantai `ModuleHandoff`
+- [x] SA3 `DefaultScenarioCarryRule` (koersi tipe konservatif; `FieldTypeConversion` CRM tidak dipakai ulang, alasan di KDoc `ScenarioCarryTypes`) · SA4 `DiscoveryScenarioService` (propose/confirm/edit; LOCKED menolak tulis) · SA5 tes paritas `ScenarioSource.entries` + `DiscoveryDraft.confirmedScenarios()`
+- [x] SB1 `KoogScenarioProposer` + `ScenarioReplyParser` (model tak boleh menentukan `source`/`confirmed`) · SB2 rute propose/confirm (403/404/409/422/423) · SB3 flag `BUILDER_SCENARIOS_ENABLED` (default mati)
+- [x] SC1 `ScenarioRun` murni (nol dependensi HTTP, dibuktikan tes refleksi)
+- [x] SC2 `ScenarioPicker` + `ScenarioPrototypeHost` memakai ulang `MoqupsFlowNavigator` (`startIndex`/`onAdvance` opsional, `MoqupsWireframeCanvas.kt` tetap 560 baris) + rantai skenario di tab Alur Data (kode + tes; **tampilan belum dilihat mata** -> SD1)
+- [x] SC4 Klien: `BuilderApiClient.proposeScenarios/confirmScenario`, notifikasi murni, aksi Usulkan/Konfirmasi
+- [ ] SC3 Pertanyaan tingkat skenario di utas Semua (FR-9, <= 2 per skenario, badge ikut) — **BELUM**: tidak termasuk service Track A, perlu pekerjaan lanjutan
+- [x] S-integrasi (2026-10-16, koordinator): wiring `DiscoveryScenarioService` di `builderRoutes`; kontrak galat final server<->service (`ScenarioInvalidException` -> 422, `LockedException` -> 423, id tak ada -> 404 berbadan JSON `{error}`; heuristik regex pada pesan DIHAPUS); klien memakai `DefaultScenarioCarryRule` (pengganti sementara `StraightCarryRule` dihapus)
+- [ ] SD1 Cek visual `wemade-demo` + `bordir-uji` (perlu seed `bordir-uji`) · SD2 nol HTTP saat simulasi **di UI nyata** · SD3 teaching doc + `TASKS-SUMMARY`
+
+Bukti Fase 2 (2026-10-16): core `jvmTest` hijau penuh (2153+ tes, 0 gagal; 76 tes paket skenario; merah-hijau terbukti untuk aturan `reworkTo` mundur dan pemaksaan `confirmed=false`); server `BuilderScenarioRoutesTest` 9 + `KoogScenarioProposerTest` 5 + `DiscoveryScenarioSummaryApiTest` 1 hijau; klien tes skenario baru 24 hijau; kompilasi JVM/JS/WasmJs bersih. Satu merah di `app/shared` `UiTextLatin1GuardTest` **sudah ada sebelumnya** (karakter non-Latin-1 di `MoqupsWireframeCanvas.kt:218`, `InteractiveTable.kt`, `ModuleDetailPane.kt`, ditulis 14 Okt oleh sesi lain; diverifikasi lewat `git blame`). Belum: Android, cek visual, tes "kunci" selain dua mutasi di atas hanya terbukti hijau.
 
 Estimasi Fase 2: ≈ 4–5 hari (**Medium**) setelah penyelarasan 2026-10-14 (TRD-BLDR-002 §0).
 

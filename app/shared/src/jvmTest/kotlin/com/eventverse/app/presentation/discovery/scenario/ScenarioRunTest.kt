@@ -174,10 +174,13 @@ class ScenarioRunTest {
     }
 
     @Test
-    fun `aturan bawaan klien menolak beda jenis dan menyalin jenis sama`() {
+    fun `aturan bawaan klien adalah aturan core - jenis sama dibawa, field hilang dan beda jenis ditolak`() {
         val src = EntitySpec("a", "A", listOf(FieldSpec("t", "T", FieldType.TEXT), FieldSpec("n", "N", FieldType.NUMBER)))
-        val tgt = EntitySpec("b", "B", listOf(FieldSpec("t2", "T2", FieldType.TEXT), FieldSpec("t3", "T3", FieldType.TEXT)))
-        val out = StraightCarryRule.apply(mapOf("t" to "x", "n" to "5"), listOf(FieldCarry("t", "t2"), FieldCarry("n", "t3"), FieldCarry("zz", "t3")), src, tgt)
+        val tgt = EntitySpec("b", "B", listOf(FieldSpec("t2", "T2", FieldType.TEXT), FieldSpec("d", "D", FieldType.DATE)))
+        assertEquals(com.eventverse.app.domain.discovery.scenario.DefaultScenarioCarryRule, ScenarioActions().carryRule)
+        val out = ScenarioActions().carryRule.apply(
+            mapOf("t" to "x", "n" to "5"), listOf(FieldCarry("t", "t2"), FieldCarry("n", "d"), FieldCarry("zz", "t2")), src, tgt
+        )
         assertEquals(mapOf("t2" to "x"), out.values)
         assertEquals(2, out.rejected.size)
     }

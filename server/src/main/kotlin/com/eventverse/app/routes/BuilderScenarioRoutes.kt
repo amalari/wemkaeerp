@@ -1,6 +1,8 @@
 package com.eventverse.app.routes
 
 import com.eventverse.app.domain.discovery.scenario.ScenarioId
+import com.eventverse.app.domain.discovery.scenario.ScenarioInvalidException
+import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
 import com.eventverse.app.domain.discovery.scenario.ScenarioIssue
 import com.eventverse.app.domain.discovery.scenario.ScenarioService
 import com.eventverse.app.domain.tenant.TenantId
@@ -31,10 +33,10 @@ private val log = LoggerFactory.getLogger("scenario")
  *
  * - Gerbang Builder sama dengan rute lain (`MANAGE_BUILDER`, fail-closed 403); [service] `null` (flag mati) → 404, SETELAH gerbang.
  * - 409 bila ada run chat aktif untuk tenant. 400 body rusak / `id` kosong.
- * - confirm: galat validasi → 422 `{"error","issues":[{path,message}]}`; `IllegalArgumentException` lain = id tak ada → 404.
- *   ASUMSI (belum final dengan Track A): galat validasi = [ScenarioValidationException] (didefinisikan di sini),
- *   [DiscoveryDraftDecodeException], atau `IllegalArgumentException` yang pesannya memuat path (`steps[n]`, `.carries[`,
- *   `.reworkTo`, `.screenId`) — lihat [issuesOf].
+ * - Kontrak galat (final, dari `DiscoveryScenarioService`): [ScenarioInvalidException] / [DiscoveryDraftDecodeException] -> 422
+ *   `{"error","issues":[{path,message}]}`; `UpdateDiscoveryDraftUseCase.LockedException` (draf terkunci) -> 423;
+ *   `IllegalArgumentException` lain = id skenario tak ada -> 404 dengan badan JSON `{"error":..}` (klien membedakannya dari
+ *   404 "fitur mati" yang berupa teks biasa); selain itu 500. Tidak ada tebakan dari isi pesan.
  * - Log terstruktur tanpa isi narasi/PII.
  */
 fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunRegistry) {
@@ -54,7 +56,8 @@ fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunR
             },
             onFailure = { e ->
                 log.warn("scenario_propose tenant={} source=- count=0 rejected=1 gagal={}", tenantId.value, e::class.simpleName)
-                call.respond(HttpStatusCode.InternalServerError, "Gagal mengusulkan skenario: ${e.message}")
+                if (e is UpdateDiscoveryDraftUseCase.LockedException) call.respond(HttpStatusCode.Locked, e.message ?: "Draf terkunci")
+                else call.respond(HttpStatusCode.InternalServerError, "Gagal mengusulkan skenario: ${e.message}")
             }
         )
     }
@@ -83,7 +86,11 @@ fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunR
                             "issues" to jsonArrayOf(issues.map { jsonObjectOf("path" to jsonOf(it.path), "message" to jsonOf(it.message)) })
                         ).encode(), ContentType.Application.Json, HttpStatusCode.UnprocessableEntity
                     )
-                    e is IllegalArgumentException -> call.respond(HttpStatusCode.NotFound, e.message ?: "Skenario tidak ditemukan")
+                    e is UpdateDiscoveryDraftUseCase.LockedException -> call.respond(HttpStatusCode.Locked, e.message ?: "Draf terkunci")
+                    e is IllegalArgumentException -> call.respondText(
+                        jsonObjectOf("error" to jsonOf(e.message ?: "Skenario tidak ditemukan")).encode(),
+                        ContentType.Application.Json, HttpStatusCode.NotFound
+                    )
                     else -> call.respond(HttpStatusCode.InternalServerError, "Gagal mengonfirmasi skenario: ${e.message}")
                 }
             }
@@ -91,17 +98,10 @@ fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunR
     }
 }
 
-/** Galat validasi berpath dari service skenario (dipetakan 422). Asumsi sementara sampai tipe final Track A. */
-class ScenarioValidationException(val issues: List<ScenarioIssue>) :
-    IllegalArgumentException(issues.joinToString("; ") { "${it.path}: ${it.message}" })
-
-private val PATH_HINT = Regex("""steps\[\d+]|\.carries\[|\.reworkTo|\.screenId""")
-
-/** `null` = bukan galat validasi (id tak ada / galat lain). */
-internal fun issuesOf(e: Throwable): List<ScenarioIssue>? = when {
-    e is ScenarioValidationException -> e.issues
-    e is DiscoveryDraftDecodeException -> listOf(ScenarioIssue(e.path, e.message ?: "tidak sah"))
-    e is IllegalArgumentException && PATH_HINT.containsMatchIn(e.message.orEmpty()) -> listOf(ScenarioIssue("", e.message.orEmpty()))
+/** `null` = bukan galat validasi (id tak ada / terkunci / galat lain). Hanya tipe galat resmi yang dihitung. */
+internal fun issuesOf(e: Throwable): List<ScenarioIssue>? = when (e) {
+    is ScenarioInvalidException -> e.issues
+    is DiscoveryDraftDecodeException -> listOf(ScenarioIssue(e.path, e.message ?: "tidak sah"))
     else -> null
 }
 

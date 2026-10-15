@@ -177,18 +177,23 @@ class BuilderScenarioRoutesTest {
         val svc = FakeService(onConfirm = { _, id ->
             when (id.value) {
                 "hilang" -> Result.failure(IllegalArgumentException("Skenario 'hilang' tidak ada"))
-                "typed" -> Result.failure(ScenarioValidationException(listOf(ScenarioIssue("steps[1].screenId", "bukan milik modul"))))
+                "typed" -> Result.failure(com.eventverse.app.domain.discovery.scenario.ScenarioInvalidException(listOf(ScenarioIssue("steps[1].screenId", "bukan milik modul"))))
+                "terkunci" -> Result.failure(com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase.LockedException("Draf d1 sudah terkunci"))
                 else -> Result.failure(IllegalArgumentException("steps[0].carries[0].toField: field tidak ada"))
             }
         })
         install(this, svc)
-        assertEquals(404, call("confirm", """{"id":"hilang"}""").status.value)
+        val gone = call("confirm", """{"id":"hilang"}""")
+        assertEquals(404, gone.status.value)
+        assertEquals("Skenario 'hilang' tidak ada", obj(gone.bodyAsText()).string("error"), "404 id tak ada membawa badan JSON {error}")
+        assertEquals(423, call("confirm", """{"id":"terkunci"}""").status.value)
         val typed = call("confirm", """{"id":"typed"}""")
         assertEquals(422, typed.status.value)
         val issue = obj(typed.bodyAsText()).array("issues").filterIsInstance<JsonValue.Obj>().single()
         assertEquals("steps[1].screenId", issue.string("path"))
         assertEquals("bukan milik modul", issue.string("message"))
-        assertEquals(422, call("confirm", """{"id":"berpath"}""").status.value)
+        // Hanya tipe galat resmi yang berarti "tak sah": pesan berisi path pada IllegalArgumentException biasa TIDAK ditebak jadi 422.
+        assertEquals(404, call("confirm", """{"id":"berpath"}""").status.value)
     }
 
     @Test

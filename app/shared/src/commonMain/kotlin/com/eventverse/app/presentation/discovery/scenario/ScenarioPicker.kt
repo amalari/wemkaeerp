@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.discovery.scenario.DefaultScenarioCarryRule
 import com.eventverse.app.domain.discovery.scenario.ScenarioCarryRule
 import com.eventverse.app.domain.discovery.scenario.ScenarioSketch
 import com.eventverse.app.presentation.designsystem.ClayBadge
@@ -28,7 +29,7 @@ import com.eventverse.app.presentation.theme.WeMadeColors
 
 /** Aksi server + aturan pembawa untuk panel skenario; dibangun pemanggil (chat Builder), dibaca [ScenarioPicker]. */
 data class ScenarioActions(
-    val carryRule: ScenarioCarryRule = StraightCarryRule,
+    val carryRule: ScenarioCarryRule = DefaultScenarioCarryRule,
     val busy: Boolean = false,
     val notice: String? = null,
     val onPropose: () -> Unit = {},
