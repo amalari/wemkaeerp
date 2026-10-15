@@ -85,8 +85,14 @@ fun Route.builderRoutes(
     moduleEditor: com.eventverse.app.domain.builder.ModuleEditor? =
         com.eventverse.app.infrastructure.builder.BuilderModuleEditors.fromEnv(),
     /** Pembuat brief per modul (TRD-BLDR-001); `null` = fitur mati (flag) → `POST /chat/briefs` 404. */
-    moduleBriefs: com.eventverse.app.domain.builder.ModuleBriefService? = null
+    moduleBriefs: com.eventverse.app.domain.builder.ModuleBriefService? = null,
+    /** Layanan skenario (TRD-BLDR-002); `null` = fitur mati → rute 404. */
+    scenarios: com.eventverse.app.domain.discovery.scenario.ScenarioService? = null
 ) {
+    // TODO(TRD-BLDR-002 koordinator): bila `BuilderScenarioProposers.enabled()` dan `scenarios == null`, bangun service konkret Track A
+    // (KoogScenarioProposer via BuilderScenarioProposers.fromEnv() atau fallback deterministik) tepat di sini, mis.
+    // `val scenarioService = scenarios ?: if (BuilderScenarioProposers.enabled()) <ProposeScenariosUseCase(...)> else null`,
+    // lalu ganti argumen `scenarios` di baris `builderScenarioRoutes(...)` di bawah dengan `scenarioService`.
     // Brief per modul (TRD-BLDR-001): service yang disuntik (tes) menang; selain itu hanya bila flag env menyala.
     // Tanpa penyusun AI (kunci/koog tak ada) tetap jalan dengan brief deterministik — fitur tidak bergantung pada AI.
     val briefService = moduleBriefs ?: if (com.eventverse.app.infrastructure.builder.BuilderModuleBriefers.enabled()) {
@@ -147,6 +153,7 @@ fun Route.builderRoutes(
     route("/api/builder") {
         builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
         builderModuleBriefRoutes(briefService, runRegistry)
+        builderScenarioRoutes(scenarios, runRegistry)
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext

@@ -73,7 +73,7 @@ internal fun summaryObj(stored: StoredDiscoveryDraft, narrative: String? = null)
     "screens" to jsonArrayOf(stored.draft.screens.map { screenObj(it, samplePack) })
     )
     // Kunci wawancara/modul bersama hanya muncul bila draf punya sesi/rujukan: draf lama tidak berubah satu byte pun.
-    return withSharedModules(withInterview(base, stored), stored)
+    return withScenarios(withSharedModules(withInterview(base, stored), stored), stored)
 }
 
 /**
