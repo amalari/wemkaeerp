@@ -115,10 +115,11 @@ fun Route.builderRoutes(
     } else null
     val send = SendBuilderMessageUseCase(
         chats, agent, drafts, interviewPlanner = interviewPlanner,
-        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) },
-        briefService = briefService
+        moduleEditing = moduleEditor?.let { com.eventverse.app.domain.builder.EditModuleFromChat(chats, drafts, it) }
     )
-    val apply = ApplyDraftPatchUseCase(chats, drafts)
+    // Brief dibuat di latar setelah Terapkan (wawancara baru tersimpan saat itu); lingkup hidup selama server berjalan.
+    val briefScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+    val apply = ApplyDraftPatchUseCase(chats, drafts, briefService = briefService, briefScope = briefScope)
     // Agregat deployment & billing terpisah (plan §6); dipasang di sini supaya Application.kt tidak bertambah.
     builderDeploymentRoutes(drafts, deployments, buildRequests, tenants, probe, auditLog, chats)
     builderBuildQueueRoutes(buildRequests)

@@ -45,6 +45,9 @@ class KoogModuleBriefer(
         appendLine("Narasi usaha pemilik:")
         appendLine("$FENCE\n${r.narrative}\n$FENCE")
         if (r.roleFeatures.isNotEmpty()) appendLine("Peran dan fitur tertaut modul ini:\n$FENCE\n${r.roleFeatures.joinToString("\n") { "- $it" }}\n$FENCE")
+        if (r.upstreamModules.isNotEmpty()) appendLine("Modul ini MENERIMA pekerjaan dari modul: ${r.upstreamModules.joinToString(", ")} (langkah di modul itu BUKAN langkah modul ini).")
+        if (r.downstreamModules.isNotEmpty()) appendLine("Modul ini MENYERAHKAN hasil ke modul: ${r.downstreamModules.joinToString(", ")} (langkah di modul itu BUKAN langkah modul ini).")
+        if (r.otherModules.isNotEmpty()) appendLine("Modul LAIN dalam aplikasi ini, yang mengerjakan bagian ceritanya sendiri: ${r.otherModules.joinToString(", ")}.")
         r.slotInput?.let { appendLine("Masukan modul: $it") }
         r.slotOutput?.let { appendLine("Keluaran modul: $it") }
         if (r.screenFieldLabels.isNotEmpty()) appendLine("Isian layar yang sudah diusulkan: ${r.screenFieldLabels.joinToString(", ")}")
@@ -81,6 +84,10 @@ class KoogModuleBriefer(
               optional=true bila tahap boleh dilewati. reworkTo (opsional) = nama tahap SEBELUMNYA tempat dokumen kembali bila ditolak.
             - followUps: pertanyaan pelengkap hanya bila informasi penting benar-benar kurang, maksimum ${ModuleBriefLimits.FOLLOW_UPS_MAX},
               tiap maksimum ${ModuleBriefLimits.FOLLOW_UP_MAX_CHARS} karakter; jangan ulangi pertanyaan yang sudah ada. Kosongkan bila tidak perlu.
+            - BATAS LINGKUP: narasi menceritakan SELURUH usaha, tetapi ringkasan, features, dan stages HANYA tentang pekerjaan yang
+              dikerjakan DI modul ini. Langkah yang dikerjakan modul lain (lihat "Modul LAIN", "MENERIMA dari", "MENYERAHKAN ke")
+              JANGAN dimasukkan sebagai tahap atau fitur; cukup sebut sebagai serah-terima masuk atau keluar di ringkasan.
+              Bila ragu langkah milik modul ini atau modul lain, jangan masukkan.
             - Jangan mengarang fakta yang tidak ada di narasi.
 
             BALASAN: satu objek JSON saja, tanpa kunci lain:

@@ -49,7 +49,21 @@ internal object ModuleBriefInputs {
             screenFieldLabels = draft.screens.filter { it.moduleId == module.id }
                 .flatMap { it.proposal?.entity?.fields.orEmpty() }.map { it.label },
             alreadyAsked = alreadyAsked,
-            feedback = feedback
+            feedback = feedback,
+            upstreamModules = neighborNames(draft, module, incoming = true),
+            downstreamModules = neighborNames(draft, module, incoming = false),
+            otherModules = draft.pack.modules
+                .filter { it.id != module.id && it.kind == ModuleKind.OPERATIONAL && it.id.value in draft.blueprint.activeModuleCodes }
+                .map { it.displayName }
         )
     }
+
+    /** Nama modul tetangga serah-terima (wawancara): yang menyerahkan ke [module] bila [incoming], selain itu yang menerima darinya. */
+    private fun neighborNames(draft: DiscoveryDraft, module: ModuleDefinition, incoming: Boolean): List<String> =
+        draft.interview?.handoffs.orEmpty()
+            .filter { if (incoming) it.to == module.id else it.from == module.id }
+            .map { if (incoming) it.from else it.to }
+            .filter { it != module.id }
+            .mapNotNull { id -> draft.pack.modules.firstOrNull { it.id == id }?.displayName }
+            .distinct()
 }

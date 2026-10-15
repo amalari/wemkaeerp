@@ -55,7 +55,15 @@ data class ModuleBriefRequest(
     /** Label isian layar modul yang sudah diusulkan; boleh kosong. */
     val screenFieldLabels: List<String> = emptyList(),
     val alreadyAsked: List<Clarification> = emptyList(),
-    val feedback: String? = null
+    val feedback: String? = null,
+    /**
+     * Batas lingkup (temuan cek visual 2026-10-16): narasi menceritakan SELURUH usaha, jadi tanpa batas ini ringkasan satu modul
+     * memuat langkah modul lain. [upstreamModules]/[downstreamModules] = nama modul yang menyerahkan ke / menerima dari modul
+     * ini (serah-terima wawancara); [otherModules] = nama modul operasional aktif lainnya. Semuanya data tenant; boleh kosong.
+     */
+    val upstreamModules: List<String> = emptyList(),
+    val downstreamModules: List<String> = emptyList(),
+    val otherModules: List<String> = emptyList()
 )
 
 /**

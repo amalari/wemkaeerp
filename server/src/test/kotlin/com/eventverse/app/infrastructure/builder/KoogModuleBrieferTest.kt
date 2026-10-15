@@ -72,6 +72,24 @@ class KoogModuleBrieferTest {
     }
 
     @Test
+    fun `batas lingkup - modul lain dan tetangga serah-terima ikut prompt dan aturan melarang langkah modul lain`() = runBlocking {
+        val (exec, b) = briefer(valid)
+        b.brief(request().copy(upstreamModules = listOf("Pendaftaran"), downstreamModules = listOf("Kasir"), otherModules = listOf("Pendaftaran", "Kasir", "Farmasi"))).getOrThrow()
+        val prompt = exec.lastPromptText()
+        assertTrue(prompt.contains("MENERIMA pekerjaan dari modul: Pendaftaran"))
+        assertTrue(prompt.contains("MENYERAHKAN hasil ke modul: Kasir"))
+        assertTrue(prompt.contains("Modul LAIN dalam aplikasi ini") && prompt.contains("Pendaftaran, Kasir, Farmasi"))
+        assertTrue(KoogModuleBriefer.SYSTEM.contains("BATAS LINGKUP") && KoogModuleBriefer.SYSTEM.contains("JANGAN dimasukkan"))
+    }
+
+    @Test
+    fun `tanpa tetangga pesan pengguna tidak memuat baris lingkup kosong`() {
+        // Pesan pengguna saja: prompt sistem memang menyebut istilah ini di aturannya.
+        val user = briefer(valid).second.userMessage(request())
+        assertTrue(!user.contains("MENERIMA pekerjaan dari") && !user.contains("MENYERAHKAN hasil ke") && !user.contains("Modul LAIN"))
+    }
+
+    @Test
     fun `saklar fitur default mati dan penyusun null tanpa koog atau kunci API`() {
         assertNull(BuilderModuleBriefers.from(configured = null, apiKey = "k"))
         assertNull(BuilderModuleBriefers.from(configured = "koog", apiKey = null))

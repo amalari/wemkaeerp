@@ -4,7 +4,7 @@ import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CancellationException
 
 /**
- * Pemicu brief dari giliran chat (FR-1 a/b). Brief adalah pelengkap: galat apa pun di sini **tidak boleh** menggagalkan
+ * Pemicu brief setelah patch diterapkan (FR-1; lihat `ApplyDraftPatchUseCase`). Brief adalah pelengkap: galat apa pun di sini **tidak boleh** menggagalkan
  * balasan chat, jadi ditelan dengan sengaja (pembatalan korutin tetap diteruskan). Pengguna bisa memicunya ulang lewat
  * `POST /api/builder/chat/briefs`; pemanggilan ulang idempoten.
  */

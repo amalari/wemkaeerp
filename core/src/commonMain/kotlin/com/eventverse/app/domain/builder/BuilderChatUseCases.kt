@@ -17,6 +17,8 @@ import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
 import kotlinx.datetime.Clock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Mengirim pesan user dan merekam balasan agent (FR-M1-1/2). Urutannya penting: pesan USER dicatat
@@ -34,9 +36,7 @@ class SendBuilderMessageUseCase(
     /** Perencana wawancara penuh yang sudah dipakai Discovery; null = langsung menyusun draf. */
     private val interviewPlanner: InterviewPlanner? = null,
     /** Penyunting isian per modul (Fase C); null = utas modul memakai agent penyusun draf. */
-    private val moduleEditing: EditModuleFromChat? = null,
-    /** Pembuat brief per modul (TRD-BLDR-001); null = perilaku lama (tanpa brief). */
-    private val briefService: ModuleBriefService? = null
+    private val moduleEditing: EditModuleFromChat? = null
 ) {
     /**
      * Satu giliran chat. [onProgress] menerima fase kerja (`planning` saat memeriksa kejelasan cerita, `drafting` saat
@@ -142,8 +142,9 @@ class SendBuilderMessageUseCase(
                 return@runCatching chats.messages(conversation.id)
             }
             if (planned != null) {
+                // Brief TIDAK dipicu di sini: wawancara hasil rencana baru ada di patch usulan, belum di draf tersimpan.
+                // Pemicunya di ApplyDraftPatchUseCase (setelah Terapkan), saat wawancara benar-benar tersimpan.
                 plannedCurrent = current.copy(interview = planned)
-                briefService.triggerQuietly(tenantId)
             }
         }
 
@@ -185,7 +186,11 @@ class SendBuilderMessageUseCase(
 class ApplyDraftPatchUseCase(
     private val chats: BuilderChatRepository,
     private val drafts: DiscoveryDraftRepository,
-    private val clock: Clock = Clock.System
+    private val clock: Clock = Clock.System,
+    /** Pembuat brief per modul (TRD-BLDR-001); null = tanpa brief. Dipicu SETELAH patch tersimpan (wawancara baru ada di draf saat itu). */
+    private val briefService: ModuleBriefService? = null,
+    /** Bila diisi, brief dibuat di latar (pembuatan dengan model bisa puluhan detik; tombol Terapkan tidak menunggu). null = ditunggu (tes). */
+    private val briefScope: CoroutineScope? = null
 ) {
     class DraftLockedException(message: String) : IllegalStateException(message)
 
@@ -218,6 +223,7 @@ class ApplyDraftPatchUseCase(
                 )
             )
             chats.markApplied(messageId, stored.id)
+            if (briefScope != null) briefScope.launch { briefService.triggerQuietly(tenantId) } else briefService.triggerQuietly(tenantId)
             stored
         }
 }
