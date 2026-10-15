@@ -281,7 +281,7 @@ fun App() {
     // Studio Discovery (R16/Fase D) dan Studio Pola Prototipe (Fase C) bukan modul, jadi tidak lewat
     // buildNavMenu; barisnya ditambahkan eksplisit dan hanya saat keputusan wewenang sudah termuat.
     // Lambda, bukan `::openScreen`: referensi fungsi lokal belum didukung backend KMP ini.
-    val drawerSections = if (builderRoute) builderDrawerSections(shellPath) { goShell("/builder/$it"); drawerOpen = false } else if (isAuthenticated && accessDecisions.isNotEmpty()) {
+    val drawerSections = if (builderRoute) builderDrawerSections(shellPath, currentLanguage) { goShell("/builder/$it"); drawerOpen = false } else if (isAuthenticated && accessDecisions.isNotEmpty()) {
         navSections + studioDrawerSection(
             currentScreen = currentScreen,
             // Buku demand superadmin-only di server; baris drawer ikut supaya pengguna lain
@@ -311,7 +311,7 @@ fun App() {
                 if (!isBuilderLogin) {
                     AppTopBar(
                         currentScreen = currentScreen,
-                        title = if (builderRoute) builderSectionTitle(shellPath) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayNameText?.resolve(currentLanguage)?.text else menuSections.titleFor(currentScreen),
+                        title = if (builderRoute) builderSectionTitle(shellPath, currentLanguage) else if (currentScreen == AppNavScreen.MODULE) moduleFromGenericPath(modulePath)?.displayNameText?.resolve(currentLanguage)?.text else menuSections.titleFor(currentScreen),
                         onOpenDrawer = { drawerOpen = true },
                         isAuthenticated = isAuthenticated,
                         session = session,
@@ -334,9 +334,9 @@ fun App() {
 
                 if (builderRoute && isAuthenticated) {
                     key(session?.tenantSlug) { BuilderShell(modifier = Modifier.weight(1f), // remount saat tenant aktif berganti
-                        section = builderSection(shellPath),
-                        templateCode = builderQueryParam(shellPath, "template"),
-                        onSectionChange = { key -> goShell("/builder/$key") }) }
+                        section = builderSection(shellPath), templateCode = builderQueryParam(shellPath, "template"),
+                        onSectionChange = { key -> goShell("/builder/$key") },
+                        onOpenModule = { code -> modulePath = "/m/$code"; currentScreen = AppNavScreen.MODULE; goShell("/m/$code") }) }
                 } else Crossfade(targetState = currentScreen, modifier = Modifier.weight(1f)) { screen ->
                     when (screen) {
                         // Ketiga layar tata kelola kini melewati gerbang yang sama dengan sembilan

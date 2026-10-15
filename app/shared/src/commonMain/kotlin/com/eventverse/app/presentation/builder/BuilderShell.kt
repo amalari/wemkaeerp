@@ -21,12 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,67 +29,111 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eventverse.app.domain.builder.BuilderConsoleMenu
+import com.eventverse.app.domain.builder.BuilderLiveSignal
+import com.eventverse.app.domain.builder.BuilderMenuKey
+import com.eventverse.app.domain.builder.BuilderRouteMap
+import com.eventverse.app.domain.i18n.LanguageCode
+import com.eventverse.app.presentation.builder.chat.BuilderChatEmptyState
 import com.eventverse.app.presentation.builder.chat.BuilderChatPane
+import com.eventverse.app.presentation.builder.audit.BuilderAuditPane
+import com.eventverse.app.presentation.builder.handoff.BuilderHandoffPane
+import com.eventverse.app.presentation.builder.live.BuilderLivePane
+import com.eventverse.app.presentation.builder.setting.BuilderSettingPane
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayShapes
 import com.eventverse.app.presentation.designsystem.ClaySpacing
-import com.eventverse.app.presentation.designsystem.IconActivity
-import com.eventverse.app.presentation.designsystem.IconPlus
 import com.eventverse.app.presentation.designsystem.IconArrowBack
 import com.eventverse.app.presentation.designsystem.IconChat
-import com.eventverse.app.presentation.designsystem.IconDatabase
+import com.eventverse.app.presentation.designsystem.IconEdit
 import com.eventverse.app.presentation.designsystem.IconGlobe
+import com.eventverse.app.presentation.designsystem.IconHandshake
 import com.eventverse.app.presentation.designsystem.IconLayers
-import com.eventverse.app.presentation.designsystem.IconPackage
-import com.eventverse.app.presentation.designsystem.IconReceipt
 import com.eventverse.app.presentation.designsystem.IconShield
-import com.eventverse.app.presentation.designsystem.IconZap
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.theme.WeMadeColors
+import kotlinx.coroutines.launch
 
-/** Satu entri menu sidebar Builder dengan ikon kanvas native. */
+/** Satu entri menu sidebar/konsol dengan ikon kanvas native; label sudah teks jadi dari pemanggil. */
 internal data class BuilderMenuItem(
     val key: String,
     val label: String,
     val enabled: Boolean = true,
     val badge: String? = null,
+    val badgeTint: Color? = null,
     val icon: (@Composable (Modifier, Color) -> Unit)? = null
 )
 
-internal fun builderMenu() = listOf(
-    BuilderMenuItem("overview", "Overview", icon = { m, c -> IconGlobe(m, c) }),
-    BuilderMenuItem("newpack", "Buat Pack Baru", icon = { m, c -> IconPlus(m, c) }),
-    BuilderMenuItem("chat", "Chat AI", icon = { m, c -> IconChat(m, c) }),
-    BuilderMenuItem("modules", "Modules", icon = { m, c -> IconLayers(m, c) }),
-    BuilderMenuItem("dataflow", "Data Flow", icon = { m, c -> IconDatabase(m, c) }),
-    BuilderMenuItem("prototype", "Prototype", icon = { m, c -> IconActivity(m, c) }),
-    BuilderMenuItem("buildqueue", "Antrian Pembuatan", icon = { m, c -> IconPackage(m, c) }),
-    BuilderMenuItem("deployments", "Deployments", icon = { m, c -> IconZap(m, c) }),
-    BuilderMenuItem("billing", "Billing", icon = { m, c -> IconReceipt(m, c) }),
-    BuilderMenuItem("settings", "Pengaturan", icon = { m, c -> IconShield(m, c) })
+/** Ikon menu v2 per kontrak `BuilderConsoleMenu` — data kontrak yang memilih ikon, bukan urutan list. */
+private val builderMenuIcons: Map<BuilderMenuKey, @Composable (Modifier, Color) -> Unit> = mapOf(
+    BuilderConsoleMenu.CHAT to { m, c -> IconChat(m, c) },
+    BuilderConsoleMenu.LIVE to { m, c -> IconGlobe(m, c) },
+    BuilderConsoleMenu.HANDOFF to { m, c -> IconHandshake(m, c) },
+    BuilderConsoleMenu.AUDIT to { m, c -> IconShield(m, c) },
+    BuilderConsoleMenu.SETTING to { m, c -> IconEdit(m, c) },
 )
 
 /**
- * Shell WeMake Builder (PLAN-builder-console §6): hanya area konten — menu Builder hidup di drawer
+ * Menu Builder v2 (TRD-PLAT-014 FR-1-2/3): **lima entri per momen pelanggan** dari kontrak Track 0
+ * `BuilderConsoleMenu` — label id+en sebagai data, diresolve ke [language] bahasa aktif (mekanisme
+ * bahasa yang sama dengan menu modul). Badge (FR-1-4) opsional dari [BuilderMenuBadges]:
+ * Handoff = angka antrean aktif, Live = titik sinyal deployment.
+ */
+internal fun builderMenu(
+    language: LanguageCode,
+    badges: BuilderMenuBadges? = null,
+): List<BuilderMenuItem> = BuilderConsoleMenu.entries.map { entry ->
+    BuilderMenuItem(
+        key = entry.key.value,
+        label = entry.labelText.resolve(language).text,
+        badge = when (entry.key) {
+            BuilderConsoleMenu.HANDOFF -> badges?.handoffActiveCount?.takeIf { it > 0 }?.toString()
+            BuilderConsoleMenu.LIVE -> badges
+                // Titik sinyal Live: U+00B7 satu-satunya glyph titik yang aman di Nunito (Latin-1).
+                ?.liveSignal?.takeIf { it != BuilderLiveSignal.NOT_DEPLOYED }?.let { "·" }
+            else -> null
+        },
+        badgeTint = if (entry.key == BuilderConsoleMenu.LIVE) badges?.liveSignal?.badgeTint() else null,
+        icon = builderMenuIcons[entry.key],
+    )
+}
+
+/**
+ * Shell WeMake Builder v2 (TRD-PLAT-014 FR-1): hanya area konten — menu Builder hidup di drawer
  * header (`builderDrawerSections`, sama seperti navigasi platform), jadi seluruh lebar layar milik pane.
  *
- * Setiap menu punya **route sendiri** (`/builder/<key>`) supaya reload & Back/Forward browser tetap
+ * Setiap menu punya **route sendiri** (`/builder/<key>`; Live dan Setting punya sub-segmen
+ * `live/preview`, `live/production`, `setting/billing`) supaya reload & Back/Forward browser tetap
  * membuka pane yang sama: [section] diturunkan App dari `shellPath`. Sumber kebenaran tunggal = URL.
- * Pane [fullHeight] (chat) mengelola scroll-nya sendiri; pane lain digulir shell.
+ * Default kini **chat** (FR-1-1); key menu lama dialihkan lewat [BuilderRouteMap] — redirect klien,
+ * deep-link lama tidak pernah 404. Pane [fullHeight] (chat) mengelola scroll-nya sendiri; pane lain
+ * digulir shell.
  */
 @Composable
 fun BuilderShell(
     modifier: Modifier = Modifier,
-    section: String = "overview",
+    section: String = BuilderConsoleMenu.CHAT.value,
     /** Nilai `?template=` pada route internal (`/builder/chat?template=bordir`), untuk alur wizard. */
     templateCode: String? = null,
-    onSectionChange: (String) -> Unit = {}
+    onSectionChange: (String) -> Unit = {},
+    /** Membuka modul live aplikasi tenant (`/m/{code}`) dari tab Production. */
+    onOpenModule: (String) -> Unit = {}
 ) {
-    val selected = remember(section) { builderMenu().firstOrNull { it.key == section }?.key ?: "overview" }
-    val fullHeight = selected == "chat"
+    // Redirect deep-link lama (FR-1-2): resolve dulu ke tujuan baru; pemetaan identitas ("chat" →
+    // "chat") tidak di-push ulang ke riwayat, hanya pemetaan lintas lokasi yang memicu perubahan URL.
+    val resolved = BuilderRouteMap.resolve(section)
+    val selected = (resolved ?: section).ifBlank { BuilderConsoleMenu.CHAT.value }
+    if (resolved != null && resolved != section) {
+        LaunchedEffect(section) { onSectionChange(resolved) }
+    }
+    val menuKey = selected.substringBefore('/')
+    // Key asing (bukan menu v2, bukan route lama) jatuh ke default chat — perilaku fallback lama,
+    // bukan layar 404.
+    val route = if (menuKey in builderRouteKeys) selected else BuilderConsoleMenu.CHAT.value
+    val fullHeight = route == BuilderConsoleMenu.CHAT.value
 
     Box(
         modifier = modifier
@@ -112,23 +151,34 @@ fun BuilderShell(
                 .then(if (fullHeight) Modifier.fillMaxHeight() else Modifier.padding(bottom = ClaySpacing.Xxl)),
             verticalArrangement = Arrangement.spacedBy(ClaySpacing.Lg)
         ) {
-            when (selected) {
-                "overview" -> BuilderOverviewPane(onNavigate = onSectionChange)
+            when (route.substringBefore('/')) {
+                BuilderConsoleMenu.CHAT.value -> BuilderChatPane(
+                    templateCode = templateCode,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    emptyState = { BuilderChatEmptyState(onNavigate = onSectionChange) }
+                )
+                BuilderConsoleMenu.LIVE.value -> BuilderLivePane(
+                    tab = route.substringAfter('/', missingDelimiterValue = "preview"),
+                    onNavigate = onSectionChange,
+                    onOpenModule = onOpenModule
+                )
+                BuilderConsoleMenu.HANDOFF.value -> BuilderHandoffPane()
+                BuilderConsoleMenu.AUDIT.value -> BuilderAuditPane()
+                BuilderConsoleMenu.SETTING.value -> BuilderSettingPane(
+                    initialTab = route.substringAfter('/', missingDelimiterValue = "").ifBlank { null }
+                )
                 "newpack" -> BuilderNewPackScreen(onNavigate = onSectionChange)
-                "chat" -> BuilderChatPane(templateCode = templateCode, modifier = Modifier.weight(1f).fillMaxHeight())
-                "modules" -> BuilderModulesPane()
-                "dataflow" -> BuilderDataFlowPane()
-                "prototype" -> BuilderPrototypePane()
-                "buildqueue" -> BuilderBuildQueuePane()
-                "deployments" -> BuilderDeploymentsPane()
-                "billing" -> BuilderBillingPane()
-                "settings" -> BuilderSettingsPane()
             }
         }
     }
 }
 
-/** Sidebar konsol platform superadmin (`PlatformAdminConsole`) ala Vercel: Brand Header, Pill Navigation, dan Platform Info Footer. */
+/** Segmen pertama route v2 yang sah — kontrak `BuilderConsoleMenu` + layar aksi `newpack`. */
+private val builderRouteKeys: Set<String> = BuilderConsoleMenu.entries.map { it.key.value }.toSet() + "newpack"
+
+/**
+ * Sidebar konsol platform superadmin (`PlatformAdminConsole`) ala Vercel: Brand Header, Pill Navigation, dan Platform Info Footer.
+ */
 @Composable
 internal fun BuilderSidebar(
     title: String = "WeMake Builder",
@@ -235,9 +285,13 @@ internal fun BuilderSidebar(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
                         )
-                        item.badge?.let { phase ->
+                        item.badge?.let { badge ->
                             Spacer(Modifier.width(ClaySpacing.Xs))
-                            ClayBadge(text = phase, tint = WeMadeColors.OnSurfaceMuted, fontSize = 9.sp)
+                            ClayBadge(
+                                text = badge,
+                                tint = item.badgeTint ?: WeMadeColors.OnSurfaceMuted,
+                                fontSize = 9.sp
+                            )
                         }
                     }
                 }

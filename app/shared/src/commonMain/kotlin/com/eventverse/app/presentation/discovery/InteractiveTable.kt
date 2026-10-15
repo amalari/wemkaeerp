@@ -173,14 +173,14 @@ fun InteractiveTable(
             ) {
                 if (state.config.statusField != null) {
                     Text(
-                        "• Ketuk status untuk mengubah",
+                        "· Ketuk status untuk mengubah",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (wireframe) WeMadeColors.WireframeOnSurfaceMuted else WeMadeColors.OnSurfaceMuted
                     )
                 }
                 if (state.config.editableFields.isNotEmpty()) {
                     Text(
-                        "• Ketuk sel untuk mengedit",
+                        "· Ketuk sel untuk mengedit",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (wireframe) WeMadeColors.WireframeOnSurfaceMuted else WeMadeColors.OnSurfaceMuted
                     )

@@ -1,5 +1,7 @@
 package com.eventverse.app.presentation.builder
 
+import com.eventverse.app.domain.builder.BuilderRouteMap
+import com.eventverse.app.domain.i18n.LanguageCode
 import com.eventverse.app.presentation.builder.chat.templateSeedPrompt
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,8 +20,36 @@ class BuilderNavTest {
         assertEquals("chat", builderSection("/builder/chat?template=bordir"))
         assertEquals("chat", builderSection("/builder/chat"))
         assertEquals("newpack", builderSection("/builder/newpack"))
-        assertEquals("overview", builderSection("/builder"))
-        assertEquals("overview", builderSection(""))
+        // TRD-PLAT-014 FR-1-1: `/builder` tanpa segmen membuka Chat (default lama: overview).
+        assertEquals("chat", builderSection("/builder"))
+        assertEquals("chat", builderSection(""))
+        // Sub-segmen v2 diteruskan utuh ke shell (tab Live / tab Setting).
+        assertEquals("live/production", builderSection("/builder/live/production"))
+        assertEquals("live/preview", builderSection("/builder/live/preview"))
+        assertEquals("setting/billing", builderSection("/builder/setting/billing"))
+    }
+
+    @Test
+    fun `menu v2 berisi tepat lima key kontrak dan label ter-resolve`() {
+        val menu = builderMenu(LanguageCode.ID)
+        assertEquals(
+            listOf("chat", "live", "handoff", "audit", "setting"),
+            menu.map { it.key },
+            "menu v2 harus 5 entri kontrak BuilderConsoleMenu, berurutan"
+        )
+        assertEquals("Pengaturan", builderMenu(LanguageCode.ID).last().label)
+        assertEquals("Settings", builderMenu(LanguageCode.EN).last().label)
+    }
+
+    @Test
+    fun `key lama resolve ke tujuan baru dan identitas tidak di-push ulang`() {
+        // Redirect hanya untuk pemetaan lintas lokasi; identitas (chat, newpack) tidak memicu push.
+        assertEquals("live/production", BuilderRouteMap.resolve("deployments"))
+        assertEquals("handoff", BuilderRouteMap.resolve("buildqueue"))
+        assertEquals(null, BuilderRouteMap.resolve("bukan-menu"))
+        listOf("chat", "newpack").forEach { key ->
+            assertEquals(key, BuilderRouteMap.resolve(key), "identitas $key tidak boleh berubah")
+        }
     }
 
     @Test
