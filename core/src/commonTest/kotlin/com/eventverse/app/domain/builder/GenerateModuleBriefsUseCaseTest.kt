@@ -152,15 +152,23 @@ class GenerateModuleBriefsUseCaseTest {
     }
 
     @Test
-    fun `generate follow-up AI dan celah returns paling banyak tiga dengan AI diprioritaskan`() = runTest {
+    fun `generate follow-up AI returns hanya pertanyaan AI tanpa dicampur celah template`() = runTest {
         val chats = InMemoryBuilderChatRepository().also { seed(it) }
+        // Batas 3 butir ditegakkan validator brief (FR-4); duplikat setara dibuang use case.
         val ai = listOf("Siapa pemeriksa?", "siapa pemeriksa?", "Berapa tarif?")
         useCase(chats, ScriptedBriefer(listOf(good(ai)))).generate(tenant, "klinik_poli").getOrThrow()
         val qs = chats.all().single { it.kind == ChatMessageKind.QUESTION }.questions
-        assertEquals(3, qs.size)
-        assertTrue(qs[0].id.startsWith("ai:klinik_poli:") && qs[1].id.startsWith("ai:klinik_poli:"))
+        assertEquals(2, qs.size, "duplikat setara dibuang; sisa kuota TIDAK diisi celah template")
+        assertTrue(qs.all { it.id.startsWith("ai:klinik_poli:") }, "AI menggantikan template")
         assertEquals(BriefKeys.followUpId("klinik_poli", "Siapa pemeriksa?"), qs[0].id)
-        assertTrue(qs[2].id.startsWith("gap:"), "sisa kuota diisi celah data")
+    }
+
+    @Test
+    fun `generate tanpa follow-up AI returns celah template sebagai cadangan`() = runTest {
+        val chats = InMemoryBuilderChatRepository().also { seed(it) }
+        useCase(chats, ScriptedBriefer(listOf(good(emptyList())))).generate(tenant, "klinik_poli").getOrThrow()
+        val qs = chats.all().single { it.kind == ChatMessageKind.QUESTION }.questions
+        assertTrue(qs.isNotEmpty() && qs.all { it.id.startsWith("gap:") })
     }
 
     @Test

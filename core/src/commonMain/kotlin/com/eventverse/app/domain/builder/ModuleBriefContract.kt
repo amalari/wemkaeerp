@@ -35,7 +35,12 @@ interface ModuleBriefService {
  */
 object BriefKeys {
     /** Id follow-up AI: stabil per (modul, teks pertanyaan ternormalisasi) → pertanyaan yang sama tidak ditanyakan ulang. */
-    fun followUpId(moduleId: String, question: String): String = "ai:$moduleId:${fingerprint(question)}"
+    fun followUpId(moduleId: String, question: String): String = "$AI_ID_PREFIX$moduleId:${fingerprint(question)}"
+
+    /** Awalan id pertanyaan follow-up buatan AI (lawan: celah template [ModuleGapAnalyzer.ID_PREFIX]). */
+    const val AI_ID_PREFIX = "ai:"
+
+    fun isAiQuestionId(id: String): Boolean = id.startsWith(AI_ID_PREFIX)
 
     /** Basis brief: berubah bila narasi, fitur tautan, atau versi agent berubah. */
     fun basisRef(narrative: String, roleFeatures: List<String>, agentRef: String): String =

@@ -23,6 +23,10 @@ data class ModuleGap(val kind: ModuleGapKind, val code: String, val question: St
  * interogasi.
  */
 object ModuleGapAnalyzer {
+    /** Awalan id pertanyaan template ([ModuleGap.code]). Pertanyaan AI memakai [BriefKeys.AI_ID_PREFIX] dan menggantikannya. */
+    const val ID_PREFIX = "gap:"
+
+    fun isGapQuestionId(id: String): Boolean = id.startsWith(ID_PREFIX)
 
     fun analyze(draft: DiscoveryDraft, moduleId: String, limit: Int = 3): List<ModuleGap> {
         val module = draft.pack.modules.firstOrNull { it.id.value == moduleId } ?: return emptyList()

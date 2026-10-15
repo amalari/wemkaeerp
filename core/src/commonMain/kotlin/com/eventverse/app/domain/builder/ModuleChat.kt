@@ -137,6 +137,9 @@ class AskModuleFollowUpsUseCase(
         val draft = drafts.findByTenant(tenantId)?.draft ?: return@runCatching false
         val conversation = chats.conversationFor(tenantId)
         val thread = chats.messages(conversation.id).inThread(moduleId)
+        // Modul yang sudah punya brief: pertanyaannya datang dari brief (AI, atau celah template sebagai fallback di sana).
+        // Membuat pertanyaan template lagi di sini hanya menghasilkan pertanyaan yang tersembunyi atau ganda.
+        if (thread.any { it.kind == ChatMessageKind.BRIEF }) return@runCatching false
         if (thread.pendingFollowUps(moduleId).isNotEmpty()) return@runCatching false
         // Dedup teks ternormalisasi: pertanyaan AI (id `ai:`) yang setara dengan celah (id `gap:`) tidak digandakan.
         val askedText = thread.filter { it.kind == ChatMessageKind.QUESTION }

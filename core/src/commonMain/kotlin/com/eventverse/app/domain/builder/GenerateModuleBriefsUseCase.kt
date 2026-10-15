@@ -84,7 +84,8 @@ class GenerateModuleBriefsUseCase(
             )
         )
         val questions = followUps(draft, id, brief, thread, asked)
-        if (questions.isNotEmpty() && thread.pendingFollowUps(id).isEmpty()) {
+        // Hanya pertanyaan AI yang menunggu yang menahan pertanyaan baru; pertanyaan template yang di-seed klien tidak (ia digantikan).
+        if (questions.isNotEmpty() && thread.pendingFollowUps(id).none { BriefKeys.isAiQuestionId(it.question.id) }) {
             val key = BriefKeys.fingerprint(questions.joinToString("|") { it.id })
             chats.append(
                 ChatMessage(
@@ -121,7 +122,11 @@ class GenerateModuleBriefsUseCase(
         return null
     }
 
-    /** Follow-up AI diprioritaskan, sisa kuota diisi celah data; dedup terhadap yang sudah ada di utas (dijawab atau belum). */
+    /**
+     * Pertanyaan AI bila ada (maks [ModuleBriefLimits.FOLLOW_UPS_MAX]); hanya bila AI tidak punya pertanyaan, celah template
+     * mengisi (fallback). Tidak dicampur: pertanyaan AI menggantikan template di `pendingFollowUps`, jadi campuran percuma.
+     * Dedup terhadap yang sudah ada di utas (dijawab atau belum).
+     */
     private fun followUps(
         draft: DiscoveryDraft, moduleId: String, brief: ModuleBrief, thread: List<ChatMessage>, asked: List<Clarification>
     ): List<Clarification> {
@@ -131,6 +136,7 @@ class GenerateModuleBriefsUseCase(
             if (out.size < ModuleBriefLimits.FOLLOW_UPS_MAX && seen.add(BriefKeys.normalize(c.question))) out += c
         }
         brief.followUps.forEach { take(Clarification(BriefKeys.followUpId(moduleId, it), it.trim())) }
+        if (out.isNotEmpty()) return out
         ModuleGapAnalyzer.unasked(ModuleGapAnalyzer.analyze(draft, moduleId), thread).forEach { take(Clarification(it.code, it.question)) }
         return out
     }
