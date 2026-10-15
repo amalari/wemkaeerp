@@ -49,9 +49,17 @@ import kotlinx.coroutines.launch
  * Chat Builder (FR-M1-1/2/3): dua panel — percakapan di kiri (riwayat + komposer menempel di bawah),
  * "Hasil request" selalu terlihat di kanan; layar sempit menukar keduanya lewat tombol Hasil. Patch usulan **tidak
  * otomatis** jadi draf — tombol Terapkan yang memutuskan (plan §4); draf dimuat ulang setelah Terapkan.
+ *
+ * [emptyState] (TRD-PLAT-014 FR-2-2) ditampilkan menggantikan daftar pesan bila riwayat kosong dan
+ * tenant belum punya draf kerja — tempat aksi "Buat Pack Baru" dan ringkasan deployment. Null =
+ * perilaku lama (daftar kosong polos).
  */
 @Composable
-fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier) {
+fun BuilderChatPane(
+    templateCode: String? = null,
+    modifier: Modifier = Modifier,
+    emptyState: (@Composable () -> Unit)? = null
+) {
     val scope = rememberCoroutineScope()
     val client = remember { BuilderApiClient() }
     val typography = rememberClayTypography()
@@ -300,6 +308,11 @@ fun BuilderChatPane(templateCode: String? = null, modifier: Modifier = Modifier)
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)
                 ) {
+                    // Empty-state (FR-2-2): `shown` kosong hanya bila riwayat kosong DAN tenant belum
+                    // punya draf — sebelum itu pesan pembuka lokal selalu mengisi.
+                    if (shown.isEmpty() && emptyState != null) {
+                        item(key = "empty-state") { emptyState() }
+                    }
                     items(shown, key = { it.id }) { entry ->
                         ChatMessageBubble(
                             entry = entry,

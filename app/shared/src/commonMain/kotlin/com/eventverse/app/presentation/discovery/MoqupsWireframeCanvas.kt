@@ -215,7 +215,7 @@ fun MoqupsFlowNavigator(
                     color = WeMadeColors.WireframeOnSurface
                 )
                 Text(
-                    text = "• ${selectedIndex + 1} dari ${screens.size} Layar",
+                    text = "· ${selectedIndex + 1} dari ${screens.size} Layar",
                     fontSize = 11.sp,
                     color = WeMadeColors.WireframeOnSurfaceMuted
                 )

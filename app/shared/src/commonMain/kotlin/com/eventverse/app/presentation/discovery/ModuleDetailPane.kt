@@ -160,7 +160,7 @@ internal fun ModuleDetailPane(
                             fontSize = 11.sp,
                             color = WeMadeColors.OnSurfaceMuted
                         )
-                        Text(text = "→", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
+                        Text(text = "»", fontSize = 11.sp, color = WeMadeColors.OnSurfaceMuted)
                         Text(
                             text = "Out: ${focusedModule.slotOutput ?: "Tanpa output eksternal"}",
                             fontSize = 11.sp,
@@ -298,7 +298,7 @@ internal fun ModuleDetailPane(
                                     color = WeMadeColors.OnSurface
                                 )
                                 Text(
-                                    text = "Divisi: ${sectionStyle.title} · In: ${mod.slotInput ?: "–"} → Out: ${mod.slotOutput ?: "–"}",
+                                    text = "Divisi: ${sectionStyle.title} · In: ${mod.slotInput ?: "-"} » Out: ${mod.slotOutput ?: "-"}",
                                     fontSize = 11.sp,
                                     color = WeMadeColors.OnSurfaceMuted
                                 )
