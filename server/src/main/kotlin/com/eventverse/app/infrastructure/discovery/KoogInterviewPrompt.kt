@@ -89,7 +89,7 @@ internal object KoogInterviewPrompt {
           shipped=true, extend wajib menyebut fitur tambahan; modul kustom pakai new.
         - Handoff (serah-terima antar modul): from dan to HARUS modul operasional di katalog, dan portType WAJIB persis salah satu
           dari field "output" modul asal ATAU field "input" modul tujuan di katalog (juga termasuk wiredPorts). Port lain atau
-          pasangan yang tidak cocok ditolak validator. Jangan menyambung bila tidak ada port yang cocok - lebih baik tanpa handoff itu.
+          pasangan yang tidak cocok ditolak validator.
         - BERDASAR CERITA: setiap divisions/roles/links/handoffs/specs WAJIB membawa basisRef -
           {"basis":"narasi","quote":"kutipan PERSIS dari cerita"} atau {"basis":"jawaban","answerId":"id giliran"} /
           {"basis":"saran_diterima","answerId":"..."}. Tebakan tanpa dasar ditolak validator; profile tidak perlu basisRef.
