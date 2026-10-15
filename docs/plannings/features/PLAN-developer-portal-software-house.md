@@ -83,6 +83,46 @@ bahwa **alur ini belum pernah dipakai nyata** — Fase C0 menyertakan uji coba u
 
 ---
 
+## 3b. Jalur demo — alur end-to-end software house (ditambahkan 2026-10-15)
+
+**Tujuan demo**: memperlihatkan rantai penuh *owner bercerita → prototype → permintaan pembuatan → developer
+mengerjakan → serah-terima*, dengan **developer sebagai peran nyata di platform** (bukan superadmin yang menyamar).
+
+**Cakupan minimum = C1 + subset C2 + subset C3.** Di luar ini ditunda.
+
+| # | Langkah demo | Status kode hari ini | Yang harus dibangun |
+|---|---|---|---|
+| 1 | Owner chat di Builder → prototype → deploy pack kustom | **Ada** | — |
+| 2 | `BuildRequest` `QUEUED` + **brief beku** + revisi/`SUPERSEDED` | **Ada** (V94/V95) | — |
+| 3 | Koordinator (superadmin/PM) melihat antrean & **menugaskan developer** | Antrean ada; **penugasan tidak** | tabel `build_request_assignments` + aksi assign + audit |
+| 4 | Developer masuk (sesi terpisah) → layar **"Tugas saya"** | **Tidak ada** | peran platform `DEVELOPER`, `GET /api/dev/assignments`, UI daftar |
+| 5 | Developer buka permintaan → **baca brief** (+ bagian "Belum jelas") | Brief ada; rute dev tidak | `GET /api/dev/requests/{id}`, UI detail brief |
+| 6 | Developer ubah status (`IN_PROGRESS → IN_REVIEW`) + catat jam | `IN_PROGRESS` ada; transisi dev & tulis jam tidak | `POST /api/dev/requests/{id}/status`; catat jam ke ledger |
+| 7 | Serah-terima: `ACCEPTED → SHIPPED` → deploy M2 | `SHIPPED` + deploy/rollback **ada** | transisi `ASSIGNED/IN_REVIEW/CHANGES_REQUESTED/ACCEPTED` sebagai data |
+
+**Sengaja di luar demo (jangan dipalsukan).** C4 loop umpan-balik (tampilkan "belum tersedia", bukan dipalsukan),
+C5 keuangan/tarif developer, C6 sandbox per permintaan / repo / review `TECH_LEAD` / serah-terima otomatis. Selama demo
+memakai tenant uji + data sintetis, sandbox dan redaksi brief tidak diperlukan — **wajib dinyatakan sebagai batas**,
+bukan diklaim selesai.
+
+**Gerbang wajib sebelum membangun demo (dari C0).** Satu uji coba ujung ke ujung **manual** lebih dulu tanpa kode
+developer, memakai opsi B yang ada, untuk membuktikan alur deploy → antrean → brief benar-benar hidup (bug
+`BLOCKED_ON_BUILD` pernah membuat antrean tak pernah terisi). Demo hanya dibangun di atas alur yang sudah terbukti.
+
+**Definition of Done demo** (mengikuti checklist DoD repo):
+1. Developer tak ditugaskan → 403/404; penugasan dicabut → akses langsung hilang.
+2. Tenant admin tidak bisa memakai rute `/api/dev/*`.
+3. Tenant kedua tidak bocor lintas tenant.
+4. Kompilasi 5 target; audit-variability tanpa temuan baru; nol literal warna baru di luar `WeMadeTheme.kt`.
+5. Cek visual dengan mata (login developer demo + owner `wemade-demo`, ~1280dp).
+6. Teaching doc + `TASKS-SUMMARY.md` diperbarui.
+
+**Keputusan §6 yang wajib diambil sebelum demo:** butir 1 (siapa developernya — untuk demo: developer internal
+diundang), butir 3 (apa yang boleh dilihat developer — untuk demo: brief penuh di tenant uji), butir 4 (boleh
+menghubungi klien langsung — untuk demo: tidak, lewat platform), butir 8 (jadwal C0 sebelum kode C1).
+
+---
+
 ## 4. Urutan dan ukuran kasar
 
 | Fase | Ukuran | Bergantung pada | Catatan |

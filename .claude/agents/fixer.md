@@ -80,3 +80,14 @@ The `confidence` field indicates how confident you are that the fixes are correc
 - **high**: straightforward fixes with clear right answers (e.g., rethrow CancellationException)
 - **medium**: fixes that required judgment calls but follow established patterns
 - **low**: fixes where you had to make assumptions — the iterative review loop should catch issues
+
+## Task Closure — WAJIB (WeMade ERP)
+
+Setiap kali task/track/butir yang kamu kerjakan **selesai**, dalam sesi yang sama **wajib**
+memperbarui `docs/plannings/mvp/TASKS-SUMMARY.md`: pindahkan butir dari "Belum ⏳" ke "Selesai ✅"
+beserta bukti (commit, nama tes, file yang disentuh), atau tulis sisa pekerjaan bila baru sebagian.
+Perbarui juga tanggal di kepala berkas dan centang `- [x]` pada Definition of Done dokumen
+planning/TRD sumbernya. Hanya centang yang **terbukti** (tes hijau / cek visual dengan mata) —
+dilarang mencentang berdasarkan niat atau asumsi. Rincian lengkap: `.claude/CLAUDE.md` §18
+"Penutupan Task Planning". Task **tidak** dianggap selesai sebelum `TASKS-SUMMARY.md` sinkron
+dengan kondisi kode.

@@ -55,10 +55,11 @@
 
 | # | Task | Plan |
 |---|---|---|
-| BLD-03 | Builder Console v2 (Chat, Live, Handoff, Audit, Setting) — **T0 kontrak dibekukan** (`BuilderConsoleContract`, `BuilderAuditTrailCodec`, test kontrak hijau); T1–T4 belum | [`PLAN`](../features/PLAN-builder-console-v2-navigation.md) |
+| BLD-03 | Builder Console v2 (Chat, Live, Handoff, Audit, Setting) — **T0–T3 SELESAI** (`BuilderConsoleContract`, `BuilderAuditTrailCodec`, test kontrak hijau); T4 ✅: kompilasi 4 target (Android ditunda - SDK), audit-variability 0 temuan, file-size audit OK; visual check pending manual | [`PLAN`](../features/PLAN-builder-console-v2-navigation.md) |
 | BLD-02 | Ringkasan & follow-up per modul (BRIEF) — Fase 1: Track 0/A/B/C selesai, D (visual) belum | [`PLAN`](../features/PLAN-builder-module-briefs.md) |
 | BLD-01 | Tab Alur Data per fitur + Prototype Simulation | [`PLAN`](../../features/PLAN-builder-data-flow-and-prototype-simulation.md) |
-| HELP-03 | Kontrak cakupan tutorial per modul — **Selesai ✅**: `TutorialCoverage` + `TutorialCoverageTest` (6 tes, ratchet dua arah, exempt 10 modul garment); checklist rules §4; revisi TRD-HELP-001 v0.5 | [`PLAN`](../features/PLAN-help-003-tutorial-coverage-contract.md) · `core:jvmTest` 2159 tes hijau |
+| HELP-03 | Kontrak cakupan tutorial per modul — **Selesai ✅** (commit `bb7cb2f7`): `TutorialCoverage` + `TutorialCoverageTest` (6 tes, ratchet dua arah, exempt 10 modul garment); checklist rules §4; revisi TRD-HELP-001 v0.5 | [`PLAN`](../features/PLAN-help-003-tutorial-coverage-contract.md) · `core:jvmTest` 2159 tes hijau |
+| HELP-04 | Cicil utang tutorial 10 modul exempt (batch 1: `INVENTORY`, `FULFILLMENT`, `INVOICING`, `QUALITY_CONTROL`) — tiap tutorial otomatis memaksa exempt-nya dicabut lewat ratchet; sisa 6 modul menyusul | [`PLAN-help-003`](../features/PLAN-help-003-tutorial-coverage-contract.md) §inventaris — daftar utang: frozen list di `TutorialCoverageTest.kt` |
 | K3 | Builder Wizard Self-Service (Template + Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
 | K3e | Halaman pemilihan metode (Template vs Scratch) | **TINGGI** | Screen pilih template garment atau from scratch |
 | K3a | UI popup/render followUp dari API chat | **TINGGI** | Modal untuk tampilkan pertanyaan Clarification dari AI |

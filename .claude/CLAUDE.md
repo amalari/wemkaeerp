@@ -483,7 +483,8 @@ Celah dan prioritas saat ini: `docs/plannings/PLAN-field-component-gaps.md`.
 
 ### 18. Penutupan Task Planning (Flag Selesai + TASKS-SUMMARY)
 
-Setiap kali satu task/track/butir di dokumen planning (`docs/plannings/**`, `docs/trd/**`) **selesai**, dalam sesi yang sama:
+**Berlaku untuk SEMUA agent** (planner, implementer, fixer, reviewer, validator) dan semua tool
+(Claude, Cline, Gemini/Antigravity, Codex, Kilo). Setiap kali satu task/track/butir di dokumen planning (`docs/plannings/**`, `docs/trd/**`) **selesai**, dalam sesi yang sama:
 
 1. **Beri flag selesai di dokumen planning-nya** — centang `- [x]` pada butir Definition of Done/checklist yang
    terpenuhi, dan ubah baris `**Status**` di kepala dokumen (mis. `Diusulkan` → `Sebagian selesai` → `Selesai`,
