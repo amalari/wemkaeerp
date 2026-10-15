@@ -79,6 +79,7 @@ Agregat baru: `ModuleTutorial`. Tidak ada migrasi. Karena ada 4 fase dan 3 lapis
 | 0.2 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 1 (katalog + coach mark, pilot CRM) dan Fase 2 (pencocok leksikal, `POST /api/tenant/help/ask`, `HelpApiClient`) selesai |
 | 0.3 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 3: `KoogHelpAgent` (DeepSeek), `HELP_AGENT`/`HELP_AGENT_MODEL`, live evals 3/3 PASS |
 | 0.4 | 2026-09-30 | Achmad Jamaludin / Claude | Fase 4: jendela Bantuan (tab Panduan / Tanya AI), `HelpChatViewModel`, saran AI → coach mark; pencocok membuang kandidat < ½ skor teratas |
+| 0.5 | 2026-10-15 | Achmad Jamaludin / Kilo | Kontrak cakupan tutorial per modul ([`PLAN-help-003`](../../plannings/features/PLAN-help-003-tutorial-coverage-contract.md)): `TutorialCoverage` + `TutorialCoverageTest` dengan frozen exempt list & ratchet dua arah; 10 modul garment tercatat exempt (utang dicicil) |
 
 - **Summary & Business Context**:
   - Pengguna baru kesulitan memakai modul (CRM, Sampling, Costing, dan lainnya), dan saat ini tidak ada panduan di dalam aplikasi sama sekali.
@@ -149,6 +150,12 @@ Showing/Navigating ─dismiss→ Idle
 Bila tidak ada kandidat, balas dengan jawaban "tidak menemukan tutorial" tanpa saran.
 
 **FR-7 Chat.** `HelpChatPanel` mengirim pertanyaan bersama modul aktif. Jawaban asisten yang punya saran menampilkan tombol "Mulai tutorial", yang menutup panel lalu memanggil `TutorialController.start`.
+
+**FR-8 Kontrak cakupan (v0.5).** `TutorialCoverage.violations(pack, tutorials, exempt)` menjaga agar setiap modul pack bawaan selalu bisa dijawab helper:
+- Modul tanpa tutorial `TutorialScope.Module(moduleId)` dan tanpa entri `exempt` = pelanggaran.
+- `exempt` dengan alasan kosong, untuk modul yang tidak ada di pack, atau untuk modul yang sudah punya tutorial = pelanggaran (ratchet dua arah: exempt dicabut begitu tutorial ditulis).
+- Daftar `exempt` frozen hidup di `TutorialCoverageTest` sebagai utang terdaftar (10 modul garment saat v0.5); menyusut, tidak pernah membesar.
+- Tidak ada tabel DB, tidak ada endpoint — kontrak dijaga test di CI, bukan runtime.
 
 ## 3. Non-Functional Requirements
 
@@ -298,6 +305,7 @@ Tanpa akses modul apa pun, respons tetap 200 dengan `suggestion = null`.
 2. Di `bordir-uji` (pack/modul berbeda) hanya tutorial yang sah yang tampil.
 3. Peran tanpa akses Costing tidak pernah menerima tutorial Costing, baik dari sheet maupun dari `/help/ask`.
 4. `HELP_AGENT=koog` dengan ID hasil halusinasi jatuh ke kandidat teratas.
+5. `TutorialCoverageTest` hijau: tidak ada modul garment di luar daftar exempt yang tanpa tutorial; exempt bertahan hanya untuk modul yang benar-benar belum tercakup.
 
 **Testing Strategy**
 

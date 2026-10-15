@@ -114,6 +114,7 @@ Setiap modul baru **WAJIB** mendeklarasikan salah satu dari dua kapabilitas jang
 - [ ] Apakah modul telah diuji berjalan pada alur bawaan (FOB/CMT/D2C) maupun alur custom hasil utak-atik (*puzzled*)?
 - [ ] Apakah modul menyertakan dokumentasi pengajaran (*teaching*) di `docs/teaching/`?
 - [ ] **Menu (§5.7)**: apakah modul/fitur menyatakan **eksplisit** tampil atau tidak di menu (+ alasan bila tidak), dan bila tampil, judul menu `id` + `en` sudah disiapkan di data (bukan string di UI)?
+- [ ] **Tutorial bantuan (PLAN-help-003)**: apakah modul punya minimal satu `ModuleTutorial` di pack-nya (title, summary, `sampleQuestions`, `keywords`, steps), atau tercatat `Exempt(alasan)` di `TutorialCoverageTest`? Modul tanpa keduanya membuat `TutorialCoverageTest` gagal di CI — chat helper tidak boleh diam-diam kehabisan bahan jawaban.
 
 ---
 
