@@ -47,6 +47,7 @@ fun scenarioAdvanceMessage(a: ScenarioAdvance): String? = when (a) {
     is ScenarioAdvance.Moved -> listOfNotNull(
         a.warnings.takeIf { it.isNotEmpty() }?.let { "Sebagian data tidak dibawa: " + carryWarningText(it) },
         a.sampled.takeIf { it.isNotEmpty() }?.let { "Diisi contoh karena wajib dan belum ada datanya: ${it.joinToString(", ")}. Ganti sesuai kebutuhan." },
+        "Formulir sudah terisi dari langkah sebelumnya. Periksa, lalu simpan.".takeIf { a.prefilled },
         a.note
     ).joinToString(" ").ifBlank { null }
 }
@@ -54,3 +55,23 @@ fun scenarioAdvanceMessage(a: ScenarioAdvance): String? = when (a) {
 /** Teks peringatan pasangan field yang ditolak aturan pembawa, untuk ditampilkan di langkah. */
 fun carryWarningText(issues: List<ScenarioIssue>): String =
     issues.take(3).joinToString("; ") { it.message } + if (issues.size > 3) " (+${issues.size - 3} lagi)" else ""
+
+/** Nada pesan pemutar: [BLOCKED] tak pindah, [WARNING] pindah tapi ada yang perlu diperiksa, [INFO] keterangan netral. */
+enum class ScenarioNoticeTone { BLOCKED, WARNING, INFO }
+
+/** Pesan pemutar beserta nadanya, supaya UI bisa membedakan penolakan dari peringatan dan info (temuan 10c). */
+data class ScenarioNotice(val text: String, val tone: ScenarioNoticeTone)
+
+/**
+ * [scenarioAdvanceMessage] + nada. Ditolak -> BLOCKED; pindah dengan pasangan ditolak, nilai contoh, atau formulir yang harus diperiksa ->
+ * WARNING (pengguna wajib meninjau); selain itu INFO. `null` bila tak ada yang perlu dikatakan.
+ */
+fun scenarioAdvanceNotice(a: ScenarioAdvance): ScenarioNotice? {
+    val text = scenarioAdvanceMessage(a) ?: return null
+    val tone = when (a) {
+        is ScenarioAdvance.Blocked -> ScenarioNoticeTone.BLOCKED
+        is ScenarioAdvance.Moved ->
+            if (a.warnings.isNotEmpty() || a.sampled.isNotEmpty() || a.prefilled) ScenarioNoticeTone.WARNING else ScenarioNoticeTone.INFO
+    }
+    return ScenarioNotice(text, tone)
+}

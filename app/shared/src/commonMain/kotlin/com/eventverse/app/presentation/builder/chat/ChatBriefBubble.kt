@@ -20,6 +20,7 @@ import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.StageSketch
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
+import com.eventverse.app.presentation.designsystem.ClayFlowRow
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayTag
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
@@ -36,6 +37,15 @@ internal fun stageCaption(stage: StageSketch): String? = listOfNotNull(
     "opsional".takeIf { stage.optional },
     stage.reworkTo?.let { "rework ke $it" }
 ).joinToString(" · ").ifEmpty { null }
+
+/** Satu tag keterangan Tahap; [rework] = tag loop rework (diberi warna peringatan). */
+internal data class StageTag(val text: String, val rework: Boolean)
+
+/** Tag terpisah per keterangan Tahap (opsional, rework): masing-masing pendek supaya bisa turun baris utuh. Murni. */
+internal fun stageTags(stage: StageSketch): List<StageTag> = listOfNotNull(
+    StageTag("opsional", rework = false).takeIf { stage.optional },
+    stage.reworkTo?.let { StageTag("rework ke $it", rework = true) }
+)
 
 /**
  * Ringkasan BRIEF satu modul (TRD-BLDR-001 FR-7): judul, Tahap berurutan, fitur, badge sumber. Yang terbaru tampil
@@ -94,27 +104,28 @@ internal fun ChatBriefBubble(entry: BuilderChatEntry, expandedByDefault: Boolean
 @Composable
 private fun StageRow(number: Int, stage: StageSketch) {
     val typography = rememberClayTypography()
-    val caption = stageCaption(stage)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ClayTag(text = number.toString(), tint = WeMadeColors.Primary)
-        Text(
-            text = stage.name,
-            style = typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = WeMadeColors.OnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false)
-        )
-        if (caption != null) ClayTag(
-            text = caption,
-            tint = if (stage.reworkTo != null) WeMadeColors.Warning else WeMadeColors.OnSurfaceMuted,
-            modifier = Modifier.weight(1f, fill = false)
-        )
+    val tags = stageTags(stage)
+    Column(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ClayTag(text = number.toString(), tint = WeMadeColors.Primary)
+            Text(
+                text = stage.name,
+                style = typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = WeMadeColors.OnSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
+        // Dua tag terpisah: di kolom sempit turun baris utuh, bukan satu tag yang membungkus teksnya jadi 3 baris (temuan 10a).
+        if (tags.isNotEmpty()) ClayFlowRow(spacing = ClaySpacing.Xs) {
+            tags.forEach { t -> ClayTag(text = t.text, tint = if (t.rework) WeMadeColors.Warning else WeMadeColors.OnSurfaceMuted) }
+        }
     }
 }
 

@@ -84,6 +84,11 @@ class PrototypeSession(
             }
     }
 
+    /** Menghapus pesan sukses/galat formulir yang basi di semua layar (dipanggil saat pengguna berpindah langkah skenario). */
+    fun clearFormNotices() {
+        blocks.values.forEach { (it as? InteractiveFormState)?.clearNotices() }
+    }
+
     fun block(screenId: String): PlayableState? = blocks[screenId]
 
     /** Pengontrol data layar (memori/API sesuai binding); dipakai pemutar skenario. Null untuk layar tanpa entitas. */

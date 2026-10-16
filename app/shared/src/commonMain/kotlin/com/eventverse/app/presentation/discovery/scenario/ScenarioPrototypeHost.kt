@@ -53,43 +53,28 @@ fun ScenarioPrototypeHost(
     val selected = draft.scenarios.firstOrNull { it.id.value == selectedId }
     var run by remember(selected) { mutableStateOf(selected?.let { ScenarioRun(it) }) }
     var epoch by remember { mutableStateOf(0) }
-    var message by remember(selected) { mutableStateOf<String?>(null) }
+    var message by remember(selected) { mutableStateOf<ScenarioNotice?>(null) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(ClaySpacing.Sm)) {
         ScenarioPicker(
             scenarios = draft.scenarios,
             selectedId = selected?.id?.value,
-            onSelect = { selectedId = it; epoch++ },
+            onSelect = { selectedId = it; session.clearFormNotices(); epoch++ },
             actions = actions
         )
         draft.scenariosError?.let {
             Text("Skenario draf tidak terbaca: $it", style = typography.bodySmall, color = WeMadeColors.Error)
         }
         val current = run
-        if (message != null || current?.reworkLabel != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = message.orEmpty(),
-                    style = typography.bodySmall,
-                    color = WeMadeColors.OnSurfaceMuted,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                current?.reworkLabel?.let { label ->
-                    ClayButton(
-                        text = "Kembalikan ke $label",
-                        onClick = { current.rework()?.let { run = it; message = null; epoch++ } },
-                        style = ClayButtonStyle.Secondary,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
-            }
+        message?.let { ScenarioNoticeBar(it) }
+        current?.reworkLabel?.let { label ->
+            ClayButton(
+                text = "Kembalikan ke $label",
+                onClick = { current.rework()?.let { run = it; message = null; session.clearFormNotices(); epoch++ } },
+                style = ClayButtonStyle.Secondary,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f).fillMaxHeight()) {
             val active = run
@@ -109,7 +94,8 @@ fun ScenarioPrototypeHost(
                     onAdvance = { from ->
                         scope.launch {
                             val result = active.copy(stepIndex = from).advance(data, actions.carryRule)
-                            message = scenarioAdvanceMessage(result)
+                            session.clearFormNotices()
+                            message = scenarioAdvanceNotice(result)
                             when (result) {
                                 is ScenarioAdvance.Moved -> { run = result.run; epoch++ }
                                 is ScenarioAdvance.Blocked -> run = active.copy(stepIndex = from)
