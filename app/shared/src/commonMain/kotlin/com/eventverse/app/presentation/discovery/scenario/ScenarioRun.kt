@@ -23,6 +23,12 @@ interface ScenarioScreenData {
 
     /** Membuat baris baru di memori layar itu. Gagal dengan pesan siap tampil bila ditolak aturan layar (mis. field wajib). */
     suspend fun createRow(screenId: String, values: Map<String, String>): Result<PrototypeRow>
+
+    /** `true` bila layar [screenId] berbentuk formulir entri baru (tidak menampilkan baris); bawaan `false` = tabel/papan/daftar. */
+    fun isFormScreen(screenId: String): Boolean = false
+
+    /** Mengisi isian formulir [screenId] dengan [values] TANPA membuat baris (hanya dipanggil bila [isFormScreen]). */
+    fun prefillForm(screenId: String, values: Map<String, String>) {}
 }
 
 /** Hasil satu aksi "Lanjut". */
@@ -37,7 +43,9 @@ sealed interface ScenarioAdvance {
         val warnings: List<ScenarioIssue> = emptyList(),
         val note: String? = null,
         /** Label field wajib yang diisi **nilai contoh** karena lahir di langkah ini dan tak tercakup pembawa data. */
-        val sampled: List<String> = emptyList()
+        val sampled: List<String> = emptyList(),
+        /** `true` bila layar tujuan formulir: isiannya diisi nilai terbawa + contoh, TIDAK ada baris dibuat sampai pengguna menyimpan. */
+        val prefilled: Boolean = false
     ) : ScenarioAdvance
 
     /** Tidak pindah dan tidak ada baris yang dibuat; [reason] ditampilkan di langkah itu. */
@@ -56,6 +64,14 @@ sealed interface ScenarioAdvance {
  *   -> diisi **nilai contoh** ([SampleValues]) dan dilaporkan di [ScenarioAdvance.Moved.sampled], supaya alur tetap bisa dilihat
  *   (temuan 9, cek visual klinik 2026-10-16: tanpa ini hampir semua alur nyata berhenti di langkah kedua). Tipe yang tak punya
  *   nilai contoh (RELATION/USER_REF/FILE) tetap kosong -> layar menolak -> [ScenarioAdvance.Blocked].
+ * - **Layar tujuan berbentuk formulir** (temuan 14, cek visual klinik 2026-10-16: "Dokter periksa pasien"): formulir hanya untuk entri baru dan
+ *   tidak menampilkan baris, jadi baris yang dibuat diam-diam di memori membuat pengguna melihat isian KOSONG padahal pesan bilang ada data
+ *   contoh. Maka nilai terbawa + status awal + contoh **mengisi isian formulir** ([ScenarioScreenData.prefillForm]) dan baris TIDAK dibuat
+ *   ([ScenarioAdvance.Moved.prefilled]); baris lahir saat pengguna menekan simpan, lewat jalur formulir yang sama (validasi reducer, siaran
+ *   ke layar sekawan). Alternatif ditolak: strip "baris terbawa" di atas formulir - menambah komponen baru dan data tetap tak bisa disunting
+ *   di tempat. Konsekuensi: langkah formulir belum punya baris sumber sampai disimpan, jadi "Lanjut" darinya ditolak dengan "Simpan dulu".
+ *   Tabel/papan/daftar TIDAK berubah (baris dibuat). Tipe tanpa nilai contoh (RELATION/USER_REF/FILE) tak dikarang: isian dibiarkan kosong dan
+ *   reducer formulir menolak saat simpan; di jalur formulir pemutar tidak memblokir karena pengguna sendiri yang melengkapinya.
  * - **Entitas bermesin-status**: baris baru memulai di status awal ([SampleValues.initialState]) bila statusnya kosong, kalau tidak papan
  *   tidak menampilkannya (baris tanpa status tak masuk kolom mana pun). Ini aturan mesin, bukan nilai contoh, jadi tidak dilaporkan di `sampled`.
  * - **Layar menolak baris** (mis. field wajib bertipe tanpa nilai contoh kosong) -> [ScenarioAdvance.Blocked] dengan pesan layar;
@@ -100,7 +116,10 @@ data class ScenarioRun(
             return ScenarioAdvance.Moved(moved, created = null, note = note)
         }
         val source = sourceRow(data, sourceScreen)
-            ?: return ScenarioAdvance.Blocked("Belum ada baris di '${from.label}'. Buat satu dulu, lalu lanjutkan.")
+            ?: return ScenarioAdvance.Blocked(
+                if (data.isFormScreen(sourceScreen)) "Formulir '${from.label}' belum disimpan. Simpan dulu, lalu lanjutkan."
+                else "Belum ada baris di '${from.label}'. Buat satu dulu, lalu lanjutkan."
+            )
         val outcome = rule.apply(source.values, from.carries, sourceEntity, targetEntity)
         if (outcome.values.isEmpty()) {
             return if (outcome.rejected.isEmpty()) ScenarioAdvance.Moved(moved, created = null, note = "Tidak ada data yang dibawa dari '${from.label}'.")
@@ -109,7 +128,12 @@ data class ScenarioRun(
         // Urutan penting: status awal dulu (field status wajib pun memulai di status awal, bukan opsi pertama), baru nilai contoh.
         val base = SampleValues.withInitialState(targetEntity, outcome.values)
         val samples = SampleValues.missingRequired(targetEntity, base).mapNotNull { f -> SampleValues.forField(f)?.let { f to it } }
-        val row = data.createRow(targetScreen, base + samples.associate { (f, v) -> f.key to v }).getOrElse { e ->
+        val filled = base + samples.associate { (f, v) -> f.key to v }
+        if (data.isFormScreen(targetScreen)) {
+            data.prefillForm(targetScreen, filled)
+            return ScenarioAdvance.Moved(moved, created = null, warnings = outcome.rejected, sampled = samples.map { it.first.label }, prefilled = true)
+        }
+        val row = data.createRow(targetScreen, filled).getOrElse { e ->
             return ScenarioAdvance.Blocked(e.message ?: "Baris di '${next.label}' ditolak.", outcome.rejected)
         }
         val ref = RowRef(toIndex, targetScreen, row.id)

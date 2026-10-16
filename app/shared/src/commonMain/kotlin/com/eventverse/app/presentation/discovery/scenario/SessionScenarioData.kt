@@ -4,6 +4,7 @@ import com.eventverse.app.domain.prototype.DataBinding
 import com.eventverse.app.domain.prototype.EntitySpec
 import com.eventverse.app.domain.prototype.PrototypeRow
 import com.eventverse.app.presentation.discovery.DiscoveryScreenUi
+import com.eventverse.app.presentation.discovery.InteractiveFormState
 import com.eventverse.app.presentation.discovery.PrototypeSession
 
 /**
@@ -30,5 +31,11 @@ class SessionScenarioData(
         val controller = session.controllerOf(screenId)
             ?: return Result.failure(IllegalStateException("Layar tidak punya data yang bisa diisi."))
         return controller.create(values).onSuccess { row -> session.broadcastRowCreated(controller.entityId, row) }
+    }
+
+    override fun isFormScreen(screenId: String): Boolean = session.block(screenId) is InteractiveFormState
+
+    override fun prefillForm(screenId: String, values: Map<String, String>) {
+        (session.block(screenId) as? InteractiveFormState)?.prefill(values)
     }
 }

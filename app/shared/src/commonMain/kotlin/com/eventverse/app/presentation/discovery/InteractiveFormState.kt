@@ -85,6 +85,22 @@ class InteractiveFormState(
         successMessage = null
     }
 
+    /**
+     * Mengisi isian dari [values] (pemutar skenario: nilai terbawa + contoh) tanpa membuat baris; kunci yang bukan field formulir
+     * diabaikan. Pesan hasil/galat lama dihapus. Baris baru lahir hanya lewat [submit].
+     */
+    fun prefill(values: Map<String, String>) {
+        val keys = fields().map { it.key }.toSet()
+        values.forEach { (k, v) -> if (k in keys) formValues[k] = v }
+        clearNotices()
+    }
+
+    /** Menghapus pesan sukses/galat yang basi (mis. saat pengguna berpindah langkah skenario). */
+    fun clearNotices() {
+        message = null
+        successMessage = null
+    }
+
     fun submit(): Boolean {
         // Pra-validasi
         val dummyRow = PrototypeRow("temp", formValues.toMap())
