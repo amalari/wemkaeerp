@@ -266,7 +266,11 @@ fun Route.builderRoutes(
                         ContentType.Application.Json
                     )
                 },
-                onFailure = { e -> call.respond(HttpStatusCode.Conflict, "Patch tidak diterapkan: ${e.message}") }
+                onFailure = { e ->
+                    // Alasan berpath (tanpa isi narasi) ke log: 409 sebelumnya hanya terlihat sebagai status di klien.
+                    org.slf4j.LoggerFactory.getLogger("builder.apply").warn("patch_apply_rejected tenant={} alasan={}", call.tenantContext.tenantId.value, e.message.orEmpty().take(900))
+                    call.respond(HttpStatusCode.Conflict, "Patch tidak diterapkan: ${e.message}")
+                }
             )
         }
     }

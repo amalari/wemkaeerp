@@ -142,7 +142,21 @@ class SendBuilderMessageUseCase(
         }
 
         onProgress("drafting")
-        val reply = agent.proposePatch(plannedCurrent, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
+        var reply = agent.proposePatch(plannedCurrent, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
+
+        // Industri berganti: rencana di atas disusun terhadap katalog pack LAMA dan tak berlaku untuk draf ber-pack baru
+        // (temuan 8). Rencanakan SEKALI LAGI terhadap pack baru; tanpa pertanyaan (putaran tanya sudah lewat). Gagal = dilaporkan.
+        val proposed = reply.proposedDraft
+        if (planner != null && proposed != null && moduleId == null && proposed.pack.code != current?.pack?.code &&
+            proposed.interview?.isPlanned != true
+        ) {
+            onProgress("planning")
+            val narrative = composeNarrative(thread)
+            val fresh = InterviewSession(step = InterviewStep.G1_DIVISI, version = InterviewSession.BASED_ON_STORY, narrative = narrative)
+            val again = attemptPlan(planner, proposed, fresh, narrative, answeredRound = true)
+            again.rejection?.let { onPlanRejected(tenantId, it) }
+            again.session?.let { reply = reply.copy(proposedDraft = proposed.copy(interview = it)) }
+        }
 
         reply.proposedDraft?.blueprint?.activeModuleCodes.orEmpty().forEach { code ->
             val title = reply.proposedDraft?.pack?.modules?.firstOrNull { it.id.value == code }?.displayName ?: code
