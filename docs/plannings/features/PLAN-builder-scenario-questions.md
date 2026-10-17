@@ -1,7 +1,7 @@
 # PLAN: Pertanyaan Tingkat Skenario di Utas Semua (SC3 / TRD-BLDR-002 FR-9)
 
 **Tanggal**: 2026-10-17
-**Status**: Diusulkan — Discovery Note selesai, belum ada kode. Butuh keputusan pemilik atas D1–D3 (§9) sebelum Track 0
+**Status**: Disetujui 2026-10-18 (D1–D3 sesuai rekomendasi) — mulai Track 0
 **TRD**: [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) FR-9
 **Induk**: [`PLAN-builder-module-briefs.md`](PLAN-builder-module-briefs.md) (butir SC3)
 
@@ -80,7 +80,7 @@ Tidak ada `enum`/`when` domain baru.
 **Batas yang perlu diketahui sejak awal**: jawaban masuk ke `narrative`, jadi hanya mempengaruhi **proposal berikutnya**. Skenario yang sudah ada tidak berubah sendiri (penyimpanan skenario hanya menambah dan membuang urutan modul yang sama). Memberi jalur "usulkan ulang setelah dijawab" adalah pekerjaan terpisah, bukan SC3.
 
 ## 10. Checklist (diisi saat dikerjakan)
-- [ ] Keputusan pemilik D1–D3
+- [x] Keputusan pemilik D1–D3 (2026-10-18: ketiganya sesuai rekomendasi)
 - [ ] T0 Kontrak: field + batas + `ScenarioKeys` + codec + tes draf lama
 - [ ] A Validator + `AskScenarioQuestionsUseCase` + tes (id unik, idempoten, ≤2, tenant kedua)
 - [ ] B Parser/prompt + route + tes 403/423 nol pesan
