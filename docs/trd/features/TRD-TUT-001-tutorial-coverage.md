@@ -374,15 +374,17 @@ lebar ~1280dp); audit `wc -l` berkas baru ≤ hard limit; nol literal warna baru
 
 ### Technical Acceptance Criteria
 
-1. `GarmentModules.modules` **15/15** punya ≥1 tutorial; `TutorialCoverageTest` hijau dengan `garmentExempt = emptyMap()`.
-2. `TutorialSourceRegistry.forPack` mengembalikan source garment untuk `garment`, source layanan untuk `layanan`, dan
+**Status: FR-1 & FR-2 (DONE), FR-3 ✅, FR-4 ✅, FR-5 ✅ (2026-10-17)**
+
+1. [x] `GarmentModules.modules` **15/15** punya ≥1 tutorial; `TutorialCoverageTest` hijau dengan `garmentExempt = emptyMap()`.
+2. [x] `TutorialSourceRegistry.forPack` mengembalikan source garment untuk `garment`, source layanan untuk `layanan`, dan
    `EmptyPackTutorialSource` untuk pack tak terdaftar — dibuktikan test.
-3. Katalog pack `layanan` memuat `layanan_change_request_basics` dan **tidak** memuat tutorial garment; dibuktikan test katalog
+3. [x] Katalog pack `layanan` memuat `layanan_change_request_basics` dan **tidak** memuat tutorial garment; dibuktikan test katalog
    (dan, sebagai konsekuensinya, `/help/ask` menyarankan tutorial pack untuk pertanyaan khas modul itu).
-4. Peran tanpa akses modul tetap tidak menerima tutorial modul itu, baik dari daftar "Panduan" maupun `/help/ask` — regresi HELP-001 tidak ada.
-5. Tenancy: tutorial pack `layanan` tidak muncul untuk tenant garment, dan sebaliknya.
-6. `POST /api/tenant/help/ask` tetap kontraknya (200/400/401/404) tanpa perubahan status.
-7. Kompilasi 5 target hijau; cek visual 2 tenant bersih; teaching doc dibuat; `TASKS-SUMMARY.md` diperbarui (§18).
+4. [ ] Peran tanpa akses modul tetap tidak menerima tutorial modul itu, baik dari daftar "Panduan" maupun `/help/ask` — regresi HELP-001 tidak ada.
+5. [x] Tenancy: tutorial pack `layanan` tidak muncul untuk tenant garment, dan sebaliknya.
+6. [ ] `POST /api/tenant/help/ask` tetap kontraknya (200/400/401/404) tanpa perubahan status.
+7. [ ] Kompilasi 5 target hijau; cek visual 2 tenant bersih; teaching doc dibuat; `TASKS-SUMMARY.md` diperbarui (§18).
 
 ### Testing Strategy
 
