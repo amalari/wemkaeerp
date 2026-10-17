@@ -24,6 +24,7 @@ import com.eventverse.app.shared.json.jsonOf
  *  "steps":[{"moduleId":"crm","screenId":"default-crm"|null,"label":"Lead","evidence":{...}?,
  *            "carries":[{"fromField":"nama","toField":"pelanggan"}],"reworkTo":0?}]}
  * ```
+ * Kunci `questions` (array teks, FR-9) opsional dan ditulis hanya bila tak kosong.
  *
  * Versi kontrak eksplisit (keputusan Track 0, FR-7.2): kunci `contractVersion` ditulis hanya bila ≠ 1, jadi JSON v1
  * lama **byte-identik**; ketiadaan kunci = legacy v1 yang dibaca tanpa bukti. Kunci `evidence` pada langkah opsional;
@@ -48,7 +49,9 @@ object ScenarioSketchCodec {
         val withVersion = if (sc.contractVersion != ScenarioLimits.CONTRACT_VERSION_LEGACY) {
             JsonValue.Obj(base.entries + ("contractVersion" to jsonOf(sc.contractVersion)))
         } else base
-        withVersion
+        // Kunci opsional: ditulis hanya bila ada, jadi JSON lama tanpa pertanyaan byte-identik.
+        if (sc.questions.isEmpty()) withVersion
+        else JsonValue.Obj(withVersion.entries + ("questions" to jsonArrayOf(sc.questions.map { jsonOf(it) })))
     })
 
     fun decode(json: JsonValue, path: String): List<ScenarioSketch> {
@@ -58,7 +61,7 @@ object ScenarioSketchCodec {
 
     private fun decodeScenario(item: JsonValue, path: String): ScenarioSketch {
         val o = item as? JsonValue.Obj ?: fail(path, "harus objek")
-        onlyKeys(o, path, setOf("id", "title", "source", "confirmed", "steps", "contractVersion"))
+        onlyKeys(o, path, setOf("id", "title", "source", "confirmed", "steps", "contractVersion", "questions"))
         val steps = (o["steps"] as? JsonValue.Arr ?: fail("$path.steps", "wajib array")).items
             .mapIndexed { i, s -> decodeStep(s, "$path.steps[$i]") }
         return build(path) {
@@ -71,6 +74,11 @@ object ScenarioSketchCodec {
                     null -> false
                     is JsonValue.Bool -> v.value
                     else -> fail("$path.confirmed", "harus boolean")
+                },
+                questions = when (val v = o["questions"]) {
+                    null, is JsonValue.Null -> emptyList()
+                    is JsonValue.Arr -> v.items.mapIndexed { i, q -> (q as? JsonValue.Str)?.value ?: fail("$path.questions[$i]", "harus teks") }
+                    else -> fail("$path.questions", "harus array teks")
                 },
                 contractVersion = when (val v = o["contractVersion"]) {
                     null, is JsonValue.Null -> ScenarioLimits.CONTRACT_VERSION_LEGACY

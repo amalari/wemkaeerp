@@ -27,6 +27,7 @@ object ScenarioLimits {
     const val LABEL_MAX_CHARS = 40
     const val CARRIES_MAX_PER_STEP = 12
     const val QUESTIONS_MAX = 2
+    const val QUESTION_MAX_CHARS = 200
     /** Kontrak payload (TRD-BLDR-003 FR-7): 1 = legacy (langkah tanpa evidence), 2 = langkah berevidence. */
     const val CONTRACT_VERSION_LEGACY = 1
     const val CONTRACT_VERSION_EVIDENCE = 2
@@ -81,9 +82,15 @@ data class ScenarioSketch(
     val source: ScenarioSource,
     val confirmed: Boolean = false,
     val contractVersion: Int = ScenarioLimits.CONTRACT_VERSION_LEGACY,
+    /**
+     * Pertanyaan pengusul untuk pengguna (FR-9; <= [ScenarioLimits.QUESTIONS_MAX], diperiksa validator). Teks = data tenant.
+     * Dijadikan pesan QUESTION utas Semua oleh `AskScenarioQuestionsUseCase`; skenario deterministik tidak membawanya.
+     */
+    val questions: List<String> = emptyList(),
 ) {
     init {
         require(title.isNotBlank()) { "ScenarioSketch.title kosong" }
+        require(questions.all { it.isNotBlank() }) { "ScenarioSketch.questions tidak boleh berisi teks kosong" }
         require(
             contractVersion == ScenarioLimits.CONTRACT_VERSION_LEGACY ||
                 contractVersion == ScenarioLimits.CONTRACT_VERSION_EVIDENCE
