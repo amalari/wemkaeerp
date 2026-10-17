@@ -1,15 +1,24 @@
 package com.eventverse.app.presentation.tutorial
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
@@ -29,6 +38,7 @@ import com.eventverse.app.presentation.designsystem.ClaySpotlightScrim
 internal fun CoachMarkOverlay(
     run: TutorialRun,
     targetInWindow: Rect?,
+    interactive: Boolean,
     onBack: () -> Unit,
     onNext: () -> Unit,
     onClose: () -> Unit,
@@ -37,23 +47,39 @@ internal fun CoachMarkOverlay(
     var container by remember { mutableStateOf(IntSize.Zero) }
     var callout by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(LocalDensity.current) { 16.dp.toPx() }
+    val calloutFocus = remember { FocusRequester() }
 
     val target = targetInWindow?.translate(-origin.x, -origin.y)
     val placement = if (target == null) CalloutPlacement.CENTER else run.step.placement
 
+    // A11y (FR-6): Esc = dismiss; callout dapat difokus keyboard.
+    LaunchedEffect(run) { runCatching { calloutFocus.requestFocus() } }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                    onClose(); true
+                } else false
+            }
             .onGloballyPositioned { origin = it.positionInWindow() }
             .onSizeChanged { container = it }
     ) {
-        ClaySpotlightScrim(target = target, modifier = Modifier.fillMaxSize())
+        ClaySpotlightScrim(
+            target = target,
+            modifier = Modifier.fillMaxSize(),
+            interactive = interactive,
+            containerSize = container,
+        )
         CoachMarkCallout(
             run = run,
             onBack = onBack,
             onNext = onNext,
             onClose = onClose,
             modifier = Modifier
+                .focusRequester(calloutFocus)
+                .focusable()
                 .onSizeChanged { callout = it }
                 .offset { calloutPosition(placement, target, container, callout, gap) }
         )

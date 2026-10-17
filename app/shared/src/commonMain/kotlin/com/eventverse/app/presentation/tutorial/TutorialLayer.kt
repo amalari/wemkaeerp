@@ -13,6 +13,7 @@ import androidx.compose.runtime.snapshotFlow
 import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.pack.ShippedTutorialSource
 import com.eventverse.app.domain.rbac.AccessDecision
+import com.eventverse.app.domain.tutorial.AdvanceTrigger
 import com.eventverse.app.domain.tutorial.TutorialAccess
 import com.eventverse.app.domain.tutorial.TutorialCatalog
 import com.eventverse.app.presentation.help.HelpActionRequests
@@ -103,10 +104,40 @@ fun TutorialLayer(
 
     val active = run ?: return
     var ready by remember(active) { mutableStateOf(false) }
+
+    // Trigger kemajuan langkah "beraksi" (TRD-TUT-002 FR-2..FR-4).
+    val step = active.step
+    val advance = step.advanceOn
     LaunchedEffect(active) {
-        active.step.screen?.let { if (it != latestModule) onNavigateToModule(it) }
-        active.step.anchor?.let { anchor ->
-            withTimeoutOrNull(ANCHOR_WAIT_MS) { snapshotFlow { state.anchors.boundsOf(anchor) }.first { it != null } }
+        when (advance) {
+            is AdvanceTrigger.StateAppears -> {
+                // Maju ketika bounds anchor mulai ada (state/elemen muncul di layar yang sama).
+                state.anchors.boundsOf(advance.anchorId)
+                    ?: withTimeoutOrNull(ANCHOR_WAIT_MS) {
+                        snapshotFlow { state.anchors.boundsOf(advance.anchorId) }.first { it != null }
+                    }
+                if (state.anchors.boundsOf(advance.anchorId) != null) state.controller.next()
+            }
+            is AdvanceTrigger.UserClick -> {
+                // Dengarkan ketukan anchor (Initial pass, tanpa consume) → notifyAction; controller maju bila cocok.
+                state.anchors.beginObserving(state.controller::notifyAction)
+                try {
+                    // Tunggu sampai langkah ini tidak lagi aktif (controller pindah/dismiss).
+                    snapshotFlow { state.controller.run.value?.stepIndex }.first { it != active.stepIndex }
+                } finally {
+                    state.anchors.endObserving()
+                }
+            }
+            AdvanceTrigger.Manual -> Unit
+        }
+    }
+
+    LaunchedEffect(active) {
+        step.screen?.let { if (it != latestModule) onNavigateToModule(it) }
+        step.anchor?.let { anchor ->
+            if (advance !is AdvanceTrigger.StateAppears) {
+                withTimeoutOrNull(ANCHOR_WAIT_MS) { snapshotFlow { state.anchors.boundsOf(anchor) }.first { it != null } }
+            }
             state.anchors.bringIntoView(anchor)
         }
         ready = true
@@ -114,7 +145,8 @@ fun TutorialLayer(
     if (ready) {
         CoachMarkOverlay(
             run = active,
-            targetInWindow = active.step.anchor?.let { state.anchors.boundsOf(it) },
+            targetInWindow = step.anchor?.let { state.anchors.boundsOf(it) },
+            interactive = step.interactive,
             onBack = state.controller::back,
             onNext = state.controller::next,
             onClose = state.controller::dismiss

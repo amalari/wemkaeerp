@@ -1,7 +1,9 @@
 package com.eventverse.app.presentation.tutorial
 
+import com.eventverse.app.domain.tutorial.AdvanceTrigger
 import com.eventverse.app.domain.tutorial.ModuleTutorial
 import com.eventverse.app.domain.tutorial.TutorialStep
+import com.eventverse.app.domain.tutorial.TutorialAnchorId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +37,17 @@ class TutorialController {
     fun back() {
         val current = state.value ?: return
         if (!current.isFirst) state.value = current.copy(stepIndex = current.stepIndex - 1)
+    }
+
+    /**
+     * Sinyal "pengguna beraksi pada [anchorId]" dari `Modifier.tutorialAnchor` (PointerEventPass.Initial, tanpa
+     * consume). Hanya berefek bila langkah aktif menunggu [AdvanceTrigger.UserClick] untuk anchor yang **sama**
+     * (TRD-TUT-002 FR-3) — selain itu diabaikan, sehingga handler asli elemen tetap bebas berjalan.
+     */
+    fun notifyAction(anchorId: TutorialAnchorId) {
+        val current = state.value ?: return
+        val advance = current.step.advanceOn
+        if (advance is AdvanceTrigger.UserClick && advance.anchorId == anchorId) next()
     }
 
     fun dismiss() { state.value = null }

@@ -4,10 +4,29 @@ import com.eventverse.app.domain.pack.ModuleId
 import com.eventverse.app.domain.rbac.AccessLevel
 
 /**
+ * Kapan langkah coach mark boleh maju (TRD-TUT-002 FR-2).
+ *
+ * Uji Variabilitas: perilaku sistem — sama untuk semua tenant/industri, tidak diubah admin → konsep kode.
+ * Default [Manual] menjaga tutorial lama berperilaku identik (kompatibel mundur, tanpa migrasi konten).
+ */
+sealed interface AdvanceTrigger {
+    /** Perilaku lama: pengguna maju lewat tombol "Lanjut" di callout. */
+    data object Manual : AdvanceTrigger
+
+    /** Langkah maju ketika pengguna mengklik elemen yang di-anchor [anchorId]. Ditolak di dialog (FR-5). */
+    data class UserClick(val anchorId: TutorialAnchorId) : AdvanceTrigger
+
+    /** Langkah maju ketika bounds [anchorId] mulai ada di registry (elemen/state muncul di layar yang sama). */
+    data class StateAppears(val anchorId: TutorialAnchorId) : AdvanceTrigger
+}
+
+/**
  * Satu langkah coach mark.
  *
  * @param anchor elemen yang disorot; `null` = callout di tengah tanpa sorotan (mis. elemen di dalam dialog).
  * @param screen modul tempat langkah ini tampil; `null` = layar tempat langkah sebelumnya tampil.
+ * @param interactive `true` = lubang sorot tembus: klik pada target sampai ke elemen di bawahnya (TRD-TUT-002 FR-1).
+ * @param advanceOn kapan langkah ini maju (FR-2). Default [AdvanceTrigger.Manual] ⇒ perilaku lama.
  */
 data class TutorialStep(
     val title: String,
@@ -15,6 +34,8 @@ data class TutorialStep(
     val anchor: TutorialAnchorId? = null,
     val screen: ModuleId? = null,
     val placement: CalloutPlacement = CalloutPlacement.BOTTOM,
+    val interactive: Boolean = false,
+    val advanceOn: AdvanceTrigger = AdvanceTrigger.Manual,
 ) {
     init {
         require(title.isNotBlank()) { "Judul langkah tutorial kosong" }
