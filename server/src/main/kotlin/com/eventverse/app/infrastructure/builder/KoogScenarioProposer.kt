@@ -91,10 +91,11 @@ class KoogScenarioProposer(
               HANYA bila ada hal yang benar-benar tidak bisa kamu simpulkan dari narasi dan menentukan urutan atau syarat antar-modul
               (mis. "Apakah DP harus lunas sebelum sampel dikerjakan?"). Jangan menanyakan yang sudah dijawab narasi, jangan
               menanyakan hal teknis, satu hal per pertanyaan. Tanpa keraguan nyata, hilangkan kunci questions.
+              Tulis questions SEBELUM steps (tepat setelah title) dan pastikan tanda kurung siku ] penutupnya tidak terlewat.
             - JANGAN menulis kunci source atau confirmed; itu ditentukan sistem.
 
             BALASAN: satu objek JSON saja, tanpa kunci lain:
-            {"scenarios":[{"id":"opsional","title":"...","steps":[{"moduleId":"crm","screenId":"layar-1","label":"Lead","carries":[{"fromField":"nama","toField":"pelanggan"}]},{"moduleId":"sales","screenId":null,"label":"Invoice","carries":[],"reworkTo":0}],"questions":["Apakah DP harus lunas sebelum sampel dikerjakan?"]}]}
+            {"scenarios":[{"id":"opsional","title":"...","questions":["Apakah DP harus lunas sebelum sampel dikerjakan?"],"steps":[{"moduleId":"crm","screenId":"layar-1","label":"Lead","carries":[{"fromField":"nama","toField":"pelanggan"}]},{"moduleId":"sales","screenId":null,"label":"Invoice","carries":[],"reworkTo":0}]}]}
         """.trimIndent()
     }
 }

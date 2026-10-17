@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.builder
 
+import com.eventverse.app.domain.builder.BriefKeys
 import com.eventverse.app.domain.builder.ScenarioKeys
 import com.eventverse.app.domain.discovery.scenario.ScenarioId
 import com.eventverse.app.presentation.builder.chat.getRecommendationsForQuestion
@@ -18,8 +19,15 @@ class FollowUpRecommendationsTest {
     }
 
     @Test
-    fun `module gap and generic questions should keep their three recommendations`() {
+    fun `ai module question should have no canned recommendations either`() {
+        val id = BriefKeys.followUpId("klinik_poli", "Berapa lama satu pasien biasanya diperiksa?")
+        assertTrue(getRecommendationsForQuestion(id, "Berapa lama satu pasien biasanya diperiksa?").isEmpty())
+        assertTrue(getRecommendationsForQuestion(id, "Siapa yang mengisi data Poli?").isEmpty(), "kata kunci celah tak membuatnya punya opsi")
+    }
+
+    @Test
+    fun `template gap questions should keep their three recommendations`() {
         assertEquals(3, getRecommendationsForQuestion("gap:klinik_poli:who_fills", "Siapa yang mengisi data Poli?").size)
-        assertEquals(3, getRecommendationsForQuestion("ai:klinik_poli:abc", "Pertanyaan bebas?").size)
+        assertEquals(3, getRecommendationsForQuestion("gap:klinik_poli:lain", "Pertanyaan celah lain?").size, "celah template tanpa kata kunci tetap punya opsi umum")
     }
 }

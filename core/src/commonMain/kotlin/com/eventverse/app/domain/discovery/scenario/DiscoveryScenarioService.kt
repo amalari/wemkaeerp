@@ -42,7 +42,9 @@ class DiscoveryScenarioService(
     private val validator: ScenarioValidator = ScenarioRules,
     private val deterministic: (DiscoveryDraft) -> List<ScenarioSketch> = DeterministicScenarioBuilder::build,
     private val clock: Clock = Clock.System,
-    private val narrative: suspend (TenantId) -> String = { "" }
+    private val narrative: suspend (TenantId) -> String = { "" },
+    /** Dipanggil untuk tiap percobaan pengusul yang tak dipakai (alasan tanpa isi narasi); default tak melakukan apa-apa. */
+    private val onProposalRejected: (TenantId, ProposalRejection) -> Unit = { _, _ -> }
 ) : ScenarioService {
 
     override suspend fun propose(tenantId: TenantId): Result<List<ScenarioSketch>> = runCatching {
@@ -50,10 +52,16 @@ class DiscoveryScenarioService(
         ensureOpen(stored)
         val draft = stored.draft
         val text = narrative(tenantId)
-        val proposed = fromProposer(draft) { feedback -> ScenarioRequests.of(tenantId, draft, text, feedback) }
+        val proposed = fromProposer(draft, { r -> onProposalRejected(tenantId, r) }) { feedback -> ScenarioRequests.of(tenantId, draft, text, feedback) }
             ?: deterministic(draft).map { it.copy(source = ScenarioSource.DETERMINISTIC, confirmed = false) }
                 .filter { validator.validate(draft, it).isEmpty() }
         val added = admit(draft.scenarios, proposed)
+        if (proposed.isNotEmpty() && added.isEmpty()) {
+            onProposalRejected(tenantId, ProposalRejection.of(
+                ProposalRejectionKind.NOT_ADDED, 0,
+                "${proposed.size} usulan dibuang: urutan modul sama dengan skenario yang ada atau kuota ${ScenarioLimits.SCENARIOS_MAX} penuh (ada ${draft.scenarios.size})"
+            ))
+        }
         if (added.isNotEmpty()) save(stored, draft.copy(scenarios = draft.scenarios + added))
         added
     }
@@ -108,9 +116,12 @@ class DiscoveryScenarioService(
     }
 
     /** Dua percobaan; `null` = gagal total, tak sah, atau kosong → fallback. Hasil dipaksa `AI` dan belum terkonfirmasi. */
-    private suspend fun fromProposer(draft: DiscoveryDraft, request: (String?) -> ScenarioProposalRequest): List<ScenarioSketch>? {
+    private suspend fun fromProposer(
+        draft: DiscoveryDraft, reject: (ProposalRejection) -> Unit, request: (String?) -> ScenarioProposalRequest
+    ): List<ScenarioSketch>? {
         var feedback: String? = null
-        repeat(MAX_ATTEMPTS) {
+        repeat(MAX_ATTEMPTS) { n ->
+            val attempt = n + 1
             val result = try {
                 proposer.propose(request(feedback))
             } catch (cancelled: CancellationException) {
@@ -121,7 +132,9 @@ class DiscoveryScenarioService(
             val list = result.getOrNull()?.map { it.copy(source = ScenarioSource.AI, confirmed = false) }
             if (list == null) {
                 feedback = "model gagal: ${result.exceptionOrNull()?.message ?: "tanpa jawaban"}"
+                reject(ProposalRejection.of(ProposalRejectionKind.PROPOSER_ERROR, attempt, feedback))
             } else if (list.isEmpty()) {
+                reject(ProposalRejection.of(ProposalRejectionKind.EMPTY, attempt, "model menjawab daftar kosong"))
                 return null
             } else {
                 val tooMany = if (list.size > ScenarioLimits.SCENARIOS_MAX) {
@@ -132,6 +145,7 @@ class DiscoveryScenarioService(
                 }
                 if (all.isEmpty()) return list
                 feedback = all.joinToString("; ") { "${it.path}: ${it.message}" }
+                reject(ProposalRejection.of(ProposalRejectionKind.INVALID, attempt, feedback))
             }
         }
         return null

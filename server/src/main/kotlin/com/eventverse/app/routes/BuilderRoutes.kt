@@ -99,6 +99,11 @@ fun Route.builderRoutes(
                 ?: com.eventverse.app.domain.discovery.scenario.ScenarioProposer { Result.success(emptyList()) },
             narrative = { tenantId ->
                 com.eventverse.app.domain.builder.composeNarrative(chats.messages(chats.conversationFor(tenantId).id))
+            },
+            // Usulan yang tak dipakai tidak lagi diam: alasan (tanpa isi narasi) masuk log agar "usulan kosong" bisa dijelaskan.
+            onProposalRejected = { tenantId, r ->
+                org.slf4j.LoggerFactory.getLogger("builder.scenario")
+                    .warn("scenario_propose_rejected tenant={} attempt={} kind={} detail={}", tenantId.value, r.attempt, r.kind, r.detail)
             }
         )
     } else null

@@ -103,6 +103,14 @@ class KoogScenarioProposerTest {
     }
 
     @Test
+    fun `contoh balasan menaruh questions sebelum steps`() {
+        // Terukur dengan model sungguhan (2026-10-18): dengan questions SETELAH steps model menutup array dengan `}` (JSON rusak) pada
+        // cerita yang sama hampir setiap kali; dengan questions sebelum steps 6 dari 6 proposal berhasil.
+        val example = KoogScenarioProposer.SYSTEM.lines().first { it.trimStart().startsWith("{\"scenarios\":") }
+        assertTrue(example.indexOf("\"questions\"") in 0 until example.indexOf("\"steps\""), example)
+    }
+
+    @Test
     fun `pertanyaan bukan teks ditolak parser`() = runBlocking {
         val bad = valid.replace("""]}]}""", """],"questions":["ok?",3]}]}""")
         assertTrue(proposer(bad).second.propose(request()).isFailure)
