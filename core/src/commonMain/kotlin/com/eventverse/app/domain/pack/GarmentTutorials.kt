@@ -10,7 +10,8 @@ import com.eventverse.app.domain.tutorial.TutorialStep
 import com.eventverse.app.domain.pack.GarmentTutorialAnchors as A
 
 /**
- * Tutorial pack garment: CRM, Sampling, Costing. Modul lain menyusul saat layarnya diberi anchor.
+ * Tutorial pack garment: CRM, Sampling, Costing, Factory Flow, Master Data, Vendor, Inventory,
+ * Tech Pack BOM, Production MRP, Operator, QC, Fulfillment, Invoicing.
  *
  * Nama tahap sampling adalah data tenant (`TenantStageFlow`), jadi teks tutorial Sampling sengaja generik
  * ("kolom tahap", "tombol aksi di kartu") — tidak menyebut tahap rajut/bordir tertentu.
@@ -19,6 +20,16 @@ object GarmentTutorials {
     private val CRM = GarmentModules.CRM_SALES
     private val SAMPLING = GarmentModules.SAMPLING_ORDER
     private val COSTING = GarmentModules.COSTING_HPP
+    private val FACTORY_FLOW = GarmentModules.FACTORY_FLOW
+    private val MASTER_DATA = GarmentModules.MASTER_DATA
+    private val VENDOR = GarmentModules.VENDOR_CONTACTS
+    private val INVENTORY = GarmentModules.INVENTORY
+    private val TECH_PACK = GarmentModules.TECH_PACK_BOM
+    private val MRP = GarmentModules.PRODUCTION_MRP
+    private val OPERATOR = GarmentModules.OPERATOR_EXEC
+    private val QC = GarmentModules.QUALITY_CONTROL
+    private val FULFILLMENT = GarmentModules.FULFILLMENT
+    private val INVOICE = GarmentModules.INVOICING
 
     val all: List<ModuleTutorial> = listOf(
         ModuleTutorial(
@@ -142,6 +153,156 @@ object GarmentTutorials {
                 TutorialStep("Tab kerja", "Tab di sini berisi Rincian, Rate Card, Simulasi, dan Estimator Cepat.", anchor = A.COSTING_TABS, screen = COSTING),
                 TutorialStep("Estimator Cepat", "Buka \"Estimator Cepat (CS)\". Tab ini bisa dipakai tanpa memilih lembar HPP.", anchor = A.COSTING_TABS),
                 TutorialStep("Rate card", "Tarif yang dipakai estimasi ada di \"Rate Card Tenant\".", anchor = A.COSTING_TABS),
+            ),
+        ),
+        // Factory Flow
+        ModuleTutorial(
+            id = TutorialId("factory_flow_canvas_basics"),
+            scope = TutorialScope.Module(FACTORY_FLOW),
+            title = "Membaca kanvas alur pabrik",
+            summary = "Memahami node, warisan status, dan legenda warna di kanvas Factory Flow.",
+            requiredLevel = AccessLevel.VIEW,
+            sampleQuestions = listOf("cara baca kanvas", "artinya node merah", "status bottleneck"),
+            keywords = listOf("kanvas", "node", "bottleneck", "status", "merah", "hijau", "legend", "alur", "pabrik"),
+            steps = listOf(
+                TutorialStep("Header & navigasi", "Header menunjukkan nama tenant dan alur yang aktif. Tombol di kanan untuk menyalakan atau menyembunyikan modul.", anchor = A.FACTORY_FLOW_HEADER),
+                TutorialStep("Kanvas alur", "Setiap kolom adalah satu fase (Engineering, Procurement, Production, Delivery). Node di dalam kolom adalah modul yang aktif.", anchor = A.FACTORY_FLOW_CANVAS),
+                TutorialStep("Warna node", "Hijau = sehat, Kuning = warning, Merah = bottleneck. Klik kartu untuk melihat detail.", anchor = A.FACTORY_FLOW_CANVAS),
+            ),
+        ),
+        // Master Data
+        ModuleTutorial(
+            id = TutorialId("master_data_add_category"),
+            scope = TutorialScope.Module(MASTER_DATA),
+            title = "Menambah kategori dan item data induk",
+            summary = "Membuat kategori dan item master data seperti bahan baku, finishing, atau ukuran.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("tambah kategori", "isi master data", "cara input data induk"),
+            keywords = listOf("master", "data", "kategori", "item", "tambah", "bahan", "ukuran", "finishing"),
+            steps = listOf(
+                TutorialStep("Buka Master Data", "Klik modul Master Data untuk melihat daftar kategori.", anchor = A.MASTER_DATA_CATEGORIES),
+                TutorialStep("Tambah kategori", "Pilih \"+ Tambah Kategori\" lalu isi nama dan deskripsi.", anchor = A.MASTER_DATA_CATEGORIES),
+                TutorialStep("Tambah item", "Di dalam kategori, klik \"+ Tambah Item\" dan isi detailnya.", placement = CalloutPlacement.CENTER),
+            ),
+        ),
+        // Vendor Contacts
+        ModuleTutorial(
+            id = TutorialId("vendor_register_and_assign"),
+            scope = TutorialScope.Module(VENDOR),
+            title = "Mendaftarkan vendor makloon",
+            summary = "Menambah vendor baru dan menugaskannya ke proses produksi.",
+            requiredLevel = AccessLevel.MANAGE,
+            sampleQuestions = listOf("daftar vendor", "tambah vendor makloon", "tunjuk makloon"),
+            keywords = listOf("vendor", "makloon", "daftar", "tambah", "konveksi", "pabrik", "outsource"),
+            steps = listOf(
+                TutorialStep("Buka Vendor", "Klik modul Vendor untuk melihat daftar vendor.", anchor = A.VENDOR_LIST),
+                TutorialStep("Tambah vendor", "Klik \"+ Tambah Vendor\", isi nama, kontak, dan kategori layanan.", anchor = A.VENDOR_ADD),
+                TutorialStep("Tugaskan ke proses", "Setelah vendor dibuat, Anda bisa menugaskannya ke modul terkait.", placement = CalloutPlacement.CENTER),
+            ),
+        ),
+        // Inventory
+        ModuleTutorial(
+            id = TutorialId("inventory_roll_stock"),
+            scope = TutorialScope.Module(INVENTORY),
+            title = "Mengelola stok kain per roll",
+            summary = "Melihat stok kain, mencari roll, dan memahami status persediaan.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("stok kain", "cari roll", "lihat persediaan"),
+            keywords = listOf("inventory", "stok", "kain", "roll", "persediaan", "gudang", "cari"),
+            steps = listOf(
+                TutorialStep("Cari stok", "Gunakan kolom pencarian untuk menemukan kain berdasarkan nama, kode, atau warna.", anchor = A.INVENTORY_SEARCH),
+                TutorialStep("Tabel stok", "Tabel menampilkan roll kain dengan detail: nomor roll, warna, gramasi, dan jumlah tersedia.", anchor = A.INVENTORY_TABLE),
+                TutorialStep("Filter", "Gunakan filter untuk menyaring berdasarkan gudang, supplier, atau status.", anchor = A.INVENTORY_SEARCH),
+            ),
+        ),
+        // Tech Pack BOM
+        ModuleTutorial(
+            id = TutorialId("techpack_compose_bom"),
+            scope = TutorialScope.Module(TECH_PACK),
+            title = "Menyusun komponen BOM",
+            summary = "Membuat dan mengelola Bill of Materials untuk Tech Pack.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("bikin bom", "komponen apa saja", "tambah material"),
+            keywords = listOf("techpack", "bom", "bill of materials", "komponen", "material", "kain", "aksesoris"),
+            steps = listOf(
+                TutorialStep("Buka Tech Pack", "Pilih Tech Pack yang ingin diubah, lalu buka tab BOM.", anchor = A.TECH_PACK_BOM_ROWS),
+                TutorialStep("Tambah komponen", "Klik \"+ Tambah Komponen\" untuk menambahkan material.", anchor = A.TECH_PACK_BOM_ADD),
+                TutorialStep("Isi detail", "Masukkan nama material, jumlah, dan satuan. Simpan setelah selesai.", placement = CalloutPlacement.CENTER),
+            ),
+        ),
+        // Production MRP
+        ModuleTutorial(
+            id = TutorialId("mrp_allocate_machine"),
+            scope = TutorialScope.Module(MRP),
+            title = "Menjadwalkan dan mengalokasikan mesin",
+            summary = "Mengatur jadwal produksi dan mengalokasikan mesin atau lini produksi.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("jadwal mesin", "alokasi lini", "atur produksi"),
+            keywords = listOf("mrp", "jadwal", "mesin", "lini", "alokasi", "produksi", "scheduling"),
+            steps = listOf(
+                TutorialStep("Buka MRP", "Klik modul Production MRP untuk melihat jadwal.", anchor = A.MRP_BOARD),
+                TutorialStep("Lihat jadwal", "Papan menunjukkan jadwal produksi per mesin atau lini.", anchor = A.MRP_SCHEDULE),
+                TutorialStep("Alokasikan", "Seret pesanan ke mesin atau lini yang tersedia.", anchor = A.MRP_BOARD),
+            ),
+        ),
+        // Operator
+        ModuleTutorial(
+            id = TutorialId("operator_start_finish_task"),
+            scope = TutorialScope.Module(OPERATOR),
+            title = "Mulai dan selesaikan tugas operator",
+            summary = "Memulai dan menyelesaikan pekerjaan di lantai produksi.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("mulai tugas", "selesaikan pekerjaan", "input produksi"),
+            keywords = listOf("operator", "tugas", "mulai", "selesai", "produksi", "input", "floor"),
+            steps = listOf(
+                TutorialStep("Daftar tugas", "Lihat daftar tugas yang harus dikerjakan.", anchor = A.OPERATOR_TASK_LIST),
+                TutorialStep("Mulai tugas", "Klik \"Mulai\" pada tugas yang akan dikerjakan.", anchor = A.OPERATOR_START_STOP),
+                TutorialStep("Selesai", "Setelah selesai, klik \"Selesai\" dan input jumlah yang diproduksi.", anchor = A.OPERATOR_START_STOP),
+            ),
+        ),
+        // Quality Control
+        ModuleTutorial(
+            id = TutorialId("qc_inspect_and_grade"),
+            scope = TutorialScope.Module(QC),
+            title = "Inspeksi dan grading hasil QC",
+            summary = "Melakukan inspeksi produk dan memberikan grading kualitas.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("inspeksi", "grading cacat", "quality control"),
+            keywords = listOf("qc", "quality", "inspeksi", "grading", "cacat", "grade", "aql"),
+            steps = listOf(
+                TutorialStep("Buka QC", "Klik modul Quality Control untuk melihat antrean inspeksi.", anchor = A.QC_INSPECT),
+                TutorialStep("Inspeksi", "Pilih produk yang akan diinspeksi, periksa kondisi.", anchor = A.QC_INSPECT),
+                TutorialStep("Berikan grade", "Pilih grade (A, B, C, atau reject) dan simpan.", anchor = A.QC_GRADE),
+            ),
+        ),
+        // Fulfillment
+        ModuleTutorial(
+            id = TutorialId("fulfillment_packing_ship"),
+            scope = TutorialScope.Module(FULFILLMENT),
+            title = "Packing dan membuat surat jalan",
+            summary = "Mengatur packing produk dan membuat surat jalan pengiriman.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("packing", "bikin surat jalan", "kirim barang"),
+            keywords = listOf("fulfillment", "packing", "surat jalan", "kirim", "pengiriman", "pack"),
+            steps = listOf(
+                TutorialStep("Daftar packing", "Lihat daftar pesanan yang harus dikemas.", anchor = A.FULFILLMENT_PACK_LIST),
+                TutorialStep("Buat packing", "Pilih pesanan, buat daftar packing, dan masukkan detail.", anchor = A.FULFILLMENT_PACK_LIST),
+                TutorialStep("Cetak surat jalan", "Setelah packing selesai, cetak surat jalan.", anchor = A.FULFILLMENT_SURAT_JALAN),
+            ),
+        ),
+        // Invoicing
+        ModuleTutorial(
+            id = TutorialId("invoice_create_and_send"),
+            scope = TutorialScope.Module(INVOICE),
+            title = "Membuat dan mengirim invoice",
+            summary = "Membuat invoice untuk pelanggan dan mengirimkannya.",
+            requiredLevel = AccessLevel.OPERATE,
+            sampleQuestions = listOf("bikin invoice", "kirim tagihan", "buat faktur"),
+            keywords = listOf("invoice", "faktur", "tagihan", "kirim", "pelanggan", "pembayaran"),
+            steps = listOf(
+                TutorialStep("Daftar invoice", "Lihat semua invoice yang ada.", anchor = A.INVOICE_LIST),
+                TutorialStep("Buat invoice baru", "Klik \"+ Invoice Baru\" dan pilih pesanan.", anchor = A.INVOICE_NEW),
+                TutorialStep("Kirim", "Setelah lengkap, klik \"Kirim\" untuk mengirim ke pelanggan.", placement = CalloutPlacement.CENTER),
             ),
         ),
     )

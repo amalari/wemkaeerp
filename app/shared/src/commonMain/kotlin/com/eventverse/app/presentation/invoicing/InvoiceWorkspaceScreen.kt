@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.sp
 import com.eventverse.app.domain.rbac.ModuleAccessConfig
 import com.eventverse.app.infrastructure.navigation.PlatformNavigation
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.invoicing.components.*
 import com.eventverse.app.presentation.invoicing.template.InvoiceTemplateDesignerScreen
 import com.eventverse.app.presentation.invoicing.template.InvoiceTemplateGalleryScreen
@@ -169,7 +171,8 @@ fun InvoiceWorkspaceScreen(
                     text = "+ Buat Tagihan Baru",
                     onClick = { viewModel.onEvent(InvoiceUiEvent.OpenCreateInvoiceDialog()) },
                     style = ClayButtonStyle.Primary,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.INVOICE_NEW)
                 )
             }
         }
@@ -237,7 +240,8 @@ fun InvoiceWorkspaceScreen(
             InvoiceTable(
                 state = state,
                 onEvent = viewModel::onEvent,
-                modifier = if (state.selectedInvoice != null) Modifier.weight(0.55f) else Modifier.fillMaxWidth()
+                modifier = (if (state.selectedInvoice != null) Modifier.weight(0.55f) else Modifier.fillMaxWidth())
+                    .tutorialAnchor(GarmentTutorialAnchors.INVOICE_LIST)
             )
 
             // Right Column: Invoice Detail

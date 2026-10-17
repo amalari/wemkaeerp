@@ -1524,6 +1524,31 @@ Kewajiban ini berlaku untuk entri **baru** sejak 2026-10-13; entri lama dilunasi
 
 ---
 
+## 6. Tutorial Wajib per Modul (TRD-HELP-001)
+
+Setiap modul operasional **WAJIB** memiliki tutorial yang disimpan di DB untuk sistem help/RAG:
+
+1. **Tutorial dibuat bersama modul** — saat mendaftarkan modul di `GarmentModules`, wajib membuat `ModuleTutorial` di `GarmentTutorials` dengan:
+   - `id`: format `<module_id>_intro` (contoh: `factory_flow_intro`)
+   - `scope`: `TutorialScope.Module(ModuleId("<module_id>"))`
+   - `title`: judul tutorial dalam bahasa Indonesia
+   - `summary`: ringkasan 1-2 kalimat
+   - `steps`: minimal 3 langkah dengan anchor ke UI
+   - `keywords`: kata kunci untuk pencarian RAG
+   - `sampleQuestions`: contoh pertanyaan yang bisa dijawab tutorial
+
+2. **Anchor didefinisikan dulu** — sebelum menggunakan `Modifier.tutorialAnchor()` di UI, wajib mendeklarasikan anchor di `GarmentTutorialAnchors`
+
+3. **DB seeding otomatis** — saat server startup, `DbTutorialSource`会自动 menyalin tutorial dari shipped pack ke DB bila kosong. Tidak perlu migrasi manual.
+
+4. **UI anchor placement** — setiap screen/widget yang membutuhkan tutorial wajib punya `Modifier.tutorialAnchor(anchorId)`.
+
+5. **Tes coverage** — `TutorialCoverageTest` memverifikasi semua modul operasional punya tutorial. Modul yang dikecualikan wajib dicatat di `exempt` dengan alasan.
+
+**Contoh**: lihat `GarmentTutorials.kt` dan `GarmentTutorialAnchors.kt` untuk pola yang benar.
+
+---
+
 # WeMade ERP — Aturan Variabilitas Tenant (Kode vs Data)
 
 Status sejajar dengan [`module-integration-rules.md`](module-integration-rules.md),

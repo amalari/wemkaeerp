@@ -38,7 +38,7 @@
   ".agents/skills/wemade-feature-discovery/SKILL.md": "e93b12f2feeacf60b9ca39a712e5819840f2a9bd5d1a3d26b568244ae56fb39b",
   ".agents/skills/wemade-feature-discovery/references/codebase-map.md": "b592739b327ecfbc181a34f7121d524d4b4312c6d8c66551fab320e14bbb4caf",
   ".agents/skills/wemade-feature-discovery/references/discovery-note-template.md": "917bcdd25cdaf17b7e851716edcb79253139443c0ea41a782a2a1a42a24cd5bd",
-  ".agents/skills/wemade-feature-workflow/SKILL.md": "c271b47f4fc787ceab9c036d602b64e2257b34e36266267d32ce5fefc20b93f6",
+  ".agents/skills/wemade-feature-workflow/SKILL.md": "f393ac0628e41fa0dad01fc4a096e107bbb2db6987f542cdbb8df723ea75c7f1",
   ".agents/skills/wemade-feature-workflow/references/planning-template.md": "0621349de4b82e4e199a95aea98a172010078ecd9219b3fa9520a3e618f561b1",
   ".agents/skills/wemade-feature-workflow/references/verification-recipes.md": "2504e47b829bc2f0cdee08b6e9e224af8f839a3efdbe1ba6e9f0be0a2f57262d",
   ".codex/agents/fixer.toml": "a56ae203a18c197f706c1b6c6f3e534b254ec3581f4e5b49081b5656f456718b",

@@ -28,6 +28,8 @@ import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.AccessLevel
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.designsystem.ClayBadge
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -227,7 +229,8 @@ private fun HeaderCard(
                 ClayButton(
                     text = "Packing",
                     style = ClayButtonStyle.Secondary,
-                    onClick = onNavigateToPackingBench
+                    onClick = onNavigateToPackingBench,
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.FULFILLMENT_PACK_LIST)
                 )
                 ClayButton(
                     text = "Pengiriman",
@@ -238,7 +241,8 @@ private fun HeaderCard(
                     text = "Surat Jalan",
                     style = ClayButtonStyle.Secondary,
                     leading = { IconTruck(modifier = Modifier.size(16.dp), color = WeMadeColors.OnSurface) },
-                    onClick = onNavigateToSuratJalan
+                    onClick = onNavigateToSuratJalan,
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.FULFILLMENT_SURAT_JALAN)
                 )
             }
         }

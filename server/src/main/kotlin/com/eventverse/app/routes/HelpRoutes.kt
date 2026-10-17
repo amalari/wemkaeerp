@@ -13,6 +13,7 @@ import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
 import com.eventverse.app.domain.tutorial.LexicalTutorialMatcher
 import com.eventverse.app.domain.tutorial.TutorialCatalog
+import com.eventverse.app.domain.tutorial.TutorialSource
 import com.eventverse.app.plugins.callerPrincipalOrNull
 import com.eventverse.app.plugins.tenantContextOrNull
 import com.eventverse.app.shared.help.HelpCodec
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory
 fun Route.helpRoutes(
     roleRepository: RoleRepository,
     moduleAssignmentRepository: ModuleAssignmentRepository,
+    tutorialSource: TutorialSource = ShippedTutorialSource,
     agent: HelpAgent = DeterministicHelpAgent(),
     /**
      * Aksi untuk pemanggil ini (TRD-HELP-002 Fase 5b), dihitung dari keputusan wewenang yang sama. `null` = hanya tutorial.
@@ -44,7 +46,7 @@ fun Route.helpRoutes(
     actionsFor: suspend (TenantContext, Map<ModuleId, AccessDecision>) -> HelpActionResolver? = { _, _ -> null },
 ) {
     val log = LoggerFactory.getLogger("HelpRoutes")
-    val askHelp = AskHelpUseCase(TutorialCatalog(ShippedTutorialSource), LexicalTutorialMatcher(), agent)
+    val askHelp = AskHelpUseCase(TutorialCatalog(tutorialSource), LexicalTutorialMatcher(), agent)
 
     post("/api/tenant/help/ask") {
         val tenant = call.tenantContextOrNull ?: return@post call.respond(HttpStatusCode.NotFound, "No tenant context found")

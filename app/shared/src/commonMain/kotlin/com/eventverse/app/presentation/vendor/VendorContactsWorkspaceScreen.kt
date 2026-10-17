@@ -38,6 +38,8 @@ import com.eventverse.app.presentation.designsystem.ClayStatusBanner
 import com.eventverse.app.presentation.designsystem.IconTruck
 import com.eventverse.app.presentation.designsystem.claySurface
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.vendor.components.VendorAssignDialog
 import com.eventverse.app.presentation.vendor.components.VendorContactDetail
 import com.eventverse.app.presentation.vendor.components.VendorContactList
@@ -140,7 +142,11 @@ private fun VendorToolbar(state: VendorContactsUiState, canManage: Boolean, onEv
             Row(horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Sm), verticalAlignment = Alignment.CenterVertically) {
                 if (!canManage) ClayBadge(text = "Hanya Lihat", tint = WeMadeColors.OnSurfaceMuted)
                 if (canManage) {
-                    ClayButton(text = "+ Tambah Vendor", onClick = { onEvent(VendorContactsUiEvent.OpenDialog(VendorDialog.CreateVendor())) })
+                    ClayButton(
+                        text = "+ Tambah Vendor",
+                        onClick = { onEvent(VendorContactsUiEvent.OpenDialog(VendorDialog.CreateVendor())) },
+                        modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.VENDOR_ADD)
+                    )
                 }
             }
         }
@@ -180,7 +186,7 @@ private fun ContactsWorkbench(
             onSearch = { onEvent(VendorContactsUiEvent.UpdateSearch(it)) },
             onToggleInactive = { onEvent(VendorContactsUiEvent.SetShowInactive(it)) },
             onSelect = { onEvent(VendorContactsUiEvent.SelectVendor(it.id)) },
-            modifier = modifier
+            modifier = modifier.tutorialAnchor(GarmentTutorialAnchors.VENDOR_LIST)
         )
     }
     val detail: @Composable (Modifier) -> Unit = { modifier ->

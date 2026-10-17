@@ -26,6 +26,8 @@ import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.domain.sampling.QcInspectionKind
 import com.eventverse.app.domain.sampling.SamplingOrderId
 import com.eventverse.app.presentation.designsystem.ClayBreakpoints
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.designsystem.ClayButton
 import com.eventverse.app.presentation.designsystem.ClayButtonStyle
 import com.eventverse.app.presentation.designsystem.ClayPaneWidth
@@ -111,7 +113,7 @@ fun QcInspectorWorkspaceScreen(
                     selectedOrderId = it
                     showDetailOnCompact = true
                 },
-                modifier = paneModifier
+                modifier = paneModifier.tutorialAnchor(GarmentTutorialAnchors.QC_INSPECT)
             )
         }
         val inspectionPane: @Composable (Modifier) -> Unit = { paneModifier ->
@@ -125,7 +127,7 @@ fun QcInspectorWorkspaceScreen(
                         viewModel.onEvent(SamplingUiEvent.SubmitQcInspection(it.order.id, report))
                     }
                 },
-                modifier = paneModifier
+                modifier = paneModifier.tutorialAnchor(GarmentTutorialAnchors.QC_GRADE)
             )
         }
 

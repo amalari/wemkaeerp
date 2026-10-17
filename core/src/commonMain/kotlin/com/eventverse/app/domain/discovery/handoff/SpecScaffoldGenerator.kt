@@ -35,6 +35,7 @@ internal object SpecScaffoldGenerator {
                 file("server/src/main/kotlin/com/eventverse/app/infrastructure/Postgres${pascal}Repository.kt", SpecPostgresWriter.repositoryFile(table)),
                 file("server/src/main/kotlin/com/eventverse/app/routes/${pascal}Routes.kt", SpecRoutesWriter.routesFile(schema, table)),
                 file("server/src/test/kotlin/com/eventverse/app/routes/${pascal}RoutesGateTest.kt", SpecRouteTestWriter.testFile(schema, table, packExpression)),
+                file("docs/handoff/$schema/TUTORIAL_STUB.md", tutorialStub(schema)),
                 file("docs/handoff/$schema/WIRING.md", wiring(schema, pascal, table))
             )
         )
@@ -48,6 +49,60 @@ internal object SpecScaffoldGenerator {
         }
     }
 
+    /** Template stub tutorial untuk modul baru (TRD-HELP-001 §6). */
+    private fun tutorialStub(schema: String): String = buildString {
+        appendLine("# Tutorial Stub: `$schema`")
+        appendLine()
+        appendLine("## Langkah 1: Tambah Tutorial di GarmentTutorials.kt")
+        appendLine()
+        appendLine("```kotlin")
+        appendLine("ModuleTutorial(")
+        appendLine("    id = TutorialId(\"${'$'}${schema}_intro\"),")
+        appendLine("    scope = TutorialScope.Module(ModuleId(\"${schema}\")),")
+        appendLine("    title = \"Memulai modul ${schema}\",")
+
+        appendLine("    summary = \"Cara menggunakan modul ${schema} untuk...\",")
+        appendLine("    requiredLevel = AccessLevel.OPERATE,")
+        appendLine("    keywords = listOf(\"${schema}\", \"mulai\", \"penggunaan\"),")
+        appendLine("    sampleQuestions = listOf(")
+        appendLine("        \"Bagaimana cara input data di ${schema}?\",")
+        appendLine("        \"Cara melihat laporan ${schema}\"")
+        appendLine("    ),")
+        appendLine("    steps = listOf(")
+        appendLine("        TutorialStep(")
+        appendLine("            title = \"Buka layar ${schema}\",")
+        appendLine("            body = \"Navigate ke menu ${schema} dari sidebar.\",")
+        appendLine("            anchor = TutorialAnchorId(\"${schema}_intro_1\"),")
+        appendLine("            screen = \"${schema}_list\",")
+        appendLine("            placement = CalloutPlacement.AUTO")
+        appendLine("        ),")
+        appendLine("        TutorialStep(")
+        appendLine("            title = \"Input data pertama\",")
+        appendLine("            body = \"Klik tombol Tambah dan isi form.\",")
+        appendLine("            anchor = TutorialAnchorId(\"${schema}_intro_2\"),")
+        appendLine("            screen = \"${schema}_form\",")
+        appendLine("            placement = CalloutPlacement.AUTO")
+        appendLine("        )")
+        appendLine("    )")
+        appendLine(")")
+        appendLine("```")
+        appendLine()
+        appendLine("## Langkah 2: Tambah Anchor di GarmentTutorialAnchors.kt")
+        appendLine()
+        appendLine("```kotlin")
+        appendLine("val ${schema.uppercase()}_INTRO_1 = TutorialAnchorId(\"${schema}_intro_1\")")
+        appendLine("val ${schema.uppercase()}_INTRO_2 = TutorialAnchorId(\"${schema}_intro_2\")")
+        appendLine("```")
+        appendLine()
+        appendLine("## Langkah 3: Pasang Anchor di UI")
+        appendLine()
+        appendLine("```kotlin")
+        appendLine("Modifier.tutorialAnchor(GarmentTutorialAnchors.${schema.uppercase()}_INTRO_1)")
+        appendLine("```")
+        appendLine()
+        appendLine("## Langkah 4: Update TutorialCoverageTest (bila perlu exempt)")
+    }
+
     /** Q3 TRD-FIELD-004: target RELATION ke modul HIERARCHICAL ditolak di build; target modul sendiri/tanpa ':' dilewati. */
     private fun rejectHierarchicalRelationTargets(spec: PrototypeSpec, module: ModuleDefinition) {
         spec.entities.single().fields.filter { it.type == FieldType.RELATION }.forEach { f ->
@@ -59,7 +114,7 @@ internal object SpecScaffoldGenerator {
         }
     }
 
-    /** Titik pendaftaran manual (anatomi `module-integration-rules.md` §5) — keputusan manusia, bukan generator. */
+    /** Titik pendaftaran manual (anatomi `module-integration_rules.md` §5) — keputusan manusia, bukan generator. */
     private fun wiring(schema: String, pascal: String, t: SpecTable): String = buildString {
         val fn = SpecNaming.camel(schema) + "Routes"
         appendLine("# Pendaftaran modul `$schema` (kandidat — terapkan dan tinjau manual)")
@@ -73,7 +128,12 @@ internal object SpecScaffoldGenerator {
         appendLine("   `$fn(Postgres${pascal}Repository(), roleRepo, assignmentRepo" + (if (hasRelation) ", relationTargetResolver" else "") + ")`")
         if (hasRelation) appendLine("   (`relationTargetResolver` = resolver registri wiring; sumber baris modul ini wajib terdaftar di `Contribution.rows`, kalau tidak setiap nilai RELATION ditolak 400.)")
         appendLine("4. **Pack**: modul harus ada di pack tenant (pack data berprefiks `${schema.substringBefore('_')}_`, didaftarkan lewat `DomainPackRegistry.register`).")
-        appendLine("5. **Wewenang jabatan** (`custom_roles.module_permissions`, kunci NAME `${t.entity.id.uppercase()}`→ lihat migrasi) dan entitlement/kuota: keputusan bisnis.")
-        appendLine("6. Jalankan: `ModuleSchemaOwnershipTest`, `RouteOwnershipTest`, `RouteGateTest` (butuh Postgres) dan test gerbang yang ikut digenerate.")
+        appendLine("5. **Tutorial (TRD-HELP-001 §6)**: Wajib buat tutorial untuk modul operasional!")
+        appendLine("   - Tambah `ModuleTutorial` di `GarmentTutorials.kt` (module-integration_rules §6)")
+        appendLine("   - Tambah anchor di `GarmentTutorialAnchors.kt`")
+        appendLine("   - Tambah `Modifier.tutorialAnchor()` di UI screen")
+        appendLine("   - Update `TutorialCoverageTest.exempt` bila perlu")
+        appendLine("6. **Wewenang jabatan** (`custom_roles.module_permissions`, kunci NAME `${t.entity.id.uppercase()}`→ lihat migrasi) dan entitlement/kuota: keputusan bisnis.")
+        appendLine("7. Jalankan: `ModuleSchemaOwnershipTest`, `RouteOwnershipTest`, `RouteGateTest`, `TutorialCoverageTest` (butuh Postgres) dan test gerbang yang ikut digenerate.")
     }
 }

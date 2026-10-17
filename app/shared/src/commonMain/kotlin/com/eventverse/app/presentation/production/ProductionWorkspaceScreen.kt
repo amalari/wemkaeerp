@@ -19,6 +19,8 @@ import com.eventverse.app.domain.production.BulkWorkOrder
 import com.eventverse.app.domain.rbac.AccessDecision
 import com.eventverse.app.domain.rbac.TestingPersona
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.production.components.AllocateLineDialog
 import com.eventverse.app.presentation.production.components.BulkWorkOrderDetailPane
 import com.eventverse.app.presentation.production.components.ProductionHealthBadge
@@ -252,7 +254,7 @@ private fun WorkOrderList(
             value = state.searchQuery,
             onValueChange = { viewModel.onEvent(ProductionUiEvent.UpdateSearchQuery(it)) },
             label = "Cari SPK / klien / style",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().tutorialAnchor(GarmentTutorialAnchors.MRP_SCHEDULE)
         )
 
         Spacer(Modifier.height(ClaySpacing.Md))
@@ -264,7 +266,10 @@ private fun WorkOrderList(
 
         Spacer(Modifier.height(ClaySpacing.Md))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(ClaySpacing.Md),
+            modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.MRP_BOARD)
+        ) {
             items(state.filteredWorkOrders, key = { it.id.value }) { order ->
                 WorkOrderCard(
                     order = order,

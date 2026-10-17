@@ -79,7 +79,9 @@ fun Route.operationalModuleRoutes(
     route("/api/tenant") { tenantRouteGate(roleRepo, assignmentRepo) }
     myAccessRoutes(roleRepo, assignmentRepo)
     val crmAiSettings = com.eventverse.app.infrastructure.PostgresCrmAiSettingsRepository()
-    helpRoutes(roleRepo, assignmentRepo, com.eventverse.app.infrastructure.help.HelpAgents.fromEnv(),
+    val tutorialRepo = com.eventverse.app.infrastructure.PostgresTutorialRepository()
+    val dbTutorialSource = com.eventverse.app.infrastructure.DbTutorialSource(tutorialRepo)
+    helpRoutes(roleRepo, assignmentRepo, dbTutorialSource, com.eventverse.app.infrastructure.help.HelpAgents.fromEnv(),
         actionsFor = com.eventverse.app.routes.leadPrefillActions(crmAiSettings)) // TRD-HELP-001 + 5b
     crmLeadDraftRoutes(roleRepo, assignmentRepo, customFieldRepo, crmAiSettings,
         com.eventverse.app.infrastructure.crm.prefill.LeadDraftAgents.fromEnv()) // TRD-HELP-002

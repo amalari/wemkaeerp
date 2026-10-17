@@ -33,6 +33,8 @@ import com.eventverse.app.presentation.pipeline.components.RenameModuleDialog
 import com.eventverse.app.presentation.pipeline.components.TenantModulePanel
 import com.eventverse.app.presentation.pipeline.components.TenantPipelineStatusBanner
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 
 @Composable
 fun FactoryFlowScreen(
@@ -99,7 +101,8 @@ fun FactoryFlowScreen(
                     ?: "Visualisasi alur kerja modul dari order hingga pengiriman, dilengkapi deteksi bottleneck dan kontrak data antar divisi.",
                 state = state,
                 onToggleModulePanel = { viewModel.onEvent(FactoryFlowUiEvent.ToggleModulePanel) },
-                onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) }
+                onToggleHideBypassed = { viewModel.onEvent(FactoryFlowUiEvent.ToggleHideBypassed) },
+                modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.FACTORY_FLOW_HEADER)
             )
 
             // Data provenance / progress / failure feedback
@@ -151,7 +154,7 @@ fun FactoryFlowScreen(
                 onActivateNode = { moduleId ->
                     if (!state.isSaving) viewModel.onEvent(FactoryFlowUiEvent.SetModuleActive(tenantSlug, moduleId, true))
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).tutorialAnchor(GarmentTutorialAnchors.FACTORY_FLOW_CANVAS)
             )
 
         }

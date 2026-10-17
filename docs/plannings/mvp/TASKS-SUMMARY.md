@@ -1,6 +1,6 @@
 # MVP Tasks Summary - WeMade ERP
 
-**Tanggal**: 2026-10-15
+**Tanggal**: 2026-10-17
 
 ## Jalur A - ERP Konveksi
 
@@ -66,6 +66,7 @@
 | K3b | Form input jawaban follow-up (per pertanyaan) | **TINGGI** | Input field sesuai tipe pertanyaan; submit ke chat |
 | K3c | Integrasi follow-up answered ke chat flow | **TINGGI** | Kirim jawaban sebagai pesan chat; trigger next AI response |
 | K3d | UI wizard shell (guided self-service) | ~~SEDANG~~ → DIBATALKAN | Chat flow yang ada sudah cukup fluid; stepperoptional nanti kalau dibutuhkan |
+| EVAL | LLM Eval Loop untuk Builder — **Diusulkan, belum mulai**. Urutan: F0 kontrak provenance+kompatibilitas (`EvidenceRef`, `GapRef`, `inputFingerprint`, codec v1/v2) → F1 grader brief+skenario → F2 adversarial+coverage ratchet → F3 live trend. Tidak ada checklist implementasi yang sudah terbukti | **TINGGI** | [`PLAN`](PLAN-builder-llm-evals.md) · [`TRD-BLDR-003`](../../trd/features/TRD-BLDR-003-builder-llm-eval-loop.md) |
 
 **TRD & Planning**: B0–B7 semuanya sudah tertutup dokumen —
 discovery (`discovery-B0/B4/B7-*.md`), TRD (`TRD-PLAT-001_blueprint`, `TRD-PLAT-001-tenant-pack`,

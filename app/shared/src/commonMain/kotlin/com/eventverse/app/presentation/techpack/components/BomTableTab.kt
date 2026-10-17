@@ -14,6 +14,8 @@ import com.eventverse.app.domain.contracts.BomLine
 import com.eventverse.app.domain.pipeline.StockOwnershipSemantics
 import com.eventverse.app.domain.techpack.TechPack
 import com.eventverse.app.presentation.designsystem.*
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.techpack.TechPackUiEvent
 import com.eventverse.app.presentation.techpack.format
 import com.eventverse.app.presentation.techpack.toPercentageString
@@ -32,7 +34,7 @@ fun BomTableTab(
     ) {
         // Toolbar: Add Material & Summary
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().tutorialAnchor(GarmentTutorialAnchors.TECH_PACK_BOM_ROWS),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -62,7 +64,8 @@ fun BomTableTab(
                 ClayButton(
                     text = "+ Tambah Bahan",
                     onClick = { onEvent(TechPackUiEvent.OpenAddBomLineDialog) },
-                    style = ClayButtonStyle.Primary
+                    style = ClayButtonStyle.Primary,
+                    modifier = Modifier.tutorialAnchor(GarmentTutorialAnchors.TECH_PACK_BOM_ADD)
                 )
             }
         }

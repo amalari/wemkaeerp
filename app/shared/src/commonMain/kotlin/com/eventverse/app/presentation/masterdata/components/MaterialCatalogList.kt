@@ -19,6 +19,8 @@ import com.eventverse.app.domain.masterdata.MaterialItem
 import com.eventverse.app.domain.pipeline.StockOwnershipSemantics
 import com.eventverse.app.presentation.designsystem.*
 import com.eventverse.app.presentation.theme.WeMadeColors
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 
 @Composable
 fun MaterialCatalogList(
@@ -45,7 +47,7 @@ fun MaterialCatalogList(
                 onValueChange = onSearchChange,
                 placeholder = "Cari kode, nama, atau deskripsi...",
                 leadingIcon = { IconSearch(color = WeMadeColors.OnSurfaceMuted) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).tutorialAnchor(GarmentTutorialAnchors.MASTER_DATA_SEARCH)
             )
 
             if (canManage) {
@@ -63,7 +65,8 @@ fun MaterialCatalogList(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(rememberScrollState())
+                .tutorialAnchor(GarmentTutorialAnchors.MASTER_DATA_CATEGORIES),
             horizontalArrangement = Arrangement.spacedBy(ClaySpacing.Xs)
         ) {
             CategoryChip(

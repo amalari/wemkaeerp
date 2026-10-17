@@ -27,6 +27,8 @@ import com.eventverse.app.domain.stageflow.StageTrait
 import com.eventverse.app.presentation.designsystem.ClayChoiceChip
 import com.eventverse.app.presentation.designsystem.ClaySpacing
 import com.eventverse.app.presentation.designsystem.ClayStatusBanner
+import com.eventverse.app.presentation.tutorial.tutorialAnchor
+import com.eventverse.app.domain.pack.GarmentTutorialAnchors
 import com.eventverse.app.presentation.sampling.SamplingUiEvent
 import com.eventverse.app.presentation.sampling.SamplingViewModel
 import com.eventverse.app.presentation.sampling.SampleStorageDialogHost
@@ -142,7 +144,7 @@ fun OperatorFloorWorkspaceScreen(
             },
             onRework = { viewModel.onEvent(SamplingUiEvent.OpenReworkDialog(it)) },
             onOpenHistory = { showHistory = true },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).tutorialAnchor(GarmentTutorialAnchors.OPERATOR_TASK_LIST)
         )
     }
 
