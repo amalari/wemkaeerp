@@ -93,6 +93,22 @@ class KoogScenarioProposerTest {
     }
 
     @Test
+    fun `pertanyaan opsional dari model dipetakan ke ScenarioSketch dan aturannya ada di prompt`() = runBlocking {
+        val withQ = valid.replace("""]}]}""", """],"questions":["Apakah DP harus lunas dulu?","Siapa menerbitkan invoice?"]}]}""")
+        val (exec, p) = proposer(withQ)
+        val sc = p.propose(request()).getOrThrow().single()
+        assertEquals(listOf("Apakah DP harus lunas dulu?", "Siapa menerbitkan invoice?"), sc.questions)
+        assertEquals(emptyList(), proposer(valid).second.propose(request()).getOrThrow().single().questions, "tanpa kunci = tanpa pertanyaan")
+        assertTrue(exec.lastPromptText().contains("questions (opsional, maksimum 2 per skenario"))
+    }
+
+    @Test
+    fun `pertanyaan bukan teks ditolak parser`() = runBlocking {
+        val bad = valid.replace("""]}]}""", """],"questions":["ok?",3]}]}""")
+        assertTrue(proposer(bad).second.propose(request()).isFailure)
+    }
+
+    @Test
     fun `saklar fitur dan pengusul null tanpa koog atau kunci API`() {
         assertNull(BuilderScenarioProposers.from(configured = null, apiKey = "k"))
         assertNull(BuilderScenarioProposers.from(configured = "koog", apiKey = null))

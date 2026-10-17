@@ -70,7 +70,10 @@ class BuilderScenarioRoutesTest {
         }
     }
 
-    private fun install(builder: ApplicationTestBuilder, service: ScenarioService?, agent: BuilderAgent? = null) = with(builder) {
+    private fun install(
+        builder: ApplicationTestBuilder, service: ScenarioService?, agent: BuilderAgent? = null,
+        chats: com.eventverse.app.domain.builder.BuilderChatRepository = InMemoryBuilderChatRepository()
+    ) = with(builder) {
         val tenants = InMemoryTenantRepository().also { repo ->
             runBlocking {
                 repo.save(Tenant(TenantId(tenantId), TenantSlug(slug), TenantName("WeMade Demo"), TenantStatus.ACTIVE, SubscriptionTier.PRO))
@@ -88,7 +91,7 @@ class BuilderScenarioRoutesTest {
                 employeeRepository = com.eventverse.app.infrastructure.InMemoryEmployeeRepository(),
                 domainPackRepository = com.eventverse.app.infrastructure.InMemoryDomainPackRepository(),
                 builderDeploymentRepository = com.eventverse.app.infrastructure.InMemoryBuilderDeploymentRepository(),
-                builderChatRepository = InMemoryBuilderChatRepository(),
+                builderChatRepository = chats,
                 builderAgent = agent,
                 builderInterviewPlanner = null,
                 builderModuleEditor = null,
@@ -231,5 +234,52 @@ class BuilderScenarioRoutesTest {
         install(this, svc)
         assertEquals(200, call("propose", host = "pabrik-lain", tid = "ten-lain").status.value)
         assertEquals(listOf(TenantId("ten-lain")), svc.proposeCalls)
+    }
+
+    // --- SC3 / FR-9: pertanyaan skenario menjadi pesan QUESTION utas Semua ---
+
+    private fun withQuestions(vararg q: String) = sketch().copy(questions = q.toList())
+    private suspend fun com.eventverse.app.domain.builder.BuilderChatRepository.of(t: String) = messages(conversationFor(TenantId(t)).id)
+
+    @Test
+    fun `propose dengan pertanyaan membuat pesan QUESTION utas Semua hanya untuk tenant pemanggil`() = testApplication {
+        val chats = InMemoryBuilderChatRepository()
+        install(this, FakeService(onPropose = { Result.success(listOf(withQuestions("DP harus lunas dulu?"))) }), chats = chats)
+        assertEquals(200, call("propose").status.value)
+        val m = runBlocking { chats.of(tenantId) }.single()
+        assertEquals(com.eventverse.app.domain.builder.ChatMessageKind.QUESTION, m.kind)
+        assertEquals(null, m.moduleId)
+        assertTrue(m.questions.single().id.startsWith("scn:scn-1:"))
+        assertTrue(runBlocking { chats.of("ten-lain") }.isEmpty(), "tenant lain tidak ikut")
+        assertEquals(200, call("propose").status.value)
+        assertEquals(1, runBlocking { chats.of(tenantId) }.size, "propose berulang tidak menggandakan pesan")
+    }
+
+    @Test
+    fun `peran tak berwenang 403 tidak membuat pesan pertanyaan`() = testApplication {
+        val chats = InMemoryBuilderChatRepository()
+        install(this, FakeService(onPropose = { Result.success(listOf(withQuestions("DP harus lunas dulu?"))) }), chats = chats)
+        assertEquals(403, call("propose", role = Role.SALES).status.value)
+        assertEquals(401, call("propose", withToken = false).status.value)
+        assertTrue(runBlocking { chats.of(tenantId) }.isEmpty())
+    }
+
+    @Test
+    fun `propose gagal atau draf terkunci tidak membuat pesan pertanyaan`() = testApplication {
+        val chats = InMemoryBuilderChatRepository()
+        val svc = FakeService(onPropose = { Result.failure(com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase.LockedException("terkunci")) })
+        install(this, svc, chats = chats)
+        assertEquals(423, call("propose").status.value)
+        svc.onPropose = { Result.failure(IllegalStateException("basis rusak")) }
+        assertEquals(500, call("propose").status.value)
+        assertTrue(runBlocking { chats.of(tenantId) }.isEmpty())
+    }
+
+    @Test
+    fun `skenario tanpa pertanyaan tidak membuat pesan`() = testApplication {
+        val chats = InMemoryBuilderChatRepository()
+        install(this, FakeService(onPropose = { Result.success(listOf(sketch())) }), chats = chats)
+        assertEquals(200, call("propose").status.value)
+        assertTrue(runBlocking { chats.of(tenantId) }.isEmpty())
     }
 }

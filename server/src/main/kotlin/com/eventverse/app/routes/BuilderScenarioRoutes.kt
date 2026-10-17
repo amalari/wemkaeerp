@@ -1,5 +1,6 @@
 package com.eventverse.app.routes
 
+import com.eventverse.app.domain.builder.AskScenarioQuestionsUseCase
 import com.eventverse.app.domain.discovery.scenario.ScenarioId
 import com.eventverse.app.domain.discovery.scenario.ScenarioInvalidException
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
@@ -39,7 +40,11 @@ private val log = LoggerFactory.getLogger("scenario")
  *   404 "fitur mati" yang berupa teks biasa); selain itu 500. Tidak ada tebakan dari isi pesan.
  * - Log terstruktur tanpa isi narasi/PII.
  */
-fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunRegistry) {
+fun Route.builderScenarioRoutes(
+    service: ScenarioService?, registry: BuilderRunRegistry,
+    /** Pertanyaan skenario (FR-9) -> pesan QUESTION utas Semua; `null` = tidak dibuat (mis. tes route lama). */
+    askQuestions: AskScenarioQuestionsUseCase? = null
+) {
     post("/draft/scenarios/propose") {
         val tenantId = guard(service, registry) ?: return@post
         val svc = service ?: return@post
@@ -51,7 +56,12 @@ fun Route.builderScenarioRoutes(service: ScenarioService?, registry: BuilderRunR
         svc.propose(tenantId).fold(
             onSuccess = { list ->
                 val sources = list.map { it.source.name }.distinct().joinToString("|").ifEmpty { "-" }
-                log.info("scenario_propose tenant={} source={} count={} rejected={}", tenantId.value, sources, list.size, 0)
+                // Hanya setelah gerbang lolos dan propose sukses. Gagal membuat pesan tidak menggagalkan usulan yang sudah
+                // tersimpan (pertanyaan hanyalah pelengkap); kegagalannya terlihat di log.
+                val asked = askQuestions?.invoke(tenantId, list)?.onFailure {
+                    log.warn("scenario_questions tenant={} gagal={}", tenantId.value, it::class.simpleName)
+                }?.getOrNull() ?: 0
+                log.info("scenario_propose tenant={} source={} count={} rejected={} questionMessages={}", tenantId.value, sources, list.size, 0, asked)
                 call.respondText(jsonObjectOf("scenarios" to ScenarioSketchCodec.encode(list)).encode(), ContentType.Application.Json)
             },
             onFailure = { e ->

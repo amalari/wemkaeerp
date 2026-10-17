@@ -87,10 +87,14 @@ class KoogScenarioProposer(
             - reworkTo (opsional) = nomor urut (mulai 0) langkah SEBELUMNYA tempat dokumen kembali bila ditolak.
             - Bahasa Indonesia sederhana. Jangan mengarang modul atau field. Bila narasi tidak cukup untuk satu jalur nyata,
               balas daftar kosong.
+            - questions (opsional, maksimum ${ScenarioLimits.QUESTIONS_MAX} per skenario, tiap pertanyaan maksimum ${ScenarioLimits.QUESTION_MAX_CHARS} karakter):
+              HANYA bila ada hal yang benar-benar tidak bisa kamu simpulkan dari narasi dan menentukan urutan atau syarat antar-modul
+              (mis. "Apakah DP harus lunas sebelum sampel dikerjakan?"). Jangan menanyakan yang sudah dijawab narasi, jangan
+              menanyakan hal teknis, satu hal per pertanyaan. Tanpa keraguan nyata, hilangkan kunci questions.
             - JANGAN menulis kunci source atau confirmed; itu ditentukan sistem.
 
             BALASAN: satu objek JSON saja, tanpa kunci lain:
-            {"scenarios":[{"id":"opsional","title":"...","steps":[{"moduleId":"crm","screenId":"layar-1","label":"Lead","carries":[{"fromField":"nama","toField":"pelanggan"}]},{"moduleId":"sales","screenId":null,"label":"Invoice","carries":[],"reworkTo":0}]}]}
+            {"scenarios":[{"id":"opsional","title":"...","steps":[{"moduleId":"crm","screenId":"layar-1","label":"Lead","carries":[{"fromField":"nama","toField":"pelanggan"}]},{"moduleId":"sales","screenId":null,"label":"Invoice","carries":[],"reworkTo":0}],"questions":["Apakah DP harus lunas sebelum sampel dikerjakan?"]}]}
         """.trimIndent()
     }
 }

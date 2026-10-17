@@ -167,7 +167,10 @@ fun Route.builderRoutes(
     route("/api/builder") {
         builderChatStreamRoutes(send, chats, runRegistry, com.eventverse.app.domain.builder.AskModuleFollowUpsUseCase(chats, drafts))
         builderModuleBriefRoutes(briefService, runRegistry)
-        builderScenarioRoutes(scenarioService, runRegistry)
+        builderScenarioRoutes(
+            scenarioService, runRegistry,
+            askQuestions = com.eventverse.app.domain.builder.AskScenarioQuestionsUseCase(chats)
+        )
         get("/overview") {
             call.gate() ?: return@get
             val tenant = call.tenantContext
