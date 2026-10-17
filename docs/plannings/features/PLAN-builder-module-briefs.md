@@ -1,7 +1,7 @@
 # PLAN: Ringkasan & Follow-Up per Modul di Chat Builder
 
 **Tanggal**: 2026-10-14
-**Status**: Sebagian (2026-10-17) — Track 0/A/B/C, temuan 1–14 (5 diputuskan opsi b, 11 diperbaiki) dan teaching doc selesai di `main`; sisa: D2, D3 (5 target/Android), SC3, SD2. Flag server `BUILDER_MODULE_BRIEFS_ENABLED` default MATI
+**Status**: Sebagian (2026-10-17) — Track 0/A/B/C, temuan 1–14 (5 diputuskan opsi b, 11 diperbaiki) dan teaching doc selesai di `main`; sisa: D3 (Android + graphify update), SC3. Flag server `BUILDER_MODULE_BRIEFS_ENABLED` default MATI
 **TRD**: [`TRD-BLDR-001-module-briefs.md`](../../trd/features/TRD-BLDR-001-module-briefs.md) (Fase 1) ·
 [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) (Fase 2)
 **Induk**: [`PLAN-builder-interview-chat.md`](PLAN-builder-interview-chat.md)
@@ -69,8 +69,8 @@ diseed saat draf termuat; ringkasan lokal `openingEntryForModule` untuk utas kos
 
 ### Track D — Verifikasi (serial, akhir)
 - [~] D1 (sebagian, 2026-10-14: **hanya tenant `wemade-demo`** pada ~1280dp; `bordir-uji` tidak ada di migrasi/seed lokal) `wemade-demo` (superadmin demo) + `bordir-uji` ~1280dp: ringkasan & follow-up per modul, badge sejak awal
-- [ ] D2 Skenario AI mati → brief `DETERMINISTIC` terlihat
-- [~] D3 (sebagian: core/server builder + jvmTest brief hijau; 5 target & audit-variability belum) Kompilasi 5 target + `jvmTest`; `scripts/audit-variability.sh`; `graphify update .`
+- [x] D2 (2026-10-17) Agent model mati (tanpa `DISCOVERY_AGENT`/`INTERVIEW_AGENT`), tenant `wemade-demo`: setelah Terapkan, `POST /chat/briefs` membuat brief `briefSource=DETERMINISTIC` + satu follow-up; UI menampilkan bubble Ringkasan berlabel "Disusun otomatis dari data" dan badge 3 klarifikasi
+- [~] D3 (2026-10-17) `audit-variability.sh` 0 temuan; kompilasi JVM + WasmJs + JS bersih; `:app:shared:jvmTest` + `:core:jvmTest` hijau. **Belum**: Android (SDK tak terpasang) dan `graphify update .`
 - [x] D4 Teaching doc [`teaching-builder-module-briefs-and-scenarios.md`](../../teaching/teaching-builder-module-briefs-and-scenarios.md) + `TASKS-SUMMARY.md` diperbarui (2026-10-17)
 
 ## 2b. Fase 2 — Skenario & Simulasi (TRD-BLDR-002)
@@ -91,7 +91,7 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 - [ ] SC3 Pertanyaan tingkat skenario di utas Semua (FR-9, <= 2 per skenario, badge ikut) — **BELUM**: tidak termasuk service Track A, perlu pekerjaan lanjutan
 - [x] S-integrasi (2026-10-16, koordinator): wiring `DiscoveryScenarioService` di `builderRoutes`; kontrak galat final server<->service (`ScenarioInvalidException` -> 422, `LockedException` -> 423, id tak ada -> 404 berbadan JSON `{error}`; heuristik regex pada pesan DIHAPUS); klien memakai `DefaultScenarioCarryRule` (pengganti sementara `StraightCarryRule` dihapus)
 - [~] SD1 Cek visual (2026-10-16, **model sungguhan `deepseek-flash`**, tenant `wemade-demo`, DB scratch; lihat juga "Cek visual draf klinik" di bawah): bubble BRIEF, baris Skenario, pemutar 7 langkah berurutan skenario, chip "Skenario (1)" hanya menghitung yang terkonfirmasi, rantai skenario di Alur Data, 404 `{error}` untuk id tak ada. **Belum**: `bordir-uji` (tidak ada di seed), klik "Lanjut Alur" sampai membawa data (lihat temuan 3), 2 tenant
-- [ ] SD2 nol HTTP saat simulasi **di UI nyata** (terbukti hanya lewat tes refleksi) · [x] SD3 teaching doc + `TASKS-SUMMARY` (2026-10-17)
+- [ ] SD2 nol HTTP saat simulasi **di UI nyata** (terbukti hanya lewat tes refleksi) · [x] SD2 (2026-10-17, UI nyata) nol request `/api/` saat memilih skenario, Lanjut Alur, mundur, maju (log resource browser; kontrol: klik Segarkan ringkasan tertangkap sebagai `POST /chat/briefs`); skenario disisipkan di DB scratch karena pembangun deterministik tak mengarang tanpa handoff wawancara · [x] SD3 teaching doc + `TASKS-SUMMARY` (2026-10-17)
 
 ### Temuan cek visual dengan model sungguhan (2026-10-16) — 1, 2, 4, 6, 7 DIPERBAIKI (`979ddd04`, `32c29147`, `a5dfb635`, `ed4fc126`, `fd497891`); 3 ditunda (keputusan: uji dulu di tenant berproposal); 5 belum
 Hasil run nyata: brief `AI` terbentuk untuk 5 modul (22 dtk), 2 skenario `AI` diusulkan (10 dtk), keduanya lolos validator dan tersimpan `confirmed=false`.
