@@ -8,6 +8,8 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.InterviewFixtures
 import com.eventverse.app.domain.discovery.interview.InterviewFixtures.draftOf
+import com.eventverse.app.domain.evidence.EvidenceRef
+import com.eventverse.app.domain.evidence.EvidenceSource
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -23,6 +25,11 @@ class GenerateModuleBriefsUseCaseTest {
     private val codes = listOf("klinik_pendaftaran", "klinik_poli", "klinik_kasir")
 
     private val draft: DiscoveryDraft = draftOf(InterviewFixtures.klinikPack, InterviewFixtures.klinikSession).let {
+        it.copy(blueprint = it.blueprint.copy(modules = (codes + "org_chart").map { c -> BlueprintModule(c, true) }))
+    }
+
+    /** Draf dengan sesi berdasar cerita (FR-3.4): tautan membawa `basisRef` sehingga fallback mewarisi bukti. */
+    private val basedDraft: DiscoveryDraft = draftOf(InterviewFixtures.klinikPack, InterviewFixtures.klinikSessionBerdasarCerita).let {
         it.copy(blueprint = it.blueprint.copy(modules = (codes + "org_chart").map { c -> BlueprintModule(c, true) }))
     }
 
@@ -45,7 +52,7 @@ class GenerateModuleBriefsUseCaseTest {
         }
     }
 
-    private fun good(followUps: List<String> = emptyList(), features: List<String> = listOf("Antrean")) =
+    private fun good(followUps: List<String> = emptyList(), features: List<BriefFeature> = listOf(BriefFeature("Antrean"))) =
         { r: ModuleBriefRequest -> Result.success(ModuleBrief("Ringkasan ${r.moduleName}.", features, listOf(StageSketch("Daftar")), followUps, BriefSource.AI)) }
 
     private class FailingChats(private val d: BuilderChatRepository, private val failFor: String) : BuilderChatRepository by d {
@@ -74,8 +81,8 @@ class GenerateModuleBriefsUseCaseTest {
         val brief = chats.all().first { it.kind == ChatMessageKind.BRIEF && it.moduleId == "klinik_poli" }
         assertEquals(BriefSource.AI, brief.briefSource)
         assertEquals(ChatRole.AGENT, brief.role)
-        assertEquals(listOf("Antrean"), brief.features)
-        assertNotNull(brief.basisRef)
+        assertEquals(listOf("Antrean"), brief.features.map { it.text })
+        assertNotNull(brief.inputFingerprint)
     }
 
     @Test
@@ -93,7 +100,7 @@ class GenerateModuleBriefsUseCaseTest {
     fun `generate keluaran tak sah lalu sah returns feedback berpath dari validator`() = runTest {
         val chats = InMemoryBuilderChatRepository().also { seed(it) }
         val bad = { _: ModuleBriefRequest ->
-            Result.success(ModuleBrief("x", listOf("a"), listOf(StageSketch("A", reworkTo = "B"), StageSketch("B")), source = BriefSource.AI))
+            Result.success(ModuleBrief("x", listOf(BriefFeature("a")), listOf(StageSketch("A", reworkTo = "B"), StageSketch("B")), source = BriefSource.AI))
         }
         val briefer = ScriptedBriefer(listOf(bad, good()))
         useCase(chats, briefer).generate(tenant, "klinik_poli").getOrThrow()
@@ -104,14 +111,31 @@ class GenerateModuleBriefsUseCaseTest {
     fun `generate gagal total returns fallback DETERMINISTIC tanpa stages`() = runTest {
         val chats = InMemoryBuilderChatRepository().also { seed(it) }
         val briefer = ScriptedBriefer(listOf({ Result.failure(IllegalStateException("down")) }))
-        val out = useCase(chats, briefer).generate(tenant, "klinik_pendaftaran").getOrThrow()
+        val out = useCase(chats, briefer, drafts(basedDraft)).generate(tenant, "klinik_pendaftaran").getOrThrow()
         assertEquals(BriefStatus.CREATED, out.single().status)
         assertEquals(BriefSource.DETERMINISTIC, out.single().source)
         val brief = chats.all().single { it.kind == ChatMessageKind.BRIEF }
         assertEquals(BriefSource.DETERMINISTIC, brief.briefSource)
         assertTrue(brief.stages.isEmpty())
-        assertTrue(brief.features.any { "Nomor antrean" in it })
+        // Butir tautan membawa bukti NARASI → fallback v2 mewarisi buktinya (FR-3.4), tidak dihilangkan.
+        assertEquals(1, brief.features.size)
+        assertTrue("Nomor antrean" in brief.features.single().text)
+        assertEquals(
+            EvidenceRef(EvidenceSource.NARRATIVE, quote = "resepsionis mencatat pendaftaran"),
+            brief.features.single().evidence
+        )
         assertEquals(2, briefer.requests.size)
+    }
+
+    @Test
+    fun `generate fallback pada sesi tanpa dasar returns brief tanpa fitur karangan`() = runTest {
+        val chats = InMemoryBuilderChatRepository().also { seed(it) }
+        val briefer = ScriptedBriefer(listOf({ Result.failure(IllegalStateException("down")) }))
+        useCase(chats, briefer).generate(tenant, "klinik_pendaftaran").getOrThrow()
+        val brief = chats.all().single { it.kind == ChatMessageKind.BRIEF }
+        // FR-3.5: sesi legacy v1 tanpa `basisRef` → butir tanpa dasar DIHILANGKAN, tidak dikarang buktinya.
+        assertTrue(brief.features.isEmpty())
+        assertTrue("belum ada rincian fitur" in brief.text)
     }
 
     @Test

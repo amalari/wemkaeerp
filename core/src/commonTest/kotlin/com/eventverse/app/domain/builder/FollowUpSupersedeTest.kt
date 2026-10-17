@@ -75,7 +75,7 @@ class FollowUpSupersedeTest {
 
     private class AiBriefer : ModuleBriefer {
         override suspend fun brief(request: ModuleBriefRequest) = Result.success(
-            ModuleBrief("Ringkasan ${request.moduleName}.", listOf("Antrean"), emptyList(), listOf("Siapa pemeriksa di ${request.moduleName}?"), BriefSource.AI)
+            ModuleBrief("Ringkasan ${request.moduleName}.", listOf(BriefFeature("Antrean")), emptyList(), listOf("Siapa pemeriksa di ${request.moduleName}?"), BriefSource.AI)
         )
     }
 
@@ -144,7 +144,7 @@ class FollowUpSupersedeTest {
         override suspend fun brief(request: ModuleBriefRequest): Result<ModuleBrief> {
             alreadyAsked += request.alreadyAsked
             val round = rounds[minOf(alreadyAsked.size - 1, rounds.lastIndex)]
-            return Result.success(ModuleBrief("Ringkasan ${request.moduleName}.", listOf("Antrean"), emptyList(), round, BriefSource.AI))
+            return Result.success(ModuleBrief("Ringkasan ${request.moduleName}.", listOf(BriefFeature("Antrean")), emptyList(), round, BriefSource.AI))
         }
     }
 

@@ -1,5 +1,8 @@
 package com.eventverse.app.domain.builder
 
+import com.eventverse.app.domain.evidence.EvidenceContext
+import com.eventverse.app.domain.evidence.EvidenceRef
+import com.eventverse.app.domain.evidence.EvidenceSource
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -7,20 +10,23 @@ import kotlin.test.assertTrue
 
 class ModuleBriefRulesTest {
 
+    private val context = EvidenceContext(narratives = setOf("Kami klinik: perawat triase, dokter memeriksa."))
+
     private fun ok(
         summary: String = "Ringkasan poli.",
-        features: List<String> = listOf("Antrean"),
+        features: List<BriefFeature> = listOf(BriefFeature("Antrean")),
         stages: List<StageSketch> = emptyList(),
         followUps: List<String> = emptyList(),
-        source: BriefSource = BriefSource.AI
-    ) = ModuleBrief(summary, features, stages, followUps, source)
+        source: BriefSource = BriefSource.AI,
+        contractVersion: Int = ModuleBriefLimits.CONTRACT_VERSION_LEGACY
+    ) = ModuleBrief(summary, features, stages, followUps, source, contractVersion)
 
-    private fun paths(b: ModuleBrief) = ModuleBriefRules.validate(b).map { it.path }
+    private fun paths(b: ModuleBrief) = ModuleBriefRules.validate(b, context).map { it.path }
 
     @Test
     fun `validate brief lengkap dan sah returns no issues`() {
         val b = ok(stages = listOf(StageSketch("Daftar"), StageSketch("Periksa", reworkTo = "Daftar")), followUps = listOf("Siapa yang mengisi?"))
-        assertTrue(ModuleBriefRules.validate(b).isEmpty())
+        assertTrue(ModuleBriefRules.validate(b, context).isEmpty())
     }
 
     @Test
@@ -37,9 +43,9 @@ class ModuleBriefRulesTest {
 
     @Test
     fun `validate features lebih dari delapan dan duplikat case-insensitive returns issue berpath`() {
-        assertTrue("features" in paths(ok(features = (1..9).map { "f$it" })))
-        assertEquals(listOf("features[1]"), paths(ok(features = listOf("Antrean", "ANTREAN "))))
-        assertEquals(listOf("features[0]"), paths(ok(features = listOf("x".repeat(81)))))
+        assertTrue("features" in paths(ok(features = (1..9).map { BriefFeature("f$it") })))
+        assertEquals(listOf("features[1]"), paths(ok(features = listOf(BriefFeature("Antrean"), BriefFeature("ANTREAN ")))))
+        assertEquals(listOf("features[0]"), paths(ok(features = listOf(BriefFeature("x".repeat(81))))))
     }
 
     @Test
@@ -74,18 +80,53 @@ class ModuleBriefRulesTest {
         val b = DeterministicModuleBriefer.brief(req).getOrThrow()
         assertEquals(BriefSource.DETERMINISTIC, b.source)
         assertTrue(b.stages.isEmpty() && b.features.isEmpty() && b.followUps.isEmpty())
-        assertTrue(ModuleBriefRules.validate(b).isEmpty())
+        assertTrue(ModuleBriefRules.validate(b, context).isEmpty())
     }
 
     @Test
-    fun `deterministic briefer dengan roleFeatures returns ringkasan dari nama modul dan fitur`() = runTest {
+    fun `deterministic briefer mewarisi evidence dan menghilangkan butir tanpa dasar`() = runTest {
+        val bukti = EvidenceRef(EvidenceSource.NARRATIVE, quote = "perawat triase")
         val req = ModuleBriefRequest(
             com.eventverse.app.domain.tenant.TenantId("ten-uji"), "klinik_poli", "Poli", "cerita",
-            roleFeatures = listOf("Perawat: Triase", "perawat: triase", "Dokter")
+            roleFeatures = listOf(
+                RoleFeature("Perawat: Triase", bukti),
+                RoleFeature("Perawat: Triase ", bukti),
+                RoleFeature("Dokter")
+            )
         )
         val b = DeterministicModuleBriefer.brief(req).getOrThrow()
-        assertEquals(listOf("Perawat: Triase", "Dokter"), b.features)
-        assertTrue("Poli" in b.summary && "Triase" in b.summary)
-        assertTrue(ModuleBriefRules.validate(b).isEmpty())
+        // Butir berevidence dipertahankan (dedup ternormalisasi); butir tanpa dasar DIHILANGKAN (FR-3.5).
+        assertEquals(listOf(BriefFeature("Perawat: Triase", bukti)), b.features)
+        assertEquals(ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE, b.contractVersion)
+        assertTrue("Triase" in b.summary)
+        assertTrue(ModuleBriefRules.validate(b, context).isEmpty())
+    }
+
+    @Test
+    fun `brief kontrak v2 tanpa evidence returns issue berpath pada setiap butir`() {
+        val b = ok(
+            features = listOf(BriefFeature("Antrean")),
+            stages = listOf(StageSketch("Daftar")),
+            contractVersion = ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE
+        )
+        assertEquals(listOf("features[0].evidence", "stages[0].evidence"), paths(b))
+    }
+
+    @Test
+    fun `brief kontrak v2 dengan evidence kutipan di luar narasi returns issue`() {
+        val b = ok(
+            features = listOf(BriefFeature("Antrean", EvidenceRef(EvidenceSource.NARRATIVE, quote = "bukan bagian cerita"))),
+            contractVersion = ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE
+        )
+        assertEquals(listOf("features[0].evidence.quote"), paths(b))
+    }
+
+    @Test
+    fun `brief kontrak v2 dengan evidence sah returns no issues`() {
+        val b = ok(
+            features = listOf(BriefFeature("Perawat: Triase", EvidenceRef(EvidenceSource.NARRATIVE, quote = "perawat triase"))),
+            contractVersion = ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE
+        )
+        assertTrue(paths(b).isEmpty())
     }
 }

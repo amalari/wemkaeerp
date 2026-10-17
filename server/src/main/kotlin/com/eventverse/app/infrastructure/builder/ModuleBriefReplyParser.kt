@@ -1,7 +1,9 @@
 package com.eventverse.app.infrastructure.builder
 
+import com.eventverse.app.domain.builder.BriefFeature
 import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.ModuleBrief
+import com.eventverse.app.domain.builder.ModuleBriefLimits
 import com.eventverse.app.domain.builder.StageSketch
 import com.eventverse.app.infrastructure.discovery.extractJsonObject
 import com.eventverse.app.shared.json.JsonParser
@@ -12,6 +14,9 @@ import com.eventverse.app.shared.json.JsonValue
  * Kunci atau tipe tak dikenal = galat berpath (percobaan ulang membawanya sebagai umpan balik), bukan default senyap.
  * Batas panjang/jumlah ditegakkan validator domain (`ModuleBriefValidator`), bukan di sini.
  * Hasilnya selalu bertanda [BriefSource.AI].
+ *
+ * Kontrak **v1 (legacy)**: prompt Track B belum meminta bukti, jadi fitur dipetakan ke [BriefFeature] tanpa evidence
+ * dan `contractVersion = 1` — validator tidak menuntut bukti pada brief AI sampai prompt v2 aktif (TRD-BLDR-003 FR-6.2).
  */
 internal object ModuleBriefReplyParser {
     private val ROOT_KEYS = setOf("summary", "features", "stages", "followUps")
@@ -25,10 +30,11 @@ internal object ModuleBriefReplyParser {
             ?: error("summary wajib teks tidak kosong")
         return ModuleBrief(
             summary = summary,
-            features = strings(root, "features"),
+            features = strings(root, "features").map { BriefFeature(it) },
             stages = stages(root),
             followUps = strings(root, "followUps"),
-            source = BriefSource.AI
+            source = BriefSource.AI,
+            contractVersion = ModuleBriefLimits.CONTRACT_VERSION_LEGACY,
         )
     }
 

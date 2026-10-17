@@ -2,6 +2,7 @@ package com.eventverse.app.domain.builder
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.interview.Clarification
+import com.eventverse.app.domain.discovery.interview.toEvidenceRef
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.tenant.TenantId
@@ -20,12 +21,18 @@ internal object ModuleBriefInputs {
         return linked || proposed
     }
 
-    /** Peran + fitur tautan modul: "Peran: fitur" per fitur, atau "Peran" bila tautan tanpa fitur. */
-    fun roleFeatures(draft: DiscoveryDraft, module: ModuleDefinition): List<String> {
+    /**
+     * Peran + fitur tautan modul (FR-3.4): satu [RoleFeature] per fitur ("Peran: fitur") atau "Peran" bila tautan tanpa
+     * fitur. Bukti [RoleFeature.evidence] berasal dari `link.basisRef` lewat adaptor interview → evidence; tautan
+     * tanpa dasar tetap dibawa (tanpa bukti) — keputusan membuang butir tanpa dasar ada di penyusun, bukan di sini.
+     */
+    fun roleFeatures(draft: DiscoveryDraft, module: ModuleDefinition): List<RoleFeature> {
         val interview = draft.interview ?: return emptyList()
         return interview.links.filter { it.moduleId == module.id }.flatMap { link ->
             val role = interview.roles.firstOrNull { it.roleKey == link.roleKey }?.label ?: link.roleKey.value
-            if (link.features.isEmpty()) listOf(role) else link.features.map { "$role: $it" }
+            val evidence = link.basisRef.toEvidenceRef()
+            if (link.features.isEmpty()) listOf(RoleFeature(role, evidence))
+            else link.features.map { RoleFeature("$role: $it", evidence) }
         }.distinct()
     }
 

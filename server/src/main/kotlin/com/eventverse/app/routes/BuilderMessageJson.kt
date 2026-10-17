@@ -30,6 +30,7 @@ internal fun messageJson(m: ChatMessage): JsonValue {
         "features" to ModuleBriefCodec.encodeFeatures(m.features),
         "stages" to ModuleBriefCodec.encodeStages(m.stages),
         "briefSource" to (m.briefSource?.let(ModuleBriefCodec::encodeSource) ?: JsonValue.Null),
-        "basisRef" to jsonOf(m.basisRef)
+        // Nama kunci API mengikuti domain (FR-2): nilai ini fingerprint idempotensi, bukan evidence.
+        "inputFingerprint" to jsonOf(m.inputFingerprint)
     )
 }

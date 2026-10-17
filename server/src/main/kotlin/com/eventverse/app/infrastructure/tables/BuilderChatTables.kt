@@ -36,10 +36,14 @@ object BuilderChatMessagesTable : Table("builder.chat_messages") {
     /** Pertanyaan follow-up, teks JSON array `[{id,question,answer?}]` (V93). */
     val questions = text("questions")
 
-    /** Brief per modul (V105): butir fitur & sketsa Tahap (teks JSON), jejak basis, asal. Hanya bermakna untuk kind = BRIEF. */
+    /**
+     * Brief per modul (V105): butir fitur & sketsa Tahap (teks JSON), fingerprint idempotensi, asal. Hanya bermakna untuk
+     * kind = BRIEF. Kolom `basis_ref` = **nama legacy** (TRD-BLDR-003 FR-2): nilainya hash masukan (`inputFingerprint`),
+     * BUKAN evidence — kolom tidak diganti agar tidak ada DDL; bukti per butir hidup di dalam JSON fitur/tahap v2.
+     */
     val features = text("features")
     val stages = text("stages")
-    val basisRef = varchar("basis_ref", 80).nullable()
+    val inputFingerprint = varchar("basis_ref", 80).nullable()
     val briefSource = varchar("brief_source", 16).nullable()
 
     override val primaryKey = PrimaryKey(id)

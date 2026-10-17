@@ -2,7 +2,10 @@
 
 **Tanggal**: 2026-10-17
 
-**Status**: Diusulkan — kontrak belum diimplementasikan
+**Status**: Sebagian selesai — **F0 (Contract) terbukti di kode & test**; F1–F4 belum mulai.
+Bukti F0: `:core:jvmTest`, `:app:shared:jvmTest`, `:server:test` hijau; kompilasi JVM/WasmJs/Js hijau
+(Android ditunda — SDK tidak terpasang). Temuan `audit-variability.sh` 1 (enum `EvidenceSource`,
+mekanik platform — lihat §0.4).
 
 **TRD**: [`TRD-BLDR-003-builder-llm-eval-loop.md`](../../trd/features/TRD-BLDR-003-builder-llm-eval-loop.md)
 
@@ -312,7 +315,7 @@ global karena service dapat memiliki evidence terstruktur di luar narasi.
 
 | Fase | Isi | Biaya |
 |---|---|---|
-| **F0 — Contract** | `EvidenceRef`/`EvidenceContext`/`GapRef`; rename domain `basisRef` hash → `inputFingerprint`; typed brief/scenario items; decoder v1+v2; propagasi evidence ke fallback; parity test data lama | Gratis, CI |
+| **F0 — Contract** ✅ (2026-10-17) | `EvidenceRef`/`EvidenceContext`/`GapRef` (`core/domain/evidence/`, adaptor `InterviewEvidenceAdaptor`); rename domain `basisRef` hash → `inputFingerprint` (kolom DB `basis_ref` tetap, didokumentasikan mapper); typed items (`BriefFeature`, `StageSketch.evidence`, `ScenarioStep.evidence`, `contractVersion`); decoder v1+v2 (brief shape-based, skenario kunci eksplisit — JSON v1 byte-identik); propagasi evidence ke fallback (`RoleFeature` → `DeterministicModuleBriefer`; `DeterministicScenarioBuilder` dari `handoff.basisRef`) | ✅ Selesai — `:core:jvmTest` + `:server:test` + `:app:shared:jvmTest` hijau; kompilasi JVM/WasmJs/Js hijau (Android: SDK tidak terpasang) |
 | **F1 — Offline graders** | `BuilderBriefGoldenCase` + grader dan `ScenarioGoldenCase` + grader; ≥6 kasus; kunci 100%; mutation tests grader | Gratis, CI |
 | **F2 — Hardening & ratchet** | adversarial metamorphic, fail-closed per SUT, scope discipline, bahasa/gaya, paritas deterministik, `BuilderEvalCoverage` Covered/Exempt | Gratis, CI |
 | **F3 — Live & trend** | brief+skenario flash/pro, ulangan, first-attempt/flaky rate, sidecar JSON, trend index, quality gates opt-in, budget setelah baseline cukup | Berbiaya, opt-in |
@@ -325,8 +328,14 @@ v2 dan kompatibilitas F0 selesai.
 
 ## 8. Definition of Done
 
-- [ ] F0: fingerprint terpisah dari evidence; validator lintas sumber + `GapRef`; brief/skenario v1
+- [x] F0: fingerprint terpisah dari evidence; validator lintas sumber + `GapRef`; brief/skenario v1
       tetap terbaca; v2 round-trip; fallback deterministik membawa evidence sah atau mengurangi klaim.
+      **Bukti 2026-10-17**: `ModuleBriefCodecTest` (v1 legacy, v2 round-trip, mixed corrupt, unknown
+      ditolak, paritas rumus `b1:`+FNV-1a), `ScenarioSketchCodecTest`/`ScenarioParityTest`,
+      `ModuleBriefRulesTest` (kewajiban evidence v2, kutipan di luar narasi ditolak),
+      `GenerateModuleBriefsUseCaseTest` (fallback mewarisi bukti; sesi tanpa dasar → fitur dihilangkan).
+      Catatan keputusan Track 0: versi kontrak brief = **bentuk elemen features** (string=v1,
+      objek=v2); skenario = kunci eksplisit `contractVersion` (absen = v1, JSON lama byte-identik).
 - [ ] F1: dua grader terpisah dan dua korpus emas ≥6 kasus; golden key 100%; mutation tests membuktikan
       tiap kriteria bisa gagal sendiri.
 - [ ] F2: injeksi dinilai metamorphic; fail-closed jelas per SUT; no-scope-leakage; paritas baseline;
@@ -336,5 +345,6 @@ v2 dan kompatibilitas F0 selesai.
 - [ ] F4 bila dikerjakan: alasan terlihat pada Builder, legacy ditandai “belum tersedia”, gate tenant
       tetap fail-closed, dan cek visual dua tenant selesai.
 - [ ] Kompilasi/test target yang tersentuh, `scripts/audit-variability.sh`, serta `graphify update .` hijau.
-- [ ] Teaching doc dibuat setelah implementasi, bukan pada fase planning.
+- [x] Teaching doc dibuat setelah implementasi, bukan pada fase planning —
+      [`teaching-bldr-003-f0-evidence-contract.md`](../../teaching/teaching-bldr-003-f0-evidence-contract.md) (F0; diperbarui per fase berikutnya).
 - [ ] Status plan dan `docs/plannings/mvp/TASKS-SUMMARY.md` diperbarui hanya berdasarkan bukti nyata.

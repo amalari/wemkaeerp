@@ -1,5 +1,6 @@
 package com.eventverse.app.infrastructure
 
+import com.eventverse.app.domain.builder.BriefFeature
 import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.ChatMessage
 import com.eventverse.app.domain.builder.ChatMessageId
@@ -40,9 +41,9 @@ class PostgresBuilderChatBriefIntegrationTest {
         repo.append(ChatMessage(ChatMessageId("lama-$suffix"), conv.id, tenantId, ChatRole.USER, "pesan lama"))
         repo.append(ChatMessage(
             ChatMessageId("brief-$suffix"), conv.id, tenantId, ChatRole.AGENT, "Ringkasan poli",
-            moduleId = "poli", kind = ChatMessageKind.BRIEF, features = listOf("Lampirkan foto"),
+            moduleId = "poli", kind = ChatMessageKind.BRIEF, features = listOf(BriefFeature("Lampirkan foto")),
             stages = listOf(StageSketch("Intake"), StageSketch("Revisi", optional = true, reworkTo = "Intake")),
-            basisRef = "b1:abc", briefSource = BriefSource.AI
+            inputFingerprint = "b1:abc", briefSource = BriefSource.AI
         ))
 
         val all = repo.messages(conv.id).associateBy { it.id.value }
@@ -50,14 +51,14 @@ class PostgresBuilderChatBriefIntegrationTest {
         assertEquals(ChatMessageKind.TEXT, old.kind)
         assertEquals(emptyList(), old.features)
         assertEquals(emptyList(), old.stages)
-        assertNull(old.basisRef)
+        assertNull(old.inputFingerprint)
         assertNull(old.briefSource)
 
         val brief = requireNotNull(all["brief-$suffix"])
         assertEquals(ChatMessageKind.BRIEF, brief.kind)
-        assertEquals(listOf("Lampirkan foto"), brief.features)
+        assertEquals(listOf("Lampirkan foto"), brief.features.map { it.text })
         assertEquals(listOf(StageSketch("Intake"), StageSketch("Revisi", optional = true, reworkTo = "Intake")), brief.stages)
-        assertEquals("b1:abc", brief.basisRef)
+        assertEquals("b1:abc", brief.inputFingerprint)
         assertEquals(BriefSource.AI, brief.briefSource)
 
         // Constraint di DB (bukan hanya init{} domain): BRIEF tanpa module_id ditolak langsung oleh Postgres.

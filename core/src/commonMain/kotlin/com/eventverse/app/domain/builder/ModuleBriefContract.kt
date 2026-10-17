@@ -1,16 +1,18 @@
 package com.eventverse.app.domain.builder
 
+import com.eventverse.app.domain.evidence.EvidenceContext
 import com.eventverse.app.domain.tenant.TenantId
 
 /** Satu temuan validator brief; [path] menunjuk bagian yang salah (mis. `stages[2].reworkTo`) agar umpan balik ke model berpath. */
 data class BriefIssue(val path: String, val message: String)
 
 /**
- * Validator keluaran [ModuleBriefer] (aturan TRD-BLDR-001 FR-4, angka dari [ModuleBriefLimits]). Murni, tanpa I/O.
- * Daftar kosong = sah. Implementasi: Track A. Kontrak ini dibekukan agar use case dan tes server memakai fake.
+ * Validator keluaran [ModuleBriefer] (aturan TRD-BLDR-001 FR-4 + TRD-BLDR-003 FR-3, angka dari [ModuleBriefLimits]).
+ * Murni, tanpa I/O. [evidence] = jejak sah tempat bukti butir divalidasi (`EvidenceRules`); pemanggil merakitnya
+ * dari data tenant yang sama. Daftar kosong = sah. Kontrak ini dibekukan agar use case dan tes server memakai fake.
  */
 fun interface ModuleBriefValidator {
-    fun validate(brief: ModuleBrief): List<BriefIssue>
+    fun validate(brief: ModuleBrief, evidence: EvidenceContext): List<BriefIssue>
 }
 
 /** Hasil pembuatan brief satu modul. [source] `null` bila tidak ada brief baru (FRESH/SKIPPED). */
@@ -42,8 +44,13 @@ object BriefKeys {
 
     fun isAiQuestionId(id: String): Boolean = id.startsWith(AI_ID_PREFIX)
 
-    /** Basis brief: berubah bila narasi, fitur tautan, atau versi agent berubah. */
-    fun basisRef(narrative: String, roleFeatures: List<String>, agentRef: String): String =
+    /**
+     * Fingerprint masukan brief (TRD-BLDR-003 FR-2): berubah bila narasi, fitur tautan, atau versi agent berubah.
+     * **Ini hash idempotensi, BUKAN evidence** — bukti per butir memakai `EvidenceRef` (`domain/evidence`).
+     * Nama lama `basisRef` menyesatkan dan sudah diganti; kolom DB `basis_ref` dan ID pesan lama tetap dipakai
+     * apa adanya (rumus `b1:` + FNV-1a dibekukan agar idempotensi tidak pecah).
+     */
+    fun inputFingerprint(narrative: String, roleFeatures: List<String>, agentRef: String): String =
         "b1:" + fingerprint(listOf(narrative, roleFeatures.joinToString("\u001F"), agentRef).joinToString("\u001E"))
 
     /** Normalisasi: huruf kecil, spasi beruntun dan tepi dirapikan. Sama-sama dipakai dedup pertanyaan (FR-4). */

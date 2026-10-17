@@ -27,6 +27,8 @@ object ModuleSchemaMap {
     val platform: Set<String> = setOf(
         "tenants", "users", "domain_packs", "tenant_module_entitlements", "audit_logs",
         "custom_field_definitions", "custom_field_links", "module_catalog_entries", "module_customization_requests",
+        // Tutorial help/RAG (V106, TRD-HELP-001): bahan jawaban lintas modul, bukan milik satu `BusinessModule`.
+        "tutorials",
         "flyway_schema_history"
     )
 

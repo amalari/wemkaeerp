@@ -28,7 +28,7 @@ class ChatBriefModelTest {
 
     private fun brief(id: String, module: String, source: String = "AI", stages: String, extra: String = "") =
         """{"id":"$id","role":"AGENT","text":"Ringkasan $module","kind":"BRIEF","moduleId":"$module",
-           "features":["Lampirkan foto"],"stages":$stages,"briefSource":"$source","basisRef":"h1"$extra}"""
+           "features":[{"text":"Lampirkan foto"}],"stages":$stages,"briefSource":"$source","inputFingerprint":"h1"$extra}"""
 
     private fun parse(vararg messages: String) =
         parseMessages(JsonParser.parse("""{"messages":[${messages.joinToString(",")}]}"""))
@@ -42,7 +42,8 @@ class ChatBriefModelTest {
         assertNull(e.parseError)
         assertEquals(ChatMessageKind.BRIEF, e.kind)
         assertEquals(BriefSource.AI, b.source)
-        assertEquals(listOf("Lampirkan foto"), b.features)
+        assertEquals(listOf("Lampirkan foto"), b.features.map { it.text })
+        assertEquals("h1", b.inputFingerprint)
         assertEquals("Intake", b.stages[1].reworkTo)
         assertEquals("opsional · rework ke Intake", stageCaption(b.stages[1]))
         assertNull(stageCaption(b.stages[0]))

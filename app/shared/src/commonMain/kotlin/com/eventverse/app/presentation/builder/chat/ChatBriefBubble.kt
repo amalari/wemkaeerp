@@ -93,7 +93,7 @@ internal fun ChatBriefBubble(entry: BuilderChatEntry, expandedByDefault: Boolean
                 if (brief.features.isNotEmpty()) {
                     Text("Fitur", style = typography.labelSmall, fontWeight = FontWeight.Bold, color = WeMadeColors.InfoDark)
                     brief.features.forEach { f ->
-                        Text("- $f", style = typography.bodySmall, color = WeMadeColors.OnSurface)
+                        Text("- ${f.text}", style = typography.bodySmall, color = WeMadeColors.OnSurface)
                     }
                 }
             }

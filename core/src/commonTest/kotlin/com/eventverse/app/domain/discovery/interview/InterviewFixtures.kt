@@ -91,6 +91,30 @@ object InterviewFixtures {
         answers = listOf(InterviewAnswer(1, InterviewStep.G1_DIVISI, "g1", Confirmation.CONFIRMED), InterviewAnswer(2, InterviewStep.G2_PERAN, "g2", Confirmation.SKIPPED, "terima semua"))
     )
 
+    /**
+     * Sesi klinik **berdasar cerita** (TRD-BLDR-003 FR-3.4): [klinikSession] + narasi + `basisRef` NARASI pada
+     * tautan/sambungan. Taxan pemakaian: test brief/skenario yang menuntut bukti — fixture [klinikSession] tetap
+     * legacy v1 (dibekukan `InterviewBasisTest`) agar jalur kompatibilitas lama terus diuji.
+     */
+    val klinikSessionBerdasarCerita: InterviewSession = klinikSession.copy(
+        version = InterviewSession.BASED_ON_STORY,
+        narrative = "Klinik kecil: resepsionis mencatat pendaftaran, perawat memeriksa pasien, kasir menagih biaya.",
+        links = klinikSession.links.map { link ->
+            when (link.roleKey.value to link.moduleId.value) {
+                "resepsionis" to "klinik_pendaftaran" ->
+                    link.copy(basisRef = BasisRef(Basis.NARASI, quote = "resepsionis mencatat pendaftaran"))
+                "perawat" to "klinik_poli" ->
+                    link.copy(basisRef = BasisRef(Basis.NARASI, quote = "perawat memeriksa pasien"))
+                "kasir" to "klinik_kasir" ->
+                    link.copy(basisRef = BasisRef(Basis.NARASI, quote = "kasir menagih biaya"))
+                else -> link
+            }
+        },
+        handoffs = klinikSession.handoffs.map {
+            it.copy(basisRef = BasisRef(Basis.NARASI, quote = "perawat memeriksa pasien"))
+        }
+    )
+
     val bengkelSession = InterviewSession(
         step = InterviewStep.G2_PERAN,
         divisions = listOf(DivisionDraft(DivisionCode("servis"), "Servis", ItemSource.GUESS)),

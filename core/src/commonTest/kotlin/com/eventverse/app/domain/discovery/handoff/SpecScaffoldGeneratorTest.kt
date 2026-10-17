@@ -53,7 +53,7 @@ class SpecScaffoldGeneratorTest {
     // ---- bentuk keluaran & determinisme ---------------------------------------------------------
 
     @Test
-    fun output_isByteForByteDeterministic_andHasAllSixFiles() {
+    fun output_isByteForByteDeterministic_andHasAllSevenFiles() {
         assertEquals(pilot(), pilot())
         assertEquals(
             listOf(
@@ -62,6 +62,8 @@ class SpecScaffoldGeneratorTest {
                 "server/src/main/kotlin/com/eventverse/app/infrastructure/PostgresLayananChangeRequestRepository.kt",
                 "server/src/main/kotlin/com/eventverse/app/routes/LayananChangeRequestRoutes.kt",
                 "server/src/test/kotlin/com/eventverse/app/routes/LayananChangeRequestRoutesGateTest.kt",
+                // Tutorial stub (f38e1a06): setiap scaffold modul membawa kerangka `ModuleTutorial` (TRD-HELP-001).
+                "docs/handoff/layanan_change_request/TUTORIAL_STUB.md",
                 "docs/handoff/layanan_change_request/WIRING.md"
             ),
             pilot().files.map { it.path }

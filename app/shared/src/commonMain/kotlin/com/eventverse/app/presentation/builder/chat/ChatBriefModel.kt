@@ -1,5 +1,6 @@
 package com.eventverse.app.presentation.builder.chat
 
+import com.eventverse.app.domain.builder.BriefFeature
 import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.ChatMessageKind
 import com.eventverse.app.domain.builder.StageSketch
@@ -9,10 +10,11 @@ import com.eventverse.app.shared.json.JsonValue
 
 /** Bagian BRIEF satu pesan chat (TRD-BLDR-001): fitur pelengkap, sketsa Tahap berurutan, dan asal penyusunnya. */
 internal data class ChatBrief(
-    val features: List<String>,
+    val features: List<BriefFeature>,
     val stages: List<StageSketch>,
     val source: BriefSource,
-    val basisRef: String?
+    /** Fingerprint idempotensi (TRD-BLDR-003 FR-2) — bukan evidence. */
+    val inputFingerprint: String?
 )
 
 /**
@@ -28,7 +30,7 @@ internal fun parseKindAndBrief(m: JsonValue.Obj): Result<Pair<ChatMessageKind, C
     val features = ModuleBriefCodec.decodeFeatures(m.get("features") ?: error("features wajib pada pesan BRIEF"))
     val stages = ModuleBriefCodec.decodeStages(m.get("stages") ?: error("stages wajib pada pesan BRIEF"))
     val source = ModuleBriefCodec.parseSource(m.string("briefSource") ?: error("briefSource wajib pada pesan BRIEF"))
-    kind to ChatBrief(features, stages, source, m.string("basisRef"))
+    kind to ChatBrief(features, stages, source, m.string("inputFingerprint"))
 }
 
 /** Id pesan BRIEF yang tampil penuh: yang TERBARU per utas modul (urutan kronologis); sisanya dilipat (FR-7). */

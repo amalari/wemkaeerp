@@ -3,6 +3,7 @@ package com.eventverse.app.domain.builder
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.interview.Clarification
+import com.eventverse.app.domain.evidence.EvidenceContext
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CancellationException
@@ -66,24 +67,24 @@ class GenerateModuleBriefsUseCase(
         val id = module.id.value
         if (!ModuleBriefInputs.inScope(draft, module)) return ModuleBriefOutcome(id, BriefStatus.SKIPPED)
         val thread = history.inThread(id)
-        val basis = BriefKeys.basisRef(narrative, ModuleBriefInputs.roleFeatures(draft, module), agentRef)
+        val fingerprint = BriefKeys.inputFingerprint(narrative, ModuleBriefInputs.roleFeatures(draft, module).map { it.label }, agentRef)
         val latest = thread.lastOrNull { it.kind == ChatMessageKind.BRIEF }
-        if (latest?.basisRef == basis) return ModuleBriefOutcome(id, BriefStatus.FRESH)
+        if (latest?.inputFingerprint == fingerprint) return ModuleBriefOutcome(id, BriefStatus.FRESH)
 
         // "Sudah ditanyakan" = semua kecuali pertanyaan AI yang belum dijawab: yang itu digantikan generasi baru, jadi yang masih
         // relevan boleh ditanyakan ulang (id sama, lihat BriefKeys.followUpId) dan tidak hilang.
         val asked = thread.filter { it.kind == ChatMessageKind.QUESTION }.flatMap { it.questions }
             .filterNot { BriefKeys.isAiQuestionId(it.id) && it.answer.isNullOrBlank() }
         fun request(feedback: String?) = ModuleBriefInputs.request(tenantId, draft, module, narrative, asked, feedback)
-        val brief = fromModel(::request) ?: DeterministicModuleBriefer.of(request(null))
+        val brief = fromModel(::request, evidenceContext(draft, narrative, history, thread)) ?: DeterministicModuleBriefer.of(request(null))
 
         val now = clock.now()
         chats.append(
             ChatMessage(
-                id = ChatMessageId("msg-${conversation.id.value}-b-$id-${basis.takeLast(ID_SUFFIX)}"),
+                id = ChatMessageId("msg-${conversation.id.value}-b-$id-${fingerprint.takeLast(ID_SUFFIX)}"),
                 conversationId = conversation.id, tenantId = tenantId, role = ChatRole.AGENT,
                 text = brief.summary, createdAt = now, moduleId = id, kind = ChatMessageKind.BRIEF,
-                features = brief.features, stages = brief.stages, basisRef = basis, briefSource = brief.source
+                features = brief.features, stages = brief.stages, inputFingerprint = fingerprint, briefSource = brief.source
             )
         )
         val questions = followUps(draft, id, brief, thread, asked)
@@ -108,8 +109,21 @@ class GenerateModuleBriefsUseCase(
         return ModuleBriefOutcome(id, BriefStatus.CREATED, brief.source)
     }
 
+    /** Jejak sah tempat bukti butir brief divalidasi (FR-1.3): narasi wawancara + narasi chat, id jawaban/pesan tenant ini. */
+    private fun evidenceContext(
+        draft: DiscoveryDraft, narrative: String, history: List<ChatMessage>, thread: List<ChatMessage>
+    ): EvidenceContext = EvidenceContext(
+        narratives = buildSet {
+            draft.interview?.narrative?.takeIf { it.isNotBlank() }?.let { add(it) }
+            if (narrative.isNotBlank()) add(narrative)
+        },
+        interviewAnswerIds = draft.interview?.answers.orEmpty().map { it.questionId }.toSet(),
+        builderAnswerIds = thread.flatMap { it.questions }.filterNot { it.answer.isNullOrBlank() }.map { it.id }.toSet(),
+        userMessageIds = history.filter { it.role == ChatRole.USER }.map { it.id.value }.toSet(),
+    )
+
     /** Dua percobaan: yang kedua membawa galat berpath. `null` = model gagal total atau keluaran tak sah → fallback. */
-    private suspend fun fromModel(request: (String?) -> ModuleBriefRequest): ModuleBrief? {
+    private suspend fun fromModel(request: (String?) -> ModuleBriefRequest, evidence: EvidenceContext): ModuleBrief? {
         var feedback: String? = null
         repeat(MAX_ATTEMPTS) {
             val result = try {
@@ -123,7 +137,7 @@ class GenerateModuleBriefsUseCase(
             if (brief == null) {
                 feedback = "model gagal: ${result.exceptionOrNull()?.message ?: "tanpa jawaban"}"
             } else {
-                val issues = validator.validate(brief)
+                val issues = validator.validate(brief, evidence)
                 if (issues.isEmpty()) return brief
                 feedback = issues.joinToString("; ") { "${it.path}: ${it.message}" }
             }

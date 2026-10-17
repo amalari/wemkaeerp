@@ -2,6 +2,7 @@ package com.eventverse.app.domain.discovery.scenario
 
 import com.eventverse.app.domain.builder.BriefKeys
 import com.eventverse.app.domain.discovery.DiscoveryDraft
+import com.eventverse.app.domain.discovery.interview.toEvidenceRef
 import com.eventverse.app.domain.discovery.proposal.FieldProposal
 import com.eventverse.app.domain.pack.ModuleDefinition
 import com.eventverse.app.domain.rbac.ModuleKind
@@ -39,17 +40,25 @@ object DeterministicScenarioBuilder {
         val chain = best.take(L.STEPS_MAX).mapNotNull { modules[it] }
         if (chain.size < 2) return emptyList()
         val screens = chain.map { screenFor(draft, it) }
+        // Provenance (TRD-BLDR-003 FR-5.3): bukti langkah diturunkan dari sambungan wawancara yang memasukkan modul
+        // itu ke jalur — stabil dan tidak dikarang. Langkah masuk (tanpa sambungan masuk) jujur tanpa bukti.
+        val evidenceByEdge = draft.interview?.handoffs.orEmpty()
+            .associate { (it.from.value to it.to.value) to it.basisRef.toEvidenceRef() }
         val steps = chain.mapIndexed { i, m ->
+            val incoming = chain.getOrNull(i - 1)?.let { prev -> evidenceByEdge[prev.id.value to m.id.value] }
             ScenarioStep(
                 moduleId = m.id, screenId = screens[i]?.first,
                 label = m.displayName.take(L.LABEL_MAX_CHARS).ifBlank { m.id.value },
-                carries = screens.getOrNull(i + 1)?.let { next -> screens[i]?.let { pairs(it.second, next.second) } }.orEmpty()
+                carries = screens.getOrNull(i + 1)?.let { next -> screens[i]?.let { pairs(it.second, next.second) } }.orEmpty(),
+                evidence = incoming
             )
         }
         val sketch = ScenarioSketch(
             id = ScenarioId("scn-" + BriefKeys.fingerprint(chain.joinToString(">") { it.id.value })),
             title = "${steps.first().label} sampai ${steps.last().label}".take(L.TITLE_MAX_CHARS),
-            steps = steps, source = ScenarioSource.DETERMINISTIC, confirmed = false
+            steps = steps, source = ScenarioSource.DETERMINISTIC, confirmed = false,
+            // Kontrak v2 hanya bila seluruh langkah berbukti; kalau tidak, jujur sebagai v1 (tanpa klaim bukti).
+            contractVersion = if (steps.all { it.evidence != null }) L.CONTRACT_VERSION_EVIDENCE else L.CONTRACT_VERSION_LEGACY
         )
         return if (ScenarioRules.validate(draft, sketch).isEmpty()) listOf(sketch) else emptyList()
     }

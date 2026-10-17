@@ -1,8 +1,10 @@
 package com.eventverse.app.infrastructure.builder
 
 import ai.koog.prompt.executor.clients.deepseek.DeepSeekModels
+import com.eventverse.app.domain.builder.BriefFeature
 import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.ModuleBriefRequest
+import com.eventverse.app.domain.builder.RoleFeature
 import com.eventverse.app.domain.builder.StageSketch
 import com.eventverse.app.domain.discovery.interview.Clarification
 import com.eventverse.app.domain.tenant.TenantId
@@ -18,7 +20,7 @@ class KoogModuleBrieferTest {
 
     private fun request(feedback: String? = null, narrative: String = "Klinik gigi, pasien antre per poli.") = ModuleBriefRequest(
         tenantId = TenantId("ten-x"), moduleId = "poli", moduleName = "Poli", narrative = narrative,
-        roleFeatures = listOf("Perawat: catat keluhan"), slotInput = "Pasien", slotOutput = "Kunjungan",
+        roleFeatures = listOf(RoleFeature("Perawat: catat keluhan")), slotInput = "Pasien", slotOutput = "Kunjungan",
         screenFieldLabels = listOf("Nama", "Keluhan"),
         alreadyAsked = listOf(Clarification("q1", "Berapa poli?", "tiga"), Clarification("q2", "Ada antrean online?")),
         feedback = feedback
@@ -34,7 +36,7 @@ class KoogModuleBrieferTest {
         val (_, b) = briefer("```json\n$valid\n```")
         val r = b.brief(request()).getOrThrow()
         assertEquals("Poli mengatur antrean pasien.", r.summary)
-        assertEquals(listOf("Lampirkan foto"), r.features)
+        assertEquals(listOf("Lampirkan foto"), r.features.map { it.text })
         assertEquals(listOf(StageSketch("Intake"), StageSketch("Revisi", optional = true, reworkTo = "Intake")), r.stages)
         assertEquals(listOf("Apakah ada rujukan?"), r.followUps)
         assertEquals(BriefSource.AI, r.source)

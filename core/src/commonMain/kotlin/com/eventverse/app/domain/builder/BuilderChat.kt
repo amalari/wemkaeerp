@@ -57,12 +57,15 @@ data class ChatMessage(
     val kind: ChatMessageKind = ChatMessageKind.TEXT,
     /** Pertanyaan follow-up (hanya [ChatMessageKind.QUESTION]); [Clarification.answer] null = belum dijawab. */
     val questions: List<Clarification> = emptyList(),
-    /** Butir fitur pelengkap modul (hanya [ChatMessageKind.BRIEF]). Bukan kotak flow — lihat [stages]. */
-    val features: List<String> = emptyList(),
+    /** Butir fitur pelengkap modul dengan bukti asalnya (hanya [ChatMessageKind.BRIEF]); TRD-BLDR-003 FR-3. */
+    val features: List<BriefFeature> = emptyList(),
     /** Sketsa Tahap berurutan satu dokumen di modul (hanya BRIEF); deskriptif, bukan `TenantStageFlow`. */
     val stages: List<StageSketch> = emptyList(),
-    /** Jejak basis brief (hash narasi + fitur tautan + versi agent) untuk idempotensi; hanya BRIEF. */
-    val basisRef: String? = null,
+    /**
+     * Fingerprint idempotensi brief (hash narasi + fitur tautan + versi agent; TRD-BLDR-003 FR-2) — BUKAN evidence.
+     * Kolom DB `basis_ref` tetap menyimpannya pada tahap pertama; mapper mendokumentasikan bahwa nilainya fingerprint.
+     */
+    val inputFingerprint: String? = null,
     /** Asal brief (AI atau fallback deterministik) supaya terlihat di UI; hanya BRIEF. */
     val briefSource: BriefSource? = null
 ) {
@@ -76,10 +79,10 @@ data class ChatMessage(
             require(role == ChatRole.AGENT) { "Pesan BRIEF wajib dari AGENT" }
             require(moduleId != null) { "Pesan BRIEF wajib berutas modul" }
             require(briefSource != null) { "Pesan BRIEF wajib menyatakan briefSource" }
-            require(!basisRef.isNullOrBlank()) { "Pesan BRIEF wajib membawa basisRef" }
+            require(!inputFingerprint.isNullOrBlank()) { "Pesan BRIEF wajib membawa inputFingerprint" }
         } else {
-            require(features.isEmpty() && stages.isEmpty() && basisRef == null && briefSource == null) {
-                "features/stages/basisRef/briefSource hanya untuk pesan BRIEF"
+            require(features.isEmpty() && stages.isEmpty() && inputFingerprint == null && briefSource == null) {
+                "features/stages/inputFingerprint/briefSource hanya untuk pesan BRIEF"
             }
         }
     }

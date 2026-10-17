@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** Kontrak TRD-BLDR-001 Track 0: bentuk `ChatMessage` BRIEF dan port [ModuleBriefer] dibekukan di sini. */
+/** Kontrak TRD-BLDR-001 Track 0 + FR-2 TRD-BLDR-003: bentuk `ChatMessage` BRIEF dan port [ModuleBriefer] dibekukan di sini. */
 class ModuleBriefContractTest {
     private val conv = BuilderConversationId("c1")
     private val tenant = TenantId("bordir-uji")
@@ -17,16 +17,16 @@ class ModuleBriefContractTest {
         role: ChatRole = ChatRole.AGENT,
         module: String? = "sampling_order",
         source: BriefSource? = BriefSource.AI,
-        basis: String? = "b1",
-        features: List<String> = listOf("Lampirkan foto"),
+        fingerprint: String? = "b1",
+        features: List<BriefFeature> = listOf(BriefFeature("Lampirkan foto")),
         stages: List<StageSketch> = listOf(StageSketch("Intake"), StageSketch("Revisi", reworkTo = "Intake"))
     ) = ChatMessage(
         ChatMessageId("m1"), conv, tenant, role, "Ringkasan modul", moduleId = module, kind = ChatMessageKind.BRIEF,
-        features = features, stages = stages, basisRef = basis, briefSource = source
+        features = features, stages = stages, inputFingerprint = fingerprint, briefSource = source
     )
 
     private fun text(
-        features: List<String> = emptyList(), stages: List<StageSketch> = emptyList(), source: BriefSource? = null
+        features: List<BriefFeature> = emptyList(), stages: List<StageSketch> = emptyList(), source: BriefSource? = null
     ) = ChatMessage(
         ChatMessageId("m"), conv, tenant, ChatRole.AGENT, "x", features = features, stages = stages, briefSource = source
     )
@@ -50,15 +50,15 @@ class ModuleBriefContractTest {
     }
 
     @Test
-    fun `brief message without source or basis should be rejected`() {
+    fun `brief message without source or fingerprint should be rejected`() {
         assertFailsWith<IllegalArgumentException> { brief(source = null) }
-        assertFailsWith<IllegalArgumentException> { brief(basis = null) }
-        assertFailsWith<IllegalArgumentException> { brief(basis = " ") }
+        assertFailsWith<IllegalArgumentException> { brief(fingerprint = null) }
+        assertFailsWith<IllegalArgumentException> { brief(fingerprint = " ") }
     }
 
     @Test
     fun `text message carrying brief fields should be rejected`() {
-        assertFailsWith<IllegalArgumentException> { text(features = listOf("a")) }
+        assertFailsWith<IllegalArgumentException> { text(features = listOf(BriefFeature("a"))) }
         assertFailsWith<IllegalArgumentException> { text(stages = listOf(StageSketch("a"))) }
         assertFailsWith<IllegalArgumentException> { text(source = BriefSource.AI) }
     }
@@ -68,7 +68,7 @@ class ModuleBriefContractTest {
         assertFailsWith<IllegalArgumentException> {
             ChatMessage(
                 ChatMessageId("m"), conv, tenant, ChatRole.AGENT, "x", moduleId = "m1", kind = ChatMessageKind.BRIEF,
-                basisRef = "b", briefSource = BriefSource.AI, questions = listOf(Clarification("q", "apa?"))
+                inputFingerprint = "b", briefSource = BriefSource.AI, questions = listOf(Clarification("q", "apa?"))
             )
         }
     }
@@ -93,5 +93,6 @@ class ModuleBriefContractTest {
         assertEquals(600, ModuleBriefLimits.SUMMARY_MAX_CHARS)
         assertEquals(7, ModuleBriefLimits.STAGES_MAX)
         assertEquals(3, ModuleBriefLimits.FOLLOW_UPS_MAX)
+        assertEquals(2, ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE)
     }
 }

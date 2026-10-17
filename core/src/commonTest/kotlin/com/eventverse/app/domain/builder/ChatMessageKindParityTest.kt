@@ -21,7 +21,7 @@ class ChatMessageKindParityTest {
         )
         ChatMessageKind.BRIEF -> ChatMessage(
             ChatMessageId("b"), conv, tenant, ChatRole.AGENT, "RINGKASAN-AGENT-RAHASIA", moduleId = "klinik_poli", kind = kind,
-            features = listOf("f"), basisRef = "b1:x", briefSource = BriefSource.AI
+            features = listOf(BriefFeature("f")), inputFingerprint = "b1:x", briefSource = BriefSource.AI
         )
     }
 

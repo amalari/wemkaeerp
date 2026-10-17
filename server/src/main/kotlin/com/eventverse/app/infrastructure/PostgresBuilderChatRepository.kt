@@ -73,7 +73,7 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
             it[questions] = ChatQuestionsCodec.encode(message.questions).encode()
             it[features] = ModuleBriefCodec.encodeFeatures(message.features).encode()
             it[stages] = ModuleBriefCodec.encodeStages(message.stages).encode()
-            it[basisRef] = message.basisRef
+            it[inputFingerprint] = message.inputFingerprint
             it[briefSource] = message.briefSource?.name
         }
         message
@@ -118,7 +118,7 @@ class PostgresBuilderChatRepository(private val clock: Clock = Clock.System) : B
         questions = ChatQuestionsCodec.decode(row[BuilderChatMessagesTable.questions]),
         features = ModuleBriefCodec.decodeFeatures(row[BuilderChatMessagesTable.features]),
         stages = ModuleBriefCodec.decodeStages(row[BuilderChatMessagesTable.stages]),
-        basisRef = row[BuilderChatMessagesTable.basisRef],
+        inputFingerprint = row[BuilderChatMessagesTable.inputFingerprint],
         briefSource = row[BuilderChatMessagesTable.briefSource]?.let(ModuleBriefCodec::parseSource)
     )
 

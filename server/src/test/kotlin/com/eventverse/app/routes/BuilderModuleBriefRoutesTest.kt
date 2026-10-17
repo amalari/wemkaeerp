@@ -2,6 +2,7 @@ package com.eventverse.app.routes
 
 import com.eventverse.app.TestAuth
 import com.eventverse.app.domain.auth.Role
+import com.eventverse.app.domain.builder.BriefFeature
 import com.eventverse.app.domain.builder.BriefSource
 import com.eventverse.app.domain.builder.BriefStatus
 import com.eventverse.app.domain.builder.BuilderAgent
@@ -197,9 +198,9 @@ class BuilderModuleBriefRoutesTest {
             chats.append(ChatMessage(
                 ChatMessageId("b"), conv.id, TenantId(tenantId), ChatRole.AGENT, "Modul poli mengatur antrean.",
                 moduleId = "poli", kind = ChatMessageKind.BRIEF,
-                features = listOf("Lampirkan foto"),
+                features = listOf(BriefFeature("Lampirkan foto")),
                 stages = listOf(StageSketch("Intake"), StageSketch("Revisi", optional = true, reworkTo = "Intake")),
-                basisRef = "b1:abc", briefSource = BriefSource.DETERMINISTIC
+                inputFingerprint = "b1:abc", briefSource = BriefSource.DETERMINISTIC
             ))
         }
         val all = obj(client.get("/api/builder/chat") { auth() }.bodyAsText()).array("messages").filterIsInstance<JsonValue.Obj>()
@@ -210,9 +211,10 @@ class BuilderModuleBriefRoutesTest {
 
         val inModule = obj(client.get("/api/builder/chat?module=poli") { auth() }.bodyAsText()).array("messages").filterIsInstance<JsonValue.Obj>()
         val brief = inModule.first { it.string("kind") == "BRIEF" }
-        assertEquals("""["Lampirkan foto"]""", brief["features"]?.encode())
+        // Fitur kini butir v2 (objek bertipe); tanpa bukti kunci evidence tidak ditulis.
+        assertEquals("""[{"text":"Lampirkan foto"}]""", brief["features"]?.encode())
         assertEquals("DETERMINISTIC", brief.string("briefSource"))
-        assertEquals("b1:abc", brief.string("basisRef"))
+        assertEquals("b1:abc", brief.string("inputFingerprint"))
         val stages = (brief["stages"] as JsonValue.Arr).items.filterIsInstance<JsonValue.Obj>()
         assertEquals(listOf("Intake", "Revisi"), stages.map { it.string("name") })
         assertEquals("Intake", stages[1].string("reworkTo"))
@@ -224,7 +226,7 @@ class BuilderModuleBriefRoutesTest {
         val other = runBlocking { chats.conversationFor(TenantId("ten-lain")) }
         runBlocking {
             chats.append(ChatMessage(ChatMessageId("x"), other.id, TenantId("ten-lain"), ChatRole.AGENT, "rahasia lain",
-                moduleId = "poli", kind = ChatMessageKind.BRIEF, basisRef = "b1:x", briefSource = BriefSource.AI))
+                moduleId = "poli", kind = ChatMessageKind.BRIEF, inputFingerprint = "b1:x", briefSource = BriefSource.AI))
         }
         val body = client.get("/api/builder/chat?module=poli") { auth() }.bodyAsText()
         assertTrue(!body.contains("rahasia lain"))
