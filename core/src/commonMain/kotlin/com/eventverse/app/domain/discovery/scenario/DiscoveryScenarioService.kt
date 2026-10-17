@@ -5,7 +5,6 @@ import com.eventverse.app.domain.discovery.DiscoveryDraftRepository
 import com.eventverse.app.domain.discovery.DiscoveryDraftStatus
 import com.eventverse.app.domain.discovery.StoredDiscoveryDraft
 import com.eventverse.app.domain.discovery.usecases.UpdateDiscoveryDraftUseCase
-import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
@@ -159,10 +158,10 @@ class DiscoveryScenarioService(
     }
 }
 
-/** Perakitan masukan pengusul dari draf (modul operasional aktif, handoff wawancara, layar berproposal). Teks = data tenant. */
+/** Perakitan masukan pengusul dari draf (modul skenario: operasional aktif + dasar berdeskripsi, handoff wawancara, layar berproposal). Teks = data tenant. */
 internal object ScenarioRequests {
     fun of(tenantId: TenantId, draft: DiscoveryDraft, narrative: String, feedback: String?): ScenarioProposalRequest {
-        val active = draft.pack.modules.filter { it.kind == ModuleKind.OPERATIONAL && it.id.value in draft.blueprint.activeModuleCodes }
+        val active = ScenarioRules.eligibleModules(draft)
         val ids = active.map { it.id.value }.toSet()
         return ScenarioProposalRequest(
             tenantId = tenantId, narrative = narrative,

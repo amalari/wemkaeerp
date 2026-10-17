@@ -2,6 +2,8 @@ package com.eventverse.app.domain.discovery.scenario
 
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.proposal.FieldProposal
+import com.eventverse.app.domain.pack.ModuleDefinition
+import com.eventverse.app.domain.rbac.ModuleKind
 import com.eventverse.app.domain.discovery.scenario.ScenarioLimits as L
 
 /**
@@ -10,13 +12,23 @@ import com.eventverse.app.domain.discovery.scenario.ScenarioLimits as L
  *
  * Keputusan yang tidak tersurat di FR-2 (ditulis, bukan diam-diam):
  * - skenario tanpa langkah ditolak (FR-2 "langkah 1..7");
- * - "modul aktif" = ada di `blueprint.activeModuleCodes` (yang selalu bagian dari `pack.modules`);
+ * - "modul skenario" = [eligibleModules]: modul OPERATIONAL aktif di `blueprint.activeModuleCodes` ditambah modul FOUNDATION
+ *   berdeskripsi di pack (mis. penagihan yang tak ada di kanvas tetapi disebut cerita: "invoice DP"); GOVERNANCE tidak pernah;
  * - carries butuh KEDUA langkah berlayar berproposal berentitas; bila tidak, carries harus kosong (ditolak berpath);
  * - dua carries ke `toField` yang sama pada satu langkah ditolak (nilai saling menimpa = data hilang senyap);
  * - tipe: lihat [ScenarioCarryTypes] (alasan tidak memakai `FieldTypeConversion`);
  * - [validateAll] menambah batas [ScenarioLimits.SCENARIOS_MAX], id unik, dan skenario ganda (urutan `moduleId` sama persis).
  */
 object ScenarioRules : ScenarioValidator {
+
+    /** Modul yang boleh menjadi langkah skenario (lihat KDoc kelas); dipakai bersama oleh validator dan perakit masukan pengusul. */
+    fun eligibleModules(draft: DiscoveryDraft): List<ModuleDefinition> = draft.pack.modules.filter {
+        when (it.kind) {
+            ModuleKind.OPERATIONAL -> it.id.value in draft.blueprint.activeModuleCodes
+            ModuleKind.FOUNDATION -> it.description.isNotBlank()
+            ModuleKind.GOVERNANCE -> false
+        }
+    }
 
     override fun validate(draft: DiscoveryDraft, scenario: ScenarioSketch): List<ScenarioIssue> = buildList {
         if (scenario.title.length > L.TITLE_MAX_CHARS) add(ScenarioIssue("title", "maksimal ${L.TITLE_MAX_CHARS} karakter"))
@@ -46,8 +58,8 @@ object ScenarioRules : ScenarioValidator {
         val step = scenario.steps[i]
         val p = "steps[$i]"
         if (step.label.length > L.LABEL_MAX_CHARS) out += ScenarioIssue("$p.label", "maksimal ${L.LABEL_MAX_CHARS} karakter")
-        if (step.moduleId.value !in draft.blueprint.activeModuleCodes) {
-            out += ScenarioIssue("$p.moduleId", "'${step.moduleId.value}' bukan modul aktif di draf")
+        if (eligibleModules(draft).none { it.id == step.moduleId }) {
+            out += ScenarioIssue("$p.moduleId", "'${step.moduleId.value}' bukan modul skenario di draf (aktif atau dasar berdeskripsi)")
         }
         val screen = step.screenId?.let { id -> draft.screens.firstOrNull { it.screenId == id } }
         if (step.screenId != null && (screen == null || screen.moduleId != step.moduleId)) {
