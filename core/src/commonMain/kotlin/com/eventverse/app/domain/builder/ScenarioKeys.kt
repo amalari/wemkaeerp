@@ -1,6 +1,6 @@
-package com.eventverse.app.domain.discovery.scenario
+package com.eventverse.app.domain.builder
 
-import com.eventverse.app.domain.builder.BriefKeys
+import com.eventverse.app.domain.discovery.scenario.ScenarioId
 
 /**
  * Kunci stabil pertanyaan skenario (FR-9). Dibekukan: menentukan idempotensi dan `Clarification.id`. Rumus fingerprint = milik

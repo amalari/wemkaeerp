@@ -1,7 +1,7 @@
 package com.eventverse.app.shared.discovery
 
+import com.eventverse.app.domain.builder.ScenarioKeys
 import com.eventverse.app.domain.discovery.scenario.ScenarioId
-import com.eventverse.app.domain.discovery.scenario.ScenarioKeys
 import com.eventverse.app.domain.discovery.scenario.ScenarioSketch
 import com.eventverse.app.domain.discovery.scenario.ScenarioSource
 import com.eventverse.app.domain.discovery.scenario.ScenarioStep

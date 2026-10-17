@@ -1,5 +1,6 @@
 package com.eventverse.app.domain.discovery.scenario
 
+import com.eventverse.app.domain.builder.BriefKeys
 import com.eventverse.app.domain.discovery.DiscoveryDraft
 import com.eventverse.app.domain.discovery.proposal.FieldProposal
 import com.eventverse.app.domain.pack.ModuleDefinition
@@ -34,6 +35,7 @@ object ScenarioRules : ScenarioValidator {
         if (scenario.title.length > L.TITLE_MAX_CHARS) add(ScenarioIssue("title", "maksimal ${L.TITLE_MAX_CHARS} karakter"))
         if (scenario.steps.isEmpty()) add(ScenarioIssue("steps", "minimal 1 langkah"))
         if (scenario.steps.size > L.STEPS_MAX) add(ScenarioIssue("steps", "maksimal ${L.STEPS_MAX} langkah"))
+        questions(scenario, this)
         scenario.steps.indices.forEach { i -> step(draft, scenario, i, this) }
         scenario.steps.withIndex().filter { it.value.reworkTo != null }.drop(1)
             .forEach { add(ScenarioIssue("steps[${it.index}].reworkTo", "hanya satu loop rework per skenario")) }
@@ -53,6 +55,16 @@ object ScenarioRules : ScenarioValidator {
 
     /** Identitas isi skenario untuk deteksi ganda: urutan `moduleId`. */
     fun sequenceKey(scenario: ScenarioSketch): List<String> = scenario.steps.map { it.moduleId.value }
+
+    /** Pertanyaan pengusul (FR-9): jumlah, panjang, dan duplikat (teks ternormalisasi) — path `questions[i]`. */
+    private fun questions(scenario: ScenarioSketch, out: MutableList<ScenarioIssue>) {
+        if (scenario.questions.size > L.QUESTIONS_MAX) out += ScenarioIssue("questions", "maksimal ${L.QUESTIONS_MAX} pertanyaan per skenario")
+        val seen = mutableSetOf<String>()
+        scenario.questions.forEachIndexed { i, q ->
+            if (q.length > L.QUESTION_MAX_CHARS) out += ScenarioIssue("questions[$i]", "maksimal ${L.QUESTION_MAX_CHARS} karakter")
+            if (!seen.add(BriefKeys.normalize(q))) out += ScenarioIssue("questions[$i]", "pertanyaan ganda")
+        }
+    }
 
     private fun step(draft: DiscoveryDraft, scenario: ScenarioSketch, i: Int, out: MutableList<ScenarioIssue>) {
         val step = scenario.steps[i]
