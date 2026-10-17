@@ -69,4 +69,16 @@ class ProposalRejectionTest {
         assertFalse(seen.any { it.second.detail.contains(secret) })
         assertTrue(ProposalRejection.of(ProposalRejectionKind.INVALID, 1, "x".repeat(5000)).detail.length <= ProposalRejection.DETAIL_MAX_CHARS)
     }
+
+    @Test
+    fun `propose without a draft should keep returning empty but report it and never call the proposer`() = runTest {
+        val proposer = FakeProposer(Result.success(listOf(F.validScenario("x"))))
+        val repo = FakeDraftRepository()
+        assertEquals(emptyList(), service(repo, proposer).propose(F.tenant).getOrThrow())
+        assertEquals(0, proposer.requests.size)
+        assertEquals(0, repo.saves)
+        val r = seen.single().second
+        assertEquals(ProposalRejectionKind.NO_DRAFT, r.kind)
+        assertEquals(0, r.attempt)
+    }
 }

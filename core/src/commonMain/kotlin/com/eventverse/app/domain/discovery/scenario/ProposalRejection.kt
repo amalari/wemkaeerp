@@ -18,7 +18,10 @@ enum class ProposalRejectionKind {
     INVALID,
 
     /** Usulan sah tetapi seluruhnya dibuang saat disimpan (urutan modul ganda atau kuota [ScenarioLimits.SCENARIOS_MAX] penuh); `attempt = 0`. */
-    NOT_ADDED
+    NOT_ADDED,
+
+    /** Tenant belum punya draf kerja (dibuat saat draf pertama dimuat); hasilnya tetap daftar kosong yang sah; `attempt = 0`. */
+    NO_DRAFT
 }
 
 /** Satu penolakan percobaan ke-[attempt] (mulai 1; 0 = bukan percobaan pengusul, tahap penyimpanan). [detail] ringkas dan **tanpa isi narasi pengguna** (aman untuk log). */

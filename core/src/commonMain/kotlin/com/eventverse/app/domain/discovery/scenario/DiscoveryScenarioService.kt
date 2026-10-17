@@ -48,7 +48,11 @@ class DiscoveryScenarioService(
 ) : ScenarioService {
 
     override suspend fun propose(tenantId: TenantId): Result<List<ScenarioSketch>> = runCatching {
-        val stored = drafts.findByTenant(tenantId) ?: return@runCatching emptyList()
+        val stored = drafts.findByTenant(tenantId) ?: run {
+            // Kontrak tetap: tanpa draf hasilnya daftar kosong. Yang berubah hanya jejaknya (dulu senyap).
+            onProposalRejected(tenantId, ProposalRejection.of(ProposalRejectionKind.NO_DRAFT, 0, "tenant belum punya draf kerja"))
+            return@runCatching emptyList()
+        }
         ensureOpen(stored)
         val draft = stored.draft
         val text = narrative(tenantId)
