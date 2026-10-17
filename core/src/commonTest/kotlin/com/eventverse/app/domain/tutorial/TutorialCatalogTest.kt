@@ -47,7 +47,7 @@ class TutorialCatalogTest {
             )
             override fun anchorsFor(pack: com.eventverse.app.domain.pack.DomainPackCode) = emptySet<TutorialAnchorId>()
         }
-        val problems = TutorialCatalog(broken).violations(GarmentDomainPack.pack)
+        val problems = TutorialCatalog().violationsWithSource(GarmentDomainPack.pack, broken)
         assertTrue(problems.any { "modul tidak_ada" in it }, problems.toString())
         assertTrue(problems.any { "anchor tidak.terdaftar" in it }, problems.toString())
     }

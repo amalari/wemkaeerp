@@ -4,7 +4,9 @@ import com.eventverse.app.domain.customfield.RelationTargetResolver
 import com.eventverse.app.domain.discovery.handoff.PrototypeRowRepository
 import com.eventverse.app.domain.pack.DomainPack
 import com.eventverse.app.domain.pack.ModuleId
+import com.eventverse.app.domain.pack.PackTutorialSource
 import com.eventverse.app.domain.pack.tenant.layanan.LayananPilotPack
+import com.eventverse.app.domain.pack.tenant.layanan.LayananTutorialSource
 import com.eventverse.app.domain.prototype.PrototypeSpec
 import com.eventverse.app.domain.rbac.ModuleAssignmentRepository
 import com.eventverse.app.domain.rbac.RoleRepository
@@ -40,7 +42,12 @@ object TenantPackContributions {
          * Mendaftarkan route modul ke aplikasi. Argumen ketiga = resolver RELATION wiring (route hasil generate
          * yang punya field RELATION wajib menerimanya; modul tanpa RELATION mengabaikannya).
          */
-        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository, RelationTargetResolver, Map<String, PrototypeRowRepository>) -> Unit
+        val registerRoutes: Route.(RoleRepository, ModuleAssignmentRepository, RelationTargetResolver, Map<String, PrototypeRowRepository>) -> Unit,
+        /**
+         * Sumber tutorial pack tenant (FR-4). opsional — pack tanpa tutorial cukup null.
+         * Tutorial pack tenant hanya dapat diakses tenant pemilik pack (resolusi pack per-tenant).
+         */
+        val tutorialSource: PackTutorialSource? = null
     )
 
     // Satu instans per modul: route-nya dan registri sumber baris memakai penyimpan yang sama.
@@ -62,7 +69,8 @@ object TenantPackContributions {
                     assignments,
                     relationResolver
                 )
-            }
+            },
+            tutorialSource = LayananTutorialSource
         )
     )
 
