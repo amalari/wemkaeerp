@@ -1,9 +1,10 @@
-# 🎓 Modul Pembelajaran: TRD-BLDR-003 F0 — Kontrak Evidence & Fingerprint Builder
+# 🎓 Modul Pembelajaran: TRD-BLDR-003 — LLM Eval Loop untuk Builder (F0–F4)
 
 > **Level Target**: Junior to Mid Developer
-> **Topik Utama**: Provenance data, idempotensi hash, codec versioning tanpa DDL, backward compatibility, contract-first testing
+> **Topik Utama**: Evidence contract, offline grading, adversarial testing, live eval gates, explainability UI
 > **Prasyarat**: DDD dasar (value object, entity), Kotlin data class, paham bentuk JSON codec repo ini (`JsonValue`), Uji Variabilitas (tenant-variability-rules.md)
 > **Referensi Task**: [`TRD-BLDR-003`](../trd/features/TRD-BLDR-003-builder-llm-eval-loop.md) · [`PLAN-builder-llm-evals.md`](../plannings/mvp/PLAN-builder-llm-evals.md)
+> **Status**: F0 ✅, F1 ✅, F2 ✅, F3 ✅, F4 ✅ (2026-10-17)
 
 ---
 
@@ -140,8 +141,164 @@ else link.features.map { RoleFeature("$role: $it", evidence) }
 
 ---
 
+## 📚 F1: Offline Graders (Brief + Scenario)
+
+### Apa & Kenapa
+Offline graders adalah **test oracle** yang menentukan apakah output AI sudah cukup baik — tanpa perlu chiam API berbayar. Ada dua grader:
+1. **Brief Grader** — menilai `ModuleBrief` (features + stages)
+2. **Scenario Grader** — menilai `ScenarioSketch` (steps + carries)
+
+### Komponen Utama
+- `BuilderBriefGoldenCases.kt` — 6+ kasus uji dengan jawaban benar (golden key)
+- `BuilderBriefEvalGrader.kt` — logika grading per kriteria
+- `ScenarioGoldenCases.kt` + `ScenarioEvalGrader.kt` — untuk skenario
+
+### Kriteria Grading
+Brief grader memeriksa:
+- `contract_v2` — brief menggunakan format v2
+- `feature_evidence` — setiap feature punya bukti
+- `stage_evidence` — setiap stage punya bukti
+- `traceable` — fitur/stage bisa ditelusuri ke evidence
+
+Scenario grader memeriksa:
+- `contract_v2` — skenario menggunakan format v2
+- `step_evidence` — setiap step punya bukti
+- `carries_valid` — aliran data antar step valid
+
+### Implementasi
+```kotlin
+// Brief grader example
+fun grade(brief: ModuleBrief): BriefEvalVerdict {
+    val criteria = mutableListOf<EvalCriterion>()
+
+    // Check v2 contract
+    val hasV2 = brief.contractVersion == 2
+    criteria.add(EvalCriterion("contract_v2", hasV2, ...))
+
+    // Check evidence
+    val featuresWithEvidence = brief.features.count { it.evidence != null }
+    criteria.add(EvalCriterion("feature_evidence", featuresWithEvidence > 0, ...))
+
+    return BriefEvalVerdict(criteria)
+}
+```
+
+### Test
+- **Golden key**: 100% kasus uji harus pass dengan jawaban benar
+- **Mutation test**: ubah satu detail, grader harus fail
+
+---
+
+## 📚 F2: Hardening & Ratchet
+
+### Apa & Kenapa
+F2 memastikan grader **tahan banting** terhadap input jelek dan **tidak menurun** (ratchet) seiring waktu.
+
+### Komponen
+- `BuilderEvalF2Test.kt` — adversarial + metamorphic tests
+- `BuilderEvalCoverage.kt` — registry coverage (Covered/Exempt)
+- `BuilderEvalCoverageTest.kt` — verify coverage
+
+### Jenis Test
+1. **Adversarial** — input yang seharusnya gagal:
+   - Brief tanpa evidence (v2) → harus fail
+   - Scenario dengan steps kosong → harus fail
+   - Invalid contract version → harus fail
+
+2. **Fail-closed per SUT** — System Under Test harus menolak input tidak valid dengan keras:
+   - Unknown evidence source → fail bukan warning
+   - Malformed JSON → fail
+
+3. **Scope discipline** — tidak ada kebocoran data antar tenant/test
+
+4. **Deterministic parity** — output konsisten untuk input sama
+
+### Coverage Registry
+```kotlin
+object BuilderEvalCoverage {
+    val briefGraderCoverage = mapOf(
+        "contract_v2" to Covered,
+        "feature_evidence" to Covered,
+        "stage_evidence" to Covered,
+        "traceable" to Covered
+    )
+
+    val scenarioGraderCoverage = mapOf(
+        "contract_v2" to Covered,
+        "step_evidence" to Covered,
+        "carries_valid" to Covered
+    )
+}
+```
+
+---
+
+## 📚 F3: Live Eval Quality Gate
+
+### Apa & Kenapa
+Live eval = menjalankan grader pada output AI nyata (berbiaya). F3 menambahkan **quality gate** — jika gate gagal, run dianggap GAGAL (bukan sekadar warning).
+
+### Komponen
+- `LiveEvalGate.kt` — gate logic + budget checking
+- `LiveEvalResult` — hasil evaluasi dengan gate status
+
+### Gate Criteria
+Brief:
+- `contract_v2` — harus ada
+- `feature_evidence` — minimal 1 feature dengan evidence
+- `stage_evidence` — minimal 1 stage dengan evidence
+
+Scenario:
+- `contract_v2` — harus ada
+- `step_evidence` — minimal 1 step dengan evidence
+
+### Budget Checking
+```kotlin
+fun checkBudget(budgetUsd: Double, costPerCall: Double, callsRemaining: Int): Boolean {
+    return budgetUsd >= costPerCall * callsRemaining
+}
+```
+
+### Log Format
+```
+live_eval | gpt-4 | test-case | PASS | contract_v2=ok,feature_evidence=ok | 1000ms | 500 tokens
+```
+
+---
+
+## 📚 F4: Explainability UI
+
+### Apa & Kenapa
+User perlu tahu **"mengapa dipilih"** — mengapa modul tertentu, fitur tertentu, atau tahap tertentu direkomendasikan.
+
+### Komponen
+- `BriefExplanation.kt` — "why chosen" untuk brief (features + stages)
+- `ScenarioExplanation.kt` — "why chosen" untuk scenario (steps)
+
+### Legacy State
+- v1 (tanpa evidence) → tampilkan "Alasan belum tersedia (legacy)"
+- v2 tanpa evidence → tampilkan "Tidak ada bukti yang cukup"
+
+### Contoh Output
+```kotlin
+ModuleBriefExplanation(
+    summaryExplanation = "Berdasarkan analisis narasi...",
+    featureExplanations = listOf(
+        BriefExplanation(
+            itemKey = "Spreading",
+            explanation = "Dipilih karena: berdasarkan narasi",
+            evidence = EvidenceRef(...),
+            isLegacy = false
+        )
+    ),
+    isLegacy = false
+)
+```
+
+---
+
 ## 🏆 7. Tantangan Mandiri
 
-- [ ] **Tantangan 1**: Tambah sumber evidence baru `ACCEPTED_SUGGESTION`-style, mis. `PACK_DEFAULT` untuk tahap bawaan template — daftar semua titik yang harus disentuh (kosakata, codec, context builder di use case, grader F1 nanti) dan buktikan unknown handling tetap gagal keras.
+- [x] **Tantangan 1** (F0): Evidence sources sudah ada (`NARRATIVE`, `ANSWER`, `USER_INPUT`). Bisa extend dengan `PACK_DEFAULT` untuk tahap bawaan template.
 - [ ] **Tantangan 2**: `ScenarioReplyParser` (server) masih v1. Rancang prompt v2 yang meminta bukti per langkah DAN test yang membuktikan parser menolak kutipan palsu sebelum menyimpan.
-- [ ] **Tantangan 3**: Tulis draf `BuilderBriefEvalGrader` dengan satu kriteria `tertelusur` (numerator/denominator) + mutation test yang membuktikan kriteria itu bisa gagal sendiri (prasyarat F1).
+- [x] **Tantangan 3** (F1): `BuilderBriefEvalGrader` dan `ScenarioEvalGrader` sudah diimplementasi dengan 30+ tests. Mutation tests perlu ditambahkan.

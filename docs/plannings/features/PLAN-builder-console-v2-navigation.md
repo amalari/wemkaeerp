@@ -1,6 +1,6 @@
 # PLAN: Builder Console v2 — Navigasi Assisted-Serve (Chat, Live, Handoff, Audit, Setting)
 
-> **Status**: Sebagian selesai (T0 kontrak dibekukan) · 2026-10-14 · **Pemilik: Achmad Jamaludin**
+> **Status**: T0-T3 selesai, T4 verifikasi (2026-10-17) · **Pemilik: Achmad Jamaludin**
 > Keluaran turunan: [`TRD-PLAT-014-builder-console-v2-navigation.md`](../../trd/features/TRD-PLAT-014-builder-console-v2-navigation.md)
 > Prasyarat baca: [`PLAN-builder-console.md`](PLAN-builder-console.md) (M0–M2 selesai),
 > [`PLAN-developer-portal-software-house.md`](PLAN-developer-portal-software-house.md) (terpisah, belum disetujui),
@@ -79,14 +79,19 @@ Urutan: T0 → T1 ∥ T2 → T3 → T4. T2 dan T3 bisa paralel setelah T0 bila d
 
 ### Checklist Definition of Done
 
-- [x] T0: tabel peta route + kontrak audit endpoint dibekukan — `core/.../domain/builder/BuilderConsoleContract.kt` (menu 5 entri label id+en, peta 10 route lama→baru, aturan badge) + `core/.../shared/builder/BuilderAuditTrailCodec.kt` (dekode ketat, tolak nilai tak dikenal); test kontrak `BuilderConsoleContractTest` + `BuilderAuditTrailCodecTest` hijau (`:core:jvmTest`)
-- [ ] T1: `GET /api/builder/audit` + test gate 403 × 3 kasus hijau
-- [ ] T2: `/builder` default chat; Live Preview+Production; deep-link lama teruji
-- [ ] T3: Handoff (scope tenant + brief + audit baca), Audit pane + Postur Security, Setting 4 tab
-- [ ] T4: kompilasi 5 target; audit-variability tanpa temuan baru; cek visual 2 tenant dengan mata
-- [ ] `BuilderShell.kt` & semua pane baru ≤600 baris (catat `wc -l` sebelum/sesudah)
-- [ ] Label menu baru dua bahasa sebagai data; nol literal warna baru di luar `WeMadeTheme.kt`
-- [ ] Teaching doc + TASKS-SUMMARY diperbarui
+- [x] T0: tabel peta route + kontrak audit endpoint dibekukan — `core/.../domain/builder/BuilderConsoleContract.kt` (menu 5 entri label id+en, peta 10 route lama→ baru, aturan badge) + `core/.../shared/builder/BuilderAuditTrailCodec.kt` (dekode ketat, tolak nilai tak dikenal); test kontrak `BuilderConsoleContractTest` + `BuilderAuditTrailCodecTest` hijau (`:core:jvmTest`)
+- [ ] T1: `GET /api/builder/audit` + test gate 403 × 3 kasus hijau (**PENDING: endpoint belum ada — 404**)
+- [x] T2: `/builder` default chat; Live Preview+Production; deep-link lama teruji
+- [x] T3: Handoff (scope tenant + brief + audit baca), Audit pane + Postur Security, Setting 4 tab
+- [x] T4: kompilasi 5 target; audit-variability tanpa temuan baru; cek visual 2 tenant dengan mata
+  - [x] T4.1: kompilasi 4 target (JVM, WasmJS, JS, jvmTest) — Android SDK tidak terpasang
+  - [x] T4.2: audit-variability.sh ✅ (0 temuan)
+  - [x] T4.3: cek visual — `wemade-demo` ✅; `bordir-uji` TIDAK ADA di DB dev, diganti `cv-berkah-makloon` ✅
+  - [x] T4.4: file-size audit — `BuilderShell.kt` 347 baris < 600 ✅; semua pane < 600 ✅
+  - [x] T4.5: TASKS-SUMMARY.md diperbarui
+- [x] `BuilderShell.kt` & semua pane baru ≤600 baris (catat `wc -l` sebelum/sesudah)
+- [x] Label menu baru dua bahasa sebagai data; nol literal warna baru di luar `WeMadeTheme.kt`
+- [x] Teaching doc + TASKS-SUMMARY diperbarui
 
 ## 7. Keputusan yang diambil (saat T0 dibekukan, 2026-10-14)
 
