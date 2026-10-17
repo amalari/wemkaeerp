@@ -11,6 +11,7 @@ import com.eventverse.app.domain.discovery.interview.InterviewLimits
 import com.eventverse.app.domain.discovery.interview.InterviewPlanner
 import com.eventverse.app.domain.discovery.interview.InterviewSession
 import com.eventverse.app.domain.discovery.interview.InterviewStep
+import com.eventverse.app.domain.discovery.interview.InterviewValidator
 import com.eventverse.app.domain.discovery.interview.isPlanned
 import com.eventverse.app.domain.tenant.TenantId
 import kotlinx.datetime.Instant
@@ -144,18 +145,30 @@ class SendBuilderMessageUseCase(
         onProgress("drafting")
         var reply = agent.proposePatch(plannedCurrent, chats.messages(conversation.id), composeNarrative(thread)).getOrThrow()
 
-        // Industri berganti: rencana di atas disusun terhadap katalog pack LAMA dan tak berlaku untuk draf ber-pack baru
-        // (temuan 8). Rencanakan SEKALI LAGI terhadap pack baru; tanpa pertanyaan (putaran tanya sudah lewat). Gagal = dilaporkan.
+        // Wawancara di usulan harus berlaku untuk pack USULAN. Dua keadaan yang membuatnya tidak berlaku:
+        //  - industri berganti (temuan 8): rencana di atas disusun terhadap katalog pack LAMA;
+        //  - wawancara lama disalin adapter karena pack.code sama, padahal agent menyusun ulang slot/port modul (temuan 11:
+        //    handoff 'ANTREAN' tak cocok dengan slot baru 'PASIEN' -> patch ditawarkan tetapi pasti ditolak saat Terapkan).
+        // Rencanakan SEKALI LAGI terhadap pack usulan (tanpa pertanyaan: putaran tanya sudah lewat). Bila gagal: wawancara basi
+        // DIBUANG (bukan ditawarkan) dan alasannya dilaporkan; pesan berikutnya merencanakan ulang karena belum berwawancara.
         val proposed = reply.proposedDraft
-        if (planner != null && proposed != null && moduleId == null && proposed.pack.code != current?.pack?.code &&
-            proposed.interview?.isPlanned != true
-        ) {
-            onProgress("planning")
-            val narrative = composeNarrative(thread)
-            val fresh = InterviewSession(step = InterviewStep.G1_DIVISI, version = InterviewSession.BASED_ON_STORY, narrative = narrative)
-            val again = attemptPlan(planner, proposed, fresh, narrative, answeredRound = true)
-            again.rejection?.let { onPlanRejected(tenantId, it) }
-            again.session?.let { reply = reply.copy(proposedDraft = proposed.copy(interview = it)) }
+        if (planner != null && proposed != null && moduleId == null) {
+            val interview = proposed.interview
+            val stale = interview != null && InterviewValidator.validate(interview, proposed.pack).isNotEmpty()
+            val industryChanged = proposed.pack.code != current?.pack?.code && interview?.isPlanned != true
+            if (stale || industryChanged) {
+                onProgress("planning")
+                val narrative = composeNarrative(thread)
+                val fresh = InterviewSession(step = InterviewStep.G1_DIVISI, version = InterviewSession.BASED_ON_STORY, narrative = narrative)
+                val again = attemptPlan(planner, proposed, fresh, narrative, answeredRound = true)
+                again.rejection?.let { onPlanRejected(tenantId, it) }
+                val replanned = again.session
+                reply = when {
+                    replanned != null -> reply.copy(proposedDraft = proposed.copy(interview = replanned))
+                    stale -> reply.copy(proposedDraft = proposed.copy(interview = null))
+                    else -> reply
+                }
+            }
         }
 
         reply.proposedDraft?.blueprint?.activeModuleCodes.orEmpty().forEach { code ->
