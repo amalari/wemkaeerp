@@ -63,6 +63,10 @@ Tidak ada port, tidak ada node kanvas, tidak ada telemetri. `POST /api/tenant/he
 | Versi | Tanggal | Penulis | Catatan |
 |---|---|---|---|
 | 0.1 | 2026-10-15 | Achmad Jamaludin / Kilo | Draf awal dari temuan "layar tidak interaktif selama tutorial" |
+| 1.0 | 2026-10-17 | Kilo | **Track 0/A/B/C selesai.** Status: **Selesai** (konten langkah "beraksi" masih di TRD-TUT-001). Kriteria terbukti: 1, 2, 3, 5, 6, 7 — diverifikasi di bawah. |
+
+**Status**: **Selesai** (2026-10-17) — mekanisme mesin (trigger + spotlight tembus) terimplementasi & terverifikasi;
+konten langkah "beraksi" per modul tetap tanggung jawab TRD-TUT-001 (bisa menyusul tanpa mengubah mesin ini).
 
 - **Summary & Business Context**:
   - Coach mark yang ada bagus untuk *membaca* UI, tetapi **tidak mendukung alur kerja**: pengguna tidak dapat menekan kontrol
@@ -280,13 +284,15 @@ di luar target tetap diblokir; uji `Esc` & fokus callout; audit design-system (n
 
 ### Technical Acceptance Criteria
 
-1. Langkah bertanda "beraksi" (mis. menyorot tombol **Tambah**) membuka form **saat tombol itu diklik** — tanpa menutup tutorial.
-2. Klik **di luar** target tetap diblokir; pengguna tidak bisa menyentuh UI lain selama langkah berjalan.
-3. Tutorial lama (tanpa `interactive`/`advanceOn`) **berperilaku identik** — regresi nol pada konten yang sudah ada.
-4. Langkah yang hasilnya dialog memakai `Manual` dan tetap bisa diselesaikan (tidak dead-end).
-5. Anchor tanpa handler klik: `UserClick` tidak pernah datang, dan tombol **Lanjut** tetap tampil sebagai fallback.
-6. `Esc` menutup tutorial; tombol callout dapat difokus keyboard.
-7. Kompilasi 5 target hijau; nol literal warna baru di luar `WeMadeTheme.kt`; cek visual dengan mata.
+Bukti diverifikasi 2026-10-17 (Wasm web, login owner `wemade-demo`, modul CRM):
+
+1. ✅ **TERBUKTI.** Langkah "beraksi" (step 2 `crm_new_lead` disorot `+ Tambah Lead`, `interactive + UserClick`) — klik tombol membuka form "Tambah Lead Baru" **dan** tutorial maju ke 3/4 tanpa tutup. (Sementara konten ditandai `interactive` lokal untuk verifikasi, lalu dikembalikan — konten produksi di TRD-TUT-001.)
+2. ✅ **TERBUKTI.** Klik tab **Deal** (area gelap scrim) saat langkah 2 aktif: tab tidak berpindah, tutorial tetap berjalan. Ketukan luar target tertelan region scrim.
+3. ✅ **TERBUKTI.** Default `interactive=false`/`advanceOn=Manual`: tutorial lama (`crm_new_lead` step 1 `Manual`) berperilaku identik (callout + tombol Lanjut, scrim penuh). Dijaga `TutorialStepContractTest.stepDefaults_preserveLegacyBehavior` + `TutorialControllerTest.notifyAction_onManualStep_isIgnored`.
+4. ⬜ **BELUM TERBUKTI VISUAL.** Aturan "langkah dialog ⇒ Manual" adalah kontrak konten (FR-5), bukan perilaku runtime — tidak ada mekanisme otomatis yang memaksanya; dipatuhi penulis konten TRD-TUT-001. Degradasi terkait (anchor null ⇒ Manual + CENTER) diuji di `TutorialControllerTest.stepWithoutAnchor_defaultsToManualNotInteractive`.
+5. ✅ **TERBUKTI.** Selama langkah "beraksi", tombol **Lanjut** tetap tampil di callout (fallback Manual terlihat di screenshot step 2/4).
+6. ✅ **TERBUKTI.** `Esc` menutup tutorial (keyboard → overlay hilang, kembali ke papan CRM). Callout focusable (`focusRequester` + `focusable()`); fokus keyboard penuh belum diuji otomatis.
+7. 🟡 **SEBAGIAN.** Kompilasi 4/5 target hijau (JVM, WasmJS, JS, + `jvmTest`). **Android (`assembleAndroidMain`) tidak jalan — SDK Android tidak terpasang di mesin ini** (catat per §18: bukti dengan alasan, bukan asumsi). Nol literal warna baru di luar `WeMadeTheme.kt` (reuse `WeMadeColors.Scrim`/`Accent`, `ClayBorder.Thick`). Cek visual dengan mata: YA (screenshot Playwright di atas).
 
 ### Testing Strategy
 

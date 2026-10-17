@@ -1,6 +1,6 @@
 # MVP Tasks Summary - WeMade ERP
 
-**Tanggal**: 2026-10-17
+**Tanggal**: 2026-10-17 (diperbarui: TUT-002 selesai)
 
 ## Jalur A - ERP Konveksi
 
@@ -60,6 +60,7 @@
 | BLD-01 | Tab Alur Data per fitur + Prototype Simulation | [`PLAN`](../../features/PLAN-builder-data-flow-and-prototype-simulation.md) |
 | HELP-03 | Kontrak cakupan tutorial per modul — **Selesai ✅** (commit `bb7cb2f7`): `TutorialCoverage` + `TutorialCoverageTest` (6 tes, ratchet dua arah, exempt 10 modul garment); checklist rules §4; revisi TRD-HELP-001 v0.5 | [`PLAN`](../features/PLAN-help-003-tutorial-coverage-contract.md) · `core:jvmTest` 2159 tes hijau |
 | HELP-04 | Cicil utang tutorial 10 modul exempt (batch 1: `INVENTORY`, `FULFILLMENT`, `INVOICING`, `QUALITY_CONTROL`) — tiap tutorial otomatis memaksa exempt-nya dicabut lewat ratchet; sisa 6 modul menyusul | [`PLAN-help-003`](../features/PLAN-help-003-tutorial-coverage-contract.md) §inventaris — daftar utang: frozen list di `TutorialCoverageTest.kt` |
+| TUT-002 | **Interactive Coach Mark (spotlight tembus + langkah beraksi) — Selesai ✅** (2026-10-17): `AdvanceTrigger` + `TutorialStep.interactive`/`advanceOn` (default `Manual`, kompatibel mundur); `TutorialController.notifyAction`; fungsi murni `spotlightRegions`; `ClaySpotlightScrim(interactive)` region tembus; `Modifier.tutorialAnchor(onAction)` observasi `Initial` tanpa consume; wiring `UserClick`/`StateAppears` di `TutorialLayer`; Esc + callout focusable. Kompilasi 4/5 target (Android: SDK tak terpasang). **Konten langkah "beraksi" masih di TRD-TUT-001.** Bukti: `TutorialStepContractTest` (4), `TutorialControllerTest` (13), `SpotlightRegionsTest` (6) hijau; cek visual Playwright (klik tembus buka form, klik luar diblokir, Esc tutup) | [`TRD-TUT-002`](../../trd/features/TRD-TUT-002-interactive-coach-mark.md) · `docs/teaching/teaching-tut-002-interactive-coach-mark.md` |
 | K3 | Builder Wizard Self-Service (Template + Follow-up UI) | **TINGGI** | [`PLAN-K3-builder-wizard-self-service.md`](PLAN-K3-builder-wizard-self-service.md) |
 | K3e | Halaman pemilihan metode (Template vs Scratch) | **TINGGI** | Screen pilih template garment atau from scratch |
 | K3a | UI popup/render followUp dari API chat | **TINGGI** | Modal untuk tampilkan pertanyaan Clarification dari AI |

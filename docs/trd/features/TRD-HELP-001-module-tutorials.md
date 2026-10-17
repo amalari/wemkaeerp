@@ -123,6 +123,8 @@ Showing/Navigating ─dismiss→ Idle
 ```
 - Bila `step.screen` berbeda dengan layar aktif, controller navigasi dulu ke `/m/{code}` atau ke `AppNavScreen` terkait.
 - Bila anchor tidak muncul sebelum timeout, callout tetap tampil di tengah (`CENTER`) tanpa spotlight.
+- **Revisi (TRD-TUT-002)**: langkah boleh maju juga lewat `advanceOn` = `UserClick(anchor)` / `StateAppears(anchor)` (default `Manual`).
+  `TutorialController.notifyAction(anchorId)` memajukan hanya bila langkah aktif menunggu `UserClick` untuk anchor itu.
 
 **FR-4 Tombol Help.** `AppTopBar` menampilkan ikon Help yang membuka `TutorialListSheet`. Isinya tutorial yang bisa diakses untuk modul atau layar aktif; bila modul aktif tidak punya tutorial, sheet menampilkan semua tutorial yang bisa diakses.
 
@@ -297,6 +299,10 @@ Tanpa akses modul apa pun, respons tetap 200 dengan `suggestion = null`.
 ### 4.6 Asumsi & Batasan
 - Koordinat anchor diambil dari `boundsInRoot`, dan overlay harus berada di root yang sama (`TutorialHost` membungkus konten di `App.kt`).
 - Elemen di dalam dialog atau popup berada di window lain, sehingga tidak bisa disorot. Langkah untuk elemen seperti itu memakai `CENTER` tanpa anchor.
+- **Revisi (TRD-TUT-002)**: keputusan awal *"scrim menelan semua ketukan"* **dicabut** menjadi opsional-per-langkah. `ClaySpotlightScrim`
+  kini menerima `interactive: Boolean` (default `false` = perilaku lama menelan semua). Saat `interactive = true`, scrim digambar
+  sebagai ≤4 region di sekeliling target sehingga klik pada elemen tersorot **tembus** ke aplikasi (dengan tetap menelan ketukan di
+  area gelap). Langkah yang hasilnya dialog wajib tetap `Manual` (tidak bisa di-anchor/ditembus — batasan window terpisah tetap berlaku).
 
 ## 5. Testing, Deployment, and Operations
 
