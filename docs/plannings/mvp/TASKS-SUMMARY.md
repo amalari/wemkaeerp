@@ -68,7 +68,7 @@
 | K3b | Form input jawaban follow-up (per pertanyaan) | **TINGGI** | Input field sesuai tipe pertanyaan; submit ke chat |
 | K3c | Integrasi follow-up answered ke chat flow | **TINGGI** | Kirim jawaban sebagai pesan chat; trigger next AI response |
 | K3d | UI wizard shell (guided self-service) | ~~SEDANG~~ → DIBATALKAN | Chat flow yang ada sudah cukup fluid; stepperoptional nanti kalau dibutuhkan |
-| EVAL | LLM Eval Loop untuk Builder — **F0 ✅, F1 ✅, F2 ✅, F3 ✅, F4 ✅** (2026-10-17): F0 contract, F1 Brief/Scenario graders (30 tests), F2 hardening (20 tests), F3 LiveEvalGate (8 tests), F4 explainability (6 tests). Catatan: 3 file bekas konflik Codex dibersihkan | **TINGGI** | [`PLAN`](PLAN-builder-llm-evals.md) · [`TRD-BLDR-003`](../../trd/features/TRD-BLDR-003-builder-llm-eval-loop.md) |
+| EVAL | LLM Eval Loop untuk Builder — **F0 ✅, F1 ✅, F2 ✅, F3 ✅, F4 ✅** (2026-10-17): F0 contract, F1 Brief/Scenario graders (30 tests), F2 hardening (20 tests), F3 LiveEvalGate (8 tests), F4 explainability types + UI (button di Brief chat bubble, 6 tests). Catatan: 3 file bekas konflik Codex dibersihkan | **TINGGI** | [`PLAN`](PLAN-builder-llm-evals.md) · [`TRD-BLDR-003`](../../trd/features/TRD-BLDR-003-builder-llm-eval-loop.md) |
 
 **TRD & Planning**: B0–B7 semuanya sudah tertutup dokumen —
 discovery (`discovery-B0/B4/B7-*.md`), TRD (`TRD-PLAT-001_blueprint`, `TRD-PLAT-001-tenant-pack`,

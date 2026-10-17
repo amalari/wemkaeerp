@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.eventverse.app.domain.builder.BriefSource
+import com.eventverse.app.domain.builder.ModuleBrief
+import com.eventverse.app.domain.builder.ModuleBriefLimits
 import com.eventverse.app.domain.builder.StageSketch
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayCard
@@ -56,6 +58,31 @@ internal fun ChatBriefBubble(entry: BuilderChatEntry, expandedByDefault: Boolean
     val brief = entry.brief ?: return
     val typography = rememberClayTypography()
     var expanded by remember(entry.id, expandedByDefault) { mutableStateOf(expandedByDefault) }
+    var showWhyChosen by remember { mutableStateOf(false) }
+
+    if (showWhyChosen) {
+        // Convert ChatBrief to ModuleBrief for explanation
+        val moduleBrief = remember(brief) {
+            com.eventverse.app.domain.builder.ModuleBrief(
+                summary = entry.text.take(100),
+                features = brief.features,
+                stages = brief.stages,
+                source = brief.source,
+                contractVersion = com.eventverse.app.domain.builder.ModuleBriefLimits.CONTRACT_VERSION_EVIDENCE
+            )
+        }
+        val explanation = remember(moduleBrief) {
+            com.eventverse.app.domain.builder.ModuleBriefExplanation.fromBrief(
+                moduleId = entry.moduleId ?: "unknown",
+                brief = moduleBrief,
+                evidenceContext = null
+            )
+        }
+        WhyChosenBriefDialog(
+            explanation = explanation,
+            onDismiss = { showWhyChosen = false }
+        )
+    }
 
     ClayCard(
         modifier = modifier.fillMaxWidth(),
@@ -83,6 +110,7 @@ internal fun ChatBriefBubble(entry: BuilderChatEntry, expandedByDefault: Boolean
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
+                WhyChosenButton(onClick = { showWhyChosen = true })
             }
             if (expanded) {
                 Text(entry.text, style = typography.bodyMedium, color = WeMadeColors.OnSurface)
