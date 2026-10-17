@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.eventverse.app.domain.builder.ScenarioKeys
 import com.eventverse.app.presentation.designsystem.ClayBadge
 import com.eventverse.app.presentation.designsystem.ClayBorder
 import com.eventverse.app.presentation.designsystem.ClayButton
@@ -39,8 +40,15 @@ import com.eventverse.app.presentation.designsystem.ClayTextField
 import com.eventverse.app.presentation.designsystem.rememberClayTypography
 import com.eventverse.app.presentation.theme.WeMadeColors
 
-/** Menghasilkan 3 rekomendasi AI kontekstual berdasarkan id dan teks pertanyaan celah modul. */
+/**
+ * Menghasilkan 3 rekomendasi AI kontekstual berdasarkan id dan teks pertanyaan celah modul.
+ *
+ * Pertanyaan **skenario** (FR-9, id `scn:`) tidak punya rekomendasi bawaan: pertanyaannya bebas (mis. "Apakah sampel harus disetujui
+ * pelanggan dulu?") dan opsi `else` di bawah ("Sesuai SOP standar...") bukan jawabannya — jawaban yang dipilih masuk ke narasi untuk
+ * proposal berikutnya, jadi opsi yang tak nyambung mengotori data. Daftar kosong = hanya "Lainnya" (teks bebas).
+ */
 internal fun getRecommendationsForQuestion(questionId: String, questionText: String): List<String> {
+    if (ScenarioKeys.isQuestionId(questionId)) return emptyList()
     val qId = questionId.lowercase()
     val qText = questionText.lowercase()
     return when {
@@ -104,7 +112,8 @@ fun FollowUpModal(
     val recommendations = remember(currentQuestion.id, currentQuestion.text) {
         getRecommendationsForQuestion(currentQuestion.id, currentQuestion.text)
     }
-    val currentSelection = selectedOptions[currentQuestion.id]
+    // Tanpa rekomendasi (pertanyaan skenario) satu-satunya pilihan adalah "Lainnya": aktif sejak awal.
+    val currentSelection = selectedOptions[currentQuestion.id] ?: if (recommendations.isEmpty()) 3 else null
     val currentCustomText = customTexts[currentQuestion.id].orEmpty()
 
     val isCurrentAnswered = when (currentSelection) {
@@ -115,8 +124,8 @@ fun FollowUpModal(
 
     fun collectAllAnswers(): List<Pair<String, String>> {
         return questions.mapNotNull { q ->
-            val opt = selectedOptions[q.id]
             val recs = getRecommendationsForQuestion(q.id, q.text)
+            val opt = selectedOptions[q.id] ?: if (recs.isEmpty()) 3 else null
             when (opt) {
                 0, 1, 2 -> q.id to recs[opt]
                 3 -> {

@@ -61,9 +61,21 @@ class AskScenarioQuestionsUseCaseTest {
     @Test
     fun `two scenarios in the same second should get distinct message ids`() = runTest {
         val chats = StrictChats(InMemoryBuilderChatRepository())
-        val n = AskScenarioQuestionsUseCase(chats, clock)(klinik, listOf(scenario("scn-1", "Pertanyaan satu?"), scenario("scn-2", "Pertanyaan satu?"))).getOrThrow()
+        val n = AskScenarioQuestionsUseCase(chats, clock)(klinik, listOf(scenario("scn-1", "Pertanyaan satu?"), scenario("scn-2", "Pertanyaan dua?"))).getOrThrow()
         assertEquals(2, n)
         assertEquals(2, chats.all(klinik).map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun `same question text from another scenario should not be asked twice even in a later call`() = runTest {
+        val chats = StrictChats(InMemoryBuilderChatRepository())
+        val ask = AskScenarioQuestionsUseCase(chats, clock)
+        assertEquals(1, ask(klinik, listOf(scenario("scn-1", "DP harus lunas dulu?"))).getOrThrow())
+        assertEquals(0, ask(klinik, listOf(scenario("scn-2", "  dp HARUS lunas dulu? "))).getOrThrow())
+        assertEquals(1, ask(klinik, listOf(scenario("scn-3", "dp harus lunas dulu?", "Siapa menerbitkan invoice?"))).getOrThrow())
+        val last = chats.all(klinik).last()
+        assertEquals(listOf("Siapa menerbitkan invoice?"), last.questions.map { it.question }, "hanya yang baru yang ditanyakan")
+        assertEquals(1, chats.all(klinik).count { m -> m.questions.any { it.question.contains("DP harus lunas", ignoreCase = true) } })
     }
 
     @Test

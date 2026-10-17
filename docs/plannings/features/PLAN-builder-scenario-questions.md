@@ -1,7 +1,7 @@
 # PLAN: Pertanyaan Tingkat Skenario di Utas Semua (SC3 / TRD-BLDR-002 FR-9)
 
 **Tanggal**: 2026-10-17
-**Status**: Disetujui 2026-10-18 (D1–D3 sesuai rekomendasi) — mulai Track 0
+**Status**: Selesai 2026-10-18 (Track 0/A/B/C/D, model sungguhan + cek visual); kompilasi Android belum (SDK tak terpasang)
 **TRD**: [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) FR-9
 **Induk**: [`PLAN-builder-module-briefs.md`](PLAN-builder-module-briefs.md) (butir SC3)
 
@@ -81,9 +81,15 @@ Tidak ada `enum`/`when` domain baru.
 
 ## 10. Checklist (diisi saat dikerjakan)
 - [x] Keputusan pemilik D1–D3 (2026-10-18: ketiganya sesuai rekomendasi)
-- [ ] T0 Kontrak: field + batas + `ScenarioKeys` + codec + tes draf lama
-- [ ] A Validator + `AskScenarioQuestionsUseCase` + tes (id unik, idempoten, ≤2, tenant kedua)
-- [ ] B Parser/prompt + route + tes 403/423 nol pesan
-- [ ] C Klien (bila ada perubahan) + ukuran file
-- [ ] D Model sungguhan + cek visual; kompilasi 4 target; `audit-variability.sh`
-- [ ] Teaching doc diperbarui; `TASKS-SUMMARY.md` sinkron (§18)
+- [x] T0 Kontrak: `ScenarioSketch.questions`, `QUESTION_MAX_CHARS`, `ScenarioKeys` (dipindah ke paket `builder` agar tak ada siklus paket), codec opsional — `ScenarioQuestionsCodecTest` (6 tes: round-trip, JSON lama byte-identik, tolak tipe salah berpath, id stabil/unik)
+- [x] A `ScenarioRules` (jumlah/panjang/duplikat) + `AskScenarioQuestionsUseCase` — `ScenarioQuestionRulesTest` (5), `AskScenarioQuestionsUseCaseTest` (8; `StrictChats`, idempoten, dedup teks lintas skenario, badge Semua bukan modul, jawaban masuk narasi, tenant kedua); mutasi dedup id tertangkap 2 tes
+- [x] B prompt `KoogScenarioProposer` (+ `questions` opsional, parser lewat codec yang sama), route propose memanggil use case — `BuilderScenarioRoutesTest` (13: 403/401/423/500 ⇒ nol pesan, tenant lain tak ikut, propose berulang tak menggandakan), `KoogScenarioProposerTest` (+2)
+- [x] C `BuilderChatPane` memuat ulang chat setelah propose (satu baris); `FollowUpModal`: pertanyaan `scn:` tanpa opsi bawaan, "Lainnya" aktif sejak awal (`FollowUpRecommendationsTest`) — **ditemukan lewat cek visual**, opsi "Sesuai SOP standar..." tak nyambung dengan pertanyaan ya/tidak dan jawabannya masuk narasi
+- [x] D (2026-10-18, `deepseek-flash`, `wemade-demo`, DB scratch) model mengusulkan skenario berpertanyaan ("Apakah sampel harus disetujui pelanggan dulu sebelum dikirim?"); badge Semua "2 klarifikasi" dan wizard "Pertanyaan Klarifikasi 1/2" terlihat; dijawab lewat UI, jawaban tersimpan per `scn:` id; propose ulang tak menggandakan pesan. Kompilasi JVM/WasmJs/JS, `:core:jvmTest`, `audit-variability.sh` 0 temuan. **Android belum**
+- [x] Teaching doc diperbarui; `TASKS-SUMMARY.md` sinkron (§18)
+
+## 11. Temuan saat verifikasi (2026-10-18)
+1. **Opsi bawaan tak nyambung** (diperbaiki, lihat C). Cacat yang sama masih ada untuk pertanyaan modul buatan AI (`ai:`): `getRecommendationsForQuestion` jatuh ke `else` ("Sesuai SOP standar operasional pabrik") dan label "Rekomendasi AI". Tidak diperbaiki di sini (di luar SC3); `FollowUpRecommendationsTest` mencatat perilakunya sekarang.
+2. **Pertanyaan ganda lintas skenario** (diperbaiki): dua skenario menanyakan hal yang sama sehingga pengguna menjawab dua kali; dedup kini juga per teks ternormalisasi.
+3. **Usulan kosong tanpa jejak** (BELUM): dengan cerita yang meragukan ("Saya belum yakin apakah ...") tiga kali `propose` berturut-turut mengembalikan daftar kosong tanpa log penyebab; cerita jelas langsung berhasil. `DiscoveryScenarioService.fromProposer` menelan galat model/validator dan jatuh ke fallback deterministik yang juga kosong (draf demo tak punya handoff wawancara). Penyebab tepatnya (model membalas kosong atau keluaran ditolak validator) belum diketahui. Usul: log `scenario_propose_rejected kind=` seperti `interview_plan_rejected`.
+4. Pembatasan yang tetap berlaku: jawaban hanya mempengaruhi **proposal berikutnya**; skenario yang ada tak berubah sendiri.

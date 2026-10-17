@@ -12,7 +12,8 @@ import kotlinx.datetime.Clock
  *
  * Satu pesan per skenario (teks diawali judul skenario). Idempoten: pertanyaan yang `Clarification.id`-nya ([ScenarioKeys.questionId])
  * sudah ada di utas — dijawab atau belum — dilewati, sehingga memanggilnya ulang dengan skenario yang sama tidak menggandakan
- * pesan. Id pesan memuat id skenario **dan** sidik pertanyaan barunya, jadi dua skenario tak pernah bentrok (pelajaran
+ * pesan. **Teks yang sama (ternormalisasi) tidak ditanyakan dua kali walau datang dari skenario lain**: jawabannya sudah masuk
+ * narasi dan berlaku untuk semua skenario (cek visual 2026-10-18: dua skenario menanyakan hal yang sama, pengguna menjawab dua kali). Id pesan memuat id skenario **dan** sidik pertanyaan barunya, jadi dua skenario tak pernah bentrok (pelajaran
  * `FollowUpMessageIdTest`).
  *
  * Pemanggil memberi skenario yang BARU ditambahkan (id final, sesudah `admit` memberi akhiran bila bentrok) dan hanya setelah
@@ -26,12 +27,14 @@ class AskScenarioQuestionsUseCase(
         val withQuestions = scenarios.filter { it.questions.isNotEmpty() }
         if (withQuestions.isEmpty()) return@runCatching 0
         val conversation = chats.conversationFor(tenantId)
-        val known = chats.messages(conversation.id).filter { it.kind == ChatMessageKind.QUESTION }
-            .flatMap { m -> m.questions.map { it.id } }.toMutableSet()
+        val asked = chats.messages(conversation.id).filter { it.kind == ChatMessageKind.QUESTION }
+            .flatMap { m -> m.questions }.filter { ScenarioKeys.isQuestionId(it.id) }
+        val known = asked.map { it.id }.toMutableSet()
+        val knownText = asked.map { BriefKeys.normalize(it.question) }.toMutableSet()
         var created = 0
         for (scenario in withQuestions) {
             val fresh = scenario.questions.map { Clarification(ScenarioKeys.questionId(scenario.id, it), it.trim()) }
-                .filter { known.add(it.id) }
+                .filter { known.add(it.id) && knownText.add(BriefKeys.normalize(it.question)) }
             if (fresh.isEmpty()) continue
             chats.append(
                 ChatMessage(

@@ -74,6 +74,17 @@ val stale = interview != null && InterviewValidator.validate(interview, proposed
 
 ---
 
+### Blok E: Pertanyaan skenario (SC3 / FR-9)
+```kotlin
+val fresh = scenario.questions.map { Clarification(ScenarioKeys.questionId(scenario.id, it), it.trim()) }
+    .filter { known.add(it.id) && knownText.add(BriefKeys.normalize(it.question)) }
+```
+- Layanan skenario tidak punya akses chat (sengaja), jadi pesan dibuat use case terpisah yang dipanggil route **setelah** gerbang lolos dan propose sukses.
+- Dua lapis dedup: per id (idempoten) dan per teks (dua skenario menanyakan hal yang sama, ditemukan lewat UI).
+- Pelajaran: opsi jawaban bawaan UI untuk pertanyaan celah modul tampil juga untuk pertanyaan skenario dan jawabannya masuk narasi. Tes tak menangkapnya; layar yang dilihat mata menangkapnya.
+
+---
+
 ## ⚖️ 4. Teknologi & Pendekatan: The "Why"
 
 | Pendekatan | Alternatif | Alasan | Risiko alternatif |

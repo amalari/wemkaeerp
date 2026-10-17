@@ -1,7 +1,7 @@
 # PLAN: Ringkasan & Follow-Up per Modul di Chat Builder
 
 **Tanggal**: 2026-10-14
-**Status**: Sebagian (2026-10-17) — Track 0/A/B/C, temuan 1–14 (5 diputuskan opsi b, 11 diperbaiki) dan teaching doc selesai di `main`; sisa: D3 (Android + graphify update), SC3. Flag server `BUILDER_MODULE_BRIEFS_ENABLED` default MATI
+**Status**: Sebagian (2026-10-17) — Track 0/A/B/C, temuan 1–14 (5 diputuskan opsi b, 11 diperbaiki) dan teaching doc selesai di `main`; sisa: D3 (Android + graphify update). Flag server `BUILDER_MODULE_BRIEFS_ENABLED` default MATI
 **TRD**: [`TRD-BLDR-001-module-briefs.md`](../../trd/features/TRD-BLDR-001-module-briefs.md) (Fase 1) ·
 [`TRD-BLDR-002-scenario-simulation.md`](../../trd/features/TRD-BLDR-002-scenario-simulation.md) (Fase 2)
 **Induk**: [`PLAN-builder-interview-chat.md`](PLAN-builder-interview-chat.md)
@@ -88,7 +88,7 @@ Verifikasi awal sudah dilakukan (lihat TRD-BLDR-002 §1): `PrototypeSession` sud
 - [x] SC1 `ScenarioRun` murni (nol dependensi HTTP, dibuktikan tes refleksi)
 - [x] SC2 `ScenarioPicker` + `ScenarioPrototypeHost` memakai ulang `MoqupsFlowNavigator` (`startIndex`/`onAdvance` opsional, `MoqupsWireframeCanvas.kt` tetap 560 baris) + rantai skenario di tab Alur Data (kode + tes; **tampilan belum dilihat mata** -> SD1)
 - [x] SC4 Klien: `BuilderApiClient.proposeScenarios/confirmScenario`, notifikasi murni, aksi Usulkan/Konfirmasi
-- [ ] SC3 Pertanyaan tingkat skenario di utas Semua (FR-9, <= 2 per skenario, badge ikut) — **BELUM**: Discovery Note selesai 2026-10-17 di [`PLAN-builder-scenario-questions.md`](PLAN-builder-scenario-questions.md) (D1–D3 disetujui 2026-10-18); belum ada kode
+- [x] SC3 (2026-10-18, lihat [`PLAN-builder-scenario-questions.md`](PLAN-builder-scenario-questions.md): model sungguhan + cek visual) Pertanyaan tingkat skenario di utas Semua (FR-9, <= 2 per skenario, badge ikut) — semula **BELUM**: Discovery Note selesai 2026-10-17 di [`PLAN-builder-scenario-questions.md`](PLAN-builder-scenario-questions.md) (D1–D3 disetujui 2026-10-18); belum ada kode
 - [x] S-integrasi (2026-10-16, koordinator): wiring `DiscoveryScenarioService` di `builderRoutes`; kontrak galat final server<->service (`ScenarioInvalidException` -> 422, `LockedException` -> 423, id tak ada -> 404 berbadan JSON `{error}`; heuristik regex pada pesan DIHAPUS); klien memakai `DefaultScenarioCarryRule` (pengganti sementara `StraightCarryRule` dihapus)
 - [~] SD1 Cek visual (2026-10-16, **model sungguhan `deepseek-flash`**, tenant `wemade-demo`, DB scratch; lihat juga "Cek visual draf klinik" di bawah): bubble BRIEF, baris Skenario, pemutar 7 langkah berurutan skenario, chip "Skenario (1)" hanya menghitung yang terkonfirmasi, rantai skenario di Alur Data, 404 `{error}` untuk id tak ada. **Belum**: `bordir-uji` (tidak ada di seed), klik "Lanjut Alur" sampai membawa data (lihat temuan 3), 2 tenant
 - [ ] SD2 nol HTTP saat simulasi **di UI nyata** (terbukti hanya lewat tes refleksi) · [x] SD2 (2026-10-17, UI nyata) nol request `/api/` saat memilih skenario, Lanjut Alur, mundur, maju (log resource browser; kontrol: klik Segarkan ringkasan tertangkap sebagai `POST /chat/briefs`); skenario disisipkan di DB scratch karena pembangun deterministik tak mengarang tanpa handoff wawancara · [x] SD3 teaching doc + `TASKS-SUMMARY` (2026-10-17)
