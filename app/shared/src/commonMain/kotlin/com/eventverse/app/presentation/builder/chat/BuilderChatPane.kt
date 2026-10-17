@@ -177,7 +177,7 @@ fun BuilderChatPane(
             briefsBusy = false
         }
     }
-    val scenarioActions = rememberScenarioActions(client) { reloadDraft() }
+    val scenarioActions = rememberScenarioActions(client) { reloadDraft(); reloadChat() }   // propose bisa membuat pesan pertanyaan skenario (FR-9)
     LaunchedEffect(shown.size) {
         if (shown.isNotEmpty()) listState.animateScrollToItem(shown.lastIndex)
     }
